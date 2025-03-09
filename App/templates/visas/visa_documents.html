@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>Visa Documents 管理</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bulma/0.9.3/css/bulma.min.css">
+</head>
+<body>
+    <section class="section">
+        <div class="container">
+            <h1 class="title">Visa Documents 管理</h1>
+
+            <!-- 筛选签证类型 -->
+            <form method="GET" action="{{ url_for('visa_routes.manage_visas') }}">
+                <div class="field">
+                    <label class="label">筛选签证类型</label>
+                    <div class="control">
+                        <div class="select">
+                            <select name="visa_type" onchange="this.form.submit()">
+                                <option value="">显示全部</option>
+                                {% for type in visa_types %}
+                                <option value="{{ type }}" {% if request.args.get('visa_type') == type %}selected{% endif %}>{{ type }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </form>
+
+            <!-- 签证记录列表 -->
+            <table class="table is-fullwidth is-striped">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>签证类型</th>
+                        <th>新加坡身份</th>
+                        <th>文件资料</th>
+                        <th>补充信息</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for document in documents %}
+                    <tr>
+                        <td>{{ document.id }}</td>
+                        <td>{{ document.visa_type }}</td>
+                        <td>{{ document.singapore_identity }}</td>
+                        <td>{{ document.document_info[:50] }}...</td>
+                        <td>{{ document.additional_info[:50] }}...</td>
+                        <td>
+                            <a href="{{ url_for('visa_routes.edit_visa', id=document.id) }}" class="button is-small is-info">编辑</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+</body>
+</html>

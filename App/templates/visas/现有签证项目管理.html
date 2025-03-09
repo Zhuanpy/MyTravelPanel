@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>签证项目管理</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <style>
+        /* 通用样式 */
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f9;
+        }
+        .container {
+            max-width: 1500px;
+            margin: 20px auto;
+            padding: 20px;
+            background: #fff;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+        }
+        h1 {
+            color: #4CAF50;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .home-link {
+            display: block;
+            text-align: left;
+            margin-bottom: 20px;
+            font-size: 16px;
+        }
+        .home-link a {
+            text-decoration: none;
+            color: #007BFF;
+        }
+        .home-link a:hover {
+            text-decoration: underline;
+        }
+
+        /* 排序选择样式 */
+        .sort-options {
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 20px;
+        }
+        .sort-options label {
+            margin-right: 10px;
+            font-weight: bold;
+        }
+        .sort-options select {
+            padding: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        /* 表格样式 */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        th, td {
+            padding: 10px;
+            text-align: left;
+            border: 1px solid #ddd;
+        }
+        th {
+            background-color: #f2f2f2;
+            color: #333;
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        tr:hover {
+            background-color: #f1f1f1;
+        }
+        .action-link, .delete-link {
+            text-decoration: none;
+            color: #007BFF;
+        }
+        .action-link:hover, .delete-link:hover {
+            text-decoration: underline;
+        }
+        .delete-link {
+            color: #FF0000;
+        }
+
+        /* 输入框样式 */
+        .input-field {
+            width: 150px;
+            padding: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .select-field {
+            padding: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="home-link">
+            <a href="/">Home page</a>
+        </div>
+        <h1>现有签证项目管理</h1>
+
+        <div class="sort-options">
+            <form method="get" action="{{ url_for('visa_routes.show_current_all_projects') }}">
+                <!-- 签证状态筛选 -->
+                <label for="visa_status" style="margin-left: 20px;">签证状态：</label>
+                
+                <select name="visa_status" id="visa_status" onchange="this.form.submit()">
+                    <option value="pending_submission" {% if visa_status == 'pending_submission' %}selected{% endif %}>待递交</option>
+                    <option value="submitted" {% if visa_status == 'submitted' or visa_status is not defined %}selected{% endif %}>待出签</option>
+                    <option value="approved" {% if visa_status == 'approved' %}selected{% endif %}>已出签</option>
+                    <option value="all" {% if visa_status == 'all' %}selected{% endif %}>全部</option>
+                </select>
+        
+                <!-- 排序选项 -->
+                <label for="sort_by">排序方式：</label>
+                <select name="sort_by" id="sort_by" onchange="this.form.submit()">
+                    <option value="name" {% if sort_by == 'name' %}selected{% endif %}>按项目名称</option>
+                    <option value="created_date" {% if sort_by == 'created_date' %}selected{% endif %}>按创建时间</option>
+                </select>
+            </form>
+        </div>
+
+        <!-- 项目列表 -->
+        <table>
+            <thead>
+                <tr>
+                    <th>项目ID</th>
+                    <th>项目名称</th>
+                    <th>创建时间</th>
+                    <th>签证状态</th>
+                    <th>预估日期</th>
+                    <th>保存修改</th>
+                    <th>打开项目</th>
+                    <th>删除项目</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for project in projects %}
+                <form method="POST" action="{{ url_for('visa_routes.update_current_project', project_id=project.id) }}">
+                    <!-- 隐藏字段，用于传递签证状态和排序方式 -->
+                    <input type="hidden" name="current_visa_status" value="{{ visa_status }}">
+                    <input type="hidden" name="current_sort_by" value="{{ sort_by }}">
+                    <tr>
+                        <td>{{ project.id }}</td>
+                        <td>{{ project.name }}</td>
+                        <td>{{ project.created_date.strftime('%Y-%m-%d') }}</td>
+                        <td>
+                            <select name="visa_status" class="select-field">
+                                <option value="待递交" {% if project.visa_status == '待递交' %}selected{% endif %}>待递交</option>
+                                <option value="待出签" {% if project.visa_status == '待出签' %}selected{% endif %}>待出签</option>
+                                <option value="已出签" {% if project.visa_status == '已出签' %}selected{% endif %}>已出签</option>
+                            </select>
+                        </td>
+                        <td><input type="text" name="estimated_date" value="{{ project.estimated_date }}" class="input-field"></td>
+                        <td>
+                            <button type="submit" class="action-link">保存修改</button>
+                        </td>
+                        <td>
+                            <a class="open-link" href="{{ url_for('visa_routes.open_current_project_file', file_name=project.name, visa_status=visa_status, sort_by=sort_by) }}">
+                                打开项目
+                            </a>
+                        </td>
+                        <td>
+                            <a class="delete-link" href="#" data-project-id="{{ project.id }}" onclick="deleteProject(event, this)">删除</a>
+                        </td>
+                    </tr>
+                </form>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</body>
+
+    <script>
+        function deleteProject(event, element) {
+            event.preventDefault(); // 阻止默认跳转行为
+
+            const projectId = element.getAttribute('data-project-id');
+            const url = `/visa/visa/delete_current_project/${projectId}`;
+            
+            if (confirm("确定要删除此项目吗？")) {
+                fetch(url, {
+                    method: 'POST', // 使用 POST 方法
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert("项目删除成功！");
+                        // 从 DOM 中移除对应的表格行
+                        const row = element.closest('tr');
+                        row.parentNode.removeChild(row);
+                    } else {
+                        alert("删除失败：" + data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error("Error deleting project:", error);
+                    alert("请求失败，请稍后重试！");
+                });
+            }
+        }
+    </script>
+
+</html>

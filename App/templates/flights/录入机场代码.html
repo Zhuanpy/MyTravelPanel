@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>录入机场信息</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+  <script>
+    document.addEventListener("DOMContentLoaded", function() {
+      const airportContainer = document.querySelector('.airport-container');
+      const addAirportButton = document.querySelector('#addAirportButton');
+      const submitButton = document.querySelector('#submitButton');
+      
+      addAirportButton.addEventListener('click', function() {
+        const airportFormHTML = `
+          <div class="grid grid-cols-12 gap-4 items-center airport-entry">
+            <div class="col-span-3">
+              <label class="block font-medium">IATA 代码:</label>
+              <input type="text" name="iata[]" placeholder="例如: SIN" class="w-full border rounded p-2">
+            </div>
+            <div class="col-span-3">
+              <label class="block font-medium">城市名:</label>
+              <input type="text" name="city[]" placeholder="例如: 新加坡" class="w-full border rounded p-2">
+            </div>
+            <div class="col-span-3">
+              <label class="block font-medium">机场中文名:</label>
+              <input type="text" name="airportNameCN[]" placeholder="例如: 樟宜机场" class="w-full border rounded p-2">
+            </div>
+            <div class="col-span-3">
+              <label class="block font-medium">机场英文名:</label>
+              <input type="text" name="airportNameEN[]" placeholder="例如: Changi Airport" class="w-full border rounded p-2">
+            </div>
+            <div class="col-span-2">
+              <button type="button" class="w-full bg-red-500 text-white rounded p-2 airport-delete-button">删除机场信息</button>
+            </div>
+          </div>
+        `;
+        airportContainer.insertAdjacentHTML('beforeend', airportFormHTML);
+        initializeDeleteButtons();
+      });
+
+      function initializeDeleteButtons() {
+        document.querySelectorAll('.airport-delete-button').forEach(button => {
+          button.removeEventListener('click', handleAirportDelete);
+          button.addEventListener('click', handleAirportDelete);
+        });
+      }
+
+      function handleAirportDelete(event) {
+        event.target.closest('.airport-entry').remove();
+      }
+
+      initializeDeleteButtons();
+    });
+  </script>
+</head>
+<body class="bg-gray-100">
+  
+  <div class="container mx-auto p-6">
+    <a href="/">Home page</a>
+    <h1 class="text-center text-2xl font-bold mb-6">录入机场信息</h1>
+    <div class="bg-white p-6 rounded shadow-md">
+      <h2 class="text-lg font-semibold mb-4">输入机场信息</h2>
+	  
+      <form id="airportForm" method="POST" action="{{url_for('flight_blue.input_airport_code_info') }}">
+        <div class="airport-container space-y-4">
+          <div class="grid grid-cols-12 gap-4 items-center airport-entry">
+            <div class="col-span-3">
+              <label class="block font-medium">IATA 代码:</label>
+              <input type="text" name="iata[]" placeholder="例如: SIN" class="w-full border rounded p-2">
+            </div>
+            <div class="col-span-3">
+              <label class="block font-medium">城市名:</label>
+              <input type="text" name="city[]" placeholder="例如: 新加坡" class="w-full border rounded p-2">
+            </div>
+            <div class="col-span-3">
+              <label class="block font-medium">机场中文名:</label>
+              <input type="text" name="airportNameCN[]" placeholder="例如: 樟宜机场" class="w-full border rounded p-2">
+            </div>
+            <div class="col-span-3">
+              <label class="block font-medium">机场英文名:</label>
+              <input type="text" name="airportNameEN[]" placeholder="例如: Changi Airport" class="w-full border rounded p-2">
+            </div>
+            <div class="col-span-2">
+              <button type="button" class="w-full bg-red-500 text-white rounded p-2 airport-delete-button">删除机场信息</button>
+            </div>
+          </div>
+        </div>
+        <div class="mt-6 flex justify-between">
+          <button type="button" id="addAirportButton" class="bg-blue-500 text-white rounded p-2">添加机场信息</button>
+          <button type="submit" id="submitButton" class="bg-green-500 text-white rounded p-2">提交</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</body>
+</html>

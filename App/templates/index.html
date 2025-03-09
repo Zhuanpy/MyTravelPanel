@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>工作管理系统</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #3182CE;
+            --primary-hover: #2C5282;
+            --bg-color: #F7FAFC;
+            --card-bg: #FFFFFF;
+            --text-primary: #2D3748;
+            --text-secondary: #4A5568;
+            --border-color: #E2E8F0;
+            
+            --blue-bg: #EBF8FF;
+            --blue-hover: #BEE3F8;
+            --green-bg: #F0FFF4;
+            --green-hover: #C6F6D5;
+            --purple-bg: #FAF5FF;
+            --purple-hover: #E9D8FD;
+            --yellow-bg: #FFFBEB;
+            --yellow-hover: #FEFCBF;
+            --red-bg: #FFF5F5;
+            --red-hover: #FED7D7;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            line-height: 1.5;
+        }
+
+        .container {
+            max-width: 1280px;
+            margin: 2rem auto;
+            padding: 0 1.5rem;
+        }
+
+        .page-header {
+            text-align: center;
+            margin-bottom: 3rem;
+            padding: 2rem 0;
+            background: var(--card-bg);
+            border-radius: 1rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .page-header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 1rem;
+        }
+
+        .section-card {
+            background: var(--card-bg);
+            border-radius: 1rem;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .section-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        .section-header h3 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin: 0;
+        }
+
+        .link-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .text-link {
+            color: var(--primary-color);
+            text-decoration: none;
+            font-weight: 500;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            transition: all 0.2s ease;
+        }
+
+        .text-link:hover {
+            background-color: var(--blue-hover);
+            text-decoration: none;
+        }
+
+        .button-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.75rem 1.5rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            border-radius: 0.5rem;
+            border: 1px solid var(--border-color);
+            transition: all 0.2s ease;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        .btn-blue {
+            background-color: var(--blue-bg);
+            color: var(--text-primary);
+        }
+
+        .btn-blue:hover {
+            background-color: var(--blue-hover);
+        }
+
+        .btn-green {
+            background-color: var(--green-bg);
+            color: var(--text-primary);
+        }
+
+        .btn-green:hover {
+            background-color: var(--green-hover);
+        }
+
+        .btn-purple {
+            background-color: var(--purple-bg);
+            color: var(--text-primary);
+        }
+
+        .btn-purple:hover {
+            background-color: var(--purple-hover);
+        }
+
+        .btn-yellow {
+            background-color: var(--yellow-bg);
+            color: var(--text-primary);
+        }
+
+        .btn-yellow:hover {
+            background-color: var(--yellow-hover);
+        }
+
+        .btn-red {
+            background-color: var(--red-bg);
+            color: var(--text-primary);
+        }
+
+        .btn-red:hover {
+            background-color: var(--red-hover);
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+
+            .section-card {
+                padding: 1.5rem;
+            }
+
+            .button-group {
+                gap: 0.75rem;
+            }
+
+            .btn {
+                padding: 0.5rem 1rem;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <header class="page-header">
+            <h1>工作管理系统</h1>
+        </header>
+
+        <!-- 签证区域 -->
+        <section class="section-card" style="border-top: 4px solid var(--primary-color)">
+            <div class="section-header">
+                <h3>签证管理</h3>
+            </div>
+            <div class="link-group">
+                <a href="{{ url_for('visa_routes.open_visa_folder') }}" class="text-link">资源文件夹</a>
+                <a href="{{ url_for('index.add_visa_information') }}" class="text-link">添加签证信息</a>
+                <a href="{{ url_for('visa_routes.update_visa_documents') }}" class="text-link">更新签证文档</a>
+                <a href="{{ url_for('visa_routes.manage_visas') }}" class="text-link">管理签证数据库</a>
+                <a href="{{ url_for('visa_routes.show_current_all_projects') }}" class="text-link">项目管理</a>
+            </div>
+            <div class="button-group">
+                {% for visa in visa_categories %}
+                    <a href="{{ url_for('visa_routes.visa_processing', country=visa.visa_type_name) }}"
+                       class="btn btn-blue">
+                       {{ visa.visa_type_name }}
+                    </a>
+                {% endfor %}
+            </div>
+        </section>
+
+        <!-- 机票区域 -->
+        <section class="section-card" style="border-top: 4px solid #48BB78">
+            <div class="section-header">
+                <h3>机票管理</h3>
+            </div>
+            <div class="link-group">
+                <a href="#" id="openFlightProjectFolder" class="text-link">资源文件夹</a>
+                <a href="#" id="openRefundFolder" class="text-link">退票文件夹</a>
+                <a href="#" class="text-link">项目文件夹</a>
+                <a href="#" class="text-link">创建项目</a>
+                <a href="#" class="text-link">项目管理</a>
+            </div>
+            <div class="button-group">
+                <a href="{{url_for('flight_blue.itinerary_conversion')}}" class="btn btn-green">简化行程 TRAVELPORT</a>
+                <a href="{{url_for('flight_blue.simplify_itinerary_by_flight_and_date')}}" class="btn btn-green">简化行程</a>
+                <a href="{{url_for('flight_blue.flight_to_athina_page')}}" class="btn btn-green">Athina代码</a>
+                <a href="{{url_for('flight_blue.input_flight_schedule_info')}}" class="btn btn-green">航班时刻表</a>
+                <a href="{{url_for('flight_blue.input_airport_code_info')}}" class="btn btn-green">机场代码</a>
+                <a href="{{url_for('flight_blue.confirmation_detail')}}" class="btn btn-green">机票文件</a>
+            </div>
+        </section>
+
+        <!-- 配套区域 -->
+        <section class="section-card" style="border-top: 4px solid #9F7AEA">
+            <div class="section-header">
+                <h3>配套管理</h3>
+            </div>
+            <div class="link-group">
+                <a href="#" id="openPackageFolder" class="text-link">资源文件夹</a>
+                <a href="{{url_for('package_routes.manage_cities')}}" class="text-link">城市资源</a>
+                <a href="{{url_for('supplier.suppliers')}}" class="text-link">供应商管理</a>
+                <a href="{{url_for('product_details.tour_product_details')}}" class="text-link">产品展示</a>
+                <a href="#" id="openProjectFolder" class="text-link">项目文件夹</a>
+                <a href="{{url_for('package_routes.handle_tour_project')}}" class="text-link">创建项目</a>
+                <a href="{{ url_for('package_routes.show_all_tour_project') }}" class="text-link">项目管理</a>
+            </div>
+            <div class="button-group">
+                {% for package in packages %}
+                    <a href="{{ url_for('package_routes.our_package', city_name=package.city_name) }}" 
+                       class="btn btn-purple">
+                       {{ package.city_name }}配套
+                    </a>
+                {% endfor %}
+            </div>
+        </section>
+
+        <!-- 文件处理区域 -->
+        <section class="section-card" style="border-top: 4px solid #ECC94B">
+            <div class="section-header">
+                <h3>文件处理</h3>
+            </div>
+            <div class="button-group">
+                <a href="{{url_for('files_process.file_processing')}}" class="btn btn-yellow">PDF处理</a>
+                <a href="{{url_for('files_process.open_FuXin_pdf')}}" class="btn btn-yellow">PDF工具</a>
+                <a href="{{url_for('files_process.open_Photoshop')}}" class="btn btn-yellow">Photoshop</a>
+                <a href="{{url_for('files_process.open_Athina')}}" class="btn btn-yellow">Athina</a>
+
+                <a href="{{url_for('account_routes.account_page')}}" class="btn btn-yellow">账号管理</a>
+
+                <a href="{{url_for('utils_blue.render_pomodoro')}}" class="btn btn-yellow">番茄工作法</a>
+                <a href="{{url_for('utils_blue.render_deepseek_chat')}}" class="btn btn-yellow">DeepSeek</a>
+                <a href="{{url_for('company_info.company_header')}}" class="btn btn-yellow">公司抬头</a>
+            </div>
+        </section>
+
+        <!-- 账单处理 -->
+        <section class="section-card" style="border-top: 4px solid #F56565">
+            <div class="section-header">
+                <h3>账单处理</h3>
+            </div>
+            <div class="link-group">
+                <a href="#" id="OpenBillProject" class="text-link">项目文件夹</a>
+            </div>
+            <div class="button-group">
+                <a href="{{url_for('statement_routes.uob_bank_processing')}}" class="btn btn-red">UOB 银行账单</a>
+                <a href="{{url_for('statement_routes.athina_page')}}" class="btn btn-red">Athina 账单</a>
+                <a href="{{url_for('statement_routes.company_bill')}}" class="btn btn-red">公司账单</a>
+            </div>
+        </section>
+    </div>
+
+    <script src="/static/Js/ff.js"></script>
+    <script>
+        // 文件夹操作事件处理
+        const folderHandlers = {
+            'openPackageFolder': ['{{ url_for("index.open_package_folder") }}', '资源文件夹已打开'],
+            'openProjectFolder': ['{{ url_for("index.open_package_project_folder") }}', '项目文件夹已打开'],
+            'openFlightProjectFolder': ['{{ url_for("flight_blue.open_project_folder") }}', '航班项目文件夹已打开'],
+            'openRefundFolder': ['{{ url_for("flight_blue.open_refund_folder") }}', '退票文件夹已打开'],
+            'OpenBillProject': ['{{ url_for("index.open_bill_project_folder") }}', '账单文件夹已打开']
+        };
+
+        Object.entries(folderHandlers).forEach(([id, [url, message]]) => {
+            const element = document.getElementById(id);
+            if (element) {
+                element.addEventListener('click', (event) => {
+                    event.preventDefault();
+                    sendPostRequest(url, message);
+                });
+            }
+        });
+    </script>
+</body>
+</html>

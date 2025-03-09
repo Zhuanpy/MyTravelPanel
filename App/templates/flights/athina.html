@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flight Selection</title>
+    <style>
+        .flight-box {
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin: 5px;
+            width: 200px; /* 控制方框宽度 */
+            height: 70px; /* 控制方框高度 */
+            display: inline-block; /* 让方框并排显示 */
+            vertical-align: top; /* 垂直对齐方式 */
+            position: relative; /* 相对定位 */
+            transition: background-color 0.3s; /* 添加过渡效果 */
+        }
+
+        .flight-box input[type="radio"] {
+            position: absolute; /* 绝对定位 */
+            left: 5px; /* 调整位置 */
+            top: 50%; /* 调整位置 */
+            transform: translateY(-50%); /* 垂直居中 */
+        }
+
+        .flight-info {
+            margin-left: 25px; /* 调整位置 */
+            font-size: 12.5px; /* 调整文字大小 */
+            line-height: 0.8; /* 调整行间距 */
+        }
+
+        .flight-box input[type="checkbox"] + .flight-info {
+            display: inline-block;
+            vertical-align: middle;
+        }
+
+        .flight-box input[type="checkbox"]:checked + .flight-info {
+            background-color: #333; /* 选中时改变背景颜色 */
+            color: #fff; /* 改变文字颜色 */
+        }
+
+        .row {
+            clear: both; /* 清除浮动 */
+        }
+    </style>
+</head>
+<body>
+    <h2>常用航班</h2>
+	
+    <form action="/result" method="post">
+        
+		<div class="row">
+            {% for flight in flights %}
+                <div class="flight-box">
+                    <input type="radio" id="flight{{ loop.index }}" name="flight" value="{{ flight }}">
+                    <label for="flight{{ loop.index }}"></label>
+                    <div class="flight-info">
+                        <p>{{ flight[0] }}</p>
+                        <p>{{ flight[1] }}</p>
+                        <p>{{ flight[2] }}</p>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+		<br>
+		<div>
+		    <label for="date"> 出发日期: </label>
+		    <input type="text" id="date" name="date">
+		</div>
+        <br>
+        <button type="submit"> 确认 </button>
+    </form>
+
+    <br>
+    <div class="output-container">
+    <label for="output_text">输出行程：</label><br><br>
+    <textarea id="output_text" name="output_text" rows="10" style="width: 100%;" >{{ output_text }}</textarea><br><br>
+    </div>
+</body>
+</html>
