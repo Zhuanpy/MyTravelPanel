@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ATHINA 机票订单代码生成器</title>
+    <style>
+        :root {
+            --primary-color: #2563eb;
+            --secondary-color: #1e40af;
+            --danger-color: #dc2626;
+            --danger-hover: #b91c1c;
+            --background-color: #f3f4f6;
+            --card-background: #ffffff;
+            --border-color: #e5e7eb;
+            --text-color: #1f2937;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            line-height: 1.5;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background-color: var(--card-background);
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+
+        .header {
+            margin-bottom: 2rem;
+        }
+
+        .header a {
+            display: inline-flex;
+            align-items: center;
+            color: var(--primary-color);
+            text-decoration: none;
+            font-weight: 500;
+            margin-bottom: 1rem;
+        }
+
+        .header a:hover {
+            text-decoration: underline;
+        }
+
+        .header a:before {
+            content: "←";
+            margin-right: 0.5rem;
+        }
+
+        h1 {
+            color: var(--text-color);
+            font-size: 1.875rem;
+            text-align: center;
+            margin: 0;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        h2 {
+            color: var(--text-color);
+            font-size: 1.25rem;
+            margin: 1.5rem 0 1rem;
+        }
+
+        .input-container {
+            background-color: var(--background-color);
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+        }
+
+        .input-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr auto;
+            gap: 1rem;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding: 1rem;
+            background-color: var(--card-background);
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .input-group label {
+            font-weight: 500;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 0.875rem;
+            transition: border-color 0.15s ease;
+        }
+
+        .input-group input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+
+        .delete-btn {
+            background-color: var(--danger-color);
+            color: white;
+            border: none;
+            padding: 0.75rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background-color 0.15s ease;
+        }
+
+        .delete-btn:hover {
+            background-color: var(--danger-hover);
+        }
+
+        .button-container {
+            display: flex;
+            justify-content: flex-end;
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+
+        .button {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background-color 0.15s ease;
+        }
+
+        .button:hover {
+            background-color: var(--secondary-color);
+        }
+
+        .textarea {
+            width: 100%;
+            padding: 1rem;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background-color: var(--background-color);
+            resize: none;
+            height: 300px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 0.875rem;
+            line-height: 1.7;
+            white-space: pre;
+        }
+
+        .textarea:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+
+        .dropdown-list {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            position: absolute;
+            background-color: var(--card-background);
+            z-index: 999;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            width: calc(100% - 2px);
+        }
+
+        .dropdown-item {
+            padding: 0.75rem 1rem;
+            cursor: pointer;
+            transition: background-color 0.15s ease;
+        }
+
+        .dropdown-item:hover {
+            background-color: var(--background-color);
+        }
+
+        @media (max-width: 768px) {
+            .input-group {
+                grid-template-columns: 1fr;
+            }
+            
+            .container {
+                padding: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <a href="/">返回首页</a>
+            <h1>ATHINA 机票订单代码生成器</h1>
+        </div>
+
+        <div class="input-container">
+            <h2>航班信息输入</h2>
+            <div id="inputContainer">
+                <div class="input-group">
+                    <label>
+                        航班日期
+                        <input type="text" class="flightDate" placeholder="例如: 01JUN" 
+                               onblur="saveInput(this)" ondblclick="showDropdown(this)">
+                    </label>
+                    <label>
+                        航班号码
+                        <input type="text" class="flightNumber" placeholder="例如: TR 898" 
+                               onblur="saveInput(this)" ondblclick="showDropdown(this)">
+                    </label>
+                    <button class="delete-btn" onclick="removeInput(this)">删除</button>
+                </div>
+            </div>
+            <div class="button-container">
+                <button class="button" onclick="addInput()">添加航班</button>
+            </div>
+        </div>
+
+        <div class="output-section">
+            <h2>行程代码输出</h2>
+            <textarea id="itinerary" class="textarea" placeholder="生成的行程代码将显示在这里..."></textarea>
+            <div class="button-container">
+                <button class="button" onclick="sendData()">生成代码</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 保存输入框的值到 LocalStorage
+        function saveInput(input) {
+            const key = input.className;
+            let history = JSON.parse(localStorage.getItem(key)) || [];
+            if (input.value && !history.includes(input.value)) {
+                history.push(input.value);
+                localStorage.setItem(key, JSON.stringify(history));
+            }
+        }
+
+        // 双击输入框时显示历史数据的下拉列表
+        function showDropdown(input) {
+            // 移除任何现有的下拉列表
+            const existingDropdown = input.parentElement.querySelector('.dropdown-list');
+            if (existingDropdown) {
+                existingDropdown.remove();
+            }
+
+            const key = input.className;
+            const history = JSON.parse(localStorage.getItem(key)) || [];
+            if (history.length > 0) {
+                const dropdown = document.createElement('div');
+                dropdown.className = 'dropdown-list';
+                history.forEach(item => {
+                    const div = document.createElement('div');
+                    div.className = 'dropdown-item';
+                    div.textContent = item;
+                    div.onclick = function() {
+                        input.value = item;
+                        dropdown.remove();
+                    };
+                    dropdown.appendChild(div);
+                });
+                input.parentElement.appendChild(dropdown);
+
+                // 点击外部时关闭下拉列表
+                document.addEventListener('click', function closeDropdown(e) {
+                    if (!dropdown.contains(e.target) && e.target !== input) {
+                        dropdown.remove();
+                        document.removeEventListener('click', closeDropdown);
+                    }
+                });
+            }
+        }
+
+        // 页面加载时恢复所有输入框的值
+        document.addEventListener('DOMContentLoaded', () => {
+            const inputs = document.querySelectorAll('.flightDate, .flightNumber');
+            inputs.forEach(input => {
+                const key = input.className;
+                const savedValue = localStorage.getItem(key);
+                if (savedValue) {
+                    input.value = JSON.parse(savedValue).pop();
+                }
+            });
+        });
+
+        // 添加新的输入框组
+        let inputCounter = 0;
+        function addInput() {
+            const container = document.getElementById('inputContainer');
+            const inputGroup = document.createElement('div');
+            inputGroup.className = 'input-group';
+            inputGroup.dataset.id = inputCounter++;
+            inputGroup.innerHTML = `
+                <label>
+                    航班日期
+                    <input type="text" class="flightDate" placeholder="例如: 01JUN" 
+                           onblur="saveInput(this)" ondblclick="showDropdown(this)">
+                </label>
+                <label>
+                    航班号码
+                    <input type="text" class="flightNumber" placeholder="例如: TR 898" 
+                           onblur="saveInput(this)" ondblclick="showDropdown(this)">
+                </label>
+                <button class="delete-btn" onclick="removeInput(this)">删除</button>
+            `;
+            container.appendChild(inputGroup);
+        }
+
+        // 删除输入框组
+        function removeInput(button) {
+            const inputGroup = button.closest('.input-group');
+            inputGroup.remove();
+        }
+
+        // 发送数据到后端
+        function sendData() {
+            const flightNumbers = document.querySelectorAll('.flightNumber');
+            const flightDates = document.querySelectorAll('.flightDate');
+            const data = [];
+
+            flightNumbers.forEach((flightNumber, index) => {
+                const flightDate = flightDates[index];
+                if (flightNumber.value && flightDate.value) {
+                    data.push({
+                        flightNumber: flightNumber.value,
+                        flightDate: flightDate.value
+                    });
+                }
+            });
+
+            if (data.length === 0) {
+                alert('请至少输入一组完整的航班信息');
+                return;
+            }
+
+            const textarea = document.getElementById('itinerary');
+            textarea.value = '处理中...';
+
+            fetch('{{ url_for('flight_blue.flight_to_athina_page') }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.error) {
+                    textarea.value = `错误: ${result.error}`;
+                } else {
+                    textarea.value = result.itinerary;
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                textarea.value = `发生错误: ${error.message}`;
+            });
+        }
+    </script>
+</body>
+</html>

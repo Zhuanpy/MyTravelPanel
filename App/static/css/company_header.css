@@ -1,0 +1,118 @@
+/* A4 纸张样式 */
+@page {
+    size: A4;
+    margin: 0;
+}
+@media print {
+    body {
+        width: 210mm;
+        height: 297mm;
+        margin: 0;
+        padding: 20mm;
+    }
+}
+body {
+    margin: 0;
+    padding: 20px;
+    font-family: Arial, sans-serif;
+    background-color: white;
+}
+.container {
+    width: 210mm; /* A4 宽度 */
+    margin: 0 auto;
+    padding: 0;
+}
+/* 公司抬头样式 */
+.company-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-start;
+    padding: 10px;
+    background-color: white;
+    margin-bottom: 20px;
+    width: 100%;
+}
+/* 左侧logo区域 */
+.company-logo {
+    flex: 0 0 100px;
+    width: 100px;
+    height: 100px;
+    padding: 0;
+    margin-right: 20px;
+}
+.company-logo img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+/* 右侧信息区域 */
+.company-info {
+    flex: 1;
+    padding-left: 20px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    height: 100px;
+}
+.company-info h1 {
+    margin: 0;
+    font-size: 20px;
+    color: #000;
+    font-weight: bold;
+    line-height: 1.2;
+}
+.company-info p {
+    margin: 0;
+    color: #000;
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+/* 打印样式覆盖 */
+@media print {
+    .company-header {
+        display: flex !important;
+        align-items: flex-start !important;
+        justify-content: flex-start !important;
+        padding: 0 !important;
+        margin-bottom: 30px !important;
+        width: 100% !important;
+    }
+    
+    .company-logo {
+        flex: 0 0 100px !important;
+        width: 100px !important;
+        height: 100px !important;
+        margin-right: 20px !important;
+    }
+    
+    .company-logo img {
+        width: 100% !important;
+        height: 100% !important;
+        object-fit: contain !important;
+    }
+    
+    .company-info {
+        flex: 1 !important;
+        padding-left: 20px !important;
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: space-between !important;
+        height: 100px !important;
+    }
+    
+    .company-info h1 {
+        margin: 0 !important;
+        font-size: 20px !important;
+        color: #000 !important;
+        font-weight: bold !important;
+        line-height: 1.2 !important;
+    }
+    
+    .company-info p {
+        margin: 0 !important;
+        color: #000 !important;
+        font-size: 12px !important;
+        line-height: 1.5 !important;
+    }
+} 

@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>编辑供应商信息</title>
+    <style>
+        /* 基础样式 */
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f7fc;
+            margin: 0;
+            padding: 0;
+        }
+
+        .container {
+            width: 80%;
+            max-width: 700px;
+            margin: 50px auto;
+            background-color: #fff;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        h2 {
+            text-align: center;
+            color: #333;
+            font-size: 28px;
+            margin-bottom: 20px;
+        }
+
+        form {
+            display: grid;
+            grid-template-columns: 1fr;
+            grid-gap: 20px;
+        }
+
+        label {
+            font-weight: bold;
+            color: #555;
+            margin-bottom: 5px;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 16px;
+            color: #333;
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        input[type="text"]:focus {
+            border-color: #4CAF50;
+            outline: none;
+            box-shadow: 0 0 5px rgba(76, 175, 80, 0.5);
+        }
+
+        button {
+            width: 100%;
+            padding: 14px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 18px;
+            cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #45a049;
+            transform: scale(1.05);
+        }
+
+        button:active {
+            transform: scale(1);
+        }
+
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            .container {
+                width: 90%;
+                padding: 20px;
+            }
+
+            h2 {
+                font-size: 24px;
+            }
+
+            button {
+                font-size: 16px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        
+        <h2>编辑供应商信息: {{ supplier.name }}</h2>
+        
+        <form method="POST" action="{{ url_for('package_routes.edit_supplier_info', supplier_name=supplier_name) }}">
+            <div>
+                <input type="text" id="name" name="name" value="{{ supplier.name }}" required>
+            </div>
+            <div>
+                <label for="address">地址:</label>
+                <input type="text" id="address" name="address" value="{{ supplier.address }}" required>
+            </div>
+            <div>
+                <label for="contact_person">联系人:</label>
+                <input type="text" id="contact_person" name="contact_person" value="{{ supplier.contact_person }}">
+            </div>
+            <div>
+                <label for="contact_info">联系方式:</label>
+                <input type="text" id="contact_info" name="contact_info" value="{{ supplier.contact_info }}">
+            </div>
+            <div>
+                <label for="status">状态:</label>
+                <input type="text" id="status" name="status" value="{{ supplier.status }}">
+            </div>
+            <div>
+                <label for="country">国家:</label>
+                <input type="text" id="country" name="country" value="{{ supplier.country }}">
+            </div>
+            <div>
+                <label for="region">地区:</label>
+                <input type="text" id="region" name="region" value="{{ supplier.region }}">
+            </div>
+            <div>
+                <label for="rating">评级:</label>
+                <input type="text" id="rating" name="rating" value="{{ supplier.rating }}">
+            </div>
+            <div>
+                <label for="notes">备注:</label>
+                <input type="text" id="notes" name="notes" value="{{ supplier.notes }}">
+            </div>
+            <button type="submit">提交修改</button>
+        </form>
+    </div>
+</body>
+</html>

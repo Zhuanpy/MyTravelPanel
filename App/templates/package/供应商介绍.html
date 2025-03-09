@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>供应商介绍</title>
+    <style>
+        body {
+            font-family: 'Roboto', 'Noto Sans', Arial, sans-serif;
+            background: linear-gradient(120deg, #f8fafc, #e8ecf1);
+            margin: 0;
+            padding: 0;
+            color: #333;
+        }
+        .container {
+            max-width: 800px;
+            margin: 50px auto;
+            background: #fff;
+            padding: 30px 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .container:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+        }
+        h1, h2 {
+            text-align: center;
+            color: #0056b3;
+            margin-bottom: 25px;
+        }
+        form {
+            margin-bottom: 25px;
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+        }
+        input[type="text"] {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid #ced4da;
+            border-radius: 6px;
+            font-size: 16px;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05);
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+        }
+        input[type="text"]:focus {
+            border-color: #007BFF;
+            box-shadow: 0 0 5px rgba(0, 123, 255, 0.25);
+            outline: none;
+        }
+        button {
+            padding: 12px 20px;
+            background: linear-gradient(45deg, #007BFF, #0056b3);
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.3s ease, box-shadow 0.3s ease;
+        }
+        button:hover {
+            background: linear-gradient(45deg, #0056b3, #003f80);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        .supplier-info {
+            margin-top: 20px;
+            text-align: left;
+        }
+        .info-list {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 15px;
+        }
+        .info-label {
+            font-weight: bold;
+            color: #444;
+            text-align: right;
+            padding-right: 10px;
+        }
+        .info-value {
+            color: #555;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #eee;
+            box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.05);
+        }
+        .info-value:empty::after {
+            content: '无';
+            color: #aaa;
+        }
+        p {
+            text-align: center;
+            font-size: 18px;
+            color: #777;
+            margin-top: 30px;
+        }
+        strong {
+            color: #0056b3;
+        }
+        .action-btn {
+            text-align: center;
+            margin-top: 20px;
+        }
+        .action-btn a {
+            display: inline-block;
+            text-decoration: none;
+            padding: 10px 20px;
+            background: #28a745;
+            color: #fff;
+            border-radius: 6px;
+            font-size: 16px;
+            transition: background 0.3s ease, transform 0.2s ease;
+        }
+        .action-btn a:hover {
+            background: #218838;
+            transform: scale(1.05);
+        }
+        @media (max-width: 600px) {
+            .info-list {
+                grid-template-columns: 1fr;
+            }
+            .info-label {
+                text-align: left;
+                padding-right: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/">Homepage</a>
+        <div class="container">
+            {% if supplier %}
+            <div class="supplier-info">
+                <h2>{{ supplier.name }} 介绍</h2>
+                <div class="info-list">
+                    {% set fields = [
+                        ('名称', supplier.name or '未提供'),
+                        ('地址', supplier.address or '未提供'),
+                        ('联系人', supplier.contact_person or '未提供'),
+                        ('联系方式', supplier.contact_info or '未提供'),
+                        ('状态', supplier.status or '未提供'),
+                        ('国家', supplier.country or '未提供'),
+                        ('地区', supplier.region or '未提供'),
+                        ('评级', supplier.rating or '未提供'),
+                        ('备注', supplier.notes or '未提供'),
+                        ('创建时间', supplier.create_date.strftime('%Y-%m-%d') if supplier.create_date else '未提供'),
+                        ('更新时间', supplier.last_updated.strftime('%Y-%m-%d') if supplier.last_updated else '未提供')
+                    ] %}
+                    {% for label, value in fields %}
+                    <div class="info-item">
+                        <span class="info-label">{{ label }}</span>
+                        <span class="info-value">{{ value }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+                <div class="action-btn">
+                    <a href="{{ url_for('package_routes.edit_supplier_info', supplier_name=supplier.name) }}" class="btn">
+                        编辑
+                    </a>
+                </div>
+            </div>
+            {% elif supplier_name %}
+            <p>未找到供应商 "<strong>{{ supplier_name }}</strong>" 的相关信息。</p>
+            <div class="action-btn">
+                <a href="{{ url_for('package_routes.add_supplier_info', supplier_name=supplier_name) }}" class="btn">
+                    添加供应商信息
+                </a>
+            </div>
+            {% else %}
+            <p>请输入供应商名称以查看详细信息。</p>
+            {% endif %}
+        </div>
+    </div>
+</body>
+</html>

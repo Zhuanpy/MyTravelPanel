@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>机票行程转化</title>
+    <!-- 引入Tailwind CSS和Font Awesome -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    <style>
+        /* 设置页面主体的布局和背景 */
+        body {
+            display: flex;
+            justify-content: center; /* 水平居中对齐 */
+            align-items: center; /* 垂直居中对齐 */
+            min-height: 100vh; /* 使页面内容高度填满视口 */
+            margin: 0;
+            background-color: #f0f4f8; /* 设置背景颜色 */
+        }
+        /* 定义表单容器样式 */
+        .form-container {
+            width: 80%; /* 容器宽度设为视口的80% */
+            background-color: #fff; /* 背景为白色 */
+            padding: 1.5rem; /* 内边距 */
+            border-radius: 0.5rem; /* 圆角 */
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* 轻微阴影 */
+        }
+        /* 各分区的底部间距 */
+        .section {
+            margin-bottom: 1.5rem;
+        }
+        /* 输入框背景颜色 */
+        .input-bg {
+            background-color: #f9fafb;
+        }
+        /* 调整文本输入框和textarea的宽度 */
+        textarea, input[type="text"] {
+            width: 100%; /* 宽度设为100% */
+        }
+        /* 设置水平排列的元素间距 */
+        .flex-row {
+            display: flex;
+            gap: 1.5rem; /* 元素间的间距 */
+        }
+        /* 设置垂直排列的输入框布局 */
+        .flex-col {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+        }
+    </style>
+</head>
+<body>
+    <!-- 表单的主要容器 -->
+    <div class="form-container">
+        
+        <a href="/" class="text-blue-500 underline mb-4 block">Home page</a> <!-- 返回首页链接 -->
+
+        <h2 class="text-center text-2xl font-bold mb-6">机票行程转化</h2> <!-- 页面标题 -->
+        
+        <!-- 表单开始，使用POST方法提交 -->
+        <form action="{{ url_for('flight_blue.itinerary_conversion') }}" method="post">
+            
+            <!-- 输入和输出行程的容器 -->
+            <div class="flex-row section">
+                <div class="flex-col input-section">
+                    
+                    <!-- 输入行程的标签和文本区域 -->
+                    <label for="input_text" class="block font-medium mb-2">输入行程：</label>
+                    <textarea id="input_text" name="input_text" rows="10" class="border rounded p-2 input-bg">{{ request.form['input_text'] }}</textarea>
+                    
+                    <!-- 行李和价格输入区域，使用两列网格布局 -->
+                    <div class="grid grid-cols-2 gap-4 mt-4">
+                        <div class="flex flex-col">
+                            <label for="luggage" class="block font-medium mb-1">行李：</label>
+                            <input type="text" id="luggage" name="luggage" class="border rounded p-2 input-bg" value="{{ request.form['luggage'] }}">
+                        </div>
+                        <div class="flex flex-col">
+                            <label for="price" class="block font-medium mb-1">价格：</label>
+                            <input type="text" id="price" name="price" class="border rounded p-2 input-bg" value="{{ request.form['price'] }}">
+                        </div>
+                    </div>
+                </div>
+                <div class="flex-col output-section">
+                    <!-- 输出行程的标签和文本区域 -->
+                    <label for="output_text" class="block font-medium mb-2">输出行程：</label>
+                    <textarea id="output_text" name="output_text" rows="10" class="border rounded p-2 input-bg">{{ output_text }}</textarea>
+                </div>
+            </div>
+
+            <!-- 语言选择区域 -->
+            <div class="section language-selection">
+                <div class="flex items-center mb-4">
+                    <input type="radio" id="chinese" name="language" value="chinese" checked class="mr-2">
+                    <label for="chinese" class="mr-4">中文行程</label> <!-- 中文行程选项 -->
+                    <input type="radio" id="english" name="language" value="english" class="mr-2">
+                    <label for="english">English itinerary</label> <!-- 英文行程选项 -->
+                </div>
+            </div>
+
+            <!-- 提交按钮区域 -->
+            <div class="section submit-section flex justify-between">
+                <input type="submit" value="开始转换" class="bg-blue-500 text-white rounded p-2 cursor-pointer">
+            </div>
+        </form>
+    </div>
+</body>
+</html>

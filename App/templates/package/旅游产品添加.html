@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>添加旅游产品</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+</head>
+<body>
+    <a href="/">Home page</a>
+    <div class="container mt-5">
+        <h1 class="text-center">添加旅游产品</h1>
+        
+        <form method="post" action="{{ url_for('package_routes.add_product') }}">
+            {{ form.hidden_tag() }}
+            <div class="form-group">
+                {{ form.city_name.label }}
+                {{ form.city_name(class="form-control") }}
+            </div>
+
+            <div class="form-group">
+                {{ form.company_name.label }}
+                {{ form.company_name(class="form-control") }}
+            </div>
+            <div class="form-group">
+                {{ form.product_name.label }}
+                {{ form.product_name(class="form-control") }}
+            </div>
+            <div class="form-group">
+                {{ form.created_at.label }}
+                {{ form.created_at(class="form-control") }}
+            </div>
+            <div class="form-group">
+                {{ form.valid_until.label }}
+                {{ form.valid_until(class="form-control") }}
+            </div>
+            <button type="submit" class="btn btn-primary">添加产品</button>
+        </form>
+    </div>
+</body>
+
+</html>

@@ -1,0 +1,114 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+venv/
+ENV/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Database
+*.db
+*.sqlite3
+*.sqlite
+
+# Project specific - Resources
+资源/
+App/static/资源/
+App/static/资源/**/*
+**/资源/**
+static/资源/
+
+# Project specific - Others
+App/static/templates/
+*.log
+.env
+config.py
+*.csv
+*.xls
+*.xlsx
+*.txt
+*.pdf
+*.doc
+*.docx
+*.ppt
+*.pptx
+*.zip
+*.rar
+*.7z
+
+# Large media files
+*.mp4
+*.mp3
+*.wav
+*.avi
+*.mov
+*.wmv
+*.flv
+*.mkv
+
+# Image files
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.ico
+*.svg
+*.bmp
+*.tiff
+
+# Sensitive information
+**/KeyPassport.py
+**/credentials.py
+**/secrets.py
+**/config.py
+
+# Migration files
+migrations/versions/
+
+# OS specific
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Temporary files
+*.bak
+*.tmp
+*~
+
+# Local development
+instance/
+.webassets-cache/
+
+# Test coverage
+.coverage
+htmlcov/
+.tox/
+.nox/
+.coverage.*
+nosetests.xml
+coverage.xml
+*.cover

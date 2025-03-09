@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UOB账单处理</title>
+    <style>
+        /* 全局样式 */
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f9;
+            color: #333;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        h1 {
+            color: #374785;
+            margin: 20px 0;
+            font-size: 36px;
+            text-align: center;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+        .container {
+            width: 90%;
+            max-width: 800px;
+            margin: 20px auto;
+            text-align: left; /* 左对齐内容 */
+        }
+        .section {
+            background-color: #ffffff;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            margin-bottom: 20px;
+            border-left: 6px solid #00a8cc; /* 左侧加颜色条增加层次感 */
+            transition: transform 0.3s ease, background-color 0.3s ease;
+        }
+        .section:hover {
+            transform: translateY(-5px);
+            background-color: #f8f9fc; /* 鼠标悬停时背景微调 */
+        }
+        .section p {
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #374785;
+            text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.1);
+        }
+        .button-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .section a {
+            padding: 12px 20px;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: bold;
+            color: #ffffff;
+            background-color: #00a8cc;
+            border-radius: 8px;
+            text-align: center;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+            flex: 1 1 calc(45% - 10px); /* 设置按钮宽度为45%，自适应布局 */
+            max-width: 180px;
+        }
+        .section a:hover {
+            background-color: #007a99;
+            transform: scale(1.05);
+        }
+        .section a:active {
+            background-color: #005f73;
+        }
+        .top-links {
+            margin-bottom: 20px;
+            text-align: left; /* 左对齐返回首页 */
+        }
+        .top-links a {
+            font-size: 16px;
+            font-weight: bold;
+            color: #ffffff;
+            background-color: #f3722c;
+            text-decoration: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            border: 2px solid #f3722c;
+            transition: background-color 0.3s ease, color 0.3s ease;
+            display: inline-block; /* 保证样式的按钮效果 */
+        }
+        .top-links a:hover {
+            background-color: #d65d1e;
+            color: #ffffff;
+        }
+        footer {
+            margin-top: 30px;
+            padding: 15px 0;
+            text-align: center;
+            font-size: 14px;
+            color: #666;
+        }
+        footer span {
+            color: #f3722c;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>UOB账单处理</h1>
+    <div class="container">
+        <!-- 顶部链接 -->
+        <div class="top-links">
+            <a href="/">返回首页</a>
+        </div>
+
+        <!-- 完整进程 -->
+        <div class="section">
+            <p>完整进程</p>
+            <div class="button-group">
+                <a href="{{url_for('statement_routes.uob_bank_processing')}}">账单整理</a>
+            </div>
+        </div>
+
+        <!-- 单项进程 -->
+        <div class="section">
+            <p>单项进程</p>
+            <div class="button-group">
+                <a href="{{url_for('statement_routes.uob_original_processing')}}">原始账单整理</a>
+                <a href="{{url_for('statement_routes.latest_company_statement')}}">公司账单整理</a>
+                <a href="{{url_for('statement_routes.latest_self_statement')}}">个人账单整理</a>
+                <a href="{{url_for('statement_routes.uob_original_processing')}}">公司账单</a>
+                <a href="{{url_for('statement_routes.statement_to_company')}}">最终公司账单</a>
+            </div>
+        </div>
+
+        <!-- 打开项目文件 -->
+        <div class="section"> 
+            <p>打开项目文件</p>
+            <div class="button-group">
+                <a href="{{url_for('statement_routes.open_uob_statement_folder')}}">打开目录</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- 页脚 -->
+    <footer>
+        &copy; 2024 <span>UOB账单处理系统</span>
+    </footer>
+</body>
+</html>

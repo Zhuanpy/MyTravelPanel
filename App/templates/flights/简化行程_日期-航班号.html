@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>录入航班信息</title>
+  <!-- 引入Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- 引入Font Awesome图标库（如果需要） -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+  <style>
+    .flight-entry {
+      /* 自定义样式（如果需要） */
+    }
+  </style>
+</head>
+
+<body class="font-sans bg-gray-100 p-6">
+  <!-- 主容器，设置最大宽度为3xl并居中 -->
+  <div class="max-w-3xl mx-auto bg-white p-6 rounded shadow">
+    <!-- 页面主标题 -->
+    <h1 class="text-center text-2xl font-bold mb-6">利用航班号和日期生成行程</h1>
+    
+    <!-- 航班信息输入部分 -->
+    <section class="mb-6">
+      <h2 class="text-xl font-semibold mb-4">航班信息输入</h2>
+      
+      <div id="inputContainer" class="space-y-4">
+        <!-- 初始航班信息输入组 -->
+        <div class="flex items-center space-x-4 mb-4 flight-entry">
+          <label class="flex-1 block">
+            <span class="text-gray-700">日期：</span>
+            <input type="text" class="flightDate w-full border rounded p-2 mt-1" placeholder="例如 01JUN">
+          </label>
+          <label class="flex-1 block">
+            <span class="text-gray-700">航班号：</span>
+            <input type="text" class="flightNumber w-full border rounded p-2 mt-1" placeholder="例如 TR898">
+          </label>
+          <button type="button" onclick="removeInput(this)" class="bg-red-500 hover:bg-red-600 text-white rounded p-2 mt-6">
+            <i class="fas fa-trash-alt"></i> 删除
+          </button>
+        </div>
+      </div>
+      
+      <!-- 控制按钮区域 -->
+      <div class="flex space-x-4">
+        <button type="button" onclick="addInput()" class="bg-blue-500 hover:bg-blue-600 text-white rounded p-2 flex items-center">
+          <i class="fas fa-plus"></i> 增加航班
+        </button>
+      </div>
+    </section>
+    
+    <!-- 行李和价格输入部分 -->
+    <section class="mb-6">
+      <h2 class="text-xl font-semibold mb-4">行李与价格信息</h2>
+      <div class="flex items-center space-x-4 mb-4">
+        <label class="flex-1 block">
+          <span class="text-gray-700">行李：</span>
+          <input type="text" id="baggage" class="w-full border rounded p-2 mt-1" placeholder="例如 20kg">
+        </label>
+        <label class="flex-1 block">
+          <span class="text-gray-700">价格：</span>
+          <input type="text" id="price" class="w-full border rounded p-2 mt-1" placeholder="例如 1500 或 Free">
+        </label>
+      </div>
+    </section>
+    
+    <!-- 语言选择区域 -->
+    <section class="mb-6">
+      <label for="languageSelect" class="block text-lg font-medium mb-2">选择输出语言：</label>
+      <select id="languageSelect" class="w-full border rounded p-2">
+        <option value="中文">中文</option>
+        <option value="英文">英文</option>
+      </select>
+    </section>
+    
+    <!-- 操作按钮区域 -->
+    <div class="flex space-x-4 mb-6">
+      <button type="button" onclick="sendData()" class="bg-green-500 hover:bg-green-600 text-white rounded p-2 flex items-center">
+        <i class="fas fa-paper-plane"></i> 生成行程
+      </button>
+    </div>
+    
+    <!-- 行程输出部分 -->
+    <section>
+      <h2 class="text-xl font-semibold mb-4">行程输出</h2>
+      <textarea id="itinerary" class="w-full border rounded p-2 h-80 resize-none" readonly></textarea>
+    </section>
+  </div>
+
+  <!-- JavaScript部分 -->
+  <script>
+    function addInput() {
+      const container = document.getElementById('inputContainer');
+      const inputGroup = document.createElement('div');
+      inputGroup.className = 'flex items-center space-x-4 mb-4 flight-entry';
+      inputGroup.innerHTML = `
+        <label class="flex-1 block">
+          <span class="text-gray-700">日期：</span>
+          <input type="text" class="flightDate w-full border rounded p-2 mt-1" placeholder="例如 01JUN">
+        </label>
+        <label class="flex-1 block">
+          <span class="text-gray-700">航班号：</span>
+          <input type="text" class="flightNumber w-full border rounded p-2 mt-1" placeholder="例如 TR898">
+        </label>
+        <button type="button" onclick="removeInput(this)" class="bg-red-500 hover:bg-red-600 text-white rounded p-2 mt-6">
+          <i class="fas fa-trash-alt"></i> 删除
+        </button>
+      `;
+      container.appendChild(inputGroup);
+    }
+
+    function removeInput(button) {
+      const inputGroup = button.closest('.flight-entry');
+      if (inputGroup) {
+        inputGroup.remove();
+      }
+    }
+
+    function sendData() {
+      const flightNumbers = document.querySelectorAll('.flightNumber');
+      const flightDates = document.querySelectorAll('.flightDate');
+      const baggage = document.getElementById('baggage').value.trim();
+      const price = document.getElementById('price').value.trim();
+      const language = document.getElementById('languageSelect').value;
+
+      const flights = [];
+      flightNumbers.forEach((flightNumber, index) => {
+        const flightDate = flightDates[index].value.trim();
+        if (flightNumber.value.trim() && flightDate) {
+          flights.push({
+            flightNumber: flightNumber.value.trim(),
+            flightDate: flightDate
+          });
+        }
+      });
+
+      if (flights.length === 0) {
+        alert('请至少输入一组有效的航班信息。');
+        return;
+      }
+      if (!baggage) {
+        alert('请填写行李信息。');
+        return;
+      }
+      if (!price) {
+        alert('请填写价格信息，可以为任意字符串。');
+        return;
+      }
+
+      const requestBody = {
+        language: language,
+        flights: flights,
+        baggage: baggage,
+        price: price
+      };
+
+      fetch('{{ url_for('flight_blue.simplify_itinerary_by_flight_and_date') }}', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestBody)
+      })
+        .then(response => {
+          if (!response.ok) {
+            throw new Error('网络响应不是OK');
+          }
+          return response.json();
+        })
+        .then(result => {
+          if (result.itinerary) {
+            document.getElementById('itinerary').value = result.itinerary;
+          } else {
+            alert('未能生成行程，请检查输入的信息是否正确。');
+          }
+        })
+        .catch(error => {
+          console.error('错误:', error);
+          alert('发生错误，请稍后再试。');
+        });
+    }
+  </script>
+</body>
+</html>
