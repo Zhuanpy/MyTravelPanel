@@ -1,0 +1,187 @@
+:root {
+    --primary-color: #3182CE;
+    --primary-hover: #2C5282;
+    --bg-color: #F7FAFC;
+    --card-bg: #FFFFFF;
+    --text-primary: #2D3748;
+    --text-secondary: #4A5568;
+    --border-color: #E2E8F0;
+    
+    --blue-bg: #EBF8FF;
+    --blue-hover: #BEE3F8;
+    --green-bg: #F0FFF4;
+    --green-hover: #C6F6D5;
+    --purple-bg: #FAF5FF;
+    --purple-hover: #E9D8FD;
+    --yellow-bg: #FFFBEB;
+    --yellow-hover: #FEFCBF;
+    --red-bg: #FFF5F5;
+    --red-hover: #FED7D7;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background-color: var(--bg-color);
+    color: var(--text-primary);
+    line-height: 1.5;
+}
+
+.container {
+    max-width: 1280px;
+    margin: 2rem auto;
+    padding: 0 1.5rem;
+}
+
+.page-header {
+    text-align: center;
+    margin-bottom: 3rem;
+    padding: 2rem 0;
+    background: var(--card-bg);
+    border-radius: 1rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.page-header h1 {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 1rem;
+}
+
+.section-card {
+    background: var(--card-bg);
+    border-radius: 1rem;
+    padding: 2rem;
+    margin-bottom: 2rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.section-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.section-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid var(--border-color);
+}
+
+.section-header h3 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.link-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.text-link {
+    color: var(--primary-color);
+    text-decoration: none;
+    font-weight: 500;
+    padding: 0.5rem 1rem;
+    border-radius: 0.5rem;
+    transition: all 0.2s ease;
+}
+
+.text-link:hover {
+    background-color: var(--blue-hover);
+    text-decoration: none;
+}
+
+.button-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.btn {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.75rem 1.5rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    border-radius: 0.5rem;
+    border: 1px solid var(--border-color);
+    transition: all 0.2s ease;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.btn-blue {
+    background-color: var(--blue-bg);
+    color: var(--text-primary);
+}
+
+.btn-blue:hover {
+    background-color: var(--blue-hover);
+}
+
+.btn-green {
+    background-color: var(--green-bg);
+    color: var(--text-primary);
+}
+
+.btn-green:hover {
+    background-color: var(--green-hover);
+}
+
+.btn-purple {
+    background-color: var(--purple-bg);
+    color: var(--text-primary);
+}
+
+.btn-purple:hover {
+    background-color: var(--purple-hover);
+}
+
+.btn-yellow {
+    background-color: var(--yellow-bg);
+    color: var(--text-primary);
+}
+
+.btn-yellow:hover {
+    background-color: var(--yellow-hover);
+}
+
+.btn-red {
+    background-color: var(--red-bg);
+    color: var(--text-primary);
+}
+
+.btn-red:hover {
+    background-color: var(--red-hover);
+}
+
+@media (max-width: 768px) {
+    .container {
+        padding: 1rem;
+    }
+
+    .section-card {
+        padding: 1.5rem;
+    }
+
+    .button-group {
+        gap: 0.75rem;
+    }
+
+    .btn {
+        padding: 0.5rem 1rem;
+    }
+} 
