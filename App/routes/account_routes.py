@@ -17,7 +17,24 @@ if not os.path.exists(UPLOAD_FOLDER):
 @account_routes.route('/api/accounts', methods=['GET'])
 def get_accounts():
     try:
-        accounts = Account.query.all()
+        accounts = db.session.query(
+            Account.id,
+            Account.platform,
+            Account.website_url,
+            Account.username,
+            Account.password,
+            Account.category,
+            Account.owner,
+            Account.country,
+            Account.region,
+            Account.description,
+            Account.notes,
+            Account.file_materials,
+            Account.additional_info,
+            Account.created_at,
+            Account.updated_at
+        ).all()
+        
         return jsonify([{
             'id': account.id,
             'platform': account.platform,
@@ -30,10 +47,15 @@ def get_accounts():
             'region': account.region,
             'description': account.description,
             'notes': account.notes,
-            'created_at': account.created_at.strftime('%Y-%m-%d %H:%M:%S'),
-            'updated_at': account.updated_at.strftime('%Y-%m-%d %H:%M:%S')
+            'file_materials': json.loads(account.file_materials) if account.file_materials else [],
+            'additional_info': json.loads(account.additional_info) if account.additional_info else [],
+            'created_at': account.created_at.strftime('%Y-%m-%d %H:%M:%S') if account.created_at else None,
+            'updated_at': account.updated_at.strftime('%Y-%m-%d %H:%M:%S') if account.updated_at else None
         } for account in accounts])
     except Exception as e:
+        print(f"Error in get_accounts: {str(e)}")  # 打印详细错误信息
+        import traceback
+        traceback.print_exc()  # 打印完整的错误堆栈
         return jsonify({'error': str(e)}), 500
 
 @account_routes.route('/api/categories', methods=['GET'])
@@ -93,27 +115,47 @@ def get_account(id):
 @account_routes.route('/api/accounts/<int:id>', methods=['PUT'])
 def update_account(id):
     try:
+        print(f"Updating account {id}")
         account = Account.query.get_or_404(id)
         data = request.get_json()
+        print(f"Received data: {data}")
         
-        account.platform = data['platform']
-        account.website_url = data.get('website_url')
-        account.username = data['username']
-        if data.get('password'):  # 只在提供新密码时更新
-            account.password = data['password']  # 直接存储新密码
-        account.category = data['category']
-        account.owner = data.get('owner')
-        account.country = data.get('country')
-        account.region = data.get('region')
-        account.description = data.get('description')
-        account.notes = data.get('notes', '')
+        # 更新基本字段
+        allowed_fields = [
+            'platform', 
+            'website_url', 
+            'username', 
+            'category', 
+            'owner', 
+            'country', 
+            'region', 
+            'description', 
+            'notes'
+        ]
+        
+        # 更新提供的字段
+        for field in allowed_fields:
+            if field in data:
+                value = data[field]
+                print(f"Updating field {field} with value {value}")
+                setattr(account, field, value)
+        
+        # 只在提供新密码时更新密码
+        if 'password' in data and data['password']:
+            print("Updating password")
+            account.password = data['password']
         
         db.session.commit()
+        print("Account updated successfully")
         return jsonify({'message': '账号更新成功'})
     except SQLAlchemyError as e:
         db.session.rollback()
-        return jsonify({'error': '数据库错误'}), 500
+        print(f"Database error: {str(e)}")
+        return jsonify({'error': f'数据库错误: {str(e)}'}), 500
     except Exception as e:
+        print(f"General error: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'error': str(e)}), 400
 
 @account_routes.route('/api/accounts/<int:id>', methods=['DELETE'])
@@ -210,27 +252,3 @@ def import_accounts():
         if os.path.exists(filepath):
             os.remove(filepath)
         return jsonify({'message': f'导入失败: {str(e)}'}), 400
-
-@account_routes.route('/api/accounts/<int:account_id>/materials', methods=['GET', 'POST'])
-def handle_materials(account_id):
-    account = Account.query.get_or_404(account_id)
-    
-    if request.method == 'GET':
-        return jsonify({
-            'file_materials': json.loads(account.file_materials) if account.file_materials else [],
-            'additional_info': json.loads(account.additional_info) if account.additional_info else []
-        })
-    
-    elif request.method == 'POST':
-        data = request.get_json()
-        if 'file_materials' in data:
-            account.file_materials = json.dumps(data['file_materials'])
-        if 'additional_info' in data:
-            account.additional_info = json.dumps(data['additional_info'])
-        
-        try:
-            db.session.commit()
-            return jsonify({'message': '更新成功'})
-        except Exception as e:
-            db.session.rollback()
-            return jsonify({'error': str(e)}), 500
