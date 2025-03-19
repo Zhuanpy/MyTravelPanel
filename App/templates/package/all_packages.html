@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+
+{% block title %}所有国家和地区配套{% endblock %}
+
+{% block header %}
+<div class="main-header">
+    <h1>所有国家和地区配套</h1>
+    <p class="subtitle">探索世界各地的精彩旅程</p>
+    <div class="header-decoration">
+        <div class="decoration-line"></div>
+        <div class="decoration-dot"></div>
+        <div class="decoration-line"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <a href="{{ url_for('index.index') }}" class="back-btn">
+        <i class="fas fa-arrow-left"></i>
+        返回首页
+    </a>
+    
+    <div class="search-container">
+        <i class="fas fa-search search-icon"></i>
+        <input type="text" id="countrySearch" placeholder="搜索国家或地区..." class="search-input">
+        <div class="search-decoration"></div>
+    </div>
+
+</div>
+
+<div class="countries-grid">
+{% for country, cities in cities_by_country.items() %}
+    {% set colors = {
+        '日本': {'border': '#FF6B6B', 'gradient': 'linear-gradient(135deg, #FF6B6B, #FF8787)', 'bg': '#FFF5F5', 'icon': 'fa-sun'},
+        '韩国': {'border': '#4ECDC4', 'gradient': 'linear-gradient(135deg, #4ECDC4, #45B7AF)', 'bg': '#F5FFFE', 'icon': 'fa-star'},
+        '泰国': {'border': '#FFD93D', 'gradient': 'linear-gradient(135deg, #FFD93D, #FFC107)', 'bg': '#FFF9E6', 'icon': 'fa-palm-tree'},
+        '越南': {'border': '#95A5A6', 'gradient': 'linear-gradient(135deg, #95A5A6, #7F8C8D)', 'bg': '#F5F6F7', 'icon': 'fa-motorcycle'},
+        '马来西亚': {'border': '#6C5CE7', 'gradient': 'linear-gradient(135deg, #6C5CE7, #5B4BC4)', 'bg': '#F5F3FF', 'icon': 'fa-mosque'},
+        '新加坡': {'border': '#00B894', 'gradient': 'linear-gradient(135deg, #00B894, #00A187)', 'bg': '#F5FFFB', 'icon': 'fa-city'},
+        '印度尼西亚': {'border': '#FF7675', 'gradient': 'linear-gradient(135deg, #FF7675, #FF6B6B)', 'bg': '#FFF5F5', 'icon': 'fa-volcano'},
+        '菲律宾': {'border': '#74B9FF', 'gradient': 'linear-gradient(135deg, #74B9FF, #6C5CE7)', 'bg': '#F5F9FF', 'icon': 'fa-water'},
+        '柬埔寨': {'border': '#FDCB6E', 'gradient': 'linear-gradient(135deg, #FDCB6E, #FFD93D)', 'bg': '#FFF9E6', 'icon': 'fa-temple'},
+        '老挝': {'border': '#A8E6CF', 'gradient': 'linear-gradient(135deg, #A8E6CF, #00B894)', 'bg': '#F5FFFB', 'icon': 'fa-mountain'},
+        '缅甸': {'border': '#FFA502', 'gradient': 'linear-gradient(135deg, #FFA502, #FFD93D)', 'bg': '#FFF9E6', 'icon': 'fa-pagoda'},
+        '文莱': {'border': '#81ECEC', 'gradient': 'linear-gradient(135deg, #81ECEC, #00CEC9)', 'bg': '#F5FFFF', 'icon': 'fa-oil-well'},
+        '东帝汶': {'border': '#FF7675', 'gradient': 'linear-gradient(135deg, #FF7675, #FF6B6B)', 'bg': '#FFF5F5', 'icon': 'fa-island-tropical'},
+        'default': {'border': '#9F7AEA', 'gradient': 'linear-gradient(135deg, #9F7AEA, #805AD5)', 'bg': '#F5F3FF', 'icon': 'fa-globe-asia'}
+    } %}
+    {% set color = colors.get(country, colors.default) %}
+    <section class="section-card" style="border-color: {{ color.border }}; background-color: {{ color.bg }};" data-country="{{ country }}">
+        <div class="section-header">
+            <div class="header-content">
+                <div class="icon-wrapper">
+                    <i class="fas {{ color.icon }} country-icon" style="color: {{ color.border }};"></i>
+                    <div class="icon-glow" style="background-color: {{ color.border }};"></div>
+                </div>
+                <h3 style="color: {{ color.border }};">{{ country }}</h3>
+            </div>
+            <div class="city-count">
+                <i class="fas fa-city"></i>
+                {{ cities|length }}个城市
+            </div>
+        </div>
+        <div class="button-group">
+            {% for city in cities %}
+            <a href="{{ url_for('package_routes.our_package', city_name=city.city_name) }}" 
+               class="city-btn" style="background: {{ color.gradient }};">
+               <span class="btn-content">
+                   <i class="fas fa-map-marker-alt"></i>
+                   {{ city.display_name }}配套
+               </span>
+               <div class="btn-glow"></div>
+            </a>
+            {% endfor %}
+        </div>
+    </section>
+{% endfor %}
+</div>
+
+<div class="page-footer">
+    <a href="{{ url_for('index.index') }}" class="back-btn">
+        <i class="fas fa-home"></i>
+        返回首页
+    </a>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/all_packages.css') }}">
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('countrySearch');
+    const cards = document.querySelectorAll('.section-card');
+
+    searchInput.addEventListener('input', function(e) {
+        const searchTerm = e.target.value.toLowerCase();
+        
+        cards.forEach(card => {
+            const country = card.getAttribute('data-country').toLowerCase();
+            if (country.includes(searchTerm)) {
+                card.classList.remove('hidden');
+            } else {
+                card.classList.add('hidden');
+            }
+        });
+    });
+});
+</script>
+{% endblock %} 

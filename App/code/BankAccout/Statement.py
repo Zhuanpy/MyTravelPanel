@@ -272,12 +272,15 @@ class OriginalStatement:
         latest_statement = pd.read_excel(latest_path, sheet_name="Sheet1", engine='openpyxl')
 
         to_path = os.path.join(self.file_path, "最新账单", "ToLG", "ToCompany.xls")
+
+        # print(f"to_path: {to_path}")
         to_company_statement = pd.read_excel(to_path, sheet_name="Sheet1", engine='openpyxl')
 
         latest_statement = latest_statement[~latest_statement["EO"].isin(to_company_statement["EO"])]
 
         if latest_statement.empty:
             logging.warning("无最新<LG>账单;")
+
             return latest_statement
 
         latest_statement = latest_statement[["T-Date", "Credit date", "EO", "Withdrawal", "Description"]]
@@ -310,6 +313,7 @@ class OriginalStatement:
 
         Withdrawal_sum = statement["Withdrawal"].sum()
         text = f"Grand Total SGD：{Withdrawal_sum}; "
+
         statement.loc[len(statement)] = pd.Series(dtype='object')  # 在 DataFrame 最后插入一个空白行
         statement.loc[len(statement), "EO"] = text  # 在空白行后插入说明文字
 
@@ -337,6 +341,6 @@ class OriginalStatement:
 
 
 if __name__ == '__main__':
-    uob = OriginalStatement()
+    path = "E:\Project\MyTravelPanel\App\static\资源\账单\ZHANG ZHUAN UOB MASTER"
+    uob = OriginalStatement(path)
     uob.statement_process()
-

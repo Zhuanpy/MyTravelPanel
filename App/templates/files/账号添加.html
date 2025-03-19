@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>添加新账号</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/account.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header-container">
+            <div class="home-link">
+                <a href="{{ url_for('account_routes.account_page') }}" class="btn">
+                    <i class="fas fa-arrow-left"></i> 返回账号管理
+                </a>
+                <a href="/" class="btn">
+                    <i class="fas fa-home"></i> 返回首页
+                </a>
+            </div>
+        </div>
+
+        <!-- 添加新账号部分 -->
+        <div class="section-header">
+            <h2>添加新账号</h2>
+        </div>
+        <div id="formAlert" class="alert"></div>
+
+        <form id="accountForm" method="POST">
+            <div class="form-row triple-width">
+                <div class="form-group">
+                    <label for="platform">平台</label>
+                    <input type="text" class="form-control" id="platform" name="platform" required>
+                </div>
+                <div class="form-group">
+                    <label for="website_url">网址</label>
+                    <input type="url" class="form-control" id="website_url" name="website_url" placeholder="https://">
+                </div>
+                <div class="form-group">
+                    <label for="category">类别</label>
+                    <select class="form-control" id="category" name="category" required>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-row triple-width">
+                <div class="form-group">
+                    <label for="username">用户名</label>
+                    <input type="text" class="form-control" id="username" name="username" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">密码</label>
+                    <input type="password" class="form-control" id="password" name="password" required>
+                </div>
+                <div class="form-group">
+                    <label for="owner">账户归属</label>
+                    <input type="text" class="form-control" id="owner" name="owner" placeholder="账户所有者/部门">
+                </div>
+            </div>
+
+            <div class="form-row triple-width">
+                <div class="form-group">
+                    <label for="country">国家</label>
+                    <input type="text" class="form-control" id="country" name="country">
+                </div>
+                <div class="form-group">
+                    <label for="region">地区</label>
+                    <input type="text" class="form-control" id="region" name="region">
+                </div>
+                <div class="form-group">
+                    <label for="notes">备注</label>
+                    <input type="text" class="form-control" id="notes" name="notes">
+                </div>
+            </div>
+
+            <div class="form-group form-full">
+                <label for="description">详细介绍</label>
+                <textarea class="form-control" id="description" name="description" rows="2"></textarea>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">保存账号</button>
+                <a href="{{ url_for('account_routes.account_page') }}" class="btn">取消</a>
+            </div>
+        </form>
+
+        <div class="section-divider"></div>
+
+        <!-- 批量导入部分 -->
+        <div class="section-header">
+            <h2>批量导入账号</h2>
+        </div>
+        <div id="importAlert" class="alert"></div>
+        <form id="importForm" enctype="multipart/form-data">
+            <div class="form-group">
+                <label for="excelFile">选择Excel文件</label>
+                <input type="file" class="form-control" id="excelFile" name="file" accept=".xlsx,.xls" required>
+            </div>
+            <div class="form-group">
+                <a href="/static/templates/account_template.xlsx" class="btn" download>下载导入模板</a>
+                <button type="submit" class="btn">导入数据</button>
+            </div>
+        </form>
+    </div>
+
+    <script>
+    document.getElementById('accountForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        // 收集表单数据
+        const formData = new FormData(this);
+        const data = {};
+        formData.forEach((value, key) => {
+            data[key] = value;
+        });
+        
+        fetch('/api/accounts', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify(data)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.account) {
+                document.getElementById('formAlert').className = 'alert alert-success';
+                document.getElementById('formAlert').textContent = '账号添加成功！';
+                // 添加成功后返回账号管理页面
+                setTimeout(() => {
+                    window.location.href = "{{ url_for('account_routes.account_page') }}";
+                }, 1500);
+            } else {
+                document.getElementById('formAlert').className = 'alert alert-danger';
+                document.getElementById('formAlert').textContent = data.error || '添加失败，请重试';
+            }
+        })
+        .catch(error => {
+            document.getElementById('formAlert').className = 'alert alert-danger';
+            document.getElementById('formAlert').textContent = '系统错误，请稍后重试';
+            console.error('Error:', error);
+        });
+    });
+
+    // 页面加载时获取类别列表
+    fetch('/api/categories')
+        .then(response => response.json())
+        .then(categories => {
+            const categorySelect = document.getElementById('category');
+            categories.forEach(category => {
+                const option = document.createElement('option');
+                option.value = category;
+                option.textContent = category;
+                categorySelect.appendChild(option);
+            });
+        })
+        .catch(error => console.error('Error loading categories:', error));
+
+    // 批量导入功能
+    document.getElementById('importForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(this);
+        
+        fetch('/api/accounts/import', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            const importAlert = document.getElementById('importAlert');
+            if (data.imported_count >= 0) {
+                let message = `成功导入 ${data.imported_count} 个账号。`;
+                if (data.errors && data.errors.length > 0) {
+                    message += `\n出现以下错误：\n${data.errors.join('\n')}`;
+                }
+                importAlert.className = 'alert alert-success';
+                importAlert.textContent = message;
+                
+                // 导入成功后返回账号管理页面
+                setTimeout(() => {
+                    window.location.href = "{{ url_for('account_routes.account_page') }}";
+                }, 2000);
+            } else {
+                importAlert.className = 'alert alert-danger';
+                importAlert.textContent = data.message || '导入失败，请重试';
+            }
+        })
+        .catch(error => {
+            const importAlert = document.getElementById('importAlert');
+            importAlert.className = 'alert alert-danger';
+            importAlert.textContent = '系统错误，请稍后重试';
+            console.error('Error:', error);
+        });
+    });
+    </script>
+</body>
+</html> 

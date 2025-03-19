@@ -9,9 +9,21 @@ dex = Blueprint("index", __name__)
 
 @dex.route('/')
 def index():
-    packages = ProductCity.query.order_by(ProductCity.country_name, ProductCity.city_name).all()  # 假设 Package 是你的数据模型
-    visa_categories = VisaTypes.query.order_by(VisaTypes.visa_type_name).all()
-    return render_template('index.html', packages=packages, visa_categories=visa_categories)
+    # 获取所有城市信息并按国家分组
+    cities = ProductCity.query.order_by(ProductCity.country_name, ProductCity.display_name).all()
+    cities_by_country = {}
+    
+    for city in cities:
+        if city.country_name not in cities_by_country:
+            cities_by_country[city.country_name] = []
+        cities_by_country[city.country_name].append(city)
+    
+    # 获取签证类别
+    visa_categories = VisaTypes.query.all()
+    
+    return render_template('index.html', 
+                         cities_by_country=cities_by_country,
+                         visa_categories=visa_categories)
 
 
 

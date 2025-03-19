@@ -4,11 +4,25 @@
     <meta charset="UTF-8">
     <title>Visa Documents 管理</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bulma/0.9.3/css/bulma.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/visa_documents.css') }}">
 </head>
 <body>
     <section class="section">
         <div class="container">
-            <h1 class="title">Visa Documents 管理</h1>
+            <div class="header-container">
+                <h1 class="title">{% if current_country %}管理{{ current_country }}资料{% else %}签证资料管理{% endif %}</h1>
+                <div class="buttons">
+                    {% if current_country %}
+                    <a href="{{ url_for('visa_routes.visa_processing', country=current_country) }}" class="button is-info">
+                        <i class="fas fa-arrow-left"></i>返回签证处理
+                    </a>
+                    {% endif %}
+                    <a href="/" class="button is-info">
+                        <i class="fas fa-home"></i>返回首页
+                    </a>
+                </div>
+            </div>
 
             <!-- 筛选签证类型 -->
             <form method="GET" action="{{ url_for('visa_routes.manage_visas') }}">

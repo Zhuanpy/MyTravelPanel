@@ -6,26 +6,45 @@ let currentFilters = {
     owner: 'all',
     search: ''
 };
+let currentPage = 1;
+const itemsPerPage = 10;
 
 // 初始化页面
 document.addEventListener('DOMContentLoaded', function() {
-    loadCategories();
-    loadAccounts();
-    initializeFilters();
-    setupEventListeners();
-    
-    // 添加编辑表单提交处理
-    const editForm = document.getElementById('editForm');
-    editForm.addEventListener('submit', async function(e) {
-        e.preventDefault();
-        await submitEditForm();
-    });
+    console.log('页面加载完成，开始初始化...');
+    initializeApp();
 });
+
+// 初始化应用
+async function initializeApp() {
+    try {
+        await loadCategories();
+        await loadAccounts();
+        initializeFilters();
+        setupSearchListener();
+    } catch (error) {
+        console.error('初始化应用失败:', error);
+    }
+}
+
+// 设置搜索监听器
+function setupSearchListener() {
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) {
+        searchInput.addEventListener('input', function(e) {
+            currentFilters.search = e.target.value.toLowerCase();
+            renderAccounts();
+        });
+    }
+}
 
 // 加载账号数据
 async function loadAccounts() {
     try {
         const response = await fetch('/api/accounts');
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
         accounts = await response.json();
         updateFilters();
         renderAccounts();
@@ -38,32 +57,32 @@ async function loadAccounts() {
 // 加载类别
 async function loadCategories() {
     try {
+        console.log('开始加载类别...');
         const response = await fetch('/api/categories');
+        if (!response.ok) {
+            throw new Error(`加载类别失败: ${response.status}`);
+        }
         const categories = await response.json();
+        console.log('获取到的类别:', categories);
         
-        // 添加到新建表单
-        const categorySelect = document.getElementById('category');
-        categorySelect.innerHTML = '<option value="">请选择类别...</option>';
-        categories.forEach(category => {
-            const option = document.createElement('option');
-            option.value = category;
-            option.textContent = category;
-            categorySelect.appendChild(option);
-        });
-
-        // 添加到编辑表单
-        const editCategorySelect = document.getElementById('editCategory');
-        editCategorySelect.innerHTML = '<option value="">请选择类别...</option>';
-        categories.forEach(category => {
-            const option = document.createElement('option');
-            option.value = category;
-            option.textContent = category;
-            editCategorySelect.appendChild(option);
-        });
-
         // 添加类别过滤按钮
         const categoryFilter = document.getElementById('categoryFilter');
-        categoryFilter.innerHTML = '<button class="category-btn active" data-category="all">全部</button>';
+        if (!categoryFilter) {
+            console.warn('未找到类别过滤器元素');
+            return;
+        }
+
+        categoryFilter.innerHTML = '';
+        
+        // 添加"全部"按钮
+        const allButton = document.createElement('button');
+        allButton.className = 'category-btn active';
+        allButton.textContent = '全部';
+        allButton.dataset.category = 'all';
+        allButton.onclick = () => filterByCategory('all');
+        categoryFilter.appendChild(allButton);
+        
+        // 添加类别按钮
         categories.forEach(category => {
             const button = document.createElement('button');
             button.className = 'category-btn';
@@ -72,19 +91,45 @@ async function loadCategories() {
             button.onclick = () => filterByCategory(category);
             categoryFilter.appendChild(button);
         });
+        console.log('类别过滤器更新完成');
+
     } catch (error) {
         console.error('加载类别失败:', error);
-        showAlert('加载类别失败', false);
+        showErrorMessage('加载类别失败');
     }
+}
+
+// 显示错误消息
+function showErrorMessage(message) {
+    const container = document.querySelector('.container');
+    if (!container) return;
+
+    const errorDiv = document.createElement('div');
+    errorDiv.className = 'alert alert-error';
+    errorDiv.style.position = 'fixed';
+    errorDiv.style.top = '20px';
+    errorDiv.style.right = '20px';
+    errorDiv.style.backgroundColor = '#f44336';
+    errorDiv.style.color = 'white';
+    errorDiv.style.padding = '10px 20px';
+    errorDiv.style.borderRadius = '4px';
+    errorDiv.style.zIndex = '1000';
+    errorDiv.textContent = message;
+
+    container.appendChild(errorDiv);
+
+    setTimeout(() => {
+        errorDiv.remove();
+    }, 3000);
 }
 
 // 初始化筛选器
 function initializeFilters() {
     const searchInput = document.getElementById('searchInput');
-    searchInput.addEventListener('input', function(e) {
-        currentFilters.search = e.target.value.toLowerCase();
-        renderAccounts();
-    });
+    if (searchInput) {
+        searchInput.value = '';
+        currentFilters.search = '';
+    }
 }
 
 // 更新筛选选项
@@ -149,8 +194,28 @@ function renderAccounts() {
         return matchesCategory && matchesCountry && matchesOwner && matchesSearch;
     });
 
+    // 更新总记录数
+    const totalItems = filteredAccounts.length;
+    document.getElementById('totalItems').textContent = totalItems;
+
+    // 计算总页数
+    const totalPages = Math.ceil(totalItems / itemsPerPage);
+    
+    // 确保当前页码有效
+    if (currentPage > totalPages) {
+        currentPage = totalPages || 1;
+    }
+
+    // 计算当前页的数据范围
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = Math.min(startIndex + itemsPerPage, totalItems);
+    
+    // 获取当前页的数据
+    const currentPageAccounts = filteredAccounts.slice(startIndex, endIndex);
+
+    // 渲染账号列表
     const accountList = document.getElementById('accountList');
-    accountList.innerHTML = filteredAccounts.map(account => `
+    accountList.innerHTML = currentPageAccounts.map(account => `
         <tr>
             <td>
                 ${account.platform}
@@ -171,11 +236,98 @@ function renderAccounts() {
             </td>
             <td>${account.country ? account.country + (account.region ? ' - ' + account.region : '') : ''}</td>
             <td>
-                <button class="btn" onclick="editAccount(${account.id})">编辑</button>
-                <button class="btn btn-danger" onclick="deleteAccount(${account.id})">删除</button>
+                <button class="btn btn-small" onclick="editAccount(${account.id})">编辑</button>
+                <button class="btn btn-small btn-danger" onclick="deleteAccount(${account.id})">删除</button>
             </td>
         </tr>
     `).join('');
+
+    // 更新分页控件
+    updatePagination(totalPages);
+}
+
+// 更新分页控件
+function updatePagination(totalPages) {
+    const pageNumbers = document.getElementById('pageNumbers');
+    if (!pageNumbers) return;
+
+    let paginationHtml = '';
+    
+    // 生成页码按钮
+    if (totalPages <= 7) {
+        // 如果总页数较少，显示所有页码
+        for (let i = 1; i <= totalPages; i++) {
+            paginationHtml += `<button class="btn-page ${i === currentPage ? 'active' : ''}" 
+                                     onclick="changePage(${i})">${i}</button>`;
+        }
+    } else {
+        // 如果总页数较多，显示部分页码
+        paginationHtml += `<button class="btn-page ${currentPage === 1 ? 'active' : ''}" 
+                                 onclick="changePage(1)">1</button>`;
+        
+        if (currentPage > 3) {
+            paginationHtml += '<span class="ellipsis">...</span>';
+        }
+        
+        // 显示当前页码周围的页码
+        for (let i = Math.max(2, currentPage - 2); i <= Math.min(totalPages - 1, currentPage + 2); i++) {
+            paginationHtml += `<button class="btn-page ${i === currentPage ? 'active' : ''}" 
+                                     onclick="changePage(${i})">${i}</button>`;
+        }
+        
+        if (currentPage < totalPages - 2) {
+            paginationHtml += '<span class="ellipsis">...</span>';
+        }
+        
+        paginationHtml += `<button class="btn-page ${currentPage === totalPages ? 'active' : ''}" 
+                                 onclick="changePage(${totalPages})">${totalPages}</button>`;
+    }
+    
+    pageNumbers.innerHTML = paginationHtml;
+    
+    // 更新上一页/下一页按钮状态
+    const prevButton = document.querySelector('.btn-page[onclick="changePage(\'prev\')"]');
+    const nextButton = document.querySelector('.btn-page[onclick="changePage(\'next\')"]');
+    
+    if (prevButton) {
+        prevButton.disabled = currentPage === 1;
+        prevButton.classList.toggle('disabled', currentPage === 1);
+    }
+    if (nextButton) {
+        nextButton.disabled = currentPage === totalPages;
+        nextButton.classList.toggle('disabled', currentPage === totalPages);
+    }
+}
+
+// 切换页码
+function changePage(page) {
+    const filteredAccounts = accounts.filter(account => {
+        const matchesCategory = currentFilters.category === 'all' || account.category === currentFilters.category;
+        const matchesCountry = currentFilters.country === 'all' || account.country === currentFilters.country;
+        const matchesOwner = currentFilters.owner === 'all' || account.owner === currentFilters.owner;
+        const matchesSearch = !currentFilters.search || 
+            account.platform.toLowerCase().includes(currentFilters.search) ||
+            account.username.toLowerCase().includes(currentFilters.search) ||
+            (account.description && account.description.toLowerCase().includes(currentFilters.search));
+
+        return matchesCategory && matchesCountry && matchesOwner && matchesSearch;
+    });
+    
+    const totalPages = Math.ceil(filteredAccounts.length / itemsPerPage);
+    
+    if (page === 'prev') {
+        if (currentPage > 1) {
+            currentPage--;
+        }
+    } else if (page === 'next') {
+        if (currentPage < totalPages) {
+            currentPage++;
+        }
+    } else {
+        currentPage = parseInt(page);
+    }
+    
+    renderAccounts();
 }
 
 // 切换密码显示/隐藏
@@ -280,10 +432,34 @@ async function deleteAccount(id) {
 
 // 显示提示信息
 function showAlert(message, isSuccess) {
-    const alert = document.getElementById('formAlert');
+    // 如果没有找到现有的 alert 元素，创建一个新的
+    let alert = document.getElementById('formAlert');
+    if (!alert) {
+        alert = document.createElement('div');
+        alert.id = 'formAlert';
+        document.querySelector('.container').appendChild(alert);
+    }
+    
     alert.textContent = message;
     alert.className = `alert ${isSuccess ? 'alert-success' : 'alert-error'}`;
     alert.style.display = 'block';
+    
+    // 添加基本样式
+    alert.style.position = 'fixed';
+    alert.style.top = '20px';
+    alert.style.right = '20px';
+    alert.style.padding = '10px 20px';
+    alert.style.borderRadius = '4px';
+    alert.style.zIndex = '1000';
+    
+    if (isSuccess) {
+        alert.style.backgroundColor = '#4caf50';
+        alert.style.color = 'white';
+    } else {
+        alert.style.backgroundColor = '#f44336';
+        alert.style.color = 'white';
+    }
+    
     setTimeout(() => {
         alert.style.display = 'none';
     }, 3000);
