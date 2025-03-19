@@ -7,96 +7,24 @@
     <title>账号管理系统</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/account.css') }}">
-    <script src="{{ url_for('static', filename='js/account.js') }}"></script>
+    <script src="{{ url_for('static', filename='Js/account.js') }}"></script>
 </head>
 <body>
     <div class="container">
         <div class="home-link">
             <a href="/">返回首页</a>
         </div>
+        
         <h1>账号管理系统</h1>
 
-        <!-- 添加新账号部分 -->
+        <!-- 添加账号按钮 -->
         <div class="section-header">
-            <h2>添加新账号</h2>
+            <div class="header-actions">
+                <a href="{{ url_for('account_routes.add_account_page') }}" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> 添加新账号
+                </a>
+            </div>
         </div>
-        <div id="formAlert" class="alert"></div>
-        <form id="accountForm">
-            <div class="form-row triple-width">
-                <div class="form-group">
-                    <label for="platform">平台</label>
-                    <input type="text" class="form-control" id="platform" name="platform" required>
-                </div>
-                <div class="form-group">
-                    <label for="website_url">网址</label>
-                    <input type="url" class="form-control" id="website_url" name="website_url" placeholder="https://">
-                </div>
-                <div class="form-group">
-                    <label for="category">类别</label>
-                    <select class="form-control" id="category" name="category" required>
-                    </select>
-                </div>
-            </div>
-
-            <div class="form-row triple-width">
-                <div class="form-group">
-                    <label for="username">用户名</label>
-                    <input type="text" class="form-control" id="username" name="username" required>
-                </div>
-                <div class="form-group">
-                    <label for="password">密码</label>
-                    <input type="password" class="form-control" id="password" name="password" required>
-                </div>
-                <div class="form-group">
-                    <label for="owner">账户归属</label>
-                    <input type="text" class="form-control" id="owner" name="owner" placeholder="账户所有者/部门">
-                </div>
-            </div>
-
-            <div class="form-row triple-width">
-                <div class="form-group">
-                    <label for="country">国家</label>
-                    <input type="text" class="form-control" id="country" name="country">
-                </div>
-                <div class="form-group">
-                    <label for="region">地区</label>
-                    <input type="text" class="form-control" id="region" name="region">
-                </div>
-                <div class="form-group">
-                    <label for="notes">备注</label>
-                    <input type="text" class="form-control" id="notes" name="notes">
-                </div>
-            </div>
-
-            <div class="form-group form-full">
-                <label for="description">详细介绍</label>
-                <textarea class="form-control" id="description" name="description" rows="2"></textarea>
-            </div>
-
-            <div class="form-actions">
-                <button type="submit" class="btn">保存账号</button>
-            </div>
-        </form>
-
-        <div class="section-divider"></div>
-
-        <!-- 批量导入部分 -->
-        <div class="section-header">
-            <h2>批量导入账号</h2>
-        </div>
-        <div id="importAlert" class="alert"></div>
-        <form id="importForm" enctype="multipart/form-data">
-            <div class="form-group">
-                <label for="excelFile">选择Excel文件</label>
-                <input type="file" class="form-control" id="excelFile" name="file" accept=".xlsx,.xls" required>
-            </div>
-            <div class="form-group">
-                <a href="/static/templates/account_template.xlsx" class="btn" download>下载导入模板</a>
-                <button type="submit" class="btn">导入数据</button>
-            </div>
-        </form>
-
-        <div class="section-divider"></div>
 
         <!-- 账号列表部分 -->
         <div class="section-header">
@@ -108,39 +36,59 @@
 
         <!-- 筛选选项 -->
         <div class="filter-section">
-            <div class="filter-group">
-                <label>类别：</label>
-                <div class="category-filter" id="categoryFilter">
+            <div class="filter-row">
+                <div class="filter-group">
+                    <label>类别：</label>
+                    <div class="category-filter" id="categoryFilter">
+                    </div>
                 </div>
             </div>
-            <div class="filter-group">
-                <label>国家：</label>
-                <div class="country-filter" id="countryFilter">
+            <div class="filter-row">
+                <div class="filter-group">
+                    <label>国家：</label>
+                    <div class="country-filter" id="countryFilter">
+                    </div>
                 </div>
             </div>
-            <div class="filter-group">
-                <label>账户归属：</label>
-                <div class="owner-filter" id="ownerFilter">
+            <div class="filter-row">
+                <div class="filter-group">
+                    <label>账户归属：</label>
+                    <div class="owner-filter" id="ownerFilter">
+                    </div>
                 </div>
             </div>
         </div>
 
-        <table class="account-table">
-            <thead>
-                <tr>
-                    <th>平台/网址</th>
-                    <th>类别</th>
-                    <th>账户归属</th>
-                    <th>用户名</th>
-                    <th>密码</th>
-                    <th>国家/地区</th>
-                    <th>操作</th>
-                </tr>
-            </thead>
-            <tbody id="accountList">
-                <!-- 账号列表将通过JavaScript动态加载 -->
-            </tbody>
-        </table>
+        <div class="account-table-wrapper">
+            <table class="account-table">
+                <thead>
+                    <tr>
+                        <th>平台/网址</th>
+                        <th>类别</th>
+                        <th>账户归属</th>
+                        <th>用户名</th>
+                        <th>密码</th>
+                        <th>国家/地区</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="accountList">
+                    <!-- 账号列表将通过JavaScript动态加载 -->
+                </tbody>
+            </table>
+        </div>
+
+        <!-- 分页控件 -->
+        <div class="pagination-container">
+            <div class="pagination-info">
+                共 <span id="totalItems">0</span> 条记录，每页 <span>10</span> 条
+            </div>
+            <div class="pagination" id="pagination">
+                <button class="btn-page" onclick="changePage('prev')">&lt;</button>
+                <div id="pageNumbers"></div>
+                <button class="btn-page" onclick="changePage('next')">&gt;</button>
+            </div>
+        </div>
     </div>
 
     <!-- 编辑账号模态框 -->
@@ -149,7 +97,7 @@
             <div class="section-header">
                 <h2>编辑账号</h2>
             </div>
-            <form id="editForm" onsubmit="return false;">
+            <form id="editForm">
                 <input type="hidden" id="editId">
                 <div class="form-row">
                     <div class="form-group">
@@ -213,31 +161,5 @@
             </form>
         </div>
     </div>
-
-    <script>
-        // 显示提示信息
-        function showAlert(message, isSuccess) {
-            const alert = document.getElementById('formAlert');
-            alert.textContent = message;
-            alert.className = `alert ${isSuccess ? 'alert-success' : 'alert-error'}`;
-            alert.style.display = 'block';
-            setTimeout(() => {
-                alert.style.display = 'none';
-            }, 3000);
-        }
-
-        // 在账号列表加载完成后加载文件资料和补充信息
-        document.addEventListener('DOMContentLoaded', () => {
-            loadAccounts().then(() => {
-                const accounts = document.querySelectorAll('#accountList tr');
-                accounts.forEach(account => {
-                    const accountId = account.dataset.id;
-                    if (accountId) {
-                        loadMaterials(accountId);
-                    }
-                });
-            });
-        });
-    </script>
 </body>
 </html> 

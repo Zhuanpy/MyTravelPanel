@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>编辑{{ field_name }}</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bulma/0.9.3/css/bulma.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/visa_document_edit.css') }}">
+</head>
+<body>
+    <section class="section">
+        <div class="container">
+            <div class="header-container">
+                <h1 class="title">编辑{{ visa_type }}的{{ field_name }}</h1>
+                <div class="buttons">
+                    <a href="{{ url_for('visa_routes.visa_processing', country=visa_type) }}" class="button is-info">
+                        <i class="fas fa-arrow-left"></i>返回签证处理
+                    </a>
+                    <a href="/" class="button is-info">
+                        <i class="fas fa-home"></i>返回首页
+                    </a>
+                </div>
+            </div>
+            
+            <form action="{{ url_for('visa_routes.edit_visa_type', visa_type=visa_type, field=field) }}" method="post" class="box">
+                <div class="field">
+                    <label class="label">{{ field_name }}</label>
+                    <div class="control">
+                        <textarea class="textarea" name="value" rows="5" required>{{ current_value }}</textarea>
+                    </div>
+                </div>
+                <div class="field is-grouped">
+                    <div class="control">
+                        <button type="submit" class="button is-primary">保存修改</button>
+                    </div>
+                    <div class="control">
+                        <a href="{{ url_for('visa_routes.visa_processing', country=visa_type) }}" class="button is-light">取消</a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </section>
+</body>
+</html> 

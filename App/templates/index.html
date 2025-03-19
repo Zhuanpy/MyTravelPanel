@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>工作管理系统</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/index.css') }}">
 </head>
 
@@ -35,6 +36,12 @@
                     </a>
                 {% endfor %}
             </div>
+            <div class="section-footer">
+                <a href="{{ url_for('visa_routes.show_current_all_projects') }}" class="more-button">
+                    <i class="fas fa-arrow-right"></i>
+                    更多
+                </a>
+            </div>
         </section>
 
         <!-- 机票区域 -->
@@ -50,12 +57,18 @@
                 <a href="#" class="text-link">项目管理</a>
             </div>
             <div class="button-group">
-                <a href="{{url_for('flight_blue.itinerary_conversion')}}" class="btn btn-green">简化行程 TRAVELPORT</a>
+                <a href="{{url_for('flight_blue.itinerary_conversion')}}" class="btn btn-green">简化TRAVELPORT</a>
                 <a href="{{url_for('flight_blue.simplify_itinerary_by_flight_and_date')}}" class="btn btn-green">简化行程</a>
                 <a href="{{url_for('flight_blue.flight_to_athina_page')}}" class="btn btn-green">Athina代码</a>
                 <a href="{{url_for('flight_blue.input_flight_schedule_info')}}" class="btn btn-green">航班时刻表</a>
                 <a href="{{url_for('flight_blue.input_airport_code_info')}}" class="btn btn-green">机场代码</a>
                 <a href="{{url_for('flight_blue.confirmation_detail')}}" class="btn btn-green">机票文件</a>
+            </div>
+            <div class="section-footer">
+                <a href="{{url_for('flight_blue.itinerary_conversion')}}" class="more-button">
+                    <i class="fas fa-arrow-right"></i>
+                    更多
+                </a>
             </div>
         </section>
 
@@ -73,13 +86,30 @@
                 <a href="{{url_for('package_routes.handle_tour_project')}}" class="text-link">创建项目</a>
                 <a href="{{ url_for('package_routes.show_all_tour_project') }}" class="text-link">项目管理</a>
             </div>
-            <div class="button-group">
-                {% for package in packages %}
-                    <a href="{{ url_for('package_routes.our_package', city_name=package.city_name) }}" 
-                       class="btn btn-purple">
-                       {{ package.city_name }}配套
+            <div class="section-content">
+                <div class="countries-container">
+                    {% for country, cities in cities_by_country.items() %}
+                    <div class="country-section collapsed" id="country-{{ loop.index }}">
+                        <h4 class="country-title" onclick="toggleSection(this.parentElement)">
+                            {{ country }}
+                        </h4>
+                        <div class="button-group">
+                            {% for city in cities %}
+                            <a href="{{ url_for('package_routes.our_package', city_name=city.city_name) }}" 
+                               class="btn btn-purple">
+                               {{ city.display_name }}配套
+                            </a>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                <div class="section-footer">
+                    <a href="{{ url_for('package_routes.all_packages') }}" class="more-button">
+                        <i class="fas fa-arrow-right"></i>
+                        更多
                     </a>
-                {% endfor %}
+                </div>
             </div>
         </section>
 
@@ -93,12 +123,16 @@
                 <a href="{{url_for('files_process.open_FuXin_pdf')}}" class="btn btn-yellow">PDF工具</a>
                 <a href="{{url_for('files_process.open_Photoshop')}}" class="btn btn-yellow">Photoshop</a>
                 <a href="{{url_for('files_process.open_Athina')}}" class="btn btn-yellow">Athina</a>
-
                 <a href="{{url_for('account_routes.account_page')}}" class="btn btn-yellow">账号管理</a>
-
                 <a href="{{url_for('utils_blue.render_pomodoro')}}" class="btn btn-yellow">番茄工作法</a>
                 <a href="{{url_for('utils_blue.render_deepseek_chat')}}" class="btn btn-yellow">DeepSeek</a>
                 <a href="{{url_for('company_info.company_header')}}" class="btn btn-yellow">公司抬头</a>
+            </div>
+            <div class="section-footer">
+                <a href="{{url_for('files_process.file_processing')}}" class="more-button">
+                    <i class="fas fa-arrow-right"></i>
+                    更多
+                </a>
             </div>
         </section>
 
@@ -114,6 +148,12 @@
                 <a href="{{url_for('statement_routes.uob_bank_processing')}}" class="btn btn-red">UOB 银行账单</a>
                 <a href="{{url_for('statement_routes.athina_page')}}" class="btn btn-red">Athina 账单</a>
                 <a href="{{url_for('statement_routes.company_bill')}}" class="btn btn-red">公司账单</a>
+            </div>
+            <div class="section-footer">
+                <a href="{{url_for('statement_routes.uob_bank_processing')}}" class="more-button">
+                    <i class="fas fa-arrow-right"></i>
+                    更多
+                </a>
             </div>
         </section>
     </div>
@@ -138,6 +178,33 @@
                 });
             }
         });
+
+        function checkOverflow() {
+            const sections = document.querySelectorAll('.section-card');
+            
+            sections.forEach(section => {
+                const buttonGroup = section.querySelector('.button-group');
+                const contentHeight = buttonGroup.scrollHeight;
+                const maxHeight = 400 - 180; // 最大高度减去头部和链接组的高度
+                
+                if (contentHeight > maxHeight) {
+                    section.classList.add('content-overflow');
+                    buttonGroup.classList.add('overflow');
+                } else {
+                    section.classList.remove('content-overflow');
+                    buttonGroup.classList.remove('overflow');
+                }
+            });
+        }
+
+        function toggleSection(section) {
+            section.classList.toggle('collapsed');
+            checkOverflow();
+        }
+
+        // 页面加载和窗口大小改变时检查溢出
+        window.addEventListener('load', checkOverflow);
+        window.addEventListener('resize', checkOverflow);
     </script>
 </body>
 </html>

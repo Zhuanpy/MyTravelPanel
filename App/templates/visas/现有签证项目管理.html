@@ -4,103 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>签证项目管理</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
-    <style>
-        /* 通用样式 */
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-            background-color: #f4f4f9;
-        }
-        .container {
-            max-width: 1500px;
-            margin: 20px auto;
-            padding: 20px;
-            background: #fff;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-            border-radius: 8px;
-        }
-        h1 {
-            color: #4CAF50;
-            text-align: center;
-            margin-bottom: 20px;
-        }
-        .home-link {
-            display: block;
-            text-align: left;
-            margin-bottom: 20px;
-            font-size: 16px;
-        }
-        .home-link a {
-            text-decoration: none;
-            color: #007BFF;
-        }
-        .home-link a:hover {
-            text-decoration: underline;
-        }
-
-        /* 排序选择样式 */
-        .sort-options {
-            display: flex;
-            justify-content: flex-end;
-            margin-bottom: 20px;
-        }
-        .sort-options label {
-            margin-right: 10px;
-            font-weight: bold;
-        }
-        .sort-options select {
-            padding: 5px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-        }
-
-        /* 表格样式 */
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 10px;
-        }
-        th, td {
-            padding: 10px;
-            text-align: left;
-            border: 1px solid #ddd;
-        }
-        th {
-            background-color: #f2f2f2;
-            color: #333;
-        }
-        tr:nth-child(even) {
-            background-color: #f9f9f9;
-        }
-        tr:hover {
-            background-color: #f1f1f1;
-        }
-        .action-link, .delete-link {
-            text-decoration: none;
-            color: #007BFF;
-        }
-        .action-link:hover, .delete-link:hover {
-            text-decoration: underline;
-        }
-        .delete-link {
-            color: #FF0000;
-        }
-
-        /* 输入框样式 */
-        .input-field {
-            width: 150px;
-            padding: 5px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-        }
-        .select-field {
-            padding: 5px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-        }
-    </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/visa_project_management.css') }}">
 </head>
 <body>
     <div class="container">
@@ -178,6 +82,19 @@
                 {% endfor %}
             </tbody>
         </table>
+
+        <!-- 签证类型快速链接 -->
+        <div class="visa-links-section">
+            <h2 class="visa-links-title">签证处理链接</h2>
+            <div class="button-group">
+                {% for visa in visa_categories %}
+                    <a href="{{ url_for('visa_routes.visa_processing', country=visa.visa_type_name) }}"
+                       class="btn btn-blue">
+                       {{ visa.visa_type_name }}签证
+                    </a>
+                {% endfor %}
+            </div>
+        </div>
     </div>
 </body>
 

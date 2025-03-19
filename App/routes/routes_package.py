@@ -546,14 +546,14 @@ def handle_tour_project():
     """
     处理创建旅游项目的路由，支持 GET 和 POST 方法。
 
-    - GET 方法用于渲染“创建旅游项目”页面。
+    - GET 方法用于渲染"创建旅游项目"页面。
     - POST 方法用于处理表单提交并创建对应的旅游项目文件夹。
 
     :return: 根据请求类型返回 HTML 页面或 JSON 响应
     """
 
     if request.method == 'GET':
-        # 渲染“创建旅游项目”页面
+        # 渲染"创建旅游项目"页面
         return render_template("package/旅游项目创建.html")
 
     elif request.method == 'POST':
@@ -740,3 +740,30 @@ def delete_travel_project(project_id):
     except Exception as e:
         
         return jsonify({"success": False, "message": str(e)}), 500
+
+@package_blue.route('/')
+def index():
+    # 获取所有城市信息并按国家分组
+    cities = ProductCity.query.order_by(ProductCity.country_name, ProductCity.display_name).all()
+    cities_by_country = {}
+    
+    for city in cities:
+        if city.country_name not in cities_by_country:
+            cities_by_country[city.country_name] = []
+        cities_by_country[city.country_name].append(city)
+    
+    return render_template('index.html', cities_by_country=cities_by_country)
+
+@package_blue.route('/all_packages')
+def all_packages():
+    # 获取所有城市，按国家分组
+    cities = ProductCity.query.order_by(ProductCity.display_name).all()
+    cities_by_country = {}
+    
+    for city in cities:
+        country = city.country_name
+        if country not in cities_by_country:
+            cities_by_country[country] = []
+        cities_by_country[country].append(city)
+    
+    return render_template('package/all_packages.html', cities_by_country=cities_by_country)

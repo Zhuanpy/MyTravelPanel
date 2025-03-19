@@ -176,6 +176,10 @@ def delete_account(id):
 def account_page():
     return render_template('files/账号管理.html')
 
+@account_routes.route('/accounts/add')
+def add_account_page():
+    return render_template('files/账号添加.html')
+
 @account_routes.route('/api/accounts/import', methods=['POST'])
 def import_accounts():
     if 'file' not in request.files:
@@ -233,6 +237,7 @@ def import_accounts():
                 
                 db.session.add(account)
                 imported_count += 1
+
             except Exception as e:
                 errors.append(f'第 {index + 2} 行: {str(e)}')
         

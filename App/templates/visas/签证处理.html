@@ -1,0 +1,64 @@
+<form id="createProjectForm" action="{{ url_for('visa_routes.visa_create_project', country=country) }}" method="post">
+    <div class="form-group">
+        <label for="path_create_project">项目名称:</label>
+        <input type="text" class="form-control" id="path_create_project" name="path_create_project" required>
+    </div>
+    <div class="form-group">
+        <label for="singapore_status">新加坡状态:</label>
+        <select class="form-control" id="singapore_status" name="singapore_status" required>
+            <option value="">请选择...</option>
+            {% for status in singapore_statuses %}
+            <option value="{{ status }}">{{ status }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="form-group">
+        <label for="visa_status">签证状态:</label>
+        <select class="form-control" id="visa_status" name="visa_status" required>
+            <option value="">请选择...</option>
+            {% for status in visa_statuses %}
+            <option value="{{ status }}">{{ status }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="form-group">
+        <label for="estimated_date">预计完成日期:</label>
+        <input type="date" class="form-control" id="estimated_date" name="estimated_date" required>
+    </div>
+    <button type="submit" class="btn btn-primary">创建项目</button>
+</form>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
+<script>
+// 如果URL中包含表单数据，则填充表单
+document.addEventListener('DOMContentLoaded', function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const formData = urlParams.get('form_data');
+    if (formData) {
+        const data = JSON.parse(decodeURIComponent(formData));
+        if (data.path_create_project) {
+            document.getElementById('path_create_project').value = data.path_create_project;
+        }
+        if (data.singapore_status) {
+            document.getElementById('singapore_status').value = data.singapore_status;
+        }
+    }
+});
+
+// 自动隐藏警告消息
+setTimeout(function() {
+    $('.alert').alert('close');
+}, 3000);
+</script> 

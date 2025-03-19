@@ -4,72 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PDF文件处理</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-            background-color: #f5f5f5;
-        }
-
-        .container {
-            max-width: 800px;
-            margin: 20px auto;
-            padding: 20px 50px; /* 上下20px，左右50px */
-            background-color: #fff;
-            border-radius: 8px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-        }
-
-        h1 {
-            text-align: center;
-        }
-
-        h2 {
-            margin-top: 30px; /* h2与上面内容的间距 */
-            margin-bottom: 15px; /* h2与下面内容的间距 */
-        }
-
-        form {
-            margin-top: 20px;
-        }
-
-        label {
-            display: block;
-            margin-bottom: 5px;
-            color: #555;
-        }
-
-        input[type="text"] {
-            width: calc(100% - 30px); /* 100%减去30像素的边距 */
-            padding: 8px;
-            margin-bottom: 10px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            box-sizing: border-box;
-        }
-
-        button[type="submit"] {
-            background-color: #007bff;
-            color: #fff;
-            padding: 10px 20px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-
-        button[type="submit"]:hover {
-            background-color: #0056b3;
-        }
-    </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/pdf_processing.css') }}">
 </head>
 <body>
+    <div id="successMessage" class="success-message"></div>
     <div class="container">
         <h1>PDF文件处理</h1>
 
         <!-- 图片合并表单 -->
         <h2>图片合并为PDF</h2>
-        <form method="post" action="{{url_for('files_routes.merge_images_to_pdf')}}" >
+        <form id="imageForm" method="post" action="{{url_for('files_process.merge_images_to_pdf')}}" onsubmit="return handleSubmit(this, event)">
             <label for="imageFolderPath">图片文件夹路径:</label>
             <input type="text" id="imageFolderPath" name="imageFolderPath">
             <button type="submit" name="submit_button" value="merge_images">图片合并为PDF</button>
@@ -77,19 +21,75 @@
 
         <!-- 多个PDF合并表单 -->
         <h2>多个PDF合并</h2>
-        <form method="post" action="{{url_for('files_routes.merge_pdf_to_pdf')}}" >
+        <form id="pdfForm" method="post" action="{{url_for('files_process.merge_pdf_to_pdf')}}" onsubmit="return handleSubmit(this, event)">
             <label for="pdfFolderPath">PDF文件夹路径:</label>
             <input type="text" id="pdfFolderPath" name="pdfFolderPath">
             <button type="submit" name="submit_button" value="merge_images">多个PDF合并</button>
         </form>
 
-        <!-- 多个PDF合并表单 -->
+        <!-- Word转换PDF表单 -->
         <h2>Word转换PDF</h2>
-        <form method="post" action="{{url_for('files_routes.word_to_pdf')}}" >
-            <label for="pdfFolderPath">PDF文件夹路径:</label>
+        <form id="wordForm" method="post" action="{{url_for('files_process.word_to_pdf')}}" onsubmit="return handleSubmit(this, event)">
+            <label for="worldFolderPath">Word文件夹路径:</label>
             <input type="text" id="worldFolderPath" name="worldFolderPath">
-            <button type="submit" name="submit_button" value="merge_images">多个PDF合并</button>
+            <button type="submit" name="submit_button" value="merge_images">Word转PDF</button>
         </form>
     </div>
+
+    <script>
+    function handleSubmit(form, event) {
+        event.preventDefault(); // 阻止表单默认提交
+        const formData = new FormData(form);
+        
+        // 禁用提交按钮，防止重复提交
+        const submitButton = form.querySelector('button[type="submit"]');
+        submitButton.disabled = true;
+        
+        fetch(form.action, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                showSuccessMessage(data.message);
+            } else {
+                alert(data.message || '处理失败，请重试');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('处理出错，请重试');
+        })
+        .finally(() => {
+            // 重新启用提交按钮
+            submitButton.disabled = false;
+        });
+
+        return false;
+    }
+
+    function showSuccessMessage(message) {
+        const messageElement = document.getElementById('successMessage');
+        messageElement.textContent = message;
+        messageElement.classList.add('show');
+        
+        // 3秒后隐藏消息
+        setTimeout(() => {
+            messageElement.classList.remove('show');
+            setTimeout(() => {
+                messageElement.style.display = 'none';
+            }, 300); // 等待淡出动画完成
+        }, 3000);
+    }
+    </script>
 </body>
 </html>

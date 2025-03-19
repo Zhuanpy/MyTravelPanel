@@ -1,22 +1,28 @@
+<!DOCTYPE html>
+<html lang="zh">
 <head>
     <meta charset="UTF-8">
     <title>编辑 Visa Document</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bulma/0.9.3/css/bulma.min.css">
-    <style>
-        /* 设置文件资料和补充信息输入框的高度 */
-        .textarea.document-info,
-        .textarea.additional-info {
-            height: 300px; /* 根据需求调整高度 */
-        }
-        .notification {
-            margin-bottom: 1rem;
-        }
-    </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/visa_document_edit.css') }}">
 </head>
 <body>
     <section class="section">
         <div class="container">
-            <h1 class="title">编辑 Visa Document</h1>
+            <div class="header-container">
+                
+                <h1 class="title">编辑{{ document.visa_type }}资料</h1>
+                
+                <div class="buttons">
+                    <a href="{{ url_for('visa_routes.visa_processing', country=document.visa_type) }}" class="button is-info">
+                        <i class="fas fa-arrow-left"></i>&nbsp;返回签证处理
+                    </a>
+                    <a href="{{ url_for('index.index') }}" class="home-btn">
+                        <i class="fas fa-home"></i> 返回首页
+                    </a>
+                </div>
+            </div>
             
             <form action="{{ url_for('visa_routes.update_visa', id=document.id) }}" method="post" class="box">
                 <div class="field">
@@ -48,7 +54,7 @@
                 <div class="field">
                     <label class="label">文件资料</label>
                     <div class="control">
-                        <textarea class="textarea document-info" name="document_info" required>{{ document.document_info }}</textarea>
+                        <textarea class="textarea document-info" name="document_info">{{ document.document_info }}</textarea>
                     </div>
                 </div>
                 <div class="field">
