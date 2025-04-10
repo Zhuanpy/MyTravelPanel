@@ -8,7 +8,7 @@ class Account(db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     platform = db.Column(db.String(100), nullable=False)
-    website_url = db.Column(db.String(255))  # 网址
+    website_url = db.Column(db.String(500))  # 网址
     username = db.Column(db.String(100), nullable=False)
     password = db.Column(db.String(100), nullable=False)
     category = db.Column(db.String(50))
@@ -21,11 +21,10 @@ class Account(db.Model):
     additional_info = db.Column(db.Text)  # 补充信息，存储为JSON格式
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    click_count = db.Column(db.Integer, default=0)  # 添加点击统计字段
 
-    CATEGORIES = [
-        '保险', '地接', '机票', '酒店', '课程',
-        '门票', '签证', '团餐', '用车', '邮轮'
-    ]
+    def __repr__(self):
+        return f'<Account {self.platform}>'
 
     def __init__(self, platform, username, password, category=None, website_url=None, 
                  owner=None, country=None, region=None, description=None, notes=None,
@@ -58,6 +57,7 @@ class Account(db.Model):
             'notes': self.notes,
             'file_materials': json.loads(self.file_materials) if self.file_materials else [],
             'additional_info': json.loads(self.additional_info) if self.additional_info else [],
-            'created_at': self.created_at.strftime('%Y-%m-%d %H:%M:%S'),
-            'updated_at': self.updated_at.strftime('%Y-%m-%d %H:%M:%S')
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+            'click_count': self.click_count
         } 
