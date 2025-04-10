@@ -1,711 +1,395 @@
-<!DOCTYPE html>
-<html lang="zh">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>确认单详细</title>
-    <!-- 引入Bootstrap CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>
-        body {
-            background-color: #f8f9fa;
-            padding: 20px;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+{% extends "base.html" %}
+
+{% block title %}确认单详细信息{% endblock %}
+
+{% block head %}
+<style>
+    .confirm-detail-container {
+        width: 90%;
+        max-width: 1200px;
+        margin: 20px auto;
+        padding: 20px;
+    }
+    .confirm-detail-card {
+        background-color: #fff;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        margin-bottom: 20px;
+        padding: 20px;
+    }
+    .confirm-detail-title {
+        color: #333;
+        font-size: 24px;
+        margin-bottom: 20px;
+        text-align: center;
+    }
+    .confirm-detail-subtitle {
+        color: #555;
+        font-size: 18px;
+        margin-bottom: 15px;
+        border-bottom: 1px solid #eee;
+        padding-bottom: 10px;
+    }
+    .confirm-detail-form-group {
+        margin-bottom: 15px;
+    }
+    .confirm-detail-form-row {
+        display: flex;
+        flex-wrap: wrap;
+        margin: 0 -10px;
+    }
+    .confirm-detail-form-col {
+        flex: 1;
+        padding: 0 10px;
+        min-width: 250px;
+    }
+    .confirm-detail-label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: 500;
+        color: #555;
+    }
+    .confirm-detail-input, .confirm-detail-select {
+        width: 100%;
+        padding: 8px 12px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 14px;
+    }
+    .confirm-detail-input:focus, .confirm-detail-select:focus {
+        border-color: #4a90e2;
+        outline: none;
+    }
+    .confirm-detail-btn {
+        display: inline-block;
+        padding: 8px 16px;
+        background-color: #4a90e2;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: background-color 0.3s;
+        font-size: 14px;
+        margin-right: 10px;
+    }
+    .confirm-detail-btn:hover {
+        background-color: #3a7bd5;
+    }
+    .confirm-detail-btn-secondary {
+        background-color: #6c757d;
+    }
+    .confirm-detail-btn-secondary:hover {
+        background-color: #5a6268;
+    }
+    .confirm-detail-btn-success {
+        background-color: #28a745;
+    }
+    .confirm-detail-btn-success:hover {
+        background-color: #218838;
+    }
+    .confirm-detail-result {
+        margin-top: 20px;
+        padding: 15px;
+        background-color: #f8f9fa;
+        border-radius: 4px;
+    }
+    .confirm-detail-result-text {
+        font-size: 16px;
+        word-break: break-all;
+    }
+    .confirm-detail-copy-btn {
+        margin-left: 10px;
+        padding: 4px 8px;
+        font-size: 12px;
+    }
+    .confirm-detail-options-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 15px;
+        margin-bottom: 15px;
+    }
+    .confirm-detail-checkbox-label {
+        display: flex;
+        align-items: center;
+        cursor: pointer;
+    }
+    .confirm-detail-checkbox {
+        margin-right: 5px;
+    }
+    @media (max-width: 768px) {
+        .confirm-detail-form-col {
+            flex: 100%;
+            margin-bottom: 15px;
         }
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-        .card {
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            margin-top: 20px;
-            border: none;
-            transition: transform 0.2s ease-in-out;
-        }
-        .card:hover {
-            transform: translateY(-2px);
-        }
-        .card-header {
-            background-color: #007bff;
-            color: white;
-            border-radius: 12px 12px 0 0 !important;
-            padding: 1rem 1.5rem;
-            border-bottom: none;
-        }
-        .card-header.bg-success {
-            background-color: #28a745 !important;
-        }
-        .card-body {
-            padding: 1.5rem;
-        }
-        .result-box {
-            background: #f8f9fa;
-            border: 1px solid #e9ecef;
-            border-radius: 8px;
-            padding: 1.25rem;
-            margin-top: 1rem;
-            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05);
-        }
-        .result-text {
-            font-family: 'Consolas', 'Monaco', monospace;
-            margin-bottom: 0;
-            color: #2c3e50;
-            padding: 0.75rem 1rem;
-            background: #fff;
-            border: 1px solid #dee2e6;
-            border-radius: 6px;
-            font-size: 0.95rem;
-            line-height: 1.5;
-        }
-        .copy-btn {
-            margin-left: 12px;
-            padding: 0.4rem 0.8rem;
-            font-size: 0.85rem;
-            border-radius: 4px;
-            transition: all 0.2s ease;
-        }
-        .copy-btn:hover {
-            background-color: #e9ecef;
-            transform: translateY(-1px);
-        }
-        .alert {
-            display: none;
-            margin-top: 1rem;
-            border-radius: 8px;
-            padding: 1rem 1.25rem;
-            border: none;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-        .form-label {
-            font-weight: 500;
-            color: #495057;
-            margin-bottom: 0.5rem;
-        }
-        .form-control {
-            border-radius: 6px;
-            border: 1px solid #ced4da;
-            padding: 0.6rem 0.75rem;
-            transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
-        }
-        .form-control:focus {
-            border-color: #80bdff;
-            box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
-        }
-        .form-text {
-            color: #6c757d;
-            font-size: 0.85rem;
-            margin-top: 0.25rem;
-        }
-        .btn {
-            padding: 0.6rem 1.2rem;
-            font-weight: 500;
-            border-radius: 6px;
-            transition: all 0.2s ease;
-        }
-        .btn-primary {
-            background-color: #007bff;
-            border-color: #007bff;
-        }
-        .btn-primary:hover {
-            background-color: #0056b3;
-            border-color: #0056b3;
-            transform: translateY(-1px);
-        }
-        .btn-success {
-            background-color: #28a745;
-            border-color: #28a745;
-        }
-        .btn-success:hover {
-            background-color: #218838;
-            border-color: #1e7e34;
-            transform: translateY(-1px);
-        }
-        .spinner-border {
-            width: 1rem;
-            height: 1rem;
-            margin-right: 0.5rem;
-        }
-        .row {
-            margin-right: -10px;
-            margin-left: -10px;
-        }
-        .col-md-3, .col-md-4, .col-md-6 {
-            padding-right: 10px;
-            padding-left: 10px;
-        }
-        @media (min-width: 768px) {
-            .col-md-3 {
-                flex: 0 0 25%;
-                max-width: 25%;
-            }
-            .col-md-4 {
-                flex: 0 0 33.333333%;
-                max-width: 33.333333%;
-            }
-            .col-md-6 {
-                flex: 0 0 50%;
-                max-width: 50%;
-            }
-        }
-        .text-muted {
-            color: #6c757d !important;
-        }
-        h2 {
-            color: #2c3e50;
-            font-weight: 600;
-            margin-bottom: 0.5rem;
-        }
-        h5 {
-            color: #2c3e50;
-            font-weight: 500;
-            margin-bottom: 1rem;
-        }
-        .d-flex {
-            display: flex !important;
-        }
-        .align-items-center {
-            align-items: center !important;
-        }
-        .flex-grow-1 {
-            flex-grow: 1 !important;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="text-center mt-4 mb-4">
-            <h2 class="fw-bold text-primary">航空电子客票文件名生成器</h2>
-            <p class="text-muted">快速生成标准格式的电子客票和发票文件名</p>
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="confirm-detail-container">
+    <div class="confirm-detail-card">
+        <h1 class="confirm-detail-title">确认单详细信息生成工具</h1>
+        
+        <h2 class="confirm-detail-subtitle">基本信息</h2>
+        <div class="confirm-detail-form-row">
+            <div class="confirm-detail-form-col">
+                <div class="confirm-detail-form-group">
+                    <label class="confirm-detail-label" for="hidNumber">HID 号码:</label>
+                    <input type="text" id="hidNumber" class="confirm-detail-input" placeholder="请输入 HID 号码">
+                </div>
+            </div>
+            <div class="confirm-detail-form-col">
+                <div class="confirm-detail-form-group">
+                    <label class="confirm-detail-label" for="passengerSurname">乘客姓氏 (拼音):</label>
+                    <input type="text" id="passengerSurname" class="confirm-detail-input" placeholder="请输入乘客姓氏">
+                </div>
+            </div>
+            <div class="confirm-detail-form-col">
+                <div class="confirm-detail-form-group">
+                    <label class="confirm-detail-label" for="passengerGivenName">乘客名字 (拼音):</label>
+                    <input type="text" id="passengerGivenName" class="confirm-detail-input" placeholder="请输入乘客名字">
+                </div>
+            </div>
         </div>
-        <div class="card">
-            <div class="card-header">
-                <h4 class="mb-0">确认单详细</h4>
+        
+        <div class="confirm-detail-form-row">
+            <div class="confirm-detail-form-col">
+                <div class="confirm-detail-form-group">
+                    <label class="confirm-detail-label" for="departureDate">起飞日期:</label>
+                    <input type="date" id="departureDate" class="confirm-detail-input">
+                </div>
             </div>
-            <div class="card-body">
-                <!-- 警告提示框 -->
-                <div class="alert alert-danger" id="errorAlert" role="alert"></div>
-                <div class="alert alert-success" id="successAlert" role="alert"></div>
-
-                <form id="fileNameForm">
-                    <!-- 第一部分：生成文件名 -->
-                    <div class="card mb-4">
-                        <div class="card-header bg-primary text-white">
-                            <h5 class="mb-0">第一部分：生成文件名</h5>
-                        </div>
-                        <div class="card-body">
-                            <div class="mb-3">
-                                <label for="hidInput" class="form-label">HID 号码</label>
-                                <input type="text" class="form-control" id="hidInput"
-                                       placeholder="请输入HID号码 (例如: 169371)">
-                                <div class="form-text">用于生成文件名</div>
-                            </div>
-                            <div class="row mb-3">
-                                <div class="col-md-6">
-                                    <label for="surnameInput" class="form-label">乘客姓氏</label>
-                                    <input type="text" class="form-control" id="surnameInput"
-                                           placeholder="请输入姓氏 (例如: NURUL)">
-                                    <div class="form-text">用于生成文件名，请使用大写字母</div>
-                                </div>
-                                <div class="col-md-6">
-                                    <label for="givenNameInput" class="form-label">乘客名字</label>
-                                    <input type="text" class="form-control" id="givenNameInput"
-                                           placeholder="请输入名字 (例如: ULFAH)">
-                                    <div class="form-text">用于生成文件名，请使用大写字母</div>
-                                </div>
-                            </div>
-                            <div class="row">
-                                <div class="col-md-4 mb-3">
-                                    <label for="dateInput" class="form-label">出发日期</label>
-                                    <input type="text" class="form-control" id="dateInput"
-                                           placeholder="请输入日期 (例如: 28/07/2024)"
-                                           pattern="\d{2}/\d{2}/\d{4}"
-                                           maxlength="10">
-                                    <div class="form-text">格式：DD/MM/YYYY</div>
-                                </div>
-                                <div class="col-md-4 mb-3">
-                                    <label for="depCity" class="form-label">出发城市</label>
-                                    <input type="text" class="form-control" id="depCity"
-                                           placeholder="请输入三字代码 (例如: SIN)" maxlength="3">
-                                </div>
-                                <div class="col-md-4 mb-3">
-                                    <label for="arrCity" class="form-label">抵达城市</label>
-                                    <input type="text" class="form-control" id="arrCity"
-                                           placeholder="请输入三字代码 (例如: CGK)" maxlength="3">
-                                </div>
-                            </div>
-                            <button type="button" class="btn btn-primary" id="generateFilenameBtn">
-                                <span class="spinner-border spinner-border-sm d-none" id="filenameLoadingSpinner" role="status"></span>
-                                生成文件名
-                            </button>
-                        </div>
-                        <!-- 第一部分的结果框 -->
-                        <div class="result-box" id="filenameResultBox" style="display: none;">
-                            <h5>生成的文件名：</h5>
-                            <div class="mb-3" id="etkSection" style="display: none;">
-                                <label class="form-label">电子客票文件名</label>
-                                <div class="d-flex align-items-center">
-                                    <div class="result-text flex-grow-1" id="etkResult"></div>
-                                    <button type="button" class="btn btn-sm btn-outline-primary copy-btn" onclick="copyText('etkResult', event)">复制</button>
-                                </div>
-                            </div>
-                            <div class="mb-3" id="etkMissingSection" style="display: none;">
-                                <label class="form-label">电子客票文件名</label>
-                                <div class="result-text text-muted" id="etkMissing"></div>
-                            </div>
-                            <div class="mb-3" id="invSection" style="display: none;">
-                                <label class="form-label">发票文件名</label>
-                                <div class="d-flex align-items-center">
-                                    <div class="result-text flex-grow-1" id="invResult"></div>
-                                    <button type="button" class="btn btn-sm btn-outline-primary copy-btn" onclick="copyText('invResult', event)">复制</button>
-                                </div>
-                            </div>
-                            <div class="mb-3" id="invMissingSection" style="display: none;">
-                                <label class="form-label">发票文件名</label>
-                                <div class="result-text text-muted" id="invMissing"></div>
-                            </div>
-                            <div class="mb-3" id="emailSubjectSection" style="display: none;">
-                                <label class="form-label">邮件标题</label>
-                                <div class="d-flex align-items-center">
-                                    <div class="result-text flex-grow-1" id="emailSubject"></div>
-                                    <button type="button" class="btn btn-sm btn-outline-primary copy-btn" onclick="copyText('emailSubject', event)">复制</button>
-                                </div>
-                            </div>
-                            <div class="mb-3" id="emailSubjectMissingSection" style="display: none;">
-                                <label class="form-label">邮件标题</label>
-                                <div class="result-text text-muted" id="emailSubjectMissing"></div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- 第二部分：生成DOCS代码 -->
-                    <div class="card mb-4">
-                        <div class="card-header bg-success text-white">
-                            <h5 class="mb-0">第二部分：生成DOCS代码</h5>
-                        </div>
-                        <div class="card-body">
-                            <div class="row mb-3">
-                                <div class="col-md-6">
-                                    <label for="airlineCode" class="form-label">航司代码</label>
-                                    <input type="text" class="form-control" id="airlineCode"
-                                        placeholder="请输入代码 (例如: SQ)" maxlength="2">
-                                    <div class="form-text">请输入两字代码</div>
-                                </div>
-                            </div>
-
-                            <div class="row mb-3">
-                                <div class="col-md-6">
-                                    <label for="surnameInputDocs" class="form-label">乘客姓氏</label>
-                                    <input type="text" class="form-control" id="surnameInputDocs"
-                                           placeholder="请输入姓氏 (例如: NURUL)">
-                                    <div class="form-text">用于生成DOCS代码，请使用大写字母</div>
-                                </div>
-                                <div class="col-md-6">
-                                    <label for="givenNameInputDocs" class="form-label">乘客名字</label>
-                                    <input type="text" class="form-control" id="givenNameInputDocs"
-                                           placeholder="请输入名字 (例如: ULFAH)">
-                                    <div class="form-text">用于生成DOCS代码，请使用大写字母</div>
-                                </div>
-                            </div>
-                            <div class="row mb-3">
-                                <div class="col-md-6">
-                                    <label for="passportInput" class="form-label">护照号码</label>
-                                    <input type="text" class="form-control" id="passportInput"
-                                           placeholder="请输入护照号码">
-                                    <div class="form-text">用于生成DOCS代码</div>
-                                </div>
-                                <div class="col-md-6">
-                                    <label for="nationalityInput" class="form-label">国籍</label>
-                                    <input type="text" class="form-control" id="nationalityInput"
-                                           placeholder="请输入三字代码 (例如: IDN)" maxlength="3">
-                                    <div class="form-text">用于生成DOCS代码，请使用三字代码</div>
-                                </div>
-                            </div>
-                            <div class="row mb-3">
-                                <div class="col-md-6">
-                                    <label for="passportExpiry" class="form-label">护照有效期</label>
-                                    <input type="text" class="form-control" id="passportExpiry"
-                                           placeholder="请输入日期 (例如: 28/07/2029)"
-                                           pattern="\d{2}/\d{2}/\d{4}"
-                                           maxlength="10">
-                                    <div class="form-text">用于生成DOCS代码，格式：DD/MM/YYYY</div>
-                                </div>
-                            </div>
-                            <div class="row mb-3">
-                                <div class="col-md-6">
-                                    <label for="birthDate" class="form-label">出生日期</label>
-                                    <input type="text" class="form-control" id="birthDate"
-                                           placeholder="请输入日期 (例如: 28/07/1990)"
-                                           pattern="\d{2}/\d{2}/\d{4}"
-                                           maxlength="10">
-                                    <div class="form-text">用于生成DOCS代码，格式：DD/MM/YYYY</div>
-                                </div>
-                                <div class="col-md-6">
-                                    <label for="sex" class="form-label">性别</label>
-                                    <select class="form-select" id="sex" required>
-                                        <option value="">请选择性别</option>
-                                        <option value="M">男 (M)</option>
-                                        <option value="F">女 (F)</option>
-                                    </select>
-                                    <div class="form-text">用于生成DOCS代码</div>
-                                </div>
-                            </div>
-                            <button type="button" class="btn btn-success" id="generateDocsBtn">
-                                <span class="spinner-border spinner-border-sm d-none" id="docsLoadingSpinner" role="status"></span>
-                                生成DOCS代码
-                            </button>
-                        </div>
-                        <!-- 第二部分的结果框 -->
-                        <div class="result-box" id="docsResultBox" style="display: none;">
-                            <h5>生成的DOCS代码：</h5>
-                            <div class="mb-3" id="docsCodeSection" style="display: none;">
-                                <label class="form-label">DOCS 代码</label>
-                                <div class="d-flex align-items-center">
-                                    <div class="result-text flex-grow-1" id="docsCode"></div>
-                                    <button type="button" class="btn btn-sm btn-outline-primary copy-btn" onclick="copyText('docsCode', event)">复制</button>
-                                </div>
-                            </div>
-                            <div class="mb-3" id="docsCodeMissingSection" style="display: none;">
-                                <label class="form-label">DOCS 代码</label>
-                                <div class="result-text text-muted" id="docsCodeMissing"></div>
-                            </div>
-                        </div>
-                    </div>
-                </form>
+            <div class="confirm-detail-form-col">
+                <div class="confirm-detail-form-group">
+                    <label class="confirm-detail-label" for="departureCity">出发城市:</label>
+                    <input type="text" id="departureCity" class="confirm-detail-input" placeholder="例如: PEK">
+                </div>
             </div>
+            <div class="confirm-detail-form-col">
+                <div class="confirm-detail-form-group">
+                    <label class="confirm-detail-label" for="arrivalCity">到达城市:</label>
+                    <input type="text" id="arrivalCity" class="confirm-detail-input" placeholder="例如: NYC">
+                </div>
+            </div>
+        </div>
+        
+        <h2 class="confirm-detail-subtitle">文件名生成</h2>
+        <div class="confirm-detail-options-row">
+            <label class="confirm-detail-checkbox-label">
+                <input type="checkbox" id="includeDate" class="confirm-detail-checkbox" checked>
+                包含日期
+            </label>
+            <label class="confirm-detail-checkbox-label">
+                <input type="checkbox" id="includeHid" class="confirm-detail-checkbox" checked>
+                包含 HID
+            </label>
+            <label class="confirm-detail-checkbox-label">
+                <input type="checkbox" id="includeFlightRoute" class="confirm-detail-checkbox" checked>
+                包含航线
+            </label>
+        </div>
+        
+        <div class="confirm-detail-form-group">
+            <button id="generateFilename" class="confirm-detail-btn confirm-detail-btn-primary">生成文件名</button>
+            <button id="resetFilename" class="confirm-detail-btn confirm-detail-btn-secondary">重置</button>
+        </div>
+        
+        <div id="filenameResult" class="confirm-detail-result" style="display: none;">
+            <p class="confirm-detail-result-text">
+                <span id="filenameText"></span>
+                <button id="copyFilename" class="confirm-detail-btn confirm-detail-copy-btn">复制</button>
+            </p>
+        </div>
+        
+        <h2 class="confirm-detail-subtitle">DOCS 代码生成</h2>
+        <div class="confirm-detail-form-row">
+            <div class="confirm-detail-form-col">
+                <div class="confirm-detail-form-group">
+                    <label class="confirm-detail-label" for="passportNumber">护照号码:</label>
+                    <input type="text" id="passportNumber" class="confirm-detail-input" placeholder="请输入护照号码">
+                </div>
+            </div>
+            <div class="confirm-detail-form-col">
+                <div class="confirm-detail-form-group">
+                    <label class="confirm-detail-label" for="nationality">国籍 (3字代码):</label>
+                    <input type="text" id="nationality" class="confirm-detail-input" placeholder="例如: CHN">
+                </div>
+            </div>
+            <div class="confirm-detail-form-col">
+                <div class="confirm-detail-form-group">
+                    <label class="confirm-detail-label" for="birthDate">出生日期:</label>
+                    <input type="date" id="birthDate" class="confirm-detail-input">
+                </div>
+            </div>
+        </div>
+        
+        <div class="confirm-detail-form-row">
+            <div class="confirm-detail-form-col">
+                <div class="confirm-detail-form-group">
+                    <label class="confirm-detail-label" for="gender">性别:</label>
+                    <select id="gender" class="confirm-detail-select">
+                        <option value="M">男</option>
+                        <option value="F">女</option>
+                    </select>
+                </div>
+            </div>
+            <div class="confirm-detail-form-col">
+                <div class="confirm-detail-form-group">
+                    <label class="confirm-detail-label" for="passportExpiry">护照到期日:</label>
+                    <input type="date" id="passportExpiry" class="confirm-detail-input">
+                </div>
+            </div>
+            <div class="confirm-detail-form-col">
+                <!-- 可选字段占位符 -->
+            </div>
+        </div>
+        
+        <div class="confirm-detail-form-group">
+            <button id="generateDocs" class="confirm-detail-btn confirm-detail-btn-success">生成 DOCS 代码</button>
+            <button id="resetDocs" class="confirm-detail-btn confirm-detail-btn-secondary">重置</button>
+        </div>
+        
+        <div id="docsResult" class="confirm-detail-result" style="display: none;">
+            <p class="confirm-detail-result-text">
+                <span id="docsText"></span>
+                <button id="copyDocs" class="confirm-detail-btn confirm-detail-copy-btn">复制</button>
+            </p>
         </div>
     </div>
+</div>
+{% endblock %}
 
-    <!-- 引入Bootstrap JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-        const form = document.getElementById('fileNameForm');
-        const generateFilenameBtn = document.getElementById('generateFilenameBtn');
-        const generateDocsBtn = document.getElementById('generateDocsBtn');
-        const filenameLoadingSpinner = document.getElementById('filenameLoadingSpinner');
-        const docsLoadingSpinner = document.getElementById('docsLoadingSpinner');
-        const errorAlert = document.getElementById('errorAlert');
-        const successAlert = document.getElementById('successAlert');
-        const filenameResultBox = document.getElementById('filenameResultBox');
-        const docsResultBox = document.getElementById('docsResultBox');
-
-        function showLoading(spinner, button, show) {
-            button.disabled = show;
-            spinner.classList.toggle('d-none', !show);
-        }
-
-        function showAlert(message, isError = false) {
-            const alert = isError ? errorAlert : successAlert;
-            alert.textContent = message;
-            alert.style.display = 'block';
-            setTimeout(() => {
-                alert.style.display = 'none';
-            }, 3000);
-        }
-
-        // 在其他事件监听器之前添加日期输入格式化
-        document.getElementById('dateInput').addEventListener('input', function(e) {
-            let value = this.value.replace(/\D/g, ''); // 只保留数字
-            if (value.length > 0) {
-                // 添加日期分隔符
-                if (value.length > 2) {
-                    value = value.substr(0, 2) + '/' + value.substr(2);
-                }
-                if (value.length > 5) {
-                    value = value.substr(0, 5) + '/' + value.substr(5, 4);
-                }
-                // 限制最大长度
-                if (value.length > 10) {
-                    value = value.substr(0, 10);
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // 文件名生成
+        const generateFilenameBtn = document.getElementById('generateFilename');
+        const resetFilenameBtn = document.getElementById('resetFilename');
+        const filenameResult = document.getElementById('filenameResult');
+        const filenameText = document.getElementById('filenameText');
+        const copyFilenameBtn = document.getElementById('copyFilename');
+        
+        generateFilenameBtn.addEventListener('click', function() {
+            const hidNumber = document.getElementById('hidNumber').value.trim();
+            const surname = document.getElementById('passengerSurname').value.trim().toUpperCase();
+            const givenName = document.getElementById('passengerGivenName').value.trim().toUpperCase();
+            const departureDate = document.getElementById('departureDate').value;
+            const departureCity = document.getElementById('departureCity').value.trim().toUpperCase();
+            const arrivalCity = document.getElementById('arrivalCity').value.trim().toUpperCase();
+            
+            const includeDate = document.getElementById('includeDate').checked;
+            const includeHid = document.getElementById('includeHid').checked;
+            const includeFlightRoute = document.getElementById('includeFlightRoute').checked;
+            
+            if (!surname || !givenName) {
+                alert('请输入乘客姓名');
+                return;
+            }
+            
+            let filename = '';
+            
+            if (includeDate && departureDate) {
+                const dateParts = departureDate.split('-');
+                if (dateParts.length === 3) {
+                    filename += dateParts[0] + dateParts[1] + dateParts[2] + '_';
                 }
             }
-            this.value = value;
-        });
-
-        // 自动转换姓名为大写
-        document.getElementById('surnameInput').addEventListener('input', function(e) {
-            this.value = this.value.toUpperCase();
-        });
-        document.getElementById('givenNameInput').addEventListener('input', function(e) {
-            this.value = this.value.toUpperCase();
-        });
-
-        // 自动转换国籍为大写
-        document.getElementById('nationalityInput').addEventListener('input', function(e) {
-            this.value = this.value.toUpperCase();
-        });
-
-        // 护照有效期日期格式化
-        document.getElementById('passportExpiry').addEventListener('input', function(e) {
-            let value = this.value.replace(/\D/g, '');
-            if (value.length > 0) {
-                if (value.length > 2) value = value.substr(0, 2) + '/' + value.substr(2);
-                if (value.length > 5) value = value.substr(0, 5) + '/' + value.substr(5, 4);
-                if (value.length > 10) value = value.substr(0, 10);
+            
+            if (includeHid && hidNumber) {
+                filename += hidNumber + '_';
             }
-            this.value = value;
-        });
-
-        // 出生日期格式化
-        document.getElementById('birthDate').addEventListener('input', function(e) {
-            let value = this.value.replace(/\D/g, '');
-            if (value.length > 0) {
-                if (value.length > 2) value = value.substr(0, 2) + '/' + value.substr(2);
-                if (value.length > 5) value = value.substr(0, 5) + '/' + value.substr(5, 4);
-                if (value.length > 10) value = value.substr(0, 10);
+            
+            filename += surname;
+            if (givenName) {
+                filename += '_' + givenName;
             }
-            this.value = value;
+            
+            if (includeFlightRoute && departureCity && arrivalCity) {
+                filename += '_' + departureCity + arrivalCity;
+            }
+            
+            filenameText.textContent = filename;
+            filenameResult.style.display = 'block';
         });
-
-        // 自动转换航司代码为大写
-        document.getElementById('airlineCode').addEventListener('input', function(e) {
-            this.value = this.value.toUpperCase();
+        
+        resetFilenameBtn.addEventListener('click', function() {
+            document.getElementById('hidNumber').value = '';
+            document.getElementById('passengerSurname').value = '';
+            document.getElementById('passengerGivenName').value = '';
+            document.getElementById('departureDate').value = '';
+            document.getElementById('departureCity').value = '';
+            document.getElementById('arrivalCity').value = '';
+            filenameResult.style.display = 'none';
         });
-
-        // 日期格式转换函数
-        function convertDateFormat(dateString) {
-            if (!dateString) return '';
-            const months = {
-                '01': 'JAN', '02': 'FEB', '03': 'MAR', '04': 'APR',
-                '05': 'MAY', '06': 'JUN', '07': 'JUL', '08': 'AUG',
-                '09': 'SEP', '10': 'OCT', '11': 'NOV', '12': 'DEC'
-            };
-            const [day, month, year] = dateString.split('/');
-            return `${day}${months[month]}${year}`;
-        }
-
-        generateFilenameBtn.addEventListener('click', async function(e) {
-            showLoading(filenameLoadingSpinner, generateFilenameBtn, true);
-
-            const formData = {
-                hid: document.getElementById('hidInput').value.trim(),
-                surname: document.getElementById('surnameInput').value.trim(),
-                given_name: document.getElementById('givenNameInput').value.trim(),
-                date: document.getElementById('dateInput').value.trim(),
-                airline_code: document.getElementById('airlineCode').value.trim(),
-                dep_city: document.getElementById('depCity').value.trim(),
-                arr_city: document.getElementById('arrCity').value.trim()
-            };
-
-            // 移除空值
-            Object.keys(formData).forEach(key => {
-                if (!formData[key]) {
-                    delete formData[key];
-                }
+        
+        copyFilenameBtn.addEventListener('click', function() {
+            const textToCopy = filenameText.textContent;
+            navigator.clipboard.writeText(textToCopy).then(function() {
+                alert('文件名已复制到剪贴板');
+            }, function(err) {
+                console.error('无法复制文本: ', err);
+                alert('复制失败，请手动复制');
             });
-
-            try {
-                const response = await fetch('/flights/generate_filename', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json'
-                    },
-                    body: JSON.stringify(formData)
-                });
-
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-
-                const contentType = response.headers.get('content-type');
-                if (!contentType || !contentType.includes('application/json')) {
-                    throw new TypeError("返回的不是 JSON 格式!");
-                }
-
-                const result = await response.json();
-                
-                // 显示结果框
-                filenameResultBox.style.display = 'block';
-                docsResultBox.style.display = 'none';
-                
-                // 电子客票文件名
-                if (formData.hid && formData.surname && formData.given_name) {
-                    document.getElementById('etkSection').style.display = 'block';
-                    document.getElementById('etkMissingSection').style.display = 'none';
-                    document.getElementById('etkResult').textContent = `HID${formData.hid}_ETK_${formData.surname} ${formData.given_name}`;
-                } else {
-                    document.getElementById('etkSection').style.display = 'none';
-                    document.getElementById('etkMissingSection').style.display = 'block';
-                    const missingFields = [];
-                    if (!formData.hid) missingFields.push('HID号码');
-                    if (!formData.surname || !formData.given_name) missingFields.push('乘客姓名');
-                    document.getElementById('etkMissing').textContent = 
-                        `缺少必要信息：${missingFields.join('、')}，无法生成电子客票文件名`;
-                }
-                
-                // 发票文件名
-                if (formData.hid && formData.surname && formData.given_name) {
-                    document.getElementById('invSection').style.display = 'block';
-                    document.getElementById('invMissingSection').style.display = 'none';
-                    document.getElementById('invResult').textContent = `HID${formData.hid}_INV_${formData.surname} ${formData.given_name}`;
-                } else {
-                    document.getElementById('invSection').style.display = 'none';
-                    document.getElementById('invMissingSection').style.display = 'block';
-                    const missingFields = [];
-                    if (!formData.hid) missingFields.push('HID号码');
-                    if (!formData.surname || !formData.given_name) missingFields.push('乘客姓名');
-                    document.getElementById('invMissing').textContent = 
-                        `缺少必要信息：${missingFields.join('、')}，无法生成发票文件名`;
-                }
-                
-                // 邮件标题
-                if (formData.hid && formData.surname && formData.given_name) {
-                    document.getElementById('emailSubjectSection').style.display = 'block';
-                    document.getElementById('emailSubjectMissingSection').style.display = 'none';
-                    const formattedDate = convertDateFormat(formData.date);
-                    document.getElementById('emailSubject').textContent = 
-                        `HID${formData.hid} ${formattedDate} ${formData.airline_code || ''} ${formData.dep_city || ''} ${formData.arr_city || ''} ( ${formData.surname} ${formData.given_name} )`.trim();
-                } else {
-                    document.getElementById('emailSubjectSection').style.display = 'none';
-                    document.getElementById('emailSubjectMissingSection').style.display = 'block';
-                    const missingFields = [];
-                    if (!formData.hid) missingFields.push('HID号码');
-                    if (!formData.surname || !formData.given_name) missingFields.push('乘客姓名');
-                    document.getElementById('emailSubjectMissing').textContent = 
-                        `缺少必要信息：${missingFields.join('、')}，无法生成邮件标题`;
-                }
-
-                showAlert('文件名生成完成！');
-            } catch (error) {
-                showAlert(error.message, true);
-            }
-
-            showLoading(filenameLoadingSpinner, generateFilenameBtn, false);
         });
-
-        generateDocsBtn.addEventListener('click', async function(e) {
-            showLoading(docsLoadingSpinner, generateDocsBtn, true);
-
-            const formData = {
-                surname: document.getElementById('surnameInputDocs').value.trim(),
-                given_name: document.getElementById('givenNameInputDocs').value.trim(),
-                passport: document.getElementById('passportInput').value.trim(),
-                nationality: document.getElementById('nationalityInput').value.trim(),
-                passport_expiry: document.getElementById('passportExpiry').value.trim(),
-                birth_date: document.getElementById('birthDate').value.trim(),
-                airline_code: document.getElementById('airlineCode').value.trim(),
-                sex: document.getElementById('sex').value.trim()
-            };
-
-            // 移除空值
-            Object.keys(formData).forEach(key => {
-                if (!formData[key]) {
-                    delete formData[key];
-                }
+        
+        // DOCS 代码生成
+        const generateDocsBtn = document.getElementById('generateDocs');
+        const resetDocsBtn = document.getElementById('resetDocs');
+        const docsResult = document.getElementById('docsResult');
+        const docsText = document.getElementById('docsText');
+        const copyDocsBtn = document.getElementById('copyDocs');
+        
+        generateDocsBtn.addEventListener('click', function() {
+            const surname = document.getElementById('passengerSurname').value.trim().toUpperCase();
+            const givenName = document.getElementById('passengerGivenName').value.trim().toUpperCase();
+            const passportNumber = document.getElementById('passportNumber').value.trim().toUpperCase();
+            const nationality = document.getElementById('nationality').value.trim().toUpperCase();
+            const birthDate = document.getElementById('birthDate').value;
+            const gender = document.getElementById('gender').value;
+            const passportExpiry = document.getElementById('passportExpiry').value;
+            
+            if (!surname || !givenName || !passportNumber || !nationality || !birthDate || !passportExpiry) {
+                alert('请填写所有必要字段');
+                return;
+            }
+            
+            const birthDateFormatted = formatDateForDocs(birthDate);
+            const expiryDateFormatted = formatDateForDocs(passportExpiry);
+            
+            // DOCS格式：P/国籍/护照号/姓/名/国籍/生日/性别/护照到期日/姓名
+            const docs = `P/${nationality}/${passportNumber}/${surname}/${givenName}/${nationality}/${birthDateFormatted}/${gender}/${expiryDateFormatted}/${surname}${givenName}`;
+            
+            docsText.textContent = docs;
+            docsResult.style.display = 'block';
+        });
+        
+        resetDocsBtn.addEventListener('click', function() {
+            document.getElementById('passportNumber').value = '';
+            document.getElementById('nationality').value = '';
+            document.getElementById('birthDate').value = '';
+            document.getElementById('gender').value = 'M';
+            document.getElementById('passportExpiry').value = '';
+            docsResult.style.display = 'none';
+        });
+        
+        copyDocsBtn.addEventListener('click', function() {
+            const textToCopy = docsText.textContent;
+            navigator.clipboard.writeText(textToCopy).then(function() {
+                alert('DOCS代码已复制到剪贴板');
+            }, function(err) {
+                console.error('无法复制文本: ', err);
+                alert('复制失败，请手动复制');
             });
-
-            try {
-                const response = await fetch('/flights/generate_docs', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json'
-                    },
-                    body: JSON.stringify(formData)
-                });
-
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-
-                const contentType = response.headers.get('content-type');
-                if (!contentType || !contentType.includes('application/json')) {
-                    throw new TypeError("返回的不是 JSON 格式!");
-                }
-
-                const result = await response.json();
-                
-                // 显示结果框
-                docsResultBox.style.display = 'block';
-                filenameResultBox.style.display = 'none';
-                
-                // DOCS代码
-                if (result.data && result.data.docs_code) {
-                    document.getElementById('docsCodeSection').style.display = 'block';
-                    document.getElementById('docsCodeMissingSection').style.display = 'none';
-                    document.getElementById('docsCode').textContent = result.data.docs_code;
-                } else {
-                    document.getElementById('docsCodeSection').style.display = 'none';
-                    document.getElementById('docsCodeMissingSection').style.display = 'block';
-                    const missingFields = [];
-                    if (!formData.surname || !formData.given_name) missingFields.push('乘客姓名');
-                    if (!formData.passport) missingFields.push('护照号码');
-                    if (!formData.nationality) missingFields.push('国籍');
-                    if (!formData.passport_expiry) missingFields.push('护照有效期');
-                    if (!formData.birth_date) missingFields.push('出生日期');
-                    document.getElementById('docsCodeMissing').textContent = 
-                        `缺少必要信息：${missingFields.join('、')}，无法生成DOCS代码`;
-                }
-
-                showAlert('DOCS代码生成完成！');
-            } catch (error) {
-                showAlert(error.message, true);
-            }
-
-            showLoading(docsLoadingSpinner, generateDocsBtn, false);
         });
-
-        // 自动转换城市代码为大写
-        document.getElementById('depCity').addEventListener('input', function(e) {
-            this.value = this.value.toUpperCase();
-        });
-        document.getElementById('arrCity').addEventListener('input', function(e) {
-            this.value = this.value.toUpperCase();
-        });
-
-        function copyText(elementId, e) {
-            // 阻止按钮的默认行为
-            e.preventDefault();
-            e.stopPropagation();
-            
-            const text = document.getElementById(elementId).textContent;
-            const btn = e.target;
-            const originalText = btn.textContent;
-            
-            // 使用新的 Clipboard API
-            if (navigator.clipboard && window.isSecureContext) {
-                navigator.clipboard.writeText(text).then(() => {
-                    btn.textContent = '已复制';
-                    setTimeout(() => {
-                        btn.textContent = originalText;
-                    }, 1000);
-                }).catch(err => {
-                    showAlert('复制失败：' + err.message, true);
-                });
-            } else {
-                // 回退方案：使用传统的复制方法
-                const textArea = document.createElement('textarea');
-                textArea.value = text;
-                document.body.appendChild(textArea);
-                textArea.select();
-                try {
-                    document.execCommand('copy');
-                    btn.textContent = '已复制';
-                    setTimeout(() => {
-                        btn.textContent = originalText;
-                    }, 1000);
-                } catch (err) {
-                    showAlert('复制失败：' + err.message, true);
-                }
-                document.body.removeChild(textArea);
-            }
+        
+        // 日期格式化函数 (yyMMdd)
+        function formatDateForDocs(dateString) {
+            const date = new Date(dateString);
+            const year = date.getFullYear().toString().substr(-2);
+            const month = (date.getMonth() + 1).toString().padStart(2, '0');
+            const day = date.getDate().toString().padStart(2, '0');
+            return year + month + day;
         }
-
-        // 日期验证函数
-        function isValidDate(dateString) {
-            const datePattern = /^(\d{2})\/(\d{2})\/(\d{4})$/;
-            const match = dateString.match(datePattern);
-            if (!match) return false;
-
-            const [_, day, month, year] = match;
-            const date = new Date(year, month - 1, day);
-            
-            return date.getDate() == parseInt(day) && 
-                   date.getMonth() == parseInt(month) - 1 && 
-                   date.getFullYear() == parseInt(year);
-        }
-    </script>
-</body>
-</html> 
+    });
+</script>
+{% endblock %} 

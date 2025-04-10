@@ -7,6 +7,7 @@ from flask import current_app as app
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.exc import NoResultFound
 from flask_caching import Cache
+from sqlalchemy import text
 
 from ..code.FlightTicket.ConvertFlight.ConvertFlightItinerary import format_flight_info
 from ..code.FlightTicket.ConvertFlight.read_sql_data import original_airport_code_data, original_flight_timing_data
@@ -159,57 +160,72 @@ def simplify_itinerary_by_flight_and_date():
 
 @flight_blue.route('/athinaPage', methods=['GET', 'POST'])
 def flight_to_athina_page():
-    """
-    合并 Athina 机票订单页面加载和处理逻辑。
-    """
     if request.method == 'GET':
-        # 返回 Athina 机票订单输入页面
         return render_template('flights/ATHINA系统航班预定代码.html')
 
     if request.method == 'POST':
         try:
-            # 解析请求数据
-            data = request.json
-
+            # 获取并验证请求数据
+            data = request.get_json()
+            print(f"Received data: {data}")  # 调试日志
+            
             if not data:
                 return jsonify({'error': '未提供任何订单数据'}), 400
 
             itinerary = ""
-            num = 1  # 订单编号
+            num = 1
 
-            # 处理每个订单条目
             for entry in data:
-                flight_number = entry.get('flightNumber', '').replace(" ", "").upper()
-                flight_date = entry.get('flightDate', '')
-                
-                if not flight_number or not flight_date:
-                    return jsonify({'error': f'订单条目 {num} 缺少航班号或日期'}), 400
-
-                # 获取航班时刻表信息
-                schedule_dic = request_schedule_data(flight_number)
-
-                if not schedule_dic:
-                    return jsonify({
-                        'error': f'未找到航班号 {flight_number} 的时刻表数据。请先在航班时刻表中添加该航班信息。'
-                    }), 404
-
                 try:
-                    # 使用航班工具生成预订代码并添加到行程
-                    r = flight.athina_booking_code(num, schedule_dic, flight_date)
+                    # 获取并验证航班信息
+                    flight_number = entry.get('flightNumber', '').strip().replace(" ", "").upper()
+                    flight_date = entry.get('flightDate', '').strip()
+                    
+                    print(f"Processing flight {num}: {flight_number} on {flight_date}")  # 调试日志
+                    
+                    if not flight_number or not flight_date:
+                        return jsonify({'error': f'订单条目 {num} 缺少航班号或日期'}), 400
 
-                    if r.startswith("An error occurred") or r.startswith("Database error"):
-                        return jsonify({'error': r}), 500
-                    itinerary += f"{r}\n"
-                    num += 1
+                    # 获取航班时刻表数据
+                    schedule_dic = request_schedule_data(flight_number)
+                    print(f"Schedule data for {flight_number}: {schedule_dic}")  # 调试日志
+                    
+                    if not schedule_dic:
+                        return jsonify({
+                            'error': f'未找到航班号 {flight_number} 的时刻表数据。请先在航班时刻表中添加该航班信息。'
+                        }), 404
+
+                    try:
+                        # 生成预订代码
+                        r = flight.athina_booking_code(num, schedule_dic, flight_date)
+                        print(f"Generated booking code: {r}")  # 调试日志
+                        
+                        if r.startswith("An error occurred") or r.startswith("Database error"):
+                            return jsonify({'error': r}), 500
+                        itinerary += f"{r}\n"
+                        num += 1
+                    except Exception as e:
+                        print(f"Error generating booking code: {str(e)}")  # 调试日志
+                        import traceback
+                        print(f"Traceback for booking code generation: {traceback.format_exc()}")  # 打印完整的错误堆栈
+                        return jsonify({
+                            'error': f'生成航班 {flight_number} 的预订代码时出错：{str(e)}'
+                        }), 500
+
                 except Exception as e:
+                    print(f"Error processing entry {num}: {str(e)}")  # 调试日志
+                    import traceback
+                    print(f"Traceback for entry processing: {traceback.format_exc()}")  # 打印完整的错误堆栈
                     return jsonify({
-                        'error': f'生成航班 {flight_number} 的预订代码时出错：{str(e)}'
+                        'error': f'处理航班信息时出错：{str(e)}'
                     }), 500
 
             return jsonify({'itinerary': itinerary})
 
         except Exception as e:
-            print(f"Error in flight_to_athina_page: {str(e)}")  # 调试信息
+            print(f"Error in flight_to_athina_page: {str(e)}")  # 调试日志
+            import traceback
+            print(f"Traceback: {traceback.format_exc()}")  # 打印完整的错误堆栈
             return jsonify({'error': str(e)}), 500
 
 
@@ -221,16 +237,61 @@ def flight_to_athina_page():
 @flight_blue.route('/flight_schedule', methods=['GET', 'POST'])
 def input_flight_schedule_info():
     form = FlightScheduleForm()
-    if form.validate_on_submit():
+    
+    # 获取分页数据
+    page = request.args.get('page', 1, type=int)
+    flights = FlightSchedule.query.paginate(page=page, per_page=10)
+    
+    if request.method == 'POST':
         try:
-            flight_service = FlightService()
-            result = flight_service.create_or_update_schedule(form.data)
-            flash(result['message'], 'success')
-            return redirect(url_for('flight_routes.input_flight_schedule_info'))
+            # 获取表单数据
+            flight_numbers = request.form.getlist('flight_number[]')
+            schedule_cities = request.form.getlist('schedule_city[]')
+            schedule_timings = request.form.getlist('schedule_timing[]')
+            
+            # 验证数据
+            if not all([flight_numbers, schedule_cities, schedule_timings]):
+                flash('请填写所有必要的字段', 'error')
+                return render_template('flights/录入航班时刻表.html', form=form, flights=flights)
+            
+            if len(flight_numbers) != len(schedule_cities) or len(flight_numbers) != len(schedule_timings):
+                flash('数据格式错误', 'error')
+                return render_template('flights/录入航班时刻表.html', form=form, flights=flights)
+            
+            # 处理每个航班信息
+            for flight_number, schedule_city, schedule_timing in zip(flight_numbers, schedule_cities, schedule_timings):
+                if not all([flight_number.strip(), schedule_city.strip(), schedule_timing.strip()]):
+                    continue
+                    
+                # 检查是否已存在相同航班号
+                existing_flight = FlightSchedule.query.filter_by(flight_number=flight_number.strip()).first()
+                
+                if existing_flight:
+                    # 更新现有记录
+                    existing_flight.schedule_city = schedule_city.strip()
+                    existing_flight.schedule_timing = schedule_timing.strip()
+                
+                else:
+                    # 创建新记录
+                    new_flight = FlightSchedule(
+                        flight_number=flight_number.strip(),
+                        schedule_city=schedule_city.strip(),
+                        airline_code=flight_number.strip()[:2],
+                        airline_num = flight_number.strip()[2:],
+                        schedule_timing=schedule_timing.strip()
+                    )
+                    db.session.add(new_flight)
+            
+            db.session.commit()
+            flash('航班信息保存成功！', 'success')
+            return redirect(url_for('flight_blue.input_flight_schedule_info'))
+            
         except Exception as e:
-            flash(str(e), 'error')
-            return render_template('flights/schedule_form.html', form=form)
-    return render_template('flights/schedule_form.html', form=form)
+            db.session.rollback()
+            flash(f'保存失败：{str(e)}', 'error')
+            return render_template('flights/录入航班时刻表.html', form=form, flights=flights)
+    
+    return render_template('flights/录入航班时刻表.html', form=form, flights=flights)
 
 
 @flight_blue.route('/search_flights', methods=['GET'])
@@ -346,33 +407,54 @@ def flight_schedule_data():
 
 @flight_blue.route('/input_airport_code_info', methods=['GET', 'POST'])
 def input_airport_code_info():
-
     if request.method == 'POST':
-        iata_list = request.form.getlist('iata[]')
-        city_list = request.form.getlist('city[]')
+        try:
+            iata_list = request.form.getlist('iata[]')
+            city_list = request.form.getlist('city[]')
+            airport_name_cn_list = request.form.getlist('airportNameCN[]')
+            airport_name_en_list = request.form.getlist('airportNameEN[]')
 
-        airport_name_cn_list = request.form.getlist('airportNameCN[]')
-        airport_name_en_list = request.form.getlist('airportNameEN[]')
+            # 验证所有输入
+            for iata, city, name_cn, name_en in zip(iata_list, city_list, airport_name_cn_list, airport_name_en_list):
+                if not iata or not city or not name_cn or not name_en:
+                    flash('所有字段都是必填项。', 'error')
+                    return render_template('flights/录入机场代码.html')
 
-        # 简单验证
-        for iata, city, name_cn, name_en in zip(iata_list, city_list, airport_name_cn_list, airport_name_en_list):
+                if len(iata) != 3:
+                    flash(f'IATA 代码 "{iata}" 必须是3个字符。', 'error')
+                    return render_template('flights/录入机场代码.html')
 
-            if not iata or not city or not name_cn or not name_en:
-                flash('所有字段都是必填项。', 'error')
-                return render_template('flights/录入机场代码.html')
+                if not iata.isalpha() or not iata.isupper():
+                    flash(f'IATA 代码 "{iata}" 必须是3位大写字母。', 'error')
+                    return render_template('flights/录入机场代码.html')
 
-            if len(iata) != 3:
-                flash(f'IATA 代码 "{iata}" 必须是3个字符。', 'error')
-                return render_template('flights/录入机场代码.html')
+                existing_airport = AirportData.query.filter_by(airport_IATA=iata.upper()).first()
+                if existing_airport:
+                    flash(f'IATA 代码 "{iata}" 已存在。', 'error')
+                    return render_template('flights/录入机场代码.html')
 
-            # 检查 IATA 是否已存在
-            existing_airport = AirportData.query.filter_by(airport_IATA=iata.upper()).first()
-            if existing_airport:
-                flash(f'IATA 代码 "{iata}" 已存在。', 'error')
-                return render_template('flights/录入机场代码.html')
+            # 批量创建机场数据
+            airports_to_add = []
+            for iata, city, name_cn, name_en in zip(iata_list, city_list, airport_name_cn_list, airport_name_en_list):
+                airport = AirportData(
+                    airport_IATA=iata.upper(),
+                    city_name=city.strip(),
+                    airport_name_cn=name_cn.strip(),
+                    airport_name_en=name_en.strip()
+                )
+                airports_to_add.append(airport)
 
-        # 成功处理后可以执行后续操作，如保存数据等
-        return redirect(url_for('flight_routes.input_airport_code_info'))
+            # 批量添加到数据库
+            db.session.add_all(airports_to_add)
+            db.session.commit()
+
+            flash(f'成功添加 {len(airports_to_add)} 个机场信息。', 'success')
+            return redirect(url_for('flight_blue.input_airport_code_info'))
+
+        except Exception as e:
+            db.session.rollback()
+            flash(f'保存数据时出错：{str(e)}', 'error')
+            return render_template('flights/录入机场代码.html')
 
     # GET 请求时渲染页面
     return render_template('flights/录入机场代码.html')
@@ -458,7 +540,7 @@ def generate_filename():
             'data': {
                 'etk_filename': f"HID{data['hid']}_ETK_{data['surname']} {data['given_name']}",
                 'inv_filename': f"HID{data['hid']}_INV_{data['surname']} {data['given_name']}",
-                'email_subject': f"HID{data['hid']} {formatted_date} {data.get('airline_code', '')} {data.get('dep_city', '')} {data.get('arr_city', '')} ( {data['surname']} {data['given_name']} )".strip()
+                'email_subject': f"HID{data['hid']} {formatted_date}  {data.get('dep_city', '')} {data.get('arr_city', '')} ( {data['surname']} {data['given_name']} )".strip()
             }
         })
     except Exception as e:
@@ -555,3 +637,143 @@ def admin_view():
 @flight_blue.route('/company_header')
 def company_header():
     return render_template('company/company_header.html')
+
+@flight_blue.route('/search_airports')
+def search_airports():
+    """搜索机场信息"""
+    try:
+        iata = request.args.get('iata', '').strip().upper()
+        city = request.args.get('city', '').strip()
+
+        # 构建查询，只查询存在的列
+        query = AirportData.query.with_entities(
+            AirportData.id,
+            AirportData.airport_IATA,
+            AirportData.city_name,
+            AirportData.airport_name_cn,
+            AirportData.airport_name_en
+        )
+
+        # 添加搜索条件
+        if iata:
+            query = query.filter(AirportData.airport_IATA.like(f'%{iata}%'))
+        if city:
+            query = query.filter(AirportData.city_name.like(f'%{city}%'))
+
+        # 执行查询
+        airports = query.all()
+
+        # 转换为JSON格式
+        airports_data = []
+        for airport in airports:
+            airports_data.append({
+                'id': airport.id,
+                'iata': airport.airport_IATA,
+                'city': airport.city_name,
+                'airport_name_cn': airport.airport_name_cn,
+                'airport_name_en': airport.airport_name_en
+            })
+
+        return jsonify({
+            'status': 'success',
+            'airports': airports_data
+        })
+
+    except Exception as e:
+        print(f"Search error: {str(e)}")  # 添加错误日志
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+@flight_blue.route('/update_airport', methods=['POST'])
+def update_airport():
+    """更新机场信息"""
+    try:
+        data = request.get_json()
+        
+        if not data or not all(key in data for key in ['id', 'iata', 'city', 'airport_name_cn', 'airport_name_en']):
+            return jsonify({
+                'status': 'error',
+                'message': '请提供所有必要的信息'
+            }), 400
+        
+        # 验证ID格式
+        try:
+            airport_id = int(data['id'])
+        except (ValueError, TypeError):
+            return jsonify({
+                'status': 'error',
+                'message': 'ID格式无效'
+            }), 400
+        
+        # 验证IATA代码格式
+        if not data['iata'] or len(data['iata']) != 3 or not data['iata'].isalpha() or not data['iata'].isupper():
+            return jsonify({
+                'status': 'error',
+                'message': 'IATA代码必须是3位大写字母'
+            }), 400
+        
+        # 查找机场信息 - 使用with_entities避免查询模型中不存在的列
+        airport = AirportData.query.with_entities(
+            AirportData.id,
+            AirportData.airport_IATA,
+            AirportData.city_name,
+            AirportData.airport_name_cn,
+            AirportData.airport_name_en
+        ).filter_by(id=airport_id).first()
+        
+        if not airport:
+            return jsonify({
+                'status': 'error',
+                'message': '未找到该机场信息'
+            }), 404
+        
+        # 如果IATA代码已更改，检查新代码是否已存在
+        if airport.airport_IATA != data['iata']:
+            existing_airport = AirportData.query.with_entities(AirportData.id, AirportData.airport_IATA).filter_by(airport_IATA=data['iata']).first()
+            if existing_airport and existing_airport.id != airport_id:
+                return jsonify({
+                    'status': 'error',
+                    'message': f'IATA代码 "{data["iata"]}" 已被使用'
+                }), 400
+        
+        # 直接使用原始SQL更新避免加载完整模型
+        try:
+            sql = text("UPDATE airport_data SET airport_IATA = :iata, city_name = :city, "
+                       "airport_name_cn = :name_cn, airport_name_en = :name_en WHERE id = :id")
+            
+            db.session.execute(
+                sql,
+                {
+                    "iata": data['iata'],
+                    "city": data['city'],
+                    "name_cn": data['airport_name_cn'],
+                    "name_en": data['airport_name_en'],
+                    "id": airport_id
+                }
+            )
+            db.session.commit()
+            return jsonify({
+                'status': 'success',
+                'message': '机场信息已成功更新'
+            })
+        except IntegrityError:
+            db.session.rollback()
+            return jsonify({
+                'status': 'error',
+                'message': '数据库错误，可能是IATA代码重复'
+            }), 400
+            
+    except Exception as e:
+        db.session.rollback()
+        print(f"Update airport error: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+@flight_blue.route('/flight_home')
+def flight_home():
+    """机票首页路由"""
+    return render_template('flights/机票首页.html')

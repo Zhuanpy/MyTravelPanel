@@ -41,6 +41,7 @@ visa_type_documents = db.Table(
 
 
 class VisaTypes(db.Model):
+
     __tablename__ = 'visa_types'
 
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
@@ -83,6 +84,7 @@ class VisaTypes(db.Model):
 
 
 class VisaDocuments(db.Model):
+
     __tablename__ = 'visa_documents'
     
     id = db.Column(db.Integer, primary_key=True)
@@ -164,6 +166,7 @@ class VisaDocuments(db.Model):
 
 
 class VisaLinks(db.Model):
+
     __tablename__ = 'visalinks'
 
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
