@@ -1,53 +1,405 @@
-<!DOCTYPE html>
-<html lang="zh">
-<head>
-    <meta charset="UTF-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ country }} 处理</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/visa_project.css') }}">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/zh.js"></script>
-</head>
+{% extends "base.html" %}
 
-<body>
-    <div class="container">
-        <div class="header-container">
+{% block title %}{{ country }} 处理{% endblock %}
+
+{% block head %}
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<style>
+    .visa-project-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+    
+    .visa-project-header-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin-bottom: 2rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid #e2e8f0;
+    }
+    
+    .visa-project-header-container h1 {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #2d3748;
+        margin: 0;
+        text-align: center;
+    }
+    
+    .visa-project-home-btn {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.5rem 1rem;
+        background-color: #edf2f7;
+        color: #4a5568;
+        font-weight: 500;
+        border-radius: 0.375rem;
+        text-decoration: none;
+        transition: all 0.2s;
+    }
+    
+    .visa-project-home-btn:hover {
+        background-color: #e2e8f0;
+        color: #2d3748;
+    }
+    
+    .visa-project-home-btn i {
+        margin-right: 0.5rem;
+    }
+    
+    .visa-project-section-card {
+        background: #ffffff;
+        border-radius: 8px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        margin-bottom: 1.5rem;
+        overflow: hidden;
+    }
+    
+    .visa-project-section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1rem 1.5rem;
+        background-color: #f7fafc;
+        border-bottom: 1px solid #e2e8f0;
+    }
+    
+    .visa-project-section-header h2 {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: #2d3748;
+        margin: 0;
+    }
+    
+    .visa-project-header-links {
+        display: flex;
+        gap: 1rem;
+    }
+    
+    .visa-project-resource-link {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.375rem 0.75rem;
+        background-color: #ebf4ff;
+        color: #4299e1;
+        font-size: 0.875rem;
+        font-weight: 500;
+        border-radius: 0.25rem;
+        text-decoration: none;
+        transition: all 0.2s;
+    }
+    
+    .visa-project-resource-link:hover {
+        background-color: #bee3f8;
+        color: #3182ce;
+    }
+    
+    .visa-project-resource-link i {
+        margin-right: 0.375rem;
+    }
+    
+    .visa-project-alert {
+        padding: 1rem;
+        margin: 1rem 1.5rem;
+        border-radius: 0.375rem;
+        display: none;
+    }
+    
+    .visa-project-alert-success {
+        background-color: #f0fff4;
+        border: 1px solid #c6f6d5;
+        color: #2f855a;
+    }
+    
+    .visa-project-alert-error {
+        background-color: #fff5f5;
+        border: 1px solid #fed7d7;
+        color: #c53030;
+    }
+    
+    .visa-project-form {
+        padding: 1.5rem;
+    }
+    
+    .visa-project-form-row {
+        display: flex;
+        flex-wrap: wrap;
+        margin: 0 -10px;
+    }
+    
+    .visa-project-form-group {
+        margin-bottom: 1.5rem;
+        padding: 0 10px;
+    }
+    
+    .visa-project-form-col-6 {
+        flex: 0 0 50%;
+        max-width: 50%;
+    }
+    
+    .visa-project-form-group label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: 500;
+        color: #4a5568;
+    }
+    
+    .visa-project-form-control {
+        width: 100%;
+        padding: 0.5rem 0.75rem;
+        border: 1px solid #e2e8f0;
+        border-radius: 0.375rem;
+        transition: border-color 0.2s;
+    }
+    
+    .visa-project-form-control:focus {
+        outline: none;
+        border-color: #4299e1;
+        box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.15);
+    }
+    
+    .visa-project-form-error {
+        display: none;
+        color: #c53030;
+        font-size: 0.875rem;
+        margin-top: 0.375rem;
+    }
+    
+    .visa-project-form-group.full-width {
+        margin-bottom: 0;
+    }
+    
+    .visa-project-btn-group {
+        display: flex;
+        gap: 1rem;
+    }
+    
+    .visa-project-btn {
+        padding: 0.5rem 1rem;
+        background-color: #3182ce;
+        color: white;
+        font-weight: 500;
+        border: none;
+        border-radius: 0.375rem;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    
+    .visa-project-btn:hover {
+        background-color: #2c5282;
+    }
+    
+    .visa-project-btn-secondary {
+        background-color: #718096;
+    }
+    
+    .visa-project-btn-secondary:hover {
+        background-color: #4a5568;
+    }
+    
+    .visa-project-btn.loading {
+        opacity: 0.7;
+        pointer-events: none;
+    }
+    
+    .visa-project-info-text {
+        padding: 1rem 1.5rem;
+        margin: 0;
+        line-height: 1.6;
+    }
+    
+    .visa-project-link-group {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid #e2e8f0;
+    }
+    
+    .visa-project-identity-link {
+        padding: 0.375rem 0.75rem;
+        background-color: #edf2f7;
+        color: #4a5568;
+        font-size: 0.875rem;
+        font-weight: 500;
+        border-radius: 0.25rem;
+        text-decoration: none;
+        transition: all 0.2s;
+    }
+    
+    .visa-project-identity-link:hover {
+        background-color: #e2e8f0;
+        color: #2d3748;
+    }
+    
+    .visa-project-identity-link.selected {
+        background-color: #4299e1;
+        color: white;
+    }
+    
+    .visa-project-content-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid #e2e8f0;
+    }
+    
+    .visa-project-content-header h3 {
+        font-size: 1.125rem;
+        font-weight: 600;
+        color: #2d3748;
+        margin: 0;
+    }
+    
+    .visa-project-edit-link {
+        display: inline-flex;
+        align-items: center;
+        font-size: 0.875rem;
+        color: #4299e1;
+        text-decoration: none;
+    }
+    
+    .visa-project-edit-link:hover {
+        text-decoration: underline;
+    }
+    
+    .visa-project-edit-link i {
+        margin-right: 0.375rem;
+    }
+    
+    .visa-project-content {
+        padding: 1rem 1.5rem;
+    }
+    
+    .visa-project-content h3 {
+        padding: 0 1.5rem;
+        margin: 1.5rem 0 0.5rem;
+        font-size: 1.125rem;
+        font-weight: 600;
+        color: #2d3748;
+    }
+    
+    .visa-project-file-content,
+    .visa-project-additional-content {
+        padding: 1rem 1.5rem;
+        line-height: 1.7;
+    }
+    
+    .visa-project-additional-content {
+        background-color: #f7fafc;
+        border-radius: 0 0 8px 8px;
+    }
+    
+    .visa-project-list {
+        list-style: none;
+        padding: 1rem 1.5rem;
+        margin: 0;
+    }
+    
+    .visa-project-list li {
+        margin-bottom: 0.75rem;
+        position: relative;
+        padding-left: 1.25rem;
+    }
+    
+    .visa-project-list li:before {
+        content: '•';
+        position: absolute;
+        left: 0;
+        color: #4299e1;
+    }
+    
+    .visa-project-list li a {
+        color: #4299e1;
+        text-decoration: none;
+    }
+    
+    .visa-project-list li a:hover {
+        text-decoration: underline;
+    }
+    
+    .visa-project-skeleton {
+        padding: 1rem 0;
+    }
+    
+    .visa-project-skeleton-line {
+        height: 1rem;
+        background-color: #edf2f7;
+        border-radius: 0.25rem;
+        margin-bottom: 0.75rem;
+        width: 100%;
+        animation: visa-project-pulse 1.5s infinite;
+    }
+    
+    .visa-project-skeleton-line:nth-child(2) {
+        width: 90%;
+    }
+    
+    .visa-project-skeleton-line:nth-child(3) {
+        width: 80%;
+    }
+    
+    .visa-project-skeleton-line:nth-child(4) {
+        width: 70%;
+    }
+    
+    @keyframes visa-project-pulse {
+        0% {
+            opacity: 0.6;
+        }
+        50% {
+            opacity: 0.8;
+        }
+        100% {
+            opacity: 0.6;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .visa-project-form-col-6 {
+            flex: 0 0 100%;
+            max-width: 100%;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="visa-project-container">
+    <div class="visa-project-header-container">
             <h1>{{ country }}处理</h1>
             
-            <a href="/" class="home-btn">
-                <i class="fas fa-home"></i> 返回首页
-            </a>
         </div>
 
-        <section class="section-card">
-            <div class="section-header">
+    <section class="visa-project-section-card">
+        <div class="visa-project-section-header">
                 <h2>创建项目</h2>
-                <div class="header-links">
-                    <a class="resource-link" href="{{ url_for('visa_routes.visa_open_project_folder', country=country) }}">
-                        打开{{ country }}资源
-                    </a>
-                    <a class="resource-link" href="{{ url_for('visa_routes.show_current_all_projects') }}" >项目管理</a>
-                </div>
+            <div class="visa-project-header-links">
+                <a class="visa-project-resource-link" href="{{ url_for('visa_routes.visa_open_project_folder', country=country) }}">
+                    打开{{ country }}资源
+                </a>
+                <a class="visa-project-resource-link" href="{{ url_for('visa_routes.show_current_all_projects') }}" >项目管理</a>
+            </div>
             </div>
             
-            <div id="formAlert" class="alert"></div>
+        <div id="formAlert" class="visa-project-alert"></div>
             
-            <form id="visaForm" method="post" action="{{ url_for('visa_routes.visa_create_project', country=country) }}">
-                <div class="form-group">
+        <form id="visaForm" class="visa-project-form" method="post" action="{{ url_for('visa_routes.visa_create_project', country=country) }}">
+            <div class="visa-project-form-row">
+                <div class="visa-project-form-group visa-project-form-col-6">
                     <label for="project_name">项目名称</label>
-                    <input type="text" class="form-control" id="project_name" name="path_create_project" 
+                    <input type="text" class="visa-project-form-control" id="project_name" name="path_create_project" 
                            placeholder="如：HID123_LI JIAN" required pattern="[A-Za-z0-9_\-\s]+" 
                            title="请使用英文字母、数字、下划线或横线">
-                    <div class="form-error" id="project_name_error">项目名称格式不正确</div>
+                    <div class="visa-project-form-error" id="project_name_error">项目名称格式不正确</div>
                 </div>
 
-                <div class="form-group">
+                <div class="visa-project-form-group visa-project-form-col-6">
                     <label for="singapore_status">在新加坡身份</label>
-                    <select class="form-control" id="singapore_status" name="singapore_status" required>
+                    <select class="visa-project-form-control" id="singapore_status" name="singapore_status" required>
                         <option value="PR">永久居民 (PR)</option>
                         <option value="工作准证">工作准证</option>
                         <option value="家属准证">家属准证</option>
@@ -55,29 +407,32 @@
                         <option value="女佣准证">女佣准证</option>
                     </select>
                 </div>
+                </div>
 
-                <div class="form-group">
+            <div class="visa-project-form-row">
+                <div class="visa-project-form-group visa-project-form-col-6">
                     <label for="visa_status">签证状态</label>
-                    <select class="form-control" id="visa_status" name="visa_status" required>
+                    <select class="visa-project-form-control" id="visa_status" name="visa_status" required>
                         <option value="待递交">待递交</option>
                         <option value="待出签">待出签</option>
                         <option value="已出签">已出签</option>
                     </select>
                 </div>
 
-                <div class="form-group">
+                <div class="visa-project-form-group visa-project-form-col-6">
                     <label for="estimated_date">预估出签日期</label>
-                    <input type="text" class="form-control datepicker" id="estimated_date" name="estimated_date" 
+                    <input type="text" class="visa-project-form-control datepicker" id="estimated_date" name="estimated_date" 
                            placeholder="选择日期" required>
-                    <div class="form-error" id="estimated_date_error">请选择有效的日期</div>
+                    <div class="visa-project-form-error" id="estimated_date_error">请选择有效的日期</div>
+                </div>
                 </div>
 
-                <div class="form-group full-width">
-                    <div class="btn-group">
-                        <button type="submit" class="btn" name="submit_button" value="create_project" id="createBtn">
+            <div class="visa-project-form-group full-width">
+                <div class="visa-project-btn-group">
+                    <button type="submit" class="visa-project-btn" name="submit_button" value="create_project" id="createBtn">
                             创建项目
                         </button>
-                        <button type="submit" class="btn btn-secondary" name="submit_button" value="generate_form" id="generateBtn">
+                    <button type="submit" class="visa-project-btn visa-project-btn-secondary" name="submit_button" value="generate_form" id="generateBtn">
                             生成表格
                         </button>
                     </div>
@@ -85,56 +440,57 @@
             </form>
         </section>
 
-        <section class="section-card">
-            <div class="section-header">
-                <h2>费用说明</h2>
-                <a href="{{ url_for('visa_routes.edit_visa_type', visa_type=types_info.visa_type_name, field='fee') }}" class="button is-small is-info">
-                    <i class="fas fa-edit"></i>&nbsp;编辑费用
+    <section class="visa-project-section-card">
+        <div class="visa-project-section-header">
+            <h2>费用说明</h2>
+            <a href="{{ url_for('visa_routes.edit_visa_type', visa_type=country, field='fee') }}" class="visa-project-resource-link">
+                <i class="fas fa-edit"></i> 编辑费用
                 </a>
             </div>
-            <p class="info-text">{{types_info.fee}}</p>
+        <p class="visa-project-info-text">{{types_info.fee}}</p>
         </section>
 
-        <section class="section-card">
-            <div class="section-header">
-                <h2>处理时间</h2>
-                <a href="{{ url_for('visa_routes.edit_visa_type', visa_type=types_info.visa_type_name, field='processing_time') }}" class="button is-small is-info">
-                    <i class="fas fa-edit"></i>&nbsp;编辑时间
+    <section class="visa-project-section-card">
+        <div class="visa-project-section-header">
+            <h2>处理时间</h2>
+            <a href="{{ url_for('visa_routes.edit_visa_type', visa_type=country, field='processing_time') }}" class="visa-project-resource-link">
+                <i class="fas fa-edit"></i> 编辑时间
                 </a>
             </div>
-            <p class="info-text">{{types_info.processing_time}}</p>
+        <p class="visa-project-info-text">{{types_info.processing_time}}</p>
         </section>
 
-        <section class="section-card">
-            <div class="section-header">
-                <h2>相关资料</h2>
-
+    <section class="visa-project-section-card">
+        <div class="visa-project-section-header">
+                <h2>{{ country }}相关资料</h2>
             </div>
             
-            <div class="link-group">
-                <a href="#" class="identity-link" data-identity="PR" onclick="fetchContent('{{ country }}', 'PR', this); return false;">永久居民 (PR)</a>
-                <a href="#" class="identity-link" data-identity="工作准证" onclick="fetchContent('{{ country }}', '工作准证', this); return false;">工作准证</a>
-                <a href="#" class="identity-link" data-identity="家属准证" onclick="fetchContent('{{ country }}', '家属准证', this); return false;">家属准证</a>
-                <a href="#" class="identity-link" data-identity="学生准证" onclick="fetchContent('{{ country }}', '学生准证', this); return false;">学生准证</a>
-                <a href="#" class="identity-link" data-identity="女佣准证" onclick="fetchContent('{{ country }}', '女佣准证', this); return false;">女佣准证</a>
+        <div class="visa-project-link-group">
+            <a href="#" class="visa-project-identity-link" data-identity="PR" onclick="fetchContent('{{ country }}', 'PR', this); return false;">永久居民 (PR)</a>
+            <a href="#" class="visa-project-identity-link" data-identity="工作准证" onclick="fetchContent('{{ country }}', '工作准证', this); return false;">工作准证</a>
+            <a href="#" class="visa-project-identity-link" data-identity="家属准证" onclick="fetchContent('{{ country }}', '家属准证', this); return false;">家属准证</a>
+            <a href="#" class="visa-project-identity-link" data-identity="学生准证" onclick="fetchContent('{{ country }}', '学生准证', this); return false;">学生准证</a>
+            <a href="#" class="visa-project-identity-link" data-identity="女佣准证" onclick="fetchContent('{{ country }}', '女佣准证', this); return false;">女佣准证</a>
             </div>
             
-            <div class="content-header">
-                <h3>文件资料</h3>
-                <a href="{{ url_for('visa_routes.manage_visas', country=country) }}" class="edit-link">
+        <div class="visa-project-content-header">
+                <h3>{{ country }}文件资料</h3>
+            <a href="{{ url_for('visa_routes.manage_visas', country=country) }}" class="visa-project-edit-link">
                     <i class="fas fa-edit"></i> 编辑文件资料
                 </a>
             </div>
-            <div id="content" class="content file-content">
+        <div id="content" class="visa-project-content visa-project-file-content">
                 {% if document_data and form_data.singapore_status in document_data %}
                     {{ document_data[form_data.singapore_status].document_info | safe | replace('\n', '<br>') }}
                 {% else %}
                     <p>暂无文件资料</p>
                 {% endif %}
             </div>
-            
+        
+        <div class="visa-project-content-header">
             <h3>补充信息</h3>
-            <div id="additional_content" class="content additional-content">
+        </div>
+        <div id="additional_content" class="visa-project-content visa-project-additional-content">
                 {% if document_data and form_data.singapore_status in document_data %}
                     {{ document_data[form_data.singapore_status].additional_info | safe | replace('\n', '<br>') }}
                 {% else %}
@@ -143,17 +499,17 @@
             </div>
         </section>
 
-        <section class="section-card">
-            <div class="section-header">
+    <section class="visa-project-section-card">
+        <div class="visa-project-section-header">
                 <h2>相关链接</h2>
-                <div class="header-links">
-                    <a href="{{ url_for('visa_routes.visa_link_page') }}" class="resource-link">
+            <div class="visa-project-header-links">
+                <a href="{{ url_for('visa_routes.visa_link_page') }}" class="visa-project-resource-link">
                         <i class="fas fa-edit"></i> 管理链接
                     </a>
                 </div>
             </div>
             {% if links %}
-                <ul class="project-list">
+            <ul class="visa-project-list">
                     {% for link in links %}
                         <li>
                             <a href="{{ link.link }}" target="_blank">{{ link.name }}</a>
@@ -161,15 +517,15 @@
                     {% endfor %}
                 </ul>
             {% else %}
-                <p class="info-text">暂无相关链接。</p>
+            <p class="visa-project-info-text">暂无相关链接。</p>
             {% endif %}
         </section>
 
-        <section class="section-card">
-            <div class="section-header">
+    <section class="visa-project-section-card">
+        <div class="visa-project-section-header">
                 <h2>近期项目</h2>
             </div>
-            <ul class="project-list">
+        <ul class="visa-project-list">
                 {% for project in projects %}
                 <li>
                     <a href="{{ url_for('visa_routes.visa_open_current_project', file_name=project , country=country) }}">{{ project }}</a>
@@ -178,7 +534,11 @@
             </ul>
         </section>
     </div>
+{% endblock %}
 
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/zh.js"></script>
     <script>
         // 初始化日期选择器
         flatpickr(".datepicker", {
@@ -194,7 +554,7 @@
         
         function showAlert(message, isSuccess) {
             formAlert.textContent = message;
-            formAlert.className = `alert ${isSuccess ? 'alert-success' : 'alert-error'}`;
+        formAlert.className = `visa-project-alert ${isSuccess ? 'visa-project-alert-success' : 'visa-project-alert-error'}`;
             formAlert.style.display = 'block';
             setTimeout(() => {
                 formAlert.style.display = 'none';
@@ -239,6 +599,10 @@
             
             try {
                 const formData = new FormData(this);
+            // 确保 submit_button 被正确添加到 formData 中
+            formData.set('submit_button', submitButton.value);
+            console.log('Submitting form with submit_button:', submitButton.value); // 添加调试日志
+            
                 const response = await fetch(this.action, {
                     method: 'POST',
                     body: formData,
@@ -246,26 +610,28 @@
                         'X-Requested-With': 'XMLHttpRequest'
                     }
                 });
+            
+            console.log('Response status:', response.status); // 添加调试日志
                 
                 if (response.redirected) {
                     window.location.href = response.url;
                     return;
                 }
 
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                throw new Error('Server returned non-JSON response');
+            }
+                
                 const result = await response.json();
+            console.log('Response data:', result); // 添加调试日志
                 
                 if (response.ok) {
                     showAlert(result.message || '操作成功！', true);
-                    if (submitButton.value === 'create_project') {
-                        // 保存表单数据
-                        localStorage.setItem('project_name', document.getElementById('project_name').value);
-                        localStorage.setItem('singapore_status', document.getElementById('singapore_status').value);
-                        
                         if (result.redirect_url) {
                             window.location.href = result.redirect_url;
                         } else {
                             location.reload();
-                        }
                     }
                 } else {
                     showAlert(result.message || '操作失败，请重试', false);
@@ -276,6 +642,7 @@
             } finally {
                 submitButton.disabled = false;
                 submitButton.classList.remove('loading');
+            submitButton.textContent = originalText;
             }
         });
 
@@ -284,7 +651,7 @@
             const url = `/visa/document_request/${encodeURIComponent(country)}/${encodeURIComponent(singaporeStatus)}`;
             
             // 更新选中状态
-            document.querySelectorAll('.identity-link').forEach(link => {
+        document.querySelectorAll('.visa-project-identity-link').forEach(link => {
                 link.classList.remove('selected');
             });
             clickedLink.classList.add('selected');
@@ -293,13 +660,13 @@
             localStorage.setItem('selectedIdentity', singaporeStatus);
             
             // 显示加载状态
-            document.querySelectorAll('.content').forEach(content => {
+        document.querySelectorAll('.visa-project-content').forEach(content => {
                 content.innerHTML = `
-                    <div class="skeleton">
-                        <div class="skeleton-line"></div>
-                        <div class="skeleton-line"></div>
-                        <div class="skeleton-line"></div>
-                        <div class="skeleton-line"></div>
+                <div class="visa-project-skeleton">
+                    <div class="visa-project-skeleton-line"></div>
+                    <div class="visa-project-skeleton-line"></div>
+                    <div class="visa-project-skeleton-line"></div>
+                    <div class="visa-project-skeleton-line"></div>
                     </div>
                 `;
             });
@@ -313,7 +680,7 @@
                 })
                 .then(data => {
                     // 处理文件资料内容
-                    const fileContent = document.querySelector('.file-content');
+                const fileContent = document.querySelector('.visa-project-file-content');
                     if (fileContent) {
                         let documentInfo = data.document_info || '暂无文件资料';
                         if (documentInfo !== '暂无文件资料') {
@@ -327,32 +694,31 @@
                             // 为每行添加序号
                             documentInfo = lines.map((line, index) => `${index + 1}. ${line.trim()}`).join('\n');
                         }
-                        fileContent.innerHTML = documentInfo;
+                    fileContent.innerHTML = documentInfo.replace(/\n/g, '<br>');
                     }
                     
                     // 更新补充信息内容
-                    const additionalContent = document.querySelector('.additional-content');
+                const additionalContent = document.querySelector('.visa-project-additional-content');
                     if (additionalContent) {
-                        additionalContent.innerHTML = data.additional_info || '暂无补充信息';
+                    additionalContent.innerHTML = (data.additional_info || '暂无补充信息').replace(/\n/g, '<br>');
                     }
                 })
                 .catch(error => {
                     console.error('Error:', error);
-                    document.querySelectorAll('.content').forEach(content => {
-                        content.innerHTML = '<div class="alert alert-danger">获取数据失败，请稍后重试</div>';
-                    });
+                document.querySelectorAll('.visa-project-content').forEach(content => {
+                    content.innerHTML = '<div class="visa-project-alert visa-project-alert-error">获取数据失败，请稍后重试</div>';
+                });
                 });
         }
 
         // 页面加载时恢复选中状态
         window.addEventListener('load', function() {
             const selectedIdentity = localStorage.getItem('selectedIdentity') || 'PR';
-            const selectedLink = document.querySelector(`.identity-link[data-identity="${selectedIdentity}"]`);
+        const selectedLink = document.querySelector(`.visa-project-identity-link[data-identity="${selectedIdentity}"]`);
             if (selectedLink) {
                 selectedLink.classList.add('selected');
                 fetchContent('{{ country }}', selectedIdentity, selectedLink);
             }
         });
     </script>
-</body>
-</html>
+{% endblock %}

@@ -1,96 +1,575 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <title>录入机场信息</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
-  <script>
-    document.addEventListener("DOMContentLoaded", function() {
-      const airportContainer = document.querySelector('.airport-container');
-      const addAirportButton = document.querySelector('#addAirportButton');
-      const submitButton = document.querySelector('#submitButton');
-      
-      addAirportButton.addEventListener('click', function() {
-        const airportFormHTML = `
-          <div class="grid grid-cols-12 gap-4 items-center airport-entry">
-            <div class="col-span-3">
-              <label class="block font-medium">IATA 代码:</label>
-              <input type="text" name="iata[]" placeholder="例如: SIN" class="w-full border rounded p-2">
-            </div>
-            <div class="col-span-3">
-              <label class="block font-medium">城市名:</label>
-              <input type="text" name="city[]" placeholder="例如: 新加坡" class="w-full border rounded p-2">
-            </div>
-            <div class="col-span-3">
-              <label class="block font-medium">机场中文名:</label>
-              <input type="text" name="airportNameCN[]" placeholder="例如: 樟宜机场" class="w-full border rounded p-2">
-            </div>
-            <div class="col-span-3">
-              <label class="block font-medium">机场英文名:</label>
-              <input type="text" name="airportNameEN[]" placeholder="例如: Changi Airport" class="w-full border rounded p-2">
-            </div>
-            <div class="col-span-2">
-              <button type="button" class="w-full bg-red-500 text-white rounded p-2 airport-delete-button">删除机场信息</button>
-            </div>
-          </div>
-        `;
-        airportContainer.insertAdjacentHTML('beforeend', airportFormHTML);
-        initializeDeleteButtons();
-      });
+{% extends "base.html" %}
 
-      function initializeDeleteButtons() {
-        document.querySelectorAll('.airport-delete-button').forEach(button => {
-          button.removeEventListener('click', handleAirportDelete);
-          button.addEventListener('click', handleAirportDelete);
-        });
-      }
+{% block title %}录入机场代码信息{% endblock %}
 
-      function handleAirportDelete(event) {
-        event.target.closest('.airport-entry').remove();
-      }
+{% block head %}
+<style>
+    .card {
+        border-radius: 0.75rem;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        border: none;
+        transition: all 0.3s ease;
+    }
+    
+    .card-header {
+        background: linear-gradient(135deg, #f5f7fa 0%, #e4e7eb 100%);
+        border-radius: 0.75rem 0.75rem 0 0 !important;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+        padding: 1.25rem 1.5rem;
+    }
+    
+    .card-body {
+        padding: 1.5rem;
+    }
+    
+    .form-control {
+        border-radius: 0.5rem;
+        padding: 0.75rem 1rem;
+        border: 1px solid #ced4da;
+        transition: all 0.3s ease;
+    }
+    
+    .form-control:focus {
+        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+        border-color: #86b7fe;
+    }
+    
+    .btn {
+        border-radius: 0.5rem;
+        padding: 0.6rem 1.5rem;
+        font-weight: 500;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-primary {
+        background: #2a5298;
+        border-color: #2a5298;
+    }
+    
+    .btn-primary:hover {
+        background: #1e3c72;
+        border-color: #1e3c72;
+        transform: translateY(-2px);
+    }
+    
+    .btn-success {
+        background: #4CAF50;
+        border-color: #4CAF50;
+    }
+    
+    .btn-success:hover {
+        background: #388E3C;
+        border-color: #388E3C;
+        transform: translateY(-2px);
+    }
+    
+    .btn-danger {
+        background: #dc3545;
+        border-color: #dc3545;
+    }
+    
+    .btn-danger:hover {
+        background: #c82333;
+        border-color: #bd2130;
+        transform: translateY(-2px);
+    }
+    
+    .form-group {
+        margin-bottom: 1.25rem;
+    }
+    
+    .form-label {
+        margin-bottom: 0.5rem;
+        font-weight: 500;
+    }
+    
+    .highlight {
+        color: #2a5298;
+        font-weight: 600;
+    }
+    
+    .form-text {
+        color: #6c757d;
+    }
+    
+    .table {
+        border-radius: 0.5rem;
+        overflow: hidden;
+    }
+    
+    .table thead th {
+        background-color: #f8f9fa;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        font-size: 0.85rem;
+        border-top: none;
+    }
+    
+    .table tbody tr:hover {
+        background-color: rgba(0, 0, 0, 0.02);
+    }
+    
+    .airport-entry {
+        background-color: #f8f9fa;
+        border-radius: 0.75rem;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .alert {
+        border-radius: 0.5rem;
+        padding: 1rem 1.25rem;
+    }
+</style>
+{% endblock %}
 
-      initializeDeleteButtons();
-    });
-  </script>
-</head>
-<body class="bg-gray-100">
-  
-  <div class="container mx-auto p-6">
-    <a href="/">Home page</a>
-    <h1 class="text-center text-2xl font-bold mb-6">录入机场信息</h1>
-    <div class="bg-white p-6 rounded shadow-md">
-      <h2 class="text-lg font-semibold mb-4">输入机场信息</h2>
-	  
-      <form id="airportForm" method="POST" action="{{url_for('flight_blue.input_airport_code_info') }}">
-        <div class="airport-container space-y-4">
-          <div class="grid grid-cols-12 gap-4 items-center airport-entry">
-            <div class="col-span-3">
-              <label class="block font-medium">IATA 代码:</label>
-              <input type="text" name="iata[]" placeholder="例如: SIN" class="w-full border rounded p-2">
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <h1 class="text-center mb-4">机场代码管理</h1>
+            
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{% if category == 'error' %}danger{% else %}success{% endif %} mb-4">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            <!-- 搜索表单 -->
+            <div class="card mb-5">
+                <div class="card-header">
+                    <h2 class="card-title mb-0">搜索机场信息</h2>
+                </div>
+                <div class="card-body">
+                    <p class="card-text mb-4">请输入<span class="highlight">IATA代码</span>或<span class="highlight">城市名</span>其中任意一项即可进行搜索</p>
+                    
+                    <form id="searchForm">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="searchIata" class="form-label">
+                                        IATA 代码 <span class="text-muted">(选填其一)</span>
+                                    </label>
+                                    <input type="text" class="form-control" id="searchIata" placeholder="例如: SIN" 
+                                           pattern="[A-Z]{3}" maxlength="3">
+                                    <div class="form-text">请输入3位大写字母代码</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="searchCity" class="form-label">
+                                        城市名 <span class="text-muted">(选填其一)</span>
+                                    </label>
+                                    <input type="text" class="form-control" id="searchCity" placeholder="例如: 新加坡">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="text-center mt-4">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-search me-2"></i>搜索
+                            </button>
+                        </div>
+                    </form>
+                    
+                    <!-- 搜索结果 -->
+                    <div id="searchResults" class="mt-5" style="display: none;">
+                        <h3 class="mb-3">搜索结果</h3>
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>IATA代码</th>
+                                        <th>城市名</th>
+                                        <th>机场中文名</th>
+                                        <th>机场英文名</th>
+                                        <th class="text-center">操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="searchResultsBody">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- 编辑机场信息的模态框 -->
+                    <div class="modal fade" id="editAirportModal" tabindex="-1" aria-labelledby="editAirportModalLabel" aria-hidden="true">
+                        <div class="modal-dialog modal-lg">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title" id="editAirportModalLabel">编辑机场信息</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <form id="editAirportForm">
+                                        <input type="hidden" id="editAirportId">
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <div class="form-group mb-3">
+                                                    <label for="editIata" class="form-label">IATA 代码:</label>
+                                                    <input type="text" id="editIata" class="form-control" pattern="[A-Z]{3}" maxlength="3" required>
+                                                    <div class="form-text">请输入3位大写字母代码</div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="form-group mb-3">
+                                                    <label for="editCity" class="form-label">城市名:</label>
+                                                    <input type="text" id="editCity" class="form-control" required>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="form-group mb-3">
+                                                    <label for="editAirportNameCN" class="form-label">机场中文名:</label>
+                                                    <input type="text" id="editAirportNameCN" class="form-control" required>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="form-group mb-3">
+                                                    <label for="editAirportNameEN" class="form-label">机场英文名:</label>
+                                                    <input type="text" id="editAirportNameEN" class="form-control" required>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </form>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                                    <button type="button" class="btn btn-primary" id="saveEditButton">保存更改</button>
+                                </div>
+                                <!-- 添加调试信息区域 -->
+                                <div class="alert alert-info mt-3" id="editDebugInfo" style="display:none;">
+                                    <small class="text-muted">调试信息</small>
+                                    <pre id="editDebugContent" style="white-space: pre-wrap;"></pre>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div class="col-span-3">
-              <label class="block font-medium">城市名:</label>
-              <input type="text" name="city[]" placeholder="例如: 新加坡" class="w-full border rounded p-2">
+
+            <!-- 录入表单 -->
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title mb-0">录入机场信息</h2>
+                </div>
+                <div class="card-body">
+                    <form id="airportForm" method="POST" action="{{ url_for('flight_blue.input_airport_code_info') }}">
+                        <div class="airport-container">
+                            <div class="airport-entry">
+                                <div class="row">
+                                    <div class="col-md-6 col-lg-3">
+                                        <div class="form-group">
+                                            <label for="iata-0" class="form-label">IATA 代码:</label>
+                                            <input type="text" id="iata-0" name="iata[]" placeholder="例如: SIN" 
+                                                   class="form-control" pattern="[A-Z]{3}" maxlength="3" required>
+                                            <div class="form-text">请输入3位大写字母代码</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6 col-lg-3">
+                                        <div class="form-group">
+                                            <label for="city-0" class="form-label">城市名:</label>
+                                            <input type="text" id="city-0" name="city[]" placeholder="例如: 新加坡" 
+                                                   class="form-control" required>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6 col-lg-3">
+                                        <div class="form-group">
+                                            <label for="airportNameCN-0" class="form-label">机场中文名:</label>
+                                            <input type="text" id="airportNameCN-0" name="airportNameCN[]" 
+                                                   placeholder="例如: 樟宜机场" class="form-control" required>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6 col-lg-3">
+                                        <div class="form-group">
+                                            <label for="airportNameEN-0" class="form-label">机场英文名:</label>
+                                            <input type="text" id="airportNameEN-0" name="airportNameEN[]" 
+                                                   placeholder="例如: Changi Airport" class="form-control" required>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="text-end mt-3">
+                                    <button type="button" class="btn btn-danger airport-delete-button">
+                                        <i class="fas fa-trash me-2"></i>删除
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between flex-wrap gap-3 mt-4">
+                            <button type="button" id="addAirportButton" class="btn btn-primary">
+                                <i class="fas fa-plus me-2"></i>添加机场信息
+                            </button>
+                            <button type="submit" id="submitButton" class="btn btn-success">
+                                <i class="fas fa-save me-2"></i>提交
+                            </button>
+                        </div>
+                    </form>
+                </div>
             </div>
-            <div class="col-span-3">
-              <label class="block font-medium">机场中文名:</label>
-              <input type="text" name="airportNameCN[]" placeholder="例如: 樟宜机场" class="w-full border rounded p-2">
-            </div>
-            <div class="col-span-3">
-              <label class="block font-medium">机场英文名:</label>
-              <input type="text" name="airportNameEN[]" placeholder="例如: Changi Airport" class="w-full border rounded p-2">
-            </div>
-            <div class="col-span-2">
-              <button type="button" class="w-full bg-red-500 text-white rounded p-2 airport-delete-button">删除机场信息</button>
-            </div>
-          </div>
         </div>
-        <div class="mt-6 flex justify-between">
-          <button type="button" id="addAirportButton" class="bg-blue-500 text-white rounded p-2">添加机场信息</button>
-          <button type="submit" id="submitButton" class="bg-green-500 text-white rounded p-2">提交</button>
-        </div>
-      </form>
     </div>
-  </div>
-</body>
-</html>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const container = document.querySelector('.airport-container');
+    const addButton = document.getElementById('addAirportButton');
+    const form = document.getElementById('airportForm');
+    const searchForm = document.getElementById('searchForm');
+    const searchResults = document.getElementById('searchResults');
+    const searchResultsBody = document.getElementById('searchResultsBody');
+
+    // 搜索表单提交处理
+    searchForm.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const iata = document.getElementById('searchIata').value.toUpperCase();
+        const city = document.getElementById('searchCity').value;
+
+        // 验证至少输入了一个搜索条件
+        if (!iata && !city) {
+            alert('请至少输入机场代码或城市名');
+            return;
+        }
+
+        // 如果输入了IATA代码，验证格式
+        if (iata && !/^[A-Z]{3}$/.test(iata)) {
+            alert('IATA代码必须是3位大写字母');
+            return;
+        }
+
+        try {
+            // 使用Flask的url_for生成正确的URL
+            const response = await fetch(`{{ url_for('flight_blue.search_airports') }}?iata=${iata}&city=${city}`);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            const data = await response.json();
+
+            if (data.status === 'success') {
+                searchResultsBody.innerHTML = '';
+                if (data.airports.length > 0) {
+                    data.airports.forEach(airport => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td>${airport.iata || airport.airport_IATA}</td>
+                            <td>${airport.city || airport.city_name}</td>
+                            <td>${airport.airport_name_cn}</td>
+                            <td>${airport.airport_name_en}</td>
+                            <td class="text-center">
+                                <button class="btn btn-sm btn-primary edit-airport-btn" 
+                                        data-id="${airport.id}"
+                                        data-iata="${airport.iata || airport.airport_IATA}"
+                                        data-city="${airport.city || airport.city_name}"
+                                        data-cn="${airport.airport_name_cn}"
+                                        data-en="${airport.airport_name_en}">
+                                    <i class="fas fa-edit me-1"></i>编辑
+                                </button>
+                            </td>
+                        `;
+                        searchResultsBody.appendChild(row);
+                    });
+                    searchResults.style.display = 'block';
+                    
+                    // 为所有编辑按钮添加事件监听
+                    document.querySelectorAll('.edit-airport-btn').forEach(btn => {
+                        btn.addEventListener('click', function() {
+                            // 获取机场信息
+                            const id = this.getAttribute('data-id');
+                            const iata = this.getAttribute('data-iata');
+                            const city = this.getAttribute('data-city');
+                            const nameCN = this.getAttribute('data-cn');
+                            const nameEN = this.getAttribute('data-en');
+                            
+                            // 填充编辑表单
+                            document.getElementById('editAirportId').value = id;
+                            document.getElementById('editIata').value = iata;
+                            document.getElementById('editCity').value = city;
+                            document.getElementById('editAirportNameCN').value = nameCN;
+                            document.getElementById('editAirportNameEN').value = nameEN;
+                            
+                            // 显示模态框
+                            new bootstrap.Modal(document.getElementById('editAirportModal')).show();
+                        });
+                    });
+                } else {
+                    searchResultsBody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">未找到匹配的机场信息</td></tr>';
+                    searchResults.style.display = 'block';
+                }
+            } else {
+                alert(data.message || '搜索失败，请重试');
+            }
+        } catch (error) {
+            console.error('搜索出错:', error);
+            alert('搜索出错，请重试');
+        }
+    });
+
+    // 保存编辑的机场信息
+    document.getElementById('saveEditButton').addEventListener('click', async function() {
+        const id = document.getElementById('editAirportId').value;
+        const iata = document.getElementById('editIata').value.toUpperCase();
+        const city = document.getElementById('editCity').value;
+        const airportNameCN = document.getElementById('editAirportNameCN').value;
+        const airportNameEN = document.getElementById('editAirportNameEN').value;
+        
+        // 隐藏之前的调试信息
+        document.getElementById('editDebugInfo').style.display = 'none';
+        
+        // 验证表单
+        if (!iata || !city || !airportNameCN || !airportNameEN) {
+            alert('请填写所有字段');
+            return;
+        }
+        
+        if (!/^[A-Z]{3}$/.test(iata)) {
+            alert('IATA代码必须是3位大写字母');
+            return;
+        }
+
+        // 准备发送的数据
+        const formData = {
+            id: parseInt(id), // 确保 id 是整数
+            iata: iata,
+            city: city,
+            airport_name_cn: airportNameCN,
+            airport_name_en: airportNameEN
+        };
+        
+        // 显示准备发送的数据
+        document.getElementById('editDebugContent').textContent = `准备发送: ${JSON.stringify(formData, null, 2)}`;
+        document.getElementById('editDebugInfo').style.display = 'block';
+        
+        try {
+            const response = await fetch('{{ url_for("flight_blue.update_airport") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(formData)
+            });
+            
+            // 获取响应文本，用于调试
+            const responseText = await response.text();
+            document.getElementById('editDebugContent').textContent += `\n\n服务器响应: ${responseText}`;
+            
+            let result;
+            try {
+                // 尝试解析 JSON
+                result = JSON.parse(responseText);
+            } catch (e) {
+                // 如果无法解析为 JSON，显示原始响应
+                document.getElementById('editDebugContent').textContent += `\n\n解析JSON失败: ${e.message}`;
+                throw new Error(`服务器响应无效: ${responseText}`);
+            }
+            
+            if (result.status === 'success') {
+                // 关闭模态框
+                const modal = bootstrap.Modal.getInstance(document.getElementById('editAirportModal'));
+                if (modal) {
+                    modal.hide();
+                }
+                
+                // 显示成功消息
+                alert('机场信息已成功更新');
+                
+                // 刷新搜索结果
+                const searchIata = document.getElementById('searchIata').value;
+                const searchCity = document.getElementById('searchCity').value;
+                if (searchIata || searchCity) {
+                    // 重新触发搜索
+                    document.getElementById('searchForm').dispatchEvent(new Event('submit'));
+                } else {
+                    // 如果没有搜索条件，重新加载页面
+                    window.location.reload();
+                }
+            } else {
+                alert(result.message || '更新失败，请重试');
+            }
+        } catch (error) {
+            console.error('更新出错:', error);
+            document.getElementById('editDebugContent').textContent += `\n\n请求错误: ${error.message}`;
+            alert(`更新出错: ${error.message}`);
+        }
+    });
+
+    // 添加新的机场信息行
+    let entryCount = 1;
+    addButton.addEventListener('click', function() {
+        const newEntry = document.querySelector('.airport-entry').cloneNode(true);
+        
+        // 更新ID以避免重复
+        const inputs = newEntry.querySelectorAll('input');
+        inputs.forEach(input => {
+            const name = input.getAttribute('name');
+            const baseId = name.replace('[]', '');
+            input.id = `${baseId}-${entryCount}`;
+            input.value = '';
+            
+            // 更新对应的label
+            const label = input.previousElementSibling;
+            if (label && label.tagName === 'LABEL') {
+                label.setAttribute('for', input.id);
+            }
+        });
+        
+        entryCount++;
+        container.appendChild(newEntry);
+    });
+
+    // 删除机场信息行
+    container.addEventListener('click', function(e) {
+        if (e.target.classList.contains('airport-delete-button') || 
+            e.target.closest('.airport-delete-button')) {
+            const entries = container.querySelectorAll('.airport-entry');
+            if (entries.length > 1) {
+                // 找到最近的.airport-entry父元素
+                const entry = e.target.closest('.airport-entry');
+                if (entry) {
+                    entry.remove();
+                }
+            } else {
+                alert('至少保留一行机场信息！');
+            }
+        }
+    });
+
+    // 表单提交验证
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const entries = container.querySelectorAll('.airport-entry');
+        let isValid = true;
+        let errorMessage = '';
+
+        entries.forEach((entry, index) => {
+            const iata = entry.querySelector('input[name="iata[]"]').value;
+            const city = entry.querySelector('input[name="city[]"]').value;
+            const airportNameCN = entry.querySelector('input[name="airportNameCN[]"]').value;
+            const airportNameEN = entry.querySelector('input[name="airportNameEN[]"]').value;
+
+            if (!iata || !city || !airportNameCN || !airportNameEN) {
+                isValid = false;
+                errorMessage = `第 ${index + 1} 行信息不完整，请填写所有字段。`;
+            }
+
+            if (iata && !/^[A-Z]{3}$/.test(iata)) {
+                isValid = false;
+                errorMessage = `第 ${index + 1} 行的IATA代码必须是3位大写字母。`;
+            }
+        });
+
+        if (!isValid) {
+            alert(errorMessage);
+            return;
+        }
+
+        this.submit();
+    });
+});
+</script>
+{% endblock %}

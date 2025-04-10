@@ -1,134 +1,411 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>签证项目管理</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/visa_project_management.css') }}">
-</head>
-<body>
-    <div class="container">
-        <div class="home-link">
-            <a href="/">Home page</a>
-        </div>
-        <h1>现有签证项目管理</h1>
+{% extends "base.html" %}
 
-        <div class="sort-options">
-            <form method="get" action="{{ url_for('visa_routes.show_current_all_projects') }}">
-                <!-- 签证状态筛选 -->
-                <label for="visa_status" style="margin-left: 20px;">签证状态：</label>
-                
-                <select name="visa_status" id="visa_status" onchange="this.form.submit()">
-                    <option value="pending_submission" {% if visa_status == 'pending_submission' %}selected{% endif %}>待递交</option>
-                    <option value="submitted" {% if visa_status == 'submitted' or visa_status is not defined %}selected{% endif %}>待出签</option>
-                    <option value="approved" {% if visa_status == 'approved' %}selected{% endif %}>已出签</option>
-                    <option value="all" {% if visa_status == 'all' %}selected{% endif %}>全部</option>
-                </select>
-        
-                <!-- 排序选项 -->
-                <label for="sort_by">排序方式：</label>
-                <select name="sort_by" id="sort_by" onchange="this.form.submit()">
-                    <option value="name" {% if sort_by == 'name' %}selected{% endif %}>按项目名称</option>
-                    <option value="created_date" {% if sort_by == 'created_date' %}selected{% endif %}>按创建时间</option>
-                </select>
-            </form>
-        </div>
+{% block title %}签证项目管理{% endblock %}
 
-        <!-- 项目列表 -->
-        <table>
-            <thead>
+{% block head %}
+<style>
+    .visa-project-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 20px;
+        overflow-x: auto; /* 添加横向滚动以适应小屏幕 */
+    }
+    
+    .visa-project-header {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin-bottom: 1.5rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 1px solid #e5e7eb;
+    }
+    
+    .visa-project-title {
+        font-size: 1.75rem;
+        font-weight: 600;
+        color: #2d3748;
+        margin: 0;
+        text-align: center;
+    }
+    
+    .visa-project-home-link {
+        margin-bottom: 1rem;
+    }
+    
+    .visa-project-home-link a {
+        color: #3182ce;
+        text-decoration: none;
+        font-weight: 500;
+        display: inline-flex;
+        align-items: center;
+    }
+    
+    .visa-project-home-link a:hover {
+        text-decoration: underline;
+    }
+    
+    .visa-project-sort-options {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem;
+        background-color: #f7fafc;
+        padding: 1rem;
+        border-radius: 0.5rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .visa-project-sort-options label {
+        display: inline-flex;
+        align-items: center;
+        font-weight: 500;
+        color: #4a5568;
+        margin-right: 0.5rem;
+    }
+    
+    .visa-project-sort-options select {
+        padding: 0.5rem;
+        border: 1px solid #e2e8f0;
+        border-radius: 0.375rem;
+        background-color: white;
+        font-size: 0.875rem;
+        color: #4a5568;
+        min-width: 120px;
+    }
+    
+    .visa-project-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 2rem;
+        min-width: 1200px; /* 确保表格有最小宽度 */
+    }
+    
+    .visa-project-table th, 
+    .visa-project-table td {
+        padding: 0.75rem 1rem;
+        text-align: left;
+        border-bottom: 1px solid #e2e8f0;
+        white-space: nowrap; /* 防止内容换行 */
+    }
+    
+    .visa-project-table th {
+        background-color: #f7fafc;
+        color: #4a5568;
+        font-weight: 600;
+        font-size: 0.875rem;
+    }
+    
+    .visa-project-table tr:nth-child(even) {
+        background-color: #f9fafb;
+    }
+    
+    .visa-project-table tr:hover {
+        background-color: #edf2f7;
+    }
+    
+    .visa-project-select-field {
+        padding: 0.5rem;
+        border: 1px solid #e2e8f0;
+        border-radius: 0.375rem;
+        background-color: white;
+        width: 100%;
+    }
+    
+    .visa-project-input-field {
+        padding: 0.5rem;
+        border: 1px solid #e2e8f0;
+        border-radius: 0.375rem;
+        background-color: white;
+        width: 100%;
+    }
+    
+    .visa-project-action-link {
+        display: inline-block;
+        padding: 0.4rem 0.6rem;
+        background-color: #4299e1;
+        color: white;
+        border: none;
+        border-radius: 0.375rem;
+        cursor: pointer;
+        font-size: 0.75rem;
+        text-decoration: none;
+        transition: background-color 0.2s;
+        white-space: nowrap;
+    }
+    
+    .visa-project-action-link:hover {
+        background-color: #3182ce;
+    }
+    
+    .visa-project-open-link {
+        display: inline-block;
+        padding: 0.4rem 0.6rem;
+        background-color: #48bb78;
+        color: white;
+        border-radius: 0.375rem;
+        text-decoration: none;
+        font-size: 0.75rem;
+        transition: background-color 0.2s;
+        white-space: nowrap;
+    }
+    
+    .visa-project-open-link:hover {
+        background-color: #38a169;
+    }
+    
+    .visa-project-delete-link {
+        display: inline-block;
+        padding: 0.4rem 0.6rem;
+        background-color: #f56565;
+        color: white;
+        border-radius: 0.375rem;
+        text-decoration: none;
+        font-size: 0.75rem;
+        transition: background-color 0.2s;
+        white-space: nowrap;
+    }
+    
+    .visa-project-delete-link:hover {
+        background-color: #e53e3e;
+    }
+    
+    .visa-project-links-section {
+        margin-top: 4rem;
+        padding: 1.5rem;
+        background-color: #f7fafc;
+        border-radius: 0.5rem;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        position: relative;
+    }
+    
+    .visa-project-links-section::before {
+        content: '';
+        display: block;
+        width: 100%;
+        height: 2px;
+        background-color: #e2e8f0;
+        position: absolute;
+        top: -30px;
+        left: 0;
+    }
+    
+    .visa-project-links-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: #2d3748;
+        margin-top: 0;
+        margin-bottom: 1rem;
+        text-align: left;
+    }
+    
+    .visa-project-button-group {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: 0.75rem;
+        justify-items: center;
+    }
+    
+    .visa-project-btn {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        width: 100%;
+        height: 40px;
+        padding: 0.625rem 1rem;
+        background-color: #3182ce;
+        color: white;
+        border: none;
+        border-radius: 0.375rem;
+        text-decoration: none;
+        font-size: 0.875rem;
+        font-weight: 500;
+        transition: background-color 0.2s;
+        text-align: center;
+    }
+    
+    .visa-project-btn:hover {
+        background-color: #2c5282;
+    }
+    
+    .visa-project-btn-blue {
+        background-color: #3182ce;
+    }
+    
+    .visa-project-btn-blue:hover {
+        background-color: #2c5282;
+    }
+    
+    /* 设置特定列的宽度 */
+    .visa-project-table th:nth-child(1), 
+    .visa-project-table td:nth-child(1) { /* ID列 */
+        width: 70px;
+    }
+    
+    .visa-project-table th:nth-child(2), 
+    .visa-project-table td:nth-child(2) { /* 项目名称列 */
+        width: 280px;
+        white-space: normal; /* 允许名称换行 */
+    }
+    
+    .visa-project-table th:nth-child(3), 
+    .visa-project-table td:nth-child(3) { /* 创建时间列 */
+        width: 150px;
+    }
+    
+    .visa-project-table th:nth-child(4), 
+    .visa-project-table td:nth-child(4) { /* 签证状态列 */
+        width: 150px;
+    }
+    
+    .visa-project-table th:nth-child(5), 
+    .visa-project-table td:nth-child(5) { /* 预估日期列 */
+        width: 150px;
+    }
+    
+    .visa-project-table th:nth-child(6), 
+    .visa-project-table td:nth-child(6) { /* 保存修改列 */
+        width: 100px;
+        text-align: center;
+    }
+    
+    .visa-project-table th:nth-child(7), 
+    .visa-project-table td:nth-child(7) { /* 打开项目列 */
+        width: 100px;
+        text-align: center;
+    }
+    
+    .visa-project-table th:nth-child(8), 
+    .visa-project-table td:nth-child(8) { /* 删除项目列 */
+        width: 100px;
+        text-align: center;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="visa-project-container">
+    <div class="visa-project-header">
+        <h1 class="visa-project-title">签证项目管理</h1>
+
+    </div>
+    
+    <h2 class="visa-project-links-title">现有签证项目</h2>
+
+    <div class="visa-project-sort-options">
+        <form method="get" action="{{ url_for('visa_routes.show_current_all_projects') }}">
+            <!-- 签证状态筛选 -->
+            <label for="visa_status">签证状态：</label>
+            
+            <select name="visa_status" id="visa_status" onchange="this.form.submit()">
+                <option value="pending_submission" {% if visa_status == 'pending_submission' %}selected{% endif %}>待递交</option>
+                <option value="submitted" {% if visa_status == 'submitted' or visa_status is not defined %}selected{% endif %}>待出签</option>
+                <option value="approved" {% if visa_status == 'approved' %}selected{% endif %}>已出签</option>
+                <option value="all" {% if visa_status == 'all' %}selected{% endif %}>全部</option>
+            </select>
+    
+            <!-- 排序选项 -->
+            <label for="sort_by">排序方式：</label>
+            <select name="sort_by" id="sort_by" onchange="this.form.submit()">
+                <option value="name" {% if sort_by == 'name' %}selected{% endif %}>按项目名称</option>
+                <option value="created_date" {% if sort_by == 'created_date' %}selected{% endif %}>按创建时间</option>
+            </select>
+        </form>
+    </div>
+
+    <!-- 项目列表 -->
+    <table class="visa-project-table">
+        <thead>
+            <tr>
+                <th>项目ID</th>
+                <th>项目名称</th>
+                <th>创建时间</th>
+                <th>签证状态</th>
+                <th>预估日期</th>
+                <th>保存修改</th>
+                <th>打开项目</th>
+                <th>删除项目</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for project in projects %}
+            <form method="POST" action="{{ url_for('visa_routes.update_current_project', project_id=project.id) }}">
+                <!-- 隐藏字段，用于传递签证状态和排序方式 -->
+                <input type="hidden" name="current_visa_status" value="{{ visa_status }}">
+                <input type="hidden" name="current_sort_by" value="{{ sort_by }}">
                 <tr>
-                    <th>项目ID</th>
-                    <th>项目名称</th>
-                    <th>创建时间</th>
-                    <th>签证状态</th>
-                    <th>预估日期</th>
-                    <th>保存修改</th>
-                    <th>打开项目</th>
-                    <th>删除项目</th>
+                    <td>{{ project.id }}</td>
+                    <td>{{ project.name }}</td>
+                    <td>{{ project.created_date.strftime('%Y-%m-%d') }}</td>
+                    <td>
+                        <select name="visa_status" class="visa-project-select-field">
+                            <option value="待递交" {% if project.visa_status == '待递交' %}selected{% endif %}>待递交</option>
+                            <option value="待出签" {% if project.visa_status == '待出签' %}selected{% endif %}>待出签</option>
+                            <option value="已出签" {% if project.visa_status == '已出签' %}selected{% endif %}>已出签</option>
+                        </select>
+                    </td>
+                    <td><input type="text" name="estimated_date" value="{{ project.estimated_date }}" class="visa-project-input-field"></td>
+                    <td>
+                        <button type="submit" class="visa-project-action-link">保存修改</button>
+                    </td>
+                    <td>
+                        <a class="visa-project-open-link" href="{{ url_for('visa_routes.open_current_project_file', file_name=project.name, visa_status=visa_status, sort_by=sort_by) }}">
+                            打开项目
+                        </a>
+                    </td>
+                    <td>
+                        <a class="visa-project-delete-link" href="#" data-project-id="{{ project.id }}" onclick="deleteProject(event, this)">删除</a>
+                    </td>
                 </tr>
-            </thead>
-            <tbody>
-                {% for project in projects %}
-                <form method="POST" action="{{ url_for('visa_routes.update_current_project', project_id=project.id) }}">
-                    <!-- 隐藏字段，用于传递签证状态和排序方式 -->
-                    <input type="hidden" name="current_visa_status" value="{{ visa_status }}">
-                    <input type="hidden" name="current_sort_by" value="{{ sort_by }}">
-                    <tr>
-                        <td>{{ project.id }}</td>
-                        <td>{{ project.name }}</td>
-                        <td>{{ project.created_date.strftime('%Y-%m-%d') }}</td>
-                        <td>
-                            <select name="visa_status" class="select-field">
-                                <option value="待递交" {% if project.visa_status == '待递交' %}selected{% endif %}>待递交</option>
-                                <option value="待出签" {% if project.visa_status == '待出签' %}selected{% endif %}>待出签</option>
-                                <option value="已出签" {% if project.visa_status == '已出签' %}selected{% endif %}>已出签</option>
-                            </select>
-                        </td>
-                        <td><input type="text" name="estimated_date" value="{{ project.estimated_date }}" class="input-field"></td>
-                        <td>
-                            <button type="submit" class="action-link">保存修改</button>
-                        </td>
-                        <td>
-                            <a class="open-link" href="{{ url_for('visa_routes.open_current_project_file', file_name=project.name, visa_status=visa_status, sort_by=sort_by) }}">
-                                打开项目
-                            </a>
-                        </td>
-                        <td>
-                            <a class="delete-link" href="#" data-project-id="{{ project.id }}" onclick="deleteProject(event, this)">删除</a>
-                        </td>
-                    </tr>
-                </form>
-                {% endfor %}
-            </tbody>
-        </table>
+            </form>
+            {% endfor %}
+        </tbody>
+    </table>
 
-        <!-- 签证类型快速链接 -->
-        <div class="visa-links-section">
-            <h2 class="visa-links-title">签证处理链接</h2>
-            <div class="button-group">
-                {% for visa in visa_categories %}
-                    <a href="{{ url_for('visa_routes.visa_processing', country=visa.visa_type_name) }}"
-                       class="btn btn-blue">
-                       {{ visa.visa_type_name }}签证
-                    </a>
-                {% endfor %}
-            </div>
+    <!-- 签证类型快速链接 -->
+    <div class="visa-project-links-section">
+        <h2 class="visa-project-links-title">签证处理链接</h2>
+        <div class="visa-project-button-group">
+            {% for visa in visa_categories %}
+                <a href="{{ url_for('visa_routes.visa_processing', country=visa.visa_type_name) }}"
+                   class="visa-project-btn visa-project-btn-blue">
+                   {{ visa.visa_type_name }}签证
+                </a>
+            {% endfor %}
         </div>
     </div>
-</body>
+</div>
+{% endblock %}
 
-    <script>
-        function deleteProject(event, element) {
-            event.preventDefault(); // 阻止默认跳转行为
+{% block scripts %}
+<script>
+    function deleteProject(event, element) {
+        event.preventDefault(); // 阻止默认跳转行为
 
-            const projectId = element.getAttribute('data-project-id');
-            const url = `/visa/visa/delete_current_project/${projectId}`;
-            
-            if (confirm("确定要删除此项目吗？")) {
-                fetch(url, {
-                    method: 'POST', // 使用 POST 方法
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        alert("项目删除成功！");
-                        // 从 DOM 中移除对应的表格行
-                        const row = element.closest('tr');
-                        row.parentNode.removeChild(row);
-                    } else {
-                        alert("删除失败：" + data.message);
-                    }
-                })
-                .catch(error => {
-                    console.error("Error deleting project:", error);
-                    alert("请求失败，请稍后重试！");
-                });
-            }
+        const projectId = element.getAttribute('data-project-id');
+        const url = `/visa/visa/delete_current_project/${projectId}`;
+        
+        if (confirm("确定要删除此项目吗？")) {
+            fetch(url, {
+                method: 'POST', // 使用 POST 方法
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert("项目删除成功！");
+                    // 从 DOM 中移除对应的表格行
+                    const row = element.closest('tr');
+                    row.parentNode.removeChild(row);
+                } else {
+                    alert("删除失败：" + data.message);
+                }
+            })
+            .catch(error => {
+                console.error("Error deleting project:", error);
+                alert("请求失败，请稍后重试！");
+            });
         }
-    </script>
-
-</html>
+    }
+</script>
+{% endblock %}

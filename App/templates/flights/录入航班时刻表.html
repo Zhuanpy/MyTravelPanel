@@ -1,192 +1,255 @@
-<!DOCTYPE html>
-<html lang="zh">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>航班时刻表信息</title>
-    <style>
-        body {
-            background-color: #f7f7f7;
-            font-family: Arial, sans-serif;
-        }
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-        h1, h2 {
-            text-align: center;
-            color: #333;
-        }
-        h1 {
-            font-size: 24px;
-            font-weight: bold;
-            margin-bottom: 20px;
-        }
-        h2 {
-            font-size: 18px;
-            font-weight: normal;
-            margin-bottom: 15px;
-        }
-        .form-container, .table-container, .search-container {
-            background: #fff;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-            margin-bottom: 20px;
-        }
-        label {
-            display: block;
-            font-size: 14px;
-            margin-bottom: 5px;
-            color: #555;
-        }
-        input[type="text"] {
-            width: 100%;
-            padding: 8px;
-            font-size: 14px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            margin-bottom: 10px;
-        }
-        button {
-            cursor: pointer;
-            padding: 10px 15px;
-            font-size: 14px;
-            border: none;
-            border-radius: 4px;
-            color: #fff;
-        }
-        .btn-primary {
-            background-color: #007bff;
-        }
-        .btn-primary:hover {
-            background-color: #0056b3;
-        }
-        .btn-danger {
-            background-color: #dc3545;
-        }
-        .btn-danger:hover {
-            background-color: #a71d2a;
-        }
-        .btn-success {
-            background-color: #28a745;
-        }
-        .btn-success:hover {
-            background-color: #1c7430;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 10px;
-        }
-        th, td {
-            border: 1px solid #ddd;
-            padding: 10px;
-            text-align: center;
-        }
-        th {
-            background-color: #f8f9fa;
-        }
-        .pagination {
-            display: flex;
-            justify-content: center;
-            margin-top: 15px;
-        }
-        .pagination a {
-            padding: 5px 10px;
-            margin: 0 5px;
-            background-color: #f1f1f1;
-            text-decoration: none;
-            color: #333;
-            border-radius: 4px;
-        }
-        .pagination a:hover {
-            background-color: #ddd;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <a href="/">Home page</a>
-        <h1>航班时刻表信息</h1>
+{% extends "base.html" %}
 
-        <!-- 航班信息输入表单 -->
-        <div class="form-container">
-            <h2>输入航班信息</h2>
-            <form id="flightForm" method="POST" action="{{ url_for('flight_blue.input_flight_schedule_info') }}">
-                <input type="hidden" name="search_flight_number" value="{{ request.args.get('search_flight_number', '') }}">
-                <!-- ↑↑↑ 新增隐藏字段，提交后仍保持搜索状态 -->
-                <div>
-                    <label for="flightNumber">航班号:</label>
-                    <input type="text" id="flightNumber" name="flight_number" placeholder="例如: TR100">
+{% block title %}航班时刻表信息{% endblock %}
+
+{% block head %}
+<style>
+    .flight-schedule-container {
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+    .flight-schedule-title {
+        text-align: center;
+        color: #333;
+        font-size: 24px;
+        font-weight: bold;
+        margin-bottom: 20px;
+    }
+    .flight-schedule-subtitle {
+        text-align: left;
+        color: #333;
+        font-size: 18px;
+        font-weight: normal;
+        margin-bottom: 15px;
+        padding-left: 5px;
+    }
+    .flight-schedule-card {
+        background: #fff;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        margin-bottom: 20px;
+    }
+    .flight-schedule-label {
+        display: block;
+        font-size: 14px;
+        margin-bottom: 5px;
+        color: #555;
+    }
+    .flight-schedule-form-row {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 15px;
+        position: relative;
+        padding-right: 50px; /* 为删除按钮预留空间 */
+    }
+    .flight-schedule-form-group {
+        flex: 1;
+    }
+    .flight-schedule-input {
+        width: 100%;
+        padding: 8px;
+        font-size: 14px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+    }
+    .flight-schedule-btn {
+        cursor: pointer;
+        padding: 10px 15px;
+        font-size: 14px;
+        border: none;
+        border-radius: 4px;
+        color: #fff;
+    }
+    .flight-schedule-btn-primary {
+        background-color: #007bff;
+    }
+    .flight-schedule-btn-primary:hover {
+        background-color: #0056b3;
+    }
+    .flight-schedule-btn-danger {
+        background-color: #dc3545;
+    }
+    .flight-schedule-btn-danger:hover {
+        background-color: #a71d2a;
+    }
+    .flight-schedule-btn-success {
+        background-color: #28a745;
+    }
+    .flight-schedule-btn-success:hover {
+        background-color: #1c7430;
+    }
+    .flight-schedule-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 10px;
+    }
+    .flight-schedule-table th,
+    .flight-schedule-table td {
+        border: 1px solid #ddd;
+        padding: 10px;
+        text-align: center;
+    }
+    .flight-schedule-table th {
+        background-color: #f8f9fa;
+    }
+    .flight-schedule-pagination {
+        display: flex;
+        justify-content: center;
+        margin-top: 15px;
+    }
+    .flight-schedule-pagination a {
+        padding: 5px 10px;
+        margin: 0 5px;
+        background-color: #f1f1f1;
+        text-decoration: none;
+        color: #333;
+        border-radius: 4px;
+    }
+    .flight-schedule-pagination a:hover {
+        background-color: #ddd;
+    }
+    .flight-schedule-remove-btn {
+        position: absolute;
+        right: 0;
+        top: 50%;
+        transform: translateY(-50%);
+        background-color: #dc3545;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        padding: 5px 10px;
+        cursor: pointer;
+        font-size: 12px;
+        min-width: 40px;
+    }
+    .flight-schedule-remove-btn:hover {
+        background-color: #a71d2a;
+    }
+    .flight-schedule-add-btn {
+        margin-bottom: 15px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="flight-schedule-container">
+    <h1 class="flight-schedule-title">航班时刻表信息</h1>
+
+    <!-- 航班信息输入表单 -->
+    <div class="flight-schedule-card">
+        <h2 class="flight-schedule-subtitle">输入航班信息</h2>
+        <form id="flightForm" method="POST" action="{{ url_for('flight_blue.input_flight_schedule_info') }}">
+            <input type="hidden" name="search_flight_number" value="{{ request.args.get('search_flight_number', '') }}">
+            <div id="flightInputsContainer">
+                <div class="flight-schedule-form-row">
+                    <div class="flight-schedule-form-group">
+                        <label for="flightNumber" class="flight-schedule-label">航班号:</label>
+                        <input type="text" id="flightNumber" name="flight_number[]" placeholder="例如: TR100" class="flight-schedule-input">
+                    </div>
+                    <div class="flight-schedule-form-group">
+                        <label for="scheduleCity" class="flight-schedule-label">起始地点:</label>
+                        <input type="text" id="scheduleCity" name="schedule_city[]" placeholder="例如: SIN CAN" class="flight-schedule-input">
+                    </div>
+                    <div class="flight-schedule-form-group">
+                        <label for="scheduleTiming" class="flight-schedule-label">起始时间:</label>
+                        <input type="text" id="scheduleTiming" name="schedule_timing[]" placeholder="例如: 0515 0925" class="flight-schedule-input">
+                    </div>
+                    <button type="button" class="flight-schedule-remove-btn" onclick="removeFlightInput(this)">删除</button>
                 </div>
-                <div>
-                    <label for="scheduleCity">起始地点:</label>
-                    <input type="text" id="scheduleCity" name="schedule_city" placeholder="例如: SIN CAN">
-                </div>
-                <div>
-                    <label for="scheduleTiming">起始时间:</label>
-                    <input type="text" id="scheduleTiming" name="schedule_timing" placeholder="例如: 0515 0925">
-                </div>
-                <button type="submit" class="btn-success">提交</button>
-            </form>
-        </div>
-
-        <!-- 搜索航班 -->
-        <div class="search-container">
-            <h2>搜索航班</h2>
-            <form id="searchForm" method="GET" action="{{ url_for('flight_blue.search_flights') }}">
-                <input type="text" name="search_flight_number" placeholder="输入航班号" value="{{ request.args.get('search_flight_number', '') }}">
-                <!-- ↑↑↑ 修改：保持搜索输入值 -->
-                <button type="submit" class="btn-primary">搜索</button>
-            </form>
-        </div>
-
-        <!-- 航班时刻表 -->
-        <div class="table-container">
-            <h2>航班时刻表</h2>
-            <table>
-                <thead>
-                    <tr>
-                        <th>航班号</th>
-                        <th>起始地点</th>
-                        <th>起始时间</th>
-                        <th>操作</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for flight in flights.items %}
-                    <tr>
-                        <td>{{ flight.flight_number }}</td>
-                        <td>{{ flight.schedule_city }}</td>
-                        <td>
-                            <input type="text" value="{{ flight.schedule_timing }}" class="edit-timing" data-flight-id="{{ flight.id }}">
-                        </td>
-                        <td>
-                            <button class="btn-success save-button" data-flight-id="{{ flight.id }}">保存</button>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-
-            <!-- 分页导航 -->
-            <div class="pagination">
-                {% if flights.has_prev %}
-                <a href="{{ url_for('flight_blue.input_flight_schedule_info', page=flights.prev_num, search_flight_number=request.args.get('search_flight_number', '')) }}">上一页</a>
-                {% endif %}
-                <span>第 {{ flights.page }} 页，共 {{ flights.pages }} 页</span>
-                {% if flights.has_next %}
-                <a href="{{ url_for('flight_blue.input_flight_schedule_info', page=flights.next_num, search_flight_number=request.args.get('search_flight_number', '')) }}">下一页</a>
-                {% endif %}
-                <!-- ↑↑↑ 修改：分页链接保持搜索参数 -->
             </div>
+            <button type="button" class="flight-schedule-btn flight-schedule-btn-primary flight-schedule-add-btn" onclick="addFlightInput()">
+                <i class="fas fa-plus"></i> 增加航班
+            </button>
+            <button type="submit" class="flight-schedule-btn flight-schedule-btn-success">提交</button>
+        </form>
+    </div>
+
+    <!-- 搜索航班 -->
+    <div class="flight-schedule-card">
+        <h2 class="flight-schedule-subtitle">搜索航班</h2>
+        <form id="searchForm" method="GET" action="{{ url_for('flight_blue.search_flights') }}">
+            <input type="text" name="search_flight_number" placeholder="输入航班号" value="{{ request.args.get('search_flight_number', '') }}" class="flight-schedule-input">
+            <button type="submit" class="flight-schedule-btn flight-schedule-btn-primary">搜索</button>
+        </form>
+    </div>
+
+    <!-- 航班时刻表 -->
+    <div class="flight-schedule-card">
+        <h2 class="flight-schedule-subtitle">航班时刻表</h2>
+        <table class="flight-schedule-table">
+            <thead>
+                <tr>
+                    <th>航班号</th>
+                    <th>起始地点</th>
+                    <th>起始时间</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for flight in flights.items %}
+                <tr>
+                    <td>{{ flight.flight_number }}</td>
+                    <td>{{ flight.schedule_city }}</td>
+                    <td>
+                        <input type="text" value="{{ flight.schedule_timing }}" class="flight-schedule-input edit-timing" data-flight-id="{{ flight.id }}" style="margin-bottom: 0;">
+                    </td>
+                    <td>
+                        <button class="flight-schedule-btn flight-schedule-btn-success save-button" data-flight-id="{{ flight.id }}">保存</button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <!-- 分页导航 -->
+        <div class="flight-schedule-pagination">
+            {% if flights.has_prev %}
+            <a href="{{ url_for('flight_blue.input_flight_schedule_info', page=flights.prev_num, search_flight_number=request.args.get('search_flight_number', '')) }}">上一页</a>
+            {% endif %}
+            <span>第 {{ flights.page }} 页，共 {{ flights.pages }} 页</span>
+            {% if flights.has_next %}
+            <a href="{{ url_for('flight_blue.input_flight_schedule_info', page=flights.next_num, search_flight_number=request.args.get('search_flight_number', '')) }}">下一页</a>
+            {% endif %}
         </div>
     </div>
-</body>
+</div>
+{% endblock %}
 
+{% block scripts %}
 <script>
+    function addFlightInput() {
+        const container = document.getElementById('flightInputsContainer');
+        const newRow = document.createElement('div');
+        newRow.className = 'flight-schedule-form-row';
+        newRow.innerHTML = `
+            <div class="flight-schedule-form-group">
+                <label class="flight-schedule-label">航班号:</label>
+                <input type="text" name="flight_number[]" placeholder="例如: TR100" class="flight-schedule-input">
+            </div>
+            <div class="flight-schedule-form-group">
+                <label class="flight-schedule-label">起始地点:</label>
+                <input type="text" name="schedule_city[]" placeholder="例如: SIN CAN" class="flight-schedule-input">
+            </div>
+            <div class="flight-schedule-form-group">
+                <label class="flight-schedule-label">起始时间:</label>
+                <input type="text" name="schedule_timing[]" placeholder="例如: 0515 0925" class="flight-schedule-input">
+            </div>
+            <button type="button" class="flight-schedule-remove-btn" onclick="removeFlightInput(this)">删除</button>
+        `;
+        container.appendChild(newRow);
+    }
+
+    function removeFlightInput(button) {
+        const row = button.closest('.flight-schedule-form-row');
+        if (document.querySelectorAll('.flight-schedule-form-row').length > 1) {
+            row.remove();
+        } else {
+            alert('至少保留一行输入！');
+        }
+    }
+
     document.addEventListener("DOMContentLoaded", function () {
         document.querySelectorAll(".save-button").forEach(button => {
             button.addEventListener("click", function () {
@@ -219,6 +282,5 @@
             });
         });
     });
-    </script>
-    
-</html>
+</script>
+{% endblock %}
