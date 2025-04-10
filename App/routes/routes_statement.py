@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, jsonify, request, url_for, redirect
-from ..code.BankAccout.Statement import OriginalStatement
-from ..code.Hid_Inv.Invoice import CountHid
+from ..code.Statement import OriginalStatement
+from ..code.Invoice import CountHid
 from flask import current_app as app
 import os
 

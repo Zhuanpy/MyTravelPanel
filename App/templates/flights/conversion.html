@@ -1,108 +1,258 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>机票行程转化</title>
-    <!-- 引入Tailwind CSS和Font Awesome -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
-    <style>
-        /* 设置页面主体的布局和背景 */
-        body {
-            display: flex;
-            justify-content: center; /* 水平居中对齐 */
-            align-items: center; /* 垂直居中对齐 */
-            min-height: 100vh; /* 使页面内容高度填满视口 */
-            margin: 0;
-            background-color: #f0f4f8; /* 设置背景颜色 */
-        }
-        /* 定义表单容器样式 */
-        .form-container {
-            width: 80%; /* 容器宽度设为视口的80% */
-            background-color: #fff; /* 背景为白色 */
-            padding: 1.5rem; /* 内边距 */
-            border-radius: 0.5rem; /* 圆角 */
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* 轻微阴影 */
-        }
-        /* 各分区的底部间距 */
-        .section {
-            margin-bottom: 1.5rem;
-        }
-        /* 输入框背景颜色 */
-        .input-bg {
-            background-color: #f9fafb;
-        }
-        /* 调整文本输入框和textarea的宽度 */
-        textarea, input[type="text"] {
-            width: 100%; /* 宽度设为100% */
-        }
-        /* 设置水平排列的元素间距 */
-        .flex-row {
-            display: flex;
-            gap: 1.5rem; /* 元素间的间距 */
-        }
-        /* 设置垂直排列的输入框布局 */
-        .flex-col {
-            display: flex;
-            flex-direction: column;
-            flex: 1;
-        }
-    </style>
-</head>
-<body>
-    <!-- 表单的主要容器 -->
-    <div class="form-container">
-        
-        <a href="/" class="text-blue-500 underline mb-4 block">Home page</a> <!-- 返回首页链接 -->
+{% extends "base.html" %}
 
-        <h2 class="text-center text-2xl font-bold mb-6">机票行程转化</h2> <!-- 页面标题 -->
+{% block title %}机票行程转化{% endblock %}
+
+{% block head %}
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+<style>
+    /* 使用唯一的前缀避免冲突 */
+    .flight-app {
+        width: 100%;
+        margin: 0 auto;
+        padding: 0;
+    }
+    
+    /* 主容器 */
+    .flight-app-container {
+        width: 100%;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+        background-color: #fff;
+        box-shadow: 0 0 10px rgba(0,0,0,0.05);
+    }
+    
+    /* 标题 */
+    .flight-app-title {
+        font-size: 28px;
+        font-weight: bold;
+        margin-bottom: 25px;
+        color: #333;
+        text-align: center;
+    }
+    
+    /* 表单样式 */
+    .flight-app-form-row {
+        display: block;
+        margin-bottom: 20px;
+    }
+    
+    .flight-app-label {
+        display: flex;
+        align-items: center;
+        font-size: 14px;
+        font-weight: normal;
+        margin-bottom: 8px;
+    }
+    
+    .flight-app-label i {
+        margin-right: 5px;
+    }
+    
+    .flight-app-input-wrapper {
+        flex: 1;
+    }
+    
+    /* 输入框样式 */
+    .flight-app-textarea {
+        width: 100%;
+        height: 200px;
+        padding: 8px;
+        border: 1px solid #ccc;
+        border-radius: 0;
+        font-size: 14px;
+        resize: none;
+        display: block;
+    }
+    
+    .flight-app-input {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #ccc;
+        border-radius: 0;
+        font-size: 14px;
+        display: block;
+    }
+    
+    /* 底部按钮行 */
+    .flight-app-bottom-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 20px;
+    }
+    
+    .flight-app-radio-group {
+        display: flex;
+        align-items: center;
+        margin: 0;
+    }
+    
+    .flight-app-btn-container {
+        text-align: right;
+    }
+    
+    .flight-app-btn {
+        background-color: #f0f0f0;
+        border: 1px solid #ccc;
+        padding: 6px 15px;
+        border-radius: 0;
+        cursor: pointer;
+        font-size: 14px;
+    }
+
+    /* 响应式设计 */
+    @media (max-width: 600px) {
+        .flight-app-form-row {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        .flight-app-label {
+            width: 100%;
+            margin-bottom: 5px;
+        }
+        .flight-app-bottom-row {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        .flight-app-btn-container {
+            margin-top: 15px;
+            text-align: left;
+            width: 100%;
+        }
+    }
+
+    /* 行李和价格输入行 */
+    .flight-app-luggage-price-row {
+        display: flex;
+        justify-content: space-between;
+        gap: 20px;
+        margin-bottom: 15px;
+    }
+    
+    .flight-app-luggage-price-item {
+        flex: 1;
+        max-width: 48%;
+    }
+    
+    .flight-app-luggage-price-item .flight-app-label {
+        width: auto;
+        margin-right: 10px;
+        margin-bottom: 8px;
+    }
+
+    /* 输出框容器样式 */
+    .flight-app-output-container {
+        position: relative;
+    }
+    
+    /* 复制按钮样式 */
+    .flight-app-copy-btn {
+        position: absolute;
+        top: 0;
+        right: 0;
+        background-color: #f8f9fa;
+        border: 1px solid #ccc;
+        border-top: none;
+        border-right: none;
+        padding: 4px 8px;
+        font-size: 12px;
+        cursor: pointer;
+        z-index: 10;
+    }
+    
+    .flight-app-copy-btn:hover {
+        background-color: #e9ecef;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="flight-app">
+    <div class="flight-app-container">
         
-        <!-- 表单开始，使用POST方法提交 -->
+        <h1 class="flight-app-title">机票行程转化</h1>
+        
         <form action="{{ url_for('flight_blue.itinerary_conversion') }}" method="post">
+            <div class="flight-app-form-row">
+                <label for="input_text" class="flight-app-label">
+                    <i class="fas fa-plane-departure"></i> 输入行程：
+                </label>
+                <div class="flight-app-input-wrapper">
+                    <textarea id="input_text" name="input_text" class="flight-app-textarea">{{ request.form['input_text'] }}</textarea>
+                </div>
+            </div>
             
-            <!-- 输入和输出行程的容器 -->
-            <div class="flex-row section">
-                <div class="flex-col input-section">
-                    
-                    <!-- 输入行程的标签和文本区域 -->
-                    <label for="input_text" class="block font-medium mb-2">输入行程：</label>
-                    <textarea id="input_text" name="input_text" rows="10" class="border rounded p-2 input-bg">{{ request.form['input_text'] }}</textarea>
-                    
-                    <!-- 行李和价格输入区域，使用两列网格布局 -->
-                    <div class="grid grid-cols-2 gap-4 mt-4">
-                        <div class="flex flex-col">
-                            <label for="luggage" class="block font-medium mb-1">行李：</label>
-                            <input type="text" id="luggage" name="luggage" class="border rounded p-2 input-bg" value="{{ request.form['luggage'] }}">
-                        </div>
-                        <div class="flex flex-col">
-                            <label for="price" class="block font-medium mb-1">价格：</label>
-                            <input type="text" id="price" name="price" class="border rounded p-2 input-bg" value="{{ request.form['price'] }}">
-                        </div>
+            <div class="flight-app-form-row">
+                <label for="output_text" class="flight-app-label">
+                    <i class="fas fa-plane-arrival"></i> 输出行程：
+                </label>
+                <div class="flight-app-input-wrapper flight-app-output-container">
+                    <button type="button" class="flight-app-copy-btn" onclick="copyOutputText()">
+                        <i class="fas fa-copy"></i> 复制
+                    </button>
+                    <textarea id="output_text" name="output_text" class="flight-app-textarea">{{ output_text }}</textarea>
+                </div>
+            </div>
+            
+            <div class="flight-app-luggage-price-row">
+                <div class="flight-app-luggage-price-item">
+                    <label for="luggage" class="flight-app-label">
+                        <i class="fas fa-suitcase"></i> 行李：
+                    </label>
+                    <div class="flight-app-input-wrapper">
+                        <input type="text" id="luggage" name="luggage" class="flight-app-input" value="{{ request.form['luggage'] }}">
                     </div>
                 </div>
-                <div class="flex-col output-section">
-                    <!-- 输出行程的标签和文本区域 -->
-                    <label for="output_text" class="block font-medium mb-2">输出行程：</label>
-                    <textarea id="output_text" name="output_text" rows="10" class="border rounded p-2 input-bg">{{ output_text }}</textarea>
+                
+                <div class="flight-app-luggage-price-item">
+                    <label for="price" class="flight-app-label">
+                        <i class="fas fa-tag"></i> 价格：
+                    </label>
+                    <div class="flight-app-input-wrapper">
+                        <input type="text" id="price" name="price" class="flight-app-input" value="{{ request.form['price'] }}">
+                    </div>
                 </div>
             </div>
-
-            <!-- 语言选择区域 -->
-            <div class="section language-selection">
-                <div class="flex items-center mb-4">
-                    <input type="radio" id="chinese" name="language" value="chinese" checked class="mr-2">
-                    <label for="chinese" class="mr-4">中文行程</label> <!-- 中文行程选项 -->
-                    <input type="radio" id="english" name="language" value="english" class="mr-2">
-                    <label for="english">English itinerary</label> <!-- 英文行程选项 -->
+            
+            <div class="flight-app-bottom-row">
+                <div class="flight-app-radio-group">
+                    <div class="flight-app-radio-item">
+                        <input type="radio" id="chinese" name="language" value="chinese" {% if not request.form['language'] or request.form['language'] == 'chinese' %}checked{% endif %}>
+                        <label for="chinese">中文行程</label>
+                    </div>
+                    <div class="flight-app-radio-item">
+                        <input type="radio" id="english" name="language" value="english" {% if request.form['language'] == 'english' %}checked{% endif %}>
+                        <label for="english">English itinerary</label>
+                    </div>
                 </div>
-            </div>
-
-            <!-- 提交按钮区域 -->
-            <div class="section submit-section flex justify-between">
-                <input type="submit" value="开始转换" class="bg-blue-500 text-white rounded p-2 cursor-pointer">
+                
+                <div class="flight-app-btn-container">
+                    <input type="submit" value="开始转换" class="flight-app-btn">
+                </div>
             </div>
         </form>
     </div>
-</body>
-</html>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        var outputTextarea = document.getElementById('output_text');
+        if(outputTextarea) {
+            outputTextarea.addEventListener('focus', function() {
+                this.select();
+            });
+        }
+    });
+    
+    function copyOutputText() {
+        var outputTextarea = document.getElementById('output_text');
+        outputTextarea.select();
+        document.execCommand('copy');
+        alert('内容已复制到剪贴板');
+    }
+</script>
+{% endblock %}
