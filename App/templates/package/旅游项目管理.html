@@ -1,288 +1,277 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>旅游项目管理</title>
-    <style>
-        /* 通用样式 */
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-            background-color: #f4f4f9;
-            color: #333;
-            line-height: 1.6;
+{% extends "base.html" %}
+
+{% block title %}旅游项目管理{% endblock %}
+
+{% block head %}
+<style>
+    /* 特定于旅游项目管理的样式，添加tour-前缀避免冲突 */
+    .tour-container {
+        max-width: 1400px;
+        margin: 30px auto;
+        padding: 20px;
+        background: #ffffff;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        border-radius: 8px;
+    }
+
+    .tour-title {
+        color: #4CAF50;
+        text-align: center;
+        margin-bottom: 20px;
+        font-size: 24px;
+    }
+
+    /* 排序选择样式 */
+    .tour-sort-options {
+        display: flex;
+        justify-content: flex-end;
+        margin-bottom: 20px;
+    }
+
+    .tour-sort-options label,
+    .tour-sort-options select {
+        margin-right: 10px;
+    }
+
+    .tour-sort-options select {
+        padding: 8px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+    }
+
+    /* 表格样式 */
+    .tour-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+        font-size: 14px;
+        text-align: left;
+    }
+
+    .tour-table th, 
+    .tour-table td {
+        padding: 12px 15px;
+        border: 1px solid #ddd;
+        text-align: center;
+        vertical-align: middle;
+    }
+
+    .tour-table th {
+        background-color: #f4f4f9;
+        font-weight: bold;
+        color: #333;
+    }
+
+    .tour-table tr:nth-child(even) {
+        background-color: #f9f9f9;
+    }
+
+    .tour-table tr:hover {
+        background-color: #f1f1f1;
+    }
+
+    .tour-action-link,
+    .tour-delete-link {
+        text-decoration: none;
+        color: #007BFF;
+    }
+
+    .tour-action-link:hover,
+    .tour-delete-link:hover {
+        text-decoration: underline;
+    }
+
+    .tour-delete-link {
+        color: #FF0000;
+    }
+
+    .tour-input-field,
+    .tour-select-field {
+        width: calc(100% - 20px);
+        padding: 8px;
+        margin: 5px 0;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+    }
+
+    .tour-input-field[type="date"] {
+        padding: 6px;
+    }
+
+    /* 响应式调整 */
+    @media (max-width: 768px) {
+        .tour-table, .tour-sort-options {
+            font-size: 12px;
         }
 
-        .container {
-            max-width: 1400px;
-            margin: 30px auto;
-            padding: 20px;
-            background: #ffffff;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-            border-radius: 8px;
-        }
-
-        h1 {
-            color: #4CAF50;
-            text-align: center;
-            margin-bottom: 20px;
-            font-size: 24px;
-        }
-
-        .home-link a {
-            text-decoration: none;
-            color: #007BFF;
-            font-size: 14px;
-        }
-
-        .home-link a:hover {
-            text-decoration: underline;
-        }
-
-        /* 排序选择样式 */
-        .sort-options {
-            display: flex;
-            justify-content: flex-end;
-            margin-bottom: 20px;
-        }
-
-        .sort-options label,
-        .sort-options select {
-            margin-right: 10px;
-        }
-
-        .sort-options select {
-            padding: 8px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-        }
-
-        /* 表格样式 */
-        table {
+        .tour-input-field, .tour-select-field {
             width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-            font-size: 14px;
-            text-align: left;
         }
+    }
 
-        th, td {
-            padding: 12px 15px;
-            border: 1px solid #ddd;
-            text-align: center;
-            vertical-align: middle;
-        }
+    /* 闪现消息样式 */
+    .tour-flash-message {
+        position: fixed;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        padding: 10px 20px;
+        color: white;
+        border-radius: 5px;
+        z-index: 1000;
+        font-size: 14px;
+        display: none;
+    }
 
-        th {
-            background-color: #f4f4f9;
-            font-weight: bold;
-            color: #333;
-        }
+    /* 优化项目状态选择框的样式 */
+    .tour-select-field {
+        width: 65px; /* 增加宽度 */
+        padding: 5px; /* 增加内边距 */
+        font-size: 14px; /* 调整字体大小 */
+        border: 1px solid #ccc; /* 设置边框 */
+        border-radius: 4px; /* 圆角边框 */
+        background-color: #fff; /* 背景颜色 */
+        appearance: none; /* 隐藏默认箭头样式（可选） */
+    }
 
-        tr:nth-child(even) {
-            background-color: #f9f9f9;
-        }
+    /* 给下拉菜单添加一些间距以防挤压 */
+    .tour-select-field:focus {
+        border-color: #4CAF50; /* 焦点状态下的边框颜色 */
+        outline: none; /* 去除默认高亮边框 */
+        box-shadow: 0 0 5px rgba(76, 175, 80, 0.5); /* 添加外部阴影 */
+    }
 
-        tr:hover {
-            background-color: #f1f1f1;
-        }
+    /* 让表格单元格整体更大 */
+    .tour-table td {
+        vertical-align: middle; /* 单元格内容居中 */
+        text-align: center; /* 水平居中 */
+    }
 
-        .action-link,
-        .delete-link {
-            text-decoration: none;
-            color: #007BFF;
-        }
+    /* 增加下拉框箭头的内边距 */
+    .tour-select-field::-ms-expand {
+        display: none; /* 隐藏 IE 浏览器的默认箭头 */
+    }
+</style>
+{% endblock %}
 
-        .action-link:hover,
-        .delete-link:hover {
-            text-decoration: underline;
-        }
-
-        .delete-link {
-            color: #FF0000;
-        }
-
-        .input-field,
-        .select-field {
-            width: calc(100% - 20px);
-            padding: 8px;
-            margin: 5px 0;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-        }
-
-        .input-field[type="date"] {
-            padding: 6px;
-        }
-
-        /* 响应式调整 */
-        @media (max-width: 768px) {
-            table, .sort-options {
-                font-size: 12px;
-            }
-
-            .input-field, .select-field {
-                width: 100%;
-            }
-        }
-
-        /* 闪现消息样式 */
-        .flash-message {
-            position: fixed;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            padding: 10px 20px;
-            color: white;
-            border-radius: 5px;
-            z-index: 1000;
-            font-size: 14px;
-            display: none;
-        }
-
-        /* 优化项目状态选择框的样式 */
-        .select-field {
-            width: 65px; /* 增加宽度 */
-            padding: 5px; /* 增加内边距 */
-            font-size: 14px; /* 调整字体大小 */
-            border: 1px solid #ccc; /* 设置边框 */
-            border-radius: 4px; /* 圆角边框 */
-            background-color: #fff; /* 背景颜色 */
-            appearance: none; /* 隐藏默认箭头样式（可选） */
-        }
-
-        /* 给下拉菜单添加一些间距以防挤压 */
-        .select-field:focus {
-            border-color: #4CAF50; /* 焦点状态下的边框颜色 */
-            outline: none; /* 去除默认高亮边框 */
-            box-shadow: 0 0 5px rgba(76, 175, 80, 0.5); /* 添加外部阴影 */
-        }
-
-        /* 让表格单元格整体更大 */
-        table td {
-            vertical-align: middle; /* 单元格内容居中 */
-            text-align: center; /* 水平居中 */
-        }
-
-        /* 增加下拉框箭头的内边距 */
-        .select-field::-ms-expand {
-            display: none; /* 隐藏 IE 浏览器的默认箭头 */
-        }
-    </style>
-</head>
-
-<body>
-    <div class="container">
-        <!-- 闪现消息区域 -->
-        <div id="flash-message" class="flash-message" style="display: none;">
-            <span id="flash-message-text"></span>
-        </div>
-
-        <div class="home-link">
-            <a href="/">Home page</a>
-        </div>
-        
-        <h1>现有旅游项目管理</h1>
-
-        <!-- 筛选和排序选项表单 -->
-        <div class="sort-options">
-            <form method="GET" action="{{ url_for('package_routes.show_all_tour_project') }}">
-                <!-- 旅游项目状态筛选 -->
-                <label for="travel_status" style="margin-left: 20px;">旅游项目状态：</label>
-                <select name="travel_status" id="travel_status" onchange="this.form.submit()">
-                    <option value="all" {% if travel_status == 'all' %}selected{% endif %}>全部追中单</option>
-                    <option value="处理中" {% if travel_status == '处理中' %}selected{% endif %}>处理中</option>
-                    <option value="待出行" {% if travel_status == '待出行' %}selected{% endif %}>待出行</option>
-                    <option value="已完成" {% if travel_status == '已完成' %}selected{% endif %}>已完成</option>
-                    <option value="忽略单" {% if travel_status == '忽略单' %}selected{% endif %}>忽略单</option>
-                </select>
-
-                <!-- 排序选项 -->
-                <label for="sort_by">排序方式：</label>
-                <select name="sort_by" id="sort_by" onchange="this.form.submit()">
-                    <option value="name" {% if sort_by == 'name' %}selected{% endif %}>按项目名称</option>
-                    <option value="created_date" {% if sort_by == 'created_date' %}selected{% endif %}>按创建时间</option>
-                </select>
-
-                <!-- 排序顺序 -->
-                <label for="order">排序顺序：</label>
-                <select name="order" id="order" onchange="this.form.submit()">
-                    <option value="asc" {% if order == 'asc' %}selected{% endif %}>升序</option>
-                    <option value="desc" {% if order == 'desc' %}selected{% endif %}>降序</option>
-                </select>
-            </form>
-        </div>
-
-        <!-- 项目列表 -->
-        <table>
-            <thead>
-                <tr>    
-                    <th>项目ID</th>
-                    <th>创建时间</th>
-                    <th>项目HID</th>
-                    <th>项目名称</th>
-                    <th>项目状态</th>
-                    <th>出行日期</th>
-                    <th>联系人</th>
-                    <th>联系方式</th>
-                    <th>文件夹名称</th>
-                    <th>备注</th>
-                    <th>保存修改</th>
-                    <th>打开项目</th>
-                    <th>删除项目</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for project in projects %}
-                <form method="POST" action="{{ url_for('package_routes.update_travel_project', project_id=project.id) }}">
-                    <!-- 添加隐藏字段，保存当前筛选和排序状态 -->
-                    <input type="hidden" name="current_travel_status" value="{{ travel_status }}">
-                    <input type="hidden" name="current_sort_by" value="{{ sort_by }}">
-                    <input type="hidden" name="current_order" value="{{ order }}">
-                    <tr>
-                        <td>{{ project.id }}</td>
-                        <td>{{ project.creation_date.strftime('%Y-%m-%d') }}</td>
-                        <td><input type="text" name="project_hid" value="{{ project.project_hid or 'N/A'}}" class="input-field"></td>
-                        <td>{{ project.project_name }}</td>
-                        <td>
-                            <select name="project_status" class="select-field">
-                                <option value="处理中" {% if project.project_status == '处理中' %}selected{% endif %}>处理中</option>
-                                <option value="待出行" {% if project.project_status == '待出行' %}selected{% endif %}>待出行</option>
-                                <option value="已完成" {% if project.project_status == '已完成' %}selected{% endif %}>已完成</option>
-                                <option value="忽略单" {% if project.project_status == '忽略单' %}selected{% endif %}>忽略单</option>
-                            </select>
-                        </td>
-                        <td><input type="date" name="departure_date" value="{{ project.departure_date }}" class="input-field"></td>
-                        <td><input type="text" name="contact_person" value="{{ project.contact_person }}" class="input-field"></td>
-                        <td><input type="text" name="contact_info" value="{{ project.contact_info }}" class="input-field"></td>
-                        <td><input type="text" name="folder_name" value="{{ project.folder_name }}" class="input-field"></td>
-                        <td><input type="text" name="remarks" value="{{ project.remarks or '' }}" class="input-field"></td>
-                        
-                        <!-- 保存修改按钮 -->
-                        <td><button type="submit" class="action-link">保存修改</button></td>
-                        
-                        <!-- 打开项目按钮 -->
-                        <td>
-                            <a href="#" id="open-project-{{ project.id }}" class="action-link">打开项目</a>
-                        </td>
-
-                        <!-- 删除项目按钮 -->
-                        <td>
-                            <a class="delete-link" href="#" data-project-id="{{ project.id }}" onclick="deleteProject(event, this)">删除</a>
-                        </td>
-                    </tr>
-                </form>
-                {% endfor %}
-            </tbody>
-        </table>
+{% block content %}
+<div class="tour-container">
+    <!-- 闪现消息区域 -->
+    <div id="flash-message" class="tour-flash-message" style="display: none;">
+        <span id="flash-message-text"></span>
     </div>
-</body>
+    
+    <h1 class="tour-title">现有旅游项目管理</h1>
 
+    <!-- 筛选和排序选项表单 -->
+    <div class="tour-sort-options">
+        <form method="GET" action="{{ url_for('package_routes.show_all_tour_project') }}">
+            <!-- 旅游项目状态筛选 -->
+            <label for="travel_status" style="margin-left: 20px;">旅游项目状态：</label>
+            <select name="travel_status" id="travel_status" onchange="this.form.submit()">
+                <option value="all" {% if travel_status == 'all' %}selected{% endif %}>全部追中单</option>
+                <option value="处理中" {% if travel_status == '处理中' %}selected{% endif %}>处理中</option>
+                <option value="待出行" {% if travel_status == '待出行' %}selected{% endif %}>待出行</option>
+                <option value="已完成" {% if travel_status == '已完成' %}selected{% endif %}>已完成</option>
+                <option value="忽略单" {% if travel_status == '忽略单' %}selected{% endif %}>忽略单</option>
+            </select>
+
+            <!-- 排序选项 -->
+            <label for="sort_by">排序方式：</label>
+            <select name="sort_by" id="sort_by" onchange="this.form.submit()">
+                <option value="name" {% if sort_by == 'name' %}selected{% endif %}>按项目名称</option>
+                <option value="created_date" {% if sort_by == 'created_date' %}selected{% endif %}>按创建时间</option>
+            </select>
+
+            <!-- 排序顺序 -->
+            <label for="order">排序顺序：</label>
+            <select name="order" id="order" onchange="this.form.submit()">
+                <option value="asc" {% if order == 'asc' %}selected{% endif %}>升序</option>
+                <option value="desc" {% if order == 'desc' %}selected{% endif %}>降序</option>
+            </select>
+        </form>
+    </div>
+
+    <!-- 项目列表 -->
+    <table class="tour-table">
+        <thead>
+            <tr>    
+                <th>项目ID</th>
+                <th>创建时间</th>
+                <th>项目HID</th>
+                <th>项目名称</th>
+                <th>项目状态</th>
+                <th>出行日期</th>
+                <th>联系人</th>
+                <th>联系方式</th>
+                <th>文件夹名称</th>
+                <th>备注</th>
+                <th>保存修改</th>
+                <th>打开项目</th>
+                <th>删除项目</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for project in projects %}
+            <form method="POST" action="{{ url_for('package_routes.update_travel_project', project_id=project.id) }}">
+                <!-- 添加隐藏字段，保存当前筛选和排序状态 -->
+                <input type="hidden" name="current_travel_status" value="{{ travel_status }}">
+                <input type="hidden" name="current_sort_by" value="{{ sort_by }}">
+                <input type="hidden" name="current_order" value="{{ order }}">
+                <tr>
+                    <td>{{ project.id }}</td>
+                    <td>{{ project.creation_date.strftime('%Y-%m-%d') }}</td>
+                    <td><input type="text" name="project_hid" value="{{ project.project_hid or 'N/A'}}" class="tour-input-field"></td>
+                    <td>{{ project.project_name }}</td>
+                    <td>
+                        <select name="project_status" class="tour-select-field">
+                            <option value="处理中" {% if project.project_status == '处理中' %}selected{% endif %}>处理中</option>
+                            <option value="待出行" {% if project.project_status == '待出行' %}selected{% endif %}>待出行</option>
+                            <option value="已完成" {% if project.project_status == '已完成' %}selected{% endif %}>已完成</option>
+                            <option value="忽略单" {% if project.project_status == '忽略单' %}selected{% endif %}>忽略单</option>
+                        </select>
+                    </td>
+                    <td><input type="date" name="departure_date" value="{{ project.departure_date }}" class="tour-input-field"></td>
+                    <td><input type="text" name="contact_person" value="{{ project.contact_person }}" class="tour-input-field"></td>
+                    <td><input type="text" name="contact_info" value="{{ project.contact_info }}" class="tour-input-field"></td>
+                    <td><input type="text" name="folder_name" value="{{ project.folder_name }}" class="tour-input-field"></td>
+                    <td><input type="text" name="remarks" value="{{ project.remarks or '' }}" class="tour-input-field"></td>
+                    
+                    <!-- 保存修改按钮 -->
+                    <td><button type="submit" class="tour-action-link">保存修改</button></td>
+                    
+                    <!-- 打开项目按钮 -->
+                    <td>
+                        <a href="#" id="open-project-{{ project.id }}" class="tour-action-link">打开项目</a>
+                    </td>
+
+                    <!-- 删除项目按钮 -->
+                    <td>
+                        <a class="tour-delete-link" href="#" data-project-id="{{ project.id }}" onclick="deleteProject(event, this)">删除</a>
+                    </td>
+                </tr>
+            </form>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
+
+{% block scripts %}
 <script src="/static/Js/ff.js"></script>
 
 <script>
+    // 页面加载时，如果URL中没有travel_status参数，默认选择"处理中"状态
+    document.addEventListener('DOMContentLoaded', function() {
+        // 检查URL是否包含travel_status参数
+        const urlParams = new URLSearchParams(window.location.search);
+        if (!urlParams.has('travel_status')) {
+            // 如果没有，设置为"处理中"并提交表单
+            document.getElementById('travel_status').value = '处理中';
+            document.getElementById('travel_status').closest('form').submit();
+        }
+    });
+
     // 显示闪现消息函数
     function showFlashMessage(message, isSuccess) {
         const flashMessage = document.getElementById("flash-message");
@@ -315,17 +304,14 @@
     }
 
     // 页面加载完成后，绑定每个"打开项目"按钮的事件
-    document.addEventListener('DOMContentLoaded', () => {
-    {% for project in projects %}
-        document.getElementById("open-project-{{ project.id }}").addEventListener('click', (event) => {
+    document.addEventListener('DOMContentLoaded', function() {
+        {% for project in projects %}
+        document.getElementById("open-project-{{ project.id }}").addEventListener('click', function(event) {
             event.preventDefault();
             let encodedFolderName = encodeURIComponent("{{ project.folder_name }}");
-            sendPostRequest(`{{ url_for("package_routes.open_travel_project_file") }}?folder_name=${encodedFolderName}`, '资源文件夹已打开!');
+            sendPostRequest("{{ url_for('package_routes.open_travel_project_file') }}?folder_name=" + encodedFolderName, '资源文件夹已打开!');
         });
-    {% endfor %}
-});
-
-
+        {% endfor %}
+    });
 </script>
-
-</html>
+{% endblock %}
