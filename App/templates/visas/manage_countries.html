@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container" style="max-width: 1000px; margin: 0 auto; padding: 20px;">
+    <h1 style="font-size: 24px; margin-bottom: 20px; font-weight: bold; text-align: center;">管理国家数据</h1>
+    
+    
+    <!-- 表单 -->
+    <div style="background-color: white; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); padding: 20px; margin-bottom: 20px;">
+        <h2 style="font-size: 18px; margin-bottom: 15px; font-weight: bold;">添加国家</h2>
+        
+        <form method="POST">
+            <!-- 三个字段并排 -->
+            <div style="display: flex; gap: 15px; margin-bottom: 15px;">
+                <!-- 国家名称（中文） -->
+                <div style="flex: 1;">
+                    <label style="display: block; font-weight: 500; margin-bottom: 5px;">国家名称（中文）</label>
+                    <input type="text" name="country_name_CN" required
+                           style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;"
+                           placeholder="请输入中文名称">
+                </div>
+                
+                <!-- 国家名称（英文） -->
+                <div style="flex: 1;">
+                    <label style="display: block; font-weight: 500; margin-bottom: 5px;">国家名称（英文）</label>
+                    <input type="text" name="country_name_EN" required
+                           style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;"
+                           placeholder="请输入英文名称">
+                </div>
+                
+                <!-- 国家代码 -->
+                <div style="flex: 1;">
+                    <label style="display: block; font-weight: 500; margin-bottom: 5px;">国家代码</label>
+                    <input type="text" name="country_code" required
+                           style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;"
+                           placeholder="请输入国家代码">
+                </div>
+            </div>
+            
+            <!-- 按钮 -->
+            <div style="margin-top: 20px;">
+                <button type="submit" 
+                        style="background-color: #1a56db; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">
+                    <i class="fas fa-plus"></i> 添加国家
+                </button>
+            </div>
+        </form>
+    </div>
+    
+    <!-- 国家列表 -->
+    <div style="background-color: white; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); padding: 20px;">
+        <h2 style="font-size: 18px; margin-bottom: 15px; font-weight: bold;">现有国家列表</h2>
+        
+        <div style="overflow-x: auto;">
+            <table style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr style="background-color: #f3f4f6; text-align: left;">
+                        <th style="padding: 10px; border-bottom: 1px solid #e5e7eb;">中文名称</th>
+                        <th style="padding: 10px; border-bottom: 1px solid #e5e7eb;">英文名称</th>
+                        <th style="padding: 10px; border-bottom: 1px solid #e5e7eb;">国家代码</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for country in countries %}
+                    <tr style="border-bottom: 1px solid #e5e7eb;">
+                        <td style="padding: 10px;">{{ country.country_name_CN }}</td>
+                        <td style="padding: 10px;">{{ country.country_name_EN }}</td>
+                        <td style="padding: 10px;">{{ country.country_code }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <!-- 消息提示 -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                {% if category == 'success' %}
+                <div style="margin-top: 15px; padding: 10px; border-radius: 4px; background-color: #d1fae5; color: #047857; border: 1px solid #6ee7b7;">
+                    <i class="fas fa-check-circle"></i> {{ message }}
+                </div>
+                {% else %}
+                <div style="margin-top: 15px; padding: 10px; border-radius: 4px; background-color: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5;">
+                    <i class="fas fa-exclamation-circle"></i> {{ message }}
+                </div>
+                {% endif %}
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+</div>
+{% endblock %} 

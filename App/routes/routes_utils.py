@@ -59,7 +59,12 @@ def toggle_task(task_id):
         return jsonify({'message': 'Invalid task status'}), 400
     return jsonify({'message': 'Task not found'}), 404
 
-# def render_deepseek_chat
-@utils_blue.route('/render_deepseek_chat')
-def render_deepseek_chat():
-    return render_template("files/deepseek.html")
+# 签证项目管理
+@utils_blue.route('/render_visa_project')
+def render_visa_project():
+    return render_template("files/visa_project.html")
+
+# 签证链接管理
+@utils_blue.route('/render_visa_link')
+def render_visa_link():
+    return render_template("files/visa_link.html")
