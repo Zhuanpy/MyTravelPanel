@@ -3,12 +3,12 @@
 {% block title %}确认单详细信息{% endblock %}
 
 {% block head %}
-<style>
+    <style>
     .confirm-detail-container {
         width: 90%;
         max-width: 1200px;
         margin: 20px auto;
-        padding: 20px;
+            padding: 20px;
     }
     .confirm-detail-card {
         background-color: #fff;
@@ -53,7 +53,7 @@
         width: 100%;
         padding: 8px 12px;
         border: 1px solid #ddd;
-        border-radius: 4px;
+            border-radius: 4px;
         font-size: 14px;
     }
     .confirm-detail-input:focus, .confirm-detail-select:focus {
@@ -65,7 +65,7 @@
         padding: 8px 16px;
         background-color: #4a90e2;
         color: white;
-        border: none;
+            border: none;
         border-radius: 4px;
         cursor: pointer;
         transition: background-color 0.3s;
@@ -82,10 +82,10 @@
         background-color: #5a6268;
     }
     .confirm-detail-btn-success {
-        background-color: #28a745;
-    }
+            background-color: #28a745;
+        }
     .confirm-detail-btn-success:hover {
-        background-color: #218838;
+            background-color: #218838;
     }
     .confirm-detail-result {
         margin-top: 20px;
@@ -93,9 +93,27 @@
         background-color: #f8f9fa;
         border-radius: 4px;
     }
-    .confirm-detail-result-text {
-        font-size: 16px;
+    .confirm-detail-result-item {
+        margin-bottom: 15px;
+        padding: 10px;
+        background-color: #f8f9fa;
+        border-radius: 4px;
+    }
+    .confirm-detail-result-label {
+        font-weight: bold;
+        margin-bottom: 5px;
+        color: #555;
+    }
+    .confirm-detail-result-content {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        position: relative;
+    }
+    .confirm-detail-result-content span {
+        flex: 1;
         word-break: break-all;
+        margin-right: 10px;
     }
     .confirm-detail-copy-btn {
         margin-left: 10px;
@@ -121,8 +139,25 @@
             flex: 100%;
             margin-bottom: 15px;
         }
+        }
+    .confirm-detail-notification {
+        position: fixed;
+        background-color: #4CAF50;
+        color: white;
+        padding: 8px 16px;
+        border-radius: 4px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        z-index: 1000;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+        font-size: 12px;
+        white-space: nowrap;
+        pointer-events: none;
     }
-</style>
+    .confirm-detail-notification.show {
+        opacity: 1;
+    }
+    </style>
 {% endblock %}
 
 {% block content %}
@@ -152,6 +187,7 @@
             </div>
         </div>
         
+        <h2 class="confirm-detail-subtitle">航班信息</h2>
         <div class="confirm-detail-form-row">
             <div class="confirm-detail-form-col">
                 <div class="confirm-detail-form-group">
@@ -195,13 +231,51 @@
         </div>
         
         <div id="filenameResult" class="confirm-detail-result" style="display: none;">
-            <p class="confirm-detail-result-text">
-                <span id="filenameText"></span>
-                <button id="copyFilename" class="confirm-detail-btn confirm-detail-copy-btn">复制</button>
-            </p>
+            <div class="confirm-detail-result-item">
+                <div class="confirm-detail-result-label">ETK文件名:</div>
+                <div class="confirm-detail-result-content">
+                    <span id="etkFilenameText"></span>
+                    <button class="confirm-detail-btn confirm-detail-copy-btn" onclick="copyToClipboard('etkFilenameText', this)">复制</button>
+                </div>
+            </div>
+            <div class="confirm-detail-result-item">
+                <div class="confirm-detail-result-label">INV文件名:</div>
+                <div class="confirm-detail-result-content">
+                    <span id="invFilenameText"></span>
+                    <button class="confirm-detail-btn confirm-detail-copy-btn" onclick="copyToClipboard('invFilenameText', this)">复制</button>
+                </div>
+            </div>
+            <div class="confirm-detail-result-item">
+                <div class="confirm-detail-result-label">邮件主题:</div>
+                <div class="confirm-detail-result-content">
+                    <span id="emailSubjectText"></span>
+                    <button class="confirm-detail-btn confirm-detail-copy-btn" onclick="copyToClipboard('emailSubjectText', this)">复制</button>
+                </div>
+            </div>
         </div>
         
         <h2 class="confirm-detail-subtitle">DOCS 代码生成</h2>
+        <div class="confirm-detail-form-row">
+            <div class="confirm-detail-form-col">
+                <div class="confirm-detail-form-group">
+                    <label class="confirm-detail-label" for="passenger_number">乘客序号:</label>
+                    <input type="number" id="passenger_number" class="confirm-detail-input" placeholder="请输入乘客序号" min="1" value="1">
+                </div>
+            </div>
+            <div class="confirm-detail-form-col">
+                <div class="confirm-detail-form-group">
+                    <label class="confirm-detail-label" for="docs_airline">航空公司代码:</label>
+                    <input type="text" id="docs_airline" class="confirm-detail-input" placeholder="例如: CA, MU">
+                </div>
+            </div>
+            <div class="confirm-detail-form-col">
+                <div class="confirm-detail-form-group">
+                    <label class="confirm-detail-label" for="nationality">国籍 (3字代码):</label>
+                    <input type="text" id="nationality" class="confirm-detail-input" placeholder="例如: CHN">
+                </div>
+            </div>
+        </div>
+        
         <div class="confirm-detail-form-row">
             <div class="confirm-detail-form-col">
                 <div class="confirm-detail-form-group">
@@ -211,19 +285,25 @@
             </div>
             <div class="confirm-detail-form-col">
                 <div class="confirm-detail-form-group">
-                    <label class="confirm-detail-label" for="nationality">国籍 (3字代码):</label>
-                    <input type="text" id="nationality" class="confirm-detail-input" placeholder="例如: CHN">
+                    <label class="confirm-detail-label" for="docs_surname">乘客姓氏 (拼音):</label>
+                    <input type="text" id="docs_surname" class="confirm-detail-input" placeholder="请输入乘客姓氏">
                 </div>
             </div>
+            <div class="confirm-detail-form-col">
+                <div class="confirm-detail-form-group">
+                    <label class="confirm-detail-label" for="docs_givenName">乘客名字 (拼音):</label>
+                    <input type="text" id="docs_givenName" class="confirm-detail-input" placeholder="请输入乘客名字">
+                </div>
+            </div>
+        </div>
+        
+        <div class="confirm-detail-form-row">
             <div class="confirm-detail-form-col">
                 <div class="confirm-detail-form-group">
                     <label class="confirm-detail-label" for="birthDate">出生日期:</label>
                     <input type="date" id="birthDate" class="confirm-detail-input">
                 </div>
             </div>
-        </div>
-        
-        <div class="confirm-detail-form-row">
             <div class="confirm-detail-form-col">
                 <div class="confirm-detail-form-group">
                     <label class="confirm-detail-label" for="gender">性别:</label>
@@ -239,9 +319,6 @@
                     <input type="date" id="passportExpiry" class="confirm-detail-input">
                 </div>
             </div>
-            <div class="confirm-detail-form-col">
-                <!-- 可选字段占位符 -->
-            </div>
         </div>
         
         <div class="confirm-detail-form-group">
@@ -250,24 +327,81 @@
         </div>
         
         <div id="docsResult" class="confirm-detail-result" style="display: none;">
-            <p class="confirm-detail-result-text">
-                <span id="docsText"></span>
-                <button id="copyDocs" class="confirm-detail-btn confirm-detail-copy-btn">复制</button>
-            </p>
+            <div class="confirm-detail-result-item">
+                <div class="confirm-detail-result-label">DOCS 代码:</div>
+                <div class="confirm-detail-result-content">
+                    <span id="docsText"></span>
+                    <button class="confirm-detail-btn confirm-detail-copy-btn" onclick="copyToClipboard('docsText', this)">复制</button>
+                </div>
+            </div>
         </div>
     </div>
 </div>
+<div id="notification" class="confirm-detail-notification">已复制到剪贴板</div>
 {% endblock %}
 
 {% block scripts %}
-<script>
+    <script>
+    // 显示通知的函数
+    function showNotification(message, button) {
+        const notification = document.getElementById('notification');
+        notification.textContent = message;
+        
+        // 获取按钮的位置
+        const buttonRect = button.getBoundingClientRect();
+        
+        // 设置通知的位置（在按钮上方）
+        notification.style.top = `${buttonRect.top - 30}px`;
+        notification.style.left = `${buttonRect.left + (buttonRect.width / 2)}px`;
+        notification.style.transform = 'translateX(-50%)';
+        
+        notification.classList.add('show');
+        setTimeout(() => {
+            notification.classList.remove('show');
+        }, 500);
+    }
+
+    // 将复制函数移到全局作用域
+    async function copyToClipboard(elementId, button) {
+        const element = document.getElementById(elementId);
+        const textToCopy = element.textContent;
+        
+        try {
+            // 使用现代的 Clipboard API
+            await navigator.clipboard.writeText(textToCopy);
+            showNotification('已复制到剪贴板', button);
+        } catch (err) {
+            console.error('复制失败:', err);
+            // 如果 Clipboard API 失败，回退到传统方法
+            const textarea = document.createElement('textarea');
+            textarea.value = textToCopy;
+            textarea.style.position = 'fixed';
+            textarea.style.left = '-999999px';
+            textarea.style.top = '-999999px';
+            document.body.appendChild(textarea);
+            
+            try {
+                textarea.select();
+                const successful = document.execCommand('copy');
+                if (successful) {
+                    showNotification('已复制到剪贴板', button);
+                } else {
+                    throw new Error('复制命令失败');
+                }
+            } catch (err) {
+                console.error('传统复制方法失败:', err);
+                showNotification('复制失败，请手动复制', button);
+            } finally {
+                document.body.removeChild(textarea);
+            }
+        }
+    }
+
     document.addEventListener('DOMContentLoaded', function() {
         // 文件名生成
         const generateFilenameBtn = document.getElementById('generateFilename');
         const resetFilenameBtn = document.getElementById('resetFilename');
         const filenameResult = document.getElementById('filenameResult');
-        const filenameText = document.getElementById('filenameText');
-        const copyFilenameBtn = document.getElementById('copyFilename');
         
         generateFilenameBtn.addEventListener('click', function() {
             const hidNumber = document.getElementById('hidNumber').value.trim();
@@ -277,38 +411,36 @@
             const departureCity = document.getElementById('departureCity').value.trim().toUpperCase();
             const arrivalCity = document.getElementById('arrivalCity').value.trim().toUpperCase();
             
-            const includeDate = document.getElementById('includeDate').checked;
-            const includeHid = document.getElementById('includeHid').checked;
-            const includeFlightRoute = document.getElementById('includeFlightRoute').checked;
-            
-            if (!surname || !givenName) {
-                alert('请输入乘客姓名');
+            // 检查必要字段
+            if (!hidNumber || !surname || !givenName) {
+                alert('缺少必要字段：' + 
+                    (!hidNumber ? 'HID号码, ' : '') + 
+                    (!surname ? '乘客姓氏, ' : '') + 
+                    (!givenName ? '乘客名字' : ''));
                 return;
             }
             
-            let filename = '';
-            
-            if (includeDate && departureDate) {
-                const dateParts = departureDate.split('-');
-                if (dateParts.length === 3) {
-                    filename += dateParts[0] + dateParts[1] + dateParts[2] + '_';
-                }
+            // 转换日期格式
+            function formatDate(dateString) {
+                if (!dateString) return '';
+                const date = new Date(dateString);
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                return `${year}${month}${day}`;
             }
             
-            if (includeHid && hidNumber) {
-                filename += hidNumber + '_';
-            }
+            const formattedDate = formatDate(departureDate);
             
-            filename += surname;
-            if (givenName) {
-                filename += '_' + givenName;
-            }
+            // 生成文件名和邮件主题
+            const etkFilename = `HID${hidNumber}_ETK_${surname} ${givenName}`;
+            const invFilename = `HID${hidNumber}_INV_${surname} ${givenName}`;
+            const emailSubject = `HID${hidNumber} ${formattedDate}  ${departureCity} ${arrivalCity} ( ${surname} ${givenName} )`.trim();
             
-            if (includeFlightRoute && departureCity && arrivalCity) {
-                filename += '_' + departureCity + arrivalCity;
-            }
-            
-            filenameText.textContent = filename;
+            // 显示结果
+            document.getElementById('etkFilenameText').textContent = etkFilename;
+            document.getElementById('invFilenameText').textContent = invFilename;
+            document.getElementById('emailSubjectText').textContent = emailSubject;
             filenameResult.style.display = 'block';
         });
         
@@ -322,16 +454,6 @@
             filenameResult.style.display = 'none';
         });
         
-        copyFilenameBtn.addEventListener('click', function() {
-            const textToCopy = filenameText.textContent;
-            navigator.clipboard.writeText(textToCopy).then(function() {
-                alert('文件名已复制到剪贴板');
-            }, function(err) {
-                console.error('无法复制文本: ', err);
-                alert('复制失败，请手动复制');
-            });
-        });
-        
         // DOCS 代码生成
         const generateDocsBtn = document.getElementById('generateDocs');
         const resetDocsBtn = document.getElementById('resetDocs');
@@ -340,30 +462,50 @@
         const copyDocsBtn = document.getElementById('copyDocs');
         
         generateDocsBtn.addEventListener('click', function() {
-            const surname = document.getElementById('passengerSurname').value.trim().toUpperCase();
-            const givenName = document.getElementById('passengerGivenName').value.trim().toUpperCase();
+            const passengerNumber = document.getElementById('passenger_number').value.trim();
+            const airline = document.getElementById('docs_airline').value.trim().toUpperCase();
+            const surname = document.getElementById('docs_surname').value.trim().toUpperCase();
+            const givenName = document.getElementById('docs_givenName').value.trim().toUpperCase();
             const passportNumber = document.getElementById('passportNumber').value.trim().toUpperCase();
             const nationality = document.getElementById('nationality').value.trim().toUpperCase();
             const birthDate = document.getElementById('birthDate').value;
             const gender = document.getElementById('gender').value;
             const passportExpiry = document.getElementById('passportExpiry').value;
             
-            if (!surname || !givenName || !passportNumber || !nationality || !birthDate || !passportExpiry) {
+            if (!passengerNumber || !airline || !surname || !givenName || !passportNumber || !nationality || !birthDate || !passportExpiry) {
                 alert('请填写所有必要字段');
                 return;
+            }
+            
+            // 日期格式化函数 (ddMMMYY)
+            function formatDateForDocs(dateString) {
+                const date = new Date(dateString);
+                const year = date.getFullYear().toString().substr(-2);
+                const day = date.getDate().toString().padStart(2, '0');
+                
+                // 月份的英文缩写
+                const monthNames = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN",
+                                "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+                const month = monthNames[date.getMonth()];
+                
+                return day + month + year;
             }
             
             const birthDateFormatted = formatDateForDocs(birthDate);
             const expiryDateFormatted = formatDateForDocs(passportExpiry);
             
-            // DOCS格式：P/国籍/护照号/姓/名/国籍/生日/性别/护照到期日/姓名
-            const docs = `P/${nationality}/${passportNumber}/${surname}/${givenName}/${nationality}/${birthDateFormatted}/${gender}/${expiryDateFormatted}/${surname}${givenName}`;
+            // DOCS格式：SI.P{passenger_number}/SSRDOCS{airline_code}HK1/P/{nationality}/{passport}/{nationality}/{birth_date}/{sex}/{passport_expiry}/{surname}/{given_name}
+            const docs = `SI.P${passengerNumber}/SSRDOCS${airline}HK1/P/${nationality}/${passportNumber}/${nationality}/${birthDateFormatted}/${gender}/${expiryDateFormatted}/${surname}/${givenName}`;
             
             docsText.textContent = docs;
             docsResult.style.display = 'block';
         });
         
         resetDocsBtn.addEventListener('click', function() {
+            document.getElementById('passenger_number').value = '1';
+            document.getElementById('docs_airline').value = '';
+            document.getElementById('docs_surname').value = '';
+            document.getElementById('docs_givenName').value = '';
             document.getElementById('passportNumber').value = '';
             document.getElementById('nationality').value = '';
             document.getElementById('birthDate').value = '';
@@ -381,15 +523,6 @@
                 alert('复制失败，请手动复制');
             });
         });
-        
-        // 日期格式化函数 (yyMMdd)
-        function formatDateForDocs(dateString) {
-            const date = new Date(dateString);
-            const year = date.getFullYear().toString().substr(-2);
-            const month = (date.getMonth() + 1).toString().padStart(2, '0');
-            const day = date.getDate().toString().padStart(2, '0');
-            return year + month + day;
-        }
     });
-</script>
+    </script>
 {% endblock %} 

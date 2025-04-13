@@ -213,6 +213,7 @@
             <a href="{{ url_for('visa_routes.add_visa_type') }}" class="text-link"><i class="fas fa-plus"></i> 添加签证信息</a>
             <a href="{{ url_for('visa_routes.manage_visas') }}" class="text-link"><i class="fas fa-database"></i> 管理签证数据库</a>
             <a href="{{ url_for('visa_routes.show_current_all_projects') }}" class="text-link"><i class="fas fa-project-diagram"></i> 项目管理</a>
+
         </div>
         <div class="button-group">
             {% for visa in visa_categories %}
@@ -309,7 +310,7 @@
             <a href="{{url_for('files_process.open_Athina')}}" class="btn btn-yellow"><i class="fas fa-code"></i> Athina</a>
             <a href="{{url_for('account_routes.account_page')}}" class="btn btn-yellow"><i class="fas fa-users"></i> 账号管理</a>
             <a href="{{url_for('utils_blue.render_pomodoro')}}" class="btn btn-yellow"><i class="fas fa-clock"></i> 番茄工作法</a>
-            <a href="{{url_for('utils_blue.render_deepseek_chat')}}" class="btn btn-yellow"><i class="fas fa-robot"></i> DeepSeek</a>
+
             <a href="{{url_for('company_info.company_header')}}" class="btn btn-yellow"><i class="fas fa-building"></i> 公司抬头</a>
         </div>
         <div class="section-footer">

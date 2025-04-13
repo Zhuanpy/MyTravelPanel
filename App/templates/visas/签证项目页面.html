@@ -382,7 +382,7 @@
                     打开{{ country }}资源
                 </a>
                 <a class="visa-project-resource-link" href="{{ url_for('visa_routes.show_current_all_projects') }}" >项目管理</a>
-            </div>
+                </div>
             </div>
             
         <div id="formAlert" class="visa-project-alert"></div>
@@ -621,7 +621,7 @@
             const contentType = response.headers.get('content-type');
             if (!contentType || !contentType.includes('application/json')) {
                 throw new Error('Server returned non-JSON response');
-            }
+                }
                 
                 const result = await response.json();
             console.log('Response data:', result); // 添加调试日志
@@ -707,7 +707,7 @@
                     console.error('Error:', error);
                 document.querySelectorAll('.visa-project-content').forEach(content => {
                     content.innerHTML = '<div class="visa-project-alert visa-project-alert-error">获取数据失败，请稍后重试</div>';
-                });
+                    });
                 });
         }
 
