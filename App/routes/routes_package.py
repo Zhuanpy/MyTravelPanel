@@ -638,7 +638,7 @@ def handle_tour_project():
 @package_blue.route('/travel/travel/show_all_tour_project', methods=['GET', 'POST'])
 def show_all_tour_project():
     # 获取表单参数（如果没有则使用默认值）
-    travel_status = request.args.get('travel_status', 'all')
+    travel_status = request.args.get('travel_status', '处理中')  # 默认显示"处理中"状态，而不是'all'
     sort_by = request.args.get('sort_by', 'name')
     order = request.args.get('order', 'asc')
 

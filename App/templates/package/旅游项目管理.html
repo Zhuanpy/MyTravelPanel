@@ -261,17 +261,6 @@
 <script src="/static/Js/ff.js"></script>
 
 <script>
-    // 页面加载时，如果URL中没有travel_status参数，默认选择"处理中"状态
-    document.addEventListener('DOMContentLoaded', function() {
-        // 检查URL是否包含travel_status参数
-        const urlParams = new URLSearchParams(window.location.search);
-        if (!urlParams.has('travel_status')) {
-            // 如果没有，设置为"处理中"并提交表单
-            document.getElementById('travel_status').value = '处理中';
-            document.getElementById('travel_status').closest('form').submit();
-        }
-    });
-
     // 显示闪现消息函数
     function showFlashMessage(message, isSuccess) {
         const flashMessage = document.getElementById("flash-message");
