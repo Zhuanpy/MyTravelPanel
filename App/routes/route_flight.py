@@ -1,6 +1,7 @@
 import os
 import subprocess
 import re
+from datetime import datetime
 
 from flask import Blueprint, render_template, request, jsonify, flash, redirect, url_for
 from flask import current_app as app
@@ -658,3 +659,210 @@ def update_airport():
 def flight_home():
     """机票首页路由"""
     return render_template('flights/机票首页.html')
+
+@flight_blue.route('/flight_orders')
+def flight_orders():
+    """机票订单管理页面"""
+    # 获取排序和筛选参数
+    sort_by = request.args.get('sort_by', 'created_date')
+    order_by = request.args.get('order_by', 'desc')
+    status_filter = request.args.get('status', 'all')
+    
+    # 基础查询
+    query = FlightOrder.query
+    
+    # 应用筛选条件
+    if status_filter and status_filter != 'all':
+        query = query.filter_by(order_status=status_filter)
+    
+    # 应用排序
+    if sort_by == 'created_date':
+        if order_by == 'desc':
+            query = query.order_by(FlightOrder.created_date.desc())
+        else:
+            query = query.order_by(FlightOrder.created_date)
+    elif sort_by == 'departure_date':
+        if order_by == 'desc':
+            query = query.order_by(FlightOrder.departure_date.desc())
+        else:
+            query = query.order_by(FlightOrder.departure_date)
+    
+    # 执行查询
+    orders = query.all()
+    
+    return render_template('flights/机票订单管理.html', 
+                          orders=orders, 
+                          sort_by=sort_by, 
+                          order_by=order_by,
+                          status_filter=status_filter)
+
+
+@flight_blue.route('/add_flight_order', methods=['GET', 'POST'])
+def add_flight_order():
+    """添加机票订单"""
+    if request.method == 'GET':
+        return render_template('flights/添加机票订单.html')
+    
+    elif request.method == 'POST':
+        try:
+            # 从表单获取数据
+            data = request.form
+            
+            # 生成订单号 (可自定义生成规则)
+            current_date = datetime.now().strftime('%Y%m%d')
+            order_count = FlightOrder.query.filter(
+                FlightOrder.order_number.like(f"F{current_date}%")
+            ).count()
+            
+            order_number = f"F{current_date}{str(order_count + 1).zfill(3)}"
+            
+            # 创建新订单
+            new_order = FlightOrder(
+                order_number=order_number,
+                hid_number=data.get('hid_number'),
+                passenger_name=data.get('passenger_name'),
+                contact_person=data.get('contact_person'),
+                contact_phone=data.get('contact_phone'),
+                departure_date=datetime.strptime(data.get('departure_date'), '%Y-%m-%d').date() if data.get('departure_date') else None,
+                itinerary=data.get('itinerary'),
+                departure_city=data.get('departure_city'),
+                arrival_city=data.get('arrival_city'),
+                airline=data.get('airline'),
+                flight_number=data.get('flight_number'),
+                departure_time=datetime.strptime(f"{data.get('departure_date')} {data.get('departure_time')}", '%Y-%m-%d %H:%M') if data.get('departure_date') and data.get('departure_time') else None,
+                arrival_time=datetime.strptime(f"{data.get('arrival_date')} {data.get('arrival_time')}", '%Y-%m-%d %H:%M') if data.get('arrival_date') and data.get('arrival_time') else None,
+                cabin_class=data.get('cabin_class'),
+                is_transit=True if data.get('is_transit') == 'on' else False,
+                transit_info=data.get('transit_info'),
+                order_status=data.get('order_status', '待出票'),
+                payment_status=data.get('payment_status', '待支付'),
+                payment_method=data.get('payment_method'),
+                total_price=float(data.get('total_price')) if data.get('total_price') else None,
+                tax_fee=float(data.get('tax_fee')) if data.get('tax_fee') else None,
+                actual_payment=float(data.get('actual_payment')) if data.get('actual_payment') else None,
+                operator=data.get('operator'),
+                refund_change_policy=data.get('refund_change_policy'),
+                baggage_allowance=data.get('baggage_allowance'),
+                pnr_code=data.get('pnr_code'),
+                e_ticket_number=data.get('e_ticket_number'),
+                client_type=data.get('client_type', '个人'),
+                remarks=data.get('remarks')
+            )
+            
+            db.session.add(new_order)
+            db.session.commit()
+            
+            flash('机票订单添加成功！', 'success')
+            return redirect(url_for('flight_blue.flight_orders'))
+            
+        except Exception as e:
+            db.session.rollback()
+            flash(f'添加订单失败: {str(e)}', 'error')
+            return redirect(url_for('flight_blue.add_flight_order'))
+
+
+@flight_blue.route('/flight_order/<int:order_id>')
+def view_flight_order(order_id):
+    """查看机票订单详情"""
+    order = FlightOrder.query.get_or_404(order_id)
+    return render_template('flights/机票订单详情.html', order=order)
+
+
+@flight_blue.route('/flight_order/<int:order_id>/edit', methods=['GET', 'POST'])
+def edit_flight_order(order_id):
+    """编辑机票订单"""
+    order = FlightOrder.query.get_or_404(order_id)
+    
+    if request.method == 'GET':
+        return render_template('flights/编辑机票订单.html', order=order)
+    
+    elif request.method == 'POST':
+        try:
+            # 从表单获取数据
+            data = request.form
+            
+            # 更新订单信息
+            order.hid_number = data.get('hid_number')
+            order.passenger_name = data.get('passenger_name')
+            order.contact_person = data.get('contact_person')
+            order.contact_phone = data.get('contact_phone')
+            order.departure_date = datetime.strptime(data.get('departure_date'), '%Y-%m-%d').date() if data.get('departure_date') else None
+            order.itinerary = data.get('itinerary')
+            order.departure_city = data.get('departure_city')
+            order.arrival_city = data.get('arrival_city')
+            order.airline = data.get('airline')
+            order.flight_number = data.get('flight_number')
+            order.departure_time = datetime.strptime(f"{data.get('departure_date')} {data.get('departure_time')}", '%Y-%m-%d %H:%M') if data.get('departure_date') and data.get('departure_time') else None
+            order.arrival_time = datetime.strptime(f"{data.get('arrival_date')} {data.get('arrival_time')}", '%Y-%m-%d %H:%M') if data.get('arrival_date') and data.get('arrival_time') else None
+            order.cabin_class = data.get('cabin_class')
+            order.is_transit = True if data.get('is_transit') == 'on' else False
+            order.transit_info = data.get('transit_info')
+            order.order_status = data.get('order_status')
+            order.payment_status = data.get('payment_status')
+            order.payment_method = data.get('payment_method')
+            order.total_price = float(data.get('total_price')) if data.get('total_price') else None
+            order.tax_fee = float(data.get('tax_fee')) if data.get('tax_fee') else None
+            order.actual_payment = float(data.get('actual_payment')) if data.get('actual_payment') else None
+            order.operator = data.get('operator')
+            order.refund_change_policy = data.get('refund_change_policy')
+            order.baggage_allowance = data.get('baggage_allowance')
+            order.pnr_code = data.get('pnr_code')
+            order.e_ticket_number = data.get('e_ticket_number')
+            order.client_type = data.get('client_type')
+            order.remarks = data.get('remarks')
+            
+            # 如果订单状态为已出票，且出票时间为空，则设置当前时间为出票时间
+            if order.order_status == '已出票' and not order.ticket_issue_time:
+                order.ticket_issue_time = datetime.now()
+            
+            db.session.commit()
+            
+            flash('机票订单更新成功！', 'success')
+            return redirect(url_for('flight_blue.view_flight_order', order_id=order.id))
+            
+        except Exception as e:
+            db.session.rollback()
+            flash(f'更新订单失败: {str(e)}', 'error')
+            return redirect(url_for('flight_blue.edit_flight_order', order_id=order.id))
+
+
+@flight_blue.route('/flight_order/<int:order_id>/delete', methods=['POST'])
+def delete_flight_order(order_id):
+    """删除机票订单"""
+    order = FlightOrder.query.get_or_404(order_id)
+    
+    try:
+        db.session.delete(order)
+        db.session.commit()
+        flash('机票订单已删除！', 'success')
+        return redirect(url_for('flight_blue.flight_orders'))
+    except Exception as e:
+        db.session.rollback()
+        flash(f'删除订单失败: {str(e)}', 'error')
+        return redirect(url_for('flight_blue.view_flight_order', order_id=order.id))
+
+
+@flight_blue.route('/flight_order/<int:order_id>/update_status', methods=['POST'])
+def update_flight_order_status(order_id):
+    """更新机票订单状态"""
+    order = FlightOrder.query.get_or_404(order_id)
+    
+    try:
+        new_status = request.form.get('order_status')
+        if new_status:
+            order.order_status = new_status
+            
+            # 如果订单状态为已出票，且出票时间为空，则设置当前时间为出票时间
+            if new_status == '已出票' and not order.ticket_issue_time:
+                order.ticket_issue_time = datetime.now()
+                
+            db.session.commit()
+            flash('订单状态已更新！', 'success')
+        else:
+            flash('请提供有效的状态值！', 'error')
+            
+        return redirect(url_for('flight_blue.view_flight_order', order_id=order.id))
+    except Exception as e:
+        db.session.rollback()
+        flash(f'更新状态失败: {str(e)}', 'error')
+        return redirect(url_for('flight_blue.view_flight_order', order_id=order.id))

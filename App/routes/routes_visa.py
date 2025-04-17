@@ -44,6 +44,7 @@ def add_country():
 
 @visa_routes.route('/add_visa_type', methods=['GET', 'POST'])
 def add_visa_type():
+    
     if request.method == 'POST':
         try:
             # 获取表单数据
@@ -540,6 +541,11 @@ def show_current_all_projects():
         query = query.filter_by(visa_status='待出签')
     elif visa_status == 'approved':
         query = query.filter_by(visa_status='已出签')
+    elif visa_status == 'ignored':
+        query = query.filter_by(visa_status='忽略单')
+    elif visa_status == 'all':
+        # 获取所有状态的项目，不做筛选
+        pass
 
     # 排除特定签证类型的项目（如有需求）
     visa_type_names = VisaTypes.query.with_entities(VisaTypes.visa_type_name).all()
