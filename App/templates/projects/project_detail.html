@@ -1,0 +1,519 @@
+{% extends "base.html" %}
+
+{% block title %}项目详情{% endblock %}
+
+{% block head %}
+{{ super() }}
+<style>
+    /* 基础样式设置 */
+    body {
+        background-color: #f5f7fa;
+        font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    
+    /* 主内容区域设置 */
+    main.py-4 {
+        padding-top: 5rem !important;
+    }
+    
+    /* 详情页容器 */
+    .project-detail-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0 15px;
+    }
+    
+    /* 面包屑导航 */
+    .breadcrumb {
+        display: flex;
+        align-items: center;
+        margin-bottom: 2rem;
+        color: #64748b;
+        font-size: 0.9rem;
+    }
+    
+    .breadcrumb a {
+        color: #3b82f6;
+        text-decoration: none;
+        transition: color 0.2s ease;
+    }
+    
+    .breadcrumb a:hover {
+        color: #1d4ed8;
+        text-decoration: underline;
+    }
+    
+    .breadcrumb-separator {
+        margin: 0 0.75rem;
+        color: #94a3b8;
+    }
+    
+    /* 项目头部 */
+    .project-header {
+        margin-bottom: 2.5rem;
+    }
+    
+    .project-title {
+        font-size: 2.25rem;
+        font-weight: 700;
+        color: #1e293b;
+        margin-bottom: 0.75rem;
+    }
+    
+    .project-subtitle {
+        color: #64748b;
+        font-size: 1.1rem;
+        line-height: 1.5;
+        max-width: 800px;
+    }
+    
+    /* 两列布局 */
+    .project-content {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 2.5rem;
+        margin-bottom: 3rem;
+    }
+    
+    /* 响应式调整 */
+    @media (max-width: 992px) {
+        .project-content {
+            grid-template-columns: 1fr;
+        }
+    }
+    
+    /* 项目图片轮播 */
+    .project-gallery {
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05), 0 1px 3px rgba(0, 0, 0, 0.1);
+        margin-bottom: 2rem;
+        position: relative;
+    }
+    
+    .project-gallery img {
+        width: 100%;
+        height: 500px;
+        object-fit: cover;
+        display: block;
+    }
+    
+    /* 项目信息卡片 */
+    .project-info-card {
+        background: white;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05), 0 1px 3px rgba(0, 0, 0, 0.1);
+        height: fit-content;
+    }
+    
+    .project-info-header {
+        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+        color: white;
+        padding: 1.25rem 1.5rem;
+    }
+    
+    .project-info-header h2 {
+        margin: 0;
+        font-size: 1.25rem;
+        font-weight: 600;
+    }
+    
+    .project-info-body {
+        padding: 1.5rem;
+    }
+    
+    .project-info-item {
+        margin-bottom: 1.25rem;
+    }
+    
+    .project-info-item:last-child {
+        margin-bottom: 0;
+    }
+    
+    .project-info-label {
+        display: block;
+        color: #64748b;
+        font-size: 0.85rem;
+        margin-bottom: 0.35rem;
+    }
+    
+    .project-info-value {
+        color: #1e293b;
+        font-weight: 500;
+        font-size: 1rem;
+        display: flex;
+        align-items: center;
+    }
+    
+    .project-info-value i {
+        color: #3b82f6;
+        margin-right: 0.5rem;
+        width: 1rem;
+        text-align: center;
+    }
+    
+    .project-price {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: #ef4444;
+        margin-bottom: 0.5rem;
+    }
+    
+    .project-original-price {
+        text-decoration: line-through;
+        color: #94a3b8;
+        font-size: 1rem;
+        margin-left: 0.75rem;
+    }
+    
+    .project-inquiry-btn {
+        display: inline-block;
+        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        padding: 0.875rem 1.5rem;
+        font-weight: 500;
+        width: 100%;
+        text-align: center;
+        margin-top: 1.5rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-decoration: none;
+    }
+    
+    .project-inquiry-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+    }
+    
+    /* 项目详细内容 */
+    .project-description {
+        margin-bottom: 2.5rem;
+    }
+    
+    .project-section-title {
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: #1e293b;
+        margin-bottom: 1rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 2px solid #e2e8f0;
+    }
+    
+    .project-description-text {
+        color: #475569;
+        line-height: 1.7;
+        font-size: 1rem;
+    }
+    
+    /* 行程安排 */
+    .itinerary-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+    
+    .itinerary-day {
+        margin-bottom: 1.5rem;
+        padding-left: 2rem;
+        position: relative;
+    }
+    
+    .itinerary-day:last-child {
+        margin-bottom: 0;
+    }
+    
+    .itinerary-day:before {
+        content: "";
+        position: absolute;
+        left: 6px;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background-color: #e2e8f0;
+        z-index: 1;
+    }
+    
+    .itinerary-day:last-child:before {
+        height: 28px;
+    }
+    
+    .itinerary-day-header {
+        position: relative;
+        margin-bottom: 0.5rem;
+    }
+    
+    .itinerary-day-header:before {
+        content: "";
+        position: absolute;
+        left: -2rem;
+        top: 0.35rem;
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background-color: #3b82f6;
+        z-index: 2;
+        box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.2);
+    }
+    
+    .itinerary-day-title {
+        font-weight: 600;
+        color: #1e293b;
+        font-size: 1.1rem;
+        margin: 0;
+    }
+    
+    .itinerary-day-content {
+        color: #475569;
+        line-height: 1.6;
+    }
+    
+    /* 签证信息 */
+    .visa-info {
+        background: #f1f5f9;
+        border-radius: 8px;
+        padding: 1.5rem;
+        margin-bottom: 2.5rem;
+    }
+    
+    .visa-info-title {
+        display: flex;
+        align-items: center;
+        color: #1e293b;
+        font-weight: 600;
+        margin-bottom: 1rem;
+    }
+    
+    .visa-info-title i {
+        color: #4f46e5;
+        margin-right: 0.75rem;
+        font-size: 1.25rem;
+    }
+    
+    .visa-info-desc {
+        color: #475569;
+        line-height: 1.6;
+    }
+    
+    .visa-type-badge {
+        display: inline-flex;
+        align-items: center;
+        background: #eef2ff;
+        color: #4f46e5;
+        padding: 0.4rem 0.75rem;
+        border-radius: 6px;
+        font-size: 0.9rem;
+        font-weight: 500;
+        margin-bottom: 1rem;
+    }
+    
+    .visa-type-badge i {
+        margin-right: 0.4rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="project-detail-container">
+    <!-- 面包屑导航 -->
+    <div class="breadcrumb">
+        <a href="{{ url_for('projects.project_list') }}">旅游项目</a>
+        <span class="breadcrumb-separator">/</span>
+        <span>日本东京-大阪-京都赏樱之旅</span>
+    </div>
+    
+    <!-- 项目标题 -->
+    <div class="project-header">
+        <h1 class="project-title">日本东京-大阪-京都赏樱之旅</h1>
+        <p class="project-subtitle">体验日本文化与樱花季节的完美结合，游览东京繁华都市，大阪美食探索，以及京都历史古迹。</p>
+    </div>
+    
+    <!-- 项目内容两列布局 -->
+    <div class="project-content">
+        <!-- 左侧主要内容 -->
+        <div class="project-main">
+            <!-- 项目图片 -->
+            <div class="project-gallery">
+                <img src="{{ url_for('static', filename='images/japan_detail.jpg') }}" alt="日本樱花季">
+            </div>
+            
+            <!-- 项目描述 -->
+            <div class="project-description">
+                <h2 class="project-section-title">项目介绍</h2>
+                <div class="project-description-text">
+                    <p>这是一次完美的日本赏樱之旅，行程包括东京、大阪和京都三个日本最具代表性的城市。在东京，您将感受现代日本的繁华与活力；在大阪，您将体验关西地区的美食文化；在京都，您将领略传统日本的优雅与精致。</p>
+                    <p>春季是访问日本的最佳时节之一，樱花盛开，景色如画。我们的行程安排在樱花季节，让您有充分的时间和机会欣赏这美丽的自然奇观。除了赏樱，您还将体验日本的温泉文化、品尝正宗的日本料理，参观历史悠久的寺庙和神社。</p>
+                    <p>我们的行程由经验丰富的中文导游带领，为您提供全方位的日本文化解读。无论您是初次访问日本，还是已经对日本有所了解，这趟旅程都将为您带来全新的体验和难忘的回忆。</p>
+                </div>
+            </div>
+            
+            <!-- 签证信息 -->
+            <div class="visa-info">
+                <div class="visa-info-title">
+                    <i class="fas fa-passport"></i>签证信息
+                </div>
+                <span class="visa-type-badge"><i class="fas fa-check-circle"></i>需提前办理</span>
+                <div class="visa-info-desc">
+                    <p>赴日本旅游需提前办理签证。我们提供全程签证代办服务，一般需要准备以下材料：</p>
+                    <ul>
+                        <li>有效护照（有效期需超过回国日期6个月以上）</li>
+                        <li>2张近6个月内的白底证件照（尺寸: 4.5cm x 4.5cm）</li>
+                        <li>个人资产证明（银行流水/存款证明）</li>
+                        <li>在职证明或退休证明</li>
+                        <li>户口本复印件</li>
+                        <li>签证申请表</li>
+                    </ul>
+                    <p>签证处理时间通常为5-7个工作日，建议至少提前15天办理。</p>
+                </div>
+            </div>
+            
+            <!-- 行程安排 -->
+            <div class="project-itinerary">
+                <h2 class="project-section-title">行程安排</h2>
+                <ul class="itinerary-list">
+                    <li class="itinerary-day">
+                        <div class="itinerary-day-header">
+                            <h3 class="itinerary-day-title">第1天：抵达东京</h3>
+                        </div>
+                        <div class="itinerary-day-content">
+                            <p>乘坐国际航班抵达东京成田/羽田国际机场，导游接机后前往酒店休息。</p>
+                            <p>下午自由活动，可选择前往新宿、涩谷等地区感受东京都市魅力。</p>
+                            <p><strong>住宿：</strong>东京市区4星级酒店</p>
+                        </div>
+                    </li>
+                    <li class="itinerary-day">
+                        <div class="itinerary-day-header">
+                            <h3 class="itinerary-day-title">第2天：东京市区观光</h3>
+                        </div>
+                        <div class="itinerary-day-content">
+                            <p>早餐后参观东京著名景点，包括：</p>
+                            <ul>
+                                <li>浅草寺：东京最古老的寺庙</li>
+                                <li>上野公园：赏樱胜地</li>
+                                <li>东京晴空塔：远眺东京美景</li>
+                            </ul>
+                            <p>晚餐品尝正宗东京料理。</p>
+                            <p><strong>住宿：</strong>东京市区4星级酒店</p>
+                        </div>
+                    </li>
+                    <li class="itinerary-day">
+                        <div class="itinerary-day-header">
+                            <h3 class="itinerary-day-title">第3天：东京周边游</h3>
+                        </div>
+                        <div class="itinerary-day-content">
+                            <p>前往富士山五合目（视天气情况而定），随后参观河口湖周边景点及忍野八海。</p>
+                            <p>返回东京后，晚上可自费参加东京夜游活动。</p>
+                            <p><strong>住宿：</strong>东京市区4星级酒店</p>
+                        </div>
+                    </li>
+                    <li class="itinerary-day">
+                        <div class="itinerary-day-header">
+                            <h3 class="itinerary-day-title">第4-5天：大阪体验</h3>
+                        </div>
+                        <div class="itinerary-day-content">
+                            <p>乘坐新干线前往大阪，参观大阪城公园、道顿堀美食街、心斋桥购物区。</p>
+                            <p>第5天可选择一日游奈良公园或环球影城。</p>
+                            <p><strong>住宿：</strong>大阪市区4星级酒店</p>
+                        </div>
+                    </li>
+                    <li class="itinerary-day">
+                        <div class="itinerary-day-header">
+                            <h3 class="itinerary-day-title">第6-7天：京都古城</h3>
+                        </div>
+                        <div class="itinerary-day-content">
+                            <p>前往京都，参观金阁寺、清水寺、伏见稻荷大社等著名景点。</p>
+                            <p>体验和服试穿，漫步在岚山竹林小径，欣赏日本传统园林美景。</p>
+                            <p><strong>住宿：</strong>京都市区4星级酒店</p>
+                        </div>
+                    </li>
+                    <li class="itinerary-day">
+                        <div class="itinerary-day-header">
+                            <h3 class="itinerary-day-title">第8天：返程</h3>
+                        </div>
+                        <div class="itinerary-day-content">
+                            <p>早餐后，根据航班时间前往关西国际机场，搭乘国际航班返回。</p>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+        </div>
+        
+        <!-- 右侧边栏 -->
+        <div class="project-sidebar">
+            <!-- 项目信息卡片 -->
+            <div class="project-info-card">
+                <div class="project-info-header">
+                    <h2>项目信息</h2>
+                </div>
+                <div class="project-info-body">
+                    <div class="project-info-item">
+                        <span class="project-price">¥12,800 <span class="project-original-price">¥14,500</span></span>
+                        <small style="color: #64748b;">起/人 (不含国际机票)</small>
+                    </div>
+                    
+                    <div class="project-info-item">
+                        <span class="project-info-label">目的地</span>
+                        <div class="project-info-value">
+                            <i class="fas fa-map-marker-alt"></i>
+                            日本 (东京、大阪、京都)
+                        </div>
+                    </div>
+                    
+                    <div class="project-info-item">
+                        <span class="project-info-label">行程天数</span>
+                        <div class="project-info-value">
+                            <i class="fas fa-calendar-alt"></i>
+                            8天7晚
+                        </div>
+                    </div>
+                    
+                    <div class="project-info-item">
+                        <span class="project-info-label">最佳旅行季节</span>
+                        <div class="project-info-value">
+                            <i class="fas fa-sun"></i>
+                            3月下旬-4月中旬 (樱花季)
+                        </div>
+                    </div>
+                    
+                    <div class="project-info-item">
+                        <span class="project-info-label">团队规模</span>
+                        <div class="project-info-value">
+                            <i class="fas fa-users"></i>
+                            最多15人小团
+                        </div>
+                    </div>
+                    
+                    <div class="project-info-item">
+                        <span class="project-info-label">签证类型</span>
+                        <div class="project-info-value">
+                            <i class="fas fa-passport"></i>
+                            需提前办理
+                        </div>
+                    </div>
+                    
+                    <div class="project-info-item">
+                        <span class="project-info-label">近期出发日期</span>
+                        <div class="project-info-value">
+                            <i class="fas fa-plane-departure"></i>
+                            2023年3月25日、4月1日、4月8日
+                        </div>
+                    </div>
+                    
+                    <a href="#" class="project-inquiry-btn">立即咨询预订</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // 可以在这里添加图片轮播等交互功能
+    });
+</script>
+{% endblock %} 
