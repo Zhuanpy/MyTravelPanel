@@ -767,3 +767,17 @@ def all_packages():
         cities_by_country[country].append(city)
     
     return render_template('package/all_packages.html', cities_by_country=cities_by_country)
+
+@package_blue.route('/package_home')
+def package_home():
+    """配套首页路由"""
+    # 获取所有城市信息并按国家分组
+    cities_by_country = {}
+    cities = ProductCity.query.order_by(ProductCity.country_name).all()
+    
+    for city in cities:
+        if city.country_name not in cities_by_country:
+            cities_by_country[city.country_name] = []
+        cities_by_country[city.country_name].append(city)
+    
+    return render_template('package/配套首页.html', cities_by_country=cities_by_country)
