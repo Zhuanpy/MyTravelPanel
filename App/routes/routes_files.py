@@ -167,3 +167,8 @@ def open_Athina():
             return jsonify({'success': False, 'message': f'启动失败：{str(e)}'}), 500
         flash(f'启动失败：{str(e)}')
         return redirect(url_for("index.index"))
+
+@files_process.route('/files_home')
+def files_home():
+    """文件处理首页路由"""
+    return render_template('files/文件处理首页.html')

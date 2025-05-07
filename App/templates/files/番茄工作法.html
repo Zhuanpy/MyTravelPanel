@@ -1,295 +1,345 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>番茄工作法</title>
-    <style>
-        /* 设置页面宽度 */
-        .container {
-        width: 900px;
-        margin: 0 auto; /* 居中 */
-        }
-        /* 设置表格的样式 */
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-        }
+{% extends "base.html" %}
 
-        th, td {
-            padding: 10px;
-            text-align: center;
-            border: 1px solid #ddd;
-        }
+{% block title %}番茄工作法{% endblock %}
 
-        /* 设置第一列（序号列）宽度 */
-        th:nth-child(1), td:nth-child(1) {
-            width: 10%;
-        }
+{% block head %}
+<style>
+    /* 设置页面宽度 */
+    .pomodoro-container {
+        max-width: 900px;
+        margin: 20px auto;
+        padding: 20px;
+    }
+    
+    /* 设置表格的样式 */
+    .pomodoro-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+        background-color: #fff;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
 
-        /* 设置第二列（任务名列）宽度 */
-        th:nth-child(2), td:nth-child(2) {
-            width: 30%;  /* 任务列宽度稍大 */
-        }
+    .pomodoro-th, .pomodoro-td {
+        padding: 12px;
+        text-align: center;
+        border: 1px solid #eee;
+    }
 
-        /* 设置第三列（剩余时间列）宽度 */
-        th:nth-child(3), td:nth-child(3) {
-            width: 15%;
-        }
+    /* 设置第一列（序号列）宽度 */
+    .pomodoro-th:nth-child(1), .pomodoro-td:nth-child(1) {
+        width: 10%;
+    }
 
-        /* 设置第四列（开始/暂停按钮列）宽度 */
-        th:nth-child(4), td:nth-child(4) {
-            width: 15%;
-        }
+    /* 设置第二列（任务名列）宽度 */
+    .pomodoro-th:nth-child(2), .pomodoro-td:nth-child(2) {
+        width: 30%;  /* 任务列宽度稍大 */
+        text-align: left;
+    }
 
-        /* 设置第五列（重置按钮列）宽度 */
-        th:nth-child(5), td:nth-child(5) {
-            width: 15%;
-        }
+    /* 设置第三列（剩余时间列）宽度 */
+    .pomodoro-th:nth-child(3), .pomodoro-td:nth-child(3) {
+        width: 15%;
+    }
 
-        /* 设置第六列（删除按钮列）宽度 */
-        th:nth-child(6), td:nth-child(6) {
-            width: 15%;
-        }
+    /* 设置第四列（开始/暂停按钮列）宽度 */
+    .pomodoro-th:nth-child(4), .pomodoro-td:nth-child(4) {
+        width: 15%;
+    }
 
-        /* 按钮的样式 */
-        button {
-            padding: 8px 12px;
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-        }
+    /* 设置第五列（重置按钮列）宽度 */
+    .pomodoro-th:nth-child(5), .pomodoro-td:nth-child(5) {
+        width: 15%;
+    }
 
-        button:hover {
-            background-color: #45a049;
-        }
+    /* 设置第六列（删除按钮列）宽度 */
+    .pomodoro-th:nth-child(6), .pomodoro-td:nth-child(6) {
+        width: 15%;
+    }
 
-        h1 {
-            text-align: center;
-            margin-top: 20px;
-        }
+    /* 按钮的样式 */
+    .pomodoro-button {
+        padding: 8px 12px;
+        background-color: #4CAF50;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+    }
 
-        /* 任务添加按钮样式 */
-        .add-task-btn {
-            margin: 20px;
-            padding: 10px 20px;
-            background-color: #008CBA;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-        }
+    .pomodoro-button:hover {
+        background-color: #45a049;
+    }
 
-        .add-task-btn:hover {
-            background-color: #007B9E;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <a href="/">Home page</a>
-        
-        <h1>任务列表番茄工作法</h1>
+    .pomodoro-title {
+        text-align: center;
+        margin-bottom: 30px;
+        color: #2d3748;
+        font-size: 2rem;
+        font-weight: 600;
+    }
 
-        <table class="table mt-3">
-            <thead>
-                <tr>
-                    <th>序号</th>
-                    <th>任务名</th>
-                    <th>剩余时间</th>
-                    <th>开始/暂停</th>
-                    <th>重置任务</th>
-                    <th>删除任务</th>
-                </tr>
-            </thead>
-            <tbody id="task-list"></tbody>
-        </table>
+    /* 任务添加按钮样式 */
+    .pomodoro-add-task-btn {
+        margin: 20px 0;
+        padding: 10px 20px;
+        background-color: #008CBA;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        display: block;
+    }
 
-        <button class="add-task-btn" id="add-task-btn">添加任务</button>
+    .pomodoro-add-task-btn:hover {
+        background-color: #007B9E;
+    }
+    
+    .pomodoro-notification-area {
+        margin-top: 20px;
+        padding: 15px;
+        background-color: #f8f9fa;
+        border-radius: 8px;
+        border-left: 4px solid #4CAF50;
+    }
+    
+    .pomodoro-toggle-btn {
+        background-color: #3182ce;
+    }
+    
+    .pomodoro-toggle-btn:hover {
+        background-color: #2c5282;
+    }
+    
+    .pomodoro-reset-btn {
+        background-color: #ECC94B;
+        color: #2D3748;
+    }
+    
+    .pomodoro-reset-btn:hover {
+        background-color: #D69E2E;
+    }
+    
+    .pomodoro-delete-btn {
+        background-color: #F56565;
+    }
+    
+    .pomodoro-delete-btn:hover {
+        background-color: #E53E3E;
+    }
+</style>
+{% endblock %}
 
-        <div id="notification-area" style="display:none; margin-top:20px;">
-            <p>当前任务：<span id="task-name-display"></span></p>
-            <p id="time-display"></p>
-        </div>
+{% block content %}
+<div class="pomodoro-container">
+    <h1 class="pomodoro-title">任务列表番茄工作法</h1>
+
+    <table class="pomodoro-table">
+        <thead>
+            <tr>
+                <th class="pomodoro-th">序号</th>
+                <th class="pomodoro-th">任务名</th>
+                <th class="pomodoro-th">剩余时间</th>
+                <th class="pomodoro-th">开始/暂停</th>
+                <th class="pomodoro-th">重置任务</th>
+                <th class="pomodoro-th">删除任务</th>
+            </tr>
+        </thead>
+        <tbody id="task-list"></tbody>
+    </table>
+
+    <button class="pomodoro-add-task-btn" id="add-task-btn">添加任务</button>
+
+    <div id="notification-area" class="pomodoro-notification-area" style="display:none;">
+        <p>当前任务：<span id="task-name-display"></span></p>
+        <p id="time-display"></p>
     </div>
+</div>
+{% endblock %}
 
-    <script>
-        const taskList = document.getElementById('task-list');
-        const notificationArea = document.getElementById('notification-area');
-        const taskNameDisplay = document.getElementById('task-name-display');
-        const timeDisplay = document.getElementById('time-display');
-        const addTaskBtn = document.getElementById('add-task-btn');
-        const taskTimers = {}; // 存储每个任务的计时器
+{% block scripts %}
+<script>
+    const taskList = document.getElementById('task-list');
+    const notificationArea = document.getElementById('notification-area');
+    const taskNameDisplay = document.getElementById('task-name-display');
+    const timeDisplay = document.getElementById('time-display');
+    const addTaskBtn = document.getElementById('add-task-btn');
+    const taskTimers = {}; // 存储每个任务的计时器
 
-        // 加载任务列表
-        const loadTasks = async () => {
-            const response = await fetch("{{ url_for('utils_blue.get_tasks') }}");
-            const tasks = await response.json();
+    // API端点URL - 使用相对路径避免url_for的问题
+    const API_URLS = {
+        getTasks: "/utils/tasks",
+        createTask: "/utils/tasks",
+        deleteTask: id => `/utils/tasks/${id}`,
+        toggleTask: id => `/utils/tasks/${id}/toggle`,
+        resetTask: id => `/utils/tasks/${id}/reset`
+    };
 
-            taskList.innerHTML = '';
-            tasks.forEach((task, index) => renderTaskRow(task, index));
-        };
+    // 加载任务列表
+    const loadTasks = async () => {
+        const response = await fetch(API_URLS.getTasks);
+        const tasks = await response.json();
 
-        // 渲染任务行
-        const renderTaskRow = (task, index) => {
-            const row = document.createElement('tr');
-            row.innerHTML = `
-                <td>${index + 1}</td>
-                <td>${task.name}</td>
-                <td id="time-${task.id}">${formatTime(task.remaining_time)}</td>
-                <td>
-                    <button id="toggle-${task.id}" data-id="${task.id}" class="toggle-task-btn">
-                        ${task.status === 'running' ? '暂停' : '开始'}
-                    </button>
-                </td>
-                <td><button data-id="${task.id}" class="reset-task-btn">重置</button></td>
-                <td><button data-id="${task.id}" class="delete-task-btn">删除</button></td>
-            `;
-            taskList.appendChild(row);
+        taskList.innerHTML = '';
+        tasks.forEach((task, index) => renderTaskRow(task, index));
+    };
 
-            if (task.status === 'running') {
-                startTimer(task.id, task.remaining_time, task.name);
-            }
-        };
+    // 渲染任务行
+    const renderTaskRow = (task, index) => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td class="pomodoro-td">${index + 1}</td>
+            <td class="pomodoro-td">${task.name}</td>
+            <td class="pomodoro-td" id="time-${task.id}">${formatTime(task.remaining_time)}</td>
+            <td class="pomodoro-td">
+                <button id="toggle-${task.id}" data-id="${task.id}" class="pomodoro-button pomodoro-toggle-btn toggle-task-btn">
+                    ${task.status === 'running' ? '暂停' : '开始'}
+                </button>
+            </td>
+            <td class="pomodoro-td"><button data-id="${task.id}" class="pomodoro-button pomodoro-reset-btn reset-task-btn">重置</button></td>
+            <td class="pomodoro-td"><button data-id="${task.id}" class="pomodoro-button pomodoro-delete-btn delete-task-btn">删除</button></td>
+        `;
+        taskList.appendChild(row);
 
-        // 添加任务
-        const addTask = async () => {
-            const name = prompt('请输入任务名称');
-            if (!name) return;
-            await fetch('/utils_blue/tasks', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name }),
-            });
-            loadTasks();
-        };
+        if (task.status === 'running') {
+            startTimer(task.id, task.remaining_time, task.name);
+        }
+    };
 
-        // 删除任务
-        const deleteTask = async (id) => {
-            await fetch(`/utils_blue/tasks/${id}`, { method: 'DELETE' });
-            clearTimer(id);
-            loadTasks();
-        };
+    // 添加任务
+    const addTask = async () => {
+        const name = prompt('请输入任务名称');
+        if (!name) return;
+        await fetch(API_URLS.createTask, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name }),
+        });
+        loadTasks();
+    };
 
-        // 开始/暂停任务
-        const toggleTask = async (id, currentStatus) => {
-            // 1. 获取所有正在运行的任务
-            const runningTasks = Array.from(taskList.querySelectorAll('.toggle-task-btn'))
-                .filter(btn => btn.textContent === '暂停' && btn.dataset.id !== id);
+    // 删除任务
+    const deleteTask = async (id) => {
+        await fetch(API_URLS.deleteTask(id), { method: 'DELETE' });
+        clearTimer(id);
+        loadTasks();
+    };
 
-            // 2. 暂停其他任务
-            for (const btn of runningTasks) {
-                const runningId = btn.dataset.id;
-                const timeElement = document.getElementById(`time-${runningId}`);
-                const remainingTime = convertTimeToSeconds(timeElement.textContent);
+    // 开始/暂停任务
+    const toggleTask = async (id, currentStatus) => {
+        // 1. 获取所有正在运行的任务
+        const runningTasks = Array.from(taskList.querySelectorAll('.toggle-task-btn'))
+            .filter(btn => btn.textContent === '暂停' && btn.dataset.id !== id);
 
-                await fetch(`/utils_blue/tasks/${runningId}/toggle`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ remaining_time: remainingTime }),
-                });
-
-                btn.textContent = '开始'; // 更新按钮状态
-                clearTimer(runningId); // 停止计时器
-            }
-
-            // 3. 切换当前任务状态
-            const timeElement = document.getElementById(`time-${id}`);
+        // 2. 暂停其他任务
+        for (const btn of runningTasks) {
+            const runningId = btn.dataset.id;
+            const timeElement = document.getElementById(`time-${runningId}`);
             const remainingTime = convertTimeToSeconds(timeElement.textContent);
 
-            const response = await fetch(`/utils_blue/tasks/${id}/toggle`, {
+            await fetch(API_URLS.toggleTask(runningId), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ remaining_time: remainingTime }),
             });
-            const data = await response.json();
 
-            if (data.message === 'Task paused') {
-                document.getElementById(`toggle-${id}`).textContent = '开始';
-                clearTimer(id);
-                stopNotification();
-            } else if (data.message === 'Task started') {
-                document.getElementById(`toggle-${id}`).textContent = '暂停';
-                startTimer(id, data.remaining_time, data.name);
-            }
-        };
-        // 重置任务
-        const resetTask = async (id) => {
-            await fetch(`/utils_blue/tasks/${id}/reset`, { method: 'POST' });
-            clearTimer(id);
-            loadTasks();
-        };
+            btn.textContent = '开始'; // 更新按钮状态
+            clearTimer(runningId); // 停止计时器
+        }
 
-        // 开始计时器
-        const startTimer = (id, remainingTime, taskName) => {
-            clearTimer(id); // 清除现有计时器
-            showNotification(taskName, remainingTime);
+        // 3. 切换当前任务状态
+        const timeElement = document.getElementById(`time-${id}`);
+        const remainingTime = convertTimeToSeconds(timeElement.textContent);
 
-            taskTimers[id] = setInterval(() => {
-                if (remainingTime <= 0) {
-                    clearTimer(id);
-                    loadTasks();
-                    stopNotification();
-                    return;
-                }
-                remainingTime--;
-                document.getElementById(`time-${id}`).textContent = formatTime(remainingTime);
-                timeDisplay.textContent = `剩余时间: ${formatTime(remainingTime)}`;
-            }, 1000);
-        };
-
-        // 清除计时器
-        const clearTimer = (id) => {
-            if (taskTimers[id]) {
-                clearInterval(taskTimers[id]);
-                delete taskTimers[id];
-            }
-        };
-
-        // 显示通知
-        const showNotification = (taskName, remainingTime) => {
-            notificationArea.style.display = 'block';
-            taskNameDisplay.textContent = taskName;
-            timeDisplay.textContent = `剩余时间: ${formatTime(remainingTime)}`;
-        };
-
-        // 停止通知显示
-        const stopNotification = () => {
-            notificationArea.style.display = 'none';
-        };
-
-        // 时间格式化
-        const formatTime = (seconds) => {
-            const mins = Math.floor(seconds / 60);
-            const secs = seconds % 60;
-            return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-        };
-
-        // 时间转换
-        const convertTimeToSeconds = (timeString) => {
-            const [mins, secs] = timeString.split(':').map(Number);
-            return mins * 60 + secs;
-        };
-
-        // 事件绑定
-        addTaskBtn.addEventListener('click', addTask);
-        taskList.addEventListener('click', (event) => {
-            const id = event.target.dataset.id;
-            if (event.target.classList.contains('delete-task-btn')) {
-                deleteTask(id);
-            } else if (event.target.classList.contains('toggle-task-btn')) {
-                toggleTask(id, event.target.textContent === '暂停' ? 'running' : 'paused');
-            } else if (event.target.classList.contains('reset-task-btn')) {
-                resetTask(id);
-            }
+        const response = await fetch(API_URLS.toggleTask(id), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ remaining_time: remainingTime }),
         });
+        const data = await response.json();
 
-        // 初始化
-        document.addEventListener('DOMContentLoaded', loadTasks);
-    </script>
-</body>
+        if (data.message === 'Task paused') {
+            document.getElementById(`toggle-${id}`).textContent = '开始';
+            clearTimer(id);
+            stopNotification();
+        } else if (data.message === 'Task started') {
+            document.getElementById(`toggle-${id}`).textContent = '暂停';
+            startTimer(id, data.remaining_time, data.name);
+        }
+    };
+    // 重置任务
+    const resetTask = async (id) => {
+        await fetch(API_URLS.resetTask(id), { method: 'POST' });
+        clearTimer(id);
+        loadTasks();
+    };
 
-</html>
+    // 开始计时器
+    const startTimer = (id, remainingTime, taskName) => {
+        clearTimer(id); // 清除现有计时器
+        showNotification(taskName, remainingTime);
+
+        taskTimers[id] = setInterval(() => {
+            if (remainingTime <= 0) {
+                clearTimer(id);
+                loadTasks();
+                stopNotification();
+                return;
+            }
+            remainingTime--;
+            document.getElementById(`time-${id}`).textContent = formatTime(remainingTime);
+            timeDisplay.textContent = `剩余时间: ${formatTime(remainingTime)}`;
+        }, 1000);
+    };
+
+    // 清除计时器
+    const clearTimer = (id) => {
+        if (taskTimers[id]) {
+            clearInterval(taskTimers[id]);
+            delete taskTimers[id];
+        }
+    };
+
+    // 显示通知
+    const showNotification = (taskName, remainingTime) => {
+        notificationArea.style.display = 'block';
+        taskNameDisplay.textContent = taskName;
+        timeDisplay.textContent = `剩余时间: ${formatTime(remainingTime)}`;
+    };
+
+    // 停止通知显示
+    const stopNotification = () => {
+        notificationArea.style.display = 'none';
+    };
+
+    // 时间格式化
+    const formatTime = (seconds) => {
+        const mins = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    };
+
+    // 时间转换
+    const convertTimeToSeconds = (timeString) => {
+        const [mins, secs] = timeString.split(':').map(Number);
+        return mins * 60 + secs;
+    };
+
+    // 事件绑定
+    addTaskBtn.addEventListener('click', addTask);
+    taskList.addEventListener('click', (event) => {
+        const id = event.target.dataset.id;
+        if (event.target.classList.contains('delete-task-btn')) {
+            deleteTask(id);
+        } else if (event.target.classList.contains('toggle-task-btn')) {
+            toggleTask(id, event.target.textContent === '暂停' ? 'running' : 'paused');
+        } else if (event.target.classList.contains('reset-task-btn')) {
+            resetTask(id);
+        }
+    });
+
+    // 初始化
+    document.addEventListener('DOMContentLoaded', loadTasks);
+</script>
+{% endblock %}

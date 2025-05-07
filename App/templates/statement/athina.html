@@ -1,198 +1,302 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Athina 账单处理</title>
-    <style>
-        /* 全局样式 */
-        body {
-            font-family: 'Arial', sans-serif;
-            background-color: #f4f4f4;
-            color: #333;
-            margin: 0;
-            padding: 0;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-            box-sizing: border-box;
+{% extends "base.html" %}
+
+{% block title %}Athina 账单处理{% endblock %}
+
+{% block head %}
+<style>
+    /* 全局样式 */
+    .athina-container {
+        max-width: 800px;
+        margin: 40px auto;
+        padding: 30px;
+        background-color: #ffffff;
+        border-radius: 12px;
+        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .athina-header {
+        width: 100%;
+        margin-bottom: 30px;
+        text-align: center;
+        position: relative;
+    }
+
+    .athina-header h1 {
+        color: #2E7D32;
+        font-size: 32px;
+        margin-bottom: 10px;
+        position: relative;
+        display: inline-block;
+    }
+
+    .athina-header h1:after {
+        content: '';
+        position: absolute;
+        bottom: -10px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 100px;
+        height: 3px;
+        background-color: #4CAF50;
+        border-radius: 3px;
+    }
+
+    .athina-section {
+        width: 100%;
+        margin-bottom: 25px;
+        padding: 20px;
+        background-color: #f8f9fa;
+        border-radius: 10px;
+        transition: all 0.3s ease;
+    }
+
+    .athina-section:hover {
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        transform: translateY(-2px);
+    }
+
+    /* 按钮样式 */
+    .athina-btn {
+        background-color: #2E7D32;
+        color: white;
+        border: none;
+        padding: 12px 25px;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        border-radius: 50px;
+        transition: all 0.3s ease;
+        margin: 5px 0 15px;
+        width: 100%;
+        max-width: 300px;
+        box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .athina-btn:hover {
+        background-color: #1B5E20;
+        box-shadow: 0 5px 12px rgba(0, 0, 0, 0.2);
+        transform: translateY(-2px);
+    }
+
+    /* 表单样式 */
+    .athina-form {
+        margin: 15px 0;
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        align-items: center;
+        width: 100%;
+        max-width: 300px;
+    }
+
+    .athina-form label {
+        margin-right: 10px;
+        font-weight: 500;
+        color: #424242;
+    }
+
+    .athina-input {
+        padding: 12px 15px;
+        font-size: 15px;
+        border: 2px solid #e0e0e0;
+        border-radius: 50px;
+        margin: 10px 0;
+        width: 100%;
+        transition: all 0.3s ease;
+        background-color: #f9f9f9;
+    }
+
+    .athina-input:focus {
+        border-color: #4CAF50;
+        background-color: #ffffff;
+        box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.2);
+        outline: none;
+    }
+
+    /* 结果显示区域 */
+    .result-display {
+        background-color: #fff;
+        border: 1px solid #e0e0e0;
+        padding: 20px;
+        width: 100%;
+        border-radius: 10px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        margin: 15px 0;
+        text-align: center;
+        min-height: 80px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.3s ease;
+    }
+
+    #result-display-all {
+        background-color: #EEFFEF;
+        border-left: 4px solid #4CAF50;
+    }
+
+    #result-display-month {
+        background-color: #F5F9FE;
+        border-left: 4px solid #2196F3;
+    }
+
+    /* 链接样式 */
+    .athina-link {
+        color: #2E7D32;
+        text-decoration: none;
+        font-size: 16px;
+        margin-top: 20px;
+        padding: 10px 20px;
+        border: 1px solid #4CAF50;
+        border-radius: 50px;
+        transition: all 0.3s ease;
+        display: inline-flex;
+        align-items: center;
+    }
+
+    .athina-link:before {
+        content: '📁';
+        margin-right: 8px;
+    }
+
+    .athina-link:hover {
+        background-color: #4CAF50;
+        color: white;
+        text-decoration: none;
+    }
+
+    /* 辅助元素 */
+    .section-title {
+        font-size: 18px;
+        margin-bottom: 15px;
+        color: #424242;
+        font-weight: 600;
+    }
+
+    /* 响应式布局 */
+    @media (max-width: 768px) {
+        .athina-container {
+            padding: 20px 15px;
+            margin: 20px auto;
         }
 
-        h1 {
-            color: #4CAF50;
-            margin-bottom: 20px;
-            text-align: center;
+        .athina-header h1 {
+            font-size: 26px;
         }
 
-        /* 样式化按钮 */
-        button {
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            padding: 12px 25px;
-            font-size: 16px;
-            cursor: pointer;
-            border-radius: 5px;
-            transition: background-color 0.3s ease;
-            margin: 10px;
+        .athina-section {
+            padding: 15px;
         }
 
-        button:hover {
-            background-color: #45a049;
-        }
-
-        /* 表单样式 */
-        form {
-            margin: 20px 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-
-        input[type="text"] {
-            padding: 10px;
+        .athina-btn {
+            padding: 10px 20px;
             font-size: 14px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            margin-right: 10px;
-            width: 150px;
-            transition: border-color 0.3s;
         }
 
-        input[type="text"]:focus {
-            border-color: #4CAF50;
-        }
-
-        /* 结果显示区域 */
         .result-display {
-            background-color: #fff;
-            border: 1px solid #ddd;
-            padding: 20px;
-            width: 80%;
-            max-width: 600px;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-            margin: 15px 0;
-            text-align: center;
+            padding: 15px;
         }
+    }
+</style>
+{% endblock %}
 
-        #result-display-all {
-            background-color: #e7f7e7;
-        }
-
-        #result-display-month {
-            background-color: #f9f9f9;
-        }
-
-        /* 链接样式 */
-        a {
-            color: #4CAF50;
-            text-decoration: none;
-            font-size: 16px;
-            margin-top: 15px;
-            display: inline-block;
-        }
-
-        a:hover {
-            text-decoration: underline;
-        }
-
-        /* 响应式布局 */
-        @media (max-width: 768px) {
-            h1 {
-                font-size: 24px;
-            }
-
-            button {
-                padding: 10px 20px;
-                font-size: 14px;
-            }
-
-            .result-display {
-                width: 90%;
-            }
-        }
-    </style>
-</head>
-<body>
-
-    <h1>Athina 账单处理</h1>
-
-    <!-- 处理全部订单按钮 -->
-    <button onclick="processAllInvoice()">计算全部订单</button>
-
-    <!-- 用于显示全部订单的处理结果 -->
-    <div id="result-display-all" class="result-display">
-        {{ results }}
+{% block content %}
+<div class="container athina-container">
+    <div class="athina-header">
+        <h1>Athina 账单处理</h1>
     </div>
 
-    <!-- 处理选择月份订单按钮 -->
-    <button onclick="processMonthInvoice()">计算选择月份</button>
-	
-	<!-- 输入月份表单 -->
-	<form id="month-form">
-	    <label for="month-input">输入月份:</label>
-	    <input type="text" id="month-input" placeholder="如：2024-08" required />
-	</form>
+    <div class="athina-section">
+        <div class="section-title">全部订单计算</div>
+        <!-- 处理全部订单按钮 -->
+        <button class="athina-btn" onclick="processAllInvoice()">计算全部订单</button>
 
-    <!-- 用于显示选择月份订单的处理结果 -->
-    <div id="result-display-month" class="result-display">
-        {{ results_month }}
+        <!-- 用于显示全部订单的处理结果 -->
+        <div id="result-display-all" class="result-display">
+            {{ results if results else '点击上方按钮计算全部订单' }}
+        </div>
+    </div>
+
+    <div class="athina-section">
+        <div class="section-title">指定月份计算</div>
+        <!-- 处理选择月份订单按钮 -->
+        <button class="athina-btn" onclick="processMonthInvoice()">计算选择月份</button>
+        
+        <!-- 输入月份表单 -->
+        <form id="month-form" class="athina-form">
+            <label for="month-input">输入月份:</label>
+            <input type="text" id="month-input" class="athina-input" placeholder="如：2024-08" required />
+        </form>
+
+        <!-- 用于显示选择月份订单的处理结果 -->
+        <div id="result-display-month" class="result-display">
+            {{ results_month if results_month else '请输入月份并点击按钮进行计算' }}
+        </div>
     </div>
 
     <!-- 打开项目文件夹链接 -->
-    <a href="{{url_for('statement_routes.open_athina_statement_folder')}}">打开项目文件夹</a>
+    <a href="{{url_for('statement_routes.open_athina_statement_folder')}}" class="athina-link">打开项目文件夹</a>
+</div>
+{% endblock %}
 
-    <script>
-        // 计算全部订单的函数
-        function processAllInvoice() {
-            fetch('/athina_processing', {
-                method: 'GET',
-            })
-            .then(response => response.json())
-            .then(data => {
-                // 将全部订单的结果显示在 result-display-all 中
-                document.getElementById("result-display-all").innerText = data.result;
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                document.getElementById("result-display-all").innerText = "账单处理失败";
-            });
+{% block scripts %}
+<script>
+    // 计算全部订单的函数
+    function processAllInvoice() {
+        // 显示加载状态
+        document.getElementById("result-display-all").innerText = "处理中，请稍候...";
+        
+        fetch('/athina_processing', {
+            method: 'GET',
+        })
+        .then(response => response.json())
+        .then(data => {
+            // 将全部订单的结果显示在 result-display-all 中
+            document.getElementById("result-display-all").innerText = data.result;
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            document.getElementById("result-display-all").innerText = "账单处理失败";
+        });
+    }
+
+    // 计算选择月份订单的函数
+    function processMonthInvoice() {
+        // 获取用户输入的月份
+        const month = document.getElementById('month-input').value;
+
+        // 验证月份格式是否为 YYYY-MM
+        const monthRegex = /^\d{4}-(0[1-9]|1[0-2])$/;
+        if (!monthRegex.test(month)) {
+            alert('请输入正确的月份格式，例如：2024-08');
+            return;
         }
 
-        // 计算选择月份订单的函数
-        function processMonthInvoice() {
-            // 获取用户输入的月份
-            const month = document.getElementById('month-input').value;
+        // 显示加载状态
+        document.getElementById("result-display-month").innerText = "处理中，请稍候...";
 
-            // 验证月份格式是否为 YYYY-MM
-            const monthRegex = /^\d{4}-(0[1-9]|1[0-2])$/;
-            if (!monthRegex.test(month)) {
-                alert('请输入正确的月份格式，例如：2024-08');
-                return;
-            }
-
-            fetch('/athina_processing_month', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ month: month })  // 将月份作为请求的 body 数据发送
-            })
-            .then(response => response.json())
-            .then(data => {
-                // 将选择月份订单的结果显示在 result-display-month 中
-                document.getElementById("result-display-month").innerText = data.result;
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                document.getElementById("result-display-month").innerText = "账单处理失败";
-            });
-        }
-    
-	</script>
-
-</body>
-</html>
+        fetch('/athina_processing_month', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ month: month })  // 将月份作为请求的 body 数据发送
+        })
+        .then(response => response.json())
+        .then(data => {
+            // 将选择月份订单的结果显示在 result-display-month 中
+            document.getElementById("result-display-month").innerText = data.result;
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            document.getElementById("result-display-month").innerText = "账单处理失败";
+        });
+    }
+</script>
+{% endblock %}

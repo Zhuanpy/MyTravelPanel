@@ -1,95 +1,177 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PDF文件处理</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/pdf_processing.css') }}">
-</head>
-<body>
-    <div id="successMessage" class="success-message"></div>
-    <div class="container">
-        <h1>PDF文件处理</h1>
+{% extends "base.html" %}
 
-        <!-- 图片合并表单 -->
-        <h2>图片合并为PDF</h2>
-        <form id="imageForm" method="post" action="{{url_for('files_process.merge_images_to_pdf')}}" onsubmit="return handleSubmit(this, event)">
-            <label for="imageFolderPath">图片文件夹路径:</label>
-            <input type="text" id="imageFolderPath" name="imageFolderPath">
-            <button type="submit" name="submit_button" value="merge_images">图片合并为PDF</button>
-        </form>
+{% block title %}PDF文件处理{% endblock %}
 
-        <!-- 多个PDF合并表单 -->
-        <h2>多个PDF合并</h2>
-        <form id="pdfForm" method="post" action="{{url_for('files_process.merge_pdf_to_pdf')}}" onsubmit="return handleSubmit(this, event)">
-            <label for="pdfFolderPath">PDF文件夹路径:</label>
-            <input type="text" id="pdfFolderPath" name="pdfFolderPath">
-            <button type="submit" name="submit_button" value="merge_images">多个PDF合并</button>
-        </form>
-
-        <!-- Word转换PDF表单 -->
-        <h2>Word转换PDF</h2>
-        <form id="wordForm" method="post" action="{{url_for('files_process.word_to_pdf')}}" onsubmit="return handleSubmit(this, event)">
-            <label for="worldFolderPath">Word文件夹路径:</label>
-            <input type="text" id="worldFolderPath" name="worldFolderPath">
-            <button type="submit" name="submit_button" value="merge_images">Word转PDF</button>
-        </form>
-    </div>
-
-    <script>
-    function handleSubmit(form, event) {
-        event.preventDefault(); // 阻止表单默认提交
-        const formData = new FormData(form);
-        
-        // 禁用提交按钮，防止重复提交
-        const submitButton = form.querySelector('button[type="submit"]');
-        submitButton.disabled = true;
-        
-        fetch(form.action, {
-            method: 'POST',
-            body: formData,
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest'
-            }
-        })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error('Network response was not ok');
-            }
-            return response.json();
-        })
-        .then(data => {
-            if (data.success) {
-                showSuccessMessage(data.message);
-            } else {
-                alert(data.message || '处理失败，请重试');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('处理出错，请重试');
-        })
-        .finally(() => {
-            // 重新启用提交按钮
-            submitButton.disabled = false;
-        });
-
-        return false;
+{% block head %}
+<style>
+    .pdf-page-container {
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
     }
+    
+    .pdf-page-title {
+        text-align: center;
+        margin-bottom: 30px;
+        font-size: 2rem;
+        font-weight: 600;
+        color: #2d3748;
+    }
+    
+    .pdf-page-section {
+        margin-top: 30px;
+        border-bottom: 1px solid #eee;
+        padding-bottom: 10px;
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: #2d3748;
+    }
+    
+    .pdf-page-form {
+        background-color: #f9f9f9;
+        padding: 20px;
+        border-radius: 5px;
+        margin-bottom: 20px;
+    }
+    
+    .pdf-page-label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: bold;
+    }
+    
+    .pdf-page-input {
+        width: 100%;
+        padding: 10px;
+        margin-bottom: 15px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+    }
+    
+    .pdf-page-button {
+        background-color: #ECC94B;
+        color: #2D3748;
+        border: none;
+        padding: 10px 15px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: bold;
+    }
+    
+    .pdf-page-button:hover {
+        background-color: #D69E2E;
+    }
+    
+    .pdf-page-button:disabled {
+        background-color: #f3d98d;
+        cursor: not-allowed;
+    }
+    
+    .pdf-page-success-message {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background-color: #48BB78;
+        color: white;
+        padding: 15px 20px;
+        border-radius: 4px;
+        opacity: 0;
+        transition: opacity 0.3s;
+        z-index: 1000;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    
+    .pdf-page-success-message.show {
+        opacity: 1;
+    }
+</style>
+{% endblock %}
 
-    function showSuccessMessage(message) {
-        const messageElement = document.getElementById('successMessage');
-        messageElement.textContent = message;
-        messageElement.classList.add('show');
-        
-        // 3秒后隐藏消息
+{% block content %}
+<div id="successMessage" class="pdf-page-success-message"></div>
+<div class="pdf-page-container">
+    <h1 class="pdf-page-title">PDF文件处理</h1>
+
+    <!-- 图片合并表单 -->
+    <h2 class="pdf-page-section">图片合并为PDF</h2>
+    <form id="imageForm" class="pdf-page-form" method="post" action="{{url_for('files_process.merge_images_to_pdf')}}" onsubmit="return handleSubmit(this, event)">
+        <label for="imageFolderPath" class="pdf-page-label">图片文件夹路径:</label>
+        <input type="text" id="imageFolderPath" name="imageFolderPath" class="pdf-page-input">
+        <button type="submit" name="submit_button" value="merge_images" class="pdf-page-button">图片合并为PDF</button>
+    </form>
+
+    <!-- 多个PDF合并表单 -->
+    <h2 class="pdf-page-section">多个PDF合并</h2>
+    <form id="pdfForm" class="pdf-page-form" method="post" action="{{url_for('files_process.merge_pdf_to_pdf')}}" onsubmit="return handleSubmit(this, event)">
+        <label for="pdfFolderPath" class="pdf-page-label">PDF文件夹路径:</label>
+        <input type="text" id="pdfFolderPath" name="pdfFolderPath" class="pdf-page-input">
+        <button type="submit" name="submit_button" value="merge_images" class="pdf-page-button">多个PDF合并</button>
+    </form>
+
+    <!-- Word转换PDF表单 -->
+    <h2 class="pdf-page-section">Word转换PDF</h2>
+    <form id="wordForm" class="pdf-page-form" method="post" action="{{url_for('files_process.word_to_pdf')}}" onsubmit="return handleSubmit(this, event)">
+        <label for="worldFolderPath" class="pdf-page-label">Word文件夹路径:</label>
+        <input type="text" id="worldFolderPath" name="worldFolderPath" class="pdf-page-input">
+        <button type="submit" name="submit_button" value="merge_images" class="pdf-page-button">Word转PDF</button>
+    </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function handleSubmit(form, event) {
+    event.preventDefault(); // 阻止表单默认提交
+    const formData = new FormData(form);
+    
+    // 禁用提交按钮，防止重复提交
+    const submitButton = form.querySelector('button[type="submit"]');
+    submitButton.disabled = true;
+    
+    fetch(form.action, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            showSuccessMessage(data.message);
+        } else {
+            alert(data.message || '处理失败，请重试');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('处理出错，请重试');
+    })
+    .finally(() => {
+        // 重新启用提交按钮
+        submitButton.disabled = false;
+    });
+
+    return false;
+}
+
+function showSuccessMessage(message) {
+    const messageElement = document.getElementById('successMessage');
+    messageElement.textContent = message;
+    messageElement.classList.add('show');
+    
+    // 3秒后隐藏消息
+    setTimeout(() => {
+        messageElement.classList.remove('show');
         setTimeout(() => {
-            messageElement.classList.remove('show');
-            setTimeout(() => {
-                messageElement.style.display = 'none';
-            }, 300); // 等待淡出动画完成
-        }, 3000);
-    }
-    </script>
-</body>
-</html>
+            messageElement.textContent = '';
+        }, 300); // 等待淡出动画完成
+    }, 3000);
+}
+</script>
+{% endblock %}
