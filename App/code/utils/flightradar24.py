@@ -362,10 +362,10 @@ def extract_flight_data_from_row(row, flight_number: str) -> Optional[Dict]:
             flight_info['status'] = status_elem.get_text().strip()
         
         # 最终输出提取的时间数据，便于调试
-        print(f"\n最终提取的航班时间信息:")
-        print(f"  STD(计划起飞时间): {flight_info['std']}")
-        print(f"  ATD(实际起飞时间): {flight_info['atd']}")
-        print(f"  STA(计划到达时间): {flight_info['sta']}")
+        # print(f"\n最终提取的航班时间信息:")
+        # print(f"  STD(计划起飞时间): {flight_info['std']}")
+        # print(f"  ATD(实际起飞时间): {flight_info['atd']}")
+        # print(f"  STA(计划到达时间): {flight_info['sta']}")
         
         # 构建返回数据格式 (与API格式兼容)
         airline, flight_num = parse_flight_number(flight_number)
@@ -760,13 +760,11 @@ def extract_flight_data(data: Dict, flight_number: str) -> Optional[Dict]:
         
         # 提取 departure 信息
         departure = flight_data.get('departure', {})
-        # departure_airport = departure.get('airport', 'Unknown')
         departure_iata = departure.get('iata', 'Unknown')
         departure_time = departure.get('scheduled', 'Unknown')
         
         # 提取 arrival 信息
         arrival = flight_data.get('arrival', {})
-        # arrival_airport = arrival.get('airport', 'Unknown')
         arrival_iata = arrival.get('iata', 'Unknown')
         arrival_time = arrival.get('scheduled', 'Unknown')
 
@@ -776,21 +774,19 @@ def extract_flight_data(data: Dict, flight_number: str) -> Optional[Dict]:
         
         try:
             if departure_time != 'Unknown' and ':' in departure_time:
-                # 如果时间已经是HH:MM格式，直接使用
-                formatted_dep_time = departure_time
+                # 如果时间已经是HH:MM格式，移除冒号
+                formatted_dep_time = departure_time.replace(':', '')
 
             elif departure_time != 'Unknown':
                 dep_datetime = datetime.fromisoformat(departure_time.replace('Z', '+00:00'))
-                formatted_dep_time = dep_datetime.strftime('%H:%M')
-                print(f"\n格式化后的出发时间: {formatted_dep_time}")
+                formatted_dep_time = dep_datetime.strftime('%H%M')
             
             if arrival_time != 'Unknown' and ':' in arrival_time:
-                # 如果时间已经是HH:MM格式，直接使用
-                formatted_arr_time = arrival_time
+                # 如果时间已经是HH:MM格式，移除冒号
+                formatted_arr_time = arrival_time.replace(':', '')
             elif arrival_time != 'Unknown':
                 arr_datetime = datetime.fromisoformat(arrival_time.replace('Z', '+00:00'))
-                formatted_arr_time = arr_datetime.strftime('%H:%M')
-                print(f"格式化后的到达时间: {formatted_arr_time}")
+                formatted_arr_time = arr_datetime.strftime('%H%M')
                 
         except Exception as e:
             print(f"时间格式化错误: {e}")
@@ -801,6 +797,21 @@ def extract_flight_data(data: Dict, flight_number: str) -> Optional[Dict]:
         # 获取航空公司名称
         airline_name = flight_data.get('airline', {}).get('name', get_airline_name(airline))
         
+        # 比较时间并添加#符号
+        if formatted_dep_time != "Unknown" and formatted_arr_time != "Unknown":
+            # 将时间转换为分钟数进行比较
+            dep_hours = int(formatted_dep_time[:2])
+            dep_minutes = int(formatted_dep_time[2:])
+            arr_hours = int(formatted_arr_time[:2])
+            arr_minutes = int(formatted_arr_time[2:])
+            
+            dep_total_minutes = dep_hours * 60 + dep_minutes
+            arr_total_minutes = arr_hours * 60 + arr_minutes
+            
+            # 如果出发时间大于到达时间，在到达时间前添加#
+            if dep_total_minutes > arr_total_minutes:
+                formatted_arr_time = f"#{formatted_arr_time}"
+        
         # 构建结果
         result = {
             'flight_number': flight_number,
@@ -810,125 +821,63 @@ def extract_flight_data(data: Dict, flight_number: str) -> Optional[Dict]:
             'schedule_city': f"{departure_iata} {arrival_iata}",
             'schedule_timing': f"{formatted_dep_time} {formatted_arr_time}"
         }
-        print(f"result: {result}")
         return result
     except Exception as e:
         print(f"提取数据时出错: {e}")
         return None
 
-def search_flight(flight_number: str) -> Optional[Dict]:
-    """搜索航班信息主函数 - 优先使用FlightRadar24"""
+def get_flight_info(flight_number: str) -> Optional[Dict]:
+    """
+    获取航班信息的简化函数
+    
+    Args:
+        flight_number (str): 航班号 (例如: 'MU544')
+        
+    Returns:
+        Optional[Dict]: 包含航班信息的字典，格式如下:
+        {
+            'flight_number': 'MU544',
+            'airline': 'MU',
+            'airline_num': '544',
+            'airline_name': '中国东方航空',
+            'schedule_city': 'PVG SHA',
+            'schedule_timing': '10:30 12:45'
+        }
+        如果获取失败则返回 None
+    """
     try:
         # 验证航班号格式
         airline, number = parse_flight_number(flight_number)
-        print(f"航空公司代码: {airline}, 航班编号: {number}")
         
-        # 首先尝试 FlightRadar24
-        # print("尝试从 FlightRadar24 获取数据...")
+        # 尝试从 FlightRadar24 获取数据
         flightradar_data = get_flight_from_flightradar24(flight_number)
         if flightradar_data and flightradar_data.get('data'):
-            print("成功从 FlightRadar24 获取数据")
             return extract_flight_data(flightradar_data, flight_number)
         
         # 如果 FlightRadar24 失败，尝试 Aviationstack API
-        print("FlightRadar24 获取失败，尝试 Aviationstack API...")
         api_data = get_flight_from_aviationstack(flight_number)
         if api_data and api_data.get('data') and len(api_data['data']) > 0:
-            print("成功从 Aviationstack 获取数据")
             return extract_flight_data(api_data, flight_number)
         
         # 如果 Aviationstack 失败，尝试 OpenSky API
-        print("Aviationstack 获取失败，尝试 OpenSky API...")
         opensky_data = get_flight_from_opensky(flight_number)
         if opensky_data and opensky_data.get('data'):
-            print("成功从 OpenSky 获取数据")
             return extract_flight_data(opensky_data, flight_number)
         
-        print("所有数据源都未能获取到航班信息")
         return None
     
-    except ValueError as e:
-        print(f"输入错误: {e}")
+    except Exception:
         return None
-    except Exception as e:
-        print(f"处理过程出错: {e}")
-        return None
-
-def get_all_flights_from_flightradar24(flight_number: str) -> List[Dict]:
-    """获取航班的所有历史记录"""
-    try:
-        print(f"\n正在获取航班 {flight_number} 的所有历史记录...")
-        
-        # 构建URL - 替换航班号
-        url = f"https://www.flightradar24.com/data/flights/{flight_number.lower()}"
-        
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
-            'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8'
-        }
-        
-        # 发送请求
-        response = requests.get(url, headers=headers)
-        response.raise_for_status()
-        
-        # 使用BeautifulSoup解析HTML
-        soup = BeautifulSoup(response.text, 'html.parser')
-        
-        # 尝试多种方法查找航班信息表格
-        flight_table = None
-        
-        # 方法1: 尝试使用class='table'查找
-        tables_with_class = soup.find_all('table', class_='table')
-        if tables_with_class:
-            flight_table = tables_with_class[0]
-        
-        # 方法2: 尝试查找所有表格，并找出包含航班信息的表格
-        if not flight_table:
-            all_tables = soup.find_all('table')
-            
-            for table in all_tables:
-                # 查找包含航班信息的表格 (通常包含"Flight"、"From"、"To"等关键词)
-                table_text = table.get_text().strip().replace('\n', ' ')
-                if any(keyword in table_text for keyword in ['Flight', 'From', 'To', 'DATE', 'AIRCRAFT']):
-                    flight_table = table
-                    break
-        
-        # 如果找不到表格，返回空列表
-        if not flight_table:
-            print("无法找到航班历史表格")
-            return []
-        
-        # 获取表格行
-        rows = flight_table.find_all('tr')
-        
-        # 如果表格太小，无法提取信息
-        if len(rows) < 2:
-            print("表格中没有足够的行")
-            return []
-        
-        # 提取所有航班数据
-        all_flights = []
-        for i, row in enumerate(rows[1:]):  # 跳过表头行
-            if 'data-row' in row.get('class', []) or row.find('td'):
-                flight_data = extract_flight_data_from_row(row, flight_number)
-                if flight_data and flight_data.get('data'):
-                    all_flights.append(flight_data['data'][0])
-                    print(f"添加第 {len(all_flights)} 个航班记录")
-        
-        print(f"总共提取到 {len(all_flights)} 个航班记录")
-        return all_flights
-    
-    except Exception as e:
-        print(f"获取所有航班记录时出错: {e}")
-        print(f"错误类型: {type(e).__name__}")
-        import traceback
-        traceback.print_exc()
-        return []
 
 if __name__ == "__main__":
-    flight_input = "AK5742"
-    flight_info = search_flight(flight_input)
+    # 测试示例
+    flight_info = get_flight_info("MU544")
+    
+    if flight_info:
+        print(json.dumps(flight_info, indent=2, ensure_ascii=False))
+    
+    else:
+        print("未找到航班信息")
 
 
     

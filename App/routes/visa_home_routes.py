@@ -1,3 +1,18 @@
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app
+import os
+from datetime import datetime
+from pathlib import Path
+import platform
+import subprocess
+import shutil
+import logging
+from ..exts import db
+from ..models import VisaCountries, VisaTypes, VisaDocuments, VisaLinks, VisaProject  # 确保从正确位置导入模型
+from ..code.VisaForm import VisasUtils
+import json
+
+visa_routes = Blueprint('visa_routes', __name__)
+
 @visa_routes.route('/visa/project_detail/<int:project_id>')
 def visa_project_detail(project_id):
     """显示签证项目详情页面"""

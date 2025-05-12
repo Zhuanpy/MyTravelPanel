@@ -193,12 +193,12 @@
                             <i class="fas fa-plane"></i> 机票
                         </a>
                         <ul class="dropdown-menu" aria-labelledby="flightDropdown">
-                            <li><a class="dropdown-item" href="{{ url_for('flight_blue.flight_home') }}">机票首页</a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('flight_blue.itinerary_conversion') }}">简化行程</a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('flight_blue.flight_to_athina_page') }}">Athina代码</a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('flight_blue.confirmation_detail') }}">机票文件</a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('flight_blue.input_flight_schedule_info') }}">航班时刻表</a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('flight_blue.input_airport_code_info') }}">机场代码</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('flight_home.flight_home_page') }}">机票首页</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('flights_athina.itinerary_conversion') }}">简化行程</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('flights_athina.flight_to_athina_page') }}">Athina代码</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('flights_schedule.confirmation_detail_default') }}">机票文件</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('flights_schedule.input_flight_schedule') }}">航班时刻表</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('flights_schedule.input_airport_code_info') }}">机场代码</a></li>
                         </ul>
                     </li>
                     

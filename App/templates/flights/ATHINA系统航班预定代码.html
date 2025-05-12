@@ -348,7 +348,7 @@
         const textarea = document.getElementById('itinerary');
         textarea.value = '处理中...';
 
-        fetch('{{ url_for('flight_blue.flight_to_athina_page') }}', {
+        fetch('{{ url_for('flights_athina.athina_page_handler') }}', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'

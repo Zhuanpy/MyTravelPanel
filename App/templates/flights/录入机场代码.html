@@ -257,7 +257,7 @@
                     <h2 class="card-title mb-0">录入机场信息</h2>
                 </div>
                 <div class="card-body">
-                    <form id="airportForm" method="POST" action="{{ url_for('flight_blue.input_airport_code_info') }}">
+                    <form id="airportForm" method="POST" action="{{ url_for('flights_schedule.input_airport_code_info') }}">
                         <div class="airport-container">
                             <div class="airport-entry">
                                 <div class="row">
@@ -344,7 +344,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         try {
             // 使用Flask的url_for生成正确的URL
-            const response = await fetch(`{{ url_for('flight_blue.search_airports') }}?iata=${iata}&city=${city}`);
+            const response = await fetch(`{{ url_for('flights_schedule.search_airports') }}?iata=${iata}&city=${city}`);
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
@@ -445,7 +445,7 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('editDebugInfo').style.display = 'block';
         
         try {
-            const response = await fetch('{{ url_for("flight_blue.update_airport") }}', {
+            const response = await fetch('{{ url_for("flights_schedule.update_airport") }}', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

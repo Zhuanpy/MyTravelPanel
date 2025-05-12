@@ -16,7 +16,7 @@
     /* 主容器 */
     .flight-app-container {
         width: 100%;
-        max-width: 800px;
+        max-width: 1000px;
         margin: 0 auto;
         padding: 20px;
         background-color: #fff;
@@ -36,6 +36,19 @@
     .flight-app-form-row {
         display: block;
         margin-bottom: 20px;
+    }
+    
+    /* 新增样式：左右排布行程容器 */
+    .flight-app-itinerary-container {
+        display: flex;
+        gap: 20px;
+        margin-bottom: 20px;
+    }
+    
+    /* 左右行程列 */
+    .flight-app-itinerary-column {
+        flex: 1;
+        width: 50%;
     }
     
     .flight-app-label {
@@ -121,6 +134,13 @@
             text-align: left;
             width: 100%;
         }
+        /* 响应式：小屏幕上恢复为上下排列 */
+        .flight-app-itinerary-container {
+            flex-direction: column;
+        }
+        .flight-app-itinerary-column {
+            width: 100%;
+        }
     }
 
     /* 行李和价格输入行 */
@@ -142,9 +162,32 @@
         margin-bottom: 8px;
     }
 
+    /* 行李选择容器 */
+    .flight-app-luggage-container {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+    }
+    
+    /* 下拉选择框样式 */
+    .flight-app-select {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #ccc;
+        border-radius: 0;
+        font-size: 14px;
+        background-color: #f8f9fa;
+    }
+    
+    .flight-app-select:focus {
+        outline: none;
+        border-color: #4299e1;
+    }
+
     /* 输出框容器样式 */
     .flight-app-output-container {
         position: relative;
+        height: 100%;
     }
     
     /* 复制按钮样式 */
@@ -174,25 +217,27 @@
         
         <h1 class="flight-app-title">机票行程转化</h1>
         
-        <form action="{{ url_for('flight_blue.itinerary_conversion') }}" method="post">
-            <div class="flight-app-form-row">
-                <label for="input_text" class="flight-app-label">
-                    <i class="fas fa-plane-departure"></i> 输入行程：
-                </label>
-                <div class="flight-app-input-wrapper">
-                    <textarea id="input_text" name="input_text" class="flight-app-textarea">{{ request.form['input_text'] }}</textarea>
+        <form action="{{ url_for('flights_athina.itinerary_conversion') }}" method="post">
+            <div class="flight-app-itinerary-container">
+                <div class="flight-app-itinerary-column">
+                    <label for="input_text" class="flight-app-label">
+                        <i class="fas fa-plane-departure"></i> 输入行程：
+                    </label>
+                    <div class="flight-app-input-wrapper">
+                        <textarea id="input_text" name="input_text" class="flight-app-textarea">{{ request.form['input_text'] }}</textarea>
+                    </div>
                 </div>
-            </div>
-            
-            <div class="flight-app-form-row">
-                <label for="output_text" class="flight-app-label">
-                    <i class="fas fa-plane-arrival"></i> 输出行程：
-                </label>
-                <div class="flight-app-input-wrapper flight-app-output-container">
-                    <button type="button" class="flight-app-copy-btn" onclick="copyOutputText()">
-                        <i class="fas fa-copy"></i> 复制
-                    </button>
-                    <textarea id="output_text" name="output_text" class="flight-app-textarea">{{ output_text }}</textarea>
+                
+                <div class="flight-app-itinerary-column">
+                    <label for="output_text" class="flight-app-label">
+                        <i class="fas fa-plane-arrival"></i> 输出行程：
+                    </label>
+                    <div class="flight-app-input-wrapper flight-app-output-container">
+                        <button type="button" class="flight-app-copy-btn" onclick="copyOutputText()">
+                            <i class="fas fa-copy"></i> 复制
+                        </button>
+                        <textarea id="output_text" name="output_text" class="flight-app-textarea">{{ output_text }}</textarea>
+                    </div>
                 </div>
             </div>
             
@@ -202,7 +247,19 @@
                         <i class="fas fa-suitcase"></i> 行李：
                     </label>
                     <div class="flight-app-input-wrapper">
-                        <input type="text" id="luggage" name="luggage" class="flight-app-input" value="{{ request.form['luggage'] }}">
+                        <div class="flight-app-luggage-container">
+                            <select id="luggage_select" class="flight-app-select" onchange="updateLuggageInput(this.value)">
+                                <option value="">-- 选择常用行李 --</option>
+                                <option value="0kg">0kg</option>
+                                <option value="20kg">20kg</option>
+                                <option value="23kg">23kg</option>
+                                <option value="25kg">25kg</option>
+                                <option value="30kg">30kg</option>
+                                <option value="40kg">40kg</option>
+                                <option value="46kg(23kg*2)">46kg(23kg*2)</option>
+                            </select>
+                            <input type="text" id="luggage" name="luggage" class="flight-app-input" value="{{ request.form['luggage'] }}" placeholder="自定义行李额度">
+                        </div>
                     </div>
                 </div>
                 
@@ -246,7 +303,28 @@
                 this.select();
             });
         }
+        
+        // 初始化行李选择下拉框的值
+        var luggageInput = document.getElementById('luggage');
+        var luggageSelect = document.getElementById('luggage_select');
+        
+        if(luggageInput && luggageSelect) {
+            // 如果输入框有值，尝试在下拉框中匹配
+            var luggageValue = luggageInput.value.trim();
+            if(luggageValue) {
+                for(var i = 0; i < luggageSelect.options.length; i++) {
+                    if(luggageSelect.options[i].value === luggageValue) {
+                        luggageSelect.selectedIndex = i;
+                        break;
+                    }
+                }
+            }
+        }
     });
+    
+    function updateLuggageInput(value) {
+        document.getElementById('luggage').value = value;
+    }
     
     function copyOutputText() {
         var outputTextarea = document.getElementById('output_text');
