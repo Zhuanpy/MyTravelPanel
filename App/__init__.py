@@ -8,7 +8,12 @@ from .utils.cache import cache
 from datetime import timedelta
 from .routes.routes_utils import utils_blue
 from .routes.routes_visa import visa_routes
-from .routes.route_flight import flight_blue
+
+from .routes.flights_home_routes import flight_home
+from .routes.flights_schedule_routes import flights_schedule
+from .routes.flights_booking_routes import flights_booking
+from .routes.flights_athina_routes import flights_athina
+
 from .routes.CompanyInfo import company_info
 from .routes.routes_account import account_routes
 from .routes.routes_package import package_blue
@@ -45,6 +50,7 @@ def create_app():
 
     @login_manager.user_loader
     def load_user(user_id):
+        # todo 完成 User 相关内容
         from App.models.User import User  # 避免循环导入
         return User.query.get(int(user_id))
 
@@ -54,7 +60,12 @@ def create_app():
     # 注册蓝图
     app.register_blueprint(utils_blue, url_prefix='/utils')
     app.register_blueprint(visa_routes, url_prefix='/visa')
-    app.register_blueprint(flight_blue, url_prefix='/flight')
+
+    app.register_blueprint(flight_home, url_prefix='/flight_home')
+    app.register_blueprint(flights_schedule, url_prefix='/flight_schedule')
+    app.register_blueprint(flights_booking, url_prefix='/flight_booking')
+    app.register_blueprint(flights_athina, url_prefix='/flights_athina')
+
     app.register_blueprint(company_info, url_prefix='/company')
     app.register_blueprint(account_routes, url_prefix='/account')
     app.register_blueprint(package_blue, url_prefix='/package')

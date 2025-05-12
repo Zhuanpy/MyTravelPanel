@@ -328,7 +328,7 @@
         <div class="link-container">
             <h2 class="link-container-title">机票管理</h2>
             <div class="link-grid">
-                <a href="{{ url_for('flight_blue.flight_home') }}" class="text-link">
+                <a href="{{ url_for('flight_home.flight_home_page') }}" class="text-link">
                     <i class="fas fa-home"></i> 机票首页
                 </a>
                 <a href="#" id="openFlightProjectFolder" class="text-link">
@@ -349,15 +349,15 @@
             </div>
         </div>
         <div class="button-group">
-            <a href="{{url_for('flight_blue.itinerary_conversion')}}" class="btn btn-green"><i class="fas fa-exchange-alt"></i> 简化TRAVELPORT</a>
-            <a href="{{url_for('flight_blue.simplify_itinerary_by_flight_and_date')}}" class="btn btn-green"><i class="fas fa-calendar-alt"></i> 简化行程</a>
-            <a href="{{url_for('flight_blue.flight_to_athina_page')}}" class="btn btn-green"><i class="fas fa-file-code"></i> Athina代码</a>
-            <a href="{{url_for('flight_blue.input_flight_schedule_info')}}" class="btn btn-green"><i class="fas fa-clock"></i> 航班时刻表</a>
-            <a href="{{url_for('flight_blue.input_airport_code_info')}}" class="btn btn-green"><i class="fas fa-map-marker-alt"></i> 机场代码</a>
-            <a href="{{url_for('flight_blue.confirmation_detail')}}" class="btn btn-green"><i class="fas fa-file-alt"></i> 机票文件</a>
+            <a href="{{url_for('flights_athina.itinerary_conversion')}}" class="btn btn-green"><i class="fas fa-exchange-alt"></i> 简化TRAVELPORT</a>
+            <a href="{{url_for('flights_athina.simplify_itinerary_by_flight_and_date')}}" class="btn btn-green"><i class="fas fa-calendar-alt"></i> 简化行程</a>
+            <a href="{{url_for('flights_athina.flight_to_athina_page')}}" class="btn btn-green"><i class="fas fa-file-code"></i> Athina代码</a>
+            <a href="{{url_for('flights_schedule.input_flight_schedule')}}" class="btn btn-green"><i class="fas fa-clock"></i> 航班时刻表</a>
+            <a href="{{url_for('flights_schedule.input_airport_code_info')}}" class="btn btn-green"><i class="fas fa-map-marker-alt"></i> 机场代码</a>
+            <a href="{{url_for('flights_schedule.confirmation_detail_default')}}" class="btn btn-green"><i class="fas fa-file-alt"></i> 机票文件</a>
         </div>
         <div class="section-footer">
-            <a href="{{ url_for('flight_blue.flight_home') }}" class="more-button">
+            <a href="{{ url_for('flight_home.flight_home_page') }}" class="more-button">
                 查看全部 <i class="fas fa-arrow-right"></i>
             </a>
         </div>
@@ -478,8 +478,8 @@
     const folderHandlers = {
         'openPackageFolder': ['{{ url_for("index.open_package_folder") }}', '资源文件夹已打开'],
         'openProjectFolder': ['{{ url_for("index.open_package_project_folder") }}', '项目文件夹已打开'],
-        'openFlightProjectFolder': ['{{ url_for("flight_blue.open_project_folder") }}', '航班项目文件夹已打开'],
-        'openRefundFolder': ['{{ url_for("flight_blue.open_refund_folder") }}', '退票文件夹已打开'],
+        'openFlightProjectFolder': ['{{ url_for("flight_home.open_project_folder") }}', '航班项目文件夹已打开'],
+        'openRefundFolder': ['{{ url_for("flight_home.open_refund_folder") }}', '退票文件夹已打开'],
         'OpenBillProject': ['{{ url_for("index.open_bill_project_folder") }}', '账单文件夹已打开']
     };
 

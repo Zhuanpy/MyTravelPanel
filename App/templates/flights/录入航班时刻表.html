@@ -4,131 +4,315 @@
 
 {% block head %}
 <style>
-    .flight-schedule-container {
-        max-width: 800px;
-        margin: 0 auto;
-        padding: 20px;
+    :root {
+        --primary-color: #3498db;
+        --primary-hover: #2980b9;
+        --secondary-color: #2ecc71;
+        --secondary-hover: #27ae60;
+        --danger-color: #e74c3c;
+        --danger-hover: #c0392b;
+        --light-gray: #f8f9fa;
+        --medium-gray: #e9ecef;
+        --dark-gray: #6c757d;
+        --border-color: #dee2e6;
+        --text-color: #343a40;
+        --box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     }
+    
+    .flight-schedule-container {
+        max-width: 1000px;
+        margin: 2rem auto;
+        padding: 0 20px;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        color: var(--text-color);
+    }
+    
     .flight-schedule-title {
         text-align: center;
-        color: #333;
-        font-size: 24px;
-        font-weight: bold;
-        margin-bottom: 20px;
+        color: var(--text-color);
+        font-size: 28px;
+        font-weight: 600;
+        margin-bottom: 30px;
+        position: relative;
+        padding-bottom: 12px;
     }
+    
+    .flight-schedule-title:after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 60px;
+        height: 3px;
+        background-color: var(--primary-color);
+    }
+    
     .flight-schedule-subtitle {
         text-align: left;
-        color: #333;
-        font-size: 18px;
-        font-weight: normal;
-        margin-bottom: 15px;
+        color: var(--text-color);
+        font-size: 20px;
+        font-weight: 500;
+        margin-bottom: 20px;
         padding-left: 5px;
+        border-left: 4px solid var(--primary-color);
     }
+    
     .flight-schedule-card {
         background: #fff;
-        padding: 20px;
-        border-radius: 8px;
-        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-        margin-bottom: 20px;
+        padding: 25px;
+        border-radius: 10px;
+        box-shadow: var(--box-shadow);
+        margin-bottom: 30px;
+        transition: transform 0.2s, box-shadow 0.2s;
     }
+    
+    .flight-schedule-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+    }
+    
     .flight-schedule-label {
         display: block;
         font-size: 14px;
-        margin-bottom: 5px;
-        color: #555;
+        font-weight: 500;
+        margin-bottom: 6px;
+        color: var(--text-color);
     }
+    
     .flight-schedule-form-row {
         display: flex;
-        gap: 10px;
-        margin-bottom: 15px;
+        gap: 15px;
+        margin-bottom: 20px;
         position: relative;
         padding-right: 50px; /* 为删除按钮预留空间 */
+        align-items: flex-start;
     }
+    
     .flight-schedule-form-group {
         flex: 1;
     }
+    
     .flight-schedule-input {
         width: 100%;
-        padding: 8px;
-        font-size: 14px;
-        border: 1px solid #ccc;
-        border-radius: 4px;
+        padding: 10px 12px;
+        font-size: 15px;
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
+        transition: border-color 0.2s, box-shadow 0.2s;
     }
+    
+    .flight-schedule-input:focus {
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
+        outline: none;
+    }
+    
+    .flight-schedule-input:read-only {
+        background-color: var(--light-gray);
+    }
+    
     .flight-schedule-btn {
         cursor: pointer;
-        padding: 10px 15px;
-        font-size: 14px;
+        padding: 10px 16px;
+        font-size: 15px;
+        font-weight: 500;
         border: none;
-        border-radius: 4px;
+        border-radius: 6px;
         color: #fff;
+        transition: background-color 0.2s, transform 0.1s;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
     }
+    
+    .flight-schedule-btn:active {
+        transform: translateY(1px);
+    }
+    
     .flight-schedule-btn-primary {
-        background-color: #007bff;
+        background-color: var(--primary-color);
     }
+    
     .flight-schedule-btn-primary:hover {
-        background-color: #0056b3;
+        background-color: var(--primary-hover);
     }
+    
     .flight-schedule-btn-danger {
-        background-color: #dc3545;
+        background-color: var(--danger-color);
     }
+    
     .flight-schedule-btn-danger:hover {
-        background-color: #a71d2a;
+        background-color: var(--danger-hover);
     }
+    
     .flight-schedule-btn-success {
-        background-color: #28a745;
+        background-color: var(--secondary-color);
     }
+    
     .flight-schedule-btn-success:hover {
-        background-color: #1c7430;
+        background-color: var(--secondary-hover);
     }
+    
     .flight-schedule-table {
         width: 100%;
-        border-collapse: collapse;
-        margin-top: 10px;
+        border-collapse: separate;
+        border-spacing: 0;
+        margin-top: 15px;
+        overflow: hidden;
+        border-radius: 8px;
+        border: 1px solid var(--border-color);
     }
+    
     .flight-schedule-table th,
     .flight-schedule-table td {
-        border: 1px solid #ddd;
-        padding: 10px;
+        border: 1px solid var(--border-color);
+        padding: 12px 15px;
         text-align: center;
+        vertical-align: middle;
     }
+    
     .flight-schedule-table th {
-        background-color: #f8f9fa;
+        background-color: var(--light-gray);
+        font-weight: 600;
+        color: var(--text-color);
+        position: sticky;
+        top: 0;
+        box-shadow: 0 1px 0 var(--border-color);
     }
+    
+    .flight-schedule-table tr:nth-child(even) {
+        background-color: var(--light-gray);
+    }
+    
+    .flight-schedule-table tr:hover {
+        background-color: var(--medium-gray);
+    }
+    
     .flight-schedule-pagination {
         display: flex;
         justify-content: center;
-        margin-top: 15px;
+        align-items: center;
+        margin-top: 20px;
+        gap: 10px;
     }
+    
     .flight-schedule-pagination a {
-        padding: 5px 10px;
-        margin: 0 5px;
-        background-color: #f1f1f1;
+        padding: 8px 14px;
+        background-color: var(--light-gray);
         text-decoration: none;
-        color: #333;
-        border-radius: 4px;
+        color: var(--text-color);
+        border-radius: 6px;
+        transition: background-color 0.2s;
+        font-weight: 500;
     }
+    
     .flight-schedule-pagination a:hover {
-        background-color: #ddd;
+        background-color: var(--medium-gray);
     }
+    
+    .flight-schedule-pagination span {
+        padding: 8px 14px;
+        color: var(--dark-gray);
+    }
+    
     .flight-schedule-remove-btn {
         position: absolute;
         right: 0;
         top: 50%;
         transform: translateY(-50%);
-        background-color: #dc3545;
+        background-color: var(--danger-color);
         color: white;
         border: none;
-        border-radius: 4px;
-        padding: 5px 10px;
+        border-radius: 6px;
+        padding: 8px 12px;
         cursor: pointer;
-        font-size: 12px;
-        min-width: 40px;
+        font-size: 14px;
+        min-width: 45px;
+        transition: background-color 0.2s;
     }
+    
     .flight-schedule-remove-btn:hover {
-        background-color: #a71d2a;
+        background-color: var(--danger-hover);
     }
+    
     .flight-schedule-add-btn {
-        margin-bottom: 15px;
+        margin: 5px 0 20px;
+    }
+    
+    .flight-schedule-buttons-container {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 20px;
+    }
+    
+    .flight-schedule-buttons-container .flight-schedule-btn {
+        min-width: 120px;
+    }
+    
+    .flight-schedule-input-group {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        width: 100%;
+    }
+    
+    .flight-schedule-input-group .flight-schedule-input {
+        flex: 1;
+        border-radius: 6px 0 0 6px;
+        border-right: none;
+    }
+    
+    .flight-schedule-btn-info {
+        background-color: var(--primary-color);
+        color: white;
+        border: none;
+        padding: 10px 14px;
+        border-radius: 0 6px 6px 0;
+        height: 100%;
+        min-height: 41px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        transition: background-color 0.2s;
+        margin: 0;
+        white-space: nowrap;
+    }
+    
+    .flight-schedule-btn-info:hover {
+        background-color: var(--primary-hover);
+    }
+    
+    .flight-schedule-btn-info:disabled {
+        background-color: var(--dark-gray);
+        cursor: not-allowed;
+        opacity: 0.7;
+    }
+    
+    /* 添加响应式设计 */
+    @media (max-width: 768px) {
+        .flight-schedule-form-row {
+            flex-direction: column;
+            padding-right: 0;
+            gap: 15px;
+        }
+        
+        .flight-schedule-remove-btn {
+            position: static;
+            transform: none;
+            margin-top: 5px;
+            width: 100%;
+        }
+        
+        .flight-schedule-table th, 
+        .flight-schedule-table td {
+            padding: 10px 8px;
+            font-size: 14px;
+        }
     }
 </style>
 {% endblock %}
@@ -140,38 +324,51 @@
     <!-- 航班信息输入表单 -->
     <div class="flight-schedule-card">
         <h2 class="flight-schedule-subtitle">输入航班信息</h2>
-        <form id="flightForm" method="POST" action="{{ url_for('flight_blue.input_flight_schedule_info') }}">
+        <form id="flightForm" method="POST" action="{{ url_for('flights_schedule.input_flight_schedule_info') }}">
             <input type="hidden" name="search_flight_number" value="{{ request.args.get('search_flight_number', '') }}">
             <div id="flightInputsContainer">
                 <div class="flight-schedule-form-row">
                     <div class="flight-schedule-form-group">
                         <label for="flightNumber" class="flight-schedule-label">航班号:</label>
-                        <input type="text" id="flightNumber" name="flight_number[]" placeholder="例如: TR100" class="flight-schedule-input">
+                        <div class="flight-schedule-input-group">
+                            <input type="text" id="flightNumber" name="flight_number[]" placeholder="例如: TR100" class="flight-schedule-input">
+                            <button type="button" class="flight-schedule-btn-info" onclick="searchFlightInfo(this)">
+                                <i class="fas fa-search"></i> 搜索
+                            </button>
+                        </div>
                     </div>
                     <div class="flight-schedule-form-group">
                         <label for="scheduleCity" class="flight-schedule-label">起始地点:</label>
-                        <input type="text" id="scheduleCity" name="schedule_city[]" placeholder="例如: SIN CAN" class="flight-schedule-input">
+                        <input type="text" id="scheduleCity" name="schedule_city[]" placeholder="例如: SIN CAN" class="flight-schedule-input" readonly>
                     </div>
                     <div class="flight-schedule-form-group">
                         <label for="scheduleTiming" class="flight-schedule-label">起始时间:</label>
-                        <input type="text" id="scheduleTiming" name="schedule_timing[]" placeholder="例如: 0515 0925" class="flight-schedule-input">
+                        <input type="text" id="scheduleTiming" name="schedule_timing[]" placeholder="例如: 0515 0925" class="flight-schedule-input" readonly>
                     </div>
                     <button type="button" class="flight-schedule-remove-btn" onclick="removeFlightInput(this)">删除</button>
                 </div>
             </div>
-            <button type="button" class="flight-schedule-btn flight-schedule-btn-primary flight-schedule-add-btn" onclick="addFlightInput()">
-                <i class="fas fa-plus"></i> 增加航班
-            </button>
-            <button type="submit" class="flight-schedule-btn flight-schedule-btn-success">提交</button>
+            <div class="flight-schedule-buttons-container">
+                <button type="button" class="flight-schedule-btn flight-schedule-btn-primary flight-schedule-add-btn" onclick="addFlightInput()">
+                    <i class="fas fa-plus"></i> 增加航班
+                </button>
+                <button type="submit" class="flight-schedule-btn flight-schedule-btn-success">
+                    <i class="fas fa-save"></i> 提交
+                </button>
+            </div>
         </form>
     </div>
 
     <!-- 搜索航班 -->
     <div class="flight-schedule-card">
         <h2 class="flight-schedule-subtitle">搜索航班</h2>
-        <form id="searchForm" method="GET" action="{{ url_for('flight_blue.search_flights') }}">
-            <input type="text" name="search_flight_number" placeholder="输入航班号" value="{{ request.args.get('search_flight_number', '') }}" class="flight-schedule-input">
-            <button type="submit" class="flight-schedule-btn flight-schedule-btn-primary">搜索</button>
+        <form id="searchForm" method="GET" action="{{ url_for('flights_schedule.search_flights') }}">
+            <div class="flight-schedule-input-group">
+                <input type="text" name="search_flight_number" placeholder="输入航班号" value="{{ request.args.get('search_flight_number', '') }}" class="flight-schedule-input">
+                <button type="submit" class="flight-schedule-btn-info">
+                    <i class="fas fa-search"></i> 搜索
+                </button>
+            </div>
         </form>
     </div>
 
@@ -206,11 +403,11 @@
         <!-- 分页导航 -->
         <div class="flight-schedule-pagination">
             {% if flights.has_prev %}
-            <a href="{{ url_for('flight_blue.input_flight_schedule_info', page=flights.prev_num, search_flight_number=request.args.get('search_flight_number', '')) }}">上一页</a>
+            <a href="{{ url_for('flights_schedule.input_flight_schedule_info', page=flights.prev_num, search_flight_number=request.args.get('search_flight_number', '')) }}">上一页</a>
             {% endif %}
             <span>第 {{ flights.page }} 页，共 {{ flights.pages }} 页</span>
             {% if flights.has_next %}
-            <a href="{{ url_for('flight_blue.input_flight_schedule_info', page=flights.next_num, search_flight_number=request.args.get('search_flight_number', '')) }}">下一页</a>
+            <a href="{{ url_for('flights_schedule.input_flight_schedule_info', page=flights.next_num, search_flight_number=request.args.get('search_flight_number', '')) }}">下一页</a>
             {% endif %}
         </div>
     </div>
@@ -219,6 +416,48 @@
 
 {% block scripts %}
 <script>
+    async function searchFlightInfo(button) {
+        const row = button.closest('.flight-schedule-form-row');
+        const flightNumberInput = row.querySelector('input[name="flight_number[]"]');
+        const scheduleCityInput = row.querySelector('input[name="schedule_city[]"]');
+        const scheduleTimingInput = row.querySelector('input[name="schedule_timing[]"]');
+        
+        const flightNumber = flightNumberInput.value.trim();
+        if (!flightNumber) {
+            alert('请输入航班号');
+            return;
+        }
+
+        try {
+            // 显示加载状态
+            button.disabled = true;
+            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 搜索中...';
+
+            // 调用后端API获取航班信息
+            const response = await fetch(`{{ url_for('flights_schedule.get_flight_info_route') }}?flight_number=${flightNumber}`);
+            const data = await response.json();
+
+            if (response.ok) {
+                if (data.error) {
+                    alert(data.error);
+                } else {
+                    // 填充表单
+                    scheduleCityInput.value = data.schedule_city;
+                    scheduleTimingInput.value = data.schedule_timing;
+                }
+            } else {
+                alert(data.error || '未找到航班信息');
+            }
+        } catch (error) {
+            console.error('获取航班信息失败:', error);
+            alert('获取航班信息失败，请稍后重试');
+        } finally {
+            // 恢复按钮状态
+            button.disabled = false;
+            button.innerHTML = '<i class="fas fa-search"></i> 搜索';
+        }
+    }
+
     function addFlightInput() {
         const container = document.getElementById('flightInputsContainer');
         const newRow = document.createElement('div');
@@ -226,15 +465,20 @@
         newRow.innerHTML = `
             <div class="flight-schedule-form-group">
                 <label class="flight-schedule-label">航班号:</label>
-                <input type="text" name="flight_number[]" placeholder="例如: TR100" class="flight-schedule-input">
+                <div class="flight-schedule-input-group">
+                    <input type="text" name="flight_number[]" placeholder="例如: TR100" class="flight-schedule-input">
+                    <button type="button" class="flight-schedule-btn-info" onclick="searchFlightInfo(this)">
+                        <i class="fas fa-search"></i> 搜索
+                    </button>
+                </div>
             </div>
             <div class="flight-schedule-form-group">
                 <label class="flight-schedule-label">起始地点:</label>
-                <input type="text" name="schedule_city[]" placeholder="例如: SIN CAN" class="flight-schedule-input">
+                <input type="text" name="schedule_city[]" placeholder="例如: SIN CAN" class="flight-schedule-input" readonly>
             </div>
             <div class="flight-schedule-form-group">
                 <label class="flight-schedule-label">起始时间:</label>
-                <input type="text" name="schedule_timing[]" placeholder="例如: 0515 0925" class="flight-schedule-input">
+                <input type="text" name="schedule_timing[]" placeholder="例如: 0515 0925" class="flight-schedule-input" readonly>
             </div>
             <button type="button" class="flight-schedule-remove-btn" onclick="removeFlightInput(this)">删除</button>
         `;
@@ -257,7 +501,7 @@
                 let inputField = document.querySelector(`input[data-flight-id='${flightId}']`);
                 let newTiming = inputField.value;
     
-                fetch("{{ url_for('flight_blue.update_flight_timing') }}", {
+                fetch("{{ url_for('flights_schedule.update_flight_timing') }}", {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json"

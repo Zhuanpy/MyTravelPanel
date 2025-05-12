@@ -320,7 +320,7 @@
     const itineraryTextarea = document.getElementById('itinerary');
     itineraryTextarea.value = '正在生成行程，请稍候...';
 
-    fetch('{{ url_for('flight_blue.simplify_itinerary_by_flight_and_date') }}', {
+    fetch('{{ url_for('flights_athina.simplify_itinerary_by_flight_and_date') }}', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'

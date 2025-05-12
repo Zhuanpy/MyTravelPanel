@@ -5,3 +5,4 @@ from .Visamodels import VisaCountries, VisaTypes, VisaDocuments, VisaLinks, Visa
 from .Utilsmodels import Task
 from .Suppliers import *
 from .account import Account
+from .User import *
