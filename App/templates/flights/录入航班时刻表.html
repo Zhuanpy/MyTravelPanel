@@ -106,6 +106,7 @@
         border-color: var(--primary-color);
         box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
         outline: none;
+        background-color: #fff; /* 确保背景为白色，增强可见性 */
     }
     
     .flight-schedule-input:read-only {
@@ -314,6 +315,14 @@
             font-size: 14px;
         }
     }
+    
+    /* 手动输入提示样式 */
+    .flight-schedule-input-hint {
+        font-size: 12px;
+        color: #666;
+        margin-top: 4px;
+        display: block;
+    }
 </style>
 {% endblock %}
 
@@ -339,11 +348,13 @@
                     </div>
                     <div class="flight-schedule-form-group">
                         <label for="scheduleCity" class="flight-schedule-label">起始地点:</label>
-                        <input type="text" id="scheduleCity" name="schedule_city[]" placeholder="例如: SIN CAN" class="flight-schedule-input" readonly>
+                        <input type="text" id="scheduleCity" name="schedule_city[]" placeholder="例如: SIN CAN" class="flight-schedule-input">
+                        <span class="flight-schedule-input-hint">可搜索或手动输入，格式：出发地 目的地</span>
                     </div>
                     <div class="flight-schedule-form-group">
                         <label for="scheduleTiming" class="flight-schedule-label">起始时间:</label>
-                        <input type="text" id="scheduleTiming" name="schedule_timing[]" placeholder="例如: 0515 0925" class="flight-schedule-input" readonly>
+                        <input type="text" id="scheduleTiming" name="schedule_timing[]" placeholder="例如: 0515 0925" class="flight-schedule-input">
+                        <span class="flight-schedule-input-hint">可搜索或手动输入，格式：出发时间 到达时间</span>
                     </div>
                     <button type="button" class="flight-schedule-remove-btn" onclick="removeFlightInput(this)">删除</button>
                 </div>
@@ -444,13 +455,16 @@
                     // 填充表单
                     scheduleCityInput.value = data.schedule_city;
                     scheduleTimingInput.value = data.schedule_timing;
+                    
+                    // 提示用户数据已自动填充，可手动修改
+                    alert("航班信息已自动填充，您可以根据需要修改！");
                 }
             } else {
-                alert(data.error || '未找到航班信息');
+                alert(data.error || '未找到航班信息，请手动输入');
             }
         } catch (error) {
             console.error('获取航班信息失败:', error);
-            alert('获取航班信息失败，请稍后重试');
+            alert('获取航班信息失败，请手动输入航班信息');
         } finally {
             // 恢复按钮状态
             button.disabled = false;
@@ -474,11 +488,13 @@
             </div>
             <div class="flight-schedule-form-group">
                 <label class="flight-schedule-label">起始地点:</label>
-                <input type="text" name="schedule_city[]" placeholder="例如: SIN CAN" class="flight-schedule-input" readonly>
+                <input type="text" name="schedule_city[]" placeholder="例如: SIN CAN" class="flight-schedule-input">
+                <span class="flight-schedule-input-hint">可搜索或手动输入，格式：出发地 目的地</span>
             </div>
             <div class="flight-schedule-form-group">
                 <label class="flight-schedule-label">起始时间:</label>
-                <input type="text" name="schedule_timing[]" placeholder="例如: 0515 0925" class="flight-schedule-input" readonly>
+                <input type="text" name="schedule_timing[]" placeholder="例如: 0515 0925" class="flight-schedule-input">
+                <span class="flight-schedule-input-hint">可搜索或手动输入，格式：出发时间 到达时间</span>
             </div>
             <button type="button" class="flight-schedule-remove-btn" onclick="removeFlightInput(this)">删除</button>
         `;
