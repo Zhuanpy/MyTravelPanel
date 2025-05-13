@@ -6,21 +6,21 @@ from .routes.views import dex
 from .exts import init_exts, db
 from .utils.cache import cache
 from datetime import timedelta
-from .routes.routes_utils import utils_blue
-from .routes.routes_visa import visa_routes
+from .routes.files_tasks import utils_blue
+from .routes.visas import visa_routes
 
 from .routes.flights_home_routes import flight_home
 from .routes.flights_schedule_routes import flights_schedule
 from .routes.flights_booking_routes import flights_booking
 from .routes.flights_athina_routes import flights_athina
 
-from .routes.CompanyInfo import company_info
-from .routes.routes_account import account_routes
-from .routes.routes_package import package_blue
-from .routes.routes_supplier import supplier
-from .routes.TourProductDetails import product_details
-from .routes.routes_files import files_process
-from .routes.routes_statement import statement_blue
+from .routes.files_company_info import company_info
+from .routes.files_account import account_routes
+from .routes.tour_package import package_blue
+from .routes.supplier import supplier
+from .routes.tour_product_details import product_details
+from .routes.files import files_process
+from .routes.statement import statement_blue
 
 def create_app():
     app = Flask(__name__)

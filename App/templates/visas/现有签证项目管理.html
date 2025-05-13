@@ -299,6 +299,7 @@
                 <option value="pending_submission" {% if visa_status == 'pending_submission' %}selected{% endif %}>待递交</option>
                 <option value="submitted" {% if visa_status == 'submitted' or visa_status is not defined %}selected{% endif %}>待出签</option>
                 <option value="approved" {% if visa_status == 'approved' %}selected{% endif %}>已出签</option>
+                <option value="ignored" {% if visa_status == 'ignored' %}selected{% endif %}>忽略单</option>
                 <option value="all" {% if visa_status == 'all' %}selected{% endif %}>全部</option>
             </select>
     
@@ -340,6 +341,7 @@
                             <option value="待递交" {% if project.visa_status == '待递交' %}selected{% endif %}>待递交</option>
                             <option value="待出签" {% if project.visa_status == '待出签' %}selected{% endif %}>待出签</option>
                             <option value="已出签" {% if project.visa_status == '已出签' %}selected{% endif %}>已出签</option>
+                            <option value="忽略单" {% if project.visa_status == '忽略单' %}selected{% endif %}>忽略单</option>
                         </select>
                     </td>
                     <td><input type="text" name="estimated_date" value="{{ project.estimated_date }}" class="visa-project-input-field"></td>

@@ -39,6 +39,7 @@ def add_supplier():
 @supplier.route('/edit/<int:supplier_id>', methods=['GET', 'POST'])
 def edit_supplier(supplier_id):
     supplier = Supplier.query.get_or_404(supplier_id)
+
     if request.method == 'POST':
         supplier.name = request.form['name']
         supplier.contact_person = request.form.get('contact_person')
