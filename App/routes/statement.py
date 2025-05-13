@@ -98,6 +98,181 @@ def statement_to_company():
     return redirect(url_for('statement_routes.uob_bank'))
 
 
+# OCBC银行相关路由
+@statement_blue.route('/ocbc_bank')
+def ocbc_bank():
+    # 渲染OCBC银行账单页面
+    return render_template('statement/OcbcBank.html')
+
+
+@statement_blue.route('/open_ocbc_statement_folder', methods=['GET', 'POST'])
+def open_ocbc_statement_folder():
+    # 如果是GET请求，重定向到安全页面
+    if request.method == 'GET':
+        return redirect(url_for('statement_routes.ocbc_bank'))
+    
+    # POST请求执行功能
+    # TODO: 更新为实际的OCBC账单文件夹路径
+    OCBC_path = os.path.join(app.root_path, app.static_folder, "资源", "账单", "OCBC")
+    folder_path = os.path.join(OCBC_path)
+    os.startfile(folder_path)
+    flash('成功打开OCBC账单文件夹')
+    return redirect(url_for('statement_routes.ocbc_bank'))
+
+
+@statement_blue.route('/ocbc_bank_processing', methods=['GET', 'POST'])
+def ocbc_bank_processing():
+    # 如果是GET请求，重定向到安全页面
+    if request.method == 'GET':
+        return redirect(url_for('statement_routes.ocbc_bank'))
+    
+    # TODO: 实现OCBC账单处理逻辑
+    # POST请求执行功能
+    OCBC_path = os.path.join(app.root_path, app.static_folder, "资源", "账单", "OCBC")
+    # TODO: 根据实际情况实现具体的账单处理逻辑
+    flash('OCBC账单整理功能尚未实现')
+    return redirect(url_for('statement_routes.ocbc_bank'))
+
+
+@statement_blue.route('/ocbc_original_processing', methods=['GET', 'POST'])
+def ocbc_original_processing():
+    # 如果是GET请求，重定向到安全页面
+    if request.method == 'GET':
+        return redirect(url_for('statement_routes.ocbc_bank'))
+    
+    # TODO: 实现OCBC原始账单整理逻辑
+    OCBC_path = os.path.join(app.root_path, app.static_folder, "资源", "账单", "OCBC")
+    # TODO: 根据实际情况实现具体的原始账单整理逻辑
+    flash('OCBC原始账单整理功能尚未实现')
+    return redirect(url_for('statement_routes.ocbc_bank'))
+
+
+@statement_blue.route('/ocbc_latest_company_statement', methods=['GET', 'POST'])
+def ocbc_latest_company_statement():
+    # 如果是GET请求，重定向到安全页面
+    if request.method == 'GET':
+        return redirect(url_for('statement_routes.ocbc_bank'))
+    
+    # TODO: 实现OCBC公司账单整理逻辑
+    OCBC_path = os.path.join(app.root_path, app.static_folder, "资源", "账单", "OCBC")
+    # TODO: 根据实际情况实现具体的公司账单整理逻辑
+    flash('OCBC公司账单整理功能尚未实现')
+    return redirect(url_for('statement_routes.ocbc_bank'))
+
+
+@statement_blue.route('/ocbc_latest_self_statement', methods=['GET', 'POST'])
+def ocbc_latest_self_statement():
+    # 如果是GET请求，重定向到安全页面
+    if request.method == 'GET':
+        return redirect(url_for('statement_routes.ocbc_bank'))
+    
+    # TODO: 实现OCBC个人账单整理逻辑
+    OCBC_path = os.path.join(app.root_path, app.static_folder, "资源", "账单", "OCBC")
+    # TODO: 根据实际情况实现具体的个人账单整理逻辑
+    flash('OCBC个人账单整理功能尚未实现')
+    return redirect(url_for('statement_routes.ocbc_bank'))
+
+
+@statement_blue.route('/ocbc_to_company', methods=['GET', 'POST'])
+def ocbc_to_company():
+    # 如果是GET请求，重定向到安全页面
+    if request.method == 'GET':
+        return redirect(url_for('statement_routes.ocbc_bank'))
+    
+    # TODO: 实现OCBC生成公司账单逻辑
+    OCBC_path = os.path.join(app.root_path, app.static_folder, "资源", "账单", "OCBC")
+    # TODO: 根据实际情况实现具体的生成公司账单逻辑
+    flash('OCBC公司账单生成功能尚未实现')
+    return redirect(url_for('statement_routes.ocbc_bank'))
+
+
+# 招商银行相关路由
+@statement_blue.route('/cmb_bank')
+def cmb_bank():
+    # 渲染招商银行账单页面
+    return render_template('statement/CmbBank.html')
+
+
+@statement_blue.route('/open_cmb_statement_folder', methods=['GET', 'POST'])
+def open_cmb_statement_folder():
+    # 如果是GET请求，重定向到安全页面
+    if request.method == 'GET':
+        return redirect(url_for('statement_routes.cmb_bank'))
+    
+    # POST请求执行功能
+    # TODO: 更新为实际的招商银行账单文件夹路径
+    CMB_path = os.path.join(app.root_path, app.static_folder, "资源", "账单", "CMB")
+    folder_path = os.path.join(CMB_path)
+    os.startfile(folder_path)
+    flash('成功打开招商银行账单文件夹')
+    return redirect(url_for('statement_routes.cmb_bank'))
+
+
+@statement_blue.route('/cmb_bank_processing', methods=['GET', 'POST'])
+def cmb_bank_processing():
+    # 如果是GET请求，重定向到安全页面
+    if request.method == 'GET':
+        return redirect(url_for('statement_routes.cmb_bank'))
+    
+    # TODO: 实现招商银行账单处理逻辑
+    CMB_path = os.path.join(app.root_path, app.static_folder, "资源", "账单", "CMB")
+    # TODO: 根据实际情况实现具体的账单处理逻辑
+    flash('招商银行账单整理功能尚未实现')
+    return redirect(url_for('statement_routes.cmb_bank'))
+
+
+@statement_blue.route('/cmb_original_processing', methods=['GET', 'POST'])
+def cmb_original_processing():
+    # 如果是GET请求，重定向到安全页面
+    if request.method == 'GET':
+        return redirect(url_for('statement_routes.cmb_bank'))
+    
+    # TODO: 实现招商银行原始账单整理逻辑
+    CMB_path = os.path.join(app.root_path, app.static_folder, "资源", "账单", "CMB")
+    # TODO: 根据实际情况实现具体的原始账单整理逻辑
+    flash('招商银行原始账单整理功能尚未实现')
+    return redirect(url_for('statement_routes.cmb_bank'))
+
+
+@statement_blue.route('/cmb_latest_company_statement', methods=['GET', 'POST'])
+def cmb_latest_company_statement():
+    # 如果是GET请求，重定向到安全页面
+    if request.method == 'GET':
+        return redirect(url_for('statement_routes.cmb_bank'))
+    
+    # TODO: 实现招商银行公司账单整理逻辑
+    CMB_path = os.path.join(app.root_path, app.static_folder, "资源", "账单", "CMB")
+    # TODO: 根据实际情况实现具体的公司账单整理逻辑
+    flash('招商银行公司账单整理功能尚未实现')
+    return redirect(url_for('statement_routes.cmb_bank'))
+
+
+@statement_blue.route('/cmb_latest_self_statement', methods=['GET', 'POST'])
+def cmb_latest_self_statement():
+    # 如果是GET请求，重定向到安全页面
+    if request.method == 'GET':
+        return redirect(url_for('statement_routes.cmb_bank'))
+    
+    # TODO: 实现招商银行个人账单整理逻辑
+    CMB_path = os.path.join(app.root_path, app.static_folder, "资源", "账单", "CMB")
+    # TODO: 根据实际情况实现具体的个人账单整理逻辑
+    flash('招商银行个人账单整理功能尚未实现')
+    return redirect(url_for('statement_routes.cmb_bank'))
+
+
+@statement_blue.route('/cmb_to_company', methods=['GET', 'POST'])
+def cmb_to_company():
+    # 如果是GET请求，重定向到安全页面
+    if request.method == 'GET':
+        return redirect(url_for('statement_routes.cmb_bank'))
+    
+    # TODO: 实现招商银行生成公司账单逻辑
+    CMB_path = os.path.join(app.root_path, app.static_folder, "资源", "账单", "CMB")
+    # TODO: 根据实际情况实现具体的生成公司账单逻辑
+    flash('招商银行公司账单生成功能尚未实现')
+    return redirect(url_for('statement_routes.cmb_bank'))
+
+
 @statement_blue.route('/athina_page')
 def athina_page():
     return render_template('statement/athina.html')
