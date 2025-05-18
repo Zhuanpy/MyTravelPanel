@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+
+{% block title %}业务类型管理{% endblock %}
+
+{% block head %}
+<style>
+    .type-container {
+        max-width: 1200px;
+        margin: 30px auto;
+        padding: 20px;
+    }
+    
+    .card {
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .table th {
+        background-color: #f8f9fa;
+    }
+    
+    .action-buttons {
+        white-space: nowrap;
+    }
+    
+    .status-badge {
+        min-width: 80px;
+        text-align: center;
+    }
+    
+    .description-cell {
+        max-width: 300px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="type-container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>业务类型管理</h2>
+        <div>
+            <form action="{{ url_for('business_types.init_types') }}" method="POST" class="d-inline">
+                <button type="submit" class="btn btn-secondary">初始化默认类型</button>
+            </form>
+            <a href="{{ url_for('business_types.create_type') }}" class="btn btn-primary ml-2">
+                <i class="fas fa-plus"></i> 添加类型
+            </a>
+        </div>
+    </div>
+    
+    <div class="card">
+        <div class="card-body">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>序号</th>
+                        <th>名称</th>
+                        <th>代码</th>
+                        <th>描述</th>
+                        <th>排序</th>
+                        <th>状态</th>
+                        <th>创建时间</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for type in types %}
+                    <tr>
+                        <td>{{ loop.index }}</td>
+                        <td>{{ type.name }}</td>
+                        <td>{{ type.code }}</td>
+                        <td class="description-cell" title="{{ type.description or '' }}">
+                            {{ type.description or '-' }}
+                        </td>
+                        <td>{{ type.sort_order }}</td>
+                        <td>
+                            <span class="badge {% if type.is_active %}bg-success{% else %}bg-secondary{% endif %} status-badge">
+                                {{ '启用' if type.is_active else '禁用' }}
+                            </span>
+                        </td>
+                        <td>{{ type.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                        <td class="action-buttons">
+                            <button class="btn btn-sm btn-outline-primary" onclick="toggleStatus({{ type.id }}, this)">
+                                {{ '禁用' if type.is_active else '启用' }}
+                            </button>
+                            <a href="{{ url_for('business_types.edit_type', type_id=type.id) }}" class="btn btn-sm btn-outline-secondary">
+                                编辑
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+function toggleStatus(typeId, button) {
+    fetch(`/business_types/${typeId}/toggle`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const statusBadge = button.closest('tr').querySelector('.status-badge');
+            const isActive = data.is_active;
+            
+            // 更新状态标签
+            statusBadge.textContent = isActive ? '启用' : '禁用';
+            statusBadge.className = `badge status-badge ${isActive ? 'bg-success' : 'bg-secondary'}`;
+            
+            // 更新按钮文本
+            button.textContent = isActive ? '禁用' : '启用';
+            
+            // 显示提示
+            alert('状态更新成功');
+        } else {
+            alert('操作失败：' + (data.error || '未知错误'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('操作失败，请稍后重试');
+    });
+}
+</script>
+{% endblock %} 
