@@ -2,16 +2,25 @@
 
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
+from flask_caching import Cache
 
 db = SQLAlchemy()
 migrate = Migrate()
+cache = Cache()
 
 
 def init_exts(app):
-
-
+    # 初始化数据库
     db.init_app(app=app)
     migrate.init_app(app=app, db=db)
+
+    # 初始化缓存
+    cache_config = {
+        'CACHE_TYPE': 'simple',  # 使用简单的内存缓存，生产环境可以改用 redis
+        'CACHE_DEFAULT_TIMEOUT': 3600  # 默认缓存时间1小时
+    }
+    app.config.from_mapping(cache_config)
+    cache.init_app(app)
 
     # 导入模型并创建所有表
     with app.app_context():

@@ -138,6 +138,7 @@
         <div class="info-list">
             {% set fields = [
                 ('名称', supplier.name or '未提供'),
+                ('供应商类型', supplier.supplier_type_display if supplier.supplier_type_display else '未提供'),
                 ('地址', supplier.address or '未提供'),
                 ('联系人', supplier.contact_person or '未提供'),
                 ('联系方式', supplier.contact_info or '未提供'),

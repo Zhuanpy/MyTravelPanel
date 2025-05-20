@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, send_from_directory
 import os
 from flask_migrate import Migrate
 from flask_login import LoginManager
@@ -6,8 +6,18 @@ from .routes.views import dex
 from .exts import init_exts, db
 from .utils.cache import cache
 from datetime import timedelta
+
+# 导入所有模型
+from .models.User import User
+from .models.Project import Project, ProjectRef, ProjectEO
+from .models.BusinessType import BusinessType
+from .models.Suppliers import Supplier
+
+# 导入所有路由
 from .routes.files_tasks import utils_blue
 from .routes.visas import visa_routes
+from .routes.project import projects
+from .routes.business_type import business_types
 
 from .routes.flights_home_routes import flight_home
 from .routes.flights_schedule_routes import flights_schedule
@@ -51,7 +61,6 @@ def create_app():
     @login_manager.user_loader
     def load_user(user_id):
         # todo 完成 User 相关内容
-        from App.models.User import User  # 避免循环导入
         return User.query.get(int(user_id))
 
     # 初始化数据库迁移
@@ -60,10 +69,12 @@ def create_app():
     # 注册蓝图
     app.register_blueprint(utils_blue, url_prefix='/utils')
     app.register_blueprint(visa_routes, url_prefix='/visa')
+    app.register_blueprint(projects, url_prefix='/projects')
+    app.register_blueprint(business_types, url_prefix='/business_types')
 
     app.register_blueprint(flight_home, url_prefix='/flight_home')
     app.register_blueprint(flights_schedule, url_prefix='/flight_schedule')
-    app.register_blueprint(flights_booking, url_prefix='/flight_booking')
+    app.register_blueprint(flights_booking, url_prefix='/flights_booking')
     app.register_blueprint(flights_athina, url_prefix='/flights_athina')
 
     app.register_blueprint(company_info, url_prefix='/company')
@@ -77,5 +88,13 @@ def create_app():
     # 配置静态文件处理
     app.config['SEND_FILE_MAX_AGE_DEFAULT'] = timedelta(days=1)
     app.config['STATIC_FOLDER'] = 'static'
+
+    # 添加对 .well-known 目录的支持
+    @app.route('/.well-known/appspecific/<path:filename>')
+    def well_known(filename):
+        return send_from_directory(
+            os.path.join(app.static_folder, '.well-known', 'appspecific'),
+            filename
+        )
 
     return app

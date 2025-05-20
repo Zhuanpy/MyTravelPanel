@@ -1,6 +1,7 @@
 from ..exts import db
 from datetime import datetime
 import logging
+from sqlalchemy.orm import validates
 
 
 class VisaCountries(db.Model):
@@ -179,8 +180,23 @@ class VisaProject(db.Model):
 
     __tablename__ = 'visa_projects'
 
+    VALID_STATUSES = ['待递交', '待出签', '已出签', '忽略单']
+
     id = db.Column(db.Integer, primary_key=True)  # 项目唯一标识符
     name = db.Column(db.String(100), nullable=False)  # 项目名称
     created_date = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)  # 创建时间
-    visa_status = db.Column(db.String(50), nullable=False)  # 签证状态（例如：Pending, Approved, Rejected）
+    visa_status = db.Column(db.String(50), nullable=False, default='待递交')  # 签证状态
     estimated_date = db.Column(db.Date, nullable=True)  # 预估完成日期
+
+    def __init__(self, name, visa_status='待递交', estimated_date=None):
+        if visa_status not in self.VALID_STATUSES:
+            raise ValueError(f"Invalid visa status. Must be one of: {', '.join(self.VALID_STATUSES)}")
+        self.name = name
+        self.visa_status = visa_status
+        self.estimated_date = estimated_date
+
+    @validates('visa_status')
+    def validate_status(self, key, status):
+        if status not in self.VALID_STATUSES:
+            raise ValueError(f"Invalid visa status. Must be one of: {', '.join(self.VALID_STATUSES)}")
+        return status

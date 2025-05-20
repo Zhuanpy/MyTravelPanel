@@ -1,4 +1,7 @@
 from ..exts import db
+from datetime import datetime
+from sqlalchemy import DECIMAL
+from ..code.utils.cache import cached
 
 
 class AirportData(db.Model):
@@ -10,8 +13,8 @@ class AirportData(db.Model):
     city_name = db.Column(db.String(100), index=True, nullable=False)
     airport_name_cn = db.Column(db.String(100), nullable=False)
     airport_name_en = db.Column(db.String(100), nullable=False)
-    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
-    updated_at = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
 
     def __repr__(self):
         return f'<Airport {self.airport_IATA} - {self.airport_name_en}>'
@@ -77,3 +80,138 @@ class FlightSchedule(db.Model):
             'schedule_city': self.schedule_city,
             'schedule_timing': self.schedule_timing,
         }
+
+
+class FlightOrder(db.Model):
+    """机票订单主表"""
+    __tablename__ = 'flight_orders'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    order_number = db.Column(db.String(20), unique=True, nullable=False, comment='订单编号')
+    hid_number = db.Column(db.String(50), comment='会员号')
+    passenger_name = db.Column(db.String(50), nullable=False, comment='乘客姓名')
+    contact_person = db.Column(db.String(50), comment='联系人')
+    contact_phone = db.Column(db.String(20), nullable=True, comment='联系人电话')
+    contact_name = db.Column(db.String(50), nullable=False, comment='联系人姓名')
+    supplier_name = db.Column(db.String(100), comment='供应商名称')
+    
+    # 航班信息
+    departure_date = db.Column(db.Date, comment='出发日期')
+    itinerary = db.Column(db.String(200), comment='行程信息')
+    departure_city = db.Column(db.String(50), comment='出发城市')
+    arrival_city = db.Column(db.String(50), comment='到达城市')
+    airline = db.Column(db.String(50), comment='航空公司')
+    flight_number = db.Column(db.String(20), comment='航班号')
+    departure_time = db.Column(db.DateTime, comment='起飞时间')
+    arrival_time = db.Column(db.DateTime, comment='到达时间')
+    cabin_class = db.Column(db.String(20), comment='舱位等级')
+    
+    # 中转信息
+    is_transit = db.Column(db.Boolean, default=False, comment='是否中转')
+    transit_info = db.Column(db.Text, comment='中转信息')
+    
+    # 订单状态和支付信息
+    status = db.Column(db.String(20), nullable=False, default='pending', comment='订单状态')
+    order_status = db.Column(db.String(20), comment='订单状态')
+    payment_status = db.Column(db.String(20), comment='支付状态')
+    payment_method = db.Column(db.String(20), comment='支付方式')
+    selling_price = db.Column(DECIMAL(10, 2), comment='售价')
+    cost_price = db.Column(DECIMAL(10, 2), comment='成本')
+    actual_payment = db.Column(DECIMAL(10, 2), comment='实际支付金额')
+    
+    # 票务信息
+    ticket_issue_time = db.Column(db.DateTime, comment='出票时间')
+    operator = db.Column(db.String(50), comment='操作员')
+    refund_change_policy = db.Column(db.Text, comment='退改政策')
+    baggage_allowance = db.Column(db.String(100), comment='行李额')
+    pnr_code = db.Column(db.String(10), comment='PNR编码')
+    e_ticket_number = db.Column(db.String(13), comment='电子客票号')    
+    client_type = db.Column(db.String(20), comment='客户类型')
+    
+    # 其他信息
+    remarks = db.Column(db.Text, comment='备注')
+    after_sales_record = db.Column(db.Text, comment='售后记录')
+    created_date = db.Column(db.DateTime, default=datetime.now, comment='创建时间')
+    updated_date = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now, comment='更新时间')
+    
+    # 关联信息
+    passengers = db.relationship('Passenger', backref='order', lazy=True)
+    flight_segments = db.relationship('FlightSegment', backref='order', lazy=True)
+
+    @property
+    @cached(expire_minutes=30)
+    def formatted_itinerary(self):
+        """获取格式化的行程信息"""
+        segments = []
+        for segment in sorted(self.flight_segments, key=lambda x: x.departure_time):
+            date_str = segment.departure_time.strftime('%d%b').upper()
+            route = f"{segment.departure_airport}-{segment.arrival_airport}"
+            segments.append(f"{date_str} {route}")
+        return " → ".join(segments)
+
+    @property
+    @cached(expire_minutes=30)
+    def first_departure_city(self):
+        """获取第一个出发城市"""
+        if self.flight_segments:
+            first_segment = min(self.flight_segments, key=lambda x: x.departure_time)
+            return first_segment.departure_airport
+        return self.departure_city
+
+    @property
+    @cached(expire_minutes=30)
+    def final_arrival_city(self):
+        """获取最终到达城市"""
+        if self.flight_segments:
+            last_segment = max(self.flight_segments, key=lambda x: x.departure_time)
+            return last_segment.arrival_airport
+        return self.arrival_city
+
+
+class Passenger(db.Model):
+    """乘机人信息表"""
+    __tablename__ = 'passengers'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    order_id = db.Column(db.Integer, db.ForeignKey('flight_orders.id'), nullable=False)
+    
+    # 乘客基本信息
+    name = db.Column(db.String(50), nullable=False, comment='乘客姓名')
+    
+    # 乘客类型：成人、儿童、婴儿
+    passenger_type = db.Column(db.String(10), nullable=False, default='adult', comment='乘客类型')
+    
+    # 票价信息
+    selling_price = db.Column(DECIMAL(10, 2), comment='售价')
+    cost_price = db.Column(DECIMAL(10, 2), comment='成本')
+    phone = db.Column(db.String(20), comment='乘客电话')
+    
+    # 票务信息
+    ticket_number = db.Column(db.String(13), comment='电子客票号')
+    pnr = db.Column(db.String(6), comment='PNR编码')
+
+
+class FlightSegment(db.Model):
+    """航段信息表"""
+    __tablename__ = 'flight_segments'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    order_id = db.Column(db.Integer, db.ForeignKey('flight_orders.id'), nullable=False)
+    
+    # 航班信息
+    flight_number = db.Column(db.String(10), nullable=False, comment='航班号')
+    departure_airport = db.Column(db.String(3), nullable=False, comment='出发机场')
+    arrival_airport = db.Column(db.String(3), nullable=False, comment='到达机场')
+    departure_time = db.Column(db.DateTime, nullable=False, comment='起飞时间')
+    arrival_time = db.Column(db.DateTime, nullable=False, comment='到达时间')
+    
+    # 舱位信息
+    cabin_class = db.Column(db.String(20), nullable=False, comment='舱位等级')
+    cabin_code = db.Column(db.String(2), nullable=False, comment='舱位代码')
+    
+    # PNR信息
+    pnr = db.Column(db.String(6), comment='订座记录')
+    ticket_number = db.Column(db.String(13), comment='票号')
+    
+    # 航段状态
+    status = db.Column(db.String(20), nullable=False, default='pending', comment='航段状态')

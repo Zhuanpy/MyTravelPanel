@@ -278,6 +278,276 @@
         width: 100px;
         text-align: center;
     }
+
+    /* 状态选择框基础样式 */
+    .visa-status-select {
+        padding: 0.25rem 0.75rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+        border-radius: 15px;
+        border: 1px solid #e2e8f0;
+        appearance: none;
+        background-color: white;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        width: 100px;
+        height: 32px;
+        text-align: center;
+    }
+
+    /* 状态选择框悬停效果 */
+    .visa-status-select:hover {
+        border-color: #4a5568;
+    }
+
+    /* 状态选择框焦点效果 */
+    .visa-status-select:focus {
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.5);
+    }
+
+    /* 状态指示器样式 */
+    .status-indicator {
+        display: none;
+        align-items: center;
+        margin-left: 0.5rem;
+    }
+
+    .status-indicator i {
+        color: #4299e1;
+        font-size: 1rem;
+    }
+
+    /* Toast 样式优化 */
+    .toast {
+        min-width: 250px;
+        padding: 1rem 1.5rem;
+        margin-bottom: 1rem;
+        border-radius: 8px;
+        font-weight: 500;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        opacity: 0;
+        transform: translateY(-20px);
+        transition: all 0.3s ease;
+    }
+
+    .toast.show {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+    .toast.success {
+        background-color: #f0fff4;
+        border: 1px solid #9ae6b4;
+    }
+
+    .toast.error {
+        background-color: #fff5f5;
+        border: 1px solid #feb2b2;
+    }
+
+    /* 状态颜色样式 */
+    .status-pending {
+        background-color: #fbd38d !important;
+        color: #744210 !important;
+    }
+
+    .status-submitted {
+        background-color: #90cdf4 !important;
+        color: #2c5282 !important;
+    }
+
+    .status-approved {
+        background-color: #9ae6b4 !important;
+        color: #22543d !important;
+    }
+
+    .status-ignored {
+        background-color: #718096 !important;
+        color: #ffffff !important;
+    }
+
+    /* 更新航段信息表单样式 */
+    .flight-info-section {
+        background-color: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 1.25rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .flight-info-title {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #2d3748;
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        border-bottom: 1px solid #e2e8f0;
+        padding-bottom: 0.75rem;
+    }
+
+    .flight-info-form {
+        margin-bottom: 1rem;
+    }
+
+    .form-group {
+        margin-bottom: 0.75rem;
+    }
+
+    .form-group label {
+        display: block;
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: #4a5568;
+        margin-bottom: 0.25rem;
+    }
+
+    .form-group label.required::after {
+        content: "*";
+        color: #e53e3e;
+        margin-left: 0.25rem;
+    }
+
+    .form-control {
+        width: 100%;
+        padding: 0.375rem 0.75rem;
+        border: 1px solid #e2e8f0;
+        border-radius: 0.375rem;
+        font-size: 0.875rem;
+        color: #2d3748;
+        transition: all 0.2s;
+        height: 32px;
+    }
+
+    .form-control:focus {
+        outline: none;
+        border-color: #4299e1;
+        box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.1);
+    }
+
+    .btn {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.375rem 0.75rem;
+        border-radius: 0.375rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+        border: none;
+        gap: 0.5rem;
+        height: 32px;
+    }
+
+    .btn i {
+        font-size: 0.875rem;
+    }
+
+    .btn-primary {
+        background-color: #4299e1;
+        color: white;
+        margin-right: 0.5rem;
+    }
+
+    .btn-primary:hover {
+        background-color: #3182ce;
+    }
+
+    .btn-secondary {
+        background-color: #e2e8f0;
+        color: #4a5568;
+    }
+
+    .btn-secondary:hover {
+        background-color: #cbd5e0;
+    }
+
+    .segment-card {
+        background-color: #f7fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        padding: 0.75rem;
+        margin-bottom: 0.75rem;
+        position: relative;
+    }
+
+    .segment-card:hover {
+        background-color: #edf2f7;
+    }
+
+    .segment-info {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 0.75rem;
+        align-items: center;
+    }
+
+    .segment-info-item {
+        font-size: 0.875rem;
+        color: #4a5568;
+    }
+
+    .segment-info-item strong {
+        color: #2d3748;
+        margin-right: 0.25rem;
+    }
+
+    .segment-actions {
+        position: absolute;
+        top: 0.5rem;
+        right: 0.5rem;
+        display: flex;
+        gap: 0.25rem;
+    }
+
+    .btn-icon {
+        padding: 0.25rem;
+        border-radius: 0.25rem;
+        cursor: pointer;
+        transition: all 0.2s;
+        color: #4a5568;
+        background: none;
+        border: none;
+    }
+
+    .btn-icon:hover {
+        background-color: #e2e8f0;
+        color: #2d3748;
+    }
+
+    /* 调整行间距 */
+    .row {
+        margin-bottom: 0.5rem;
+    }
+
+    /* 调整输入框高度和间距 */
+    input[type="date"].form-control,
+    input[type="time"].form-control {
+        padding: 0.25rem 0.5rem;
+    }
+
+    /* 添加响应式布局 */
+    @media (max-width: 768px) {
+        .flight-info-form .row {
+            margin-right: -0.5rem;
+            margin-left: -0.5rem;
+        }
+        
+        .flight-info-form [class*="col-"] {
+            padding-right: 0.5rem;
+            padding-left: 0.5rem;
+        }
+        
+        .segment-info {
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        }
+    }
 </style>
 {% endblock %}
 
@@ -285,7 +555,6 @@
 <div class="visa-project-container">
     <div class="visa-project-header">
         <h1 class="visa-project-title">签证项目管理</h1>
-
     </div>
     
     <h2 class="visa-project-links-title">现有签证项目</h2>
@@ -294,7 +563,6 @@
         <form method="get" action="{{ url_for('visa_routes.show_current_all_projects') }}">
             <!-- 签证状态筛选 -->
             <label for="visa_status">签证状态：</label>
-            
             <select name="visa_status" id="visa_status" onchange="this.form.submit()">
                 <option value="pending_submission">待递交</option>
                 <option value="submitted">待出签</option>
@@ -312,6 +580,71 @@
         </form>
     </div>
 
+    <!-- 航段信息表单 -->
+    <div class="flight-info-section">
+        <h2 class="flight-info-title">
+            <i class="fas fa-plane"></i>
+            航段信息
+        </h2>
+        <form id="flightInfoForm" class="flight-info-form">
+            <div class="row">
+                <div class="col-md-3">
+                    <div class="form-group">
+                        <label for="flightNumber" class="required">航班号</label>
+                        <input type="text" id="flightNumber" name="flightNumber" class="form-control" placeholder="例如: MU123" required>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="form-group">
+                        <label for="departureCity" class="required">出发城市</label>
+                        <input type="text" id="departureCity" name="departureCity" class="form-control" placeholder="例如: PVG" required>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="form-group">
+                        <label for="arrivalCity" class="required">到达城市</label>
+                        <input type="text" id="arrivalCity" name="arrivalCity" class="form-control" placeholder="例如: HND" required>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="form-group">
+                        <label for="departureDate" class="required">出发日期</label>
+                        <input type="date" id="departureDate" name="departureDate" class="form-control" required>
+                    </div>
+                </div>
+            </div>
+            <div class="row mt-2">
+                <div class="col-md-3">
+                    <div class="form-group">
+                        <label for="departureTime">出发时间</label>
+                        <input type="time" id="departureTime" name="departureTime" class="form-control">
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="form-group">
+                        <label for="arrivalTime">到达时间</label>
+                        <input type="time" id="arrivalTime" name="arrivalTime" class="form-control">
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-group" style="margin-top: 1.9rem;">
+                        <button type="button" class="btn btn-primary" onclick="addFlightSegment()">
+                            <i class="fas fa-plus"></i> 添加航段
+                        </button>
+                        <button type="button" class="btn btn-secondary" onclick="clearFlightForm()">
+                            <i class="fas fa-times"></i> 清空
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </form>
+
+        <!-- 已添加的航段列表 -->
+        <div class="flight-segments mt-3" id="flightSegments">
+            <!-- 航段卡片将通过 JavaScript 动态添加 -->
+        </div>
+    </div>
+
     <!-- 项目列表 -->
     <table class="visa-project-table">
         <thead>
@@ -321,43 +654,39 @@
                 <th>创建时间</th>
                 <th>签证状态</th>
                 <th>预估日期</th>
-                <th>保存修改</th>
                 <th>打开项目</th>
                 <th>删除项目</th>
             </tr>
         </thead>
         <tbody>
             {% for project in projects %}
-            <form method="POST" action="{{ url_for('visa_routes.update_current_project', project_id=project.id) }}">
-                <!-- 隐藏字段，用于传递签证状态和排序方式 -->
-                <input type="hidden" name="current_visa_status" value="{{ visa_status }}">
-                <input type="hidden" name="current_sort_by" value="{{ sort_by }}">
-                <tr>
-                    <td>{{ project.id }}</td>
-                    <td><a href="{{ url_for('visa_routes.open_current_project_file', file_name=project.name, visa_status=visa_status, sort_by=sort_by) }}" class="visa-project-name-link">{{ project.name }}</a></td>
-                    <td>{{ project.created_date.strftime('%Y-%m-%d') }}</td>
-                    <td>
-                        <select name="visa_status" class="visa-project-select-field">
+            <tr>
+                <td>{{ project.id }}</td>
+                <td><a href="{{ url_for('visa_routes.open_current_project_file', file_name=project.name, visa_status=visa_status, sort_by=sort_by) }}" class="visa-project-name-link">{{ project.name }}</a></td>
+                <td>{{ project.created_date.strftime('%Y-%m-%d') }}</td>
+                <td>
+                    <div class="d-flex align-items-center">
+                        <select name="visa_status" class="visa-status-select" data-project-id="{{ project.id }}" data-status="{{ project.visa_status }}">
                             <option value="待递交" {% if project.visa_status == '待递交' %}selected{% endif %}>待递交</option>
                             <option value="待出签" {% if project.visa_status == '待出签' %}selected{% endif %}>待出签</option>
                             <option value="已出签" {% if project.visa_status == '已出签' %}selected{% endif %}>已出签</option>
                             <option value="忽略单" {% if project.visa_status == '忽略单' %}selected{% endif %}>忽略单</option>
                         </select>
-                    </td>
-                    <td><input type="text" name="estimated_date" value="{{ project.estimated_date }}" class="visa-project-input-field"></td>
-                    <td>
-                        <button type="submit" class="visa-project-action-link">保存修改</button>
-                    </td>
-                    <td>
-                        <a class="visa-project-open-link" href="{{ url_for('visa_routes.open_current_project_file', file_name=project.name, visa_status=visa_status, sort_by=sort_by) }}">
-                            打开项目
-                        </a>
-                    </td>
-                    <td>
-                        <a class="visa-project-delete-link" href="#" data-project-id="{{ project.id }}" onclick="deleteProject(event, this)">删除</a>
-                    </td>
-                </tr>
-            </form>
+                        <span class="status-indicator">
+                            <i class="fas fa-spinner fa-spin"></i>
+                        </span>
+                    </div>
+                </td>
+                <td><input type="text" name="estimated_date" value="{{ project.estimated_date }}" class="visa-project-input-field"></td>
+                <td>
+                    <a class="visa-project-open-link" href="{{ url_for('visa_routes.open_current_project_file', file_name=project.name, visa_status=visa_status, sort_by=sort_by) }}">
+                        打开项目
+                    </a>
+                </td>
+                <td>
+                    <a class="visa-project-delete-link" href="#" data-project-id="{{ project.id }}" onclick="deleteProject(event, this)">删除</a>
+                </td>
+            </tr>
             {% endfor %}
         </tbody>
     </table>
@@ -375,20 +704,149 @@
         </div>
     </div>
 </div>
+
+<!-- 添加 Toast 容器 -->
+<div class="toast-container"></div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-    function deleteProject(event, element) {
-        
-        event.preventDefault(); // 阻止默认跳转行为
+    // 状态映射及其对应的类名
+    const STATUS_CLASSES = {
+        '待递交': 'status-pending',
+        '待出签': 'status-submitted',
+        '已出签': 'status-approved',
+        '忽略单': 'status-ignored'
+    };
 
+    // Toast 通知函数
+    function showToast(message, type = 'success') {
+        const container = document.querySelector('.toast-container');
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        
+        const icon = type === 'success' ? 
+            '<i class="fas fa-check-circle" style="color: #48bb78;"></i>' : 
+            '<i class="fas fa-exclamation-circle" style="color: #f56565;"></i>';
+        
+        toast.innerHTML = `${icon}<span>${message}</span>`;
+        container.appendChild(toast);
+        
+        // 触发重排以启动动画
+        toast.offsetHeight;
+        toast.classList.add('show');
+        
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+
+    // 更新状态选择框样式
+    function updateSelectStyle(select) {
+        const status = select.value;
+        // 移除所有可能的状态类
+        Object.values(STATUS_CLASSES).forEach(className => {
+            select.classList.remove(className);
+        });
+        
+        // 添加新的状态类
+        const statusClass = STATUS_CLASSES[status];
+        if (statusClass) {
+            select.classList.add(statusClass);
+        }
+        
+        // 更新 data-status 属性
+        select.setAttribute('data-status', status);
+    }
+
+    // 初始化所有状态选择框
+    document.addEventListener('DOMContentLoaded', function() {
+        const statusSelects = document.querySelectorAll('.visa-status-select');
+        statusSelects.forEach(select => {
+            // 初始化样式
+            updateSelectStyle(select);
+            
+            // 监听状态变化
+            select.addEventListener('change', async function(event) {
+                event.preventDefault();
+                const projectId = this.getAttribute('data-project-id');
+                const newStatus = this.value;
+                const originalStatus = this.getAttribute('data-status');
+                const indicator = this.nextElementSibling;
+                const row = this.closest('tr');
+                
+                // 显示加载指示器
+                indicator.style.display = 'inline-flex';
+                
+                try {
+                    // 发送请求
+                    const response = await fetch(`/visa/visa/update_status/${projectId}`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest'
+                        },
+                        body: JSON.stringify({
+                            visa_status: newStatus
+                        })
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        // 更新选择框的状态和样式
+                        this.setAttribute('data-status', newStatus);
+                        updateSelectStyle(this);
+                        
+                        // 更新行数据
+                        if (data.project) {
+                            // 更新状态单元格
+                            const statusCell = row.querySelector('.visa-status-select');
+                            if (statusCell) {
+                                statusCell.value = data.project.visa_status;
+                                updateSelectStyle(statusCell);
+                            }
+                            
+                            // 更新预估日期单元格
+                            const dateInput = row.querySelector('input[name="estimated_date"]');
+                            if (dateInput && data.project.estimated_date) {
+                                dateInput.value = data.project.estimated_date;
+                            }
+                        }
+                        
+                        showToast(`签证状态已更新为：${newStatus}`, 'success');
+                    } else {
+                        throw new Error(data.message || '更新失败');
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    showToast(error.message || '状态更新失败，请稍后重试', 'error');
+                    
+                    // 回滚到原始状态
+                    this.value = originalStatus;
+                    updateSelectStyle(this);
+                } finally {
+                    // 隐藏加载指示器
+                    indicator.style.display = 'none';
+                }
+            });
+        });
+    });
+
+    // 删除项目函数
+    function deleteProject(event, element) {
+        event.preventDefault();
         const projectId = element.getAttribute('data-project-id');
         const url = `/visa/visa/delete_current_project/${projectId}`;
         
         if (confirm("确定要删除此项目吗？")) {
             fetch(url, {
-                method: 'POST', // 使用 POST 方法
+                method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
@@ -396,19 +854,150 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    alert("项目删除成功！");
-                    // 从 DOM 中移除对应的表格行
+                    showToast("项目删除成功！", "success");
                     const row = element.closest('tr');
                     row.parentNode.removeChild(row);
                 } else {
-                    alert("删除失败：" + data.message);
+                    showToast("删除失败：" + data.message, "error");
                 }
             })
             .catch(error => {
                 console.error("Error deleting project:", error);
-                alert("请求失败，请稍后重试！");
+                showToast("请求失败，请稍后重试！", "error");
             });
         }
+    }
+
+    // 更新航段信息相关的脚本
+    async function addFlightSegment() {
+        const form = document.getElementById('flightInfoForm');
+        const flightNumber = form.flightNumber.value;
+        const departureCity = form.departureCity.value;
+        const arrivalCity = form.arrivalCity.value;
+        const departureDate = form.departureDate.value;
+        const departureTime = form.departureTime.value;
+        const arrivalTime = form.arrivalTime.value;
+
+        // 验证必填字段
+        if (!flightNumber || !departureCity || !arrivalCity || !departureDate) {
+            showToast('请填写所有必要信息', 'error');
+            return;
+        }
+
+        try {
+            // 发送数据到后端
+            const response = await fetch('/visa/flight_segments/add', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    flightNumber,
+                    departureCity,
+                    arrivalCity,
+                    departureDate,
+                    departureTime,
+                    arrivalTime
+                })
+            });
+
+            const data = await response.json();
+            
+            if (data.success) {
+                // 创建航段卡片
+                const segmentCard = document.createElement('div');
+                segmentCard.className = 'segment-card';
+                segmentCard.innerHTML = `
+                    <div class="segment-info">
+                        <strong>航班号:</strong> ${flightNumber}
+                    </div>
+                    <div class="segment-info">
+                        <strong>出发:</strong> ${departureCity} (${departureTime || 'N/A'})
+                    </div>
+                    <div class="segment-info">
+                        <strong>到达:</strong> ${arrivalCity} (${arrivalTime || 'N/A'})
+                    </div>
+                    <div class="segment-info">
+                        <strong>日期:</strong> ${departureDate}
+                    </div>
+                    <div class="segment-actions">
+                        <button class="btn-icon" onclick="editSegment(this)" title="编辑">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn-icon" onclick="deleteSegment(this)" title="删除">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                `;
+
+                // 添加到航段列表
+                document.getElementById('flightSegments').appendChild(segmentCard);
+
+                // 清空表单
+                clearFlightForm();
+                
+                // 显示成功提示
+                showToast('航段添加成功', 'success');
+            } else {
+                showToast(data.message || '添加失败', 'error');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            showToast('添加航段时发生错误', 'error');
+        }
+    }
+
+    async function deleteSegment(button) {
+        if (confirm('确定要删除这个航段吗？')) {
+            try {
+                const card = button.closest('.segment-card');
+                const segmentId = card.dataset.segmentId; // 假设我们在卡片上存储了ID
+                
+                const response = await fetch('/visa/flight_segments/delete', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        segmentId: segmentId
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    card.remove();
+                    showToast('航段已删除', 'success');
+                } else {
+                    showToast(data.message || '删除失败', 'error');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showToast('删除航段时发生错误', 'error');
+            }
+        }
+    }
+
+    function clearFlightForm() {
+        document.getElementById('flightInfoForm').reset();
+    }
+
+    function editSegment(button) {
+        const card = button.closest('.segment-card');
+        const infos = card.querySelectorAll('.segment-info');
+        
+        // 将卡片中的数据填回表单
+        const form = document.getElementById('flightInfoForm');
+        form.flightNumber.value = infos[0].textContent.split(':')[1].trim();
+        form.departureCity.value = infos[1].textContent.split(':')[1].split('(')[0].trim();
+        form.arrivalCity.value = infos[2].textContent.split(':')[1].split('(')[0].trim();
+        form.departureDate.value = infos[3].textContent.split(':')[1].trim();
+        
+        // 删除原卡片
+        card.remove();
+        
+        // 滚动到表单
+        form.scrollIntoView({ behavior: 'smooth' });
     }
 </script>
 {% endblock %}

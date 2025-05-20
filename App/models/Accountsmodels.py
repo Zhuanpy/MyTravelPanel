@@ -6,6 +6,16 @@ class SupplierData(db.Model):
     # 表名
     __tablename__ = 'supplier_data'
 
+    # 供应商类型中英文映射
+    SUPPLIER_TYPE_MAP = {
+        'visa': '签证',
+        'flight': '机票',
+        'hotel': '酒店',
+        'transport': '用车',
+        'local_operator': '地接',
+        'other': '其他'
+    }
+
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
 
     # 创建时间
@@ -15,6 +25,9 @@ class SupplierData(db.Model):
 
     # 供应商名字
     name = db.Column(db.String(255), index=True)
+    # 供应商类型
+    supplier_type = db.Column(db.Enum('visa', 'flight', 'hotel', 'transport', 'local_operator', 'other'), 
+                            nullable=False, default='other', comment='供应商类型')
     # 供应商 地址
     address = db.Column(db.String(255), index=True)
     # 供应商联系信息
@@ -35,6 +48,22 @@ class SupplierData(db.Model):
 
     # 备注 (notes)： 用于记录额外的供应商信息或与供应商的交互历史。
     notes = db.Column(db.Text)
+
+    @property
+    def supplier_type_display(self):
+        """获取供应商类型的显示名称"""
+        return self.SUPPLIER_TYPE_MAP.get(self.supplier_type, self.supplier_type)
+
+    @classmethod
+    def get_supplier_types(cls):
+        """获取供应商类型列表"""
+        return ['visa', 'flight', 'hotel', 'transport', 'local_operator', 'other']
+
+    @classmethod
+    def get_supplier_type_choices(cls):
+        """获取供应商类型选项（包含中英文）"""
+        return [(type_code, cls.SUPPLIER_TYPE_MAP.get(type_code, type_code)) 
+                for type_code in cls.get_supplier_types()]
 
     @classmethod
     def add_supplier(cls, name, address, contact_info=None, contact_person=None, status='active',

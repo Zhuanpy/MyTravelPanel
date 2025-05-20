@@ -1,8 +1,5 @@
 from flask import Blueprint, render_template, request, jsonify, redirect, url_for, flash
 from App.models.Flightmodels import FlightSchedule, AirportData
-from App.code.utils.flightradar24 import get_flight_info
-import datetime
-from ..exts import db
 from ..utils.cache import cache
 from ..code.FlightTicket.ConvertFlight.ConvertFlightItinerary import format_flight_info
 from ..code.utils.utils import FlightData as flight
@@ -36,7 +33,6 @@ def city_language(city_name: str):
         # 打印错误日志（可选）
         print(f"Error fetching airport data: {e}")
         return "未知机场", "Unknown Airport"
-
 
 @cache.memoize(timeout=300)
 def request_schedule_data(flight_number):
@@ -109,7 +105,7 @@ def simplify_itinerary_by_flight_and_date():
 
         try:
             data = request.get_json()
-            print(data)
+            # print(data)
             # 获取语言、行李、价格和航班信息
             language = data.get('language', '中文')
             baggage = data.get('baggage', '')
@@ -152,7 +148,7 @@ def simplify_itinerary_by_flight_and_date():
                                                language='EN',
                                                luggage=baggage,
                                                price=price)
-            print(itinerary)
+            # print(itinerary)
             return jsonify({'itinerary': itinerary})
 
         except Exception as e:

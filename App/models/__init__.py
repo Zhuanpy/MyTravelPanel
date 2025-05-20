@@ -6,3 +6,5 @@ from .Utilsmodels import Task
 from .Suppliers import *
 from .account import Account
 from .User import *
+from .Project import *
+from .BusinessType import *

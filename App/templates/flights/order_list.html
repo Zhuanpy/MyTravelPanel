@@ -1,0 +1,614 @@
+{% extends "base.html" %}
+
+{% block title %}订单列表{% endblock %}
+
+{% block head %}
+<style>
+    /* 容器宽度调整 */
+    .container {
+        max-width: 1800px !important;
+        width: 98% !important;
+        margin: 0 auto;
+        padding: 0 15px;
+    }
+
+    /* 表格行高固定样式 */
+    .table td, .table th {
+        height: 45px;
+        line-height: 30px;
+        vertical-align: middle;
+        white-space: nowrap;
+        padding: 4px 12px;
+    }
+
+    /* 列宽度调整 */
+    .table th:nth-child(1), .table td:nth-child(1) { min-width: 130px; } /* 订单号 */
+    .table th:nth-child(2), .table td:nth-child(2) { min-width: 180px; } /* 行程 */
+    .table th:nth-child(3), .table td:nth-child(3) { min-width: 100px; } /* 乘客 */
+    .table th:nth-child(4), .table td:nth-child(4) { min-width: 100px; } /* 联系人 */
+    .table th:nth-child(5), .table td:nth-child(5) { min-width: 100px; } /* 供应商 */
+    .table th:nth-child(6), .table td:nth-child(6) { min-width: 120px; } /* 总售价 */
+    .table th:nth-child(7), .table td:nth-child(7) { min-width: 120px; } /* 总成本 */
+    .table th:nth-child(8), .table td:nth-child(8) { min-width: 120px; } /* 订单状态 */
+    .table th:nth-child(9), .table td:nth-child(9) { min-width: 120px; } /* 支付状态 */
+    .table th:nth-child(10), .table td:nth-child(10) { min-width: 160px; } /* 创建时间 */
+
+    /* 行程单元格样式 */
+    .itinerary-cell {
+        white-space: normal !important;
+        line-height: 1.5 !important;
+        min-width: 160px;
+    }
+
+    /* 文本溢出处理 */
+    .table td {
+        max-width: 150px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    /* 状态选择框样式 */
+    .status-select, .payment-select {
+        padding: 0.25rem 0.75rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+        border-radius: 15px;
+        border: none;
+        appearance: none;
+        background-repeat: no-repeat;
+        background-position: right 0.5rem center;
+        background-size: 1.5em;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        width: 85px;
+        height: 28px;
+        text-align: center;
+        text-align-last: center;
+    }
+
+    /* 根据选中值设置不同的背景色 */
+    .status-select[data-status="pending"] {
+        background-color: #fbd38d;
+        color: #744210;
+    }
+
+    .status-select[data-status="confirmed"] {
+        background-color: #90cdf4;
+        color: #2c5282;
+    }
+
+    .status-select[data-status="ticketed"] {
+        background-color: #9ae6b4;
+        color: #22543d;
+    }
+
+    .status-select[data-status="completed"] {
+        background-color: #4299e1;
+        color: #ffffff;
+    }
+
+    .status-select[data-status="cancelled"] {
+        background-color: #718096;
+        color: #ffffff;
+    }
+
+    /* 支付状态样式 */
+    .payment-select[data-status="unpaid"] {
+        background-color: #fc8181;
+        color: #742a2a;
+    }
+
+    .payment-select[data-status="paid"] {
+        background-color: #68d391;
+        color: #22543d;
+    }
+
+    .payment-select[data-status="refunded"] {
+        background-color: #a0aec0;
+        color: #2d3748;
+    }
+
+    /* 状态选择框选项样式 */
+    .status-select option, .payment-select option {
+        text-align: left;
+        padding: 8px;
+        background-color: white;
+        color: #2d3748;
+    }
+
+    /* 状态指示器样式 */
+    .status-indicator {
+        font-size: 0.875rem;
+        display: none;
+        align-items: center;
+        margin-left: 0.25rem;
+    }
+
+    .status-indicator.success {
+        color: #48bb78;
+    }
+
+    .status-indicator.error {
+        color: #f56565;
+    }
+
+    /* Toast 通知样式 */
+    .toast-container {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 1050;
+    }
+
+    .toast {
+        background: white;
+        border-radius: 8px;
+        padding: 1rem;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        margin-bottom: 0.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+
+    .toast.show {
+        opacity: 1;
+    }
+
+    /* 操作按钮样式调整 */
+    .btn-sm {
+        padding: 2px 8px;
+        margin: 0 2px;
+        height: 28px;
+        line-height: 24px;
+        font-size: 0.875rem;
+    }
+
+    /* 操作列宽度调整 */
+    .table th:last-child,
+    .table td:last-child {
+        min-width: 180px;
+        width: 180px;
+        text-align: center;
+    }
+
+    /* 操作按钮组样式 */
+    .action-buttons {
+        display: flex;
+        justify-content: center;
+        gap: 5px;
+    }
+
+    /* 表格响应式滚动条美化 */
+    .table-responsive::-webkit-scrollbar {
+        height: 8px;
+    }
+
+    .table-responsive::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 4px;
+    }
+
+    .table-responsive::-webkit-scrollbar-thumb {
+        background: #888;
+        border-radius: 4px;
+    }
+
+    .table-responsive::-webkit-scrollbar-thumb:hover {
+        background: #555;
+    }
+
+    /* 禁用按钮样式 */
+    .btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        pointer-events: none;
+        background-color: #e9ecef;
+        border-color: #dee2e6;
+        color: #6c757d;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="mb-0">订单列表</h2>
+        <a href="{{ url_for('flights_booking.create_order') }}" class="btn btn-primary">创建机票订单</a>
+    </div>
+
+    <!-- 搜索表单 -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="GET" action="{{ url_for('flights_booking.order_list') }}" class="row g-3">
+                <div class="col-md-2">
+                    <input type="text" class="form-control" name="order_number" placeholder="订单号" value="{{ request.args.get('order_number', '') }}">
+                </div>
+                <div class="col-md-2">
+                    <input type="text" class="form-control" name="contact_name" placeholder="联系人" value="{{ request.args.get('contact_name', '') }}">
+                </div>
+                <div class="col-md-2">
+                    <select class="form-control auto-submit" name="supplier_name">
+                        <option value="">所有供应商</option>
+                        {% for supplier in suppliers %}
+                        <option value="{{ supplier.name }}" {% if request.args.get('supplier_name') == supplier.name %}selected{% endif %}>{{ supplier.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <select class="form-control auto-submit" name="order_status">
+                        <option value="">所有未取消订单</option>
+                        <option value="all" {% if request.args.get('order_status') == 'all' %}selected{% endif %}>显示全部订单</option>
+                        <option value="pending" {% if request.args.get('order_status') == 'pending' %}selected{% endif %}>待处理</option>
+                        <option value="confirmed" {% if request.args.get('order_status') == 'confirmed' %}selected{% endif %}>已确认</option>
+                        <option value="ticketed" {% if request.args.get('order_status') == 'ticketed' %}selected{% endif %}>已出票</option>
+                        <option value="completed" {% if request.args.get('order_status') == 'completed' %}selected{% endif %}>已完成</option>
+                        <option value="cancelled" {% if request.args.get('order_status') == 'cancelled' %}selected{% endif %}>已取消</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <select class="form-control auto-submit" name="payment_status">
+                        <option value="">所有支付状态</option>
+                        <option value="unpaid" {% if request.args.get('payment_status') == 'unpaid' %}selected{% endif %}>未支付</option>
+                        <option value="paid" {% if request.args.get('payment_status') == 'paid' %}selected{% endif %}>已支付</option>
+                        <option value="refunded" {% if request.args.get('payment_status') == 'refunded' %}selected{% endif %}>已退款</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-primary">搜索</button>
+                    <a href="{{ url_for('flights_booking.order_list') }}" class="btn btn-secondary">重置</a>
+                </div>
+                <!-- 确保不会传递page参数，以免干扰搜索结果的初始分页 -->
+                <input type="hidden" name="page" value="1">
+            </form>
+        </div>
+    </div>
+
+    <!-- 订单列表 -->
+    <div class="table-responsive">
+        <table class="table table-striped table-hover">
+            <thead>
+                <tr>
+                    <th>订单号</th>
+                    <th>行程</th>
+                    <th>乘客</th>
+                    <th>联系人</th>
+                    <th>供应商</th>
+                    <th>总售价</th>
+                    <th>总成本</th>
+                    <th>订单状态</th>
+                    <th>支付状态</th>
+                    <th>创建时间</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for order in orders.items %}
+                <tr>
+                    <td>{{ order.order_number }}</td>
+                    <td class="itinerary-cell">
+                        {% for segment in order.flight_segments %}
+                        {{ segment.departure_airport }} → {{ segment.arrival_airport }}{% if not loop.last %}<br>{% endif %}
+                        {% endfor %}
+                    </td>
+                    <td>{{ order.passengers[0].name if order.passengers else '' }}</td>
+                    <td>{{ order.contact_name }}</td>
+                    <td>{{ order.supplier_name or '未指定' }}</td>
+                    <td>SGD {{ "%.2f"|format(order.selling_price) }}</td>
+                    <td>SGD {{ "%.2f"|format(order.cost_price) }}</td>
+                    <td>
+                        <div class="d-flex align-items-center">
+                            <select class="status-select" 
+                                    data-order-id="{{ order.id }}" 
+                                    data-status="{{ order.order_status }}"
+                                    {% if order.order_status == 'cancelled' %}disabled{% endif %}>
+                                <option value="pending" {% if order.order_status == 'pending' %}selected{% endif %}>待处理</option>
+                                <option value="confirmed" {% if order.order_status == 'confirmed' %}selected{% endif %}>已确认</option>
+                                <option value="ticketed" {% if order.order_status == 'ticketed' %}selected{% endif %}>已出票</option>
+                                <option value="completed" {% if order.order_status == 'completed' %}selected{% endif %}>已完成</option>
+                                <option value="cancelled" {% if order.order_status == 'cancelled' %}selected{% endif %}>已取消</option>
+                            </select>
+                            <span class="status-indicator">
+                                <i class="fas fa-spinner fa-spin"></i>
+                            </span>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="d-flex align-items-center">
+                            <select class="payment-select" 
+                                    data-order-id="{{ order.id }}" 
+                                    data-status="{{ order.payment_status }}">
+                                <option value="unpaid" {% if order.payment_status == 'unpaid' %}selected{% endif %}>未支付</option>
+                                <option value="paid" {% if order.payment_status == 'paid' %}selected{% endif %}>已支付</option>
+                                <option value="refunded" {% if order.payment_status == 'refunded' %}selected{% endif %}>已退款</option>
+                            </select>
+                            <span class="status-indicator">
+                                <i class="fas fa-spinner fa-spin"></i>
+                            </span>
+                        </div>
+                    </td>
+                    <td>{{ order.created_date.strftime('%Y-%m-%d %H:%M') }}</td>
+                    <td>
+                        <div class="action-buttons">
+                            <a href="{{ url_for('flights_booking.order_detail', order_id=order.id) }}" class="btn btn-sm btn-info">详情</a>
+                            {% if order.order_status in ['pending', 'confirmed', 'ticketed'] %}
+                            <a href="{{ url_for('flights_booking.edit_order', order_id=order.id) }}" class="btn btn-sm btn-warning">编辑</a>
+                            {% else %}
+                            <button class="btn btn-sm btn-warning" disabled style="opacity: 0.5; cursor: not-allowed;">编辑</button>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="11" class="text-center">暂无订单数据</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- 分页 -->
+    {% if orders.pages > 1 %}
+    <nav aria-label="Page navigation" class="mt-4">
+        <ul class="pagination justify-content-center">
+            <!-- 首页按钮 -->
+            <li class="page-item {% if not orders.has_prev %}disabled{% endif %}">
+                <a class="page-link" href="{{ url_for('flights_booking.order_list', page=1, 
+                    order_number=request.args.get('order_number', ''), 
+                    contact_name=request.args.get('contact_name', ''), 
+                    supplier_name=request.args.get('supplier_name', ''), 
+                    order_status=request.args.get('order_status', ''), 
+                    payment_status=request.args.get('payment_status', '')) }}">
+                    &laquo;&laquo;
+                </a>
+            </li>
+            
+            <!-- 上一页按钮 -->
+            <li class="page-item {% if not orders.has_prev %}disabled{% endif %}">
+                <a class="page-link" href="{{ url_for('flights_booking.order_list', page=orders.prev_num, 
+                    order_number=request.args.get('order_number', ''), 
+                    contact_name=request.args.get('contact_name', ''), 
+                    supplier_name=request.args.get('supplier_name', ''), 
+                    order_status=request.args.get('order_status', ''), 
+                    payment_status=request.args.get('payment_status', '')) }}">
+                    &laquo;
+                </a>
+            </li>
+            
+            <!-- 页码按钮 -->
+            {% for page in orders.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+                {% if page %}
+                    <li class="page-item {% if page == orders.page %}active{% endif %}">
+                        <a class="page-link" href="{{ url_for('flights_booking.order_list', page=page, 
+                            order_number=request.args.get('order_number', ''), 
+                            contact_name=request.args.get('contact_name', ''), 
+                            supplier_name=request.args.get('supplier_name', ''), 
+                            order_status=request.args.get('order_status', ''), 
+                            payment_status=request.args.get('payment_status', '')) }}">
+                            {{ page }}
+                        </a>
+                    </li>
+                {% else %}
+                    <li class="page-item disabled">
+                        <span class="page-link">...</span>
+                    </li>
+                {% endif %}
+            {% endfor %}
+            
+            <!-- 下一页按钮 -->
+            <li class="page-item {% if not orders.has_next %}disabled{% endif %}">
+                <a class="page-link" href="{{ url_for('flights_booking.order_list', page=orders.next_num, 
+                    order_number=request.args.get('order_number', ''), 
+                    contact_name=request.args.get('contact_name', ''), 
+                    supplier_name=request.args.get('supplier_name', ''), 
+                    order_status=request.args.get('order_status', ''), 
+                    payment_status=request.args.get('payment_status', '')) }}">
+                    &raquo;
+                </a>
+            </li>
+            
+            <!-- 末页按钮 -->
+            <li class="page-item {% if not orders.has_next %}disabled{% endif %}">
+                <a class="page-link" href="{{ url_for('flights_booking.order_list', page=orders.pages, 
+                    order_number=request.args.get('order_number', ''), 
+                    contact_name=request.args.get('contact_name', ''), 
+                    supplier_name=request.args.get('supplier_name', ''), 
+                    order_status=request.args.get('order_status', ''), 
+                    payment_status=request.args.get('payment_status', '')) }}">
+                    &raquo;&raquo;
+                </a>
+            </li>
+        </ul>
+    </nav>
+    
+    <!-- 显示分页信息 -->
+    <div class="text-center text-muted small mt-2 mb-4">
+        显示 {{ orders.total }} 条记录中的第 {{ orders.page }}页，每页 20 条 (共{{ orders.pages }}页)
+    </div>
+    {% endif %}
+</div>
+
+<!-- 添加 Toast 容器 -->
+<div class="toast-container"></div>
+
+<script>
+// 状态映射
+const STATUS_MAP = {
+    'pending': '待处理',
+    'confirmed': '已确认',
+    'ticketed': '已出票',
+    'completed': '已完成',
+    'cancelled': '已取消'
+};
+
+// 支付状态映射
+const PAYMENT_STATUS_MAP = {
+    'unpaid': '未支付',
+    'paid': '已支付',
+    'refunded': '已退款'
+};
+
+// Toast 通知函数
+function showToast(message, type = 'success') {
+    const container = document.querySelector('.toast-container');
+    const toast = document.createElement('div');
+    toast.className = 'toast';
+    
+    const icon = type === 'success' ? 
+        '<i class="fas fa-check-circle text-success"></i>' : 
+        '<i class="fas fa-exclamation-circle text-danger"></i>';
+    
+    toast.innerHTML = `${icon}<span>${message}</span>`;
+    container.appendChild(toast);
+    
+    // 触发重排以启动动画
+    toast.offsetHeight;
+    toast.classList.add('show');
+    
+    setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+}
+
+// 更新状态选择框样式
+function updateSelectStyle(select) {
+    const status = select.value;
+    select.setAttribute('data-status', status);
+}
+
+// 初始化所有状态选择框
+document.addEventListener('DOMContentLoaded', function() {
+    // 订单状态处理
+    const statusSelects = document.querySelectorAll('.status-select');
+    statusSelects.forEach(select => {
+        updateSelectStyle(select);
+        
+        // 监听状态变化
+        select.addEventListener('change', function() {
+            const orderId = this.getAttribute('data-order-id');
+            const newStatus = this.value;
+            const indicator = this.nextElementSibling;
+            
+            // 显示加载指示器
+            indicator.style.display = 'flex';
+            
+            // 准备表单数据
+            const formData = new FormData();
+            formData.append('order_status', newStatus);
+            
+            // 发送请求
+            fetch(`/flights_booking/update_order_status/${orderId}`, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    updateSelectStyle(this);
+                    showToast(`订单状态已更新为：${STATUS_MAP[newStatus]}`, 'success');
+                    
+                    // 更新编辑按钮的显示状态
+                    const row = this.closest('tr');
+                    const actionButtons = row.querySelector('.action-buttons');
+                    const editButton = actionButtons.querySelector('.btn-warning');
+                    
+                    if (editButton) {
+                        if (['pending', 'confirmed', 'ticketed'].includes(newStatus)) {
+                            editButton.style.display = '';
+                        } else {
+                            editButton.style.display = 'none';
+                        }
+                    }
+                } else {
+                    throw new Error(data.message || '更新失败');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showToast(error.message || '状态更新失败，请稍后重试', 'error');
+                
+                // 回滚到原始状态
+                this.value = this.getAttribute('data-status');
+                updateSelectStyle(this);
+            })
+            .finally(() => {
+                // 隐藏加载指示器
+                indicator.style.display = 'none';
+            });
+        });
+    });
+
+    // 支付状态处理
+    const paymentSelects = document.querySelectorAll('.payment-select');
+    paymentSelects.forEach(select => {
+        updateSelectStyle(select);
+        
+        // 监听状态变化
+        select.addEventListener('change', function() {
+            const orderId = this.getAttribute('data-order-id');
+            const newStatus = this.value;
+            const indicator = this.nextElementSibling;
+            
+            // 显示加载指示器
+            indicator.style.display = 'flex';
+            
+            // 准备表单数据
+            const formData = new FormData();
+            formData.append('payment_status', newStatus);
+            
+            // 发送请求
+            fetch(`/flights_booking/update_payment_status/${orderId}`, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    updateSelectStyle(this);
+                    showToast(`支付状态已更新为：${PAYMENT_STATUS_MAP[newStatus]}`, 'success');
+                } else {
+                    throw new Error(data.message || '更新失败');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showToast(error.message || '支付状态更新失败，请稍后重试', 'error');
+                
+                // 回滚到原始状态
+                this.value = this.getAttribute('data-status');
+                updateSelectStyle(this);
+            })
+            .finally(() => {
+                // 隐藏加载指示器
+                indicator.style.display = 'none';
+            });
+        });
+    });
+    
+    // 自动提交搜索表单
+    const autoSubmitSelects = document.querySelectorAll('.auto-submit');
+    autoSubmitSelects.forEach(select => {
+        select.addEventListener('change', function() {
+            // 重置页码为1，确保从第一页开始显示结果
+            const pageInput = document.querySelector('input[name="page"]');
+            if (pageInput) {
+                pageInput.value = "1";
+            }
+            
+            // 提交表单
+            this.closest('form').submit();
+        });
+    });
+});
+</script>
+{% endblock %} 
