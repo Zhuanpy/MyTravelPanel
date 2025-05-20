@@ -908,3 +908,38 @@ def visa_home():
     
     return render_template('visas/签证首页.html',
                           visa_categories=visa_categories)
+
+@visa_routes.route('/visa/visa/update_status/<int:project_id>', methods=['POST'])
+def update_visa_status(project_id):
+    try:
+        data = request.get_json()
+        if not data or 'visa_status' not in data:
+            return jsonify({"success": False, "message": "缺少必要的状态信息"}), 400
+
+        project = VisaProject.query.get_or_404(project_id)
+        if not project:
+            return jsonify({"success": False, "message": "找不到指定的项目"}), 404
+
+        # 验证状态值是否有效
+        valid_statuses = ['待递交', '待出签', '已出签', '忽略单']
+        if data['visa_status'] not in valid_statuses:
+            return jsonify({"success": False, "message": "无效的状态值"}), 400
+
+        # 更新状态
+        project.visa_status = data['visa_status']
+        db.session.commit()
+        
+        # 返回更新后的项目信息
+        return jsonify({
+            "success": True,
+            "message": "状态更新成功",
+            "project": {
+                "id": project.id,
+                "name": project.name,
+                "visa_status": project.visa_status,
+                "estimated_date": project.estimated_date.strftime('%Y-%m-%d') if project.estimated_date else None
+            }
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"success": False, "message": str(e)}), 500

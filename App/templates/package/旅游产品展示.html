@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}旅游产品配套展示{% endblock %}
+{% block title %}{{ city_name }}旅游产品展示{% endblock %}
 
 {% block head %}
 <style>
@@ -116,7 +116,7 @@
                 <div class="update_link">
                     <a href="">创建{{ company }}项目</a>
                     <a href="{{ url_for('package_routes.update_company_products', city_name=city_name, company_name=company) }}">更新{{ company }}产品</a>
-                    <a href="#" id="postOpenFolder" data-company="{{ company|trim }}">打开文件夹</a>
+                    <a href="#" class="postOpenFolder" data-company="{{ company|trim }}">打开文件夹</a>
                     <a href="{{ url_for('package_routes.delete_all_company_product', city_name=city_name, company_name=company) }}" method="POST">删除全部产品</a>
                 </div>
             </section>
@@ -138,30 +138,16 @@
     document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('openPackageFolder').addEventListener('click', (event) => {
             event.preventDefault();
-            sendPostRequest('{{ url_for("package_routes.open_city_package_folder", country_name = country_name,  city_name=city_name) }}', '资源文件夹已打开!');
+            sendPostRequest('{{ url_for("package_routes.open_city_package_folder", country_name=country_name, city_name=city_name) }}', '资源文件夹已打开!');
         });
-    });
 
-    document.addEventListener('DOMContentLoaded', () => {
-        document.getElementById('postOpenFolder').addEventListener('click', (event) => {
-            event.preventDefault();
-
-            // 获取动态参数
-            const company = encodeURIComponent(event.target.getAttribute('data-company')); // 编码公司名
-            const country_name = encodeURIComponent("{{ country_name }}"); // 编码国家名
-            const city_name = encodeURIComponent("{{ city_name }}"); // 编码城市名
-
-            // 调试输出变量
-            console.log('country_name:', country_name);
-            console.log('city_name:', city_name);
-            console.log('company_name:', company);
-
-            // 构造完整的 URL
-            const url = `/open_company_package_folder/${country_name}/${city_name}/${company}`;
-            console.log('Generated URL:', url);
-
-            // 发起 POST 请求
-            sendPostRequest(url, '文件夹已打开!');
+        // 使用事件委托来处理所有的打开文件夹按钮
+        document.querySelectorAll('.postOpenFolder').forEach(button => {
+            button.addEventListener('click', (event) => {
+                event.preventDefault();
+                const company = event.target.getAttribute('data-company');
+                sendPostRequest('{{ url_for("package_routes.open_company_package_folder", country_name=country_name, city_name=city_name, company_name="") }}' + encodeURIComponent(company), '文件夹已打开!');
+            });
         });
     });
 </script>

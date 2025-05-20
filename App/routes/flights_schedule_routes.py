@@ -1,7 +1,6 @@
 from flask import Blueprint, render_template, request, jsonify, redirect, url_for, flash
 from App.models.Flightmodels import FlightSchedule, AirportData
-from App.code.utils.flightradar24 import get_flight_info
-import datetime
+from sqlalchemy.exc import IntegrityError
 from ..exts import db
 from sqlalchemy import text
 import re
@@ -18,45 +17,6 @@ def input_airport_code():
         page=page, per_page=per_page, error_out=False)
     
     return render_template('flights/录入机场代码.html', airports=airports)
-
-@flights_schedule.route('/input_airport_code_info', methods=['POST'])
-def input_airport_code_info():
-    """处理机场代码表单提交"""
-    try:
-        # 获取表单数据
-        airport_iata = request.form.get('airport_iata', '').strip().upper()
-        city_name = request.form.get('city_name', '').strip()
-        airport_name_cn = request.form.get('airport_name_cn', '').strip()
-        airport_name_en = request.form.get('airport_name_en', '').strip()
-        
-        # 验证数据
-        if not airport_iata or not city_name or not airport_name_cn or not airport_name_en:
-            flash('请填写所有必填字段', 'error')
-            return redirect(url_for('flights_schedule.input_airport_code'))
-        
-        # 验证IATA代码格式
-        if not AirportData.validate_iata(airport_iata):
-            flash('IATA代码必须是3个大写字母', 'error')
-            return redirect(url_for('flights_schedule.input_airport_code'))
-        
-        # 保存或更新机场信息
-        AirportData.create_or_update(
-            iata=airport_iata,
-            city=city_name,
-            name_cn=airport_name_cn,
-            name_en=airport_name_en
-        )
-        
-        # 提交数据库事务
-        db.session.commit()
-        
-        flash(f'机场代码 {airport_iata} 保存成功', 'success')
-        return redirect(url_for('flights_schedule.input_airport_code'))
-        
-    except Exception as e:
-        db.session.rollback()
-        flash(f'保存机场代码时出错: {str(e)}', 'error')
-        return redirect(url_for('flights_schedule.input_airport_code'))
 
 @flights_schedule.route('/itinerary_conversion', methods=['GET', 'POST'])
 def itinerary_conversion():
@@ -427,5 +387,60 @@ def update_airport():
             'status': 'error',
             'message': str(e)
         }), 500
+
+
+@flights_schedule.route('/input_airport_code_info', methods=['GET', 'POST'])
+def input_airport_code_info():
+    if request.method == 'POST':
+        try:
+            iata_list = request.form.getlist('iata[]')
+            city_list = request.form.getlist('city[]')
+            airport_name_cn_list = request.form.getlist('airportNameCN[]')
+            airport_name_en_list = request.form.getlist('airportNameEN[]')
+
+            # 验证所有输入
+            for iata, city, name_cn, name_en in zip(iata_list, city_list, airport_name_cn_list, airport_name_en_list):
+                if not iata or not city or not name_cn or not name_en:
+                    flash('所有字段都是必填项。', 'error')
+                    return render_template('flights/录入机场代码.html')
+
+                if len(iata) != 3:
+                    flash(f'IATA 代码 "{iata}" 必须是3个字符。', 'error')
+                    return render_template('flights/录入机场代码.html')
+
+                if not iata.isalpha() or not iata.isupper():
+                    flash(f'IATA 代码 "{iata}" 必须是3位大写字母。', 'error')
+                    return render_template('flights/录入机场代码.html')
+
+                existing_airport = AirportData.query.filter_by(airport_IATA=iata.upper()).first()
+                if existing_airport:
+                    flash(f'IATA 代码 "{iata}" 已存在。', 'error')
+                    return render_template('flights/录入机场代码.html')
+
+            # 批量创建机场数据
+            airports_to_add = []
+            for iata, city, name_cn, name_en in zip(iata_list, city_list, airport_name_cn_list, airport_name_en_list):
+                airport = AirportData(
+                    airport_IATA=iata.upper(),
+                    city_name=city.strip(),
+                    airport_name_cn=name_cn.strip(),
+                    airport_name_en=name_en.strip()
+                )
+                airports_to_add.append(airport)
+
+            # 批量添加到数据库
+            db.session.add_all(airports_to_add)
+            db.session.commit()
+
+            flash(f'成功添加 {len(airports_to_add)} 个机场信息。', 'success')
+            return redirect(url_for('flights_schedule.input_airport_code_info'))
+
+        except Exception as e:
+            db.session.rollback()
+            flash(f'保存数据时出错：{str(e)}', 'error')
+            return render_template('flights/录入机场代码.html')
+
+    # GET 请求时渲染页面
+    return render_template('flights/录入机场代码.html')
 
 

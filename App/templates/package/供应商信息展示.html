@@ -8,90 +8,153 @@
     .supplier-container {
         padding: 20px 0;
     }
+    .table th {
+        background-color: #f8f9fa;
+    }
+    .filter-section {
+        background-color: #f8f9fa;
+        padding: 20px;
+        border-radius: 5px;
+        margin-bottom: 20px;
+    }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="container supplier-container">
-    <h1 class="my-4">供应商管理</h1>
-    <a href="{{ url_for('supplier.add_supplier') }}" class="btn btn-primary mb-4">添加供应商</a>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>供应商管理</h1>
+        <a href="{{ url_for('supplier.add_supplier') }}" class="btn btn-primary">添加供应商</a>
+    </div>
 
-    <!-- 筛选区域，放置在同一行 -->
-    <div class="mb-4 row">
-        <div class="col-md-6">
-            <label for="countryFilter" class="form-label">筛选国家</label>
-            <select id="countryFilter" class="form-select" onchange="filterTable()">
-                <option value="">所有国家</option>
-                {% for supplier in suppliers %}
-                    <option value="{{ supplier.country }}">{{ supplier.country }}</option>
-                {% endfor %}
-            </select>
-        </div>
-        <div class="col-md-6">
-            <label for="regionFilter" class="form-label">筛选地区</label>
-            <select id="regionFilter" class="form-select" onchange="filterTable()">
-                <option value="">所有地区</option>
-                {% for supplier in suppliers %}
-                    <option value="{{ supplier.region }}">{{ supplier.region }}</option>
-                {% endfor %}
-            </select>
+    <!-- 筛选区域 -->
+    <div class="filter-section">
+        <div class="row">
+            <div class="col-md-4">
+                <label for="typeFilter" class="form-label">供应商类型</label>
+                <select id="typeFilter" class="form-select" onchange="filterTable()">
+                    <option value="">所有类型</option>
+                    {% for type in supplier_types %}
+                    <option value="{{ type }}">
+                        {% if type == 'visa' %}签证
+                        {% elif type == 'flight' %}机票
+                        {% elif type == 'hotel' %}酒店
+                        {% elif type == 'transport' %}用车
+                        {% elif type == 'local_operator' %}地接
+                        {% else %}其他
+                        {% endif %}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label for="countryFilter" class="form-label">国家</label>
+                <select id="countryFilter" class="form-select" onchange="filterTable()">
+                    <option value="">所有国家</option>
+                    {% for supplier in suppliers %}
+                        {% if supplier.country %}
+                        <option value="{{ supplier.country }}">{{ supplier.country }}</option>
+                        {% endif %}
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label for="statusFilter" class="form-label">状态</label>
+                <select id="statusFilter" class="form-select" onchange="filterTable()">
+                    <option value="">所有状态</option>
+                    <option value="active">活跃</option>
+                    <option value="inactive">非活跃</option>
+                </select>
+            </div>
         </div>
     </div>
 
-    <!-- 供应商表格 -->
-    <table class="table table-bordered">
-        <thead>
-            <tr>
-                <th>国家</th>
-                <th>地区</th>
-                <th>供应商名称</th>
-                <th>联系人</th>
-                <th>电话</th>
-                <th>邮箱</th>
-                <th>状态</th>
-                <th>操作</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for supplier in suppliers %}
+    <!-- 供应商列表表格 -->
+    <div class="table-responsive">
+        <table class="table table-striped table-hover">
+            <thead>
                 <tr>
-                    <td>{{ supplier.country }}</td>
-                    <td>{{ supplier.region }}</td>
-                    <td><a href="{{ url_for('supplier.view_supplier', supplier_id=supplier.supplier_id) }}">{{ supplier.name }}</a></td>
-                    <td>{{ supplier.contact_person }}</td>
-                    <td>{{ supplier.phone }}</td>
-                    <td>{{ supplier.email }}</td>
-                    <td>{{ supplier.status }}</td>
+                    <th>类型</th>
+                    <th>国家</th>
+                    <th>地区</th>
+                    <th>供应商名称</th>
+                    <th>联系人</th>
+                    <th>联系电话</th>
+                    <th>邮箱</th>
+                    <th>状态</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for supplier in suppliers %}
+                <tr data-type="{{ supplier.supplier_type }}" data-country="{{ supplier.country }}" data-status="{{ supplier.status }}">
                     <td>
-                        <a href="{{ url_for('supplier.edit_supplier', supplier_id=supplier.supplier_id) }}" class="btn btn-warning">编辑</a>
-                        <a href="{{ url_for('supplier.delete_supplier', supplier_id=supplier.supplier_id) }}" class="btn btn-danger" onclick="return confirm('确定删除吗?')">删除</a>
+                        {% if supplier.supplier_type == 'visa' %}签证
+                        {% elif supplier.supplier_type == 'flight' %}机票
+                        {% elif supplier.supplier_type == 'hotel' %}酒店
+                        {% elif supplier.supplier_type == 'transport' %}用车
+                        {% elif supplier.supplier_type == 'local_operator' %}地接
+                        {% else %}其他
+                        {% endif %}
+                    </td>
+                    <td>{{ supplier.country or '未设置' }}</td>
+                    <td>{{ supplier.region or '未设置' }}</td>
+                    <td><a href="{{ url_for('supplier.view_supplier', supplier_id=supplier.supplier_id) }}">{{ supplier.name }}</a></td>
+                    <td>{{ supplier.contact_person or '未设置' }}</td>
+                    <td>{{ supplier.phone or '未设置' }}</td>
+                    <td>{{ supplier.email or '未设置' }}</td>
+                    <td>{{ '活跃' if supplier.status == 'active' else '非活跃' }}</td>
+                    <td>
+                        <a href="{{ url_for('supplier.edit_supplier', supplier_id=supplier.supplier_id) }}" class="btn btn-sm btn-warning">编辑</a>
+                        <a href="{{ url_for('supplier.delete_supplier', supplier_id=supplier.supplier_id) }}" 
+                           class="btn btn-sm btn-danger" 
+                           onclick="return confirm('确定要删除此供应商吗？')">删除</a>
                     </td>
                 </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-    // 筛选功能
-    function filterTable() {
-        const countryFilter = document.getElementById('countryFilter').value.toLowerCase();
-        const regionFilter = document.getElementById('regionFilter').value.toLowerCase();
-        const rows = document.querySelectorAll('tbody tr');
+function filterTable() {
+    const typeFilter = document.getElementById('typeFilter').value;
+    const countryFilter = document.getElementById('countryFilter').value;
+    const statusFilter = document.getElementById('statusFilter').value;
+    
+    const rows = document.querySelectorAll('tbody tr');
+    
+    rows.forEach(row => {
+        const type = row.getAttribute('data-type');
+        const country = row.getAttribute('data-country');
+        const status = row.getAttribute('data-status');
+        
+        const typeMatch = !typeFilter || type === typeFilter;
+        const countryMatch = !countryFilter || country === countryFilter;
+        const statusMatch = !statusFilter || status === statusFilter;
+        
+        if (typeMatch && countryMatch && statusMatch) {
+            row.style.display = '';
+        } else {
+            row.style.display = 'none';
+        }
+    });
+}
 
-        rows.forEach(row => {
-            const country = row.cells[0].textContent.toLowerCase();
-            const region = row.cells[1].textContent.toLowerCase();
-
-            if ((country.includes(countryFilter) || countryFilter === '') &&
-                (region.includes(regionFilter) || regionFilter === '')) {
-                row.style.display = ''; // 显示该行
-            } else {
-                row.style.display = 'none'; // 隐藏该行
-            }
-        });
-    }
+// 初始化时移除重复的国家选项
+document.addEventListener('DOMContentLoaded', function() {
+    const countrySelect = document.getElementById('countryFilter');
+    const uniqueCountries = new Set();
+    Array.from(countrySelect.options).forEach(option => {
+        if (option.value && uniqueCountries.has(option.value)) {
+            option.remove();
+        } else {
+            uniqueCountries.add(option.value);
+        }
+    });
+});
 </script>
 {% endblock %}

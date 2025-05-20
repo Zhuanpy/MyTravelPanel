@@ -4,370 +4,128 @@
 
 {% block head %}
 <style>
-    .project-container {
-        max-width: 1200px;
-        margin: 30px auto;
-        padding: 20px;
-    }
-    
-    .card {
-        margin-bottom: 20px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-    
-    .ref-section, .eo-section {
-        border: 1px solid #e0e0e0;
+    .header-section {
+        background-color: #FFFF99;
         padding: 15px;
-        margin: 10px 0;
-        border-radius: 5px;
-        position: relative;
+        margin-bottom: 20px;
+        border: 1px solid #ddd;
     }
     
-    .remove-btn {
-        position: absolute;
-        right: 10px;
-        top: 10px;
-        color: #dc3545;
+    .header-row {
+        display: grid;
+        grid-template-columns: 120px 1fr;
+        margin-bottom: 8px;
+        align-items: center;
+    }
+    
+    .header-label {
+        font-weight: normal;
+        color: #333;
+    }
+    
+    .action-buttons {
+        margin-top: 20px;
+        text-align: center;
+    }
+    
+    .action-button {
+        margin: 0 5px;
+        padding: 5px 15px;
+        border: 1px solid #ddd;
+        background-color: #f5f5f5;
         cursor: pointer;
     }
     
-    .add-btn {
-        margin: 10px 0;
-    }
-    
-    .form-group {
-        margin-bottom: 1rem;
-    }
-    
-    .badge {
-        font-size: 0.9em;
-        padding: 5px 10px;
-        margin-left: 10px;
-    }
-    
-    .supplier-section {
-        background-color: #f8f9fa;
-        padding: 10px;
-        margin-top: 10px;
-        border-radius: 5px;
-    }
-    
-    .status-badge {
-        position: absolute;
-        right: 40px;
-        top: 10px;
+    input[readonly] {
+        background-color: #f5f5f5;
+        border: 1px solid #ddd;
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="project-container">
-    <h2 class="mb-4">创建新项目</h2>
-    
-    <form id="projectForm" method="POST">
-        <!-- 项目基本信息 -->
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0">项目基本信息</h5>
-            </div>
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-md-4">
-                        <div class="form-group">
-                            <label>HID编号</label>
-                            <input type="text" class="form-control" name="hid" readonly value="{{ generated_hid }}">
-                            <small class="text-muted">系统自动生成的项目编号</small>
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="form-group">
-                            <label>项目名称 *</label>
-                            <input type="text" class="form-control" name="project_name" required>
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="form-group">
-                            <label>客户名称 *</label>
-                            <input type="text" class="form-control" name="client_name" required>
-                        </div>
-                    </div>
-                </div>
-                <div class="row">
-                    <div class="col-md-4">
-                        <div class="form-group">
-                            <label>创建日期</label>
-                            <input type="text" class="form-control" value="{{ now.strftime('%Y-%m-%d %H:%M:%S') }}" readonly>
-                            <small class="text-muted">系统自动记录创建时间</small>
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="form-group">
-                            <label>项目状态</label>
-                            <select class="form-control" name="project_status">
-                                <option value="draft">草稿</option>
-                                <option value="active">进行中</option>
-                                <option value="completed">已完成</option>
-                                <option value="cancelled">已取消</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="form-group">
-                            <label>项目描述</label>
-                            <textarea class="form-control" name="description" rows="3"></textarea>
-                        </div>
-                    </div>
-                </div>
-            </div>
+<div class="container-fluid">
+    <!-- Header Section -->
+    <div class="header-section">
+        <div class="header-row">
+            <span class="header-label">HID编号:</span>
+            <input type="text" class="form-control" name="hid" readonly value="{{ generated_hid }}">
         </div>
+        <div class="header-row">
+            <span class="header-label">项目名称:</span>
+            <input type="text" class="form-control" name="project_name" required>
+        </div>
+        <div class="header-row">
+            <span class="header-label">客户名称:</span>
+            <input type="text" class="form-control" name="client_name" required>
+        </div>
+        <div class="header-row">
+            <span class="header-label">创建日期:</span>
+            <input type="text" class="form-control" value="{{ now.strftime('%Y-%m-%d %H:%M:%S') }}" readonly>
+        </div>
+        <div class="header-row">
+            <span class="header-label">开始日期:</span>
+            <input type="date" class="form-control" name="start_date" value="{{ now.strftime('%Y-%m-%d') }}" required onchange="updateEndDate()">
+        </div>
+        <div class="header-row">
+            <span class="header-label">结束日期:</span>
+            <input type="date" class="form-control" name="end_date" value="{{ now.strftime('%Y-%m-%d') }}" required>
+        </div>
+        <div class="header-row">
+            <span class="header-label">状态:</span>
+            <select class="form-control" name="project_status">
+                <option value="draft">草稿</option>
+                <option value="active">进行中</option>
+                <option value="completed">已完成</option>
+                <option value="cancelled">已取消</option>
+            </select>
+        </div>
+    </div>
 
-        <!-- REF管理部分 -->
-        <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">REF管理</h5>
-                <button type="button" class="btn btn-primary btn-sm" onclick="addRef()">添加REF</button>
-            </div>
-            <div class="card-body" id="refContainer">
-                <!-- REF模板将通过JS动态添加 -->
-            </div>
-        </div>
-
-        <div class="text-center mt-4">
-            <button type="submit" class="btn btn-primary btn-lg">保存项目</button>
-        </div>
-    </form>
+    <!-- Action Buttons -->
+    <div class="action-buttons">
+        <button class="action-button" onclick="saveProject()">创建项目</button>
+    </div>
 </div>
 
-<!-- REF模板 -->
-<template id="refTemplate">
-    <div class="ref-section">
-        <span class="remove-btn" onclick="removeRef(this)"><i class="fas fa-times"></i></span>
-        <span class="status-badge badge bg-secondary">草稿</span>
-        <div class="row">
-            <div class="col-md-3">
-                <div class="form-group">
-                    <label>REF编号</label>
-                    <input type="text" class="form-control" name="ref_number[]" readonly>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="form-group">
-                    <label>REF类型 *</label>
-                    <select class="form-control" name="ref_type_id[]" required>
-                        {% for type in business_types %}
-                        <option value="{{ type.id }}">{{ type.name }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-            </div>
-            <div class="col-md-6">
-                <div class="form-group">
-                    <label>描述 *</label>
-                    <input type="text" class="form-control" name="ref_description[]" required>
-                </div>
-            </div>
-        </div>
-        
-        <!-- EO管理部分 -->
-        <div class="eo-container">
-            <div class="d-flex justify-content-between align-items-center mt-3">
-                <h6>EO列表</h6>
-                <button type="button" class="btn btn-secondary btn-sm" onclick="addEO(this)">添加EO</button>
-            </div>
-            <div class="eo-list">
-                <!-- EO将通过JS动态添加 -->
-            </div>
-        </div>
-    </div>
-</template>
-
-<!-- EO模板 -->
-<template id="eoTemplate">
-    <div class="eo-section">
-        <span class="remove-btn" onclick="removeEO(this)"><i class="fas fa-times"></i></span>
-        <span class="status-badge badge bg-secondary">草稿</span>
-        <div class="row">
-            <div class="col-md-3">
-                <div class="form-group">
-                    <label>EO编号</label>
-                    <input type="text" class="form-control" name="eo_number[]" readonly>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="form-group">
-                    <label>供应商类型 *</label>
-                    <select class="form-control" name="eo_supplier_type[]" required onchange="updateSupplierList(this)">
-                        <option value="">请选择类型</option>
-                        {% for type in supplier_types %}
-                        <option value="{{ type }}">{{ supplier_type_map[type] }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="form-group">
-                    <label>供应商 *</label>
-                    <select class="form-control" name="eo_supplier[]" required>
-                        <option value="">请先选择供应商类型</option>
-                    </select>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="form-group">
-                    <label>金额 *</label>
-                    <input type="number" step="0.01" class="form-control" name="eo_amount[]" required>
-                </div>
-            </div>
-        </div>
-        <div class="row mt-3">
-            <div class="col-12">
-                <div class="form-group">
-                    <label>备注</label>
-                    <textarea class="form-control" name="eo_remarks[]" rows="2"></textarea>
-                </div>
-            </div>
-        </div>
-    </div>
-</template>
-
 <script>
-let refCounter = 0;
-let eoCounter = 0;
-
-// 表单提交前的验证
-document.getElementById('projectForm').onsubmit = function(e) {
-    e.preventDefault();
-    
-    // 打印表单数据
-    const formData = new FormData(this);
-    console.log('Form data being submitted:');
-    for (let pair of formData.entries()) {
-        console.log(pair[0] + ': ' + pair[1]);
+function updateEndDate() {
+    const startDate = document.querySelector('[name="start_date"]').value;
+    const endDateInput = document.querySelector('[name="end_date"]');
+    if (startDate > endDateInput.value) {
+        endDateInput.value = startDate;
     }
+}
+
+function saveProject() {
+    const formData = new FormData();
     
-    // 继续提交
-    fetch(this.action, {
+    // Add header information
+    formData.append('hid', document.querySelector('[name="hid"]').value);
+    formData.append('project_name', document.querySelector('[name="project_name"]').value);
+    formData.append('client_name', document.querySelector('[name="client_name"]').value);
+    formData.append('project_status', document.querySelector('[name="project_status"]').value);
+    formData.append('start_date', document.querySelector('[name="start_date"]').value);
+    formData.append('end_date', document.querySelector('[name="end_date"]').value);
+    
+    // Submit form
+    fetch('/projects/create', {
         method: 'POST',
         body: formData
     })
-    .then(response => {
-        if (!response.ok) {
-            return response.json().then(err => {
-                throw new Error(err.error + '\n' + (err.details || ''));
-            });
-        }
-        return response.json();
-    })
+    .then(response => response.json())
     .then(data => {
-        if (data.redirect) {
-            window.location.href = data.redirect;
+        if (data.success) {
+            // Redirect to REF creation page
+            window.location.href = `/projects/${data.hid}/create_ref`;
         } else {
-            window.location.reload();
+            alert('保存失败: ' + data.error);
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('提交失败: ' + error.message);
-    });
-};
-
-// 生成REF编号
-async function generateRefNumber() {
-    const hid = document.querySelector('[name="hid"]').value;
-    try {
-        console.log('Generating REF number for HID:', hid);
-        const response = await fetch(`/projects/generate_ref_number/${hid}`);
-        const data = await response.json();
-        
-        if (!response.ok) {
-            console.error('Error response:', data);
-            throw new Error(data.error + '\n' + (data.details || ''));
-        }
-        
-        console.log('Generated REF number:', data.ref_number);
-        return data.ref_number;
-    } catch (error) {
-        console.error('Error generating REF number:', error);
-        // 如果是新项目（今天的HID），直接生成编号
-        if (hid.includes(new Date().toISOString().slice(0, 10).replace(/-/g, ''))) {
-            const fallbackNumber = `${hid}-R${String(refCounter + 1).padStart(2, '0')}`;
-            console.log('Using fallback REF number:', fallbackNumber);
-            return fallbackNumber;
-        } else {
-            alert(`生成REF编号时发生错误: ${error.message}`);
-            return `${hid}-R${new Date().getTime().toString().slice(-4)}`;
-        }
-    }
-}
-
-// 添加REF
-async function addRef() {
-    const template = document.getElementById('refTemplate');
-    const container = document.getElementById('refContainer');
-    const clone = template.content.cloneNode(true);
-    
-    // 设置REF编号
-    const refNumber = clone.querySelector('[name="ref_number[]"]');
-    refNumber.value = await generateRefNumber();
-    
-    container.appendChild(clone);
-}
-
-// 移除REF
-function removeRef(button) {
-    button.closest('.ref-section').remove();
-}
-
-// 添加EO
-function addEO(button) {
-    eoCounter++;
-    const template = document.getElementById('eoTemplate');
-    const container = button.closest('.ref-section').querySelector('.eo-list');
-    const clone = template.content.cloneNode(true);
-    
-    // 设置EO编号
-    const eoNumber = clone.querySelector('[name="eo_number[]"]');
-    eoNumber.value = generateEONumber();
-    
-    container.appendChild(clone);
-}
-
-// 移除EO
-function removeEO(button) {
-    button.closest('.eo-section').remove();
-}
-
-// 生成EO编号
-function generateEONumber() {
-    const hid = document.querySelector('[name="hid"]').value;
-    return `${hid}-E${String(eoCounter).padStart(2, '0')}`;
-}
-
-// 更新供应商列表
-function updateSupplierList(selectElement) {
-    const selectedType = selectElement.value;
-    const supplierSelect = selectElement.closest('.row').querySelector('[name="eo_supplier[]"]');
-    
-    // 清空现有选项
-    supplierSelect.innerHTML = '<option value="">请选择供应商</option>';
-    
-    if (!selectedType) return;
-    
-    // 根据选择的类型筛选供应商
-    const suppliers = JSON.parse('{{ suppliers|tojson|safe }}');
-    const filteredSuppliers = suppliers.filter(s => s.supplier_type === selectedType);
-    
-    filteredSuppliers.forEach(supplier => {
-        const option = document.createElement('option');
-        option.value = supplier.id;
-        option.textContent = supplier.name;
-        supplierSelect.appendChild(option);
+        alert('保存失败，请检查网络连接');
     });
 }
-
-// 页面加载时添加第一个REF
-document.addEventListener('DOMContentLoaded', function() {
-    addRef();
-});
 </script>
 {% endblock %} 

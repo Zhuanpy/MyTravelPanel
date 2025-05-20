@@ -12,6 +12,8 @@ class Project(db.Model):
     description = db.Column(db.Text, comment='项目描述')
     status = db.Column(db.Enum('draft', 'active', 'completed', 'cancelled'), 
                       default='draft', nullable=False, comment='项目状态')
+    start_date = db.Column(db.Date, nullable=False, default=datetime.utcnow().date(), comment='项目开始日期')
+    end_date = db.Column(db.Date, nullable=False, default=datetime.utcnow().date(), comment='项目结束日期')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

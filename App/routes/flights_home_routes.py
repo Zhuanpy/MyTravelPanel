@@ -198,61 +198,6 @@ def flight_schedule_data():
     return 'Success add flight schedule data ！'
 
 
-@flight_home.route('/input_airport_code_info', methods=['GET', 'POST'])
-def input_airport_code_info():
-    if request.method == 'POST':
-        try:
-            iata_list = request.form.getlist('iata[]')
-            city_list = request.form.getlist('city[]')
-            airport_name_cn_list = request.form.getlist('airportNameCN[]')
-            airport_name_en_list = request.form.getlist('airportNameEN[]')
-
-            # 验证所有输入
-            for iata, city, name_cn, name_en in zip(iata_list, city_list, airport_name_cn_list, airport_name_en_list):
-                if not iata or not city or not name_cn or not name_en:
-                    flash('所有字段都是必填项。', 'error')
-                    return render_template('flights/录入机场代码.html')
-
-                if len(iata) != 3:
-                    flash(f'IATA 代码 "{iata}" 必须是3个字符。', 'error')
-                    return render_template('flights/录入机场代码.html')
-
-                if not iata.isalpha() or not iata.isupper():
-                    flash(f'IATA 代码 "{iata}" 必须是3位大写字母。', 'error')
-                    return render_template('flights/录入机场代码.html')
-
-                existing_airport = AirportData.query.filter_by(airport_IATA=iata.upper()).first()
-                if existing_airport:
-                    flash(f'IATA 代码 "{iata}" 已存在。', 'error')
-                    return render_template('flights/录入机场代码.html')
-
-            # 批量创建机场数据
-            airports_to_add = []
-            for iata, city, name_cn, name_en in zip(iata_list, city_list, airport_name_cn_list, airport_name_en_list):
-                airport = AirportData(
-                    airport_IATA=iata.upper(),
-                    city_name=city.strip(),
-                    airport_name_cn=name_cn.strip(),
-                    airport_name_en=name_en.strip()
-                )
-                airports_to_add.append(airport)
-
-            # 批量添加到数据库
-            db.session.add_all(airports_to_add)
-            db.session.commit()
-
-            flash(f'成功添加 {len(airports_to_add)} 个机场信息。', 'success')
-            return redirect(url_for('flight_blue.input_airport_code_info'))
-
-        except Exception as e:
-            db.session.rollback()
-            flash(f'保存数据时出错：{str(e)}', 'error')
-            return render_template('flights/录入机场代码.html')
-
-    # GET 请求时渲染页面
-    return render_template('flights/录入机场代码.html')
-
-
 @flight_home.route('/open_project_folder', methods=['GET', 'POST'])
 def open_project_folder():
     # 获取目标文件夹路径

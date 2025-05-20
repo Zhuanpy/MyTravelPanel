@@ -5,6 +5,8 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}{% endblock %}</title>
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
     <!-- 基础样式 -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
@@ -186,6 +188,26 @@
                     
                     <div class="nav-divider d-none d-lg-block"></div>
                     
+                    <!-- 项目下拉菜单 -->
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="projectsDropdown" role="button" 
+                           data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-project-diagram"></i> 项目
+                        </a>
+                        <ul class="dropdown-menu" aria-labelledby="projectsDropdown">
+                            <li><a class="dropdown-item" href="{{ url_for('projects.list_projects') }}">项目列表</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('projects.create_project') }}">创建新项目</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{{ url_for('projects.list_projects', status='draft') }}">草稿项目</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('projects.list_projects', status='active') }}">进行中项目</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('projects.list_projects', status='completed') }}">已完成项目</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{{ url_for('projects.project_statistics') }}">项目统计</a></li>
+                        </ul>
+                    </li>
+                    
+                    <div class="nav-divider d-none d-lg-block"></div>
+                    
                     <!-- 机票下拉菜单 -->
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="flightDropdown" role="button" 
@@ -251,8 +273,8 @@
                         </a>
                         <ul class="dropdown-menu" aria-labelledby="billingDropdown">
                             <li><a class="dropdown-item" href="{{ url_for('statement_routes.uob_bank') }}">UOB银行</a></li>
-                                <li><a class="dropdown-item" href="{{ url_for('statement_routes.ocbc_bank') }}">OCBC银行</a></li>
-                                <li><a class="dropdown-item" href="{{ url_for('statement_routes.cmb_bank') }}">招商银行</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('statement_routes.ocbc_bank') }}">OCBC银行</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('statement_routes.cmb_bank') }}">招商银行</a></li>
                             <li><a class="dropdown-item" href="{{ url_for('statement_routes.athina_page') }}">Athina账单</a></li>
                             <li><a class="dropdown-item" href="{{ url_for('statement_routes.company_bill') }}">公司账单</a></li>
                         </ul>
