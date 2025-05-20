@@ -183,10 +183,17 @@ class VisaProject(db.Model):
     VALID_STATUSES = ['待递交', '待出签', '已出签', '忽略单']
 
     id = db.Column(db.Integer, primary_key=True)  # 项目唯一标识符
-    name = db.Column(db.String(100), nullable=False)  # 项目名称
+    project_folder_name = db.Column(db.String(100), nullable=False)  # 项目文件夹名称
     created_date = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)  # 创建时间
     visa_status = db.Column(db.String(50), nullable=False, default='待递交')  # 签证状态
     estimated_date = db.Column(db.Date, nullable=True)  # 预估完成日期
+    visa_type = db.Column(db.String(50), nullable=True)  # 签证类型
+    applicant_name = db.Column(db.String(100), nullable=True)  # 申请人名字
+    
+    contact_name = db.Column(db.String(100), nullable=True)  # 联系人名字
+    remarks = db.Column(db.Text, nullable=True)  # 备注信息
+    hid_or_serial = db.Column(db.String(100), nullable=True)  # HID或序列号
+    singapore_status = db.Column(db.String(50), nullable=True)  # 在新加坡身份
 
     def __init__(self, name, visa_status='待递交', estimated_date=None):
         if visa_status not in self.VALID_STATUSES:

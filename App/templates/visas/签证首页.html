@@ -223,7 +223,7 @@
                         </div>
                     </div>
                     <div class="visa-home-card-actions">
-                        <a href="{{ url_for('visa_routes.visa_processing', country=visa.visa_type_name) }}" class="visa-home-btn visa-home-btn-primary">
+                        <a href="{{ url_for('visa_routes.visa_processing', visa_type=visa.visa_type_name) }}" class="visa-home-btn visa-home-btn-primary">
                             开始处理
                         </a>
                     </div>
