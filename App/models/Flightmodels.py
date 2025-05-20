@@ -125,7 +125,7 @@ class FlightOrder(db.Model):
     refund_change_policy = db.Column(db.Text, comment='退改政策')
     baggage_allowance = db.Column(db.String(100), comment='行李额')
     pnr_code = db.Column(db.String(10), comment='PNR编码')
-    e_ticket_number = db.Column(db.String(13), comment='电子客票号')    
+    e_ticket_number = db.Column(db.String(13), comment='电子客票号')
     client_type = db.Column(db.String(20), comment='客户类型')
     
     # 其他信息

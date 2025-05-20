@@ -21,7 +21,7 @@ def visa_project_detail(project_id):
     current_sort_by = request.args.get('sort_by', 'created_date')
 
     # 从数据库获取项目信息
-    project = Visa_project.query.get_or_404(project_id)
+    project = VisaProject.query.get_or_404(project_id)
     
     # 获取相关链接（如果有的话）
     related_links = []  # 实际项目中可从数据库获取
@@ -39,7 +39,7 @@ def visa_project_detail(project_id):
 @visa_routes.route('/visa/update_project_detail/<int:project_id>', methods=['POST'])
 def update_project_detail(project_id):
     """更新签证项目的状态或预估日期"""
-    project = Visa_project.query.get_or_404(project_id)
+    project = VisaProject.query.get_or_404(project_id)
     
     # 获取当前的visa_status和sort_by参数，用于重定向回详情页
     current_visa_status = request.form.get('current_visa_status', 'all')
@@ -52,6 +52,22 @@ def update_project_detail(project_id):
     # 更新预估日期（如果有提交）
     if 'estimated_date' in request.form and request.form['estimated_date']:
         project.estimated_date = request.form['estimated_date']
+    
+    # 更新新增字段（如果有提交）
+    if 'visa_type' in request.form:
+        project.visa_type = request.form['visa_type']
+    
+    if 'applicant_name' in request.form:
+        project.applicant_name = request.form['applicant_name']
+    
+    if 'contact_name' in request.form:
+        project.contact_name = request.form['contact_name']
+    
+    if 'remarks' in request.form:
+        project.remarks = request.form['remarks']
+    
+    if 'hid_or_serial' in request.form:
+        project.hid_or_serial = request.form['hid_or_serial']
     
     db.session.commit()
     

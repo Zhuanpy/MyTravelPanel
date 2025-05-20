@@ -1,0 +1,397 @@
+{% extends "base.html" %}
+
+{% block title %}创建项目REF{% endblock %}
+
+{% block head %}
+<style>
+    .header-section {
+        background-color: #FFFF99;
+        padding: 15px;
+        margin-bottom: 20px;
+        border: 1px solid #ddd;
+    }
+    
+    .header-row {
+        display: grid;
+        grid-template-columns: 120px 1fr;
+        margin-bottom: 8px;
+        align-items: center;
+    }
+    
+    .header-label {
+        font-weight: normal;
+        color: #333;
+    }
+    
+    .detail-section {
+        margin-top: 20px;
+        border: 1px solid #ddd;
+    }
+    
+    .detail-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    
+    .detail-table th {
+        background-color: #f5f5f5;
+        padding: 8px;
+        border: 1px solid #ddd;
+        text-align: center;
+    }
+    
+    .detail-table td {
+        padding: 8px;
+        border: 1px solid #ddd;
+    }
+    
+    .action-buttons {
+        margin-top: 10px;
+        text-align: center;
+    }
+    
+    .action-button {
+        margin: 0 5px;
+        padding: 5px 15px;
+        border: 1px solid #ddd;
+        background-color: #f5f5f5;
+        cursor: pointer;
+    }
+    
+    input[readonly] {
+        background-color: #f5f5f5;
+        border: 1px solid #ddd;
+    }
+    
+    .eo-section {
+        margin-top: 5px;
+        padding: 10px;
+        background-color: #f8f9fa;
+        border: 1px solid #ddd;
+    }
+    
+    .eo-button {
+        padding: 2px 8px;
+        font-size: 12px;
+        background-color: #e9ecef;
+        border: 1px solid #ced4da;
+        border-radius: 3px;
+        cursor: pointer;
+        margin-left: 5px;
+    }
+    
+    .eo-details {
+        display: none;
+        margin-top: 5px;
+        padding: 8px;
+        background-color: #fff;
+        border: 1px solid #ddd;
+    }
+    
+    .eo-row {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 8px;
+        margin-bottom: 5px;
+        align-items: center;
+    }
+    
+    .ref-cell {
+        position: relative;
+    }
+    
+    .eo-list {
+        margin-top: 5px;
+    }
+    
+    .eo-item {
+        padding: 3px;
+        margin: 2px 0;
+        background-color: #f0f0f0;
+        border-radius: 3px;
+        font-size: 12px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header Section -->
+    <div class="header-section">
+        <div class="header-row">
+            <span class="header-label">HID编号:</span>
+            <input type="text" class="form-control" name="hid" readonly value="{{ project.hid }}">
+        </div>
+        <div class="header-row">
+            <span class="header-label">项目名称:</span>
+            <input type="text" class="form-control" readonly value="{{ project.project_name }}">
+        </div>
+        <div class="header-row">
+            <span class="header-label">客户名称:</span>
+            <input type="text" class="form-control" readonly value="{{ project.client_name }}">
+        </div>
+    </div>
+
+    <!-- Detail Section -->
+    <div class="detail-section">
+        <table class="detail-table">
+            <thead>
+                <tr>
+                    <th>序号</th>
+                    <th>REF编号</th>
+                    <th>类型</th>
+                    <th>描述</th>
+                    <th>供应商</th>
+                    <th>Selling</th>
+                    <th>Cost</th>
+                    <th>Balance</th>
+                    <th>状态</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody id="detailTableBody">
+                <!-- Dynamic rows will be added here -->
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td colspan="5" style="text-align: right;"><strong>总计:</strong></td>
+                    <td id="totalSelling">0.00</td>
+                    <td id="totalCost">0.00</td>
+                    <td id="totalBalance">0.00</td>
+                    <td colspan="2"></td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="action-buttons">
+        <button class="action-button" onclick="addNewRow()">添加行项目</button>
+        <button class="action-button" onclick="saveRefs()">保存REF</button>
+    </div>
+</div>
+
+<script>
+let rowCounter = 0;
+let eoCounter = 0;
+
+function addNewRow() {
+    rowCounter++;
+    const tbody = document.getElementById('detailTableBody');
+    const row = document.createElement('tr');
+    
+    row.innerHTML = `
+        <td>${rowCounter}</td>
+        <td class="ref-cell">
+            <input type="text" class="form-control" name="ref_number[]" value="${generateRefNumber()}" readonly>
+            <button type="button" class="eo-button" onclick="addEO(this)">EO</button>
+            <div class="eo-list"></div>
+        </td>
+        <td>
+            <select class="form-control" name="ref_type_id[]" required>
+                {% for type in business_types %}
+                <option value="{{ type.id }}">{{ type.name }}</option>
+                {% endfor %}
+            </select>
+        </td>
+        <td><input type="text" class="form-control" name="ref_description[]" required></td>
+        <td>
+            <select class="form-control" name="supplier_id[]" required>
+                <option value="">选择供应商</option>
+                {% for supplier in suppliers %}
+                <option value="{{ supplier.id }}">{{ supplier.name }}</option>
+                {% endfor %}
+            </select>
+        </td>
+        <td><input type="number" step="0.01" class="form-control selling-input" name="selling[]" value="0" onchange="updateTotals(this)"></td>
+        <td><input type="number" step="0.01" class="form-control cost-input" name="cost[]" value="0" onchange="updateTotals(this)"></td>
+        <td class="balance-cell">0.00</td>
+        <td>草稿</td>
+        <td>
+            <button type="button" class="btn btn-sm btn-danger" onclick="removeRow(this)">删除</button>
+        </td>
+    `;
+    
+    tbody.appendChild(row);
+}
+
+function removeRow(button) {
+    const row = button.closest('tr');
+    row.remove();
+    updateTotals();
+}
+
+function updateTotals(input) {
+    const row = input.closest('tr');
+    const selling = parseFloat(row.querySelector('.selling-input').value) || 0;
+    const cost = parseFloat(row.querySelector('.cost-input').value) || 0;
+    const balance = selling - cost;
+    
+    // Update balance for this row
+    row.querySelector('.balance-cell').textContent = balance.toFixed(2);
+    
+    // Update all totals
+    const allRows = document.getElementById('detailTableBody').getElementsByTagName('tr');
+    let totalSelling = 0;
+    let totalCost = 0;
+    let totalBalance = 0;
+    
+    Array.from(allRows).forEach(row => {
+        totalSelling += parseFloat(row.querySelector('.selling-input').value) || 0;
+        totalCost += parseFloat(row.querySelector('.cost-input').value) || 0;
+    });
+    
+    totalBalance = totalSelling - totalCost;
+    
+    document.getElementById('totalSelling').textContent = totalSelling.toFixed(2);
+    document.getElementById('totalCost').textContent = totalCost.toFixed(2);
+    document.getElementById('totalBalance').textContent = totalBalance.toFixed(2);
+}
+
+function generateRefNumber() {
+    const hid = document.querySelector('[name="hid"]').value;
+    return `${hid}-R${String(rowCounter).padStart(2, '0')}`;
+}
+
+function addEO(button) {
+    const refCell = button.closest('.ref-cell');
+    const refNumber = refCell.querySelector('[name="ref_number[]"]').value;
+    const eoList = refCell.querySelector('.eo-list');
+    
+    // Generate EO number
+    eoCounter++;
+    const eoNumber = `${refNumber}-E${String(eoCounter).padStart(2, '0')}`;
+    
+    // Create EO element
+    const eoDiv = document.createElement('div');
+    eoDiv.className = 'eo-section';
+    eoDiv.innerHTML = `
+        <div class="eo-item">
+            <span>${eoNumber}</span>
+            <button type="button" class="btn btn-sm btn-link" onclick="toggleEODetails(this)">详情</button>
+            <button type="button" class="btn btn-sm btn-danger" onclick="removeEO(this)">删除</button>
+        </div>
+        <div class="eo-details">
+            <div class="eo-row">
+                <select class="form-control form-control-sm" name="eo_type[]" required>
+                    <option value="">选择类型</option>
+                    {% for type in supplier_types %}
+                    <option value="{{ type }}">{{ type }}</option>
+                    {% endfor %}
+                </select>
+                <select class="form-control form-control-sm" name="eo_supplier[]" required>
+                    <option value="">选择供应商</option>
+                </select>
+                <input type="number" step="0.01" class="form-control form-control-sm" name="eo_selling[]" placeholder="Selling" onchange="updateEOTotals(this)">
+                <input type="number" step="0.01" class="form-control form-control-sm" name="eo_cost[]" placeholder="Cost" onchange="updateEOTotals(this)">
+            </div>
+            <div class="eo-row">
+                <input type="text" class="form-control form-control-sm" name="eo_remark[]" placeholder="备注" style="grid-column: 1 / -1;">
+            </div>
+        </div>
+    `;
+    
+    eoList.appendChild(eoDiv);
+    
+    // Add event listener for supplier type change
+    const typeSelect = eoDiv.querySelector('[name="eo_type[]"]');
+    typeSelect.addEventListener('change', function() {
+        updateSupplierList(this);
+    });
+}
+
+function toggleEODetails(button) {
+    const eoSection = button.closest('.eo-section');
+    const details = eoSection.querySelector('.eo-details');
+    details.style.display = details.style.display === 'none' ? 'block' : 'none';
+}
+
+function removeEO(button) {
+    const eoSection = button.closest('.eo-section');
+    eoSection.remove();
+    updateTotals();
+}
+
+function updateSupplierList(select) {
+    const eoRow = select.closest('.eo-row');
+    const supplierSelect = eoRow.querySelector('[name="eo_supplier[]"]');
+    const selectedType = select.value;
+    
+    // Clear current options
+    supplierSelect.innerHTML = '<option value="">选择供应商</option>';
+    
+    if (!selectedType) return;
+    
+    // Filter suppliers by type
+    const suppliers = JSON.parse('{{ suppliers|tojson|safe }}');
+    const filteredSuppliers = suppliers.filter(s => s.type === selectedType);
+    
+    filteredSuppliers.forEach(supplier => {
+        const option = document.createElement('option');
+        option.value = supplier.id;
+        option.textContent = supplier.name;
+        supplierSelect.appendChild(option);
+    });
+}
+
+function updateEOTotals(input) {
+    const eoRow = input.closest('.eo-row');
+    const selling = parseFloat(eoRow.querySelector('[name="eo_selling[]"]').value) || 0;
+    const cost = parseFloat(eoRow.querySelector('[name="eo_cost[]"]').value) || 0;
+    
+    // Update REF row totals
+    const refRow = input.closest('tr');
+    updateTotals(refRow.querySelector('.selling-input'));
+}
+
+function saveRefs() {
+    const formData = new FormData();
+    const hid = document.querySelector('[name="hid"]').value;
+    
+    // Add detail rows
+    const rows = document.getElementById('detailTableBody').getElementsByTagName('tr');
+    Array.from(rows).forEach((row, index) => {
+        formData.append(`ref_number_${index}`, row.querySelector('[name="ref_number[]"]').value);
+        formData.append(`ref_type_id_${index}`, row.querySelector('[name="ref_type_id[]"]').value);
+        formData.append(`ref_description_${index}`, row.querySelector('[name="ref_description[]"]').value);
+        formData.append(`supplier_id_${index}`, row.querySelector('[name="supplier_id[]"]').value);
+        formData.append(`selling_${index}`, row.querySelector('[name="selling[]"]').value);
+        formData.append(`cost_${index}`, row.querySelector('[name="cost[]"]').value);
+        
+        // Add EO data
+        const eoSections = row.querySelectorAll('.eo-section');
+        eoSections.forEach((eoSection, eoIndex) => {
+            formData.append(`eo_number_${index}_${eoIndex}`, eoSection.querySelector('span').textContent);
+            formData.append(`eo_type_${index}_${eoIndex}`, eoSection.querySelector('[name="eo_type[]"]').value);
+            formData.append(`eo_supplier_${index}_${eoIndex}`, eoSection.querySelector('[name="eo_supplier[]"]').value);
+            formData.append(`eo_selling_${index}_${eoIndex}`, eoSection.querySelector('[name="eo_selling[]"]').value);
+            formData.append(`eo_cost_${index}_${eoIndex}`, eoSection.querySelector('[name="eo_cost[]"]').value);
+            formData.append(`eo_remark_${index}_${eoIndex}`, eoSection.querySelector('[name="eo_remark[]"]').value);
+        });
+    });
+    
+    // Submit form
+    fetch(`/projects/${hid}/create_ref`, {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            window.location.href = data.redirect || '/projects';
+        } else {
+            alert('保存失败: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('保存失败，请检查网络连接');
+    });
+}
+
+// Add first row on page load
+document.addEventListener('DOMContentLoaded', function() {
+    addNewRow();
+});
+</script>
+{% endblock %} 

@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}签证项目详情 - {{ project.name }}{% endblock %}
+{% block title %}签证项目详情 - {{ project.project_folder_name }}{% endblock %}
 
 {% block head %}
 {{ super() }}
@@ -235,7 +235,7 @@
                 <h2>基本信息</h2>
                 <div class="info-row">
                     <div class="info-label">项目名称</div>
-                    <div class="info-value">{{ project.name }}</div>
+                    <div class="info-value">{{ project.project_folder_name }}</div>
                 </div>
                 <div class="info-row">
                     <div class="info-label">项目ID</div>
@@ -270,6 +270,36 @@
                         </form>
                     </div>
                 </div>
+                {% if project.hid_or_serial %}
+                <div class="info-row">
+                    <div class="info-label">HID或序列号</div>
+                    <div class="info-value">{{ project.hid_or_serial }}</div>
+                </div>
+                {% endif %}
+                {% if project.visa_type %}
+                <div class="info-row">
+                    <div class="info-label">签证类型</div>
+                    <div class="info-value">{{ project.visa_type }}</div>
+                </div>
+                {% endif %}
+                {% if project.applicant_name %}
+                <div class="info-row">
+                    <div class="info-label">申请人名字</div>
+                    <div class="info-value">{{ project.applicant_name }}</div>
+                </div>
+                {% endif %}
+                {% if project.contact_name %}
+                <div class="info-row">
+                    <div class="info-label">联系人名字</div>
+                    <div class="info-value">{{ project.contact_name }}</div>
+                </div>
+                {% endif %}
+                {% if project.remarks %}
+                <div class="info-row">
+                    <div class="info-label">备注信息</div>
+                    <div class="info-value">{{ project.remarks }}</div>
+                </div>
+                {% endif %}
                 {% if project.singapore_identity %}
                 <div class="info-row">
                     <div class="info-label">新加坡身份</div>
@@ -309,7 +339,7 @@
         
         <div class="action-buttons">
             <a href="{{ url_for('visa_routes.open_current_project_file', file_name=project.name, visa_status=current_visa_status, sort_by=current_sort_by) }}" class="action-button primary-button">打开项目</a>
-            <a href="{{ url_for('visa_routes.visa_processing', country=project.visa_category) if project.visa_category else '#' }}" class="action-button secondary-button">签证处理</a>
+            <a href="{{ url_for('visa_routes.visa_processing', visa_type=project.visa_category) if project.visa_category else '#' }}" class="action-button secondary-button">签证处理</a>
             <a href="#" class="action-button danger-button" onclick="deleteProject('{{ project.id }}')">删除项目</a>
         </div>
     </div>

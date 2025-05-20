@@ -15,7 +15,7 @@
                 <h1 class="title">编辑{{ document.visa_type }}资料</h1>
                 
                 <div class="buttons">
-                    <a href="{{ url_for('visa_routes.visa_processing', country=document.visa_type) }}" class="button is-info">
+                    <a href="{{ url_for('visa_routes.visa_processing', visa_type=document.visa_type) }}" class="button is-info">
                         <i class="fas fa-arrow-left"></i>&nbsp;返回签证处理
                     </a>
                     <a href="{{ url_for('index.index') }}" class="home-btn">

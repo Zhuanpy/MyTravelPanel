@@ -307,7 +307,7 @@
         </div>
         <div class="button-group">
             {% for visa in visa_categories %}
-                <a href="{{ url_for('visa_routes.visa_processing', country=visa.visa_type_name) }}"
+                <a href="{{ url_for('visa_routes.visa_processing', visa_type=visa.visa_type_name) }}"
                    class="btn btn-blue">
                    <i class="fas fa-globe"></i> {{ visa.visa_type_name }}
                 </a>

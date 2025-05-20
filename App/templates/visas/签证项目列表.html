@@ -5,7 +5,7 @@
 {% block head %}
 <style>
     .visa-project-container {
-        max-width: 1400px;
+        max-width: 1800px;
         margin: 0 auto;
         padding: 20px;
         overflow-x: auto; /* 添加横向滚动以适应小屏幕 */
@@ -76,7 +76,7 @@
         width: 100%;
         border-collapse: collapse;
         margin-bottom: 2rem;
-        min-width: 1200px; /* 确保表格有最小宽度 */
+        min-width: 1600px; /* 确保表格有最小宽度 */
     }
     
     .visa-project-table th, 
@@ -241,40 +241,60 @@
     }
     
     .visa-project-table th:nth-child(2), 
-    .visa-project-table td:nth-child(2) { /* 项目名称列 */
-        width: 280px;
-        white-space: normal; /* 允许名称换行 */
+    .visa-project-table td:nth-child(2) { /* HID或序列号列 */
+        width: 140px;
     }
     
     .visa-project-table th:nth-child(3), 
-    .visa-project-table td:nth-child(3) { /* 创建时间列 */
-        width: 150px;
+    .visa-project-table td:nth-child(3) { /* 申请人名字列 */
+        width: 140px;
     }
     
     .visa-project-table th:nth-child(4), 
-    .visa-project-table td:nth-child(4) { /* 签证状态列 */
-        width: 150px;
+    .visa-project-table td:nth-child(4) { /* 签证类型列 */
+        width: 140px;
     }
     
     .visa-project-table th:nth-child(5), 
-    .visa-project-table td:nth-child(5) { /* 预估日期列 */
-        width: 150px;
+    .visa-project-table td:nth-child(5) { /* 创建时间列 */
+        width: 140px;
     }
     
     .visa-project-table th:nth-child(6), 
-    .visa-project-table td:nth-child(6) { /* 保存修改列 */
-        width: 100px;
-        text-align: center;
+    .visa-project-table td:nth-child(6) { /* 签证状态列 */
+        width: 140px;
     }
     
     .visa-project-table th:nth-child(7), 
-    .visa-project-table td:nth-child(7) { /* 打开项目列 */
+    .visa-project-table td:nth-child(7) { /* 预估日期列 */
+        width: 140px;
+    }
+    
+    .visa-project-table th:nth-child(8), 
+    .visa-project-table td:nth-child(8) { /* 备注信息列 */
+        width: 200px;
+    }
+    
+    .visa-project-table th:nth-child(9), 
+    .visa-project-table td:nth-child(9) { /* 保存修改列 */
         width: 100px;
         text-align: center;
     }
     
-    .visa-project-table th:nth-child(8), 
-    .visa-project-table td:nth-child(8) { /* 删除项目列 */
+    .visa-project-table th:nth-child(10), 
+    .visa-project-table td:nth-child(10) { /* 打开项目列 */
+        width: 100px;
+        text-align: center;
+    }
+    
+    .visa-project-table th:nth-child(11), 
+    .visa-project-table td:nth-child(11) { /* 编辑项目列 */
+        width: 100px;
+        text-align: center;
+    }
+    
+    .visa-project-table th:nth-child(12), 
+    .visa-project-table td:nth-child(12) { /* 删除项目列 */
         width: 100px;
         text-align: center;
     }
@@ -302,6 +322,15 @@
                 <option value="ignored" {% if visa_status == 'ignored' %}selected{% endif %}>忽略单</option>
                 <option value="all" {% if visa_status == 'all' %}selected{% endif %}>全部</option>
             </select>
+            
+            <!-- 签证类型筛选 -->
+            <label for="filter_visa_type">签证类型：</label>
+            <select name="filter_visa_type" id="filter_visa_type" onchange="this.form.submit()">
+                <option value="all" {% if filter_visa_type == 'all' or filter_visa_type is not defined %}selected{% endif %}>全部</option>
+                {% for visa in visa_categories %}
+                    <option value="{{ visa.visa_type_name }}" {% if filter_visa_type == visa.visa_type_name %}selected{% endif %}>{{ visa.visa_type_name }}</option>
+                {% endfor %}
+            </select>
     
             <!-- 排序选项 -->
             <label for="sort_by">排序方式：</label>
@@ -317,12 +346,16 @@
         <thead>
             <tr>
                 <th>项目ID</th>
-                <th>项目名称</th>
+                <th>HID或序列号</th>
+                <th>申请人名字</th>
+                <th>签证类型</th>
                 <th>创建时间</th>
                 <th>签证状态</th>
                 <th>预估日期</th>
+                <th>备注信息</th>
                 <th>保存修改</th>
                 <th>打开项目</th>
+                <th>编辑项目</th>
                 <th>删除项目</th>
             </tr>
         </thead>
@@ -332,9 +365,12 @@
                 <!-- 隐藏字段，用于传递签证状态和排序方式 -->
                 <input type="hidden" name="current_visa_status" value="{{ visa_status }}">
                 <input type="hidden" name="current_sort_by" value="{{ sort_by }}">
+                <input type="hidden" name="current_filter_visa_type" value="{{ filter_visa_type }}">
                 <tr>
                     <td>{{ project.id }}</td>
-                    <td>{{ project.name }}</td>
+                    <td><input type="text" name="hid_or_serial" value="{{ project.hid_or_serial or '' }}" class="visa-project-input-field"></td>
+                    <td><input type="text" name="applicant_name" value="{{ project.applicant_name or '' }}" class="visa-project-input-field"></td>
+                    <td><input type="text" name="visa_type" value="{{ project.visa_type or '' }}" class="visa-project-input-field"></td>
                     <td>{{ project.created_date.strftime('%Y-%m-%d') }}</td>
                     <td>
                         <select name="visa_status" class="visa-project-select-field">
@@ -345,12 +381,18 @@
                         </select>
                     </td>
                     <td><input type="text" name="estimated_date" value="{{ project.estimated_date }}" class="visa-project-input-field"></td>
+                    <td><input type="text" name="remarks" value="{{ project.remarks or '' }}" class="visa-project-input-field"></td>
                     <td>
                         <button type="submit" class="visa-project-action-link">保存修改</button>
                     </td>
                     <td>
-                        <a class="visa-project-open-link" href="{{ url_for('visa_routes.open_current_project_file', file_name=project.name, visa_status=visa_status, sort_by=sort_by) }}">
+                        <a class="visa-project-open-link" href="{{ url_for('visa_routes.open_current_project_file', file_name=project.project_folder_name, visa_status=visa_status, sort_by=sort_by, filter_visa_type=filter_visa_type) }}">
                             打开项目
+                        </a>
+                    </td>
+                    <td>
+                        <a class="visa-project-open-link" style="background-color: #e6a700;" href="{{ url_for('visa_routes.edit_project', project_id=project.id) }}">
+                            编辑项目
                         </a>
                     </td>
                     <td>
@@ -367,7 +409,7 @@
         <h2 class="visa-project-links-title">签证处理链接</h2>
         <div class="visa-project-button-group">
             {% for visa in visa_categories %}
-                <a href="{{ url_for('visa_routes.visa_processing', country=visa.visa_type_name) }}"
+                <a href="{{ url_for('visa_routes.visa_processing', visa_type=visa.visa_type_name) }}"
                    class="visa-project-btn visa-project-btn-blue">
                    {{ visa.visa_type_name }}签证
                 </a>

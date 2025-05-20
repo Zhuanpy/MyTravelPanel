@@ -150,7 +150,7 @@
         <h1 class="visa-doc-title">{% if current_country %}管理{{ current_country }}资料{% else %}签证资料管理{% endif %}</h1>
         <div class="visa-doc-buttons">
             {% if current_country %}
-            <a href="{{ url_for('visa_routes.visa_processing', country=current_country) }}" class="visa-doc-button">
+            <a href="{{ url_for('visa_routes.visa_processing', visa_type=current_visa_type) }}" class="visa-doc-button">
                 <i class="fas fa-arrow-left"></i>返回签证处理
             </a>
             {% endif %}
