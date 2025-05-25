@@ -226,6 +226,9 @@
             <textarea id="itinerary" class="athina-textarea" placeholder="生成的行程代码将显示在这里..."></textarea>
             <div class="athina-button-container">
                 <button class="athina-button" onclick="sendData()">生成代码</button>
+                <a id="addScheduleBtn" href="{{ url_for('flights_schedule.input_flight_schedule') }}" class="athina-button" style="display: none; text-decoration: none; background-color: var(--secondary-color);">
+                    添加航班时刻
+                </a>
             </div>
         </div>
     </div>
@@ -331,6 +334,8 @@
         const flightNumbers = document.querySelectorAll('.flightNumber');
         const flightDates = document.querySelectorAll('.flightDate');
         const data = [];
+        const addScheduleBtn = document.getElementById('addScheduleBtn');
+        addScheduleBtn.style.display = 'none';  // 每次发送请求时隐藏按钮
 
         flightNumbers.forEach((flightNumber, index) => {
             const flightDate = flightDates[index];
@@ -362,6 +367,10 @@
         .then(result => {
             if (result.error) {
                 textarea.value = `错误: ${result.error}`;
+                // 如果是航班数据不存在的错误，显示添加按钮
+                if (result.error.includes('未找到航班') || result.error.includes('数据库中没有该航班')) {
+                    addScheduleBtn.style.display = 'inline-flex';
+                }
             } else {
                 textarea.value = result.itinerary;
             }

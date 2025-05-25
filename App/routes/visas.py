@@ -73,7 +73,7 @@ def add_visa_type():
     
     # 获取所有国家列表
     countries = VisaCountries.query.order_by(VisaCountries.country_name_CN).all()
-    return render_template('visas/add_visa_type.html', countries=countries)
+    return render_template('visas/visa_type_add.html', countries=countries)
 
 
 @visa_routes.route('/add_document', methods=['GET', 'POST'])
