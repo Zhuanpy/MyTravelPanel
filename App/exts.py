@@ -3,16 +3,21 @@
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_caching import Cache
+from flask_wtf.csrf import CSRFProtect
 
 db = SQLAlchemy()
 migrate = Migrate()
 cache = Cache()
+csrf = CSRFProtect()
 
 
 def init_exts(app):
     # 初始化数据库
     db.init_app(app=app)
     migrate.init_app(app=app, db=db)
+
+    # 初始化CSRF保护
+    csrf.init_app(app)
 
     # 初始化缓存
     cache_config = {

@@ -1108,11 +1108,15 @@ async function submitEditForm() {
         
         console.log('编辑账号数据:', formData);
         
+        // 获取CSRF令牌
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        
         // 发送API请求
         const response = await fetch(`/account/api/accounts/${id}`, {
             method: 'PUT',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
             },
             body: JSON.stringify(formData)
         });
@@ -1156,11 +1160,15 @@ async function deleteAccount(id) {
         
         console.log(`开始删除账号 ID: ${id}`);
         
+        // 获取CSRF令牌
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        
         // 发送API请求
         const response = await fetch(`/account/api/accounts/${id}`, {
             method: 'DELETE',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
             }
         });
         
@@ -1252,9 +1260,15 @@ async function submitImport() {
         const formData = new FormData();
         formData.append('file', file);
         
+        // 获取CSRF令牌
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        
         // 发送API请求
         const response = await fetch('/account/api/accounts/import', {
             method: 'POST',
+            headers: {
+                'X-CSRFToken': csrfToken
+            },
             body: formData
         });
         

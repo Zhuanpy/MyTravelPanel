@@ -281,6 +281,21 @@
         <button class="btn btn-danger" onclick="cancelOrder()">取消订单</button>
         {% endif %}
     </div>
+
+    <!-- Status Update Form -->
+    <form id="statusUpdateForm" method="POST" action="{{ url_for('flights_booking.update_order_status', order_id=order.id) }}" style="display: inline;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <select name="status" class="order-select" style="width: auto; display: inline-block; margin-right: 10px;">
+            <option value="pending" {% if order.status == 'pending' %}selected{% endif %}>待处理</option>
+            <option value="confirmed" {% if order.status == 'confirmed' %}selected{% endif %}>已确认</option>
+            <option value="issued" {% if order.status == 'issued' %}selected{% endif %}>已出票</option>
+            <option value="completed" {% if order.status == 'completed' %}selected{% endif %}>已完成</option>
+            <option value="cancelled" {% if order.status == 'cancelled' %}selected{% endif %}>已取消</option>
+        </select>
+        <button type="submit" class="order-btn order-btn-primary">
+            <i class="fas fa-save"></i> 更新状态
+        </button>
+    </form>
 </div>
 
 <script>
@@ -289,5 +304,49 @@ function cancelOrder() {
         // 实现取消订单的逻辑
     }
 }
+</script>
+{% endblock %}
+
+{% block scripts %}
+<!-- 添加必要的JavaScript -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+<script>
+// AJAX status update function with CSRF token
+function updateOrderStatus(orderId, newStatus) {
+    // Get CSRF token from the page
+    const csrfToken = $('input[name="csrf_token"]').val();
+    
+    $.ajax({
+        url: `/flights_booking/update_order_status/${orderId}`,
+        type: 'POST',
+        data: {
+            'status': newStatus,
+            'csrf_token': csrfToken
+        },
+        success: function(response) {
+            // Handle success
+            alert('订单状态已更新');
+            // Reload page to show updated status
+            location.reload();
+        },
+        error: function(xhr) {
+            // Handle error
+            alert('更新状态失败: ' + xhr.responseText);
+        }
+    });
+}
+
+// If you have status update buttons elsewhere on the page,
+// you can attach this event handler
+$(document).ready(function() {
+    // Example usage for any status update links
+    $('.status-update-link').on('click', function(e) {
+        e.preventDefault();
+        const orderId = $(this).data('order-id');
+        const newStatus = $(this).data('status');
+        updateOrderStatus(orderId, newStatus);
+    });
+});
 </script>
 {% endblock %} 

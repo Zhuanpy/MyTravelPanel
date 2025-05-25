@@ -395,6 +395,7 @@
     </div>
     
     <form id="orderForm" method="POST" action="{{ url_for('flights_booking.submit_order') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <!-- 航段解析器 -->
         <div class="order-card">
             <h2 class="order-section-title">航段解析</h2>

@@ -291,7 +291,7 @@
                 <a href="{{ url_for('visa_routes.visa_home') }}" class="text-link">
                     <i class="fas fa-home"></i> 签证首页
                 </a>
-                <a href="{{ url_for('visa_routes.open_visa_folder') }}" class="text-link">
+                <a href="{{ url_for('visa_routes.open_folder', folder_type='visa_root', return_to='home') }}" class="text-link">
                     <i class="fas fa-folder"></i> 资源文件夹
                 </a>
                 <a href="{{ url_for('visa_routes.add_visa_type') }}" class="text-link">

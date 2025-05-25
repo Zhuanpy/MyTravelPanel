@@ -3,6 +3,8 @@
 {% block title %}番茄工作法{% endblock %}
 
 {% block head %}
+<!-- CSRF令牌 -->
+<meta name="csrf-token" content="{{ csrf_token() }}">
 <style>
     /* 设置页面宽度 */
     .pomodoro-container {
@@ -213,7 +215,10 @@
         if (!name) return;
         await fetch(API_URLS.createTask, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            },
             body: JSON.stringify({ name }),
         });
         loadTasks();
@@ -221,7 +226,12 @@
 
     // 删除任务
     const deleteTask = async (id) => {
-        await fetch(API_URLS.deleteTask(id), { method: 'DELETE' });
+        await fetch(API_URLS.deleteTask(id), { 
+            method: 'DELETE',
+            headers: {
+                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            }
+        });
         clearTimer(id);
         loadTasks();
     };
@@ -240,7 +250,10 @@
 
             await fetch(API_URLS.toggleTask(runningId), {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                },
                 body: JSON.stringify({ remaining_time: remainingTime }),
             });
 
@@ -254,7 +267,10 @@
 
         const response = await fetch(API_URLS.toggleTask(id), {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            },
             body: JSON.stringify({ remaining_time: remainingTime }),
         });
         const data = await response.json();
@@ -270,7 +286,12 @@
     };
     // 重置任务
     const resetTask = async (id) => {
-        await fetch(API_URLS.resetTask(id), { method: 'POST' });
+        await fetch(API_URLS.resetTask(id), { 
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            }
+        });
         clearTimer(id);
         loadTasks();
     };

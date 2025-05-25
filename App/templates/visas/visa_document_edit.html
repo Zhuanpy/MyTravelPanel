@@ -24,7 +24,9 @@
                 </div>
             </div>
             
-            <form action="{{ url_for('visa_routes.update_visa', id=document.id) }}" method="post" class="box">
+            <form action="{{ url_for('visa_routes.update_visa', id=document.id) }}" method="post" class="box" autocomplete="off">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                
                 <div class="field">
                     <label class="label">签证类型</label>
                     <div class="control">
@@ -35,7 +37,7 @@
                     <label class="label">新加坡身份</label>
                     <div class="control">
                         <div class="select">
-                            <select name="singapore_identity" {% if document.singapore_identity == 'SHARE' %}readonly{% endif %}>
+                            <select name="singapore_identity" {% if document.singapore_identity == 'SHARE' %}readonly{% endif %} autocomplete="off">
                                 <option value="SHARE" {% if document.singapore_identity == 'SHARE' %}selected{% endif %}>共用资料</option>
                                 <option value="PR" {% if document.singapore_identity == 'PR' %}selected{% endif %}>永久居民 (PR)</option>
                                 <option value="工作准证" {% if document.singapore_identity == '工作准证' %}selected{% endif %}>工作准证</option>
@@ -54,13 +56,13 @@
                 <div class="field">
                     <label class="label">文件资料</label>
                     <div class="control">
-                        <textarea class="textarea document-info" name="document_info">{{ document.document_info }}</textarea>
+                        <textarea class="textarea document-info" name="document_info" autocomplete="off">{{ document.document_info }}</textarea>
                     </div>
                 </div>
                 <div class="field">
                     <label class="label">补充信息</label>
                     <div class="control">
-                        <textarea class="textarea additional-info" name="additional_info">{{ document.additional_info }}</textarea>
+                        <textarea class="textarea additional-info" name="additional_info" autocomplete="off">{{ document.additional_info }}</textarea>
                     </div>
                 </div>
                 <div class="field is-grouped">

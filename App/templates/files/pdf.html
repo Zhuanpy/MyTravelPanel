@@ -95,6 +95,7 @@
     <!-- 图片合并表单 -->
     <h2 class="pdf-page-section">图片合并为PDF</h2>
     <form id="imageForm" class="pdf-page-form" method="post" action="{{url_for('files_process.merge_images_to_pdf')}}" onsubmit="return handleSubmit(this, event)">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <label for="imageFolderPath" class="pdf-page-label">图片文件夹路径:</label>
         <input type="text" id="imageFolderPath" name="imageFolderPath" class="pdf-page-input">
         <button type="submit" name="submit_button" value="merge_images" class="pdf-page-button">图片合并为PDF</button>
@@ -103,6 +104,7 @@
     <!-- 多个PDF合并表单 -->
     <h2 class="pdf-page-section">多个PDF合并</h2>
     <form id="pdfForm" class="pdf-page-form" method="post" action="{{url_for('files_process.merge_pdf_to_pdf')}}" onsubmit="return handleSubmit(this, event)">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <label for="pdfFolderPath" class="pdf-page-label">PDF文件夹路径:</label>
         <input type="text" id="pdfFolderPath" name="pdfFolderPath" class="pdf-page-input">
         <button type="submit" name="submit_button" value="merge_images" class="pdf-page-button">多个PDF合并</button>
@@ -111,6 +113,7 @@
     <!-- Word转换PDF表单 -->
     <h2 class="pdf-page-section">Word转换PDF</h2>
     <form id="wordForm" class="pdf-page-form" method="post" action="{{url_for('files_process.word_to_pdf')}}" onsubmit="return handleSubmit(this, event)">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <label for="worldFolderPath" class="pdf-page-label">Word文件夹路径:</label>
         <input type="text" id="worldFolderPath" name="worldFolderPath" class="pdf-page-input">
         <button type="submit" name="submit_button" value="merge_images" class="pdf-page-button">Word转PDF</button>
@@ -132,7 +135,8 @@ function handleSubmit(form, event) {
         method: 'POST',
         body: formData,
         headers: {
-            'X-Requested-With': 'XMLHttpRequest'
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
         }
     })
     .then(response => {

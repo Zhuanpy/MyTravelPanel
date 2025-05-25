@@ -374,6 +374,114 @@
             max-width: 100%;
         }
     }
+
+    /* 日期选择器容器样式 */
+    .visa-project-form-group {
+        position: relative;
+    }
+
+    /* 日期输入框样式 */
+    .datepicker {
+        width: 100%;
+        padding: 0.5rem 0.75rem;
+        border: 1px solid #e2e8f0;
+        border-radius: 0.375rem;
+        background: #ffffff;
+        cursor: pointer;
+    }
+
+    /* 日历框样式 */
+    .flatpickr-calendar {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 0.375rem;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        margin-top: 4px;
+        font-size: 14px;
+        position: absolute !important;
+        z-index: 99999 !important;
+    }
+
+    /* 确保日历框容器也有正确的z-index */
+    .flatpickr-wrapper {
+        position: relative;
+        z-index: 99999;
+    }
+
+    /* 确保日期输入框容器也有正确的z-index */
+    .visa-project-form-group {
+        position: relative;
+        z-index: 99999;
+    }
+
+    /* 修改日历框的定位方式 */
+    body .flatpickr-calendar.static {
+        position: absolute !important;
+        top: 100% !important;
+        left: 0 !important;
+        margin-top: 4px;
+    }
+
+    /* 确保日历框在其他元素之上 */
+    .flatpickr-calendar.open {
+        display: inline-block;
+        z-index: 99999 !important;
+    }
+
+    /* 月份导航按钮样式 */
+    .flatpickr-months {
+        background: #f7fafc;
+        border-radius: 0.375rem 0.375rem 0 0;
+        padding: 0.5rem;
+    }
+
+    /* 日期单元格样式 */
+    .flatpickr-day {
+        border-radius: 0.25rem;
+        margin: 2px;
+        height: 36px;
+        line-height: 36px;
+    }
+
+    .flatpickr-day.selected {
+        background: #4299e1;
+        border-color: #4299e1;
+    }
+
+    .flatpickr-day:hover {
+        background: #ebf8ff;
+    }
+
+    .flatpickr-day.today {
+        border-color: #4299e1;
+    }
+
+    /* 星期标题样式 */
+    .flatpickr-weekday {
+        color: #718096;
+        font-weight: 500;
+        font-size: 12px;
+    }
+
+    /* 清除按钮样式 */
+    .flatpickr-clear {
+        position: absolute;
+        right: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        cursor: pointer;
+        color: #718096;
+        background: none;
+        border: none;
+        padding: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .flatpickr-clear:hover {
+        color: #4a5568;
+    }
 </style>
 {% endblock %}
 
@@ -388,7 +496,7 @@
         <div class="visa-project-section-header">
                 <h2>创建项目</h2>
             <div class="visa-project-header-links">
-                <a class="visa-project-resource-link" href="{{ url_for('visa_routes.visa_open_project_folder', visa_type=visa_type) }}">
+                <a class="visa-project-resource-link" href="{{ url_for('visa_routes.open_folder', folder_type='visa_type', visa_type=visa_type, return_to='processing') }}">
                     打开{{ visa_type }}资源
                 </a>
                 <a class="visa-project-resource-link" href="{{ url_for('visa_routes.show_current_all_projects') }}" >项目管理</a>
@@ -398,6 +506,7 @@
         <div id="formAlert" class="visa-project-alert"></div>
             
         <form id="visaForm" class="visa-project-form" method="post" action="{{ url_for('visa_routes.visa_create_project', visa_type=visa_type) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <!-- <div class="visa-project-form-info" style="margin-bottom: 15px; padding: 8px 12px; background-color: #e6f7ff; border-radius: 4px; border-left: 4px solid #1890ff;">
                 <i class="fas fa-info-circle"></i> 项目名称将由系统根据 签证类型 + HID或序列号 + 申请人名字 自动生成
             </div>
@@ -457,9 +566,18 @@
             <div class="visa-project-form-row">
                 <div class="visa-project-form-group visa-project-form-col-4">
                     <label for="estimated_date">预估出签日期</label>
-                    <input type="text" class="visa-project-form-control datepicker" id="estimated_date" name="estimated_date" 
-                           placeholder="选择日期" required>
-                    <div class="visa-project-form-error" id="estimated_date_error">请选择有效的日期</div>
+                    <div class="flatpickr-wrapper">
+                        <input type="text" 
+                               class="visa-project-form-control datepicker" 
+                               id="estimated_date" 
+                               name="estimated_date" 
+                               placeholder="选择日期" 
+                               required 
+                               data-input
+                               autocomplete="off"
+                               data-clear>
+                        <div class="visa-project-form-error" id="estimated_date_error">请选择有效的日期</div>
+                    </div>
                 </div>
             </div>
             
@@ -569,7 +687,7 @@
         <ul class="visa-project-list">
                 {% for project in projects %}
                 <li>
-                    <a href="{{ url_for('visa_routes.visa_open_current_project', file_name=project, visa_type=visa_type) }}">{{ project }}</a>
+                    <a href="{{ url_for('visa_routes.open_folder', folder_type='project', file_name=project, visa_type=visa_type, return_to='processing') }}">{{ project }}</a>
                 </li>
                 {% endfor %}
             </ul>
@@ -580,259 +698,250 @@
 {% block scripts %}
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/zh.js"></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const urlParams = new URLSearchParams(window.location.search);
-            const formData = urlParams.get('form_data');
-            if (formData) {
-                const data = JSON.parse(decodeURIComponent(formData));
-                if (data.hid_or_serial) {
-                    document.getElementById('hid_or_serial').value = data.hid_or_serial;
-                }
-                if (data.singapore_status) {
-                    document.getElementById('singapore_status').value = data.singapore_status;
-                }
-                if (data.visa_type) {
-                    document.getElementById('visa_type').value = data.visa_type;
-                }
-                if (data.applicant_name) {
-                    document.getElementById('applicant_name').value = data.applicant_name;
-                }
+<script>
+(function() {
+    document.addEventListener('DOMContentLoaded', function() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const formData = urlParams.get('form_data');
+        if (formData) {
+            const data = JSON.parse(decodeURIComponent(formData));
+            if (data.hid_or_serial) {
+                document.getElementById('hid_or_serial').value = data.hid_or_serial;
             }
-            
-            // 初始化日期选择器
-            flatpickr(".datepicker", {
-                locale: "zh",
-                dateFormat: "Y-m-d",
-                allowInput: true
-            });
-            
-            // 表单字段动态更新
-            document.getElementById('hid_or_serial').addEventListener('input', updateProjectName);
-            document.getElementById('visa_type').addEventListener('input', updateProjectName);
-            document.getElementById('applicant_name').addEventListener('input', updateProjectName);
-        });
-
-        // 自动隐藏警告消息
-        setTimeout(function() {
-            $('.alert').alert('close');
-        }, 3000);
-
-        function updateProjectName() {
-            const hidOrSerial = document.getElementById('hid_or_serial').value.trim();
-            const visaType = document.getElementById('visa_type').value.trim();
-            const applicantName = document.getElementById('applicant_name').value.trim();
-            
-            if (hidOrSerial && visaType && applicantName) {
-                const generatedName = `${visaType}_${hidOrSerial}_${applicantName}`;
-                console.log('项目名称将自动生成为: ' + generatedName);
+            if (data.singapore_status) {
+                document.getElementById('singapore_status').value = data.singapore_status;
+            }
+            if (data.visa_type) {
+                document.getElementById('visa_type').value = data.visa_type;
+            }
+            if (data.applicant_name) {
+                document.getElementById('applicant_name').value = data.applicant_name;
             }
         }
-
+        // 先清除输入框的值
+        const dateInput = document.querySelector(".datepicker");
+        dateInput.value = "";
+        dateInput.setAttribute("autocomplete", "off");
         // 初始化日期选择器
-        flatpickr(".datepicker", {
+        const fp = flatpickr(".datepicker", {
             locale: "zh",
             dateFormat: "Y-m-d",
             minDate: "today",
-            disableMobile: false
+            defaultDate: "",
+            allowInput: false,
+            disableMobile: true,
+            position: "below",
+            static: false,
+            onChange: function(selectedDates, dateStr, instance) {
+                if (!dateStr) {
+                    instance.input.value = "";
+                }
+            }
         });
-
-        // 表单验证和提交处理
-        const form = document.getElementById('visaForm');
-        const formAlert = document.getElementById('formAlert');
-        
-        function showAlert(message, isSuccess) {
-            formAlert.textContent = message;
-            formAlert.className = `visa-project-alert ${isSuccess ? 'visa-project-alert-success' : 'visa-project-alert-error'}`;
-            formAlert.style.display = 'block';
-            setTimeout(() => {
-                formAlert.style.display = 'none';
-            }, 5000);
+        // 每次打开日历时清除之前的选择
+        fp.config.onOpen.push(function() {
+            fp.clear();
+        });
+        // 添加清除按钮
+        const clearBtn = document.createElement('button');
+        clearBtn.type = 'button';
+        clearBtn.className = 'flatpickr-clear';
+        clearBtn.innerHTML = '<i class="fas fa-times"></i>';
+        clearBtn.addEventListener('click', function() {
+            fp.clear();
+        });
+        document.querySelector('.visa-project-form-group').appendChild(clearBtn);
+        // 表单字段动态更新
+        document.getElementById('hid_or_serial').addEventListener('input', updateProjectName);
+        document.getElementById('visa_type').addEventListener('input', updateProjectName);
+        document.getElementById('applicant_name').addEventListener('input', updateProjectName);
+    });
+    // 自动隐藏警告消息
+    setTimeout(function() {
+        $('.alert').alert('close');
+    }, 3000);
+    function updateProjectName() {
+        const hidOrSerial = document.getElementById('hid_or_serial').value.trim();
+        const visaType = document.getElementById('visa_type').value.trim();
+        const applicantName = document.getElementById('applicant_name').value.trim();
+        if (hidOrSerial && visaType && applicantName) {
+            const generatedName = `${visaType}_${hidOrSerial}_${applicantName}`;
+            console.log('项目名称将自动生成为: ' + generatedName);
         }
-
-        // 更新表单提交处理
-        form.addEventListener('submit', async function(e) {
-            e.preventDefault();
-            
-            // 表单验证
-            let isValid = true;
-            
-            // 验证HID或序列号
-            const hidOrSerial = document.getElementById('hid_or_serial');
-            if (!hidOrSerial.value.trim()) {
-                isValid = false;
-                document.getElementById('hid_or_serial_error').style.display = 'block';
-                hidOrSerial.classList.add('visa-project-form-control-error');
-            } else {
-                document.getElementById('hid_or_serial_error').style.display = 'none';
-                hidOrSerial.classList.remove('visa-project-form-control-error');
-            }
-            
-            // 验证签证类型
-            const visaType = document.getElementById('visa_type');
-            if (!visaType.value.trim()) {
-                isValid = false;
-                document.getElementById('visa_type_error').style.display = 'block';
-                visaType.classList.add('visa-project-form-control-error');
-            } else {
-                document.getElementById('visa_type_error').style.display = 'none';
-                visaType.classList.remove('visa-project-form-control-error');
-            }
-            
-            // 验证申请人名字
-            const applicantName = document.getElementById('applicant_name');
-            if (!applicantName.value.trim()) {
-                isValid = false;
-                document.getElementById('applicant_name_error').style.display = 'block';
-                applicantName.classList.add('visa-project-form-control-error');
-            } else {
-                document.getElementById('applicant_name_error').style.display = 'none';
-                applicantName.classList.remove('visa-project-form-control-error');
-            }
-            
-            // 验证估计日期
-            const estimatedDate = document.getElementById('estimated_date');
-            if (!estimatedDate.value) {
-                isValid = false;
-                document.getElementById('estimated_date_error').style.display = 'block';
-                estimatedDate.classList.add('visa-project-form-control-error');
-            } else {
-                document.getElementById('estimated_date_error').style.display = 'none';
-                estimatedDate.classList.remove('visa-project-form-control-error');
-            }
-            
-            if (!isValid) {
-                showAlert('请填写所有必填字段', false);
+    }
+    // 表单验证和提交处理
+    const form = document.getElementById('visaForm');
+    const formAlert = document.getElementById('formAlert');
+    function showAlert(message, isSuccess) {
+        formAlert.textContent = message;
+        formAlert.className = `visa-project-alert ${isSuccess ? 'visa-project-alert-success' : 'visa-project-alert-error'}`;
+        formAlert.style.display = 'block';
+        setTimeout(() => {
+            formAlert.style.display = 'none';
+        }, 5000);
+    }
+    // 更新表单提交处理
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        // 表单验证
+        let isValid = true;
+        // 验证HID或序列号
+        const hidOrSerial = document.getElementById('hid_or_serial');
+        if (!hidOrSerial.value.trim()) {
+            isValid = false;
+            document.getElementById('hid_or_serial_error').style.display = 'block';
+            hidOrSerial.classList.add('visa-project-form-control-error');
+        } else {
+            document.getElementById('hid_or_serial_error').style.display = 'none';
+            hidOrSerial.classList.remove('visa-project-form-control-error');
+        }
+        // 验证签证类型
+        const visaType = document.getElementById('visa_type');
+        if (!visaType.value.trim()) {
+            isValid = false;
+            document.getElementById('visa_type_error').style.display = 'block';
+            visaType.classList.add('visa-project-form-control-error');
+        } else {
+            document.getElementById('visa_type_error').style.display = 'none';
+            visaType.classList.remove('visa-project-form-control-error');
+        }
+        // 验证申请人名字
+        const applicantName = document.getElementById('applicant_name');
+        if (!applicantName.value.trim()) {
+            isValid = false;
+            document.getElementById('applicant_name_error').style.display = 'block';
+            applicantName.classList.add('visa-project-form-control-error');
+        } else {
+            document.getElementById('applicant_name_error').style.display = 'none';
+            applicantName.classList.remove('visa-project-form-control-error');
+        }
+        // 验证估计日期
+        const estimatedDate = document.getElementById('estimated_date');
+        if (!estimatedDate.value) {
+            isValid = false;
+            document.getElementById('estimated_date_error').style.display = 'block';
+            estimatedDate.classList.add('visa-project-form-control-error');
+        } else {
+            document.getElementById('estimated_date_error').style.display = 'none';
+            estimatedDate.classList.remove('visa-project-form-control-error');
+        }
+        if (!isValid) {
+            showAlert('请填写所有必填字段', false);
+            return;
+        }
+        const submitButton = e.submitter;
+        const originalText = submitButton.textContent;
+        submitButton.classList.add('loading');
+        submitButton.disabled = true;
+        try {
+            const formData = new FormData(this);
+            // 确保 submit_button 被正确添加到 formData 中
+            formData.set('submit_button', submitButton.value);
+            console.log('Submitting form with submit_button:', submitButton.value); // 添加调试日志
+            const response = await fetch(this.action, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
+                }
+            });
+            console.log('Response status:', response.status); // 添加调试日志
+            if (response.redirected) {
+                window.location.href = response.url;
                 return;
             }
-
-            const submitButton = e.submitter;
-            const originalText = submitButton.textContent;
-            submitButton.classList.add('loading');
-            submitButton.disabled = true;
-            
-            try {
-                const formData = new FormData(this);
-                // 确保 submit_button 被正确添加到 formData 中
-                formData.set('submit_button', submitButton.value);
-                console.log('Submitting form with submit_button:', submitButton.value); // 添加调试日志
-                
-                const response = await fetch(this.action, {
-                    method: 'POST',
-                    body: formData,
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest'
-                    }
-                });
-            
-                console.log('Response status:', response.status); // 添加调试日志
-                
-                if (response.redirected) {
-                    window.location.href = response.url;
-                    return;
-                }
-
-                const contentType = response.headers.get('content-type');
-                if (!contentType || !contentType.includes('application/json')) {
-                    throw new Error('Server returned non-JSON response');
-                }
-                
-                const result = await response.json();
-                console.log('Response data:', result); // 添加调试日志
-                
-                if (response.ok) {
-                    showAlert(result.message || '操作成功！', true);
-                    if (result.redirect_url) {
-                        window.location.href = result.redirect_url;
-                    } else {
-                        location.reload();
-                    }
-                } else {
-                    showAlert(result.message || '操作失败，请重试', false);
-                }
-            } catch (error) {
-                console.error('Error:', error);
-                showAlert('系统错误，请稍后重试', false);
-            } finally {
-                submitButton.disabled = false;
-                submitButton.classList.remove('loading');
-                submitButton.textContent = originalText;
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                throw new Error('Server returned non-JSON response');
             }
-        });
-
-        // 内容加载优化
-        function fetchContent(visa_type, singaporeStatus, clickedLink) {
-            const url = `/visa/document_request/${encodeURIComponent(visa_type)}/${encodeURIComponent(singaporeStatus)}`;
-            
-            // 更新选中状态
+            const result = await response.json();
+            console.log('Response data:', result); // 添加调试日志
+            if (response.ok) {
+                showAlert(result.message || '操作成功！', true);
+                if (result.redirect_url) {
+                    window.location.href = result.redirect_url;
+                } else {
+                    location.reload();
+                }
+            } else {
+                showAlert(result.message || '操作失败，请重试', false);
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            showAlert('系统错误，请稍后重试', false);
+        } finally {
+            submitButton.disabled = false;
+            submitButton.classList.remove('loading');
+            submitButton.textContent = originalText;
+        }
+    });
+    // 内容加载优化
+    function fetchContent(visa_type, singaporeStatus, clickedLink) {
+        const url = `/visa/document_request/${encodeURIComponent(visa_type)}/${encodeURIComponent(singaporeStatus)}`;
+        // 更新选中状态
         document.querySelectorAll('.visa-project-identity-link').forEach(link => {
-                link.classList.remove('selected');
-            });
-            clickedLink.classList.add('selected');
-            
-            // 保存当前选中的身份到localStorage
-            localStorage.setItem('selectedIdentity', singaporeStatus);
-            
-            // 显示加载状态
+            link.classList.remove('selected');
+        });
+        clickedLink.classList.add('selected');
+        // 保存当前选中的身份到localStorage
+        localStorage.setItem('selectedIdentity', singaporeStatus);
+        // 显示加载状态
         document.querySelectorAll('.visa-project-content').forEach(content => {
-                content.innerHTML = `
-                <div class="visa-project-skeleton">
-                    <div class="visa-project-skeleton-line"></div>
-                    <div class="visa-project-skeleton-line"></div>
-                    <div class="visa-project-skeleton-line"></div>
-                    <div class="visa-project-skeleton-line"></div>
-                    </div>
-                `;
-            });
-            
-            fetch(url)
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error('Network response was not ok');
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    // 处理文件资料内容
+            content.innerHTML = `
+            <div class="visa-project-skeleton">
+                <div class="visa-project-skeleton-line"></div>
+                <div class="visa-project-skeleton-line"></div>
+                <div class="visa-project-skeleton-line"></div>
+                <div class="visa-project-skeleton-line"></div>
+                </div>
+            `;
+        });
+        fetch(url)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                // 处理文件资料内容
                 const fileContent = document.querySelector('.visa-project-file-content');
-                    if (fileContent) {
-                        let documentInfo = data.document_info || '暂无文件资料';
-                        if (documentInfo !== '暂无文件资料') {
-                            // 移除标签行
-                            documentInfo = documentInfo.replace(/【共用资料】\n?/g, '');
-                            documentInfo = documentInfo.replace(/【特定身份资料】\n?/g, '');
-                            
-                            // 将文本分割成行
-                            let lines = documentInfo.split('\n').filter(line => line.trim());
-                            
-                            // 为每行添加序号
-                            documentInfo = lines.map((line, index) => `${index + 1}. ${line.trim()}`).join('\n');
-                        }
+                if (fileContent) {
+                    let documentInfo = data.document_info || '暂无文件资料';
+                    if (documentInfo !== '暂无文件资料') {
+                        // 移除标签行
+                        documentInfo = documentInfo.replace(/【共用资料】\n?/g, '');
+                        documentInfo = documentInfo.replace(/【特定身份资料】\n?/g, '');
+                        // 将文本分割成行
+                        let lines = documentInfo.split('\n').filter(line => line.trim());
+                        // 为每行添加序号
+                        documentInfo = lines.map((line, index) => `${index + 1}. ${line.trim()}`).join('\n');
+                    }
                     fileContent.innerHTML = documentInfo.replace(/\n/g, '<br>');
-                    }
-                    
-                    // 更新补充信息内容
+                }
+                // 更新补充信息内容
                 const additionalContent = document.querySelector('.visa-project-additional-content');
-                    if (additionalContent) {
+                if (additionalContent) {
                     additionalContent.innerHTML = (data.additional_info || '暂无补充信息').replace(/\n/g, '<br>');
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
                 document.querySelectorAll('.visa-project-content').forEach(content => {
                     content.innerHTML = '<div class="visa-project-alert visa-project-alert-error">获取数据失败，请稍后重试</div>';
-                    });
                 });
-        }
-
-        // 页面加载时恢复选中状态
-        window.addEventListener('load', function() {
-            const selectedIdentity = localStorage.getItem('selectedIdentity') || 'PR';
+            });
+    }
+    // 页面加载时恢复选中状态
+    window.addEventListener('load', function() {
+        const selectedIdentity = localStorage.getItem('selectedIdentity') || 'PR';
         const selectedLink = document.querySelector(`.visa-project-identity-link[data-identity="${selectedIdentity}"]`);
-            if (selectedLink) {
-                selectedLink.classList.add('selected');
-                fetchContent('{{ visa_type }}', selectedIdentity, selectedLink);
-            }
-        });
-    </script>
+        if (selectedLink) {
+            selectedLink.classList.add('selected');
+            fetchContent('{{ visa_type }}', selectedIdentity, selectedLink);
+        }
+    });
+})();
+</script>
 {% endblock %}

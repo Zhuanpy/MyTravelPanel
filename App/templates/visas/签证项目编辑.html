@@ -231,7 +231,7 @@
                 <a class="visa-project-resource-link" href="{{ url_for('visa_routes.show_current_all_projects') }}">
                     返回项目列表
                 </a>
-                <a class="visa-project-resource-link" href="{{ url_for('visa_routes.open_current_project_file', file_name=project.project_folder_name, visa_status='all', sort_by='name') }}">
+                <a class="visa-project-resource-link" href="{{ url_for('visa_routes.open_folder', folder_type='project', file_name=project.project_folder_name, visa_type=project.visa_type, visa_status='all', sort_by='name', return_to='list') }}">
                     打开项目文件夹
                 </a>
             </div>
@@ -240,6 +240,7 @@
         <div id="formAlert" class="visa-project-alert"></div>
             
         <form id="visaForm" class="visa-project-form" method="post" action="{{ url_for('visa_routes.update_project_details', project_id=project.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <!-- 隐藏字段，用于传递签证状态和排序方式 -->
             <input type="hidden" name="current_visa_status" value="all">
             <input type="hidden" name="current_sort_by" value="name">
@@ -344,6 +345,7 @@
         <!-- 生成表格按钮，放在与其他按钮同一行 -->
         <div style="margin-top: -60px; display: flex; justify-content: flex-end; padding: 0 1.5rem 1.5rem 1.5rem;">
             <form id="generateFormForm" action="{{ url_for('visa_routes.generate_form_for_project', project_id=project.id) }}" method="post">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button type="submit" class="visa-project-btn" id="generateFormBtn" style="background-color: #38a169; color: white;">
                     生成表格
                 </button>
@@ -381,7 +383,8 @@
                     const response = await fetch(this.action, {
                         method: 'POST',
                         headers: {
-                            'X-Requested-With': 'XMLHttpRequest'
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
                         }
                     });
                     
@@ -494,7 +497,8 @@
                 method: 'POST',
                 body: formData,
                 headers: {
-                    'X-Requested-With': 'XMLHttpRequest'
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
                 }
             });
             

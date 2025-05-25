@@ -16,6 +16,9 @@
     }
 </script>
 
+<!-- CSRF令牌 -->
+<meta name="csrf-token" content="{{ csrf_token() }}">
+
 <!-- 页面特定的样式 -->
 <!-- <link rel="stylesheet" href="{{ url_for('static', filename='css/account_list.css') }}?v=20250414-8">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/modal.css') }}?v=20250414-8"> -->
@@ -559,6 +562,7 @@ nav.navbar {
                 <div class="modal-body">
                     <form id="editAccountForm">
                         <input type="hidden" id="editId">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label for="editPlatform" class="form-label">平台/网址 <span class="text-danger">*</span></label>
@@ -636,6 +640,7 @@ nav.navbar {
                 </div>
                 <div class="modal-body">
                     <form id="addAccountForm">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label for="platform" class="form-label">平台/网址 <span class="text-danger">*</span></label>
@@ -713,6 +718,7 @@ nav.navbar {
                 </div>
                 <div class="modal-body">
                     <form id="importForm" enctype="multipart/form-data">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <div class="form-group">
                             <label for="excelFile">选择Excel文件</label>
                             <input type="file" class="form-control" id="excelFile" name="file" accept=".xlsx,.xls" required>
@@ -775,11 +781,15 @@ nav.navbar {
                         accountData[key] = value;
                     });
                     
+                    // 获取CSRF令牌
+                    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+                    
                     // 发送API请求 - 使用正确的API路径
                     const response = await fetch('/account/api/accounts', {
                         method: 'POST',
                         headers: {
-                            'Content-Type': 'application/json'
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': csrfToken
                         },
                         body: JSON.stringify(accountData)
                     });
