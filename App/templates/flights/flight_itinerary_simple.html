@@ -5,6 +5,8 @@
 {% block head %}
 <!-- 引入Font Awesome图标库（如需） -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+<!-- CSRF令牌 -->
+<meta name="csrf-token" content="{{ csrf_token() }}">
 <style>
   .flight-container {
     max-width: 800px;
@@ -320,10 +322,11 @@
     const itineraryTextarea = document.getElementById('itinerary');
     itineraryTextarea.value = '正在生成行程，请稍候...';
 
-    fetch('{{ url_for('flights_athina.simplify_itinerary_by_flight_and_date') }}', {
+    fetch("{{ url_for('flights_athina.simplify_itinerary_by_flight_and_date') }}", {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
       },
       body: JSON.stringify(requestBody)
     })

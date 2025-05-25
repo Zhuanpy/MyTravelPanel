@@ -211,17 +211,76 @@ def visa_processing(visa_type):
                          document_data=document_data)
 
 
-@visa_routes.route('/visa/<visa_type>/open_project_folder', methods=['GET', 'POST'])
-def visa_open_project_folder(visa_type):
-    # 打开对应签证类型的资源文件夹
+@visa_routes.route('/visa/open_folder', methods=['GET'])
+def open_folder():
+    """
+    通用文件夹打开函数，替代多个类似功能的路由
+    
+    参数：
+    - folder_type: 文件夹类型，可选值：project(项目文件夹)、visa_type(签证类型文件夹)、visa_root(签证根目录)
+    - file_name: 文件夹名称，用于folder_type=project
+    - visa_type: 签证类型，用于folder_type=visa_type
+    - return_to: 打开后返回的页面，可选值：list(项目列表)、processing(签证处理)、home(首页)
+    - visa_status, sort_by, filter_visa_type: 返回页面的状态参数
+    """
+    folder_type = request.args.get('folder_type', 'project')  # project/visa_type/visa_root
+    file_name = request.args.get('file_name', '')
+    visa_type = request.args.get('visa_type', '')
+    return_to = request.args.get('return_to', 'list')  # list/processing/home
+    
+    # 获取返回页面的状态参数
+    visa_status = request.args.get('visa_status', 'all')
+    sort_by = request.args.get('sort_by', 'name')
+    filter_visa_type = request.args.get('filter_visa_type', 'all')
+    
+    # 获取项目根目录
+    project_root = Path(__file__).resolve().parent.parent
     current_dir = Path.cwd()
-
-    folder_path = current_dir / "App" / "static" / "资源" / "签证" / visa_type
-
-    if not folder_path.exists():
-        flash(f"资源文件夹 {folder_path} 不存在", "error")
-        return redirect(url_for("visa_routes.visa_processing", visa_type=visa_type))
-
+    
+    # 根据参数决定打开哪个文件夹
+    if folder_type == 'project':
+        base_folder = project_root / "static" / "资源" / "Project" / "Visa"
+        folder_path = base_folder / file_name
+        
+        # 添加备选路径逻辑 - 如果主文件夹不存在但有visa_type参数，尝试备选路径
+        if not folder_path.exists() and visa_type:
+            pre_folder_path = base_folder / visa_type / file_name
+            if pre_folder_path.exists():
+                folder_path = pre_folder_path
+            else:
+                flash(f"资源文件夹 {folder_path} 和备用文件夹 {pre_folder_path} 都不存在", "error")
+                if return_to == 'list':
+                    return redirect(url_for("visa_routes.show_current_all_projects", 
+                                           visa_status=visa_status, 
+                                           sort_by=sort_by, 
+                                           filter_visa_type=filter_visa_type))
+                elif return_to == 'processing':
+                    return redirect(url_for("visa_routes.visa_processing", visa_type=visa_type))
+                else:
+                    return redirect(url_for("index.index"))
+        elif not folder_path.exists():
+            flash(f"资源文件夹 {folder_path} 不存在", "error")
+            if return_to == 'list':
+                return redirect(url_for("visa_routes.show_current_all_projects", 
+                                       visa_status=visa_status, 
+                                       sort_by=sort_by, 
+                                       filter_visa_type=filter_visa_type))
+            elif return_to == 'processing':
+                return redirect(url_for("visa_routes.visa_processing", visa_type=visa_type))
+            else:
+                return redirect(url_for("index.index"))
+    
+    elif folder_type == 'visa_type':
+        folder_path = current_dir / "App" / "static" / "资源" / "签证" / visa_type
+        if not folder_path.exists():
+            flash(f"资源文件夹 {folder_path} 不存在", "error")
+            return redirect(url_for("visa_routes.visa_processing", visa_type=visa_type))
+    
+    elif folder_type == 'visa_root':
+        folder_path = current_dir / "App" / "static" / "资源" / "签证"
+        folder_path = os.path.join(folder_path)
+    
+    # 打开文件夹
     try:
         if platform.system() == "Windows":
             os.startfile(folder_path)
@@ -231,35 +290,17 @@ def visa_open_project_folder(visa_type):
             subprocess.run(["xdg-open", folder_path])
     except Exception as e:
         flash(f"无法打开文件夹: {str(e)}", "error")
-
-    return redirect(url_for("visa_routes.visa_processing", visa_type=visa_type))
-
-
-@visa_routes.route('/visa/<file_name>/<visa_type>/visa_open_current_project', methods=['GET', 'POST'])
-def visa_open_current_project(file_name, visa_type):
-    # 根目录（可以放到配置文件或环境变量中）
-    # 创建文件夹路径
-    project_root = Path(__file__).resolve().parent.parent  # 获取项目的根目录路径
-    base_folder = project_root / "static" / "资源" / "Project" / "Visa"
-
-    # 拼接目标路径
-    folder_path = base_folder / file_name
-    if not folder_path.exists():
-        flash(f"资源文件夹 {folder_path} 不存在", "error")
+    
+    # 根据参数决定重定向到哪个页面
+    if return_to == 'list':
+        return redirect(url_for("visa_routes.show_current_all_projects", 
+                               visa_status=visa_status, 
+                               sort_by=sort_by,
+                               filter_visa_type=filter_visa_type))
+    elif return_to == 'processing':
         return redirect(url_for("visa_routes.visa_processing", visa_type=visa_type))
-
-    try:
-        if platform.system() == "Windows":
-            os.startfile(folder_path)
-        elif platform.system() == "Darwin":  # macOS
-            subprocess.run(["open", folder_path])
-        else:  # Linux and other Unix-based systems
-            subprocess.run(["xdg-open", folder_path])
-
-    except Exception as e:
-        flash(f"无法打开文件夹: {str(e)}", "error")
-
-    return redirect(url_for("visa_routes.visa_processing", visa_type=visa_type))
+    else:
+        return redirect(url_for("index.index"))
 
 
 @visa_routes.route('/visa/<visa_type>/visa_create_project', methods=['POST'])
@@ -622,37 +663,6 @@ def show_current_all_projects():
                          visa_categories=visa_categories)
 
 
-@visa_routes.route('/visa/open_current_project_file/<file_name>')
-def open_current_project_file(file_name):
-    # 创建文件夹路径
-    project_root = Path(__file__).resolve().parent.parent  # 获取项目的根目录路径
-    base_folder = project_root / "static" / "资源" / "Project" / "Visa"
-
-    # 拼接目标路径
-    folder_path = base_folder / file_name
-
-    visa_status = request.args.get('visa_status', 'all')  # 默认值为 'all'
-    sort_by = request.args.get('sort_by', 'name')  # 默认值为 'name'
-    filter_visa_type = request.args.get('filter_visa_type', 'all')  # 获取签证类型筛选参数
-
-    if not folder_path.exists():
-        flash(f"资源文件夹 {folder_path} 不存在", "error")
-        return redirect(url_for("visa_routes.show_current_all_projects"))
-
-    try:
-        if platform.system() == "Windows":
-            os.startfile(folder_path)
-        elif platform.system() == "Darwin":  # macOS
-            subprocess.run(["open", folder_path])
-        else:  # Linux and other Unix-based systems
-            subprocess.run(["xdg-open", folder_path])
-
-    except Exception as e:
-        flash(f"无法打开文件夹: {str(e)}", "error")
-
-    return redirect(url_for("visa_routes.show_current_all_projects", visa_status=visa_status, sort_by=sort_by, filter_visa_type=filter_visa_type))
-
-
 @visa_routes.route('/visa/delete_current_project/<int:project_id>', methods=['POST'])
 def delete_current_project(project_id):
 
@@ -861,14 +871,159 @@ def update_project_details(project_id):
         return redirect(url_for('visa_routes.edit_project', project_id=project_id))
 
 
-@visa_routes.route('/open_visa_folder', methods=['GET', 'POST'])
-def open_visa_folder():
-    current_dir = Path.cwd()
-    folder_path = current_dir / "App" / "static" / "资源" / "签证"
-    folder_path = os.path.join(folder_path)
-    os.startfile(folder_path)
-    return redirect(url_for("index.index"))
+@visa_routes.route('/visa/edit_visa_type/<visa_type>/<field>', methods=['GET', 'POST'])
+def edit_visa_type(visa_type, field):
+    # 获取签证类型记录
+    visa_type_record = VisaTypes.query.filter_by(visa_type_name=visa_type).first_or_404()
 
+    if request.method == 'POST':
+        try:
+            # 获取表单数据
+            new_value = request.form.get('value', '').strip()
+
+            # 更新相应字段
+            if field == 'fee':
+                print(f"Updating fee from {visa_type_record.fee} to {new_value}")  # 调试日志
+                visa_type_record.fee = new_value
+
+            elif field == 'processing_time':
+                print(f"Updating processing_time from {visa_type_record.processing_time} to {new_value}")  # 调试日志
+                visa_type_record.processing_time = new_value
+            
+            db.session.commit()
+            print("Database committed successfully")  # 调试日志
+            flash(f"{'费用' if field == 'fee' else '处理时间'}更新成功", "success")
+            return redirect(url_for('visa_routes.visa_processing', visa_type=visa_type))
+            
+        except Exception as e:
+            db.session.rollback()
+            print(f"Error occurred: {str(e)}")  # 调试日志
+            flash(f"更新失败: {str(e)}", "error")
+            return redirect(url_for('visa_routes.edit_visa_type', visa_type=visa_type, field=field))
+            
+    # 获取当前值
+    current_value = visa_type_record.fee if field == 'fee' else visa_type_record.processing_time
+    field_name = '费用说明' if field == 'fee' else '处理时间'
+    
+    return render_template('visas/edit_visa_type.html',
+                         visa_type=visa_type,
+                         field=field,
+                         field_name=field_name,
+                         current_value=current_value)
+
+@visa_routes.route('/manage_countries', methods=['GET', 'POST'])
+def manage_countries():
+    if request.method == 'POST':
+        try:
+            country_name_CN = request.form.get('country_name_CN')
+            country_name_EN = request.form.get('country_name_EN')
+            country_code = request.form.get('country_code')
+
+            # 检查是否已存在相同国家
+            existing_country = VisaCountries.query.filter_by(country_name_CN=country_name_CN).first()
+            if existing_country:
+                flash('该国家已存在！', 'error')
+                return redirect(url_for('visa_routes.manage_countries'))
+
+            # 创建新国家
+            new_country = VisaCountries(
+                country_name_CN=country_name_CN,
+                country_name_EN=country_name_EN,
+                country_code=country_code
+            )
+            
+            db.session.add(new_country)
+            db.session.commit()
+            flash('国家添加成功！', 'success')
+            
+        except Exception as e:
+            db.session.rollback()
+            flash(f'添加失败: {str(e)}', 'error')
+
+    # 获取所有国家列表，并通过关联的签证类型进行排序
+    countries = db.session.query(VisaCountries)\
+        .join(VisaTypes, VisaCountries.id == VisaTypes.country_id, isouter=True)\
+        .group_by(VisaCountries.id)\
+        .order_by(db.func.min(VisaTypes.visa_type_name))\
+        .all()
+    
+    return render_template('visas/manage_countries.html', countries=countries)
+
+@visa_routes.route('/visa_home')
+def visa_home():
+    """签证首页路由"""
+    # 获取所有签证类别
+    visa_categories = VisaTypes.query.all()
+    
+    return render_template('visas/签证首页.html',
+                          visa_categories=visa_categories)
+
+@visa_routes.route('/visa/update_visa_status/<int:project_id>', methods=['POST'])
+def update_visa_status(project_id):
+    """处理签证状态更新表单提交"""
+    try:
+        # 从数据库中获取该项目
+        project = VisaProject.query.get_or_404(project_id)
+
+        # 获取表单数据
+        visa_status = request.form.get('visa_status')
+        
+        # 获取当前的签证状态和排序方式，用于保持页面状态
+        current_visa_status = request.form.get('current_visa_status', 'all')
+        current_sort_by = request.form.get('current_sort_by', 'name')
+        current_filter_visa_type = request.form.get('current_filter_visa_type', 'all')
+
+        # 更新项目的签证状态
+        if visa_status:
+            project.visa_status = visa_status
+
+        # 提交更改到数据库
+        try:
+            db.session.commit()
+            
+            # 检查是否是AJAX请求
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({
+                    "success": True,
+                    "message": "签证状态更新成功",
+                    "project": {
+                        "id": project.id,
+                        "visa_status": project.visa_status
+                    }
+                })
+            
+            flash('签证状态更新成功！', 'success')
+        except Exception as e:
+            db.session.rollback()
+            
+            # 检查是否是AJAX请求
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({
+                    "success": False,
+                    "message": f"状态更新失败: {str(e)}"
+                }), 500
+            
+            flash(f'状态更新失败: {str(e)}', 'error')
+
+        # 重定向回项目管理页面，带上当前的签证状态和排序方式
+        return redirect(
+            url_for('visa_routes.show_current_all_projects', 
+                   visa_status=current_visa_status, 
+                   sort_by=current_sort_by,
+                   filter_visa_type=current_filter_visa_type))
+                   
+    except Exception as e:
+        db.session.rollback()
+        
+        # 检查是否是AJAX请求
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({
+                "success": False,
+                "message": f"状态更新失败: {str(e)}"
+            }), 500
+        
+        flash(f'状态更新失败: {str(e)}', 'error')
+        return redirect(url_for('visa_routes.show_current_all_projects'))
 
 """ 签证链接管理 开始 """
 @visa_routes.route('/visa_link_page')
@@ -1002,136 +1157,81 @@ def edit_visa_link(id):
             return jsonify({'success': False, 'message': error_msg}), 500
         return redirect(url_for('visa_routes.visa_link_page'))
 
-@visa_routes.route('/visa_link/delete/<int:id>', methods=['GET'])
+@visa_routes.route('/visa_link/delete/<int:id>', methods=['POST'])
 def delete_visa_link(id):
     visa_link = VisaLinks.query.get_or_404(id)
 
     db.session.delete(visa_link)
     db.session.commit()
 
-    flash('Visa link deleted successfully!', 'success')
+    flash('签证链接删除成功！', 'success')
     return redirect(url_for('visa_routes.visa_link_page'))
 
 """ 签证链接管理 结束 """
 
-@visa_routes.route('/visa/edit_visa_type/<visa_type>/<field>', methods=['GET', 'POST'])
-def edit_visa_type(visa_type, field):
-    # 获取签证类型记录
-    visa_type_record = VisaTypes.query.filter_by(visa_type_name=visa_type).first_or_404()
 
-    if request.method == 'POST':
-        try:
-            # 获取表单数据
-            new_value = request.form.get('value', '').strip()
-
-            # 更新相应字段
-            if field == 'fee':
-                print(f"Updating fee from {visa_type_record.fee} to {new_value}")  # 调试日志
-                visa_type_record.fee = new_value
-
-            elif field == 'processing_time':
-                print(f"Updating processing_time from {visa_type_record.processing_time} to {new_value}")  # 调试日志
-                visa_type_record.processing_time = new_value
-            
-            db.session.commit()
-            print("Database committed successfully")  # 调试日志
-            flash(f"{'费用' if field == 'fee' else '处理时间'}更新成功", "success")
-            return redirect(url_for('visa_routes.visa_processing', visa_type=visa_type))
-            
-        except Exception as e:
-            db.session.rollback()
-            print(f"Error occurred: {str(e)}")  # 调试日志
-            flash(f"更新失败: {str(e)}", "error")
-            return redirect(url_for('visa_routes.edit_visa_type', visa_type=visa_type, field=field))
-            
-    # 获取当前值
-    current_value = visa_type_record.fee if field == 'fee' else visa_type_record.processing_time
-    field_name = '费用说明' if field == 'fee' else '处理时间'
+""" 签证详细 开始 """
+@visa_routes.route('/visa/detail/<int:project_id>')
+def visa_detail(project_id):
+    """显示签证项目详情页面"""
+    # 获取当前的visa_status和sort_by参数
+    visa_status = request.args.get('visa_status', 'all')
+    sort_by = request.args.get('sort_by', 'created_date')
     
-    return render_template('visas/edit_visa_type.html',
-                         visa_type=visa_type,
-                         field=field,
-                         field_name=field_name,
-                         current_value=current_value)
-
-@visa_routes.route('/manage_countries', methods=['GET', 'POST'])
-def manage_countries():
-    if request.method == 'POST':
-        try:
-            country_name_CN = request.form.get('country_name_CN')
-            country_name_EN = request.form.get('country_name_EN')
-            country_code = request.form.get('country_code')
-
-            # 检查是否已存在相同国家
-            existing_country = VisaCountries.query.filter_by(country_name_CN=country_name_CN).first()
-            if existing_country:
-                flash('该国家已存在！', 'error')
-                return redirect(url_for('visa_routes.manage_countries'))
-
-            # 创建新国家
-            new_country = VisaCountries(
-                country_name_CN=country_name_CN,
-                country_name_EN=country_name_EN,
-                country_code=country_code
-            )
-            
-            db.session.add(new_country)
-            db.session.commit()
-            flash('国家添加成功！', 'success')
-            
-        except Exception as e:
-            db.session.rollback()
-            flash(f'添加失败: {str(e)}', 'error')
-
-    # 获取所有国家列表，并通过关联的签证类型进行排序
-    countries = db.session.query(VisaCountries)\
-        .join(VisaTypes, VisaCountries.id == VisaTypes.country_id, isouter=True)\
-        .group_by(VisaCountries.id)\
-        .order_by(db.func.min(VisaTypes.visa_type_name))\
-        .all()
+    # 从数据库获取项目信息
+    project = VisaProject.query.get_or_404(project_id)
     
-    return render_template('visas/manage_countries.html', countries=countries)
-
-@visa_routes.route('/visa_home')
-def visa_home():
-    """签证首页路由"""
-    # 获取所有签证类别
-    visa_categories = VisaTypes.query.all()
+    # 获取签证文档数据
+    document_data = {}
     
-    return render_template('visas/签证首页.html',
-                          visa_categories=visa_categories)
+    # 获取共用资料
+    common_doc = VisaDocuments.query.filter_by(
+        visa_type=project.visa_type,
+        singapore_identity='SHARE'
+    ).first()
+    
+    # 获取特定身份的文档
+    specific_doc = VisaDocuments.query.filter_by(
+        visa_type=project.visa_type,
+        singapore_identity=project.singapore_status
+    ).first()
 
-@visa_routes.route('/visa/visa/update_status/<int:project_id>', methods=['POST'])
-def update_visa_status(project_id):
-    try:
-        data = request.get_json()
-        if not data or 'visa_status' not in data:
-            return jsonify({"success": False, "message": "缺少必要的状态信息"}), 400
-
-        project = VisaProject.query.get_or_404(project_id)
-        if not project:
-            return jsonify({"success": False, "message": "找不到指定的项目"}), 404
-
-        # 验证状态值是否有效
-        valid_statuses = ['待递交', '待出签', '已出签', '忽略单']
-        if data['visa_status'] not in valid_statuses:
-            return jsonify({"success": False, "message": "无效的状态值"}), 400
-
-        # 更新状态
-        project.visa_status = data['visa_status']
-        db.session.commit()
+    # 处理文档数据
+    if specific_doc or common_doc:
+        document_info = []
+        additional_info = []
         
-        # 返回更新后的项目信息
-        return jsonify({
-            "success": True,
-            "message": "状态更新成功",
-            "project": {
-                "id": project.id,
-                "name": project.project_folder_name,
-                "visa_status": project.visa_status,
-                "estimated_date": project.estimated_date.strftime('%Y-%m-%d') if project.estimated_date else None
-            }
-        })
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({"success": False, "message": str(e)}), 500
+        # 添加共用资料（如果存在）
+        if common_doc and common_doc.document_info:
+            document_info.append(common_doc.document_info)
+        if common_doc and common_doc.additional_info:
+            additional_info.append(common_doc.additional_info)
+        
+        # 添加特定身份资料
+        if specific_doc:
+            if specific_doc.document_info:
+                if document_info:  # 如果已有共用资料，添加换行符
+                    document_info.append("\n")
+                document_info.append(specific_doc.document_info)
+            if specific_doc.additional_info:
+                if additional_info:  # 如果已有共用资料的补充信息，添加换行符
+                    additional_info.append("\n")
+                additional_info.append(specific_doc.additional_info)
+        
+        document_data[project.singapore_status] = {
+            'document_info': "\n".join(document_info) if document_info else None,
+            'additional_info': "\n".join(additional_info) if additional_info else None
+        }
+
+    # 获取相关链接
+    links = VisaLinks.query.filter_by(visa_type=project.visa_type).order_by(VisaLinks.name.asc()).all()
+    
+    return render_template('visas/签证项目详细.html',
+                         project=project,
+                         document_data=document_data,
+                         links=links,
+                         visa_status=visa_status,
+                         sort_by=sort_by)
+
+
+""" 签证详细 结束 """

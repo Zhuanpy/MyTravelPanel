@@ -418,7 +418,7 @@
             {% for project in projects %}
             <tr>
                 <td>{{ project.id }}</td>
-                <td><a href="{{ url_for('visa_routes.open_current_project_file', file_name=project.name, visa_status=visa_status, sort_by=sort_by) }}" class="visa-project-name-link">{{ project.name }}</a></td>
+                <td><a href="{{ url_for('visa_routes.open_folder', folder_type='project', file_name=project.name, visa_type=project.visa_type, visa_status=visa_status, sort_by=sort_by, return_to='list') }}" class="visa-project-name-link">{{ project.name }}</a></td>
                 <td>{{ project.created_date.strftime('%Y-%m-%d') }}</td>
                 <td>
                     <div class="d-flex align-items-center">
@@ -435,7 +435,7 @@
                 </td>
                 <td><input type="text" name="estimated_date" value="{{ project.estimated_date }}" class="visa-project-input-field"></td>
                 <td>
-                    <a class="visa-project-open-link" href="{{ url_for('visa_routes.open_current_project_file', file_name=project.name, visa_status=visa_status, sort_by=sort_by) }}">
+                    <a class="visa-project-open-link" href="{{ url_for('visa_routes.open_folder', folder_type='project', file_name=project.name, visa_type=project.visa_type, visa_status=visa_status, sort_by=sort_by, return_to='list') }}">
                         打开项目
                     </a>
                 </td>

@@ -3,6 +3,8 @@
 {% block title %}ATHINA 机票订单代码生成器{% endblock %}
 
 {% block head %}
+<!-- CSRF令牌 -->
+<meta name="csrf-token" content="{{ csrf_token() }}">
 <style>
     .athina-root {
         --primary-color: #2563eb;
@@ -348,10 +350,11 @@
         const textarea = document.getElementById('itinerary');
         textarea.value = '处理中...';
 
-        fetch('{{ url_for('flights_athina.athina_page_handler') }}', {
+        fetch("{{ url_for('flights_athina.athina_page_handler') }}", {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
             },
             body: JSON.stringify(data)
         })

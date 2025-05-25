@@ -59,18 +59,18 @@ def request_schedule_data(flight_number):
 @flights_athina.route('/athina', methods=['GET'])
 def flight_to_athina_page():
     """ATHINA系统航班预定代码页面"""
-    return render_template('flights/ATHINA系统航班预定代码.html')
+    return render_template('flights/flight_athina_booking_code.html')
 
 @flights_athina.route('/athina_simple', methods=['GET'])
 def athina_simple():
     """简化版ATHINA页面"""
-    return render_template('flights/athina.html')
+    return render_template('flights/flight_athina.html')
 
 
 @flights_athina.route('/conversion', methods=['GET', 'POST'])
 def itinerary_conversion():
     if request.method == 'GET':
-        return render_template('flights/conversion.html', output_text="")
+        return render_template('flights/flight_conversion.html', output_text="")
 
     elif request.method == 'POST':
         input_text = request.form['input_text']
@@ -91,7 +91,7 @@ def itinerary_conversion():
             output_text = format_flight_info(city_language=city_language, texts=input_text, language='EN',
                                              luggage=luggage, price=price)
 
-        return render_template('flights/conversion.html', output_text=output_text)
+        return render_template('flights/flight_conversion.html', output_text=output_text)
 
 
 # 机票 行程转换
@@ -99,7 +99,7 @@ def itinerary_conversion():
 def simplify_itinerary_by_flight_and_date():
     if request.method == 'GET':  # 加载页面
 
-        return render_template('flights/简化行程_日期-航班号.html', output_text="")
+        return render_template('flights/flight_itinerary_simple.html', output_text="")
 
     if request.method == 'POST':
 

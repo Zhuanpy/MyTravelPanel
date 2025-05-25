@@ -39,7 +39,7 @@ def confirmation_detail(order_id):
 @flights_schedule.route('/confirmation_detail', methods=['GET'])
 def confirmation_detail_default():
     """显示默认的确认单页面（无订单ID）"""
-    return render_template('flights/确认单详细.html')
+    return render_template('flights/flight_confirmation_detail.html')
 
 @flights_schedule.route('/simple_itinerary', methods=['GET'])
 def simple_itinerary():
@@ -96,7 +96,7 @@ def input_flight_schedule():
     flights = FlightSchedule.query.order_by(FlightSchedule.id.desc()).paginate(
         page=page, per_page=per_page, error_out=False)
     
-    return render_template('flights/录入航班时刻表.html', 
+    return render_template('flights/flight_schedule_input.html',
                            search_flight_number=search_flight_number,
                            flights=flights)
 
@@ -441,6 +441,6 @@ def input_airport_code_info():
             return render_template('flights/录入机场代码.html')
 
     # GET 请求时渲染页面
-    return render_template('flights/录入机场代码.html')
+    return render_template('flights/flight_airport_code_input.html')
 
 

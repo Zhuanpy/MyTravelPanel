@@ -1,7 +1,6 @@
 from flask import Blueprint, render_template, request, jsonify, redirect, url_for, flash
 from App.models.Flightmodels import FlightOrder, Passenger, FlightSegment, FlightSchedule, AirportData
 from App.models.Suppliers import Supplier
-from App.code.utils.flightradar24 import get_flight_info
 from datetime import datetime
 from ..exts import db, cache
 import random

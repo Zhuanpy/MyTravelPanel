@@ -182,7 +182,7 @@
     <div class="visa-home-quick-links">
         <h2 class="visa-home-quick-links-title">签证管理</h2>
         <div class="visa-home-link-grid">
-            <a href="{{ url_for('visa_routes.open_visa_folder') }}" class="visa-home-link">
+            <a href="{{ url_for('visa_routes.open_folder', folder_type='visa_root', return_to='home') }}" class="visa-home-link">
                 <i class="fas fa-folder"></i> 资源文件夹
             </a>
             <a href="{{ url_for('visa_routes.add_visa_type') }}" class="visa-home-link">

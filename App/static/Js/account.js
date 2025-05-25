@@ -604,11 +604,15 @@ async function submitEditForm() {
             console.log('包含新密码');
         }
 
+        // 获取CSRF令牌
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
         console.log('准备发送请求到:', `/api/accounts/${id}`);
         const response = await fetch(`/api/accounts/${id}`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
             },
             body: JSON.stringify(data)
         });
@@ -678,11 +682,15 @@ async function deleteAccount(id) {
         console.log('开始删除账号:', id);
         showAlert('正在删除账号...', true);
 
+        // 获取CSRF令牌
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
         const response = await fetch(`/api/accounts/${id}`, {
             method: 'DELETE',
             headers: {
                 'Accept': 'application/json',
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
             }
         });
 
@@ -692,9 +700,9 @@ async function deleteAccount(id) {
         const contentType = response.headers.get('content-type');
         if (contentType && contentType.includes('application/json')) {
             const data = await response.json();
-        if (response.ok) {
+            if (response.ok) {
                 console.log('账号删除成功');
-            showAlert('账号删除成功', true);
+                showAlert('账号删除成功', true);
                 await loadAccounts(); // 重新加载账号列表
                 await loadPopularWebsites(); // 更新热门网站列表
             } else {
@@ -738,10 +746,15 @@ function showAlert(message, isSuccess = true) {
 async function incrementClick(accountId) {
     try {
         console.log('开始增加点击次数，账号ID:', accountId);
+        
+        // 获取CSRF令牌
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        
         const response = await fetch(`/api/accounts/increment_click/${accountId}`, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
             }
         });
         

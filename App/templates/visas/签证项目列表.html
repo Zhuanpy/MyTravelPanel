@@ -5,7 +5,7 @@
 {% block head %}
 <style>
     .visa-project-container {
-        max-width: 1800px;
+        max-width: 1600px;
         margin: 0 auto;
         padding: 20px;
         overflow-x: auto; /* 添加横向滚动以适应小屏幕 */
@@ -76,7 +76,7 @@
         width: 100%;
         border-collapse: collapse;
         margin-bottom: 2rem;
-        min-width: 1600px; /* 确保表格有最小宽度 */
+        min-width: 1300px; /* 确保表格有最小宽度 */
     }
     
     .visa-project-table th, 
@@ -237,66 +237,77 @@
     /* 设置特定列的宽度 */
     .visa-project-table th:nth-child(1), 
     .visa-project-table td:nth-child(1) { /* ID列 */
-        width: 70px;
+        width: 50px;
     }
     
     .visa-project-table th:nth-child(2), 
     .visa-project-table td:nth-child(2) { /* HID或序列号列 */
-        width: 140px;
+        width: 110px;
     }
     
     .visa-project-table th:nth-child(3), 
     .visa-project-table td:nth-child(3) { /* 申请人名字列 */
-        width: 140px;
+        width: 110px;
     }
     
     .visa-project-table th:nth-child(4), 
     .visa-project-table td:nth-child(4) { /* 签证类型列 */
-        width: 140px;
+        width: 100px;
     }
     
     .visa-project-table th:nth-child(5), 
     .visa-project-table td:nth-child(5) { /* 创建时间列 */
-        width: 140px;
+        width: 110px;
     }
     
     .visa-project-table th:nth-child(6), 
     .visa-project-table td:nth-child(6) { /* 签证状态列 */
-        width: 140px;
+        width: 120px;
     }
     
     .visa-project-table th:nth-child(7), 
     .visa-project-table td:nth-child(7) { /* 预估日期列 */
-        width: 140px;
+        width: 110px;
     }
     
     .visa-project-table th:nth-child(8), 
-    .visa-project-table td:nth-child(8) { /* 备注信息列 */
-        width: 200px;
+    .visa-project-table td:nth-child(8) { /* 签证详细列 */
+        width: 110px;
     }
     
     .visa-project-table th:nth-child(9), 
-    .visa-project-table td:nth-child(9) { /* 保存修改列 */
-        width: 100px;
+    .visa-project-table td:nth-child(9) { /* 打开项目列 */
+        width: 80px;
         text-align: center;
     }
     
     .visa-project-table th:nth-child(10), 
-    .visa-project-table td:nth-child(10) { /* 打开项目列 */
-        width: 100px;
+    .visa-project-table td:nth-child(10) { /* 编辑项目列 */
+        width: 80px;
         text-align: center;
     }
     
     .visa-project-table th:nth-child(11), 
-    .visa-project-table td:nth-child(11) { /* 编辑项目列 */
-        width: 100px;
+    .visa-project-table td:nth-child(11) { /* 删除项目列 */
+        width: 80px;
         text-align: center;
     }
     
-    .visa-project-table th:nth-child(12), 
-    .visa-project-table td:nth-child(12) { /* 删除项目列 */
-        width: 100px;
-        text-align: center;
+    /* 添加重置按钮样式 */
+    .visa-project-reset-btn {
+        margin-left: 20px;
+        padding: 6px 15px;
+        background-color: #f56565;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.875rem;
+        transition: background-color 0.2s;
+    }
+    
+    .visa-project-reset-btn:hover {
+        background-color: #e53e3e;
     }
 </style>
 {% endblock %}
@@ -338,6 +349,9 @@
                 <option value="name" {% if sort_by == 'name' %}selected{% endif %}>按项目名称</option>
                 <option value="created_date" {% if sort_by == 'created_date' %}selected{% endif %}>按创建时间</option>
             </select>
+            
+            <!-- 重置按钮 -->
+            <button type="button" class="visa-project-reset-btn" onclick="resetFilters()">重置筛选</button>
         </form>
     </div>
 
@@ -352,8 +366,7 @@
                 <th>创建时间</th>
                 <th>签证状态</th>
                 <th>预估日期</th>
-                <th>备注信息</th>
-                <th>保存修改</th>
+                <th>签证详细</th>
                 <th>打开项目</th>
                 <th>编辑项目</th>
                 <th>删除项目</th>
@@ -361,32 +374,31 @@
         </thead>
         <tbody>
             {% for project in projects %}
-            <form method="POST" action="{{ url_for('visa_routes.update_current_project', project_id=project.id) }}">
-                <!-- 隐藏字段，用于传递签证状态和排序方式 -->
-                <input type="hidden" name="current_visa_status" value="{{ visa_status }}">
-                <input type="hidden" name="current_sort_by" value="{{ sort_by }}">
-                <input type="hidden" name="current_filter_visa_type" value="{{ filter_visa_type }}">
                 <tr>
                     <td>{{ project.id }}</td>
-                    <td><input type="text" name="hid_or_serial" value="{{ project.hid_or_serial or '' }}" class="visa-project-input-field"></td>
-                    <td><input type="text" name="applicant_name" value="{{ project.applicant_name or '' }}" class="visa-project-input-field"></td>
-                    <td><input type="text" name="visa_type" value="{{ project.visa_type or '' }}" class="visa-project-input-field"></td>
+                    <td>{{ project.hid_or_serial or '' }}</td>
+                    <td>{{ project.applicant_name or '' }}</td>
+                    <td>{{ project.visa_type or '' }}</td>
                     <td>{{ project.created_date.strftime('%Y-%m-%d') }}</td>
                     <td>
-                        <select name="visa_status" class="visa-project-select-field">
+                        <select name="visa_status" class="visa-project-select-field" onchange="updateVisaStatus(this, '{{ project.id }}')">
                             <option value="待递交" {% if project.visa_status == '待递交' %}selected{% endif %}>待递交</option>
                             <option value="待出签" {% if project.visa_status == '待出签' %}selected{% endif %}>待出签</option>
                             <option value="已出签" {% if project.visa_status == '已出签' %}selected{% endif %}>已出签</option>
                             <option value="忽略单" {% if project.visa_status == '忽略单' %}selected{% endif %}>忽略单</option>
                         </select>
+                        <input type="hidden" name="current_visa_status" value="{{ visa_status }}">
+                        <input type="hidden" name="current_sort_by" value="{{ sort_by }}">
+                        <input type="hidden" name="current_filter_visa_type" value="{{ filter_visa_type }}">
                     </td>
-                    <td><input type="text" name="estimated_date" value="{{ project.estimated_date }}" class="visa-project-input-field"></td>
-                    <td><input type="text" name="remarks" value="{{ project.remarks or '' }}" class="visa-project-input-field"></td>
+                    <td>{{ project.estimated_date }}</td>
                     <td>
-                        <button type="submit" class="visa-project-action-link">保存修改</button>
+                        <a class="visa-project-open-link" style="background-color: #4CAF50;" href="{{ url_for('visa_routes.visa_detail', project_id=project.id, visa_status=visa_status, sort_by=sort_by) }}">
+                            查看详细
+                        </a>
                     </td>
                     <td>
-                        <a class="visa-project-open-link" href="{{ url_for('visa_routes.open_current_project_file', file_name=project.project_folder_name, visa_status=visa_status, sort_by=sort_by, filter_visa_type=filter_visa_type) }}">
+                        <a class="visa-project-open-link" href="{{ url_for('visa_routes.open_folder', folder_type='project', file_name=project.project_folder_name, visa_type=project.visa_type, visa_status=visa_status, sort_by=sort_by, filter_visa_type=filter_visa_type, return_to='list') }}">
                             打开项目
                         </a>
                     </td>
@@ -399,7 +411,6 @@
                         <a class="visa-project-delete-link" href="#" data-project-id="{{ project.id }}" onclick="deleteProject(event, this)">删除</a>
                     </td>
                 </tr>
-            </form>
             {% endfor %}
         </tbody>
     </table>
@@ -416,29 +427,54 @@
             {% endfor %}
         </div>
     </div>
+
+    <!-- 添加 CSRF 令牌隐藏输入 -->
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-    function deleteProject(event, element) {
-        event.preventDefault(); // 阻止默认跳转行为
+    // 获取CSRF令牌
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
 
+    // 状态映射
+    const STATUS_MAP = {
+        '待递交': 'pending_submission',
+        '待出签': 'submitted',
+        '已出签': 'approved',
+        '忽略单': 'ignored'
+    };
+
+    const REVERSE_STATUS_MAP = {
+        'pending_submission': '待递交',
+        'submitted': '待出签',
+        'approved': '已出签',
+        'ignored': '忽略单'
+    };
+
+    function deleteProject(event, element) {
+        event.preventDefault();
+        
         const projectId = element.getAttribute('data-project-id');
         const url = `/visa/visa/delete_current_project/${projectId}`;
         
         if (confirm("确定要删除此项目吗？")) {
             fetch(url, {
-                method: 'POST', // 使用 POST 方法
+                method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken,
+                    'X-Requested-With': 'XMLHttpRequest'
                 },
+                body: JSON.stringify({
+                    csrf_token: csrfToken
+                })
             })
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
                     alert("项目删除成功！");
-                    // 从 DOM 中移除对应的表格行
                     const row = element.closest('tr');
                     row.parentNode.removeChild(row);
                 } else {
@@ -450,6 +486,85 @@
                 alert("请求失败，请稍后重试！");
             });
         }
+    }
+    
+    function updateVisaStatus(selectElement, projectId) {
+        const displayStatus = selectElement.value; // 中文状态
+        const currentVisaStatus = document.getElementById('visa_status').value;
+        const currentSortBy = document.getElementById('sort_by').value;
+        const currentFilterVisaType = document.getElementById('filter_visa_type').value;
+        
+        const originalColor = selectElement.style.backgroundColor;
+        selectElement.style.backgroundColor = '#ffeb3b';
+        
+        // 构建FormData对象
+        const formData = new FormData();
+        formData.append('visa_status', displayStatus); // 使用中文状态
+        formData.append('current_visa_status', currentVisaStatus);
+        formData.append('current_sort_by', currentSortBy);
+        formData.append('current_filter_visa_type', currentFilterVisaType);
+        formData.append('csrf_token', csrfToken);
+        
+        fetch(`/visa/visa/update_visa_status/${projectId}`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrfToken,
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: formData
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('网络响应错误');
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                selectElement.style.backgroundColor = '#4caf50';
+                setTimeout(() => {
+                    selectElement.style.backgroundColor = originalColor;
+                }, 1000);
+                
+                // 如果当前筛选状态与更新后的状态不匹配，且不是"全部"状态，则隐藏该行
+                if (currentVisaStatus !== 'all' && currentVisaStatus !== displayStatus) {
+                    const row = selectElement.closest('tr');
+                    row.style.display = 'none';
+                }
+            } else {
+                throw new Error(data.message || '保存状态失败');
+            }
+        })
+        .catch(error => {
+            console.error('Error updating visa status:', error);
+            selectElement.style.backgroundColor = '#f44336';
+            setTimeout(() => {
+                selectElement.style.backgroundColor = originalColor;
+            }, 1000);
+            alert(error.message || '保存状态失败，请重试');
+            
+            // 恢复原始选择
+            const originalStatus = selectElement.getAttribute('data-original-status');
+            if (originalStatus) {
+                selectElement.value = originalStatus;
+            }
+        });
+    }
+    
+    // 页面加载时保存原始状态
+    document.addEventListener('DOMContentLoaded', function() {
+        const statusSelects = document.querySelectorAll('.visa-project-select-field');
+        statusSelects.forEach(select => {
+            const currentStatus = select.value;
+            select.setAttribute('data-original-status', currentStatus);
+        });
+    });
+    
+    function resetFilters() {
+        document.getElementById('visa_status').value = 'submitted';
+        document.getElementById('filter_visa_type').value = 'all';
+        document.getElementById('sort_by').value = 'name';
+        document.querySelector('.visa-project-sort-options form').submit();
     }
 </script>
 {% endblock %}

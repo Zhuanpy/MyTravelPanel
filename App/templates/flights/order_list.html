@@ -92,18 +92,37 @@
         color: #ffffff;
     }
 
+    /* 支付状态选择框样式 */
+    .payment-select {
+        padding: 0.25rem 0.75rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+        border-radius: 15px;
+        border: none;
+        appearance: none;
+        background-repeat: no-repeat;
+        background-position: right 0.5rem center;
+        background-size: 1.5em;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        width: 85px;
+        height: 28px;
+        text-align: center;
+        text-align-last: center;
+    }
+
     /* 支付状态样式 */
-    .payment-select[data-status="unpaid"] {
+    .payment-select.status-unpaid {
         background-color: #fc8181;
         color: #742a2a;
     }
 
-    .payment-select[data-status="paid"] {
+    .payment-select.status-paid {
         background-color: #68d391;
         color: #22543d;
     }
 
-    .payment-select[data-status="refunded"] {
+    .payment-select.status-refunded {
         background-color: #a0aec0;
         color: #2d3748;
     }
@@ -319,10 +338,11 @@
                         <div class="d-flex align-items-center">
                             <select class="payment-select" 
                                     data-order-id="{{ order.id }}" 
-                                    data-status="{{ order.payment_status }}">
-                                <option value="unpaid" {% if order.payment_status == 'unpaid' %}selected{% endif %}>未支付</option>
-                                <option value="paid" {% if order.payment_status == 'paid' %}selected{% endif %}>已支付</option>
-                                <option value="refunded" {% if order.payment_status == 'refunded' %}selected{% endif %}>已退款</option>
+                                    data-status="{{ order.payment_status }}"
+                                    onchange="updatePaymentStatus(this, '{{ order.id }}')">
+                                <option value="未支付" {% if order.payment_status == 'unpaid' %}selected{% endif %}>未支付</option>
+                                <option value="已支付" {% if order.payment_status == 'paid' %}selected{% endif %}>已支付</option>
+                                <option value="已退款" {% if order.payment_status == 'refunded' %}selected{% endif %}>已退款</option>
                             </select>
                             <span class="status-indicator">
                                 <i class="fas fa-spinner fa-spin"></i>
@@ -434,6 +454,9 @@
 <!-- 添加 Toast 容器 -->
 <div class="toast-container"></div>
 
+<!-- CSRF Token -->
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
 <script>
 // 状态映射
 const STATUS_MAP = {
@@ -451,7 +474,108 @@ const PAYMENT_STATUS_MAP = {
     'refunded': '已退款'
 };
 
-// Toast 通知函数
+// 获取CSRF令牌
+const csrfToken = document.querySelector('input[name="csrf_token"]').value;
+
+// 支付状态映射
+const REVERSE_PAYMENT_STATUS_MAP = {
+    '未支付': 'unpaid',
+    '已支付': 'paid',
+    '已退款': 'refunded'
+};
+
+function updatePaymentStatus(selectElement, orderId) {
+    const displayStatus = selectElement.value; // 中文状态
+    const statusValue = REVERSE_PAYMENT_STATUS_MAP[displayStatus]; // 转换为英文状态
+    
+    const indicator = selectElement.nextElementSibling;
+    
+    // 显示加载指示器
+    indicator.style.display = 'flex';
+    
+    // 构建FormData对象
+    const formData = new FormData();
+    formData.append('payment_status', statusValue);
+    formData.append('csrf_token', csrfToken);
+    
+    fetch(`/flights_booking/update_payment_status/${orderId}`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': csrfToken,
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: formData
+    })
+    .then(response => {
+        if (!response.ok) {
+            return response.json().then(data => {
+                throw new Error(data.message || '支付状态更新失败');
+            });
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            // 更新选择框的状态属性
+            selectElement.setAttribute('data-status', statusValue);
+            updatePaymentSelectStyle(selectElement);
+            showToast(`支付状态已更新为：${displayStatus}`, 'success');
+        } else {
+            throw new Error(data.message || '支付状态更新失败');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showToast(error.message || '支付状态更新失败，请重试', 'error');
+        
+        // 恢复原始选择
+        const originalStatus = selectElement.getAttribute('data-original-status');
+        if (originalStatus) {
+            selectElement.value = PAYMENT_STATUS_MAP[originalStatus];
+            updatePaymentSelectStyle(selectElement);
+        }
+    })
+    .finally(() => {
+        // 隐藏加载指示器
+        indicator.style.display = 'none';
+    });
+}
+
+// 更新支付状态选择框样式
+function updatePaymentSelectStyle(select) {
+    const statusValue = REVERSE_PAYMENT_STATUS_MAP[select.value];
+    select.setAttribute('data-status', statusValue);
+    
+    // 移除所有可能的状态类
+    select.classList.remove('status-unpaid', 'status-paid', 'status-refunded');
+    
+    // 添加对应状态的类
+    select.classList.add(`status-${statusValue}`);
+}
+
+// 页面加载时初始化所有支付状态选择框的样式
+document.addEventListener('DOMContentLoaded', function() {
+    // 保存订单状态的原始值
+    const orderStatusSelects = document.querySelectorAll('.status-select');
+    orderStatusSelects.forEach(select => {
+        select.setAttribute('data-original-status', select.value);
+        // 添加change事件监听器
+        select.addEventListener('change', function() {
+            const orderId = this.getAttribute('data-order-id');
+            updateOrderStatus(this, orderId);
+        });
+    });
+
+    // 初始化支付状态选择框样式
+    const paymentStatusSelects = document.querySelectorAll('.payment-select');
+    paymentStatusSelects.forEach(select => {
+        const displayStatus = select.value; // 中文状态
+        const statusValue = REVERSE_PAYMENT_STATUS_MAP[displayStatus]; // 转换为英文状态
+        select.setAttribute('data-original-status', statusValue);
+        updatePaymentSelectStyle(select);
+    });
+});
+
 function showToast(message, type = 'success') {
     const container = document.querySelector('.toast-container');
     const toast = document.createElement('div');
@@ -474,140 +598,88 @@ function showToast(message, type = 'success') {
     }, 3000);
 }
 
-// 更新状态选择框样式
+function updateOrderStatus(selectElement, orderId) {
+    const statusValue = selectElement.value;
+    const indicator = selectElement.nextElementSibling;
+    
+    // 显示加载指示器
+    indicator.style.display = 'flex';
+    
+    // 构建FormData对象
+    const formData = new FormData();
+    formData.append('order_status', statusValue);
+    formData.append('csrf_token', csrfToken);
+    
+    fetch(`/flights_booking/update_order_status/${orderId}`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': csrfToken,
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: formData
+    })
+    .then(response => {
+        if (!response.ok) {
+            return response.json().then(data => {
+                throw new Error(data.message || '订单状态更新失败');
+            });
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            updateSelectStyle(selectElement);
+            showToast(`订单状态已更新为：${statusValue}`, 'success');
+            
+            // 更新编辑按钮的显示状态
+            const row = selectElement.closest('tr');
+            const actionButtons = row.querySelector('.action-buttons');
+            const editButton = actionButtons.querySelector('.btn-warning');
+            
+            if (editButton) {
+                if (['pending', 'confirmed', 'ticketed'].includes(statusValue)) {
+                    editButton.disabled = false;
+                    editButton.style.opacity = '';
+                } else {
+                    editButton.disabled = true;
+                    editButton.style.opacity = '0.5';
+                }
+            }
+        } else {
+            throw new Error(data.message || '订单状态更新失败');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showToast(error.message || '状态更新失败，请重试', 'error');
+        
+        // 回滚到原始状态
+        selectElement.value = selectElement.getAttribute('data-original-status');
+        updateSelectStyle(selectElement);
+    })
+    .finally(() => {
+        // 隐藏加载指示器
+        indicator.style.display = 'none';
+    });
+}
+
 function updateSelectStyle(select) {
     const status = select.value;
     select.setAttribute('data-status', status);
 }
 
-// 初始化所有状态选择框
-document.addEventListener('DOMContentLoaded', function() {
-    // 订单状态处理
-    const statusSelects = document.querySelectorAll('.status-select');
-    statusSelects.forEach(select => {
-        updateSelectStyle(select);
+// 自动提交搜索表单
+const autoSubmitSelects = document.querySelectorAll('.auto-submit');
+autoSubmitSelects.forEach(select => {
+    select.addEventListener('change', function() {
+        // 重置页码为1，确保从第一页开始显示结果
+        const pageInput = document.querySelector('input[name="page"]');
+        if (pageInput) {
+            pageInput.value = "1";
+        }
         
-        // 监听状态变化
-        select.addEventListener('change', function() {
-            const orderId = this.getAttribute('data-order-id');
-            const newStatus = this.value;
-            const indicator = this.nextElementSibling;
-            
-            // 显示加载指示器
-            indicator.style.display = 'flex';
-            
-            // 准备表单数据
-            const formData = new FormData();
-            formData.append('order_status', newStatus);
-            
-            // 发送请求
-            fetch(`/flights_booking/update_order_status/${orderId}`, {
-                method: 'POST',
-                body: formData,
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    updateSelectStyle(this);
-                    showToast(`订单状态已更新为：${STATUS_MAP[newStatus]}`, 'success');
-                    
-                    // 更新编辑按钮的显示状态
-                    const row = this.closest('tr');
-                    const actionButtons = row.querySelector('.action-buttons');
-                    const editButton = actionButtons.querySelector('.btn-warning');
-                    
-                    if (editButton) {
-                        if (['pending', 'confirmed', 'ticketed'].includes(newStatus)) {
-                            editButton.style.display = '';
-                        } else {
-                            editButton.style.display = 'none';
-                        }
-                    }
-                } else {
-                    throw new Error(data.message || '更新失败');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                showToast(error.message || '状态更新失败，请稍后重试', 'error');
-                
-                // 回滚到原始状态
-                this.value = this.getAttribute('data-status');
-                updateSelectStyle(this);
-            })
-            .finally(() => {
-                // 隐藏加载指示器
-                indicator.style.display = 'none';
-            });
-        });
-    });
-
-    // 支付状态处理
-    const paymentSelects = document.querySelectorAll('.payment-select');
-    paymentSelects.forEach(select => {
-        updateSelectStyle(select);
-        
-        // 监听状态变化
-        select.addEventListener('change', function() {
-            const orderId = this.getAttribute('data-order-id');
-            const newStatus = this.value;
-            const indicator = this.nextElementSibling;
-            
-            // 显示加载指示器
-            indicator.style.display = 'flex';
-            
-            // 准备表单数据
-            const formData = new FormData();
-            formData.append('payment_status', newStatus);
-            
-            // 发送请求
-            fetch(`/flights_booking/update_payment_status/${orderId}`, {
-                method: 'POST',
-                body: formData,
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    updateSelectStyle(this);
-                    showToast(`支付状态已更新为：${PAYMENT_STATUS_MAP[newStatus]}`, 'success');
-                } else {
-                    throw new Error(data.message || '更新失败');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                showToast(error.message || '支付状态更新失败，请稍后重试', 'error');
-                
-                // 回滚到原始状态
-                this.value = this.getAttribute('data-status');
-                updateSelectStyle(this);
-            })
-            .finally(() => {
-                // 隐藏加载指示器
-                indicator.style.display = 'none';
-            });
-        });
-    });
-    
-    // 自动提交搜索表单
-    const autoSubmitSelects = document.querySelectorAll('.auto-submit');
-    autoSubmitSelects.forEach(select => {
-        select.addEventListener('change', function() {
-            // 重置页码为1，确保从第一页开始显示结果
-            const pageInput = document.querySelector('input[name="page"]');
-            if (pageInput) {
-                pageInput.value = "1";
-            }
-            
-            // 提交表单
-            this.closest('form').submit();
-        });
+        // 提交表单
+        this.closest('form').submit();
     });
 });
 </script>

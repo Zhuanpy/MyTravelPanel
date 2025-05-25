@@ -5,6 +5,8 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}{% endblock %}</title>
+    <!-- CSRF令牌 -->
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <!-- Favicon -->
     <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
     <!-- 基础样式 -->
@@ -292,7 +294,37 @@
         </div>
     </nav>
 
-    <!-- 主要内容 -->
+    <div class="container mt-3">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category if category != 'message' else 'info' }} alert-dismissible fade show flash-message" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    </div>
+    
+    <script>
+        // 在DOMContentLoaded时初始化Bootstrap组件
+        document.addEventListener('DOMContentLoaded', function() {
+            // 等待Bootstrap加载完成后再操作alert
+            setTimeout(function() {
+                var flashMessages = document.querySelectorAll('.flash-message');
+                flashMessages.forEach(function(message) {
+                    setTimeout(function() {
+                        // 使用DOM API直接移除元素，不依赖Bootstrap Alert类
+                        if(message && message.parentNode) {
+                            message.parentNode.removeChild(message);
+                        }
+                    }, 5000); // 5秒后自动关闭
+                });
+            }, 1000); // 等待1秒确保Bootstrap已加载
+        });
+    </script>
+    
     <main class="py-4">
         {% block content %}{% endblock %}
     </main>

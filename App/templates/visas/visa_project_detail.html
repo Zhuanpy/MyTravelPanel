@@ -338,7 +338,7 @@
         </div>
         
         <div class="action-buttons">
-            <a href="{{ url_for('visa_routes.open_current_project_file', file_name=project.name, visa_status=current_visa_status, sort_by=current_sort_by) }}" class="action-button primary-button">打开项目</a>
+            <a href="{{ url_for('visa_routes.open_folder', folder_type='project', file_name=project.name, visa_type=project.visa_type, visa_status=current_visa_status, sort_by=current_sort_by, return_to='list') }}" class="action-button primary-button">打开项目</a>
             <a href="{{ url_for('visa_routes.visa_processing', visa_type=project.visa_category) if project.visa_category else '#' }}" class="action-button secondary-button">签证处理</a>
             <a href="#" class="action-button danger-button" onclick="deleteProject('{{ project.id }}')">删除项目</a>
         </div>
