@@ -334,6 +334,7 @@
     <div class="flight-schedule-card">
         <h2 class="flight-schedule-subtitle">输入航班信息</h2>
         <form id="flightForm" method="POST" action="{{ url_for('flights_schedule.input_flight_schedule_info') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="search_flight_number" value="{{ request.args.get('search_flight_number', '') }}">
             <div id="flightInputsContainer">
                 <div class="flight-schedule-form-row">
@@ -374,6 +375,7 @@
     <div class="flight-schedule-card">
         <h2 class="flight-schedule-subtitle">搜索航班</h2>
         <form id="searchForm" method="GET" action="{{ url_for('flights_schedule.search_flights') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="flight-schedule-input-group">
                 <input type="text" name="search_flight_number" placeholder="输入航班号" value="{{ request.args.get('search_flight_number', '') }}" class="flight-schedule-input">
                 <button type="submit" class="flight-schedule-btn-info">
@@ -450,7 +452,12 @@
 
             if (response.ok) {
                 if (data.error) {
-                    alert(data.error);
+                    // 创建一个提示框，包含错误信息和跳转按钮
+                    const result = confirm(data.error + '\n\n是否要添加该航班信息？');
+                    if (result) {
+                        // 如果用户点击确认，则跳转到当前页面并预填航班号
+                        window.location.href = `{{ url_for('flights_schedule.input_flight_schedule_info') }}?search_flight_number=${encodeURIComponent(flightNumber)}`;
+                    }
                 } else {
                     // 填充表单
                     scheduleCityInput.value = data.schedule_city;
@@ -460,11 +467,17 @@
                     alert("航班信息已自动填充，您可以根据需要修改！");
                 }
             } else {
-                alert(data.error || '未找到航班信息，请手动输入');
+                const result = confirm('未找到航班信息。\n\n是否要添加该航班信息？');
+                if (result) {
+                    window.location.href = `{{ url_for('flights_schedule.input_flight_schedule_info') }}?search_flight_number=${encodeURIComponent(flightNumber)}`;
+                }
             }
         } catch (error) {
             console.error('获取航班信息失败:', error);
-            alert('获取航班信息失败，请手动输入航班信息');
+            const result = confirm('获取航班信息失败。\n\n是否要手动添加该航班信息？');
+            if (result) {
+                window.location.href = `{{ url_for('flights_schedule.input_flight_schedule_info') }}?search_flight_number=${encodeURIComponent(flightNumber)}`;
+            }
         } finally {
             // 恢复按钮状态
             button.disabled = false;
@@ -520,7 +533,8 @@
                 fetch("{{ url_for('flights_schedule.update_flight_timing') }}", {
                     method: "POST",
                     headers: {
-                        "Content-Type": "application/json"
+                        "Content-Type": "application/json",
+                        "X-CSRFToken": "{{ csrf_token() }}"
                     },
                     body: JSON.stringify({
                         flight_id: flightId,

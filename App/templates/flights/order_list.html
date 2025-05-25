@@ -23,21 +23,44 @@
 
     /* 列宽度调整 */
     .table th:nth-child(1), .table td:nth-child(1) { min-width: 130px; } /* 订单号 */
-    .table th:nth-child(2), .table td:nth-child(2) { min-width: 180px; } /* 行程 */
-    .table th:nth-child(3), .table td:nth-child(3) { min-width: 100px; } /* 乘客 */
-    .table th:nth-child(4), .table td:nth-child(4) { min-width: 100px; } /* 联系人 */
-    .table th:nth-child(5), .table td:nth-child(5) { min-width: 100px; } /* 供应商 */
-    .table th:nth-child(6), .table td:nth-child(6) { min-width: 120px; } /* 总售价 */
-    .table th:nth-child(7), .table td:nth-child(7) { min-width: 120px; } /* 总成本 */
-    .table th:nth-child(8), .table td:nth-child(8) { min-width: 120px; } /* 订单状态 */
-    .table th:nth-child(9), .table td:nth-child(9) { min-width: 120px; } /* 支付状态 */
-    .table th:nth-child(10), .table td:nth-child(10) { min-width: 160px; } /* 创建时间 */
+    .table th:nth-child(2), .table td:nth-child(2) { min-width: 160px; } /* 行程 */
+    .table th:nth-child(3), .table td:nth-child(3) { min-width: 120px; } /* 出发日期 */
+    .table th:nth-child(4), .table td:nth-child(4) { min-width: 100px; } /* 乘客 */
+    .table th:nth-child(5), .table td:nth-child(5) { min-width: 100px; } /* 联系人 */
+    .table th:nth-child(6), .table td:nth-child(6) { min-width: 100px; } /* 供应商 */
+    .table th:nth-child(7), .table td:nth-child(7) { min-width: 120px; } /* 总售价 */
+    .table th:nth-child(8), .table td:nth-child(8) { min-width: 120px; } /* 总成本 */
+    .table th:nth-child(9), .table td:nth-child(9) { min-width: 120px; } /* 订单状态 */
+    .table th:nth-child(10), .table td:nth-child(10) { min-width: 120px; } /* 支付状态 */
+    .table th:nth-child(11), .table td:nth-child(11) { min-width: 160px; } /* 创建时间 */
 
     /* 行程单元格样式 */
     .itinerary-cell {
         white-space: normal !important;
         line-height: 1.5 !important;
         min-width: 160px;
+    }
+
+    .itinerary-cell .text-muted {
+        font-size: 0.9em;
+        margin-left: 5px;
+        color: #6c757d !important;
+    }
+
+    /* 出发日期单元格样式 */
+    .departure-date-cell {
+        white-space: normal !important;
+        line-height: 1.5 !important;
+        min-width: 120px !important;
+        text-align: center;
+        color: #2d3748;
+        font-size: 0.9rem;
+    }
+
+    .departure-date-cell:empty::after {
+        content: '暂无数据';
+        color: #a0aec0;
+        font-style: italic;
     }
 
     /* 文本溢出处理 */
@@ -292,6 +315,7 @@
                 <tr>
                     <th>订单号</th>
                     <th>行程</th>
+                    <th>出发日期</th>
                     <th>乘客</th>
                     <th>联系人</th>
                     <th>供应商</th>
@@ -309,7 +333,16 @@
                     <td>{{ order.order_number }}</td>
                     <td class="itinerary-cell">
                         {% for segment in order.flight_segments %}
-                        {{ segment.departure_airport }} → {{ segment.arrival_airport }}{% if not loop.last %}<br>{% endif %}
+                        {{ segment.departure_airport }} → {{ segment.arrival_airport }}
+                        {% if not loop.last %}<br>{% endif %}
+                        {% endfor %}
+                    </td>
+                    <td class="departure-date-cell">
+                        {% for segment in order.flight_segments %}
+                        {% if segment.departure_time %}
+                        {{ segment.departure_time.strftime('%Y-%m-%d') }}
+                        {% endif %}
+                        {% if not loop.last %}<br>{% endif %}
                         {% endfor %}
                     </td>
                     <td>{{ order.passengers[0].name if order.passengers else '' }}</td>
@@ -322,6 +355,9 @@
                             <select class="status-select" 
                                     data-order-id="{{ order.id }}" 
                                     data-status="{{ order.order_status }}"
+                                    {% if order.flight_segments %}
+                                    data-departure-time="{{ order.flight_segments[0].departure_time }}"
+                                    {% endif %}
                                     {% if order.order_status == 'cancelled' %}disabled{% endif %}>
                                 <option value="pending" {% if order.order_status == 'pending' %}selected{% endif %}>待处理</option>
                                 <option value="confirmed" {% if order.order_status == 'confirmed' %}selected{% endif %}>已确认</option>
@@ -553,17 +589,44 @@ function updatePaymentSelectStyle(select) {
     select.classList.add(`status-${statusValue}`);
 }
 
-// 页面加载时初始化所有支付状态选择框的样式
 document.addEventListener('DOMContentLoaded', function() {
-    // 保存订单状态的原始值
-    const orderStatusSelects = document.querySelectorAll('.status-select');
-    orderStatusSelects.forEach(select => {
-        select.setAttribute('data-original-status', select.value);
+    // 检查所有订单的出发时间并初始化事件监听器
+    document.querySelectorAll('.status-select').forEach(select => {
+        // 保存原始状态
+        const originalStatus = select.value;
+        select.setAttribute('data-original-status', originalStatus);
+        
         // 添加change事件监听器
         select.addEventListener('change', function() {
             const orderId = this.getAttribute('data-order-id');
             updateOrderStatus(this, orderId);
         });
+
+        // 检查所有航段的出发时间
+        const row = select.closest('tr');
+        const departureDatesCell = row.querySelector('.departure-date-cell');
+        const departureDates = Array.from(departureDatesCell.childNodes)
+            .filter(node => node.nodeType === Node.TEXT_NODE && node.textContent.trim())
+            .map(node => new Date(node.textContent.trim()));
+
+        if (departureDates.length > 0) {
+            const now = new Date();
+            const currentStatus = select.value;
+            
+            // 检查是否所有航段都已过期
+            const allSegmentsPassed = departureDates.every(date => date < now);
+            
+            if (allSegmentsPassed && currentStatus !== 'cancelled' && currentStatus !== 'completed') {
+                // 如果所有航段都已过期且订单不是取消或完成状态，则自动更新为完成状态
+                select.value = 'completed';
+                updateOrderStatus(select, select.getAttribute('data-order-id'));
+            }
+
+            // 如果所有航段都已过期，禁用选择框（除非是已取消或已完成状态）
+            if (allSegmentsPassed && currentStatus !== 'cancelled' && currentStatus !== 'completed') {
+                select.disabled = true;
+            }
+        }
     });
 
     // 初始化支付状态选择框样式
@@ -599,37 +662,42 @@ function showToast(message, type = 'success') {
 }
 
 function updateOrderStatus(selectElement, orderId) {
-    const statusValue = selectElement.value;
-    const indicator = selectElement.nextElementSibling;
+    const newStatus = selectElement.value;
+    const statusIndicator = selectElement.nextElementSibling;
     
     // 显示加载指示器
-    indicator.style.display = 'flex';
-    
-    // 构建FormData对象
-    const formData = new FormData();
-    formData.append('order_status', statusValue);
+    statusIndicator.style.display = 'inline-block';
+
+    // 验证状态值
+    if (!Object.keys(STATUS_MAP).includes(newStatus)) {
+        showToast('无效的状态值', 'error');
+        const originalStatus = selectElement.getAttribute('data-original-status');
+        selectElement.value = originalStatus;
+        statusIndicator.style.display = 'none';
+        return;
+    }
+
+    const formData = new URLSearchParams();
+    formData.append('order_status', newStatus);
     formData.append('csrf_token', csrfToken);
-    
+
     fetch(`/flights_booking/update_order_status/${orderId}`, {
         method: 'POST',
         headers: {
-            'X-CSRFToken': csrfToken,
-            'X-Requested-With': 'XMLHttpRequest'
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': csrfToken
         },
-        body: formData
+        body: formData.toString()
     })
-    .then(response => {
-        if (!response.ok) {
-            return response.json().then(data => {
-                throw new Error(data.message || '订单状态更新失败');
-            });
-        }
-        return response.json();
-    })
+    .then(response => response.json().catch(() => {
+        throw new Error('服务器响应格式错误');
+    }))
     .then(data => {
         if (data.success) {
+            // 更新选择框的状态属性
+            selectElement.setAttribute('data-status', newStatus);
             updateSelectStyle(selectElement);
-            showToast(`订单状态已更新为：${statusValue}`, 'success');
+            showToast(`订单状态已更新为：${STATUS_MAP[newStatus]}`, 'success');
             
             // 更新编辑按钮的显示状态
             const row = selectElement.closest('tr');
@@ -637,12 +705,14 @@ function updateOrderStatus(selectElement, orderId) {
             const editButton = actionButtons.querySelector('.btn-warning');
             
             if (editButton) {
-                if (['pending', 'confirmed', 'ticketed'].includes(statusValue)) {
+                if (['pending', 'confirmed', 'ticketed'].includes(newStatus)) {
                     editButton.disabled = false;
                     editButton.style.opacity = '';
+                    editButton.style.cursor = 'pointer';
                 } else {
                     editButton.disabled = true;
                     editButton.style.opacity = '0.5';
+                    editButton.style.cursor = 'not-allowed';
                 }
             }
         } else {
@@ -654,18 +724,26 @@ function updateOrderStatus(selectElement, orderId) {
         showToast(error.message || '状态更新失败，请重试', 'error');
         
         // 回滚到原始状态
-        selectElement.value = selectElement.getAttribute('data-original-status');
+        const originalStatus = selectElement.getAttribute('data-original-status');
+        selectElement.value = originalStatus;
         updateSelectStyle(selectElement);
     })
     .finally(() => {
         // 隐藏加载指示器
-        indicator.style.display = 'none';
+        statusIndicator.style.display = 'none';
     });
 }
 
+// 更新选择框样式
 function updateSelectStyle(select) {
     const status = select.value;
     select.setAttribute('data-status', status);
+    
+    // 移除所有可能的状态类
+    select.classList.remove('status-pending', 'status-confirmed', 'status-ticketed', 'status-completed', 'status-cancelled');
+    
+    // 添加新的状态类
+    select.classList.add(`status-${status}`);
 }
 
 // 自动提交搜索表单
