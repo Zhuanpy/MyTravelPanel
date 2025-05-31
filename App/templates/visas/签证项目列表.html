@@ -322,7 +322,7 @@
     <h2 class="visa-project-links-title">现有签证项目</h2>
 
     <div class="visa-project-sort-options">
-        <form method="get" action="{{ url_for('visa_routes.show_current_all_projects') }}">
+        <form method="get" action="{{ url_for('visa_project.show_current_all_projects') }}">
             <!-- 签证状态筛选 -->
             <label for="visa_status">签证状态：</label>
             
@@ -393,17 +393,17 @@
                     </td>
                     <td>{{ project.estimated_date }}</td>
                     <td>
-                        <a class="visa-project-open-link" style="background-color: #4CAF50;" href="{{ url_for('visa_routes.visa_detail', project_id=project.id, visa_status=visa_status, sort_by=sort_by) }}">
+                        <a class="visa-project-open-link" style="background-color: #4CAF50;" href="{{ url_for('visa_project.visa_detail', project_id=project.id, visa_status=visa_status, sort_by=sort_by) }}">
                             查看详细
                         </a>
                     </td>
                     <td>
-                        <a class="visa-project-open-link" href="{{ url_for('visa_routes.open_folder', folder_type='project', file_name=project.project_folder_name, visa_type=project.visa_type, visa_status=visa_status, sort_by=sort_by, filter_visa_type=filter_visa_type, return_to='list') }}">
+                        <a class="visa-project-open-link" href="{{ url_for('visa_project.open_folder', folder_type='project', file_name=project.project_folder_name, visa_type=project.visa_type, visa_status=visa_status, sort_by=sort_by, filter_visa_type=filter_visa_type, return_to='list') }}">
                             打开项目
                         </a>
                     </td>
                     <td>
-                        <a class="visa-project-open-link" style="background-color: #e6a700;" href="{{ url_for('visa_routes.edit_project', project_id=project.id) }}">
+                        <a class="visa-project-open-link" style="background-color: #e6a700;" href="{{ url_for('visa_project.edit_project', project_id=project.id) }}">
                             编辑项目
                         </a>
                     </td>
@@ -420,7 +420,7 @@
         <h2 class="visa-project-links-title">签证处理链接</h2>
         <div class="visa-project-button-group">
             {% for visa in visa_categories %}
-                <a href="{{ url_for('visa_routes.visa_processing', visa_type=visa.visa_type) }}"
+                <a href="{{ url_for('visa_project.visa_processing', visa_type=visa.visa_type) }}"
                    class="visa-project-btn visa-project-btn-blue">
                    {{ visa.visa_type }}签证
                 </a>
@@ -453,11 +453,10 @@
         'ignored': '忽略单'
     };
 
-    function deleteProject(event, element) {
+    async function deleteProject(event, element) {
         event.preventDefault();
-        
         const projectId = element.getAttribute('data-project-id');
-        const url = `/visa/visa/delete_current_project/${projectId}`;
+        const url = `/visa/project/delete_current_project/${projectId}`;
         
         if (confirm("确定要删除此项目吗？")) {
             fetch(url, {

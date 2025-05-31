@@ -418,7 +418,7 @@
             {% for project in projects %}
             <tr>
                 <td>{{ project.id }}</td>
-                <td><a href="{{ url_for('visa_routes.open_folder', folder_type='project', file_name=project.name, visa_type=project.visa_type, visa_status=visa_status, sort_by=sort_by, return_to='list') }}" class="visa-project-name-link">{{ project.name }}</a></td>
+                <td><a href="{{ url_for('visa_project.open_folder', folder_type='project', file_name=project.name, visa_type=project.visa_type, visa_status=visa_status, sort_by=sort_by, return_to='list') }}" class="visa-project-name-link">{{ project.name }}</a></td>
                 <td>{{ project.created_date.strftime('%Y-%m-%d') }}</td>
                 <td>
                     <div class="d-flex align-items-center">
@@ -435,7 +435,7 @@
                 </td>
                 <td><input type="text" name="estimated_date" value="{{ project.estimated_date }}" class="visa-project-input-field"></td>
                 <td>
-                    <a class="visa-project-open-link" href="{{ url_for('visa_routes.open_folder', folder_type='project', file_name=project.name, visa_type=project.visa_type, visa_status=visa_status, sort_by=sort_by, return_to='list') }}">
+                    <a class="visa-project-open-link" href="{{ url_for('visa_project.open_folder', folder_type='project', file_name=project.name, visa_type=project.visa_type, visa_status=visa_status, sort_by=sort_by, return_to='list') }}">
                         打开项目
                     </a>
                 </td>
@@ -459,6 +459,9 @@
             {% endfor %}
         </div>
     </div>
+
+    <!-- 添加 CSRF 令牌隐藏输入 -->
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 </div>
 
 <!-- 添加 Toast 容器 -->
@@ -537,15 +540,13 @@
                 
                 try {
                     // 发送请求
-                    const response = await fetch(`/visa/visa/update_status/${projectId}`, {
+                    const response = await fetch(`/visa/update_visa_status/${projectId}`, {
                         method: 'POST',
                         headers: {
-                            'Content-Type': 'application/json',
+                            'Content-Type': 'application/x-www-form-urlencoded',
                             'X-Requested-With': 'XMLHttpRequest'
                         },
-                        body: JSON.stringify({
-                            visa_status: newStatus
-                        })
+                        body: `visa_status=${encodeURIComponent(newStatus)}`
                     });
 
                     if (!response.ok) {
@@ -595,32 +596,47 @@
     });
 
     // 删除项目函数
-    function deleteProject(event, element) {
+    async function deleteProject(event, element) {
         event.preventDefault();
         const projectId = element.getAttribute('data-project-id');
-        const url = `/visa/visa/delete_current_project/${projectId}`;
+        const url = `/visa/project/delete_current_project/${projectId}`;
         
         if (confirm("确定要删除此项目吗？")) {
-            fetch(url, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-            })
-            .then(response => response.json())
-            .then(data => {
+            try {
+                // 获取 CSRF 令牌
+                const csrfToken = document.querySelector('input[name="csrf_token"]').value;
+                
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken,
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    credentials: 'same-origin'
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                
                 if (data.success) {
                     showToast("项目删除成功！", "success");
                     const row = element.closest('tr');
-                    row.parentNode.removeChild(row);
+                    row.style.opacity = '0';
+                    row.style.transition = 'opacity 0.3s ease';
+                    setTimeout(() => {
+                        row.remove();
+                    }, 300);
                 } else {
-                    showToast("删除失败：" + data.message, "error");
+                    throw new Error(data.message || '删除失败');
                 }
-            })
-            .catch(error => {
+            } catch (error) {
                 console.error("Error deleting project:", error);
-                showToast("请求失败，请稍后重试！", "error");
-            });
+                showToast(error.message || "删除失败，请稍后重试！", "error");
+            }
         }
     }
 </script>

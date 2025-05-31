@@ -3,6 +3,8 @@
 {% block title %}签证资料管理{% endblock %}
 
 {% block head %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
 <style>
     .visa-doc-container {
         max-width: 1200px;
@@ -150,7 +152,7 @@
         <h1 class="visa-doc-title">{% if current_country %}管理{{ current_country }}资料{% else %}签证资料管理{% endif %}</h1>
         <div class="visa-doc-buttons">
             {% if current_country %}
-            <a href="{{ url_for('visa_routes.visa_processing', visa_type=current_visa_type) }}" class="visa-doc-button">
+            <a href="{{ url_for('visa_documents.visa_processing', visa_type=current_visa_type) }}" class="visa-doc-button">
                 <i class="fas fa-arrow-left"></i>返回签证处理
             </a>
             {% endif %}
@@ -159,16 +161,34 @@
     </div>
 
     <!-- 筛选签证类型 -->
-    <form method="GET" action="{{ url_for('visa_routes.manage_visas') }}">
-        <div class="visa-doc-field">
-            <label class="visa-doc-label">筛选签证类型</label>
-            <div class="visa-doc-select">
-                <select name="visa_type" onchange="this.form.submit()">
-                    <option value="">显示全部</option>
-                    {% for type in visa_types %}
-                    <option value="{{ type }}" {% if request.args.get('visa_type') == type %}selected{% endif %}>{{ type }}</option>
-                    {% endfor %}
-                </select>
+    <form method="GET" action="{{ url_for('visa_documents.manage_visas') }}" id="filterForm">
+        <div style="display: flex; gap: 20px;">
+            <div class="visa-doc-field">
+                <label class="visa-doc-label">筛选国家</label>
+                <div class="visa-doc-select">
+                    <select name="country" id="countrySelect">
+                        <option value="">显示全部</option>
+                        {% for country in countries %}
+                        <option value="{{ country.id }}" {% if request.args.get('country')|int == country.id %}selected{% endif %}>{{ country.country_name_CN }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="visa-doc-field">
+                <label class="visa-doc-label">签证类型</label>
+                <div class="visa-doc-select">
+                    <select name="visa_type" id="visaTypeSelect">
+                        <option value="">显示全部</option>
+                        {% for type in visa_types %}
+                        <option value="{{ type }}" {% if request.args.get('visa_type') == type %}selected{% endif %}>{{ type }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="visa-doc-field" style="margin-top: 24px;">
+                <a href="{{ url_for('visa_documents.manage_visas') }}" style="color: #666; text-decoration: none;">
+                    <i class="fas fa-times"></i> 清除筛选
+                </a>
             </div>
         </div>
     </form>
@@ -186,19 +206,351 @@
             </tr>
         </thead>
         <tbody>
-            {% for document in documents %}
-            <tr>
-                <td>{{ document.id }}</td>
-                <td>{{ document.visa_type }}</td>
-                <td>{{ document.singapore_identity }}</td>
-                <td>{{ document.document_info[:50] }}...</td>
-                <td>{{ document.additional_info[:50] }}...</td>
-                <td>
-                    <a href="{{ url_for('visa_routes.edit_visa', id=document.id) }}" class="visa-doc-edit-button">编辑</a>
-                </td>
-            </tr>
-            {% endfor %}
+            {% if documents %}
+                {% for document in documents %}
+                <tr>
+                    <td>{{ document.id }}</td>
+                    <td>{{ document.visa_type }}</td>
+                    <td>{{ document.singapore_identity }}</td>
+                    <td style="white-space: pre-line;">{{ document.document_info[:50] + '...' if document.document_info and document.document_info|length > 50 else document.document_info }}</td>
+                    <td style="white-space: pre-line;">{{ document.additional_info[:50] + '...' if document.additional_info and document.additional_info|length > 50 else document.additional_info }}</td>
+                    <td>
+                        <div class="buttons are-small">
+                            <button class="button is-info edit-button" 
+                                data-id="{{ document.id }}"
+                                data-visa-type="{{ document.visa_type }}"
+                                data-identity="{{ document.singapore_identity }}"
+                                data-document-info="{{ document.document_info|replace('\n', '\\n')|replace('\r', '\\r')|replace("'", "\\'")|replace('"', '\\"')|e }}"
+                                data-additional-info="{{ document.additional_info|replace('\n', '\\n')|replace('\r', '\\r')|replace("'", "\\'")|replace('"', '\\"')|e }}">
+                                <span class="icon">
+                                    <i class="fas fa-edit"></i>
+                                </span>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            {% else %}
+                <tr>
+                    <td colspan="6" style="text-align: center; padding: 2rem;">
+                        <div class="has-text-grey">
+                            <i class="fas fa-inbox fa-2x mb-2"></i>
+                            <p>暂无相关签证资料</p>
+                        </div>
+                    </td>
+                </tr>
+            {% endif %}
         </tbody>
     </table>
 </div>
+
+<!-- 编辑签证资料的模态框 -->
+<div class="modal" id="editDocumentModal">
+    <div class="modal-background"></div>
+    <div class="modal-card">
+        <header class="modal-card-head">
+            <p class="modal-card-title">编辑签证资料</p>
+            <button class="delete" aria-label="close" onclick="closeEditModal()"></button>
+        </header>
+        <section class="modal-card-body">
+            <form id="editDocumentForm" method="post" autocomplete="off">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="document_id" id="editDocumentId">
+                
+                <div class="field">
+                    <label class="label">签证类型</label>
+                    <div class="control">
+                        <div class="select is-fullwidth">
+                            <select name="visa_type" id="visa_type" disabled>
+                                <option value="">请选择签证类型</option>
+                                {% for type in visa_types %}
+                                <option value="{{ type }}" {% if type == current_visa_type %}selected{% endif %}>{{ type }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="field">
+                    <label class="label">新加坡身份</label>
+                    <div class="control">
+                        <div class="select is-fullwidth">
+                            <select name="singapore_identity" id="singapore_identity" disabled>
+                                <option value="">请选择新加坡身份</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div id="shareInfo" class="notification is-info is-light" style="display: none;">
+                    这是共用资料，将显示在所有身份类型的文档中。
+                </div>
+                <div class="field">
+                    <label class="label">文件资料</label>
+                    <div class="control">
+                        <textarea class="textarea document-info" name="document_info" id="editDocumentInfo" 
+                            rows="6" style="min-height: 120px; resize: vertical;"
+                            placeholder="请输入文件资料内容，支持多行输入"></textarea>
+                    </div>
+                </div>
+                <div class="field">
+                    <label class="label">补充信息</label>
+                    <div class="control">
+                        <textarea class="textarea additional-info" name="additional_info" id="editAdditionalInfo" 
+                            rows="6" style="min-height: 120px; resize: vertical;"
+                            placeholder="请输入补充信息，支持多行输入"></textarea>
+                    </div>
+                </div>
+            </form>
+        </section>
+        <footer class="modal-card-foot">
+            <button class="button is-primary" type="button" onclick="submitEditForm(event)">保存修改</button>
+            <button class="button" type="button" onclick="closeEditModal()">取消</button>
+        </footer>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const countrySelect = document.getElementById('countrySelect');
+    const visaTypeSelect = document.getElementById('visaTypeSelect');
+    const editVisaTypeSelect = document.getElementById('visa_type');
+    const form = document.getElementById('filterForm');
+    
+    // 更新签证类型选项
+    function updateVisaTypeOptions(countryId) {
+        // 清空现有选项
+        visaTypeSelect.innerHTML = '<option value="">显示全部</option>';
+        
+        if (countryId) {
+            // 显示加载状态
+            visaTypeSelect.disabled = true;
+            
+            fetch(`/visa/documents/get_visa_types?country_id=${countryId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        data.visa_types.forEach(type => {
+                            const option = document.createElement('option');
+                            option.value = type.visa_type;
+                            option.textContent = type.visa_type;
+                            visaTypeSelect.appendChild(option);
+                        });
+                    }
+                })
+                .catch(error => console.error('Error:', error))
+                .finally(() => {
+                    visaTypeSelect.disabled = false;
+                });
+        }
+    }
+
+    // 更新新加坡身份选项
+    window.updateSingaporeIdentities = function(visaType) {
+        const identitySelect = document.getElementById('singapore_identity');
+        identitySelect.innerHTML = '<option value="">请选择新加坡身份</option>';
+
+        if (visaType) {
+            identitySelect.disabled = true;
+            fetch(`/visa/documents/get_identity_options/${visaType}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        data.identity_options.forEach(identity => {
+                            const option = document.createElement('option');
+                            option.value = identity;
+                            option.textContent = identity;
+                            identitySelect.appendChild(option);
+                        });
+                    }
+                })
+                .catch(error => console.error('Error loading identities:', error))
+                .finally(() => {
+                    identitySelect.disabled = false;
+                });
+        }
+    };
+    
+    // 监听国家选择变化
+    countrySelect.addEventListener('change', function() {
+        const countryId = this.value;
+        
+        // 更新签证类型选项
+        updateVisaTypeOptions(countryId);
+        
+        // 重置签证类型选择
+        visaTypeSelect.value = '';
+        
+        // 提交表单
+        form.submit();
+    });
+    
+    // 监听签证类型选择变化
+    visaTypeSelect.addEventListener('change', function() {
+        form.submit();
+    });
+
+    // 监听编辑模态框中的签证类型变化
+    editVisaTypeSelect.addEventListener('change', function() {
+        updateSingaporeIdentities(this.value);
+    });
+    
+    // 页面加载时，如果有选择国家，更新签证类型选项
+    const urlParams = new URLSearchParams(window.location.search);
+    const countryId = urlParams.get('country');
+    if (countryId) {
+        updateVisaTypeOptions(countryId);
+    }
+
+    // 添加编辑按钮点击事件处理
+    document.addEventListener('click', function(e) {
+        console.log('Click event triggered:', e.target);
+        if (e.target.closest('.edit-button')) {
+            console.log('Edit button clicked');
+            const button = e.target.closest('.edit-button');
+            const id = button.dataset.id;
+            const visaType = button.dataset.visaType;
+            const identity = button.dataset.identity;
+            const documentInfo = button.dataset.documentInfo;
+            const additionalInfo = button.dataset.additionalInfo;
+            
+            console.log('Button data:', { id, visaType, identity });
+            openEditModal(id, visaType, identity, documentInfo, additionalInfo);
+        }
+    });
+});
+
+function openEditModal(documentId, visaType, singaporeIdentity, documentInfo, additionalInfo) {
+    console.log('Opening modal with:', { documentId, visaType, singaporeIdentity });
+    
+    // 重置表单
+    document.getElementById('editDocumentForm').reset();
+    
+    // 检查模态框元素是否存在
+    const modal = document.getElementById('editDocumentModal');
+    if (!modal) {
+        console.error('Modal element not found!');
+        return;
+    }
+    
+    // 设置表单数据
+    const editDocumentId = document.getElementById('editDocumentId');
+    const visaTypeSelect = document.getElementById('visa_type');
+    const identitySelect = document.getElementById('singapore_identity');
+    const documentInfoTextarea = document.getElementById('editDocumentInfo');
+    const additionalInfoTextarea = document.getElementById('editAdditionalInfo');
+    
+    if (!editDocumentId || !visaTypeSelect || !identitySelect || !documentInfoTextarea || !additionalInfoTextarea) {
+        console.error('Required form elements not found!');
+        return;
+    }
+    
+    editDocumentId.value = documentId;
+    visaTypeSelect.value = visaType;
+    
+    // 先更新新加坡身份选项，然后设置选中的值
+    updateSingaporeIdentities(visaType);
+    setTimeout(() => {
+        identitySelect.value = singaporeIdentity;
+        // 确保两个选择框都是禁用状态
+        visaTypeSelect.disabled = true;
+        identitySelect.disabled = true;
+    }, 200);
+    
+    // 处理换行符
+    documentInfoTextarea.value = documentInfo.replace(/\\r\\n/g, '\n').replace(/\\n/g, '\n');
+    additionalInfoTextarea.value = additionalInfo.replace(/\\r\\n/g, '\n').replace(/\\n/g, '\n');
+    
+    // 显示/隐藏共用资料提示
+    const shareInfo = document.getElementById('shareInfo');
+    if (singaporeIdentity === 'SHARE') {
+        shareInfo.style.display = 'block';
+    } else {
+        shareInfo.style.display = 'none';
+    }
+    
+    // 显示模态框
+    modal.classList.add('is-active');
+    console.log('Modal should be visible now');
+}
+
+function closeEditModal() {
+    const modal = document.getElementById('editDocumentModal');
+    modal.classList.remove('is-active');
+}
+
+// 点击模态框背景关闭模态框
+document.addEventListener('DOMContentLoaded', () => {
+    const modal = document.getElementById('editDocumentModal');
+    const modalBackground = modal.querySelector('.modal-background');
+    
+    modalBackground.addEventListener('click', () => {
+        closeEditModal();
+    });
+});
+
+async function submitEditForm(event) {
+    if (event) event.preventDefault();
+    
+    // 获取保存按钮并添加加载状态
+    const saveButton = document.querySelector('.modal-card-foot .button.is-primary');
+    saveButton.classList.add('is-loading');
+    
+    try {
+        const form = document.getElementById('editDocumentForm');
+        const formData = new FormData(form);
+        
+        const response = await fetch('/visa/documents/manage_visas', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            // 显示成功消息
+            const alertDiv = document.createElement('div');
+            alertDiv.className = 'notification is-success';
+            alertDiv.innerHTML = `
+                <button class="delete" onclick="this.parentElement.remove()"></button>
+                ${result.message}
+            `;
+            document.querySelector('.visa-doc-container').insertBefore(alertDiv, document.querySelector('.visa-doc-header-container'));
+            
+            // 0.5秒后自动关闭提示和模态框
+            setTimeout(() => {
+                alertDiv.remove();
+                closeEditModal();
+                // 刷新页面以显示更新后的数据
+                window.location.reload();
+            }, 500);
+        } else {
+            throw new Error(result.message || '保存失败');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        // 显示错误消息
+        const alertDiv = document.createElement('div');
+        alertDiv.className = 'notification is-danger';
+        alertDiv.innerHTML = `
+            <button class="delete" onclick="this.parentElement.remove()"></button>
+            ${error.message}
+        `;
+        document.querySelector('.visa-doc-container').insertBefore(alertDiv, document.querySelector('.visa-doc-header-container'));
+        
+        // 0.5秒后自动关闭提示
+        setTimeout(() => {
+            alertDiv.remove();
+        }, 500);
+    } finally {
+        // 移除保存按钮的加载状态
+        saveButton.classList.remove('is-loading');
+    }
+}
+</script>
 {% endblock %}

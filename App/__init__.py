@@ -23,7 +23,7 @@ from .routes.visa_home import visa_home
 from .routes.visa_documents import visa_documents
 from .routes.visa_links import visa_links
 from .routes.visa_files import visa_files
-from .routes.visas_project import visa_project
+from .routes.visa_project import visa_project
 
 from .routes.project import projects
 from .routes.business_type import business_types

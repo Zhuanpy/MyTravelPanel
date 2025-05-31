@@ -232,7 +232,7 @@
                     返回项目列表
                 </a>
                 <a class="visa-project-resource-link" href="javascript:void(0)" 
-                   onclick="openProjectFolder('{{ project.project_folder_name }}', '{{ project.visa_type }}', '{{ url_for('visa_routes.open_folder') }}')"
+                   onclick="openProjectFolder('{{ project.project_folder_name }}', '{{ project.visa_type }}', '{{ url_for('visa_files.open_folder') }}')"
                 >
                     打开项目文件夹
                 </a>
@@ -241,7 +241,7 @@
             
         <div id="formAlert" class="visa-project-alert"></div>
             
-        <form id="visaForm" class="visa-project-form" method="post" action="{{ url_for('visa_routes.update_project_details', project_id=project.id) }}">
+        <form id="visaForm" class="visa-project-form" method="post" action="{{ url_for('visa_project.update_project_details', project_id=project.id) }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <!-- 隐藏字段，用于传递签证状态和排序方式 -->
             <input type="hidden" name="current_visa_status" value="all">
@@ -346,7 +346,7 @@
         
         <!-- 生成表格按钮，放在与其他按钮同一行 -->
         <div style="margin-top: -60px; display: flex; justify-content: flex-end; padding: 0 1.5rem 1.5rem 1.5rem;">
-            <form id="generateFormForm" action="{{ url_for('visa_routes.generate_form_for_project', project_id=project.id) }}" method="post">
+            <form id="generateFormForm" action="{{ url_for('visa_project.generate_form_for_project', project_id=project.id) }}" method="post">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button type="submit" class="visa-project-btn" id="generateFormBtn" style="background-color: #38a169; color: white;">
                     生成表格
@@ -431,7 +431,8 @@
                     return_to: 'list'
                 });
 
-                const response = await fetch(`${endpoint}?${params.toString()}`, {
+                // 使用正确的URL结构，使用visa_files蓝图
+                const response = await fetch(`/visa/files/open_folder?${params.toString()}`, {
                     method: 'GET'
                 });
 
@@ -548,7 +549,7 @@
             if (response.ok) {
                 showAlert(result.message || '修改成功！', true);
                 setTimeout(() => {
-                    window.location.href = "{{ url_for('visa_routes.visa_detail', project_id=project.id) }}";
+                    window.location.href = "{{ url_for('visa_project.visa_detail', project_id=project.id) }}";
                 }, 1500);
             } else {
                 showAlert(result.message || '修改失败，请重试', false);

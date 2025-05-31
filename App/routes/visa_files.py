@@ -51,57 +51,67 @@ def open_folder():
                 if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                     return jsonify({'success': False, 'message': error_msg}), 404
                 flash(error_msg, "error")
-                return _get_redirect_url(return_to, visa_type, visa_status, sort_by, filter_visa_type)
-    
+                if return_to == 'list':
+                    return redirect(url_for("visa_project.show_current_all_projects",
+                                            visa_status=visa_status,
+                                            sort_by=sort_by,
+                                            filter_visa_type=filter_visa_type))
+                elif return_to == 'processing':
+                    return redirect(url_for("visa_project.visa_processing", visa_type=visa_type))
+                else:
+                    return redirect(url_for("index.index"))
+        elif not folder_path.exists():
+            error_msg = f"资源文件夹 {folder_path} 不存在"
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({'success': False, 'message': error_msg}), 404
+            flash(error_msg, "error")
+            if return_to == 'list':
+                return redirect(url_for("visa_project.show_current_all_projects",
+                                        visa_status=visa_status,
+                                        sort_by=sort_by,
+                                        filter_visa_type=filter_visa_type))
+            elif return_to == 'processing':
+                return redirect(url_for("visa_project.visa_processing", visa_type=visa_type))
+            else:
+                return redirect(url_for("index.index"))
+
     elif folder_type == 'visa_type':
-        folder_path = project_root / "static" / "visa_resources" / visa_type
-    
+        folder_path = current_dir / "App" / "static" / "资源" / "签证" / visa_type
+        if not folder_path.exists():
+            error_msg = f"资源文件夹 {folder_path} 不存在"
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({'success': False, 'message': error_msg}), 404
+            flash(error_msg, "error")
+            return redirect(url_for("visa_project.visa_processing", visa_type=visa_type))
+
     elif folder_type == 'visa_root':
-        folder_path = project_root / "static" / "visa_resources"
-    
-    else:
-        error_msg = "无效的文件夹类型"
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return jsonify({'success': False, 'message': error_msg}), 400
-        flash(error_msg, "error")
-        return _get_redirect_url(return_to, visa_type, visa_status, sort_by, filter_visa_type)
-    
-    # 确保文件夹存在
-    if not folder_path.exists():
-        error_msg = f"文件夹 {folder_path} 不存在"
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return jsonify({'success': False, 'message': error_msg}), 404
-        flash(error_msg, "error")
-        return _get_redirect_url(return_to, visa_type, visa_status, sort_by, filter_visa_type)
-    
+        folder_path = current_dir / "App" / "static" / "资源" / "签证"
+        folder_path = os.path.join(folder_path)
+
     # 打开文件夹
     try:
         if platform.system() == "Windows":
-            os.startfile(str(folder_path))
+            os.startfile(folder_path)
         elif platform.system() == "Darwin":  # macOS
-            subprocess.run(["open", str(folder_path)])
-        else:  # Linux
-            subprocess.run(["xdg-open", str(folder_path)])
-            
+            subprocess.run(["open", folder_path])
+        else:  # Linux and other Unix-based systems
+            subprocess.run(["xdg-open", folder_path])
+
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             return jsonify({'success': True, 'message': '文件夹已打开'})
-            
     except Exception as e:
-        error_msg = f"打开文件夹时出错：{str(e)}"
+        error_msg = f"无法打开文件夹: {str(e)}"
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             return jsonify({'success': False, 'message': error_msg}), 500
         flash(error_msg, "error")
-    
-    return _get_redirect_url(return_to, visa_type, visa_status, sort_by, filter_visa_type)
 
-def _get_redirect_url(return_to, visa_type, visa_status, sort_by, filter_visa_type):
-    """根据return_to参数返回相应的重定向URL"""
+    # 根据参数决定重定向到哪个页面
     if return_to == 'list':
-        return redirect(url_for("visa_project.show_current_all_projects", 
-                              visa_status=visa_status, 
-                              sort_by=sort_by, 
-                              filter_visa_type=filter_visa_type))
+        return redirect(url_for("visa_project.show_current_all_projects",
+                                visa_status=visa_status,
+                                sort_by=sort_by,
+                                filter_visa_type=filter_visa_type))
     elif return_to == 'processing':
         return redirect(url_for("visa_project.visa_processing", visa_type=visa_type))
     else:
-        return redirect(url_for("visa_home.home")) 
+        return redirect(url_for("index.index")) 

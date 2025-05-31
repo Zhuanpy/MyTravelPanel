@@ -549,7 +549,7 @@
     <!-- 在表格前添加筛选功能 -->
     <div class="visa-filter-container">
         <h3 class="visa-section-title visa-filter-title">链接筛选</h3>
-        <form id="filterForm" method="GET" action="{{ url_for('visa_routes.visa_link_page') }}">
+        <form id="filterForm" method="GET" action="{{ url_for('visa_links.visa_link_page') }}">
             <div class="visa-form-row">
                 <div class="visa-form-group">
                     <label for="filter-country">国家/地区:</label>
@@ -605,7 +605,7 @@
                                 data-link="{{ link.link }}">
                             编辑
                         </button>
-                        <form action="{{ url_for('visa_routes.delete_visa_link', id=link.id) }}" method="POST" style="display:inline;">
+                        <form action="{{ url_for('visa_links.delete_visa_link', link_id=link.id) }}" method="POST" style="display:inline;">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <button type="submit" class="visa-btn visa-btn-danger" onclick="return confirmDelete();">删除</button>
                         </form>
@@ -623,7 +623,7 @@
     <div class="visa-pagination">
         <div class="visa-page-item">
             {% if pagination.has_prev %}
-            <a href="{{ url_for('visa_routes.visa_link_page', page=pagination.prev_num) }}" class="visa-page-link">
+            <a href="{{ url_for('visa_links.visa_link_page', page=pagination.prev_num) }}" class="visa-page-link">
                 <i class="fas fa-chevron-left"></i>
             </a>
             {% else %}
@@ -641,7 +641,7 @@
                 </div>
                 {% else %}
                 <div class="visa-page-item">
-                    <a href="{{ url_for('visa_routes.visa_link_page', page=page) }}" class="visa-page-link">{{ page }}</a>
+                    <a href="{{ url_for('visa_links.visa_link_page', page=page) }}" class="visa-page-link">{{ page }}</a>
                 </div>
                 {% endif %}
             {% else %}
@@ -653,7 +653,7 @@
         
         <div class="visa-page-item">
             {% if pagination.has_next %}
-            <a href="{{ url_for('visa_routes.visa_link_page', page=pagination.next_num) }}" class="visa-page-link">
+            <a href="{{ url_for('visa_links.visa_link_page', page=pagination.next_num) }}" class="visa-page-link">
                 <i class="fas fa-chevron-right"></i>
             </a>
             {% else %}
@@ -722,7 +722,7 @@
             <div class="visa-modal-body">
                 <div id="addFormAlert" class="visa-modal-alert"></div>
                 
-                <form id="visaForm" action="{{ url_for('visa_routes.add_visa_link') }}" method="POST">
+                <form id="visaForm" action="{{ url_for('visa_links.add_visa_link') }}" method="POST">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div class="visa-form-container">
                         <div id="entriesContainer">
@@ -1001,7 +1001,7 @@
             }, 0);
         }
         
-        document.getElementById('editForm').action = `/visa/visa_link/edit_visa_link/${id}`;
+        document.getElementById('editForm').action = `/visa_links/edit_visa_link/${id}`;
         
         const modal = document.getElementById('editModal');
         modal.classList.add('active');
@@ -1039,6 +1039,10 @@
                     'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
                 }
             });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
             
             const result = await response.json();
             

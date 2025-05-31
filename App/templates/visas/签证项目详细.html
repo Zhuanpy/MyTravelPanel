@@ -560,14 +560,14 @@
             </div>
 
             <div class="visa-detail-header-links">
-                <a href="{{ url_for('visa_routes.edit_project', project_id=project.id) }}" class="visa-project-resource-link">
+                <a href="{{ url_for('visa_project.edit_project', project_id=project.id) }}" class="visa-project-resource-link">
                     编辑项目
                 </a>
-                <a href="{{ url_for('visa_routes.open_folder', folder_type='project', file_name=project.project_folder_name, visa_type=project.visa_type, visa_status=visa_status, sort_by=sort_by, return_to='detail') }}" class="visa-project-resource-link" target="_blank" onclick="event.preventDefault();">
+                <a href="{{ url_for('visa_project.open_folder', folder_type='project', file_name=project.project_folder_name, visa_type=project.visa_type, visa_status=visa_status, sort_by=sort_by, return_to='detail') }}" class="visa-project-resource-link" target="_blank" onclick="event.preventDefault();">
                     打开项目文件夹
                 </a>
                 
-                <a class="visa-project-resource-link" href="{{ url_for('visa_routes.open_folder', folder_type='visa_type', visa_type=project.visa_type, return_to='detail') }}">
+                <a class="visa-project-resource-link" href="{{ url_for('visa_project.open_folder', folder_type='visa_type', visa_type=project.visa_type, return_to='detail') }}">
                     打开{{ project.visa_type }}资源
                 </a>
                 <a class="visa-project-resource-link" href="{{ url_for('visa_project.show_current_all_projects') }}">
@@ -630,7 +630,7 @@
                 </div>
                 <div class="visa-detail-info-item">
                     <span class="visa-detail-info-label">生成表格</span>
-                    <form id="generateFormForm" action="{{ url_for('visa_routes.generate_form_for_project', project_id=project.id) }}" method="post" class="visa-detail-info-value form-container">
+                    <form id="generateFormForm" action="{{ url_for('visa_project.generate_form_for_project', project_id=project.id) }}" method="post" class="visa-detail-info-value form-container">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <button type="submit" class="visa-project-btn generate-form" id="generateFormBtn">
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

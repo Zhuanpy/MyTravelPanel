@@ -10,6 +10,7 @@
         <h2 style="font-size: 18px; margin-bottom: 15px; font-weight: bold;">添加国家</h2>
         
         <form method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <!-- 三个字段并排 -->
             <div style="display: flex; gap: 15px; margin-bottom: 15px;">
                 <!-- 国家名称（中文） -->

@@ -26,12 +26,12 @@ def add_visa_link():
             # 检查是否有数据
             if not visa_types or not names or not links:
                 flash('请至少提交一个签证链接数据', 'error')
-                return redirect(url_for('visa_routes.visa_link_page'))
+                return redirect(url_for('visa_links.visa_link_page'))
             
             # 检查数组长度是否匹配
             if len(visa_types) != len(names) or len(visa_types) != len(links):
                 flash('提交的数据格式不正确', 'error')
-                return redirect(url_for('visa_routes.visa_link_page'))
+                return redirect(url_for('visa_links.visa_link_page'))
             
             # 成功添加的计数
             success_count = 0
@@ -82,38 +82,75 @@ def add_visa_link():
             else:
                 flash('所有链接添加失败', 'error')
                 
-            return redirect(url_for('visa_routes.visa_link_page'))
+            return redirect(url_for('visa_links.visa_link_page'))
         
         except Exception as e:
             db.session.rollback()
             flash(f'添加链接时出错：{str(e)}', 'error')
-            return redirect(url_for('visa_routes.visa_link_page'))
+            return redirect(url_for('visa_links.visa_link_page'))
     
-    return redirect(url_for('visa_routes.visa_link_page'))
+    return redirect(url_for('visa_links.visa_link_page'))
 
 @visa_links.route('/edit_visa_link/<int:link_id>', methods=['GET', 'POST'])
 def edit_visa_link(link_id):
     """编辑签证链接"""
-    link = VisaLinks.query.get_or_404(link_id)
+    try:
+        link = VisaLinks.query.get_or_404(link_id)
 
-    if request.method == 'POST':
-        try:
-            link.visa_type = request.form.get('visa_type')
-            link.name = request.form.get('name')
-            link.link = request.form.get('link')
-
-            if not all([link.visa_type, link.name, link.link]):
+        if request.method == 'POST':
+            # 验证必填字段
+            if not all(field in request.form and request.form[field].strip() 
+                      for field in ['visa_type', 'name', 'link']):
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return jsonify({'success': False, 'message': '所有字段都是必填的'}), 400
                 flash('所有字段都是必填的', 'error')
                 return redirect(url_for('visa_links.visa_link_page'))
 
-            db.session.commit()
-            flash('链接更新成功！', 'success')
+            # 验证 URL 格式
+            if not request.form['link'].startswith(('http://', 'https://')):
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return jsonify({'success': False, 'message': '请输入有效的URL地址（以http://或https://开头）'}), 400
+                flash('请输入有效的URL地址（以http://或https://开头）', 'error')
+                return redirect(url_for('visa_links.visa_link_page'))
 
-        except Exception as e:
-            db.session.rollback()
-            flash(f'更新链接时出错：{str(e)}', 'error')
+            # 验证签证类型是否存在
+            new_visa_type = request.form['visa_type'].strip()
+            visa_type_exists = VisaTypes.query.filter_by(visa_type=new_visa_type).first()
+            if not visa_type_exists:
+                error_msg = '指定的签证类型不存在'
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return jsonify({'success': False, 'message': error_msg}), 400
+                flash(error_msg, 'error')
+                return redirect(url_for('visa_links.visa_link_page'))
 
-    return redirect(url_for('visa_links.visa_link_page'))
+            # 更新数据
+            link.visa_type = new_visa_type
+            link.name = request.form['name'].strip()
+            link.link = request.form['link'].strip()
+
+            try:
+                db.session.commit()
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return jsonify({'success': True, 'message': '链接更新成功！'})
+                flash('链接更新成功！', 'success')
+                return redirect(url_for('visa_links.visa_link_page'))
+            except Exception as e:
+                db.session.rollback()
+                error_msg = f'保存更改时出错：{str(e)}'
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return jsonify({'success': False, 'message': error_msg}), 500
+                flash(error_msg, 'error')
+                return redirect(url_for('visa_links.visa_link_page'))
+
+        # GET 请求返回重定向
+        return redirect(url_for('visa_links.visa_link_page'))
+
+    except Exception as e:
+        error_msg = f'处理请求时出错：{str(e)}'
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': False, 'message': error_msg}), 500
+        flash(error_msg, 'error')
+        return redirect(url_for('visa_links.visa_link_page'))
 
 @visa_links.route('/delete_visa_link/<int:link_id>', methods=['POST'])
 def delete_visa_link(link_id):

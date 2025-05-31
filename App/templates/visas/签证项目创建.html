@@ -522,11 +522,7 @@
                 <div class="visa-project-form-group visa-project-form-col-4">
                     <label for="singapore_status">在新加坡身份</label>
                     <select class="visa-project-form-control" id="singapore_status" name="singapore_status" required>
-                        <option value="PR">永久居民 (PR)</option>
-                        <option value="工作准证">工作准证</option>
-                        <option value="家属准证">家属准证</option>
-                        <option value="学生准证">学生准证</option>
-                        <option value="女佣准证">女佣准证</option>
+                        <option value="">请选择身份</option>
                     </select>
                 </div>
 
@@ -624,13 +620,9 @@
                 <h2>{{ visa_type }}相关资料</h2>
             </div>
             
-        <div class="visa-project-link-group">
-            <a href="#" class="visa-project-identity-link" data-identity="PR" onclick="fetchContent('{{ visa_type }}', 'PR', this); return false;">永久居民 (PR)</a>
-            <a href="#" class="visa-project-identity-link" data-identity="工作准证" onclick="fetchContent('{{ visa_type }}', '工作准证', this); return false;">工作准证</a>
-            <a href="#" class="visa-project-identity-link" data-identity="家属准证" onclick="fetchContent('{{ visa_type }}', '家属准证', this); return false;">家属准证</a>
-            <a href="#" class="visa-project-identity-link" data-identity="学生准证" onclick="fetchContent('{{ visa_type }}', '学生准证', this); return false;">学生准证</a>
-            <a href="#" class="visa-project-identity-link" data-identity="女佣准证" onclick="fetchContent('{{ visa_type }}', '女佣准证', this); return false;">女佣准证</a>
-            </div>
+        <div class="visa-project-link-group" id="identityLinks">
+            <!-- 身份链接将通过 JavaScript 动态加载 -->
+        </div>
             
         <div class="visa-project-content-header">
                 <h3>{{ visa_type }}文件资料</h3>
@@ -940,6 +932,45 @@
         if (selectedLink) {
             selectedLink.classList.add('selected');
             fetchContent('{{ visa_type }}', selectedIdentity, selectedLink);
+        }
+    });
+
+    // 加载身份选项到表单选择框
+    function loadIdentityOptionsToForm(visaType) {
+        const identitySelect = document.getElementById('singapore_status');
+        
+        // 清空现有选项
+        identitySelect.innerHTML = '<option value="">请选择身份</option>';
+        
+        if (visaType) {
+            // 获取该签证类型对应的身份选项
+            fetch(`/visa/documents/get_identity_options/${visaType}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        data.identity_options.forEach(identity => {
+                            const option = document.createElement('option');
+                            option.value = identity;
+                            option.textContent = identity;
+                            identitySelect.appendChild(option);
+                        });
+                    } else {
+                        console.error('获取身份选项失败:', data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('请求失败:', error);
+                });
+        }
+    }
+
+    // 页面加载时加载身份选项
+    document.addEventListener('DOMContentLoaded', function() {
+        const visaType = '{{ visa_type }}';
+        if (visaType) {
+            loadIdentityOptionsToForm(visaType);
+            // 添加调试日志
+            console.log('Loading identity options for visa type:', visaType);
         }
     });
 })();

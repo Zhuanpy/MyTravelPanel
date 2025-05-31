@@ -12,7 +12,7 @@ import json
 
 
 """
-项目管理 (visas_project.py):
+项目管理 (visa_project.py):
 项目列表 (/visa/project/show_current_all_projects)
 项目处理 (/visa/project/visa_processing/<visa_type>)
 项目详情 (/visa/project/detail/<project_id>)
@@ -269,7 +269,7 @@ def visa_processing(visa_type):
 #                            projects=projects,
 #                            document_data=document_data)
 
-@visa_project.route('/visa/delete_current_project/<int:project_id>', methods=['POST'])
+@visa_project.route('/delete_current_project/<int:project_id>', methods=['POST'])
 def delete_current_project(project_id):
 
     try:
@@ -328,7 +328,7 @@ def update_current_project(project_id):
                 project.estimated_date = datetime.strptime(estimated_date, '%Y-%m-%d')
             except ValueError:
                 flash('日期格式错误，请使用 YYYY-MM-DD 格式。', 'error')
-                return redirect(url_for('visa_routes.show_current_all_projects'))
+                return redirect(url_for('visa_project.show_current_all_projects'))
 
         # 提交更改到数据库
         try:
@@ -340,7 +340,7 @@ def update_current_project(project_id):
 
         # 重定向回项目管理页面，带上当前的签证状态和排序方式
         return redirect(
-            url_for('visa_routes.show_current_all_projects', 
+            url_for('visa_project.show_current_all_projects', 
                    visa_status=current_visa_status, 
                    sort_by=current_sort_by,
                    filter_visa_type=current_filter_visa_type))
@@ -376,11 +376,11 @@ def generate_form_for_project(project_id):
             return jsonify({
                 'success': True,
                 'message': '表格生成成功',
-                'redirect_url': url_for('visa_routes.edit_project', project_id=project_id)
+                'redirect_url': url_for('visa_project.edit_project', project_id=project_id)
             })
         
         flash('表格生成成功！', 'success')
-        return redirect(url_for('visa_routes.edit_project', project_id=project_id))
+        return redirect(url_for('visa_project.edit_project', project_id=project_id))
     
     except FileNotFoundError as e:
         error_msg = f"文件或目录不存在: {str(e)}"
@@ -390,7 +390,7 @@ def generate_form_for_project(project_id):
                 'message': error_msg
             }), 500
         flash(error_msg, 'error')
-        return redirect(url_for('visa_routes.edit_project', project_id=project_id))
+        return redirect(url_for('visa_project.edit_project', project_id=project_id))
     
     except Exception as e:
         error_msg = f"生成表格时发生错误: {str(e)}"
@@ -401,7 +401,7 @@ def generate_form_for_project(project_id):
                 'message': error_msg
             }), 500
         flash(error_msg, 'error')
-        return redirect(url_for('visa_routes.edit_project', project_id=project_id))
+        return redirect(url_for('visa_project.edit_project', project_id=project_id))
 
 
 """ 签证详细 开始 """
@@ -517,7 +517,7 @@ def update_visa_status(project_id):
 
         # 重定向回项目管理页面，带上当前的签证状态和排序方式
         return redirect(
-            url_for('visa_routes.show_current_all_projects',
+            url_for('visa_project.show_current_all_projects',
                     visa_status=current_visa_status,
                     sort_by=current_sort_by,
                     filter_visa_type=current_filter_visa_type))
@@ -533,7 +533,7 @@ def update_visa_status(project_id):
             }), 500
 
         flash(f'状态更新失败: {str(e)}', 'error')
-        return redirect(url_for('visa_routes.show_current_all_projects'))
+        return redirect(url_for('visa_project.show_current_all_projects'))
 
 
 @visa_project.route('/visa/<visa_type>/visa_create_project', methods=['POST'])
@@ -557,7 +557,7 @@ def visa_create_project(visa_type):
                     'message': error_msg
                 }), 400
             flash(error_msg, 'error')
-            return redirect(url_for('visa_routes.visa_processing', visa_type=visa_type))
+            return redirect(url_for('visa_project.visa_processing', visa_type=visa_type))
 
         # 自动生成项目名称
         project_name = f"{visa_type_input}_{hid_or_serial}_{applicant_name}"
@@ -575,10 +575,10 @@ def visa_create_project(visa_type):
                     return jsonify({
                         'success': True,
                         'message': '表格生成成功',
-                        'redirect_url': url_for('visa_routes.visa_processing', visa_type=visa_type)
+                        'redirect_url': url_for('visa_project.visa_processing', visa_type=visa_type)
                     })
                 # 否则直接重定向
-                return redirect(url_for('visa_routes.visa_processing', visa_type=visa_type))
+                return redirect(url_for('visa_project.visa_processing', visa_type=visa_type))
 
             except FileNotFoundError as e:
                 error_msg = f"文件或目录不存在: {str(e)}"
@@ -588,7 +588,7 @@ def visa_create_project(visa_type):
                         'message': error_msg
                     }), 500
                 flash(error_msg, 'error')
-                return redirect(url_for('visa_routes.visa_processing', visa_type=visa_type))
+                return redirect(url_for('visa_project.visa_processing', visa_type=visa_type))
 
             except Exception as e:
                 error_msg = f"生成表格时发生错误: {str(e)}"
@@ -599,7 +599,7 @@ def visa_create_project(visa_type):
                         'message': error_msg
                     }), 500
                 flash(error_msg, 'error')
-                return redirect(url_for('visa_routes.visa_processing', visa_type=visa_type))
+                return redirect(url_for('visa_project.visa_processing', visa_type=visa_type))
 
         """ 创建项目思路 """
         "a 创建项目文件夹"
@@ -654,12 +654,12 @@ def visa_create_project(visa_type):
             return jsonify({
                 'success': True,
                 'message': f'项目创建成功: {project_file_name}',
-                'redirect_url': url_for('visa_routes.edit_project', project_id=new_project.id)
+                'redirect_url': url_for('visa_project.edit_project', project_id=new_project.id)
             })
 
         # 否则重定向到项目编辑页面
         flash(f'项目创建成功: {project_file_name}', 'success')
-        return redirect(url_for('visa_routes.edit_project', project_id=new_project.id))
+        return redirect(url_for('visa_project.edit_project', project_id=new_project.id))
 
     except Exception as e:
         error_msg = f"创建项目失败: {str(e)}"
@@ -670,7 +670,7 @@ def visa_create_project(visa_type):
                 'message': error_msg
             }), 500
         flash(error_msg, 'error')
-        return redirect(url_for('visa_routes.visa_processing', visa_type=visa_type))
+        return redirect(url_for('visa_project.visa_processing', visa_type=visa_type))
 
 @visa_project.route('/visa/update_project_details/<int:project_id>', methods=['POST'])
 def update_project_details(project_id):
@@ -696,7 +696,7 @@ def update_project_details(project_id):
                     'message': '缺少必要的项目信息，请确保所有必填字段已填写'
                 }), 400
             flash('缺少必要的项目信息，请确保所有必填字段已填写', 'error')
-            return redirect(url_for('visa_routes.edit_project', project_id=project_id))
+            return redirect(url_for('visa_project.edit_project', project_id=project_id))
 
         # 更新项目数据
         project.hid_or_serial = hid_or_serial
@@ -717,7 +717,7 @@ def update_project_details(project_id):
                     'message': '日期格式错误，请使用YYYY-MM-DD格式'
                 }), 400
             flash('日期格式错误，请使用YYYY-MM-DD格式', 'error')
-            return redirect(url_for('visa_routes.edit_project', project_id=project_id))
+            return redirect(url_for('visa_project.edit_project', project_id=project_id))
 
         # 保存到数据库
         db.session.commit()
@@ -727,11 +727,11 @@ def update_project_details(project_id):
             return jsonify({
                 'success': True,
                 'message': '项目更新成功',
-                'redirect_url': url_for('visa_routes.show_current_all_projects')
+                'redirect_url': url_for('visa_project.show_current_all_projects')
             })
 
         flash('项目更新成功', 'success')
-        return redirect(url_for('visa_routes.show_current_all_projects'))
+        return redirect(url_for('visa_project.show_current_all_projects'))
 
     except Exception as e:
         db.session.rollback()
@@ -742,8 +742,7 @@ def update_project_details(project_id):
                 'message': error_msg
             }), 500
         flash(error_msg, 'error')
-        return redirect(url_for('visa_routes.edit_project', project_id=project_id))
-
+        return redirect(url_for('visa_project.edit_project', project_id=project_id))
 
 
 # @visa_project.route('/visa/show_current_all_projects', methods=['GET'])
@@ -1015,7 +1014,6 @@ def update_project_details(project_id):
 #                            visa_status=visa_status,
 #                            sort_by=sort_by)
 #
-#
 
 @visa_project.route('/visa/open_folder', methods=['GET'])
 def open_folder():
@@ -1059,12 +1057,12 @@ def open_folder():
                     return jsonify({'success': False, 'message': error_msg}), 404
                 flash(error_msg, "error")
                 if return_to == 'list':
-                    return redirect(url_for("visa_routes.show_current_all_projects",
+                    return redirect(url_for("visa_project.show_current_all_projects",
                                             visa_status=visa_status,
                                             sort_by=sort_by,
                                             filter_visa_type=filter_visa_type))
                 elif return_to == 'processing':
-                    return redirect(url_for("visa_routes.visa_processing", visa_type=visa_type))
+                    return redirect(url_for("visa_project.visa_processing", visa_type=visa_type))
                 else:
                     return redirect(url_for("index.index"))
         elif not folder_path.exists():
@@ -1073,12 +1071,12 @@ def open_folder():
                 return jsonify({'success': False, 'message': error_msg}), 404
             flash(error_msg, "error")
             if return_to == 'list':
-                return redirect(url_for("visa_routes.show_current_all_projects",
+                return redirect(url_for("visa_project.show_current_all_projects",
                                         visa_status=visa_status,
                                         sort_by=sort_by,
                                         filter_visa_type=filter_visa_type))
             elif return_to == 'processing':
-                return redirect(url_for("visa_routes.visa_processing", visa_type=visa_type))
+                return redirect(url_for("visa_project.visa_processing", visa_type=visa_type))
             else:
                 return redirect(url_for("index.index"))
 
@@ -1089,7 +1087,7 @@ def open_folder():
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                 return jsonify({'success': False, 'message': error_msg}), 404
             flash(error_msg, "error")
-            return redirect(url_for("visa_routes.visa_processing", visa_type=visa_type))
+            return redirect(url_for("visa_project.visa_processing", visa_type=visa_type))
 
     elif folder_type == 'visa_root':
         folder_path = current_dir / "App" / "static" / "资源" / "签证"
@@ -1114,12 +1112,12 @@ def open_folder():
 
     # 根据参数决定重定向到哪个页面
     if return_to == 'list':
-        return redirect(url_for("visa_routes.show_current_all_projects",
+        return redirect(url_for("visa_project.show_current_all_projects",
                                 visa_status=visa_status,
                                 sort_by=sort_by,
                                 filter_visa_type=filter_visa_type))
     elif return_to == 'processing':
-        return redirect(url_for("visa_routes.visa_processing", visa_type=visa_type))
+        return redirect(url_for("visa_project.visa_processing", visa_type=visa_type))
     else:
         return redirect(url_for("index.index"))
 
