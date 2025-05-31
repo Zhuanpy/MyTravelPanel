@@ -339,7 +339,7 @@
             <select name="filter_visa_type" id="filter_visa_type" onchange="this.form.submit()">
                 <option value="all" {% if filter_visa_type == 'all' or filter_visa_type is not defined %}selected{% endif %}>全部</option>
                 {% for visa in visa_categories %}
-                    <option value="{{ visa.visa_type_name }}" {% if filter_visa_type == visa.visa_type_name %}selected{% endif %}>{{ visa.visa_type_name }}</option>
+                    <option value="{{ visa.visa_type }}" {% if filter_visa_type == visa.visa_type %}selected{% endif %}>{{ visa.visa_type }}</option>
                 {% endfor %}
             </select>
     
@@ -420,9 +420,9 @@
         <h2 class="visa-project-links-title">签证处理链接</h2>
         <div class="visa-project-button-group">
             {% for visa in visa_categories %}
-                <a href="{{ url_for('visa_routes.visa_processing', visa_type=visa.visa_type_name) }}"
+                <a href="{{ url_for('visa_routes.visa_processing', visa_type=visa.visa_type) }}"
                    class="visa-project-btn visa-project-btn-blue">
-                   {{ visa.visa_type_name }}签证
+                   {{ visa.visa_type }}签证
                 </a>
             {% endfor %}
         </div>

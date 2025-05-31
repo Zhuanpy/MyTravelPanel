@@ -1,7 +1,8 @@
 from flask import Blueprint, render_template, request, jsonify, redirect, url_for, flash
 from App.models.Flightmodels import FlightOrder, Passenger, FlightSegment, FlightSchedule, AirportData
 from App.models.Suppliers import Supplier
-from datetime import datetime
+from App.models.Visamodels import VisaCountries
+from datetime import datetime, timedelta
 from ..exts import db, cache
 import random
 import string
@@ -251,10 +252,24 @@ def order_list():
     order_status = request.args.get('order_status', '')
     payment_status = request.args.get('payment_status', '')
     supplier_name = request.args.get('supplier_name', '')
+    departure_filter = request.args.get('departure_filter', '')
     page = request.args.get('page', 1, type=int)
+
+    # 获取所有国家信息
+    countries = VisaCountries.query.all()
 
     # 构建查询
     query = FlightOrder.query
+    
+    # 处理出发日期过滤
+    today = datetime.now().date()
+    if departure_filter == 'today':
+        # 今日出发
+        query = query.filter(FlightOrder.departure_date == today)
+    elif departure_filter == 'upcoming':
+        # 未来3天内出发
+        three_days_later = today + timedelta(days=3)
+        query = query.filter(FlightOrder.departure_date.between(today, three_days_later))
     
     if order_number:
         query = query.filter(FlightOrder.order_number.like(f'%{order_number}%'))
@@ -268,7 +283,6 @@ def order_list():
     elif 'order_status' not in request.args or request.args.get('order_status') == '':
         # 如果URL中没有order_status参数或者参数为空值，应用默认过滤（排除已取消订单）
         query = query.filter(FlightOrder.order_status != 'cancelled')
-    # 如果用户明确选择了'all'，则不应用订单状态过滤器，显示所有订单
     
     if payment_status:
         query = query.filter(FlightOrder.payment_status == payment_status)
@@ -282,7 +296,10 @@ def order_list():
     orders = query.order_by(FlightOrder.created_date.desc()).paginate(
         page=page, per_page=20, error_out=False)
     
-    return render_template('flights/order_list.html', orders=orders, suppliers=suppliers)
+    return render_template('flights/order_list.html', 
+                         orders=orders, 
+                         suppliers=suppliers,
+                         countries=countries)
 
 @flights_booking.route('/edit_order/<int:order_id>', methods=['GET', 'POST'])
 def edit_order(order_id):

@@ -9,23 +9,59 @@ import traceback  # 添加traceback模块
 
 projects = Blueprint('projects', __name__)
 
-@projects.route('/create', methods=['GET', 'POST'])
-def create_project():
+@projects.route('/create', methods=['GET'])
+def confirm_create():
+    """显示确认创建项目的页面"""
+    generated_hid = Project.generate_hid()
+    return render_template('projects/confirm_create.html',
+                         generated_hid=generated_hid)
+
+@projects.route('/create/<hid>', methods=['GET', 'POST'])
+def create_project(hid):
+    """创建新项目的详细信息页面"""
     if request.method == 'POST':
         try:
+            # 处理日期字段
             start_date = datetime.strptime(request.form.get('start_date', datetime.now().strftime('%Y-%m-%d')), '%Y-%m-%d').date()
             end_date = datetime.strptime(request.form.get('end_date', start_date.strftime('%Y-%m-%d')), '%Y-%m-%d').date()
             
+            # 处理金额字段
+            total_amount = request.form.get('total_amount')
+            paid_amount = request.form.get('paid_amount')
+            
+            try:
+                total_amount = float(total_amount) if total_amount else None
+                paid_amount = float(paid_amount) if paid_amount else None
+            except ValueError:
+                return jsonify({
+                    'success': False,
+                    'error': '金额格式无效'
+                }), 400
+            
             # 创建项目
             new_project = Project(
-                hid=request.form['hid'],
+                hid=hid,  # 使用传入的HID
                 project_name=request.form['project_name'],
-                client_name=request.form['client_name'],
+                name=request.form.get('name'),
                 description=request.form.get('description'),
-                status=request.form.get('project_status', 'draft'),
+                status=request.form.get('status', 'draft'),
                 start_date=start_date,
-                end_date=end_date
+                end_date=end_date,
+                
+                # 客户信息
+                client_name=request.form['client_name'],
+                customer_phone=request.form.get('customer_phone'),
+                customer_email=request.form.get('customer_email'),
+                customer_id_type=request.form.get('customer_id_type'),
+                customer_id_number=request.form.get('customer_id_number'),
+                customer_company=request.form.get('customer_company'),
+                customer_contact_person=request.form.get('customer_contact_person'),
+                
+                # 财务信息
+                total_amount=total_amount,
+                paid_amount=paid_amount
             )
+            
             db.session.add(new_project)
             db.session.commit()
             
@@ -46,10 +82,24 @@ def create_project():
             }), 400
 
     # GET请求处理
-    generated_hid = Project.generate_hid()
+    # 检查HID是否已存在
+    existing_project = Project.query.filter_by(hid=hid).first()
+    if existing_project:
+        return redirect(url_for('projects.list_projects'))
+        
+    # 获取必要的数据
+    supplier_types = Supplier.get_supplier_types()
+    supplier_type_map = Supplier.SUPPLIER_TYPE_MAP
+    suppliers = [supplier.to_dict() for supplier in Supplier.query.filter_by(status='active').all()]
+    business_types = BusinessType.query.filter_by(is_active=True).order_by(BusinessType.sort_order).all()
+    
     return render_template('projects/create_project.html',
-                         generated_hid=generated_hid,
-                         now=datetime.now())
+                         generated_hid=hid,
+                         now=datetime.now(),
+                         supplier_types=supplier_types,
+                         supplier_type_map=supplier_type_map,
+                         suppliers=suppliers,
+                         business_types=business_types)
 
 @projects.route('/<hid>/create_ref', methods=['GET', 'POST'])
 def create_project_ref(hid):
@@ -130,7 +180,136 @@ def create_project_ref(hid):
 @projects.route('/<int:project_id>')
 def view_project(project_id):
     project = Project.query.get_or_404(project_id)
-    return render_template('projects/view_project.html', project=project)
+    business_types = BusinessType.query.filter_by(is_active=True).order_by(BusinessType.sort_order).all()
+    suppliers = Supplier.query.filter_by(status='active').order_by(Supplier.name).all()
+    return render_template('projects/view_project.html', 
+                         project=project,
+                         business_types=business_types,
+                         suppliers=suppliers)
+
+@projects.route('/<int:project_id>/add_ref', methods=['POST'])
+def add_ref(project_id):
+    """添加新的REF"""
+    if not request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return jsonify({'success': False, 'message': '无效的请求'}), 400
+
+    try:
+        project = Project.query.get_or_404(project_id)
+        
+        # 获取并验证必填字段
+        ref_type_id = request.form.get('ref_type_id')
+        if not ref_type_id:
+            return jsonify({
+                'success': False,
+                'message': 'REF类型不能为空'
+            }), 400
+            
+        business_type = BusinessType.query.get(ref_type_id)
+        if not business_type:
+            return jsonify({
+                'success': False,
+                'message': f'无效的REF类型ID: {ref_type_id}'
+            }), 400
+        
+        description = request.form.get('description')
+        if not description:
+            return jsonify({
+                'success': False,
+                'message': '描述不能为空'
+            }), 400
+        
+        # 生成REF编号
+        try:
+            # 获取该项目的所有REF数量
+            ref_count = ProjectRef.query.filter_by(project_id=project.id).count()
+            ref_number = f"{project.hid}-R{str(ref_count + 1).zfill(2)}"
+        except Exception as e:
+            print("Error generating REF number:", str(e))
+            return jsonify({
+                'success': False,
+                'message': f'生成REF编号失败: {str(e)}'
+            }), 400
+        
+        # 处理供应商ID
+        supplier_id = request.form.get('supplier_id')
+        if supplier_id:
+            try:
+                supplier_id = int(supplier_id)
+                supplier = Supplier.query.get(supplier_id)
+                if not supplier:
+                    return jsonify({
+                        'success': False,
+                        'message': f'无效的供应商ID: {supplier_id}'
+                    }), 400
+            except ValueError:
+                return jsonify({
+                    'success': False,
+                    'message': '供应商ID必须是有效的整数'
+                }), 400
+        
+        # 处理价格字段
+        selling_price = request.form.get('selling_price')
+        cost_price = request.form.get('cost_price')
+        try:
+            selling_price = float(selling_price) if selling_price else 0.0
+            cost_price = float(cost_price) if cost_price else 0.0
+        except ValueError:
+            return jsonify({
+                'success': False,
+                'message': '价格格式无效'
+            }), 400
+        
+        # 处理日期字段
+        expected_delivery_date = request.form.get('expected_delivery_date')
+        if expected_delivery_date:
+            try:
+                expected_delivery_date = datetime.strptime(expected_delivery_date, '%Y-%m-%d').date()
+            except ValueError:
+                return jsonify({
+                    'success': False,
+                    'message': '预计交付日期格式无效'
+                }), 400
+        
+        # 创建新的REF
+        new_ref = ProjectRef(
+            project_id=project.id,
+            ref_number=ref_number,
+            name=request.form.get('name'),
+            ref_type_id=business_type.id,
+            description=description,
+            supplier_id=supplier_id,
+            supplier_contact=request.form.get('supplier_contact'),
+            supplier_phone=request.form.get('supplier_phone'),
+            selling_price=selling_price,
+            cost_price=cost_price,
+            currency=request.form.get('currency', 'SGD'),
+            expected_delivery_date=expected_delivery_date,
+            remarks=request.form.get('remarks'),
+            status=request.form.get('status', 'draft'),
+            payment_status=request.form.get('payment_status', 'unpaid')
+        )
+        
+        db.session.add(new_ref)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'REF创建成功',
+            'ref': {
+                'id': new_ref.id,
+                'ref_number': new_ref.ref_number
+            }
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        error_details = traceback.format_exc()
+        print("Error creating REF:", error_details)
+        return jsonify({
+            'success': False,
+            'message': f'创建REF失败: {str(e)}',
+            'details': error_details
+        }), 400
 
 @projects.route('/')
 def list_projects():

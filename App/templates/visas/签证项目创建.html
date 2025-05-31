@@ -496,16 +496,16 @@
         <div class="visa-project-section-header">
                 <h2>创建项目</h2>
             <div class="visa-project-header-links">
-                <a class="visa-project-resource-link" href="{{ url_for('visa_routes.open_folder', folder_type='visa_type', visa_type=visa_type, return_to='processing') }}">
+                <a class="visa-project-resource-link" href="{{ url_for('visa_project.open_folder', folder_type='visa_type', visa_type=visa_type, return_to='processing') }}">
                     打开{{ visa_type }}资源
                 </a>
-                <a class="visa-project-resource-link" href="{{ url_for('visa_routes.show_current_all_projects') }}" >项目管理</a>
+                <a class="visa-project-resource-link" href="{{ url_for('visa_project.show_current_all_projects') }}" >项目管理</a>
                 </div>
             </div>
             
         <div id="formAlert" class="visa-project-alert"></div>
             
-        <form id="visaForm" class="visa-project-form" method="post" action="{{ url_for('visa_routes.visa_create_project', visa_type=visa_type) }}">
+        <form id="visaForm" class="visa-project-form" method="post" action="{{ url_for('visa_project.visa_create_project', visa_type=visa_type) }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <!-- <div class="visa-project-form-info" style="margin-bottom: 15px; padding: 8px 12px; background-color: #e6f7ff; border-radius: 4px; border-left: 4px solid #1890ff;">
                 <i class="fas fa-info-circle"></i> 项目名称将由系统根据 签证类型 + HID或序列号 + 申请人名字 自动生成
@@ -602,7 +602,7 @@
     <section class="visa-project-section-card">
         <div class="visa-project-section-header">
             <h2>费用说明</h2>
-            <a href="{{ url_for('visa_routes.edit_visa_type', visa_type=visa_type, field='fee') }}" class="visa-project-resource-link">
+            <a href="{{ url_for('visa_basic.edit_visa_type', visa_type=visa_type, field='fee') }}" class="visa-project-resource-link">
                 <i class="fas fa-edit"></i> 编辑费用
                 </a>
             </div>
@@ -612,7 +612,7 @@
     <section class="visa-project-section-card">
         <div class="visa-project-section-header">
             <h2>处理时间</h2>
-            <a href="{{ url_for('visa_routes.edit_visa_type', visa_type=visa_type, field='processing_time') }}" class="visa-project-resource-link">
+            <a href="{{ url_for('visa_basic.edit_visa_type', visa_type=visa_type, field='processing_time') }}" class="visa-project-resource-link">
                 <i class="fas fa-edit"></i> 编辑时间
                 </a>
             </div>
@@ -634,7 +634,7 @@
             
         <div class="visa-project-content-header">
                 <h3>{{ visa_type }}文件资料</h3>
-            <a href="{{ url_for('visa_routes.manage_visas', visa_type=visa_type) }}" class="visa-project-edit-link">
+            <a href="{{ url_for('visa_documents.manage_visas', visa_type=visa_type) }}" class="visa-project-edit-link">
                     <i class="fas fa-edit"></i> 编辑文件资料
                 </a>
             </div>
@@ -662,7 +662,7 @@
         <div class="visa-project-section-header">
                 <h2>相关链接</h2>
             <div class="visa-project-header-links">
-                <a href="{{ url_for('visa_routes.visa_link_page') }}" class="visa-project-resource-link">
+                <a href="{{ url_for('visa_links.visa_link_page') }}" class="visa-project-resource-link">
                         <i class="fas fa-edit"></i> 管理链接
                     </a>
                 </div>
@@ -687,7 +687,7 @@
         <ul class="visa-project-list">
                 {% for project in projects %}
                 <li>
-                    <a href="{{ url_for('visa_routes.open_folder', folder_type='project', file_name=project, visa_type=visa_type, return_to='processing') }}">{{ project }}</a>
+                    <a href="{{ url_for('visa_project.open_folder', folder_type='project', file_name=project, visa_type=visa_type, return_to='processing') }}">{{ project }}</a>
                 </li>
                 {% endfor %}
             </ul>
@@ -877,7 +877,7 @@
         }
     });
     // 内容加载优化
-    function fetchContent(visa_type, singaporeStatus, clickedLink) {
+    window.fetchContent = function(visa_type, singaporeStatus, clickedLink) {
         const url = `/visa/document_request/${encodeURIComponent(visa_type)}/${encodeURIComponent(singaporeStatus)}`;
         // 更新选中状态
         document.querySelectorAll('.visa-project-identity-link').forEach(link => {
@@ -932,7 +932,7 @@
                     content.innerHTML = '<div class="visa-project-alert visa-project-alert-error">获取数据失败，请稍后重试</div>';
                 });
             });
-    }
+    };
     // 页面加载时恢复选中状态
     window.addEventListener('load', function() {
         const selectedIdentity = localStorage.getItem('selectedIdentity') || 'PR';

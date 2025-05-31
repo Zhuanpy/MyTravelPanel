@@ -67,7 +67,7 @@ def athina_simple():
     return render_template('flights/flight_athina.html')
 
 
-@flights_athina.route('/conversion', methods=['GET', 'POST'])
+@flights_athina.route('/itinerary_conversion', methods=['GET', 'POST'])
 def itinerary_conversion():
     if request.method == 'GET':
         return render_template('flights/flight_conversion.html', output_text="")
@@ -78,20 +78,26 @@ def itinerary_conversion():
         luggage = request.form['luggage']
         price = request.form['price']
 
-        # 根据选择的语言进行文字转换
-        output_text = ""
+        try:
+            # 根据选择的语言进行文字转换
+            output_text = ""
 
-        if language == "chinese":
-            # 中文行程转换逻辑
-            output_text = format_flight_info(city_language=city_language, texts=input_text, luggage=luggage,
-                                             price=price)
+            if language == "chinese":
+                # 中文行程转换逻辑
+                output_text = format_flight_info(city_language=city_language, texts=input_text, luggage=luggage,
+                                               price=price)
 
-        elif language == "english":
-            # 英文行程转换逻辑
-            output_text = format_flight_info(city_language=city_language, texts=input_text, language='EN',
-                                             luggage=luggage, price=price)
+            elif language == "english":
+                # 英文行程转换逻辑
+                output_text = format_flight_info(city_language=city_language, texts=input_text, language='EN',
+                                               luggage=luggage, price=price)
 
-        return render_template('flights/flight_conversion.html', output_text=output_text)
+            return render_template('flights/flight_conversion.html', output_text=output_text)
+            
+        except Exception as e:
+            print(f"Error in itinerary_conversion: {str(e)}")
+            flash('转换过程中发生错误，请检查输入格式是否正确。', 'error')
+            return render_template('flights/flight_conversion.html', output_text="")
 
 
 # 机票 行程转换

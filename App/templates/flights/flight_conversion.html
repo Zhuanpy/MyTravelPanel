@@ -208,6 +208,28 @@
     .flight-app-copy-btn:hover {
         background-color: #e9ecef;
     }
+
+    /* 添加提示框样式 */
+    .copy-toast {
+        position: fixed;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        background-color: rgba(0, 0, 0, 0.8);
+        color: white;
+        padding: 12px 24px;
+        border-radius: 4px;
+        font-size: 14px;
+        z-index: 1000;
+        opacity: 0;
+        transition: all 0.3s ease;
+        pointer-events: none;  /* 防止提示框影响用户点击 */
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    }
+
+    .copy-toast.show {
+        opacity: 1;
+    }
 </style>
 {% endblock %}
 
@@ -293,6 +315,9 @@
         </form>
     </div>
 </div>
+
+<!-- 添加提示框元素 -->
+<div id="copyToast" class="copy-toast">已复制到剪贴板</div>
 {% endblock %}
 
 {% block scripts %}
@@ -329,9 +354,18 @@
     
     function copyOutputText() {
         var outputTextarea = document.getElementById('output_text');
+        var toast = document.getElementById('copyToast');
+        
         outputTextarea.select();
         document.execCommand('copy');
-        alert('内容已复制到剪贴板');
+        
+        // 显示提示框
+        toast.classList.add('show');
+        
+        // 500毫秒后隐藏提示框
+        setTimeout(() => {
+            toast.classList.remove('show');
+        }, 500);
     }
 </script>
 {% endblock %}

@@ -549,43 +549,44 @@
     <!-- 在表格前添加筛选功能 -->
     <div class="visa-filter-container">
         <h3 class="visa-section-title visa-filter-title">链接筛选</h3>
-        <div class="visa-form-row">
-            <div class="visa-form-group">
-                <label for="filter-visa-type">签证类型:</label>
-                <select id="filter-visa-type" class="visa-form-control">
-                    <option value="">全部类型</option>
-                    <!-- 动态生成签证类型选项 -->
-                    {% set visa_types = [] %}
-                    {% for link in visa_links %}
-                        {% if link.visa_type not in visa_types %}
-                            {% set visa_types = visa_types + [link.visa_type] %}
-                            <option value="{{ link.visa_type }}">{{ link.visa_type }}</option>
-                        {% endif %}
-                    {% endfor %}
-                </select>
+        <form id="filterForm" method="GET" action="{{ url_for('visa_routes.visa_link_page') }}">
+            <div class="visa-form-row">
+                <div class="visa-form-group">
+                    <label for="filter-country">国家/地区:</label>
+                    <select id="filter-country" name="country" class="visa-form-control">
+                        <option value="">全部国家/地区</option>
+                        {% for country in visa_countries %}
+                            <option value="{{ country.country_name_CN }}" {% if filter_country == country.country_name_CN %}selected{% endif %}>
+                                {{ country.country_name_CN }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="visa-form-group">
+                    <label for="filter-name">链接名称:</label>
+                    <input type="text" id="filter-name" name="name" class="visa-form-control" 
+                           placeholder="输入链接名称关键词" value="{{ filter_name }}">
+                </div>
+                
+                <div class="visa-form-group" style="align-self: flex-end;">
+                    <button type="submit" class="visa-btn visa-btn-primary">应用筛选</button>
+                    <button type="button" class="visa-btn visa-btn-warning" onclick="clearFilter()">清除筛选</button>
+                </div>
             </div>
-            
-            <div class="visa-form-group">
-                <label for="filter-name">链接名称:</label>
-                <input type="text" id="filter-name" class="visa-form-control" placeholder="输入链接名称关键词">
-            </div>
-            
-            <div class="visa-form-group" style="align-self: flex-end;">
-                <button id="apply-filter" class="visa-btn visa-btn-primary">应用筛选</button>
-                <button id="clear-filter" class="visa-btn visa-btn-warning">清除筛选</button>
-            </div>
-        </div>
-        <div class="visa-result-count">当前显示: <span id="visible-count">{{ visa_links|length }}</span> / {{ visa_links|length }} 条记录</div>
+        </form>
+        <div class="visa-result-count">当前显示: {{ visa_links|length }} / {{ total_count }} 条记录</div>
     </div>
 
     <table class="visa-table" id="links-table">
             <thead>
                 <tr>
                     <th>ID</th>
-                <th>签证类型</th>
-                <th>名称</th>
-                <th>链接</th>
-                <th>操作</th>
+                    <th>签证类型</th>
+                    <th>名称</th>
+                    <th>国家/地区</th>
+                    <th>链接</th>
+                    <th>操作</th>
                 </tr>
             </thead>
             <tbody>
@@ -594,18 +595,19 @@
                     <td>{{ link.id }}</td>
                     <td>{{ link.visa_type }}</td>
                     <td>{{ link.name }}</td>
-                <td><a href="{{ link.link }}" target="_blank" class="visa-btn visa-btn-info">查看</a></td>
-                <td>
-                    <button type="button" class="visa-btn visa-btn-warning edit-btn" 
-                            data-id="{{ link.id }}"
-                            data-type="{{ link.visa_type }}"
-                            data-name="{{ link.name }}"
-                            data-link="{{ link.link }}">
-                        编辑
-                    </button>
+                    <td>{{ link.country_name }}</td>
+                    <td><a href="{{ link.link }}" target="_blank" class="visa-btn visa-btn-info">查看</a></td>
+                    <td>
+                        <button type="button" class="visa-btn visa-btn-warning edit-btn" 
+                                data-id="{{ link.id }}"
+                                data-type="{{ link.visa_type }}"
+                                data-name="{{ link.name }}"
+                                data-link="{{ link.link }}">
+                            编辑
+                        </button>
                         <form action="{{ url_for('visa_routes.delete_visa_link', id=link.id) }}" method="POST" style="display:inline;">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <button type="submit" class="visa-btn visa-btn-danger" onclick="return confirmDelete();">删除</button>
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="visa-btn visa-btn-danger" onclick="return confirmDelete();">删除</button>
                         </form>
                     </td>
                 </tr>
@@ -678,8 +680,19 @@
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div class="visa-form-row three-columns">
                         <div class="visa-form-group">
+                            <label for="edit_country">国家</label>
+                            <select id="edit_country" name="country" class="visa-form-control" required>
+                                <option value="">请选择国家</option>
+                                {% for country in visa_countries %}
+                                <option value="{{ country.country_name_CN }}">{{ country.country_name_CN }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="visa-form-group">
                             <label for="edit_visa_type">签证类型</label>
-                            <input type="text" id="edit_visa_type" name="visa_type" class="visa-form-control" required>
+                            <select id="edit_visa_type" name="visa_type" class="visa-form-control" required>
+                                <option value="">请先选择国家</option>
+                            </select>
                         </div>
                         <div class="visa-form-group">
                             <label for="edit_name">名称</label>
@@ -721,8 +734,19 @@
                                 </button>
                                 <div class="visa-form-row three-columns">
                                     <div class="visa-form-group">
+                                        <label for="country_0">国家</label>
+                                        <select id="country_0" name="country[]" class="visa-form-control" required>
+                                            <option value="">请选择国家</option>
+                                            {% for country in visa_countries %}
+                                            <option value="{{ country.country_name_CN }}">{{ country.country_name_CN }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div class="visa-form-group">
                                         <label for="visa_type_0">签证类型</label>
-                                        <input type="text" id="visa_type_0" name="visa_type[]" class="visa-form-control" required>
+                                        <select id="visa_type_0" name="visa_type[]" class="visa-form-control" required>
+                                            <option value="">请先选择国家</option>
+                                        </select>
                                     </div>
                                     <div class="visa-form-group">
                                         <label for="name_0">名称</label>
@@ -768,10 +792,90 @@
 
 {% block scripts %}
 <script>
-    let entryCounter = 1; // 从1开始计数，因为已经有一个初始表单项
+    let entryCounter = 1;
     
-    // 初始化页面
+    // 预先加载国家和签证类型数据
+    const countryData = [
+        {% for country in visa_countries %}
+        {
+            name: "{{ country.country_name_CN }}",
+            visaTypes: [
+                {% for visa_type in country.visa_types %}
+                "{{ visa_type.visa_type }}",
+                {% endfor %}
+            ]
+        },
+        {% endfor %}
+    ];
+
+    // 构建签证类型映射
+    const visaTypesByCountry = {};
+    countryData.forEach(country => {
+        visaTypesByCountry[country.name] = country.visaTypes;
+    });
+
+    // 更新签证类型选项
+    function updateVisaTypes(countrySelect, visaTypeSelect) {
+        const country = countrySelect.value;
+        const visaTypes = visaTypesByCountry[country] || [];
+        
+        // 清空现有选项
+        visaTypeSelect.innerHTML = '';
+    
+        // 添加默认选项
+        const defaultOption = document.createElement('option');
+        defaultOption.value = '';
+        defaultOption.textContent = country ? '请选择签证类型' : '请先选择国家';
+        visaTypeSelect.appendChild(defaultOption);
+        
+        // 添加该国家的签证类型选项
+        if (country && visaTypes.length > 0) {
+            visaTypes.sort().forEach(type => {
+                const option = document.createElement('option');
+                option.value = type;
+                option.textContent = type;
+                visaTypeSelect.appendChild(option);
+            });
+        }
+    }
+
+    // 初始化所有国家选择框
+    function initializeCountrySelects() {
+        // 生成国家选项HTML
+        const countryOptionsHtml = `
+            <option value="">请选择国家</option>
+            ${countryData.map(country => `
+                <option value="${country.name}">${country.name}</option>
+            `).join('')}
+        `;
+
+        // 更新所有国家选择框
+        document.querySelectorAll('select[id^="country_"]').forEach(countrySelect => {
+            countrySelect.innerHTML = countryOptionsHtml;
+            
+            const index = countrySelect.id.split('_')[1];
+            const visaTypeSelect = document.getElementById(`visa_type_${index}`);
+            
+            countrySelect.addEventListener('change', () => {
+                updateVisaTypes(countrySelect, visaTypeSelect);
+            });
+        });
+
+        // 更新编辑模态框中的国家选择框
+        const editCountrySelect = document.getElementById('edit_country');
+        const editVisaTypeSelect = document.getElementById('edit_visa_type');
+        if (editCountrySelect && editVisaTypeSelect) {
+            editCountrySelect.innerHTML = countryOptionsHtml;
+            editCountrySelect.addEventListener('change', () => {
+                updateVisaTypes(editCountrySelect, editVisaTypeSelect);
+            });
+        }
+    }
+
+    // 页面加载时初始化
     document.addEventListener('DOMContentLoaded', function() {
+        initializeCountrySelects();
+
         // 为所有编辑按钮添加点击事件
         document.querySelectorAll('.edit-btn').forEach(button => {
             button.addEventListener('click', function() {
@@ -785,59 +889,7 @@
         });
     });
     
-    // 打开添加链接模态框
-    function openAddModal() {
-        const modal = document.getElementById('addModal');
-        modal.classList.add('active');
-        
-        // 重置表单
-        document.getElementById('visaForm').reset();
-        
-        // 如果有多个条目，只保留第一个
-        const container = document.getElementById('entriesContainer');
-        const entries = container.querySelectorAll('.visa-form-entry');
-        
-        if (entries.length > 1) {
-            // 保留第一个条目，删除其他条目
-            for (let i = 1; i < entries.length; i++) {
-                entries[i].remove();
-            }
-            entryCounter = 1;
-            
-            // 隐藏第一个条目的删除按钮
-            const removeBtn = entries[0].querySelector('.visa-remove-entry');
-            if (removeBtn) {
-                removeBtn.style.display = 'none';
-            }
-        }
-        
-        // 重置警告信息
-        const alert = document.getElementById('addFormAlert');
-        alert.style.display = 'none';
-    }
-    
-    // 关闭添加链接模态框
-    function closeAddModal() {
-        const modal = document.getElementById('addModal');
-        modal.classList.remove('active');
-    }
-    
-    // 显示添加表单提示信息
-    function showAddAlert(message, isSuccess) {
-        const alert = document.getElementById('addFormAlert');
-        alert.textContent = message;
-        alert.className = `visa-modal-alert ${isSuccess ? 'visa-modal-alert-success' : 'visa-modal-alert-error'}`;
-        alert.style.display = 'block';
-    }
-    
-    // 提交添加链接表单
-    function submitAddForm() {
-        const form = document.getElementById('visaForm');
-        // 直接提交表单，不使用AJAX
-        form.submit();
-    }
-    
-    // 添加新的表单条目
+    // 添加新条目时的处理
     function addEntry() {
         entryCounter++;
         
@@ -845,6 +897,7 @@
         const newEntry = document.createElement('div');
         newEntry.className = 'visa-form-entry';
         
+        // 生成新条目的HTML
         newEntry.innerHTML = `
             <span class="visa-entry-number">${entryCounter}</span>
             <button type="button" class="visa-remove-entry" onclick="removeEntry(this)">
@@ -852,8 +905,19 @@
             </button>
             <div class="visa-form-row three-columns">
                 <div class="visa-form-group">
+                    <label for="country_${entryCounter-1}">国家</label>
+                    <select id="country_${entryCounter-1}" name="country[]" class="visa-form-control" required>
+                        <option value="">请选择国家</option>
+                        ${countryData.map(country => `
+                            <option value="${country.name}">${country.name}</option>
+                        `).join('')}
+                    </select>
+                </div>
+                <div class="visa-form-group">
                     <label for="visa_type_${entryCounter-1}">签证类型</label>
-                    <input type="text" id="visa_type_${entryCounter-1}" name="visa_type[]" class="visa-form-control" required>
+                    <select id="visa_type_${entryCounter-1}" name="visa_type[]" class="visa-form-control" required>
+                        <option value="">请先选择国家</option>
+                    </select>
                 </div>
                 <div class="visa-form-group">
                     <label for="name_${entryCounter-1}">名称</label>
@@ -867,6 +931,13 @@
         `;
         
         container.appendChild(newEntry);
+        
+        // 为新添加的国家选择框添加事件监听
+        const newCountrySelect = document.getElementById(`country_${entryCounter-1}`);
+        const newVisaTypeSelect = document.getElementById(`visa_type_${entryCounter-1}`);
+        newCountrySelect.addEventListener('change', () => {
+            updateVisaTypes(newCountrySelect, newVisaTypeSelect);
+        });
         
         // 如果有多个条目，显示第一个条目的删除按钮
         if (entryCounter > 1) {
@@ -908,9 +979,27 @@
     // 打开编辑模态框
     function openEditModal(id, visaType, name, link) {
         document.getElementById('edit_id').value = id;
-        document.getElementById('edit_visa_type').value = visaType;
         document.getElementById('edit_name').value = name;
         document.getElementById('edit_link').value = link;
+        
+        // 设置国家和签证类型
+        const editCountrySelect = document.getElementById('edit_country');
+        const editVisaTypeSelect = document.getElementById('edit_visa_type');
+        
+        // 找到对应的国家
+        const countryEntry = countryData.find(country => 
+            country.visaTypes.includes(visaType)
+        );
+        
+        if (countryEntry) {
+            editCountrySelect.value = countryEntry.name;
+            // 触发change事件以更新签证类型下拉框
+            editCountrySelect.dispatchEvent(new Event('change'));
+            // 设置签证类型
+            setTimeout(() => {
+                editVisaTypeSelect.value = visaType;
+            }, 0);
+        }
         
         document.getElementById('editForm').action = `/visa/visa_link/edit_visa_link/${id}`;
         
@@ -928,7 +1017,7 @@
         modal.classList.remove('active');
     }
     
-    // 显示表单提示信息
+    // 显示编辑表单提示信息
     function showEditAlert(message, isSuccess) {
         const alert = document.getElementById('editFormAlert');
         alert.textContent = message;
@@ -994,59 +1083,72 @@
     });
     
     // 链接筛选功能
-    document.addEventListener('DOMContentLoaded', function() {
-        const filterVisaType = document.getElementById('filter-visa-type');
-        const filterName = document.getElementById('filter-name');
-        const applyFilterBtn = document.getElementById('apply-filter');
-        const clearFilterBtn = document.getElementById('clear-filter');
-        const table = document.getElementById('links-table');
-        const rows = table.querySelectorAll('tbody tr');
-        
-        // 应用筛选按钮点击事件
-        applyFilterBtn.addEventListener('click', function() {
-            const selectedType = filterVisaType.value.toLowerCase();
-            const searchName = filterName.value.toLowerCase();
-            
-            let visibleCount = 0;
-            
-            rows.forEach(function(row) {
-                const typeCell = row.cells[1].textContent.toLowerCase();
-                const nameCell = row.cells[2].textContent.toLowerCase();
-                
-                const typeMatch = !selectedType || typeCell.includes(selectedType);
-                const nameMatch = !searchName || nameCell.includes(searchName);
-                
-                if (typeMatch && nameMatch) {
-                    row.style.display = '';
-                    visibleCount++;
-                } else {
-                    row.style.display = 'none';
-                }
-            });
-            
-            // 更新计数
-            document.getElementById('visible-count').textContent = visibleCount;
-        });
-        
-        // 清除筛选按钮点击事件
-        clearFilterBtn.addEventListener('click', function() {
-            filterVisaType.value = '';
-            filterName.value = '';
-            
-            rows.forEach(function(row) {
-                row.style.display = '';
-            });
-            
-            // 更新计数
-            document.getElementById('visible-count').textContent = rows.length;
-        });
-        
-        // 输入框回车键触发筛选
-        filterName.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                applyFilterBtn.click();
-            }
-        });
+    function clearFilter() {
+        // 重置所有筛选字段
+        document.getElementById('filter-country').value = '';
+        document.getElementById('filter-name').value = '';
+        // 提交表单
+        document.getElementById('filterForm').submit();
+    }
+
+    // 为输入框添加回车键提交功能
+    document.getElementById('filter-name').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            document.getElementById('filterForm').submit();
+        }
     });
+
+    // 打开添加链接模态框
+    function openAddModal() {
+        const modal = document.getElementById('addModal');
+        modal.classList.add('active');
+        
+        // 重置表单
+        document.getElementById('visaForm').reset();
+        
+        // 如果有多个条目，只保留第一个
+        const container = document.getElementById('entriesContainer');
+        const entries = container.querySelectorAll('.visa-form-entry');
+        
+        if (entries.length > 1) {
+            // 保留第一个条目，删除其他条目
+            for (let i = 1; i < entries.length; i++) {
+                entries[i].remove();
+            }
+            entryCounter = 1;
+            
+            // 隐藏第一个条目的删除按钮
+            const removeBtn = entries[0].querySelector('.visa-remove-entry');
+            if (removeBtn) {
+                removeBtn.style.display = 'none';
+            }
+        }
+        
+        // 重置警告信息
+        const alert = document.getElementById('addFormAlert');
+        alert.style.display = 'none';
+    }
+    
+    // 关闭添加链接模态框
+    function closeAddModal() {
+        const modal = document.getElementById('addModal');
+        modal.classList.remove('active');
+    }
+    
+    // 显示添加表单提示信息
+    function showAddAlert(message, isSuccess) {
+        const alert = document.getElementById('addFormAlert');
+        alert.textContent = message;
+        alert.className = `visa-modal-alert ${isSuccess ? 'visa-modal-alert-success' : 'visa-modal-alert-error'}`;
+        alert.style.display = 'block';
+    }
+    
+    // 提交添加链接表单
+    function submitAddForm() {
+        const form = document.getElementById('visaForm');
+        // 直接提交表单，不使用AJAX
+        form.submit();
+    }
 </script>
 {% endblock %}

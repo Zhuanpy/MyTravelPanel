@@ -124,8 +124,6 @@ class FlightOrder(db.Model):
     operator = db.Column(db.String(50), comment='操作员')
     refund_change_policy = db.Column(db.Text, comment='退改政策')
     baggage_allowance = db.Column(db.String(100), comment='行李额')
-    pnr_code = db.Column(db.String(10), comment='PNR编码')
-    e_ticket_number = db.Column(db.String(13), comment='电子客票号')
     client_type = db.Column(db.String(20), comment='客户类型')
     
     # 其他信息
@@ -208,10 +206,6 @@ class FlightSegment(db.Model):
     # 舱位信息
     cabin_class = db.Column(db.String(20), nullable=False, comment='舱位等级')
     cabin_code = db.Column(db.String(2), nullable=False, comment='舱位代码')
-    
-    # PNR信息
-    pnr = db.Column(db.String(6), comment='订座记录')
-    ticket_number = db.Column(db.String(13), comment='票号')
     
     # 航段状态
     status = db.Column(db.String(20), nullable=False, default='pending', comment='航段状态')

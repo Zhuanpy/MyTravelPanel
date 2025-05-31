@@ -288,33 +288,33 @@
         <div class="link-container">
             <h2 class="link-container-title">签证管理</h2>
             <div class="link-grid">
-                <a href="{{ url_for('visa_routes.visa_home') }}" class="text-link">
+                <a href="{{ url_for('visa_home.home') }}" class="text-link">
                     <i class="fas fa-home"></i> 签证首页
                 </a>
-                <a href="{{ url_for('visa_routes.open_folder', folder_type='visa_root', return_to='home') }}" class="text-link">
+                <a href="{{ url_for('visa_project.open_folder', folder_type='visa_root', return_to='home') }}" class="text-link">
                     <i class="fas fa-folder"></i> 资源文件夹
                 </a>
-                <a href="{{ url_for('visa_routes.add_visa_type') }}" class="text-link">
+                <a href="{{ url_for('visa_basic.add_visa_type') }}" class="text-link">
                     <i class="fas fa-plus"></i> 添加签证信息
                 </a>
-                <a href="{{ url_for('visa_routes.manage_visas') }}" class="text-link">
+                <a href="{{ url_for('visa_documents.manage_visas') }}" class="text-link">
                     <i class="fas fa-database"></i> 管理签证数据库
                 </a>
-                <a href="{{ url_for('visa_routes.show_current_all_projects') }}" class="text-link">
+                <a href="{{ url_for('visa_project.show_current_all_projects') }}" class="text-link">
                     <i class="fas fa-project-diagram"></i> 项目管理
                 </a>
             </div>
         </div>
         <div class="button-group">
             {% for visa in visa_categories %}
-                <a href="{{ url_for('visa_routes.visa_processing', visa_type=visa.visa_type_name) }}"
+                <a href="{{ url_for('visa_project.visa_processing', visa_type=visa.visa_type) }}"
                    class="btn btn-blue">
-                   <i class="fas fa-globe"></i> {{ visa.visa_type_name }}
+                   <i class="fas fa-globe"></i> {{ visa.visa_type }}
                 </a>
             {% endfor %}
         </div>
         <div class="section-footer">
-            <a href="{{ url_for('visa_routes.visa_home') }}" class="more-button">
+            <a href="{{ url_for('visa_home.home') }}" class="more-button">
                 查看全部 <i class="fas fa-arrow-right"></i>
             </a>
         </div>

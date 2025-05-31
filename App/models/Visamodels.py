@@ -19,6 +19,9 @@ class VisaCountries(db.Model):
     # 国家代码（3个字母代码），确保唯一且不可为空
     country_code = db.Column(db.String(3), unique=True, nullable=False)
 
+    # 添加与VisaTypes的关系
+    visa_types = db.relationship('VisaTypes', back_populates='country')
+
     def __repr__(self):
         return f"<VisaCountry(id={self.id}, country_name_CN='{self.country_name_CN}', country_code='{self.country_code}')>"
 
@@ -40,15 +43,47 @@ visa_type_documents = db.Table(
     db.Column('document_id', db.Integer, db.ForeignKey('visa_documents.id'), primary_key=True)
 )
 
+# 这个表会将 VisaTypes 与 VisaSingaporeIdentity 表进行关联，构建多对多关系。
+visa_type_identities = db.Table(
+    'visa_type_identities',
+    db.Column('visa_type_id', db.Integer, db.ForeignKey('visa_types.id', ondelete='CASCADE'), primary_key=True),
+    db.Column('identity_id', db.Integer, db.ForeignKey('visa_singapore_identity.id', ondelete='CASCADE'), primary_key=True)
+)
+
+class VisaSingaporeIdentity(db.Model):
+    """身份信息模型"""
+    __tablename__ = 'visa_singapore_identity'  # 指定表名
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    identity_zh = db.Column(db.String(50), nullable=False, unique=True)
+    identity_en = db.Column(db.String(100), nullable=False, unique=True)
+    remarks = db.Column(db.Text, nullable=True)
+
+    # 多对多关系
+    visa_types = db.relationship('VisaTypes', 
+                               secondary=visa_type_identities,
+                               back_populates='identities')
+
+    def __repr__(self):
+        return f'<Identity {self.identity_zh}>'
+
+    def to_dict(self):
+        """转换为字典格式"""
+        return {
+            'id': self.id,
+            'identity_zh': self.identity_zh,
+            'identity_en': self.identity_en,
+            'remarks': self.remarks
+        }
+
 
 class VisaTypes(db.Model):
-
     __tablename__ = 'visa_types'
 
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
 
     # 签证类别名称
-    visa_type_name = db.Column(db.String(50), nullable=False)
+    visa_type = db.Column(db.String(50), nullable=False)
 
     # 处理时间
     processing_time = db.Column(db.String(200), nullable=False)
@@ -56,22 +91,19 @@ class VisaTypes(db.Model):
     # 申请费用
     fee = db.Column(db.String(200), nullable=False)
 
+    # 外键关系 - 国家
     country_id = db.Column(db.Integer, db.ForeignKey('visa_countries.id'), nullable=False)
-
-    # 建立与 VisaCountries 表的关系
-    country = db.relationship('VisaCountries', backref=db.backref('visa_types', lazy='dynamic'))
-
-    # 建立与 VisaDocuments 表的多对多关系
-    required_documents = db.relationship(
-        'VisaDocuments',
-        secondary=visa_type_documents,
-        lazy='dynamic',
-        backref=db.backref('visa_types', lazy='dynamic')
-    )
+    
+    # 关系定义
+    country = db.relationship('VisaCountries', back_populates='visa_types')
+    
+    # 多对多关系
+    identities = db.relationship('VisaSingaporeIdentity',
+                               secondary=visa_type_identities,
+                               back_populates='visa_types')
 
     def __repr__(self):
-        return (f"<VisaType(id={self.id}, visa_type_name='{self.visa_type_name}', "
-                f"country_id={self.country_id})>")
+        return f"<VisaType(id={self.id}, visa_type='{self.visa_type}', country_id={self.country_id})>"
 
     @staticmethod
     def get_by_country(country_id):
@@ -82,6 +114,18 @@ class VisaTypes(db.Model):
     def get_all_types():
         """获取所有签证类别"""
         return VisaTypes.query.all() or []
+        
+    def to_dict(self):
+        """转换为字典格式"""
+        return {
+            'id': self.id,
+            'visa_type': self.visa_type,
+            'processing_time': self.processing_time,
+            'fee': self.fee,
+            'country_id': self.country_id,
+            'country_name': self.country.country_name_CN if self.country else None,
+            'identities': [identity.to_dict() for identity in self.identities]
+        }
 
 
 class VisaDocuments(db.Model):
@@ -171,9 +215,15 @@ class VisaLinks(db.Model):
     __tablename__ = 'visalinks'
 
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    visa_type = db.Column(db.String(50), nullable=False)
+    visa_type = db.Column(db.String(50), db.ForeignKey('visa_types.visa_type'), nullable=False)
     name = db.Column(db.String(50), nullable=False)
     link = db.Column(db.Text)
+
+    # 建立与 VisaTypes 表的关系
+    visa_type_rel = db.relationship('VisaTypes', backref=db.backref('links', lazy='dynamic'))
+
+    def __repr__(self):
+        return f"<VisaLink(id={self.id}, visa_type='{self.visa_type}', name='{self.name}')>"
 
 
 class VisaProject(db.Model):
@@ -207,3 +257,4 @@ class VisaProject(db.Model):
         if status not in self.VALID_STATUSES:
             raise ValueError(f"Invalid visa status. Must be one of: {', '.join(self.VALID_STATUSES)}")
         return status
+

@@ -41,4 +41,5 @@ class Task(db.Model):
             db.session.delete(task)
             db.session.commit()
             return True
+
         return False

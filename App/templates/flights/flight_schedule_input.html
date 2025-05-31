@@ -383,6 +383,20 @@
                 </button>
             </div>
         </form>
+        
+        <!-- 搜索结果区域 -->
+        <div id="searchResults" class="mt-3" style="display: none;">
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle"></i> 正在搜索航班信息...
+            </div>
+        </div>
+        
+        <!-- 未找到结果提示 -->
+        <div id="noResults" class="mt-3" style="display: none;">
+            <div class="alert alert-warning">
+                <i class="fas fa-exclamation-triangle"></i> 未找到航班信息，请检查航班号是否正确。
+            </div>
+        </div>
     </div>
 
     <!-- 航班时刻表 -->
@@ -447,37 +461,24 @@
             button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 搜索中...';
 
             // 调用后端API获取航班信息
-            const response = await fetch(`{{ url_for('flights_schedule.get_flight_info_route') }}?flight_number=${flightNumber}`);
+            const response = await fetch(`/flight_schedule/get-flight-info?flight_number=${flightNumber}`);
             const data = await response.json();
 
-            if (response.ok) {
-                if (data.error) {
-                    // 创建一个提示框，包含错误信息和跳转按钮
-                    const result = confirm(data.error + '\n\n是否要添加该航班信息？');
-                    if (result) {
-                        // 如果用户点击确认，则跳转到当前页面并预填航班号
-                        window.location.href = `{{ url_for('flights_schedule.input_flight_schedule_info') }}?search_flight_number=${encodeURIComponent(flightNumber)}`;
-                    }
-                } else {
-                    // 填充表单
-                    scheduleCityInput.value = data.schedule_city;
-                    scheduleTimingInput.value = data.schedule_timing;
-                    
-                    // 提示用户数据已自动填充，可手动修改
-                    alert("航班信息已自动填充，您可以根据需要修改！");
-                }
+            if (data.success) {
+                // 填充表单
+                scheduleCityInput.value = data.data.schedule_city || '';
+                scheduleTimingInput.value = data.data.schedule_timing || '';
+                alert("航班信息已自动填充，您可以根据需要修改！");
             } else {
-                const result = confirm('未找到航班信息。\n\n是否要添加该航班信息？');
-                if (result) {
-                    window.location.href = `{{ url_for('flights_schedule.input_flight_schedule_info') }}?search_flight_number=${encodeURIComponent(flightNumber)}`;
-                }
+                // 显示未找到提示
+                alert('未找到航班信息，请检查航班号是否正确');
+                // 清空相关输入框
+                scheduleCityInput.value = '';
+                scheduleTimingInput.value = '';
             }
         } catch (error) {
             console.error('获取航班信息失败:', error);
-            const result = confirm('获取航班信息失败。\n\n是否要手动添加该航班信息？');
-            if (result) {
-                window.location.href = `{{ url_for('flights_schedule.input_flight_schedule_info') }}?search_flight_number=${encodeURIComponent(flightNumber)}`;
-            }
+            alert('获取航班信息失败，请稍后重试');
         } finally {
             // 恢复按钮状态
             button.disabled = false;
@@ -555,6 +556,45 @@
                 });
             });
         });
+    });
+
+    document.getElementById('searchForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const flightNumber = this.querySelector('[name="search_flight_number"]').value;
+        const searchResults = document.getElementById('searchResults');
+        const noResults = document.getElementById('noResults');
+        
+        // 显示搜索中提示
+        searchResults.style.display = 'block';
+        noResults.style.display = 'none';
+        
+        // 发送搜索请求
+        fetch(`/flight_schedule/get-flight-info?flight_number=${flightNumber}`)
+            .then(response => response.json())
+            .then(data => {
+                // 隐藏搜索中提示
+                searchResults.style.display = 'none';
+                
+                if (data.success) {
+                    // 如果找到航班，填充表单
+                    const flightInputs = document.querySelectorAll('input[name="flight_number[]"]');
+                    if (flightInputs.length > 0) {
+                        const firstRow = flightInputs[0].closest('.flight-schedule-form-row');
+                        firstRow.querySelector('input[name="schedule_city[]"]').value = data.data.schedule_city || '';
+                        firstRow.querySelector('input[name="schedule_timing[]"]').value = data.data.schedule_timing || '';
+                    }
+                } else {
+                    // 显示未找到提示
+                    noResults.style.display = 'block';
+                }
+            })
+            .catch(error => {
+                // 隐藏搜索中提示
+                searchResults.style.display = 'none';
+                // 显示未找到提示
+                noResults.style.display = 'block';
+            });
     });
 </script>
 {% endblock %}

@@ -228,10 +228,12 @@
         <div class="visa-project-section-header">
             <h2>项目信息</h2>
             <div class="visa-project-header-links">
-                <a class="visa-project-resource-link" href="{{ url_for('visa_routes.show_current_all_projects') }}">
+                <a class="visa-project-resource-link" href="{{ url_for('visa_project.show_current_all_projects') }}">
                     返回项目列表
                 </a>
-                <a class="visa-project-resource-link" href="{{ url_for('visa_routes.open_folder', folder_type='project', file_name=project.project_folder_name, visa_type=project.visa_type, visa_status='all', sort_by='name', return_to='list') }}">
+                <a class="visa-project-resource-link" href="javascript:void(0)" 
+                   onclick="openProjectFolder('{{ project.project_folder_name }}', '{{ project.visa_type }}', '{{ url_for('visa_routes.open_folder') }}')"
+                >
                     打开项目文件夹
                 </a>
             </div>
@@ -334,7 +336,7 @@
                         <button type="submit" class="visa-project-btn" id="updateBtn">
                             保存修改
                         </button>
-                        <a href="{{ url_for('visa_routes.show_current_all_projects') }}" class="visa-project-btn visa-project-btn-secondary">
+                        <a href="{{ url_for('visa_project.show_current_all_projects') }}" class="visa-project-btn visa-project-btn-secondary">
                             取消
                         </a>
                     </div>
@@ -415,6 +417,35 @@
                 }
             });
         }
+
+        // 添加打开文件夹的函数
+        window.openProjectFolder = async function(projectFolderName, visaType, endpoint) {
+            try {
+                // 构建查询参数
+                const params = new URLSearchParams({
+                    folder_type: 'project',
+                    file_name: projectFolderName,
+                    visa_type: visaType,
+                    visa_status: 'all',
+                    sort_by: 'name',
+                    return_to: 'list'
+                });
+
+                const response = await fetch(`${endpoint}?${params.toString()}`, {
+                    method: 'GET'
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to open folder');
+                }
+
+                // 不再尝试解析JSON，因为我们知道后端直接打开文件夹
+                showAlert('文件夹打开请求已发送', true);
+            } catch (error) {
+                console.error('Error opening folder:', error);
+                showAlert('打开文件夹时发生错误', false);
+            }
+        };
     });
     
     // 表单验证和提交处理
@@ -517,7 +548,7 @@
             if (response.ok) {
                 showAlert(result.message || '修改成功！', true);
                 setTimeout(() => {
-                    window.location.href = "{{ url_for('visa_routes.show_current_all_projects') }}";
+                    window.location.href = "{{ url_for('visa_routes.visa_detail', project_id=project.id) }}";
                 }, 1500);
             } else {
                 showAlert(result.message || '修改失败，请重试', false);
