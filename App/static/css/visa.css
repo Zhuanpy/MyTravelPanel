@@ -1,0 +1,153 @@
+.visa-card-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 20px;
+    padding: 20px;
+    width: 100%;
+}
+
+/* 国家卡片网格样式 */
+.country-grid {
+    margin-bottom: 40px;
+}
+
+.country-card {
+    background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+    border: 2px solid #dee2e6;
+    min-height: 120px;
+}
+
+.country-card .visa-card-header {
+    background: #3b82f6;
+    color: white;
+    font-size: 1.2em;
+    padding: 15px;
+}
+
+.country-card .visa-card-body {
+    padding: 15px;
+    text-align: center;
+}
+
+/* 签证类型卡片样式 */
+.visa-card {
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    min-height: 200px;
+}
+
+.visa-card-fill {
+    opacity: 0.8;
+    border: 1px dashed #ccc;
+    background: #f9f9f9;
+}
+
+.visa-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.visa-card-fill:hover {
+    transform: none;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.visa-card-header {
+    background: #f8f9fa;
+    padding: 15px;
+    border-bottom: 1px solid #eee;
+    font-weight: 600;
+    color: #333;
+}
+
+.visa-card-body {
+    padding: 15px;
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.visa-card-info {
+    margin-bottom: 15px;
+}
+
+.visa-card-info-item {
+    margin-bottom: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.visa-card-info-label {
+    color: #666;
+    font-size: 0.9em;
+}
+
+.visa-card-info-value {
+    color: #333;
+    font-weight: 500;
+}
+
+.visa-card-actions {
+    margin-top: auto;
+    text-align: center;
+}
+
+.visa-btn {
+    display: inline-block;
+    padding: 8px 16px;
+    border-radius: 4px;
+    text-decoration: none;
+    font-weight: 500;
+    transition: background-color 0.2s ease;
+}
+
+.visa-btn-primary {
+    background-color: #007bff;
+    color: white;
+}
+
+.visa-btn-primary:hover {
+    background-color: #0056b3;
+}
+
+/* 区域标题样式 */
+.visa-region-header {
+    font-size: 1.5em;
+    font-weight: 600;
+    color: #333;
+    margin: 20px 0;
+    padding-left: 20px;
+    border-left: 4px solid #3b82f6;
+}
+
+/* 响应式布局 */
+@media (max-width: 1200px) {
+    .visa-card-grid {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}
+
+@media (max-width: 992px) {
+    .visa-card-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+    .visa-card-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 480px) {
+    .visa-card-grid {
+        grid-template-columns: 1fr;
+    }
+} 

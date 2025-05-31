@@ -12,6 +12,60 @@
         padding: 0 15px;
     }
 
+    /* 地区分类标题样式 */
+    .region-classification {
+        margin: 2rem 0;
+        padding-bottom: 1rem;
+        border-bottom: 2px solid #e9ecef;
+    }
+
+    .region-classification-title {
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: #2d3748;
+        margin: 0;
+        padding-bottom: 0.5rem;
+    }
+
+    /* 地区分组样式 */
+    .region-section {
+        margin-bottom: 2rem;
+        border: 1px solid #e9ecef;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+
+    .region-title {
+        background-color: #f8f9fa;
+        padding: 0.75rem 1rem;
+        margin: 0;
+        font-size: 1.1rem;
+        color: #2d3748;
+        border-bottom: 1px solid #e9ecef;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .region-title i {
+        color: #3182ce;
+    }
+
+    .region-title .badge {
+        margin-left: auto;
+        font-size: 0.875rem;
+        padding: 0.35em 0.65em;
+    }
+
+    .region-section .table-responsive {
+        margin-bottom: 0;
+    }
+
+    .region-section .table {
+        margin-bottom: 0;
+    }
+
     /* 表格行高固定样式 */
     .table td, .table th {
         height: 45px;
@@ -302,9 +356,26 @@
                     <button type="submit" class="btn btn-primary">搜索</button>
                     <a href="{{ url_for('flights_booking.order_list') }}" class="btn btn-secondary">重置</a>
                 </div>
-                <!-- 确保不会传递page参数，以免干扰搜索结果的初始分页 -->
                 <input type="hidden" name="page" value="1">
             </form>
+        </div>
+    </div>
+
+    <!-- 过滤部分 -->
+    <div class="filter-section" style="margin-bottom: 15px;">
+        <div class="btn-group">
+            <a href="{{ url_for('flights_booking.order_list', departure_filter='today') }}" 
+               class="btn btn-outline-primary {{ 'active' if request.args.get('departure_filter') == 'today' }}">
+                今日出发
+            </a>
+            <a href="{{ url_for('flights_booking.order_list', departure_filter='upcoming') }}" 
+               class="btn btn-outline-primary {{ 'active' if request.args.get('departure_filter') == 'upcoming' }}">
+                即将出发(3天内)
+            </a>
+            <a href="{{ url_for('flights_booking.order_list') }}" 
+               class="btn btn-outline-primary {{ 'active' if not request.args.get('departure_filter') }}">
+                全部
+            </a>
         </div>
     </div>
 
@@ -399,7 +470,7 @@
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="11" class="text-center">暂无订单数据</td>
+                    <td colspan="12" class="text-center">暂无订单数据</td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -493,6 +564,7 @@
 <!-- CSRF Token -->
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
+{% block scripts %}
 <script>
 // 状态映射
 const STATUS_MAP = {
@@ -761,4 +833,5 @@ autoSubmitSelects.forEach(select => {
     });
 });
 </script>
+{% endblock %}
 {% endblock %} 

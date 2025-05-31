@@ -180,11 +180,12 @@
                             <i class="fas fa-passport"></i> 签证
                         </a>
                         <ul class="dropdown-menu" aria-labelledby="visaDropdown">
-                            <li><a class="dropdown-item" href="{{ url_for('visa_routes.visa_home') }}">签证首页</a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('visa_routes.show_current_all_projects') }}">签证项目管理</a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('visa_routes.manage_visas') }}">签证资料管理</a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('visa_routes.visa_link_page') }}">签证链接管理</a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('visa_routes.manage_countries') }}">国家管理</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('visa_home.home') }}">签证首页</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('visa_project.show_current_all_projects') }}">签证项目管理</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('visa_documents.manage_visas') }}">签证资料管理</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('visa_links.visa_link_page') }}">签证链接管理</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('visa_basic.manage_countries') }}">国家管理</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('visa_basic.manage_identities') }}">身份管理</a></li>
                         </ul>
                     </li>
                     
@@ -198,7 +199,7 @@
                         </a>
                         <ul class="dropdown-menu" aria-labelledby="projectsDropdown">
                             <li><a class="dropdown-item" href="{{ url_for('projects.list_projects') }}">项目列表</a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('projects.create_project') }}">创建新项目</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('projects.confirm_create') }}">创建新项目</a></li>
                             <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item" href="{{ url_for('projects.list_projects', status='draft') }}">草稿项目</a></li>
                             <li><a class="dropdown-item" href="{{ url_for('projects.list_projects', status='active') }}">进行中项目</a></li>

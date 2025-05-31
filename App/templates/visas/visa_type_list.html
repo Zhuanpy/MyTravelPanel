@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container" style="max-width: 1400px; margin: 0 auto; padding: 20px;">
+    <h1 style="font-size: 24px; margin-bottom: 20px; font-weight: bold; text-align: center;">签证类型列表</h1>
+    <div style="background-color: white; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); padding: 20px; margin-bottom: 20px;">
+        <table style="width:100%; border-collapse:collapse;">
+            <thead>
+                <tr style="background: #f1f5f9;">
+                    <th style="padding: 12px;">签证类型名称</th>
+                    <th style="padding: 12px;">所属国家</th>
+                    <th style="padding: 12px;">处理时间</th>
+                    <th style="padding: 12px;">申请费用</th>
+                    <th style="padding: 12px;">新加坡身份</th>
+                    <th style="padding: 12px;">操作</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for vt in visa_types %}
+                <tr>
+                    <td style="padding: 12px;">{{ vt.visa_type }}</td>
+                    <td style="padding: 12px;">{{ vt.country.country_name_CN }}</td>
+                    <td style="padding: 12px;">{{ vt.processing_time }}</td>
+                    <td style="padding: 12px;">{{ vt.fee }}</td>
+                    <td style="padding: 12px;">
+                        {% for identity in vt.identities %}
+                            {{ identity.identity_zh }}{% if not loop.last %}，{% endif %}
+                        {% else %}
+                            <span style="color:#888;">无</span>
+                        {% endfor %}
+                    </td>
+                    <td style="padding: 12px;">
+                        <a href="{{ url_for('visa_basic.edit_visa_type', visa_type=vt.visa_type, field='fee') }}" style="color: #1a56db; text-decoration: none; margin-right: 10px;">编辑费用</a>
+                        <a href="{{ url_for('visa_basic.edit_visa_type', visa_type=vt.visa_type, field='processing_time') }}" style="color: #1a56db; text-decoration: none; margin-right: 10px;">编辑时间</a>
+                        <a href="{{ url_for('visa_basic.edit_visa_type', visa_type=vt.visa_type, field='identities') }}" style="color: #1a56db; text-decoration: none;">编辑身份</a>
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div style="text-align: right;">
+        <a href="{{ url_for('visa_basic.add_visa_type') }}" style="background-color: #1a56db; color: white; border: none; padding: 8px 16px; border-radius: 4px; text-decoration: none;">
+            <i class="fas fa-plus"></i> 添加签证类型
+        </a>
+    </div>
+</div>
+{% endblock %} 

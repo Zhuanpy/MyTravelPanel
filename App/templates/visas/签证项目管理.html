@@ -381,7 +381,7 @@
     <h2 class="visa-project-links-title">现有签证项目</h2>
 
     <div class="visa-project-sort-options">
-        <form method="get" action="{{ url_for('visa_routes.show_current_all_projects') }}">
+        <form method="get" action="{{ url_for('visa_project.show_current_all_projects') }}">
             <!-- 签证状态筛选 -->
             <label for="visa_status">签证状态：</label>
             <select name="visa_status" id="visa_status" onchange="this.form.submit()">
@@ -452,9 +452,9 @@
         <h2 class="visa-project-links-title">签证处理链接</h2>
         <div class="visa-project-button-group">
             {% for visa in visa_categories %}
-                <a href="{{ url_for('visa_routes.visa_processing', country=visa.visa_type_name) }}"
+                <a href="{{ url_for('visa_routes.visa_processing', country=visa.visa_type) }}"
                    class="visa-project-btn visa-project-btn-blue">
-                   {{ visa.visa_type_name }}签证
+                   {{ visa.visa_type }}签证
                 </a>
             {% endfor %}
         </div>

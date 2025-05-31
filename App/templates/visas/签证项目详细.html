@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}签证项目详情{% endblock %}
+{% block title %}{{ project.applicant_name }}{{ project.visa_type }}项目详情{% endblock %}
 
 {% block head %}
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
@@ -59,6 +59,9 @@
             padding: 1rem 1.5rem;
             background-color: #f7fafc;
             border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
         
         .visa-detail-section-header h2 {
@@ -76,6 +79,7 @@
             display: grid;
             grid-template-columns: repeat(4, 1fr);
             gap: 1.5rem;
+            margin-bottom: 1.5rem;
         }
         
         .visa-detail-info-item {
@@ -97,6 +101,43 @@
             min-height: 2.5rem;
             display: flex;
             align-items: center;
+        }
+        
+        .visa-detail-info-value.form-container {
+            padding: 0;
+            overflow: hidden;
+        }
+        
+        #generateFormForm {
+            width: 100%;
+            margin: 0;
+        }
+        
+        #generateFormForm .visa-project-btn.generate-form {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            border-radius: 0.375rem;
+            background-color: #38a169;
+            color: white;
+            font-size: 0.875rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            padding: 0.5rem;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        #generateFormForm .visa-project-btn.generate-form:hover {
+            background-color: #2f855a;
+        }
+        
+        #generateFormForm .visa-project-btn.generate-form svg {
+            width: 1rem;
+            height: 1rem;
         }
         
         .visa-detail-status {
@@ -149,29 +190,32 @@
         .visa-detail-btn {
             display: inline-flex;
             align-items: center;
-            padding: 0.5rem 1rem;
-            border-radius: 0.375rem;
+            padding: 0.375rem 0.75rem;
+            font-size: 0.875rem;
             font-weight: 500;
+            border-radius: 0.25rem;
             text-decoration: none;
             transition: all 0.2s;
         }
         
         .visa-detail-btn-primary {
-            background-color: #3182ce;
+            background-color: #4299e1;
             color: white;
         }
         
         .visa-detail-btn-primary:hover {
-            background-color: #2c5282;
-        }
-        
-        .visa-detail-btn-secondary {
-            background-color: #718096;
+            background-color: #3182ce;
             color: white;
         }
         
+        .visa-detail-btn-secondary {
+            background-color: #ebf4ff;
+            color: #4299e1;
+        }
+        
         .visa-detail-btn-secondary:hover {
-            background-color: #4a5568;
+            background-color: #bee3f8;
+            color: #3182ce;
         }
         
         .visa-detail-documents {
@@ -343,6 +387,153 @@
             align-items: center;
             width: 100%;
         }
+
+        .visa-project-title {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: #1a365d;
+            margin: 1rem auto;
+            padding: 0.75rem 0;
+            border-bottom: 2px solid #e2e8f0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            width: 100%;
+            text-align: center;
+        }
+
+        .visa-project-title span {
+            color: inherit;
+            font-weight: inherit;
+        }
+
+        .applicant-name {
+            color: #1a365d;
+            font-weight: 700;
+        }
+
+        .applicant-empty {
+            color: #94a3b8;
+            font-style: italic;
+            font-weight: normal;
+        }
+
+        .visa-type-separator {
+            color: #64748b;
+            margin: 0 0.5rem;
+            font-weight: normal;
+        }
+
+        .visa-type {
+            color: #1e40af;
+            font-weight: 600;
+        }
+
+        @media (max-width: 640px) {
+            .visa-project-title {
+                font-size: 1.5rem;
+                padding: 0.5rem 0;
+                margin: 0.75rem auto;
+            }
+
+            .visa-type-separator {
+                display: none;
+            }
+
+            .visa-detail-info-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        .visa-project-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.5rem 1rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            border-radius: 0.375rem;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s;
+            gap: 0.5rem;
+        }
+
+        .visa-project-btn:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
+
+        .visa-project-btn:active {
+            transform: translateY(0);
+        }
+
+        .visa-project-btn.generate-form {
+            background-color: #38a169;
+            color: white;
+            font-size: 0.875rem;
+            height: 2.5rem;
+            padding: 0 1.25rem;
+            min-width: 120px;
+        }
+
+        .visa-project-btn.generate-form svg {
+            width: 1rem;
+            height: 1rem;
+            margin-right: 0.375rem;
+        }
+
+        .visa-project-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .generate-form-section {
+            display: flex;
+            justify-content: flex-end;
+            padding: 0 1.5rem 1.5rem;
+            border-bottom: 1px solid #e2e8f0;
+            margin-bottom: 1.5rem;
+        }
+
+        #generateFormForm {
+            margin: 0;
+            margin-left: auto;
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+        .animate-spin {
+            animation: spin 1s linear infinite;
+        }
+
+        @media (max-width: 640px) {
+            .visa-detail-section-header {
+                flex-direction: column;
+                gap: 0.75rem;
+                align-items: flex-start;
+            }
+
+            #generateFormForm {
+                width: 100%;
+            }
+
+            .visa-project-btn.generate-form {
+                width: 100%;
+                margin-left: 0;
+            }
+
+            .generate-form-section {
+                padding: 0 1rem 1rem;
+            }
+        }
     </style>
 {% endblock %}
 
@@ -350,8 +541,14 @@
 <div class="visa-detail-container">
 
     <div class="visa-detail-header">
-        <h1>签证项目详情</h1>
-        
+        <h1 class="visa-project-title">
+            {% if project.applicant_name %}
+                <span>{{ project.applicant_name }}</span>
+            {% else %}
+                <span class="applicant-empty">申请人未设置</span>
+            {% endif %}
+            <span>{{ project.visa_type|default('未知类型', true) }}申请</span>
+        </h1>
         <div class="visa-detail-actions-row">
             <div class="visa-detail-status visa-detail-status-{{ {
                 '待递交': 'pending',
@@ -363,10 +560,17 @@
             </div>
 
             <div class="visa-detail-header-links">
+                <a href="{{ url_for('visa_routes.edit_project', project_id=project.id) }}" class="visa-project-resource-link">
+                    编辑项目
+                </a>
+                <a href="{{ url_for('visa_routes.open_folder', folder_type='project', file_name=project.project_folder_name, visa_type=project.visa_type, visa_status=visa_status, sort_by=sort_by, return_to='detail') }}" class="visa-project-resource-link" target="_blank" onclick="event.preventDefault();">
+                    打开项目文件夹
+                </a>
+                
                 <a class="visa-project-resource-link" href="{{ url_for('visa_routes.open_folder', folder_type='visa_type', visa_type=project.visa_type, return_to='detail') }}">
                     打开{{ project.visa_type }}资源
                 </a>
-                <a class="visa-project-resource-link" href="{{ url_for('visa_routes.show_current_all_projects') }}">
+                <a class="visa-project-resource-link" href="{{ url_for('visa_project.show_current_all_projects') }}">
                     项目管理
                 </a>
             </div>
@@ -424,7 +628,22 @@
                     <span class="visa-detail-info-label">创建时间</span>
                     <span class="visa-detail-info-value">{{ project.created_date.strftime('%Y-%m-%d') }}</span>
                 </div>
-
+                <div class="visa-detail-info-item">
+                    <span class="visa-detail-info-label">生成表格</span>
+                    <form id="generateFormForm" action="{{ url_for('visa_routes.generate_form_for_project', project_id=project.id) }}" method="post" class="visa-detail-info-value form-container">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="visa-project-btn generate-form" id="generateFormBtn">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                <polyline points="14 2 14 8 20 8"></polyline>
+                                <line x1="12" y1="18" x2="12" y2="12"></line>
+                                <line x1="9" y1="15" x2="15" y2="15"></line>
+                            </svg>
+                            生成表格
+                        </button>
+                    </form>
+                </div>
+            
             </div>
             
             <div class="visa-detail-remarks">
@@ -494,13 +713,82 @@
         </div>
     </section>
 
-    <div class="visa-detail-actions">
-        <a href="{{ url_for('visa_routes.edit_project', project_id=project.id) }}" class="visa-detail-btn visa-detail-btn-primary">
-            编辑项目
-        </a>
-        <a href="{{ url_for('visa_routes.open_folder', folder_type='project', file_name=project.project_folder_name, visa_type=project.visa_type, visa_status=visa_status, sort_by=sort_by, return_to='detail') }}" class="visa-detail-btn visa-detail-btn-secondary">
-            打开项目文件夹
-        </a>
-    </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const generateFormForm = document.getElementById('generateFormForm');
+    const generateFormBtn = document.getElementById('generateFormBtn');
+
+    if (generateFormForm) {
+        generateFormForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            // 禁用按钮，显示加载状态
+            generateFormBtn.disabled = true;
+            const originalText = generateFormBtn.innerHTML;
+            generateFormBtn.innerHTML = `
+                <svg class="animate-spin" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <circle cx="12" cy="12" r="10" stroke-width="4" stroke-dasharray="30 60"></circle>
+                </svg>
+                生成中...
+            `;
+
+            try {
+                const response = await fetch(generateFormForm.action, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: new URLSearchParams(new FormData(generateFormForm))
+                });
+
+                if (!response.ok) {
+                    throw new Error('生成表格失败');
+                }
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert('表格生成成功！');
+                    // 如果需要，可以在这里添加下载或预览表格的逻辑
+                } else {
+                    throw new Error(result.message || '生成表格失败');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert(error.message);
+            } finally {
+                // 恢复按钮状态
+                generateFormBtn.disabled = false;
+                generateFormBtn.innerHTML = originalText;
+            }
+        });
+    }
+
+    // 为所有打开文件夹的链接添加事件监听器
+    const folderLinks = document.querySelectorAll('a[href*="open_folder"]');
+    folderLinks.forEach(link => {
+        link.onclick = openProjectFolder;
+    });
+});
+
+function openProjectFolder(event) {
+    event.preventDefault();
+    const url = event.target.href;
+    
+    fetch(url)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('打开文件夹失败');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('打开文件夹时出错：' + error.message);
+        });
+}
+</script>
 {% endblock %} 

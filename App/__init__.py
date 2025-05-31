@@ -3,9 +3,10 @@ import os
 from flask_migrate import Migrate
 from flask_login import LoginManager
 from .routes.views import dex
-from .exts import init_exts, db
+from .exts import db, init_exts
 from .utils.cache import cache
 from datetime import timedelta
+from config import Config
 
 # 导入所有模型
 from .models.User import User
@@ -15,10 +16,19 @@ from .models.Suppliers import Supplier
 
 # 导入所有路由
 from .routes.files_tasks import utils_blue
-from .routes.visas import visa_routes
+
+# 导入签证相关的路由
+from .routes.visa_basic_info import visa_basic
+from .routes.visa_home import visa_home
+from .routes.visa_documents import visa_documents
+from .routes.visa_links import visa_links
+from .routes.visa_files import visa_files
+from .routes.visas_project import visa_project
+
 from .routes.project import projects
 from .routes.business_type import business_types
 
+# 导入机票相关的路由
 from .routes.flights_home_routes import flight_home
 from .routes.flights_schedule_routes import flights_schedule
 from .routes.flights_booking_routes import flights_booking
@@ -32,16 +42,20 @@ from .routes.tour_product_details import product_details
 from .routes.files import files_process
 from .routes.statement import statement_blue
 
-def create_app():
+migrate = Migrate()
+
+def create_app(config_class=Config):
     app = Flask(__name__)
+    app.config.from_object(config_class)
+
+    # 初始化插件
+    init_exts(app=app)
+    migrate.init_app(app, db)
+
     app.register_blueprint(dex)
 
     # 推荐使用环境变量来设置 SECRET_KEY，确保安全性
     app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'a_default_secret_key')  # 替换为实际的密钥
-
-    # 配置数据库
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:651748264Zz*@localhost/travelindustry'
-    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
     # 配置缓存
     app.config['CACHE_TYPE'] = 'simple'
@@ -49,9 +63,6 @@ def create_app():
 
     # 初始化缓存
     cache.init_app(app)
-
-    # 初始化插件
-    init_exts(app=app)
 
     # 初始化 Flask-Login
     login_manager = LoginManager()
@@ -63,12 +74,17 @@ def create_app():
         # todo 完成 User 相关内容
         return User.query.get(int(user_id))
 
-    # 初始化数据库迁移
-    migrate = Migrate(app, db)
-
     # 注册蓝图
     app.register_blueprint(utils_blue, url_prefix='/utils')
-    app.register_blueprint(visa_routes, url_prefix='/visa')
+
+    # 注册 visa 相关的蓝图
+    app.register_blueprint(visa_home, url_prefix='/visa/home')
+    app.register_blueprint(visa_basic, url_prefix='/visa/basic')
+    app.register_blueprint(visa_documents, url_prefix='/visa/documents')
+    app.register_blueprint(visa_links, url_prefix='/visa_links')
+    app.register_blueprint(visa_files, url_prefix='/visa/files')
+    app.register_blueprint(visa_project, url_prefix='/visa/project')
+
     app.register_blueprint(projects, url_prefix='/projects')
     app.register_blueprint(business_types, url_prefix='/business_types')
 
@@ -96,5 +112,15 @@ def create_app():
             os.path.join(app.static_folder, '.well-known', 'appspecific'),
             filename
         )
+
+    @app.cli.command("reset-db")
+    def reset_db():
+        """Reset the database."""
+        with app.app_context():
+            # Drop all tables
+            db.drop_all()
+            # Create all tables
+            db.create_all()
+            print("Database has been reset.")
 
     return app
