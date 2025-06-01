@@ -249,97 +249,81 @@ class EditVisaTypeForm(FlaskForm):
 
 @visa_basic.route('/visa/edit_visa_type/<visa_type>/<field>', methods=['GET', 'POST'])
 def edit_visa_type(visa_type, field):
-    # 获取签证类型记录
-    visa_type_record = VisaTypes.query.filter_by(visa_type=visa_type).first_or_404()
-    form = EditVisaTypeForm()
+    """编辑签证类型信息"""
+    try:
+        # 获取签证类型记录
+        visa_type_record = VisaTypes.query.filter_by(visa_type=visa_type).first_or_404()
 
-    if request.method == 'POST':
-        try:
-            if field == 'identities':
-                # 获取选中的身份列表
-                selected_identities = request.form.getlist('identities')
-                
-                # 获取当前签证类型的所有文档记录
-                current_documents = VisaDocuments.query.filter_by(visa_type=visa_type).all()
-                
-                # 删除不再需要的文档记录
-                for doc in current_documents:
-                    if doc.singapore_identity not in selected_identities and doc.singapore_identity != 'SHARE':
-                        db.session.delete(doc)
-                
-                # 添加新的文档记录
-                existing_identities = {doc.singapore_identity for doc in current_documents}
-                for identity in selected_identities:
-                    if identity not in existing_identities:
+        if request.method == 'POST':
+            try:
+                if field == 'identities':
+                    # 处理身份选项更新
+                    selected_identities = request.form.getlist('identities')
+                    # 删除现有的身份文档
+                    VisaDocuments.query.filter_by(visa_type=visa_type).delete()
+                    # 添加新的身份文档
+                    for identity in selected_identities:
                         new_doc = VisaDocuments(
                             visa_type=visa_type,
-                            singapore_identity=identity,
-                            document_info='待输入',
-                            additional_info='待输入'
+                            singapore_identity=identity
                         )
                         db.session.add(new_doc)
+                else:
+                    # 更新费用或处理时间
+                    value = request.form.get('value')
+                    if field == 'fee':
+                        visa_type_record.fee = value
+                    else:  # processing_time
+                        visa_type_record.processing_time = value
+
+                db.session.commit()
+                flash('更新成功！', 'success')
                 
-                # 确保共用资料存在
-                if not any(doc.singapore_identity == 'SHARE' for doc in current_documents):
-                    share_doc = VisaDocuments(
-                        visa_type=visa_type,
-                        singapore_identity='SHARE',
-                        document_info='待输入',
-                        additional_info='待输入'
-                    )
-                    db.session.add(share_doc)
-            else:
-                # 更新费用或处理时间
-                value = request.form.get('value')
-                if field == 'fee':
-                    visa_type_record.fee = value
-                else:  # processing_time
-                    visa_type_record.processing_time = value
+                # 获取当前的国家筛选参数
+                country_id = request.args.get('country')
+                # 构建重定向URL，保持筛选状态
+                redirect_url = url_for('visa_basic.visa_type_list')
+                if country_id:
+                    redirect_url += f'?country={country_id}'
+                
+                return redirect(redirect_url)
+                
+            except Exception as e:
+                db.session.rollback()
+                flash(f'更新失败：{str(e)}', 'error')
+                return redirect(url_for('visa_basic.visa_type_list'))
 
-            db.session.commit()
-            flash('更新成功！', 'success')
+        # GET 请求处理
+        if field == 'identities':
+            # 从 VisaDocuments 中获取当前身份选项
+            current_documents = VisaDocuments.query.filter_by(visa_type=visa_type).all()
+            current_identities = [doc.singapore_identity for doc in current_documents if doc.singapore_identity != 'SHARE']
             
-            # 获取当前的国家筛选参数
-            country_id = request.args.get('country')
-            # 构建重定向URL，保持筛选状态
-            redirect_url = url_for('visa_basic.visa_type_list')
-            if country_id:
-                redirect_url += f'?country={country_id}'
+            # 获取所有可用的身份选项（从 VisaSingaporeIdentity 表）
+            all_identities = VisaSingaporeIdentity.query.order_by(VisaSingaporeIdentity.identity_zh).all()
+            all_identities = [identity.identity_zh for identity in all_identities]
             
-            return redirect(redirect_url)
-            
-        except Exception as e:
-            db.session.rollback()
-            flash(f'更新失败：{str(e)}', 'error')
-            return redirect(url_for('visa_basic.visa_type_list'))
-
-    # GET 请求处理
-    if field == 'identities':
-        # 从 VisaDocuments 中获取当前身份选项
-        current_documents = VisaDocuments.query.filter_by(visa_type=visa_type).all()
-        current_identities = [doc.singapore_identity for doc in current_documents if doc.singapore_identity != 'SHARE']
-        
-        # 获取所有可用的身份选项（从 VisaSingaporeIdentity 表）
-        all_identities = VisaSingaporeIdentity.query.order_by(VisaSingaporeIdentity.identity_zh).all()
-        all_identities = [identity.identity_zh for identity in all_identities]
-        
-        field_name = '新加坡身份'
-        return render_template('visas/edit_visa_type.html',
-                           visa_type=visa_type,
-                           field=field,
-                           field_name=field_name,
-                           current_value=current_identities,
-                           all_identities=all_identities,
-                           form=form)
-    else:
-        current_value = visa_type_record.fee if field == 'fee' else visa_type_record.processing_time
-        field_name = '费用说明' if field == 'fee' else '处理时间'
-        return render_template('visas/edit_visa_type.html',
-                           visa_type=visa_type,
-                           field=field,
-                           field_name=field_name,
-                           current_value=current_value,
-                           form=form)
+            field_name = '新加坡身份'
+            return render_template('visas/edit_visa_type.html',
+                               visa_type=visa_type,
+                               field=field,
+                               field_name=field_name,
+                               current_value=current_identities,
+                               all_identities=all_identities,
+                               form=form)
+        else:
+            current_value = visa_type_record.fee if field == 'fee' else visa_type_record.processing_time
+            field_name = '费用说明' if field == 'fee' else '处理时间'
+            return render_template('visas/edit_visa_type.html',
+                               visa_type=visa_type,
+                               field=field,
+                               field_name=field_name,
+                               current_value=current_value,
+                               form=form)
+                               
+    except Exception as e:
+        flash(f'获取签证类型信息失败：{str(e)}', 'error')
+        return redirect(url_for('visa_basic.visa_type_list'))
 
 @visa_basic.route('/visa/delete_visa_type/<visa_type>', methods=['POST'])
 def delete_visa_type(visa_type):

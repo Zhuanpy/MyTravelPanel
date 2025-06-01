@@ -73,12 +73,12 @@ def itinerary_conversion():
         return render_template('flights/flight_conversion.html', output_text="")
 
     elif request.method == 'POST':
-        input_text = request.form['input_text']
-        language = request.form['language']
-        luggage = request.form['luggage']
-        price = request.form['price']
-
         try:
+            input_text = request.form['input_text']
+            language = request.form['language']
+            luggage = request.form['luggage']
+            price = request.form['price']
+
             # 根据选择的语言进行文字转换
             output_text = ""
 
@@ -92,12 +92,11 @@ def itinerary_conversion():
                 output_text = format_flight_info(city_language=city_language, texts=input_text, language='EN',
                                                luggage=luggage, price=price)
 
-            return render_template('flights/flight_conversion.html', output_text=output_text)
+            return jsonify({'output_text': output_text})
             
         except Exception as e:
             print(f"Error in itinerary_conversion: {str(e)}")
-            flash('转换过程中发生错误，请检查输入格式是否正确。', 'error')
-            return render_template('flights/flight_conversion.html', output_text="")
+            return jsonify({'error': str(e)}), 500
 
 
 # 机票 行程转换

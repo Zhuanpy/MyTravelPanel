@@ -236,10 +236,19 @@
 {% block content %}
 <div class="flight-app">
     <div class="flight-app-container">
-        
         <h1 class="flight-app-title">机票行程转化</h1>
         
-        <form action="{{ url_for('flights_athina.itinerary_conversion') }}" method="post">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}" role="alert">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        
+        <form action="{{ url_for('flights_athina.itinerary_conversion') }}" method="post" id="conversionForm">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="flight-app-itinerary-container">
                 <div class="flight-app-itinerary-column">
@@ -323,6 +332,64 @@
 {% block scripts %}
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+        // 添加表单提交处理
+        const form = document.getElementById('conversionForm');
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            // 获取表单数据
+            const formData = new FormData(form);
+            
+            // 发送 AJAX 请求
+            fetch(form.action, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
+                }
+            })
+            .then(response => {
+                if (response.redirected) {
+                    window.location.href = response.url;
+                    return;
+                }
+                
+                // 检查响应的 Content-Type
+                const contentType = response.headers.get('content-type');
+                if (contentType && contentType.includes('application/json')) {
+                    return response.json();
+                } else {
+                    // 如果不是 JSON，返回错误信息
+                    throw new Error('服务器返回了非预期的响应格式');
+                }
+            })
+            .then(data => {
+                if (data) {
+                    if (data.error) {
+                        // 显示错误消息
+                        alert(data.error);
+                        // 如果是因为 CSRF token 过期，刷新页面
+                        if (data.error.includes('CSRF')) {
+                            window.location.reload();
+                        }
+                    } else if (data.output_text) {
+                        // 更新输出文本
+                        document.getElementById('output_text').value = data.output_text;
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                // 显示更友好的错误消息
+                alert('提交失败：' + error.message + '\n请刷新页面后重试');
+                // 如果是 CSRF 相关错误，自动刷新页面
+                if (error.message.includes('CSRF')) {
+                    window.location.reload();
+                }
+            });
+        });
+
         var outputTextarea = document.getElementById('output_text');
         if(outputTextarea) {
             outputTextarea.addEventListener('focus', function() {

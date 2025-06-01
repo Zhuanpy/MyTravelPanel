@@ -507,10 +507,7 @@
             
         <form id="visaForm" class="visa-project-form" method="post" action="{{ url_for('visa_project.visa_create_project', visa_type=visa_type) }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <!-- <div class="visa-project-form-info" style="margin-bottom: 15px; padding: 8px 12px; background-color: #e6f7ff; border-radius: 4px; border-left: 4px solid #1890ff;">
-                <i class="fas fa-info-circle"></i> 项目名称将由系统根据 签证类型 + HID或序列号 + 申请人名字 自动生成
-            </div>
-             -->
+   
             <div class="visa-project-form-row">
                 <div class="visa-project-form-group visa-project-form-col-4">
                     <label for="hid_or_serial">HID或序列号</label>
@@ -632,7 +629,7 @@
             </div>
         <div id="content" class="visa-project-content visa-project-file-content">
                 {% if document_data and form_data.singapore_status in document_data %}
-                    {{ document_data[form_data.singapore_status].document_info | safe | replace('\n', '<br>') }}
+                    <div style="white-space: pre-wrap;">{{ document_data[form_data.singapore_status].document_info | safe }}</div>
                 {% else %}
                     <p>暂无文件资料</p>
                 {% endif %}
@@ -643,7 +640,7 @@
         </div>
         <div id="additional_content" class="visa-project-content visa-project-additional-content">
                 {% if document_data and form_data.singapore_status in document_data %}
-                    {{ document_data[form_data.singapore_status].additional_info | safe | replace('\n', '<br>') }}
+                    <div style="white-space: pre-wrap;">{{ document_data[form_data.singapore_status].additional_info | safe }}</div>
                 {% else %}
                     <p>暂无补充信息</p>
                 {% endif %}

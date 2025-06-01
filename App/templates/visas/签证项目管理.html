@@ -435,7 +435,7 @@
                 </td>
                 <td><input type="text" name="estimated_date" value="{{ project.estimated_date }}" class="visa-project-input-field"></td>
                 <td>
-                    <a class="visa-project-open-link" href="{{ url_for('visa_project.open_folder', folder_type='project', file_name=project.name, visa_type=project.visa_type, visa_status=visa_status, sort_by=sort_by, return_to='list') }}">
+                    <a href="javascript:void(0);" class="visa-project-open-link" onclick="openProjectFolder('{{ project.name }}', '{{ project.visa_type }}', '{{ visa_status }}', '{{ sort_by }}')">
                         打开项目
                     </a>
                 </td>
@@ -638,6 +638,26 @@
                 showToast(error.message || "删除失败，请稍后重试！", "error");
             }
         }
+    }
+
+    // 新增异步打开项目文件夹的函数
+    function openProjectFolder(projectName, visaType, visaStatus, sortBy) {
+        fetch(`{{ url_for('visa_project.open_folder') }}?folder_type=project&file_name=${encodeURIComponent(projectName)}&visa_type=${encodeURIComponent(visaType)}&visa_status=${encodeURIComponent(visaStatus)}&sort_by=${encodeURIComponent(sortBy)}&return_to=list`, {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message || "文件夹已打开");
+            } else {
+                alert(data.message || "无法打开文件夹");
+            }
+        })
+        .catch(error => {
+            alert("请求失败: " + error);
+        });
     }
 </script>
 {% endblock %}
