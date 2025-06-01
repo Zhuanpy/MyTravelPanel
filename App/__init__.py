@@ -6,7 +6,7 @@ from .routes.views import dex
 from .exts import db, init_exts
 from .utils.cache import cache
 from datetime import timedelta
-from config import Config
+from .config import Config
 
 # 导入所有模型
 from .models.User import User
