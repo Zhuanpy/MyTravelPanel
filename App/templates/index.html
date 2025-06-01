@@ -24,7 +24,6 @@
         border-radius: 0;
     }
     
-    /* 标题文本样式 */
     .page-header h1 {
         font-size: 2rem;
         font-weight: 600;
@@ -48,7 +47,9 @@
         border: none;
     }
     
+    /* 标题样式 */
     .section-header {
+        position: relative;
         padding: 1rem;
         display: flex;
         align-items: center;
@@ -125,12 +126,11 @@
     
     /* 按钮组样式 */
     .button-group {
-        display: flex;
-        flex-wrap: wrap;
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
         gap: 0.75rem;
         padding: 1rem 1.5rem;
         margin-bottom: 0;
-        grid-template-columns: none;
     }
     
     /* 按钮样式 */
@@ -143,20 +143,49 @@
         font-size: 0.875rem;
         font-weight: 500;
         text-decoration: none;
-        transition: background-color 0.2s;
+        transition: all 0.2s ease;
         min-height: auto;
         gap: 0.5rem;
         border: none;
+        width: 100%; /* 确保按钮填充网格单元格 */
+        white-space: nowrap; /* 防止文字换行 */
+        overflow: hidden; /* 隐藏溢出内容 */
+        text-overflow: ellipsis; /* 显示省略号 */
     }
     
     .btn i {
         margin-right: 0.25rem;
+        flex-shrink: 0; /* 防止图标缩小 */
+    }
+    
+    /* 特定模块的按钮组样式 */
+    .section-card .button-group {
+        grid-template-columns: repeat(4, 1fr); /* 每行4个按钮 */
+    }
+    
+    /* 响应式布局 */
+    @media (max-width: 1200px) {
+        .section-card .button-group {
+            grid-template-columns: repeat(3, 1fr); /* 中等屏幕每行3个按钮 */
+        }
+    }
+
+    @media (max-width: 768px) {
+        .section-card .button-group {
+            grid-template-columns: repeat(2, 1fr); /* 小屏幕每行2个按钮 */
+        }
+    }
+
+    @media (max-width: 480px) {
+        .section-card .button-group {
+            grid-template-columns: 1fr; /* 超小屏幕每行1个按钮 */
+        }
     }
     
     /* 颜色按钮 */
     .btn-blue {
         background-color: var(--color-blue);
-        color: white;
+        color: var(--color-text-light);
     }
     
     .btn-blue:hover {
@@ -165,7 +194,7 @@
     
     .btn-green {
         background-color: var(--color-green);
-        color: white;
+        color: var(--color-text-light);
     }
     
     .btn-green:hover {
@@ -174,7 +203,7 @@
     
     .btn-purple {
         background-color: var(--color-purple);
-        color: white;
+        color: var(--color-text-light);
     }
     
     .btn-purple:hover {
@@ -182,23 +211,21 @@
     }
     
     .btn-yellow {
-        background-color: #ECC94B;
-        color: #2D3748;
+        background-color: var(--color-yellow);
+        color: var(--color-text-dark);
     }
     
     .btn-yellow:hover {
-        background-color: #D69E2E;
-        color: #2D3748;
+        background-color: var(--color-yellow-hover);
     }
     
     .btn-red {
-        background-color: #F56565;
-        color: white;
+        background-color: var(--color-red);
+        color: var(--color-text-light);
     }
     
     .btn-red:hover {
-        background-color: #E53E3E;
-        color: white;
+        background-color: var(--color-red-hover);
     }
     
     /* 页脚样式 */
@@ -276,7 +303,41 @@
         --color-green-hover: #38A169;
         --color-purple: #9F7AEA;
         --color-purple-hover: #805AD5;
-        /* ... 其他颜色 ... */
+        --color-yellow: #ECC94B;
+        --color-yellow-hover: #D69E2E;
+        --color-red: #F56565;
+        --color-red-hover: #E53E3E;
+        --color-text-dark: #2D3748;
+        --color-text-light: white;
+    }
+
+    /* 收起按钮样式 */
+    .collapse-button {
+        position: absolute;
+        right: 1rem;
+        top: 50%;
+        transform: translateY(-50%);
+        background: none;
+        border: none;
+        color: #2a5298;
+        cursor: pointer;
+        padding: 0.5rem;
+        transition: transform 0.3s ease;
+    }
+
+    .collapse-button:hover {
+        color: var(--color-blue-hover);
+    }
+
+    .section-card.collapsed .collapse-button i {
+        transform: rotate(-90deg);
+    }
+
+    .section-card.collapsed .link-container,
+    .section-card.collapsed .button-group,
+    .section-card.collapsed .section-content,
+    .section-card.collapsed .section-footer {
+        display: none;
     }
 </style>
 {% endblock %}
@@ -292,23 +353,26 @@
     <section class="section-card" style="border-top: 4px solid #2a5298">
         <div class="section-header">
             <h3><i class="fas fa-passport"></i> {{ section_title }}</h3>
+            <button class="collapse-button" onclick="this.closest('.section-card').classList.toggle('collapsed')" aria-label="收起/展开签证管理模块">
+                <i class="fas fa-chevron-down"></i>
+            </button>
         </div>
         <div class="link-container">
             <h2 class="link-container-title">{{ section_title }}</h2>
             <div class="link-grid">
-                <a href="{{ url_for('visa_home.home') }}" class="text-link">
+                <a href="{{ url_for('visa_home.home') }}" class="text-link" role="link" aria-label="打开签证首页">
                     <i class="fas fa-home"></i> 签证首页
                 </a>
-                <a href="{{ url_for('visa_project.open_folder', folder_type='visa_root', return_to='home') }}" class="text-link">
+                <a href="{{ url_for('visa_project.open_folder', folder_type='visa_root', return_to='home') }}" class="text-link" role="link" aria-label="打开签证资源文件夹">
                     <i class="fas fa-folder"></i> 资源文件夹
                 </a>
-                <a href="{{ url_for('visa_basic.visa_type_list') }}" class="text-link">
+                <a href="{{ url_for('visa_basic.visa_type_list') }}" class="text-link" role="link" aria-label="打开签证类型管理页面">
                     <i class="fas fa-plus"></i> 签证类型管理
                 </a>
-                <a href="{{ url_for('visa_documents.manage_visas') }}" class="text-link">
+                <a href="{{ url_for('visa_documents.manage_visas') }}" class="text-link" role="link" aria-label="打开签证数据库管理页面">
                     <i class="fas fa-database"></i> 管理签证数据库
                 </a>
-                <a href="{{ url_for('visa_project.show_current_all_projects') }}" class="text-link">
+                <a href="{{ url_for('visa_project.show_current_all_projects') }}" class="text-link" role="link" aria-label="打开项目管理页面">
                     <i class="fas fa-project-diagram"></i> 项目管理
                 </a>
             </div>
@@ -332,6 +396,9 @@
     <section class="section-card" style="border-top: 4px solid #48BB78">
         <div class="section-header">
             <h3><i class="fas fa-plane"></i> 机票管理</h3>
+            <button class="collapse-button" onclick="this.closest('.section-card').classList.toggle('collapsed')" aria-label="收起/展开机票管理模块">
+                <i class="fas fa-chevron-down"></i>
+            </button>
         </div>
         <div class="link-container">
             <h2 class="link-container-title">机票管理</h2>
@@ -375,6 +442,9 @@
     <section class="section-card" style="border-top: 4px solid #9F7AEA">
         <div class="section-header">
             <h3><i class="fas fa-hotel"></i> 配套管理</h3>
+            <button class="collapse-button" onclick="this.closest('.section-card').classList.toggle('collapsed')" aria-label="收起/展开配套管理模块">
+                <i class="fas fa-chevron-down"></i>
+            </button>
         </div>
         <div class="link-container">
             <h2 class="link-container-title">配套管理</h2>
@@ -432,17 +502,34 @@
     <section class="section-card" style="border-top: 4px solid #ECC94B">
         <div class="section-header">
             <h3><i class="fas fa-file-alt"></i> 文件处理</h3>
+            <button class="collapse-button" onclick="this.closest('.section-card').classList.toggle('collapsed')" aria-label="收起/展开文件处理模块">
+                <i class="fas fa-chevron-down"></i>
+            </button>
         </div>
         <div class="link-container">
             <h2 class="link-container-title">文件处理</h2>
             <div class="button-group" style="padding: 0 !important; margin-top: 1rem !important;">
-                <a href="{{url_for('files_process.file_processing')}}" class="btn btn-yellow"><i class="fas fa-file-pdf"></i> PDF处理</a>
-                <a href="{{url_for('files_process.open_FuXin_pdf')}}" class="btn btn-yellow"><i class="fas fa-tools"></i> PDF工具</a>
-                <a href="{{url_for('files_process.open_Photoshop')}}" class="btn btn-yellow"><i class="fas fa-image"></i> Photoshop</a>
-                <a href="{{url_for('files_process.open_Athina')}}" class="btn btn-yellow"><i class="fas fa-code"></i> Athina</a>
-                <a href="{{url_for('account_routes.account_page')}}" class="btn btn-yellow"><i class="fas fa-users"></i> 账号管理</a>
-                <a href="{{url_for('utils_blue.render_pomodoro')}}" class="btn btn-yellow"><i class="fas fa-clock"></i> 番茄工作法</a>
-                <a href="{{url_for('company_info.company_header')}}" class="btn btn-yellow"><i class="fas fa-building"></i> 公司抬头</a>
+                <a href="{{url_for('files_process.file_processing')}}" class="btn btn-yellow" role="button" aria-label="打开PDF处理页面">
+                    <i class="fas fa-file-pdf"></i> PDF处理
+                </a>
+                <a href="{{url_for('files_process.open_FuXin_pdf')}}" class="btn btn-yellow" role="button" aria-label="打开PDF工具页面">
+                    <i class="fas fa-tools"></i> PDF工具
+                </a>
+                <a href="{{url_for('files_process.open_Photoshop')}}" class="btn btn-yellow" role="button" aria-label="打开Photoshop">
+                    <i class="fas fa-image"></i> Photoshop
+                </a>
+                <a href="{{url_for('files_process.open_Athina')}}" class="btn btn-yellow" role="button" aria-label="打开Athina">
+                    <i class="fas fa-code"></i> Athina
+                </a>
+                <a href="{{url_for('account_routes.account_page')}}" class="btn btn-yellow" role="button" aria-label="打开账号管理页面">
+                    <i class="fas fa-users"></i> 账号管理
+                </a>
+                <a href="{{url_for('utils_blue.render_pomodoro')}}" class="btn btn-yellow" role="button" aria-label="打开番茄工作法">
+                    <i class="fas fa-clock"></i> 番茄工作法
+                </a>
+                <a href="{{url_for('company_info.company_header')}}" class="btn btn-yellow" role="button" aria-label="打开公司抬头">
+                    <i class="fas fa-building"></i> 公司抬头
+                </a>
             </div>
         </div>
         <div class="section-footer">
@@ -456,6 +543,9 @@
     <section class="section-card" style="border-top: 4px solid #F56565">
         <div class="section-header">
             <h3><i class="fas fa-file-invoice-dollar"></i> 账单处理</h3>
+            <button class="collapse-button" onclick="this.closest('.section-card').classList.toggle('collapsed')" aria-label="收起/展开账单处理模块">
+                <i class="fas fa-chevron-down"></i>
+            </button>
         </div>
         <div class="link-container">
             <h2 class="link-container-title">账单处理</h2>
@@ -465,9 +555,15 @@
                 </a>
             </div>
             <div class="button-group" style="padding: 0 !important; margin-top: 1rem !important;">
-                <a href="{{url_for('statement_routes.uob_bank')}}" class="btn btn-red"><i class="fas fa-university"></i> UOB 银行账单</a>
-                <a href="{{url_for('statement_routes.athina_page')}}" class="btn btn-red"><i class="fas fa-file-invoice"></i> Athina 账单</a>
-                <a href="{{url_for('statement_routes.company_bill')}}" class="btn btn-red"><i class="fas fa-file-invoice-dollar"></i> 公司账单</a>
+                <a href="{{url_for('statement_routes.uob_bank')}}" class="btn btn-red" role="button" aria-label="打开UOB银行账单页面">
+                    <i class="fas fa-university"></i> UOB 银行账单
+                </a>
+                <a href="{{url_for('statement_routes.athina_page')}}" class="btn btn-red" role="button" aria-label="打开Athina账单页面">
+                    <i class="fas fa-file-invoice"></i> Athina 账单
+                </a>
+                <a href="{{url_for('statement_routes.company_bill')}}" class="btn btn-red" role="button" aria-label="打开公司账单页面">
+                    <i class="fas fa-file-invoice-dollar"></i> 公司账单
+                </a>
             </div>
         </div>
         <div class="section-footer">
@@ -482,13 +578,22 @@
 {% block scripts %}
 <script src="/static/Js/ff.js"></script>
 <script>
-    // 文件夹操作事件处理
+    // 展开/收起国家部分的函数
+    function toggleSection(section) {
+        section.classList.toggle("collapsed");
+        checkOverflow(); // 切换后检查内容是否溢出
+    }
+
+    // 页面加载和窗口大小改变时检查溢出
+    window.addEventListener('load', checkOverflow);
+    window.addEventListener('resize', checkOverflow);
+
+    // 移除旧的 folderHandlers 中的 OpenBillProject 处理
     const folderHandlers = {
         'openPackageFolder': ['{{ url_for("index.open_package_folder") }}', '资源文件夹已打开'],
         'openProjectFolder': ['{{ url_for("index.open_package_project_folder") }}', '项目文件夹已打开'],
         'openFlightProjectFolder': ['{{ url_for("flight_home.open_project_folder") }}', '航班项目文件夹已打开'],
-        'openRefundFolder': ['{{ url_for("flight_home.open_refund_folder") }}', '退票文件夹已打开'],
-        'OpenBillProject': ['{{ url_for("index.open_bill_project_folder") }}', '账单文件夹已打开']
+        'openRefundFolder': ['{{ url_for("flight_home.open_refund_folder") }}', '退票文件夹已打开']
     };
 
     Object.entries(folderHandlers).forEach(([id, [url, message]]) => {
@@ -499,6 +604,56 @@
                 sendPostRequest(url, message);
             });
         }
+    });
+
+    // 添加新的 OpenBillProject 点击事件处理
+    document.getElementById("OpenBillProject").addEventListener("click", function (e) {
+        e.preventDefault();
+        fetch("/open_bill_project_folder")
+        .then(response => response.json())
+        .then(data => {
+            const message = data.status === "success" ? 
+                "文件夹已打开：" + data.path : 
+                "打开失败：" + data.message;
+            
+            // 创建 toast 元素
+            const toast = document.createElement('div');
+            toast.textContent = message;
+            toast.style.position = 'fixed';
+            toast.style.top = '20px';
+            toast.style.left = '20px';
+            toast.style.backgroundColor = data.status === "success" ? '#4CAF50' : '#f44336';
+            toast.style.color = 'white';
+            toast.style.padding = '10px 20px';
+            toast.style.borderRadius = '5px';
+            toast.style.zIndex = '1000';
+            
+            // 添加到页面
+            document.body.appendChild(toast);
+            
+            // 0.1秒后移除
+            setTimeout(() => {
+                document.body.removeChild(toast);
+            }, 100);
+        })
+        .catch(error => {
+            console.error("请求失败:", error);
+            const toast = document.createElement('div');
+            toast.textContent = "请求失败：" + error;
+            toast.style.position = 'fixed';
+            toast.style.top = '20px';
+            toast.style.left = '20px';
+            toast.style.backgroundColor = '#f44336';
+            toast.style.color = 'white';
+            toast.style.padding = '10px 20px';
+            toast.style.borderRadius = '5px';
+            toast.style.zIndex = '1000';
+            
+            document.body.appendChild(toast);
+            setTimeout(() => {
+                document.body.removeChild(toast);
+            }, 100);
+        });
     });
 
     function checkOverflow() {
@@ -518,14 +673,5 @@
             }
         });
     }
-
-    function toggleSection(section) {
-        section.classList.toggle('collapsed');
-        checkOverflow();
-    }
-
-    // 页面加载和窗口大小改变时检查溢出
-    window.addEventListener('load', checkOverflow);
-    window.addEventListener('resize', checkOverflow);
 </script>
 {% endblock %}
