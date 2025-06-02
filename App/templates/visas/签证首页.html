@@ -23,34 +23,34 @@
     --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
     --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.1);
     --shadow-lg: 0 4px 6px rgba(0, 0, 0, 0.1);
-}
+        }
 
 /* ========= 基础容器 ========= */
-.visa-home-container {
+    .visa-home-container {
     max-width: 1200px;
-    margin: 0 auto;
+        margin: 0 auto;
     padding: 20px;
-}
-
+    }
+    
 /* ========= 页面头部 ========= */
-.visa-home-header {
+    .visa-home-header {
     background: var(--color-light-bg);
     padding: 32px 24px 18px 24px;
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-sm);
     margin-bottom: 28px;
-    text-align: center;
+        text-align: center;
     position: relative;
-}
-
-.visa-home-title {
+    }
+    
+    .visa-home-title {
     font-size: 2.2rem;
     font-weight: 700;
     color: var(--color-text-dark);
     margin-bottom: 18px;
     letter-spacing: 1px;
-}
-
+    }
+    
 .visa-home-subtitle {
     margin-top: 18px;
     font-size: 1.1rem;
@@ -91,53 +91,53 @@
     color: #aaa;
     background: #eee;
     border-color: #eee;
-}
-
+    }
+    
 /* ========= 国家卡片网格 ========= */
 .countries-grid {
-    display: grid;
+        display: grid;
     grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-    gap: 1.5rem;
+        gap: 1.5rem;
     margin-top: 2rem;
-}
-
+    }
+    
 .country-card {
     background: white;
     border-radius: var(--radius);
     box-shadow: var(--shadow-md);
     transition: transform 0.2s, box-shadow 0.2s;
     cursor: pointer;
-    overflow: hidden;
-}
-
+        overflow: hidden;
+    }
+    
 .country-card:hover {
     transform: translateY(-5px);
     box-shadow: var(--shadow-lg);
-}
-
+    }
+    
 .country-card-header {
     padding: 1.5rem;
     background: var(--color-primary);
     color: white;
-    display: flex;
-    align-items: center;
+        display: flex;
+        align-items: center;
     gap: 0.75rem;
 }
 
 .country-card-header i {
     font-size: 1.5rem;
-}
-
+    }
+    
 .country-card-title {
     font-size: 1.25rem;
-    font-weight: 600;
+        font-weight: 600;
     margin-bottom: 0.5rem;
-}
-
+    }
+    
 .country-card-body {
     padding: 1.5rem;
-}
-
+    }
+    
 .country-card-info {
     color: #718096;
     font-size: 0.875rem;
@@ -163,15 +163,15 @@
     box-shadow: var(--shadow-lg);
     max-height: 80vh;
     overflow-y: auto;
-}
-
+    }
+    
 .modal-header {
     padding: 1.5rem;
     border-bottom: 1px solid var(--color-border);
     display: flex;
     justify-content: space-between;
     align-items: center;
-}
+    }
 
 .modal-title {
     font-size: 1.5rem;
@@ -190,25 +190,25 @@
 
 .modal-body {
     padding: 1.5rem;
-}
-
+        }
+        
 /* ========= 签证类型列表 ========= */
 .visa-list {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
     gap: 1rem;
-}
-
+    }
+    
 .visa-item {
     background: #f7fafc;
     border-radius: 6px;
     padding: 1rem;
     border: 1px solid var(--color-border);
-}
-
+    }
+    
 .visa-item-header {
-    display: flex;
-    align-items: center;
+        display: flex;
+        align-items: center;
     gap: 0.5rem;
     margin-bottom: 0.75rem;
 }
@@ -222,8 +222,8 @@
     display: grid;
     gap: 0.5rem;
     margin-bottom: 1rem;
-}
-
+    }
+    
 .visa-item-info-row {
     display: flex;
     justify-content: space-between;
@@ -232,13 +232,13 @@
 
 .visa-item-label {
     color: #718096;
-}
-
+    }
+    
 .visa-item-value {
     color: var(--color-text-dark);
     font-weight: 500;
-}
-
+    }
+    
 /* ========= 按钮 ========= */
 .visa-btn {
     display: inline-block;
@@ -247,109 +247,107 @@
     text-decoration: none;
     font-weight: 500;
     transition: background-color 0.2s;
-}
-
+        }
+        
 .visa-btn-primary {
     background: var(--color-primary);
-    color: white;
-}
-
+            color: white;
+        }
+        
 .visa-btn-primary:hover {
     background: var(--color-primary-hover);
-}
-
+    }
+    
 /* ========= 响应式 ========= */
 @media (max-width: 600px) {
     .visa-home-header {
         padding: 18px 6px 12px 6px;
     }
 
-    .visa-home-title {
+        .visa-home-title {
         font-size: 1.3rem;
-    }
+        }
 
     .visa-home-subtitle {
         font-size: 0.98rem;
-    }
+        }
 
     .text-link {
-        font-size: 0.9rem;
+            font-size: 0.9rem;
         padding: 6px 10px;
         margin: 0 4px 8px 0;
-    }
+        }
 
     .visa-list {
         grid-template-columns: 1fr;
-    }
+        }
 
     .countries-grid {
         grid-template-columns: 1fr;
     }
-}
+    }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="visa-home-container">
-    <div class="visa-home-header">
-        <h1 class="visa-home-title">签证服务</h1>
-
-        <a href="{{ url_for('visa_project.show_current_all_projects') }}" class="text-link">
-            <i class="fas fa-project-diagram"></i> 项目管理
-        </a>
-
-        <a href="{{ url_for('visa_basic.visa_type_list') }}" class="text-link">
-            <i class="fas fa-plus"></i> 签证类型管理
-        </a>
-        <a href="{{ url_for('visa_documents.manage_visas') }}" class="text-link">
-            <i class="fas fa-database"></i> 文件资料管理
-        </a>
-
-        <a href="{{ url_for('visa_basic.manage_countries') }}" class="text-link">
-            <i class="fas fa-flag"></i> 签证国家管理
-        </a>
+    <div class="visa-home-container">
+        <div class="visa-home-header">
+            <h1 class="visa-home-title">签证服务</h1>
+                
+            <a href="{{ url_for('visa_project.show_current_all_projects') }}" class="text-link">
+                    <i class="fas fa-project-diagram"></i> 项目管理
+                </a>
    
-        <a href="javascript:void(0);" onclick="openVisaRootFolder()" class="text-link">
-            <i class="fas fa-folder"></i> 资源文件夹
-        </a>
+            <a href="{{ url_for('visa_basic.visa_type_list') }}" class="text-link">
+                <i class="fas fa-plus"></i> 签证类型管理
+                </a>
+            <a href="{{ url_for('visa_documents.manage_visas') }}" class="text-link">
+                <i class="fas fa-database"></i> 文件资料管理
+                </a>
+  
+            <a href="{{ url_for('visa_basic.manage_countries') }}" class="text-link">
+                <i class="fas fa-flag"></i> 签证国家管理
+                </a>
+
+            <a href="javascript:void(0);" onclick="openVisaRootFolder()" class="text-link">
+                    <i class="fas fa-folder"></i> 资源文件夹
+                </a>
+        </div>
         
+        <h2 class="visa-home-subtitle">选择国家查看可办理的签证类型</h2>
 
-    </div>
-
-    <h2 class="visa-home-subtitle">选择国家查看可办理的签证类型</h2>
-    
-    <div class="countries-grid">
-        {% for country, visas in visas_by_country.items() %}
-        {% if visas %}
-        <div class="country-card" 
-             data-country="{{ country|e }}"
-             data-visa-types='{{ visas|map(attribute="visa_type")|list|tojson }}'
-             data-processing-times='{{ visas|map(attribute="processing_time")|list|tojson }}'
-             data-fees='{{ visas|map(attribute="fee")|list|tojson }}'>
-            <div class="country-card-header">
-                <i class="fas fa-flag"></i>
-                <h3 class="country-card-title">{{ country|e }}</h3>
-            </div>
-            <div class="country-card-body">
-                <div class="country-card-info">
-                    可办理 {{ visas|length }} 种签证类型
+        <div class="countries-grid">
+            {% for country, visas in visas_by_country.items() %}
+                {% if visas %}
+                    <div class="country-card" 
+                         data-country="{{ country|e }}"
+                         data-visa-types='{{ visas|map(attribute="visa_type")|list|tojson }}'
+                         data-processing-times='{{ visas|map(attribute="processing_time")|list|tojson }}'
+                         data-fees='{{ visas|map(attribute="fee")|list|tojson }}'>
+                        <div class="country-card-header">
+                            <i class="fas fa-flag"></i>
+                            <h3 class="country-card-title">{{ country|e }}</h3>
+                        </div>
+                        <div class="country-card-body">
+                            <div class="country-card-info">
+                                可办理 {{ visas|length }} 种签证类型
+                            </div>
+                        </div>
+                    </div>
+                {% endif %}
+                    {% endfor %}
                 </div>
-            </div>
-        </div>
-        {% endif %}
-        {% endfor %}
     </div>
-</div>
 
-<!-- Visa Modal -->
-<div id="visaModal" class="modal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h2 class="modal-title" id="modalTitle"></h2>
-            <button class="close-modal" onclick="closeVisaModal()">&times;</button>
-        </div>
-        <div class="modal-body">
-            <div id="visaList" class="visa-list"></div>
+    <!-- Visa Modal -->
+    <div id="visaModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title" id="modalTitle"></h2>
+                <button class="close-modal" onclick="closeVisaModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="visaList" class="visa-list"></div>
         </div>
     </div>
 </div>
@@ -428,7 +426,7 @@
                     </div>
                 </div>
                 <div class="visa-item-actions">
-                    <a href="/visa/project/visa_processing/${encodeURIComponent(visaTypes[i] || '')}" class="visa-btn visa-btn-primary">
+                    <a href="{{ url_for('visa_project.visa_processing', visa_type='') }}${encodeURIComponent(visaTypes[i] || '')}" class="visa-btn visa-btn-primary">
                         开始处理
                     </a>
                 </div>
@@ -442,7 +440,7 @@
     function closeVisaModal() {
         const modal = document.getElementById('visaModal');
         modal.style.display = 'none';
-    }
+        }
 
     // Close modal when clicking outside
     window.onclick = function(event) {
@@ -474,11 +472,11 @@
             document.body.appendChild(toast);
             setTimeout(() => {
                 document.body.removeChild(toast);
-            }, 100);
+            }, 3000);
         })
         .catch(error => {
             alert("请求失败: " + error);
         });
-    }
+}
 </script>
 {% endblock %} 

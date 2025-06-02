@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from ..exts import db
-from ..models import VisaDocuments, VisaTypes, VisaSingaporeIdentity, VisaCountries
+from ..models import VisaDocuments, VisaTypes, VisaSingaporeIdentity, VisaCountries # , # IdentityDocument
 from pathlib import Path
 import logging
 
@@ -287,6 +287,72 @@ def get_visa_types():
         })
     except Exception as e:
         print(f"获取签证类型时发生错误: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+
+
+@visa_documents.route('/api/visa/identity-documents')
+def get_identity_documents():
+    try:
+        visa_type = request.args.get('visa_type')
+        identity_id = request.args.get('identity_id')
+        
+        if not visa_type or not identity_id:
+            return jsonify({
+                'success': False,
+                'message': '缺少必要参数'
+            }), 400
+
+        # 从VisaDocuments表获取该身份需要的文档信息
+        document = VisaDocuments.query.filter_by(
+            visa_type=visa_type,
+            singapore_identity=identity_id
+        ).first()
+
+        if not document:
+            return jsonify({
+                'success': False,
+                'message': '未找到相关文档'
+            }), 404
+
+        # 解析文档信息
+        document_info = document.document_info or ''
+        additional_info = document.additional_info or ''
+
+        # 将文档信息转换为前端需要的格式
+        documents = []
+        
+        # 处理共用资料
+        if '【共用资料】' in document_info:
+            common_docs = document_info.split('【共用资料】')[1].split('【特定身份资料】')[0].strip()
+            for doc in common_docs.split('\n'):
+                if doc.strip():
+                    documents.append({
+                        'name': doc.strip(),
+                        'url': '#',
+                        'icon': 'fa-file-alt'
+                    })
+
+        # 处理特定身份资料
+        if '【特定身份资料】' in document_info:
+            specific_docs = document_info.split('【特定身份资料】')[1].strip()
+            for doc in specific_docs.split('\n'):
+                if doc.strip():
+                    documents.append({
+                        'name': doc.strip(),
+                        'url': '#',
+                        'icon': 'fa-file-alt'
+                    })
+
+        return jsonify({
+            'success': True,
+            'documents': documents,
+            'additional_info': additional_info
+        })
+
+    except Exception as e:
         return jsonify({
             'success': False,
             'message': str(e)

@@ -261,7 +261,7 @@
                     <label class="label">签证类型</label>
                     <div class="control">
                         <div class="select is-fullwidth">
-                            <select name="visa_type" id="visa_type" disabled>
+                            <select name="visa_type" id="editVisaType" disabled>
                                 <option value="">请选择签证类型</option>
                                 {% for type in visa_types %}
                                 <option value="{{ type }}" {% if type == current_visa_type %}selected{% endif %}>{{ type }}</option>
@@ -274,8 +274,12 @@
                     <label class="label">新加坡身份</label>
                     <div class="control">
                         <div class="select is-fullwidth">
-                            <select name="singapore_identity" id="singapore_identity" disabled>
+                            <select name="singapore_identity" id="editSingaporeIdentity" disabled>
                                 <option value="">请选择新加坡身份</option>
+                                <option value="share">共用资料</option>
+                                {% for identity in singapore_identities %}
+                                <option value="{{ identity }}">{{ identity }}</option>
+                                {% endfor %}
                             </select>
                         </div>
                     </div>
@@ -302,8 +306,8 @@
             </form>
         </section>
         <footer class="modal-card-foot">
-            <button class="button is-primary" type="button" onclick="submitEditForm(event)">保存修改</button>
-            <button class="button" type="button" onclick="closeEditModal()">取消</button>
+            <button class="button is-success" onclick="submitEditForm()">保存</button>
+            <button class="button" onclick="closeEditModal()">取消</button>
         </footer>
     </div>
 </div>
@@ -312,7 +316,7 @@
 document.addEventListener('DOMContentLoaded', function() {
     const countrySelect = document.getElementById('countrySelect');
     const visaTypeSelect = document.getElementById('visaTypeSelect');
-    const editVisaTypeSelect = document.getElementById('visa_type');
+    const editVisaTypeSelect = document.getElementById('editVisaType');
     const form = document.getElementById('filterForm');
     
     // 更新签证类型选项
@@ -345,7 +349,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // 更新新加坡身份选项
     window.updateSingaporeIdentities = function(visaType) {
-        const identitySelect = document.getElementById('singapore_identity');
+        const identitySelect = document.getElementById('editSingaporeIdentity');
         identitySelect.innerHTML = '<option value="">请选择新加坡身份</option>';
 
         if (visaType) {
@@ -419,57 +423,68 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function openEditModal(documentId, visaType, singaporeIdentity, documentInfo, additionalInfo) {
-    console.log('Opening modal with:', { documentId, visaType, singaporeIdentity });
+    console.log('Opening modal with:', { documentId, visaType, singaporeIdentity, documentInfo, additionalInfo });
     
-    // 重置表单
-    document.getElementById('editDocumentForm').reset();
-    
-    // 检查模态框元素是否存在
     const modal = document.getElementById('editDocumentModal');
-    if (!modal) {
-        console.error('Modal element not found!');
-        return;
+    const form = document.getElementById('editDocumentForm');
+    const shareInfo = document.getElementById('shareInfo');
+    
+    // 设置表单值
+    document.getElementById('editDocumentId').value = documentId;
+    document.getElementById('editVisaType').value = visaType;
+    
+    // 处理身份值
+    const identitySelect = document.getElementById('editSingaporeIdentity');
+    console.log('Original identity value:', singaporeIdentity);
+    
+    // 确保身份选择框包含所有选项
+    if (!identitySelect.querySelector(`option[value="${singaporeIdentity}"]`)) {
+        const option = document.createElement('option');
+        option.value = singaporeIdentity;
+        option.textContent = singaporeIdentity;
+        identitySelect.appendChild(option);
     }
     
-    // 设置表单数据
-    const editDocumentId = document.getElementById('editDocumentId');
-    const visaTypeSelect = document.getElementById('visa_type');
-    const identitySelect = document.getElementById('singapore_identity');
-    const documentInfoTextarea = document.getElementById('editDocumentInfo');
-    const additionalInfoTextarea = document.getElementById('editAdditionalInfo');
-    
-    if (!editDocumentId || !visaTypeSelect || !identitySelect || !documentInfoTextarea || !additionalInfoTextarea) {
-        console.error('Required form elements not found!');
-        return;
-    }
-    
-    editDocumentId.value = documentId;
-    visaTypeSelect.value = visaType;
-    
-    // 先更新新加坡身份选项，然后设置选中的值
-    updateSingaporeIdentities(visaType);
-    setTimeout(() => {
-        identitySelect.value = singaporeIdentity;
-        // 确保两个选择框都是禁用状态
-        visaTypeSelect.disabled = true;
-        identitySelect.disabled = true;
-    }, 200);
-    
-    // 处理换行符
-    documentInfoTextarea.value = documentInfo.replace(/\\r\\n/g, '\n').replace(/\\n/g, '\n');
-    additionalInfoTextarea.value = additionalInfo.replace(/\\r\\n/g, '\n').replace(/\\n/g, '\n');
+    // 设置身份值
+    identitySelect.value = singaporeIdentity;
+    console.log('Set identity value to:', identitySelect.value);
     
     // 显示/隐藏共用资料提示
-    const shareInfo = document.getElementById('shareInfo');
-    if (singaporeIdentity === 'SHARE') {
+    if (singaporeIdentity.toUpperCase() === 'SHARE') {
         shareInfo.style.display = 'block';
     } else {
         shareInfo.style.display = 'none';
     }
     
+    // 处理文本内容的换行
+    const documentInfoTextarea = document.getElementById('editDocumentInfo');
+    const additionalInfoTextarea = document.getElementById('editAdditionalInfo');
+    
+    // 替换转义的换行符为实际的换行符，并移除多余的空行
+    if (documentInfo) {
+        documentInfoTextarea.value = documentInfo
+            .replace(/\\n/g, '\n')
+            .replace(/\\r\\n/g, '\n')
+            .replace(/\\r/g, '\n')
+            .replace(/\n\s*\n/g, '\n')  // 移除多余的空行
+            .trim();  // 移除首尾空白
+    } else {
+        documentInfoTextarea.value = '';
+    }
+    
+    if (additionalInfo) {
+        additionalInfoTextarea.value = additionalInfo
+            .replace(/\\n/g, '\n')
+            .replace(/\\r\\n/g, '\n')
+            .replace(/\\r/g, '\n')
+            .replace(/\n\s*\n/g, '\n')  // 移除多余的空行
+            .trim();  // 移除首尾空白
+    } else {
+        additionalInfoTextarea.value = '';
+    }
+    
     // 显示模态框
     modal.classList.add('is-active');
-    console.log('Modal should be visible now');
 }
 
 function closeEditModal() {
@@ -477,80 +492,83 @@ function closeEditModal() {
     modal.classList.remove('is-active');
 }
 
-// 点击模态框背景关闭模态框
-document.addEventListener('DOMContentLoaded', () => {
-    const modal = document.getElementById('editDocumentModal');
-    const modalBackground = modal.querySelector('.modal-background');
+function submitEditForm() {
+    const form = document.getElementById('editDocumentForm');
+    const formData = new FormData(form);
+    const documentId = document.getElementById('editDocumentId').value;
     
-    modalBackground.addEventListener('click', () => {
-        closeEditModal();
-    });
-});
-
-async function submitEditForm(event) {
-    if (event) event.preventDefault();
+    // 获取身份值
+    const identitySelect = document.getElementById('editSingaporeIdentity');
+    const identityValue = identitySelect.value;
     
-    // 获取保存按钮并添加加载状态
-    const saveButton = document.querySelector('.modal-card-foot .button.is-primary');
-    saveButton.classList.add('is-loading');
+    // 确保所有必要的表单字段都被包含
+    formData.append('document_id', documentId);
+    // 保持原始身份值，不进行大小写转换
+    formData.append('singapore_identity', identityValue);
+    formData.append('visa_type', document.getElementById('editVisaType').value);
+    formData.append('document_info', document.getElementById('editDocumentInfo').value);
+    formData.append('additional_info', document.getElementById('editAdditionalInfo').value);
     
-    try {
-        const form = document.getElementById('editDocumentForm');
-        const formData = new FormData(form);
-        
-        const response = await fetch('/visa/documents/manage_visas', {
-            method: 'POST',
-            body: formData,
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest'
-            }
-        });
-        
+    // 使用正确的路由
+    fetch("{{ url_for('visa_documents.manage_visas') }}", {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
+        }
+    })
+    .then(response => {
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
-        
-        const result = await response.json();
-        
-        if (result.success) {
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
             // 显示成功消息
-            const alertDiv = document.createElement('div');
-            alertDiv.className = 'notification is-success';
-            alertDiv.innerHTML = `
-                <button class="delete" onclick="this.parentElement.remove()"></button>
-                ${result.message}
-            `;
-            document.querySelector('.visa-doc-container').insertBefore(alertDiv, document.querySelector('.visa-doc-header-container'));
-            
-            // 0.5秒后自动关闭提示和模态框
+            const toast = document.createElement('div');
+            toast.textContent = '资料更新成功！';
+            toast.style.position = 'fixed';
+            toast.style.top = '20px';
+            toast.style.right = '20px';
+            toast.style.backgroundColor = '#4CAF50';
+            toast.style.color = 'white';
+            toast.style.padding = '10px 20px';
+            toast.style.borderRadius = '5px';
+            toast.style.zIndex = '1000';
+            document.body.appendChild(toast);
             setTimeout(() => {
-                alertDiv.remove();
-                closeEditModal();
-                // 刷新页面以显示更新后的数据
-                window.location.reload();
-            }, 500);
+                document.body.removeChild(toast);
+            }, 3000);
+            
+            // 关闭模态框并刷新页面
+            closeEditModal();
+            location.reload();
         } else {
-            throw new Error(result.message || '保存失败');
+            throw new Error(data.message || '更新失败');
         }
-    } catch (error) {
+    })
+    .catch(error => {
         console.error('Error:', error);
-        // 显示错误消息
-        const alertDiv = document.createElement('div');
-        alertDiv.className = 'notification is-danger';
-        alertDiv.innerHTML = `
-            <button class="delete" onclick="this.parentElement.remove()"></button>
-            ${error.message}
-        `;
-        document.querySelector('.visa-doc-container').insertBefore(alertDiv, document.querySelector('.visa-doc-header-container'));
         
-        // 0.5秒后自动关闭提示
+        // 显示错误消息
+        const toast = document.createElement('div');
+        toast.textContent = error.message || '更新失败，请稍后重试';
+        toast.style.position = 'fixed';
+        toast.style.top = '20px';
+        toast.style.right = '20px';
+        toast.style.backgroundColor = '#f44336';
+        toast.style.color = 'white';
+        toast.style.padding = '10px 20px';
+        toast.style.borderRadius = '5px';
+        toast.style.zIndex = '1000';
+        document.body.appendChild(toast);
         setTimeout(() => {
-            alertDiv.remove();
-        }, 500);
-    } finally {
-        // 移除保存按钮的加载状态
-        saveButton.classList.remove('is-loading');
-    }
+            document.body.removeChild(toast);
+        }, 3000);
+    });
 }
 </script>
 {% endblock %}
+

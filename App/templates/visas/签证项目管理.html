@@ -452,7 +452,7 @@
         <h2 class="visa-project-links-title">签证处理链接</h2>
         <div class="visa-project-button-group">
             {% for visa in visa_categories %}
-                <a href="{{ url_for('visa_routes.visa_processing', country=visa.visa_type) }}"
+                <a href="{{ url_for('visa_project.visa_processing', visa_type=visa.visa_type) }}"
                    class="visa-project-btn visa-project-btn-blue">
                    {{ visa.visa_type }}签证
                 </a>
@@ -539,12 +539,16 @@
                 indicator.style.display = 'inline-flex';
                 
                 try {
+                    // 获取 CSRF 令牌
+                    const csrfToken = document.querySelector('input[name="csrf_token"]').value;
+                    
                     // 发送请求
-                    const response = await fetch(`/visa/update_visa_status/${projectId}`, {
+                    const response = await fetch(`/visa/project/update_visa_status/${projectId}`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/x-www-form-urlencoded',
-                            'X-Requested-With': 'XMLHttpRequest'
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'X-CSRFToken': csrfToken
                         },
                         body: `visa_status=${encodeURIComponent(newStatus)}`
                     });
@@ -642,7 +646,7 @@
 
     // 新增异步打开项目文件夹的函数
     function openProjectFolder(projectName, visaType, visaStatus, sortBy) {
-        fetch(`{{ url_for('visa_project.open_folder') }}?folder_type=project&file_name=${encodeURIComponent(projectName)}&visa_type=${encodeURIComponent(visaType)}&visa_status=${encodeURIComponent(visaStatus)}&sort_by=${encodeURIComponent(sortBy)}&return_to=list`, {
+        fetch(`/visa/project/open_folder?folder_type=project&file_name=${encodeURIComponent(projectName)}&visa_type=${encodeURIComponent(visaType)}&visa_status=${encodeURIComponent(visaStatus)}&sort_by=${encodeURIComponent(sortBy)}&return_to=list`, {
             headers: {
                 'X-Requested-With': 'XMLHttpRequest'
             }

@@ -34,7 +34,7 @@ def get_project_folders_with_dates(projects_dir, excluded_folders):
 
 
 
-@visa_project.route('/visa/show_current_all_projects', methods=['GET'])
+@visa_project.route('/show_current_all_projects', methods=['GET'])
 def show_current_all_projects():
     # 获取排序参数，默认按项目名称排序
     sort_by = request.args.get('sort_by', 'name')
@@ -205,7 +205,7 @@ def delete_current_project(project_id):
         return jsonify({"success": False, "message": str(e)}), 500
 
 
-@visa_project.route('/visa/update_project/<int:project_id>', methods=['GET', 'POST'])
+@visa_project.route('/update_project/<int:project_id>', methods=['GET', 'POST'])
 def update_current_project(project_id):
     # 从数据库中获取该项目
     project = VisaProject.query.get_or_404(project_id)
@@ -271,14 +271,14 @@ def update_current_project(project_id):
     return render_template('visas/现有签证项目管理.html', project=project)
 
 
-@visa_project.route('/visa/edit_project/<int:project_id>', methods=['GET'])
+@visa_project.route('/edit_project/<int:project_id>', methods=['GET'])
 def edit_project(project_id):
     """显示签证项目编辑页面"""
     project = VisaProject.query.get_or_404(project_id)
     return render_template('visas/签证项目编辑.html', project=project)
 
 
-@visa_project.route('/visa/generate_form/<int:project_id>', methods=['POST'])
+@visa_project.route('/generate_form/<int:project_id>', methods=['POST'])
 def generate_form_for_project(project_id):
     """为现有项目生成表格"""
     try:
@@ -327,7 +327,7 @@ def generate_form_for_project(project_id):
 
 
 """ 签证详细 开始 """
-@visa_project.route('/visa/detail/<int:project_id>')
+@visa_project.route('/detail/<int:project_id>')
 def visa_detail(project_id):
     """显示签证项目详情页面"""
     # 获取当前的visa_status和sort_by参数
@@ -390,75 +390,37 @@ def visa_detail(project_id):
                          sort_by=sort_by)
 
 
-@visa_project.route('/visa/update_visa_status/<int:project_id>', methods=['POST'])
+@visa_project.route('/update_visa_status/<int:project_id>', methods=['POST'])
 def update_visa_status(project_id):
-    """处理签证状态更新表单提交"""
     try:
-        # 从数据库中获取该项目
+        # 获取新的签证状态
+        new_status = request.form.get('visa_status')
+        if not new_status:
+            return jsonify({'success': False, 'message': '未提供签证状态'}), 400
+
+        # 获取项目
         project = VisaProject.query.get_or_404(project_id)
+        
+        # 更新状态
+        project.visa_status = new_status
+        db.session.commit()
 
-        # 获取表单数据
-        visa_status = request.form.get('visa_status')
-
-        # 获取当前的签证状态和排序方式，用于保持页面状态
-        current_visa_status = request.form.get('current_visa_status', 'all')
-        current_sort_by = request.form.get('current_sort_by', 'name')
-        current_filter_visa_type = request.form.get('current_filter_visa_type', 'all')
-
-        # 更新项目的签证状态
-        if visa_status:
-            project.visa_status = visa_status
-
-        # 提交更改到数据库
-        try:
-            db.session.commit()
-
-            # 检查是否是AJAX请求
-            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                return jsonify({
-                    "success": True,
-                    "message": "签证状态更新成功",
-                    "project": {
-                        "id": project.id,
-                        "visa_status": project.visa_status
-                    }
-                })
-
-            flash('签证状态更新成功！', 'success')
-        except Exception as e:
-            db.session.rollback()
-
-            # 检查是否是AJAX请求
-            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                return jsonify({
-                    "success": False,
-                    "message": f"状态更新失败: {str(e)}"
-                }), 500
-
-            flash(f'状态更新失败: {str(e)}', 'error')
-
-        # 重定向回项目管理页面，带上当前的签证状态和排序方式
-        return redirect(
-            url_for('visa_project.show_current_all_projects',
-                    visa_status=current_visa_status,
-                    sort_by=current_sort_by,
-                    filter_visa_type=current_filter_visa_type))
-
+        # 返回更新后的项目数据
+        return jsonify({
+            'success': True,
+            'message': '签证状态更新成功',
+            'project': {
+                'id': project.id,
+                'visa_status': project.visa_status,
+                'estimated_date': project.estimated_date
+            }
+        })
     except Exception as e:
         db.session.rollback()
-
-        # 检查是否是AJAX请求
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return jsonify({
-                "success": False,
-                "message": f"状态更新失败: {str(e)}"
-            }), 500
-
-        flash(f'状态更新失败: {str(e)}', 'error')
-        return redirect(url_for('visa_project.show_current_all_projects'))
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 
-@visa_project.route('/visa/<visa_type>/visa_create_project', methods=['POST'])
+@visa_project.route('/<visa_type>/visa_create_project', methods=['POST'])
 def visa_create_project(visa_type):
     try:
         # 获取表单数据
@@ -593,7 +555,7 @@ def visa_create_project(visa_type):
         flash(error_msg, 'error')
         return redirect(url_for('visa_project.visa_processing', visa_type=visa_type))
 
-@visa_project.route('/visa/update_project_details/<int:project_id>', methods=['POST'])
+@visa_project.route('/update_project_details/<int:project_id>', methods=['POST'])
 def update_project_details(project_id):
     """处理签证项目编辑表单提交"""
     try:
@@ -666,7 +628,7 @@ def update_project_details(project_id):
         return redirect(url_for('visa_project.edit_project', project_id=project_id))
 
 
-@visa_project.route('/visa/open_folder', methods=['GET'])
+@visa_project.route('/open_folder', methods=['GET'])
 def open_folder():
     """
     通用文件夹打开函数，替代多个类似功能的路由

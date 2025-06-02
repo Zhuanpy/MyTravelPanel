@@ -232,7 +232,7 @@
                     返回项目列表
                 </a>
                 <a class="visa-project-resource-link" href="javascript:void(0)" 
-                   onclick="openProjectFolder('{{ project.project_folder_name }}', '{{ project.visa_type }}', '{{ url_for('visa_files.open_folder') }}')"
+                   onclick="openProjectFolder('{{ project.project_folder_name }}', '{{ project.visa_type }}', '{{ url_for('visa_project.open_folder') }}')"
                 >
                     打开项目文件夹
                 </a>
@@ -431,8 +431,8 @@
                     return_to: 'list'
                 });
 
-                // 使用正确的URL结构，使用visa_files蓝图
-                const response = await fetch(`/visa/files/open_folder?${params.toString()}`, {
+                // 使用正确的URL结构
+                const response = await fetch(`/visa/project/open_folder?${params.toString()}`, {
                     method: 'GET'
                 });
 
@@ -440,7 +440,6 @@
                     throw new Error('Failed to open folder');
                 }
 
-                // 不再尝试解析JSON，因为我们知道后端直接打开文件夹
                 showAlert('文件夹打开请求已发送', true);
             } catch (error) {
                 console.error('Error opening folder:', error);
