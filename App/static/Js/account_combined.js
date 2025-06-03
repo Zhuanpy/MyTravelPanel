@@ -57,8 +57,12 @@ function togglePasswordVisibility(input, button) {
 // 复制密码功能
 async function copyPassword(password) {
     try {
-        await navigator.clipboard.writeText(password);
-        showAlert('密码已复制到剪贴板', true);
+        const success = await window.copyToClipboard(password);
+        if (success) {
+            showAlert('密码已复制到剪贴板', true);
+        } else {
+            showAlert('复制失败', false);
+        }
     } catch (err) {
         console.error('复制失败:', err);
         showAlert('复制失败', false);
@@ -870,14 +874,18 @@ function togglePassword(button, password) {
     }
 }
 
-// 复制列表中的密码
+// 修改列表中的复制密码功能
 async function copyListPassword(password) {
     try {
-        await navigator.clipboard.writeText(password);
-        showAlert('密码已复制到剪贴板', true);
+        const success = await window.copyToClipboard(password);
+        if (success) {
+            showAlert('密码已复制到剪贴板', true);
+        } else {
+            showAlert('复制失败', false);
+        }
     } catch (err) {
         console.error('复制失败:', err);
-        showAlert('复制失败: ' + (err.message || '未知错误'), false);
+        showAlert('复制失败', false);
     }
 }
 
@@ -937,22 +945,30 @@ function toggleEditPassword() {
     }, 100);
 }
 
-// 复制编辑模态框中的密码
+// 修改编辑模态框中的复制密码功能
 async function copyEditPassword() {
-    console.log('复制密码函数被调用');
     const passwordInput = document.getElementById('editPassword');
     if (!passwordInput) {
-        console.error('未找到密码输入框');
-        showAlert('无法复制密码：未找到密码输入框', false);
+        console.error('未找到编辑密码输入框');
         return;
     }
-    
+
+    const password = passwordInput.value;
+    if (!password) {
+        showAlert('没有可复制的密码', false);
+        return;
+    }
+
     try {
-        await navigator.clipboard.writeText(passwordInput.value);
-        showAlert('密码已复制到剪贴板', true);
+        const success = await window.copyToClipboard(password);
+        if (success) {
+            showAlert('密码已复制到剪贴板', true);
+        } else {
+            showAlert('复制失败', false);
+        }
     } catch (err) {
         console.error('复制失败:', err);
-        showAlert('复制失败: ' + (err.message || '未知错误'), false);
+        showAlert('复制失败', false);
     }
 }
 
@@ -998,12 +1014,27 @@ function toggleAddPassword() {
     }
 }
 
-// 复制添加模态框中的密码
+// 修改添加模态框中的复制密码功能
 async function copyAddPassword() {
     const passwordInput = document.getElementById('password');
+    if (!passwordInput) {
+        console.error('未找到添加密码输入框');
+        return;
+    }
+
+    const password = passwordInput.value;
+    if (!password) {
+        showAlert('没有可复制的密码', false);
+        return;
+    }
+
     try {
-        await navigator.clipboard.writeText(passwordInput.value);
-        showAlert('密码已复制到剪贴板', true);
+        const success = await window.copyToClipboard(password);
+        if (success) {
+            showAlert('密码已复制到剪贴板', true);
+        } else {
+            showAlert('复制失败', false);
+        }
     } catch (err) {
         console.error('复制失败:', err);
         showAlert('复制失败', false);
