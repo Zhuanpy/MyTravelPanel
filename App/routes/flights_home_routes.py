@@ -225,18 +225,27 @@ def open_refund_folder():
 
     # 检查路径是否存在
     if not os.path.exists(folder_path):
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': False, 'message': '退票文件夹路径不存在'}), 404
         flash("退票文件夹路径不存在：无法打开文件夹。", category="error")
         return redirect(url_for('index.index'))
 
     # 尝试打开文件夹
     try:
         subprocess.Popen(f'explorer "{folder_path}"')  # 使用 Windows 的文件资源管理器打开文件夹
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': True, 'message': '退票文件夹已成功打开'})
         flash("退票文件夹已成功打开。", category="success")
 
     except Exception as e:
-        flash(f"无法打开退款政策文件夹，错误信息: {str(e)}", category="error")
+        error_message = f"无法打开退款政策文件夹，错误信息: {str(e)}"
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': False, 'message': error_message}), 500
+        flash(error_message, category="error")
 
-    return redirect(url_for('index.index'))
+    # 只有在非AJAX请求时才重定向
+    if not request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return redirect(url_for('index.index'))
 
 @flight_home.route('/确认单详细')
 def confirmation_detail():
