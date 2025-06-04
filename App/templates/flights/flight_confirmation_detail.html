@@ -459,7 +459,6 @@
         const resetDocsBtn = document.getElementById('resetDocs');
         const docsResult = document.getElementById('docsResult');
         const docsText = document.getElementById('docsText');
-        const copyDocsBtn = document.getElementById('copyDocs');
         
         generateDocsBtn.addEventListener('click', function() {
             const passengerNumber = document.getElementById('passenger_number').value.trim();
@@ -512,16 +511,6 @@
             document.getElementById('gender').value = 'M';
             document.getElementById('passportExpiry').value = '';
             docsResult.style.display = 'none';
-        });
-        
-        copyDocsBtn.addEventListener('click', function() {
-            const textToCopy = docsText.textContent;
-            navigator.clipboard.writeText(textToCopy).then(function() {
-                alert('DOCS代码已复制到剪贴板');
-            }, function(err) {
-                console.error('无法复制文本: ', err);
-                alert('复制失败，请手动复制');
-            });
         });
     });
     </script>

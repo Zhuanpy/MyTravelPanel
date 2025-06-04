@@ -171,7 +171,7 @@
             <a href="#" id="openRefundFolder" class="flight-home-link">
                 <i class="fas fa-undo"></i> 退票文件夹
             </a>
-            <a href="#" class="flight-home-link">
+            <a href="#" id="openProjectFolder" class="flight-home-link">
                 <i class="fas fa-project-diagram"></i> 项目文件夹
             </a>
             <a href="{{ url_for('flights_booking.create_order') }}" class="flight-home-link">
@@ -287,4 +287,41 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<!-- 引入ff.js文件 -->
+<script src="{{ url_for('static', filename='Js/ff.js') }}"></script>
+
+<script>
+    // 处理文件夹打开功能
+    document.addEventListener('DOMContentLoaded', function() {
+        // 资源文件夹
+        const openFlightProjectFolder = document.getElementById('openFlightProjectFolder');
+        if (openFlightProjectFolder) {
+            openFlightProjectFolder.addEventListener('click', function(e) {
+                e.preventDefault();
+                sendPostRequest('/flight_home/open_project_folder', '资源文件夹已打开');
+            });
+        }
+
+        // 退票文件夹
+        const openRefundFolder = document.getElementById('openRefundFolder');
+        if (openRefundFolder) {
+            openRefundFolder.addEventListener('click', function(e) {
+                e.preventDefault();
+                sendPostRequest('/flight_home/open_refund_folder', '退票文件夹已打开');
+            });
+        }
+
+        // 项目文件夹
+        const openProjectFolder = document.getElementById('openProjectFolder');
+        if (openProjectFolder) {
+            openProjectFolder.addEventListener('click', function(e) {
+                e.preventDefault();
+                sendPostRequest('/flight_home/open_flight_project_folder', '项目文件夹已打开');
+            });
+        }
+    });
+</script>
 {% endblock %} 

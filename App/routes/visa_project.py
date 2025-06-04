@@ -420,6 +420,24 @@ def update_visa_status(project_id):
         return jsonify({'success': False, 'message': str(e)}), 500
 
 
+@visa_project.route('/update_status', methods=['POST'])
+def update_status():
+    data = request.get_json()
+    project_id = data.get('project_id')
+    visa_status = data.get('visa_status')
+    if not project_id or not visa_status:
+        return jsonify({'success': False, 'message': '参数缺失'}), 400
+
+    project = VisaProject.query.get(project_id)
+    if not project:
+        return jsonify({'success': False, 'message': '项目不存在'}), 404
+
+    project.visa_status = visa_status
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+
 @visa_project.route('/<visa_type>/visa_create_project', methods=['POST'])
 def visa_create_project(visa_type):
     try:

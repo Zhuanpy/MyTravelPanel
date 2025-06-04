@@ -205,18 +205,56 @@ def open_project_folder():
 
     # 检查路径是否有效
     if not os.path.exists(path_):
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': False, 'message': '目标路径不存在：无法打开文件夹。'}), 404
         flash("目标路径不存在：无法打开文件夹。", category="error")
         return redirect(url_for('index.index'))
 
     # 尝试打开文件夹
     try:
         subprocess.Popen(f'explorer "{path_}"')
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': True, 'message': '文件夹已成功打开'})
         flash("文件夹已成功打开。", category="success")
 
     except Exception as e:
-        flash(f"无法打开文件夹，错误信息: {str(e)}", category="error")
+        error_message = f"无法打开文件夹，错误信息: {str(e)}"
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': False, 'message': error_message}), 500
+        flash(error_message, category="error")
 
-    return redirect(url_for('index.index'))
+    # 只有在非AJAX请求时才重定向
+    if not request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return redirect(url_for('index.index'))
+
+@flight_home.route('/open_flight_project_folder', methods=['GET', 'POST'])
+def open_flight_project_folder():
+    # 获取目标文件夹路径
+    path_ = os.path.join(app.root_path, app.static_folder, "资源", "Project", "机票")
+
+    # 检查路径是否有效
+    if not os.path.exists(path_):
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': False, 'message': '项目文件夹路径不存在：无法打开文件夹。'}), 404
+        flash("项目文件夹路径不存在：无法打开文件夹。", category="error")
+        return redirect(url_for('index.index'))
+
+    # 尝试打开文件夹
+    try:
+        subprocess.Popen(f'explorer "{path_}"')
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': True, 'message': '项目文件夹已成功打开'})
+        flash("项目文件夹已成功打开。", category="success")
+
+    except Exception as e:
+        error_message = f"无法打开项目文件夹，错误信息: {str(e)}"
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': False, 'message': error_message}), 500
+        flash(error_message, category="error")
+
+    # 只有在非AJAX请求时才重定向
+    if not request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return redirect(url_for('index.index'))
 
 @flight_home.route('/open_refund_folder', methods=['GET', 'POST'])
 def open_refund_folder():
@@ -249,7 +287,7 @@ def open_refund_folder():
 
 @flight_home.route('/确认单详细')
 def confirmation_detail():
-    return render_template('flights/确认单详细.html')
+    return render_template('flights/flight_confirmation_detail.html')
 
 def convert_date_format(date_str):
     if not date_str:
