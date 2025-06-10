@@ -3,11 +3,12 @@ import time
 import pickle  # 用于记录进度
 from selenium import webdriver
 from selenium.webdriver.common.by import By
-from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.chrome.service import Service as ChromeService
+from webdriver_manager.chrome import ChromeDriverManager
 
 
 class WordToPDFConverter:
@@ -16,17 +17,13 @@ class WordToPDFConverter:
         """
         初始化转换器
         :param source_folder: Word 文件所在的文件夹路径
-        :param driver_path: ChromeDriver 的路径
+        :param driver_path: ChromeDriver 的路径（可选）
         """
         self.source_folder = source_folder
         self.log_file = os.path.join(source_folder, "completed_files.pkl")  # 动态设置日志文件路径
 
         # 设置 ChromeDriver 路径
-        self.driver_path = driver_path or r"E:\Project_Python\chromedriver-win64\chromedriver.exe"
-
-        # 验证 Driver 路径是否有效
-        if not os.path.exists(self.driver_path):
-            raise FileNotFoundError(f"指定的 ChromeDriver 路径无效: {self.driver_path}")
+        self.driver_path = driver_path
 
         # 初始化浏览器驱动
         try:
@@ -40,8 +37,18 @@ class WordToPDFConverter:
         chrome_options.add_argument("--start-maximized")
         chrome_options.add_argument("--disable-infobars")
         chrome_options.add_argument("--disable-extensions")
-        service = Service(self.driver_path)
-        return webdriver.Chrome(service=service, options=chrome_options)
+        
+        try:
+            if self.driver_path and os.path.exists(self.driver_path):
+                # 如果提供了有效的driver_path，使用它
+                service = Service(self.driver_path)
+                return webdriver.Chrome(service=service, options=chrome_options)
+            else:
+                # 否则使用webdriver_manager自动下载和管理ChromeDriver
+                service = ChromeService(ChromeDriverManager().install())
+                return webdriver.Chrome(service=service, options=chrome_options)
+        except Exception as e:
+            raise RuntimeError(f"Chrome驱动初始化失败: {str(e)}")
 
     def _load_completed(self):
         """加载已完成文件列表"""
@@ -117,7 +124,7 @@ class WordToPDFConverter:
 
 if __name__ == "__main__":
     # 示例用法
-    SOURCE_FOLDER = r"E:\Python\Project\MyTravelPanel\MyWeb\App\static\资源\旅游产品\中国\湖南\CBJ 中国旅游\2025新加坡最新行程及报价\test"
+    SOURCE_FOLDER = r"E:\Project\MyTravelPanel\App\static\资源\Project\Visa\申根签证_20250424_LIU YANFEI_工作准证\salary"
     converter = WordToPDFConverter(SOURCE_FOLDER)
     converter.process_files()
 

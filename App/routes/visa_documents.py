@@ -3,6 +3,8 @@ from ..exts import db
 from ..models import VisaDocuments, VisaTypes, VisaSingaporeIdentity, VisaCountries # , # IdentityDocument
 from pathlib import Path
 import logging
+from urllib.parse import unquote
+import html
 
 """
 签证文档管理 (visa_documents.py):
@@ -197,12 +199,27 @@ def display_document_request(visa_type, singapore_status):
 @visa_documents.route('/get_identity_options/<visa_type>')
 def get_identity_options(visa_type):
     try:
-        # 添加调试日志
-        print(f"正在获取签证类型 '{visa_type}' 的身份选项")
+        # URL解码签证类型
+        decoded_visa_type = unquote(visa_type)
+        # 处理可能的HTML实体编码
+        decoded_visa_type = html.unescape(decoded_visa_type)
+        
+        print(f"原始签证类型: '{visa_type}'")
+        print(f"URL解码后: '{decoded_visa_type}'")
+        
+        # 验证签证类型是否存在
+        visa_type_exists = VisaTypes.query.filter_by(visa_type=decoded_visa_type).first()
+        if not visa_type_exists:
+            print(f"签证类型 '{decoded_visa_type}' 不存在")
+            return jsonify({
+                'success': False,
+                'message': f'签证类型 {decoded_visa_type} 不存在',
+                'identity_options': []
+            }), 404
         
         # 使用 distinct 查询确保只获取实际存在的身份
         identity_options = db.session.query(VisaDocuments.singapore_identity)\
-            .filter(VisaDocuments.visa_type == visa_type)\
+            .filter(VisaDocuments.visa_type == decoded_visa_type)\
             .filter(VisaDocuments.singapore_identity != 'SHARE')\
             .distinct()\
             .all()
@@ -215,7 +232,7 @@ def get_identity_options(visa_type):
         print(f"处理后的身份选项列表: {identity_options}")
         
         # 检查数据库中的所有记录
-        all_documents = VisaDocuments.query.filter_by(visa_type=visa_type).all()
+        all_documents = VisaDocuments.query.filter_by(visa_type=decoded_visa_type).all()
         print(f"该签证类型的所有记录:")
         for doc in all_documents:
             print(f"ID: {doc.id}, 签证类型: {doc.visa_type}, 身份: {doc.singapore_identity}")
@@ -228,7 +245,8 @@ def get_identity_options(visa_type):
         print(f"发生错误: {str(e)}")
         return jsonify({
             'success': False,
-            'message': str(e)
+            'message': str(e),
+            'identity_options': []
         }), 500
 
 

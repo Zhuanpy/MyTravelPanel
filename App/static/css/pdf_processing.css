@@ -84,4 +84,61 @@ button[type="submit"]:hover {
     10% { opacity: 1; }
     90% { opacity: 1; }
     100% { opacity: 0; }
+}
+
+.pdf-page-success-message,
+.pdf-page-error-message {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 15px 25px;
+    border-radius: 8px;
+    opacity: 0;
+    transition: all 0.3s ease;
+    z-index: 1000;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    font-size: 14px;
+    font-weight: 500;
+    max-width: 400px;
+    text-align: center;
+    transform: translateY(-20px);
+}
+
+.pdf-page-success-message {
+    background-color: #48BB78;
+    color: white;
+    border-left: 4px solid #38A169;
+}
+
+.pdf-page-error-message {
+    background-color: #E53E3E;
+    color: white;
+    border-left: 4px solid #C53030;
+}
+
+.pdf-page-success-message.show,
+.pdf-page-error-message.show {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.pdf-page-button {
+    position: relative;
+    min-width: 120px;
+    transition: all 0.3s ease;
+}
+
+.pdf-page-button:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.pdf-page-button i {
+    margin-right: 5px;
+}
+
+.pdf-page-button:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 } 

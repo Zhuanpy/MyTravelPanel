@@ -1174,13 +1174,26 @@
         selectElement.innerHTML = '<option value="">请选择身份</option>';
         
         if (visaType) {
-            console.log('Loading identity buttons for visa type:', visaType);
-            // 获取该签证类型对应的身份选项
-            fetch(`/visa/documents/get_identity_options/${visaType}`)
-                .then(response => response.json())
+            // 首先解码HTML实体，然后进行URL编码
+            const decodedVisaType = visaType.replace(/&amp;/g, '&');
+            console.log('Original visa type:', visaType);
+            console.log('Decoded visa type:', decodedVisaType);
+            
+            const encodedVisaType = encodeURIComponent(decodedVisaType);
+            const url = `/visa/documents/get_identity_options/${encodedVisaType}`;
+            console.log('Fetching from URL:', url);
+            
+            fetch(url)
+                .then(response => {
+                    console.log('Response status:', response.status);
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
                 .then(data => {
                     console.log('Received identity options:', data);
-                    if (data.success && data.identity_options.length > 0) {
+                    if (data.success && data.identity_options && data.identity_options.length > 0) {
                         // 添加select选项
                         data.identity_options.forEach(identity => {
                             const option = document.createElement('option');

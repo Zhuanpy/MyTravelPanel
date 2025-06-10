@@ -102,6 +102,7 @@
     <!-- <a href="/" class="home-link">Home page</a> -->
     <h2>创建旅游项目</h2>
     <form id="tourForm" method="POST" action="{{url_for('package_routes.handle_tour_project')}}" onsubmit="validateForm(event)">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="form-row">
             <div class="form-group">
                 <label for="projectName">项目名称:</label>

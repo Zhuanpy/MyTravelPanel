@@ -84,6 +84,24 @@
     .pdf-page-success-message.show {
         opacity: 1;
     }
+    
+    .pdf-page-error-message {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background-color: #E53E3E;
+        color: white;
+        padding: 15px 20px;
+        border-radius: 4px;
+        opacity: 0;
+        transition: opacity 0.3s;
+        z-index: 1000;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    
+    .pdf-page-error-message.show {
+        opacity: 1;
+    }
 </style>
 {% endblock %}
 
@@ -114,8 +132,8 @@
     <h2 class="pdf-page-section">Word转换PDF</h2>
     <form id="wordForm" class="pdf-page-form" method="post" action="{{url_for('files_process.word_to_pdf')}}" onsubmit="return handleSubmit(this, event)">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <label for="worldFolderPath" class="pdf-page-label">Word文件夹路径:</label>
-        <input type="text" id="worldFolderPath" name="worldFolderPath" class="pdf-page-input">
+        <label for="wordFolderPath" class="pdf-page-label">Word文件夹路径:</label>
+        <input type="text" id="wordFolderPath" name="wordFolderPath" class="pdf-page-input" required>
         <button type="submit" name="submit_button" value="merge_images" class="pdf-page-button">Word转PDF</button>
     </form>
 </div>
@@ -127,9 +145,17 @@ function handleSubmit(form, event) {
     event.preventDefault(); // 阻止表单默认提交
     const formData = new FormData(form);
     
-    // 禁用提交按钮，防止重复提交
+    // 保存按钮原始文本
     const submitButton = form.querySelector('button[type="submit"]');
+    if (!submitButton.getAttribute('data-original-text')) {
+        submitButton.setAttribute('data-original-text', submitButton.innerHTML);
+    }
+    
+    // 禁用提交按钮，防止重复提交
     submitButton.disabled = true;
+    
+    // 显示加载状态
+    submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 处理中...';
     
     fetch(form.action, {
         method: 'POST',
@@ -141,40 +167,51 @@ function handleSubmit(form, event) {
     })
     .then(response => {
         if (!response.ok) {
-            throw new Error('Network response was not ok');
+            return response.json().then(data => {
+                throw new Error(data.message || '请求失败');
+            });
         }
         return response.json();
     })
     .then(data => {
         if (data.success) {
+            // 显示成功消息
             showSuccessMessage(data.message);
+            // 不清空表单，保持输入内容
         } else {
-            alert(data.message || '处理失败，请重试');
+            showErrorMessage(data.message || '处理失败，请重试');
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('处理出错，请重试');
+        showErrorMessage(error.message || '处理出错，请重试');
     })
     .finally(() => {
-        // 重新启用提交按钮
+        // 恢复按钮状态
         submitButton.disabled = false;
+        submitButton.innerHTML = submitButton.getAttribute('data-original-text');
     });
 
     return false;
 }
 
 function showSuccessMessage(message) {
-    const messageElement = document.getElementById('successMessage');
-    messageElement.textContent = message;
-    messageElement.classList.add('show');
-    
-    // 3秒后隐藏消息
+    const successDiv = document.getElementById('successMessage');
+    successDiv.textContent = message;
+    successDiv.className = 'pdf-page-success-message show';
+    // 3秒后自动隐藏
     setTimeout(() => {
-        messageElement.classList.remove('show');
-        setTimeout(() => {
-            messageElement.textContent = '';
-        }, 300); // 等待淡出动画完成
+        successDiv.className = 'pdf-page-success-message';
+    }, 3000);
+}
+
+function showErrorMessage(message) {
+    const successDiv = document.getElementById('successMessage');
+    successDiv.textContent = message;
+    successDiv.className = 'pdf-page-error-message show';
+    // 3秒后自动隐藏
+    setTimeout(() => {
+        successDiv.className = 'pdf-page-error-message';
     }, 3000);
 }
 </script>
