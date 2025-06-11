@@ -309,6 +309,46 @@
     .visa-project-reset-btn:hover {
         background-color: #e53e3e;
     }
+
+    /* Toast 样式优化 */
+    .toast-container {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 9999;
+    }
+
+    .toast {
+        min-width: 250px;
+        padding: 1rem 1.5rem;
+        margin-bottom: 1rem;
+        border-radius: 8px;
+        font-weight: 500;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        opacity: 0;
+        transform: translateY(-20px);
+        transition: all 0.3s ease;
+    }
+
+    .toast.show {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+    .toast.success {
+        background-color: #f0fff4;
+        border: 1px solid #9ae6b4;
+        color: #22543d;
+    }
+
+    .toast.error {
+        background-color: #fff5f5;
+        border: 1px solid #feb2b2;
+        color: #c53030;
+    }
 </style>
 {% endblock %}
 
@@ -389,7 +429,7 @@
                         </select>
                     </td>
                     <td>
-                        <input type="text" name="estimated_date" value="{{ project.estimated_date }}" class="visa-project-input-field">
+                        <input type="date" name="estimated_date" value="{{ project.estimated_date }}" class="visa-project-input-field">
                     </td>
                     <td>
                         <a class="visa-project-open-link" style="background-color: #4CAF50;" href="{{ url_for('visa_project.visa_detail', project_id=project.id, visa_status=visa_status, sort_by=sort_by) }}">
@@ -430,6 +470,9 @@
     <!-- 添加 CSRF 令牌隐藏输入 -->
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 </div>
+
+<!-- 添加 Toast 容器 -->
+<div class="toast-container"></div>
 {% endblock %}
 
 {% block scripts %}
@@ -489,28 +532,49 @@
     function updateVisaStatus(selectElement) {
         const projectId = selectElement.getAttribute('data-project-id');
         const newStatus = selectElement.value;
+        const originalStatus = selectElement.getAttribute('data-status');
+        const csrfToken = document.querySelector('input[name="csrf_token"]').value;
 
-        fetch('/visa/project/update_status', {
+        fetch(`/visa/project/update_visa_status/${projectId}`, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': csrfToken
             },
-            body: JSON.stringify({
-                project_id: projectId,
-                visa_status: newStatus
-            })
+            body: `visa_status=${encodeURIComponent(newStatus)}`
         })
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
         .then(data => {
             if (data.success) {
-                window.location.reload();
+                // 更新选择框的状态
+                selectElement.setAttribute('data-status', newStatus);
+                
+                // 更新页面显示
+                if (data.project) {
+                    const row = selectElement.closest('tr');
+                    // 更新预估日期
+                    const dateInput = row.querySelector('input[name="estimated_date"]');
+                    if (dateInput && data.project.estimated_date) {
+                        dateInput.value = data.project.estimated_date;
+                    }
+                }
+                
+                showToast(`签证状态已更新为：${newStatus}`, 'success');
             } else {
-                alert('状态更新失败: ' + (data.message || '未知错误'));
+                throw new Error(data.message || '更新失败');
             }
         })
         .catch(error => {
-            alert('请求出错: ' + error);
+            console.error('Error:', error);
+            // 回滚到原始状态
+            selectElement.value = originalStatus;
+            showToast(error.message || '状态更新失败，请稍后重试', 'error');
         });
     }
     
@@ -528,6 +592,29 @@
         document.getElementById('filter_visa_type').value = 'all';
         document.getElementById('sort_by').value = 'name';
         document.querySelector('.visa-project-sort-options form').submit();
+    }
+
+    // Toast 通知函数
+    function showToast(message, type = 'success') {
+        const container = document.querySelector('.toast-container');
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        
+        const icon = type === 'success' ? 
+            '<i class="fas fa-check-circle" style="color: #48bb78;"></i>' : 
+            '<i class="fas fa-exclamation-circle" style="color: #f56565;"></i>';
+        
+        toast.innerHTML = `${icon}<span>${message}</span>`;
+        container.appendChild(toast);
+        
+        // 触发重排以启动动画
+        toast.offsetHeight;
+        toast.classList.add('show');
+        
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
     }
 </script>
 {% endblock %}

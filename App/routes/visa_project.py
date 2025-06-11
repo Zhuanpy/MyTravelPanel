@@ -9,6 +9,7 @@ from ..exts import db
 from ..models import VisaTypes, VisaDocuments, VisaLinks, VisaProject
 from ..code.VisaForm import VisasUtils
 import json
+import traceback
 
 
 """
@@ -420,22 +421,39 @@ def update_visa_status(project_id):
         return jsonify({'success': False, 'message': str(e)}), 500
 
 
-@visa_project.route('/update_status', methods=['POST'])
-def update_status():
-    data = request.get_json()
-    project_id = data.get('project_id')
-    visa_status = data.get('visa_status')
-    if not project_id or not visa_status:
-        return jsonify({'success': False, 'message': '参数缺失'}), 400
-
-    project = VisaProject.query.get(project_id)
-    if not project:
-        return jsonify({'success': False, 'message': '项目不存在'}), 404
-
-    project.visa_status = visa_status
-    db.session.commit()
-    return jsonify({'success': True})
-
+@visa_project.route('/update_status/<int:project_id>', methods=['POST'])
+def update_project_status(project_id):
+    try:
+        data = request.get_json()
+        project = VisaProject.query.get_or_404(project_id)
+        
+        # 验证状态值
+        valid_statuses = ['待递交', '待出签', '已出签', '忽略单']
+        new_status = data.get('visa_status')
+        if new_status not in valid_statuses:
+            return jsonify({
+                'success': False,
+                'message': '无效的状态值'
+            }), 400
+            
+        # 更新状态
+        project.visa_status = new_status
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': '状态更新成功',
+            'visa_status': new_status
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"更新签证状态时发生错误: {str(e)}")
+        current_app.logger.error(traceback.format_exc())
+        return jsonify({
+            'success': False,
+            'message': f'更新状态失败: {str(e)}'
+        }), 500
 
 
 @visa_project.route('/<visa_type>/visa_create_project', methods=['POST'])

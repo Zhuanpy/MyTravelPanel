@@ -1,6 +1,4 @@
 from App import create_app
-from App.config import Config
-from sqlalchemy import create_engine
 
 app = create_app()
 

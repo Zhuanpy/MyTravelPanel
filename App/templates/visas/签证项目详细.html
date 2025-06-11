@@ -141,12 +141,21 @@
         }
         
         .visa-detail-status {
+            cursor: pointer;
             display: inline-flex;
-            padding: 0.25rem 0.75rem;
-            border-radius: 9999px;
-            font-weight: 500;
-            font-size: 0.875rem;
-            margin: 0;
+            align-items: center;
+            padding: 5px 10px;
+            border-radius: 4px;
+            transition: all 0.3s ease;
+        }
+        
+        .visa-detail-status:hover {
+            opacity: 0.8;
+        }
+        
+        .visa-detail-status i {
+            font-size: 0.8em;
+            opacity: 0.7;
         }
         
         .visa-detail-status-pending {
@@ -555,23 +564,21 @@
                 '待出签': 'processing',
                 '已出签': 'completed',
                 '忽略单': 'ignored'
-            }[project.visa_status] }}">
+            }[project.visa_status] }}" onclick="showStatusModal()">
                 {{ project.visa_status }}
+                <i class="fas fa-edit ms-2"></i>
             </div>
 
             <div class="visa-detail-header-links">
                 <a href="{{ url_for('visa_project.edit_project', project_id=project.id) }}" class="visa-project-resource-link">
                     编辑项目
                 </a>
-                <a href="{{ url_for('visa_project.open_folder', folder_type='project', file_name=project.project_folder_name, visa_type=project.visa_type, visa_status=visa_status, sort_by=sort_by, return_to='detail') }}" class="visa-project-resource-link" target="_blank" onclick="event.preventDefault();">
+                <a href="javascript:void(0);" onclick="openProjectFolder('{{ project.project_folder_name }}', '{{ project.visa_type }}')" class="visa-project-resource-link">
                     打开项目文件夹
                 </a>
                 
                 <a class="visa-project-resource-link" href="{{ url_for('visa_project.open_folder', folder_type='visa_type', visa_type=project.visa_type, return_to='detail') }}">
-                    打开{{ project.visa_type }}资源
-                </a>
-                <a class="visa-project-resource-link" href="{{ url_for('visa_project.show_current_all_projects') }}">
-                    项目管理
+                    打开签证类型文件夹
                 </a>
             </div>
         </div>
@@ -622,7 +629,13 @@
                 </div>
                 <div class="visa-detail-info-item">
                     <span class="visa-detail-info-label">预估出签日期</span>
-                    <span class="visa-detail-info-value">{{ project.estimated_date.strftime('%Y-%m-%d') if project.estimated_date else '未设置' }}</span>
+                    <span class="visa-detail-info-value">
+                        <form method="POST" action="{{ url_for('visa_project.update_project_details', project_id=project.id) }}">
+                            <input type="hidden" name="current_visa_status" value="{{ current_visa_status }}">
+                            <input type="hidden" name="current_sort_by" value="{{ current_sort_by }}">
+                            <input type="date" name="estimated_date" value="{{ project.estimated_date }}" onchange="this.form.submit()">
+                        </form>
+                    </span>
                 </div>
                 <div class="visa-detail-info-item">
                     <span class="visa-detail-info-label">创建时间</span>
@@ -713,94 +726,128 @@
     </section>
 
 </div>
-{% endblock %}
 
-{% block scripts %}
+<!-- 状态修改模态框 -->
+<div class="modal fade" id="statusModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">修改签证状态</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="statusForm">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="form-group">
+                        <label for="visaStatus">签证状态</label>
+                        <select class="form-select" id="visaStatus" name="visa_status">
+                            <option value="待递交" {% if project.visa_status == '待递交' %}selected{% endif %}>待递交</option>
+                            <option value="待出签" {% if project.visa_status == '待出签' %}selected{% endif %}>待出签</option>
+                            <option value="已出签" {% if project.visa_status == '已出签' %}selected{% endif %}>已出签</option>
+                            <option value="忽略单" {% if project.visa_status == '忽略单' %}selected{% endif %}>忽略单</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="updateVisaStatus()">保存</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    const generateFormForm = document.getElementById('generateFormForm');
-    const generateFormBtn = document.getElementById('generateFormBtn');
+function showStatusModal() {
+    new bootstrap.Modal(document.getElementById('statusModal')).show();
+}
 
-    if (generateFormForm) {
-        generateFormForm.addEventListener('submit', async function(e) {
-            e.preventDefault();
-            
-            // 禁用按钮，显示加载状态
-            generateFormBtn.disabled = true;
-            const originalText = generateFormBtn.innerHTML;
-            generateFormBtn.innerHTML = `
-                <svg class="animate-spin" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <circle cx="12" cy="12" r="10" stroke-width="4" stroke-dasharray="30 60"></circle>
-                </svg>
-                生成中...
-            `;
+function updateVisaStatus() {
+    const form = document.getElementById('statusForm');
+    const formData = new FormData(form);
+    const newStatus = formData.get('visa_status');
+    const csrfToken = formData.get('csrf_token');
 
-            try {
-                const response = await fetch(generateFormForm.action, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded',
-                        'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
-                    },
-                    body: new URLSearchParams(new FormData(generateFormForm))
-                });
-
-                if (!response.ok) {
-                    throw new Error('生成表格失败');
-                }
-
-                const result = await response.json();
-                
-                if (result.success) {
-                    alert('表格生成成功！');
-                    // 如果需要，可以在这里添加下载或预览表格的逻辑
-                } else {
-                    throw new Error(result.message || '生成表格失败');
-                }
-            } catch (error) {
-                console.error('Error:', error);
-                alert(error.message);
-            } finally {
-                // 恢复按钮状态
-                generateFormBtn.disabled = false;
-                generateFormBtn.innerHTML = originalText;
-            }
-        });
-    }
-
-    // 为所有打开文件夹的链接添加事件监听器
-    const folderLinks = document.querySelectorAll('a[href*="open_folder"]');
-    folderLinks.forEach(link => {
-        link.onclick = openProjectFolder;
-    });
-});
-
-function openProjectFolder(event) {
-    event.preventDefault();
-    const url = event.target.href;
-    
-    fetch(url, {
+    fetch(`/visa/project/update_visa_status/{{ project.id }}`, {
+        method: 'POST',
         headers: {
-            'X-Requested-With': 'XMLHttpRequest'
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': csrfToken
+        },
+        body: `visa_status=${encodeURIComponent(newStatus)}`
+    })
+    .then(response => {
+        if (!response.ok) {
+            return response.json().then(data => {
+                throw new Error(data.message || '服务器错误');
+            });
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            bootstrap.Modal.getInstance(document.getElementById('statusModal')).hide();
+            // 更新页面上的状态显示
+            const statusElement = document.querySelector('.visa-detail-status');
+            statusElement.textContent = data.project.visa_status;
+            const statusClass = {
+                '待递交': 'pending',
+                '待出签': 'processing',
+                '已出签': 'completed',
+                '忽略单': 'ignored'
+            }[data.project.visa_status];
+            statusElement.className = `visa-detail-status visa-detail-status-${statusClass}`;
+            showMessage('状态更新成功', 'success');
+        } else {
+            throw new Error(data.message || '更新失败');
         }
     })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error('打开文件夹失败');
-            }
-            return response.json();
-        })
-        .then(data => {
-            if (data.success) {
-                alert(data.message || '文件夹已打开');
-            } else {
-                throw new Error(data.message || '打开文件夹失败');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('打开文件夹时出错：' + error.message);
-        });
+    .catch(error => {
+        console.error('Error:', error);
+        showMessage(error.message || '更新失败，请重试', 'error');
+    });
+}
+
+function showMessage(message, type) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type === 'success' ? 'success' : 'danger'} alert-dismissible fade show`;
+    alertDiv.style.position = 'fixed';
+    alertDiv.style.top = '20px';
+    alertDiv.style.right = '20px';
+    alertDiv.style.zIndex = '1050';
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    document.body.appendChild(alertDiv);
+    setTimeout(() => alertDiv.remove(), 3000);
+}
+
+function openProjectFolder(fileName, visaType) {
+    const url = `{{ url_for('visa_project.open_folder') }}?folder_type=project&file_name=${encodeURIComponent(fileName)}&visa_type=${encodeURIComponent(visaType)}`;
+    fetch(url, {
+        method: 'GET',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'Accept': 'application/json'
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (!data.success) {
+            alert(data.message || '无法打开文件夹');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('打开文件夹时发生错误');
+    });
 }
 </script>
 {% endblock %} 

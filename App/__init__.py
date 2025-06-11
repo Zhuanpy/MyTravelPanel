@@ -2,20 +2,22 @@ from flask import Flask, send_from_directory
 import os
 from flask_migrate import Migrate
 from flask_login import LoginManager
+
 from .routes.views import dex
 from .exts import db, init_exts
 from .utils.cache import cache
 from datetime import timedelta
 from .config import Config
+from App.utils.background_tasks import TodoReminder
+
+from .routes.statement import statement_blue
+from .routes.utils_tasks import utils_blue
 
 # 导入所有模型
 from .models.User import User
 from .models.Project import Project, ProjectRef, ProjectEO
 from .models.BusinessType import BusinessType
 from .models.Suppliers import Supplier
-
-# 导入所有路由
-from .routes.files_tasks import utils_blue
 
 # 导入签证相关的路由
 from .routes.visa_basic_info import visa_basic
@@ -25,6 +27,7 @@ from .routes.visa_links import visa_links
 from .routes.visa_files import visa_files
 from .routes.visa_project import visa_project
 
+# 导入 项目相关的路由
 from .routes.project import projects
 from .routes.business_type import business_types
 
@@ -34,19 +37,21 @@ from .routes.flights_schedule_routes import flights_schedule
 from .routes.flights_booking_routes import flights_booking
 from .routes.flights_athina_routes import flights_athina
 
-from .routes.files_company_info import company_info
-from .routes.files_account import account_routes
+# 导入所有utils相关路由
+from .routes.utils_company_info import company_info
+from .routes.account import account_routes
+from .routes.utils import utils_process
+
+# 导入 配套相关的路由
 from .routes.tour_package import package_blue
 from .routes.supplier import supplier
 from .routes.tour_product_details import product_details
-from .routes.files import files_process
-from .routes.statement import statement_blue
 
 migrate = Migrate()
 
-def create_app(config_class=Config):
+def create_app():
     app = Flask(__name__)
-    app.config.from_object(config_class)
+    app.config.from_object(Config)
 
     # 初始化插件
     init_exts(app=app)
@@ -76,6 +81,7 @@ def create_app(config_class=Config):
 
     # 注册蓝图
     app.register_blueprint(utils_blue, url_prefix='/utils')
+    app.register_blueprint(utils_process, url_prefix='/utils_process')
 
     # 注册 visa 相关的蓝图
     app.register_blueprint(visa_home, url_prefix='/visa/home')
@@ -98,8 +104,10 @@ def create_app(config_class=Config):
     app.register_blueprint(package_blue, url_prefix='/package')
     app.register_blueprint(supplier, url_prefix='/supplier')
     app.register_blueprint(product_details, url_prefix='/product_details')
-    app.register_blueprint(files_process, url_prefix='/files')
+
     app.register_blueprint(statement_blue, url_prefix='/statement')
+
+    # app.register_blueprint(visa_bp, url_prefix='/visa')
 
     # 配置静态文件处理
     app.config['SEND_FILE_MAX_AGE_DEFAULT'] = timedelta(days=1)
@@ -122,5 +130,12 @@ def create_app(config_class=Config):
             # Create all tables
             db.create_all()
             print("Database has been reset.")
+
+    # 初始化提醒服务
+    app.reminder = TodoReminder(app)
+    
+    # 使用应用上下文初始化提醒服务
+    with app.app_context():
+        app.reminder.start()
 
     return app

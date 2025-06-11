@@ -248,7 +248,7 @@
                 <div class="info-row">
                     <div class="info-label">签证状态</div>
                     <div class="info-value">
-                        <form method="POST" action="{{ url_for('visa_project.update_project_detail', project_id=project.id) }}" class="status-form">
+                        <form method="POST" action="{{ url_for('visa_project.update_project_details', project_id=project.id) }}" class="status-form">
                             <input type="hidden" name="current_visa_status" value="{{ current_visa_status }}">
                             <input type="hidden" name="current_sort_by" value="{{ current_sort_by }}">
                             <select name="visa_status" class="status-select" onchange="this.form.submit()">
@@ -263,7 +263,7 @@
                 <div class="info-row">
                     <div class="info-label">预估日期</div>
                     <div class="info-value">
-                        <form method="POST" action="{{ url_for('visa_project.update_project_detail', project_id=project.id) }}">
+                        <form method="POST" action="{{ url_for('visa_project.update_project_details', project_id=project.id) }}">
                             <input type="hidden" name="current_visa_status" value="{{ current_visa_status }}">
                             <input type="hidden" name="current_sort_by" value="{{ current_sort_by }}">
                             <input type="date" name="estimated_date" value="{{ project.estimated_date }}" onchange="this.form.submit()">
