@@ -33,7 +33,7 @@ from .routes.business_type import business_types
 
 # 导入机票相关的路由
 from .routes.flights_home_routes import flight_home
-from .routes.flights_schedule_routes import flights_schedule
+from .routes.flights_schedule import flights_schedule
 from .routes.flights_booking_routes import flights_booking
 from .routes.flights_athina_routes import flights_athina
 
