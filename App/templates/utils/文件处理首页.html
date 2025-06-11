@@ -1,0 +1,405 @@
+{% extends "base.html" %}
+
+{% block title %}文件处理服务{% endblock %}
+
+{% block head %}
+<style>
+    .files-home-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+    
+    .files-home-header {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin-bottom: 2rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid #e5e7eb;
+    }
+    
+    .files-home-title {
+        font-size: 2rem;
+        font-weight: 600;
+        color: #2d3748;
+        margin: 0;
+        text-align: center;
+    }
+    
+    .files-home-section {
+        margin-bottom: 3rem;
+    }
+    
+    .files-home-section-title {
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: #2d3748;
+        margin-bottom: 1.5rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid #e9ecef;
+    }
+    
+    .files-home-card-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 1.5rem;
+    }
+    
+    .files-home-card {
+        background-color: #ffffff;
+        border-radius: 0.5rem;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        transition: transform 0.3s, box-shadow 0.3s;
+        overflow: hidden;
+    }
+    
+    .files-home-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+    
+    .files-home-card-header {
+        background-color: #ECC94B;
+        color: white;
+        padding: 1rem;
+        font-weight: 600;
+        text-align: center;
+    }
+    
+    .files-home-card-body {
+        padding: 1rem;
+    }
+    
+    .files-home-card-description {
+        color: #4a5568;
+        font-size: 0.9rem;
+        margin-bottom: 1rem;
+        line-height: 1.5;
+    }
+    
+    .files-home-card-actions {
+        display: flex;
+        justify-content: center;
+    }
+    
+    .files-home-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.625rem 1.25rem;
+        border-radius: 0.375rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+        text-decoration: none;
+        transition: background-color 0.2s;
+    }
+    
+    .files-home-btn-primary {
+        background-color: #ECC94B;
+        color: #2D3748;
+    }
+    
+    .files-home-btn-primary:hover {
+        background-color: #D69E2E;
+    }
+    
+    .files-home-quick-links {
+        background-color: #f7fafc;
+        border-radius: 0.5rem;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+    }
+    
+    .files-home-quick-links-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: #2d3748;
+        margin-top: 0;
+        margin-bottom: 1rem;
+    }
+    
+    .files-home-link-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 1rem;
+    }
+    
+    .files-home-link {
+        display: flex;
+        align-items: center;
+        padding: 0.75rem 1rem;
+        color: #3182ce;
+        text-decoration: none;
+        font-weight: 500;
+        border-radius: 0.375rem;
+        transition: background-color 0.2s;
+    }
+    
+    .files-home-link:hover {
+        background-color: #edf2f7;
+    }
+    
+    .files-home-link i {
+        margin-right: 0.5rem;
+    }
+    
+    @media (max-width: 768px) {
+        .files-home-card-grid {
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+        }
+        
+        .files-home-link-grid {
+            grid-template-columns: 1fr 1fr;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="files-home-container">
+    <div class="files-home-header">
+        <h1 class="files-home-title">文件处理服务</h1>
+    </div>
+    
+    <div class="files-home-quick-links">
+        <h2 class="files-home-quick-links-title">快速访问</h2>
+        <div class="files-home-link-grid">
+            <a href="{{ url_for('utils_process.file_processing') }}" class="files-home-link">
+                <i class="fas fa-file-pdf"></i>
+                <span>PDF处理</span>
+            </a>
+            <a href="{{ url_for('utils_process.open_FuXin_pdf') }}" class="files-home-link">
+                <i class="fas fa-tools"></i>
+                <span>PDF工具</span>
+            </a>
+            <a href="{{ url_for('utils_process.open_Photoshop') }}" class="files-home-link">
+                <i class="fas fa-image"></i>
+                <span>Photoshop</span>
+            </a>
+            <a href="{{ url_for('utils_process.open_Athina') }}" class="files-home-link">
+                <i class="fas fa-code"></i>
+                <span>Athina</span>
+            </a>
+            <a href="{{ url_for('utils_blue.render_pomodoro') }}" class="files-home-link">
+                <i class="fas fa-clock"></i> 番茄工作法
+            </a>
+            
+            <a href="{{ url_for('utils_blue.render_todo_list') }}" class="files-home-link">
+                <i class="fas fa-tasks"></i>
+                <span>待办事件</span>
+            </a>
+
+            <a href="{{ url_for('company_info.company_header') }}" class="files-home-link">
+                <i class="fas fa-building"></i> 公司抬头
+            </a>
+        </div>
+    </div>
+    
+    <!-- PDF处理工具 -->
+    <div class="files-home-section">
+        <h2 class="files-home-section-title">PDF处理工具</h2>
+        <div class="files-home-card-grid">
+            <div class="files-home-card">
+                <div class="files-home-card-header">
+                    <i class="fas fa-file-pdf"></i> PDF压缩
+                </div>
+                <div class="files-home-card-body">
+                    <p class="files-home-card-description">
+                        压缩PDF文件大小，保持文档质量的同时减小文件体积，优化文件传输和存储。
+                    </p>
+                    <div class="files-home-card-actions">
+                        <a href="{{ url_for('utils_process.file_processing') }}" class="files-home-btn files-home-btn-primary">
+                            <i class="fas fa-file-pdf"></i>
+                            <span>PDF处理</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="files-home-card">
+                <div class="files-home-card-header">
+                    <i class="fas fa-object-group"></i> PDF合并
+                </div>
+                <div class="files-home-card-body">
+                    <p class="files-home-card-description">
+                        将多个PDF文件合并成一个文档，方便整合相关内容，提高文档管理效率。
+                    </p>
+                    <div class="files-home-card-actions">
+                        <a href="{{ url_for('utils_process.file_processing') }}" class="files-home-btn files-home-btn-primary">
+                            <i class="fas fa-file-pdf"></i>
+                            <span>PDF处理</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="files-home-card">
+                <div class="files-home-card-header">
+                    <i class="fas fa-cut"></i> PDF拆分
+                </div>
+                <div class="files-home-card-body">
+                    <p class="files-home-card-description">
+                        将一个PDF文档拆分为多个独立的PDF文件，方便单独使用或分发文档的特定部分。
+                    </p>
+                    <div class="files-home-card-actions">
+                        <a href="{{ url_for('utils_process.file_processing') }}" class="files-home-btn files-home-btn-primary">
+                            <i class="fas fa-file-pdf"></i>
+                            <span>PDF处理</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 图片处理工具 -->
+    <div class="files-home-section">
+        <h2 class="files-home-section-title">图片处理工具</h2>
+        <div class="files-home-card-grid">
+            <div class="files-home-card">
+                <div class="files-home-card-header">
+                    <i class="fas fa-compress-arrows-alt"></i> 图片压缩
+                </div>
+                <div class="files-home-card-body">
+                    <p class="files-home-card-description">
+                        减小图片文件大小，优化网络分享和存储空间，保持图片质量的同时提高加载速度。
+                    </p>
+                    <div class="files-home-card-actions">
+                        <a href="{{ url_for('utils_process.file_processing') }}" class="files-home-btn files-home-btn-primary">
+                            <i class="fas fa-file-pdf"></i>
+                            <span>PDF处理</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="files-home-card">
+                <div class="files-home-card-header">
+                    <i class="fas fa-crop-alt"></i> 图片裁剪
+                </div>
+                <div class="files-home-card-body">
+                    <p class="files-home-card-description">
+                        裁剪图片到指定尺寸或比例，突出重要内容，制作适合各种用途的图片素材。
+                    </p>
+                    <div class="files-home-card-actions">
+                        <a href="{{ url_for('utils_process.file_processing') }}" class="files-home-btn files-home-btn-primary">
+                            <i class="fas fa-file-pdf"></i>
+                            <span>PDF处理</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="files-home-card">
+                <div class="files-home-card-header">
+                    <i class="fas fa-exchange-alt"></i> 格式转换
+                </div>
+                <div class="files-home-card-body">
+                    <p class="files-home-card-description">
+                        在各种图片格式之间转换，如JPEG、PNG、GIF等，满足不同场景的图片格式需求。
+                    </p>
+                    <div class="files-home-card-actions">
+                        <a href="{{ url_for('utils_process.file_processing') }}" class="files-home-btn files-home-btn-primary">
+                            <i class="fas fa-file-pdf"></i>
+                            <span>PDF处理</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Office文档处理 -->
+    <div class="files-home-section">
+        <h2 class="files-home-section-title">Office文档处理</h2>
+        <div class="files-home-card-grid">
+            <div class="files-home-card">
+                <div class="files-home-card-header">
+                    <i class="fas fa-file-word"></i> Word转PDF
+                </div>
+                <div class="files-home-card-body">
+                    <p class="files-home-card-description">
+                        将Word文档(.docx, .doc)转换为PDF格式，保持格式不变，便于文档分享和存档。
+                    </p>
+                    <div class="files-home-card-actions">
+                        <a href="{{ url_for('utils_process.file_processing') }}" class="files-home-btn files-home-btn-primary">
+                            <i class="fas fa-file-pdf"></i>
+                            <span>PDF处理</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="files-home-card">
+                <div class="files-home-card-header">
+                    <i class="fas fa-file-excel"></i> Excel转PDF
+                </div>
+                <div class="files-home-card-body">
+                    <p class="files-home-card-description">
+                        将Excel工作表(.xlsx, .xls)转换为PDF格式，方便数据展示和打印，不受Excel软件限制。
+                    </p>
+                    <div class="files-home-card-actions">
+                        <a href="{{ url_for('utils_process.file_processing') }}" class="files-home-btn files-home-btn-primary">
+                            <i class="fas fa-file-pdf"></i>
+                            <span>PDF处理</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="files-home-card">
+                <div class="files-home-card-header">
+                    <i class="fas fa-file-powerpoint"></i> PPT转PDF
+                </div>
+                <div class="files-home-card-body">
+                    <p class="files-home-card-description">
+                        将PowerPoint演示文稿(.pptx, .ppt)转换为PDF格式，便于分享演示文稿而无需PPT软件。
+                    </p>
+                    <div class="files-home-card-actions">
+                        <a href="{{ url_for('utils_process.file_processing') }}" class="files-home-btn files-home-btn-primary">
+                            <i class="fas fa-file-pdf"></i>
+                            <span>PDF处理</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // 确保所有卡片高度一致
+        function adjustCardHeights() {
+            const sections = document.querySelectorAll('.files-home-section');
+            
+            sections.forEach(section => {
+                const sectionCards = section.querySelectorAll('.files-home-card');
+                let maxHeight = 0;
+                
+                // 重置高度
+                sectionCards.forEach(card => {
+                    card.style.height = 'auto';
+                });
+                
+                // 找出最大高度
+                sectionCards.forEach(card => {
+                    maxHeight = Math.max(maxHeight, card.offsetHeight);
+                });
+                
+                // 应用最大高度
+                sectionCards.forEach(card => {
+                    card.style.height = maxHeight + 'px';
+                });
+            });
+        }
+        
+        // 初始调整和窗口大小变化时调整
+        adjustCardHeights();
+        window.addEventListener('resize', adjustCardHeights);
+    });
+</script>
+{% endblock %} 
