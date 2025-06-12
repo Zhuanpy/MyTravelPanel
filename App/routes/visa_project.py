@@ -67,6 +67,10 @@ def show_current_all_projects():
         sort_by = request.args.get('sort_by', 'created_date')
         filter_visa_type = request.args.get('filter_visa_type', 'all')
         applicant_name = request.args.get('applicant_name', '').strip()
+        
+        # 获取分页参数
+        page = request.args.get('page', 1, type=int)
+        per_page = 20
 
         # 构建基础查询
         query = VisaProject.query
@@ -105,8 +109,9 @@ def show_current_all_projects():
         else:  # sort_by == 'created_date'
             query = query.order_by(VisaProject.created_date.desc())
 
-        # 执行查询
-        projects = query.all()
+        # 执行分页查询
+        pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+        projects = pagination.items
 
         # 将查询结果转为字典格式
         projects_data = [
@@ -129,6 +134,7 @@ def show_current_all_projects():
 
         return render_template('visas/签证项目管理.html',
                            projects=projects_data,
+                           pagination=pagination,
                            visa_status=visa_status,
                            sort_by=sort_by,
                            filter_visa_type=filter_visa_type,
