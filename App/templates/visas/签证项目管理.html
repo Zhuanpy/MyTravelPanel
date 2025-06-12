@@ -434,6 +434,7 @@
 
 {% block content %}
 <div class="container-fluid">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="page-header">
         <h1 class="page-title">签证项目管理</h1>
     </div>
@@ -496,7 +497,6 @@
     </div>
 
     <div class="table-container">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <table class="table">
             <thead>
                 <tr>
@@ -818,6 +818,54 @@
             '忽略单': 'visa-status-ignored'
         };
         return statusClasses[status] || '';
+    }
+
+    // 删除确认函数
+    function confirmDelete(projectId, projectName) {
+        if (confirm(`确定要删除项目 "${projectName}" 吗？此操作不可恢复。`)) {
+            const csrfToken = document.querySelector('input[name="csrf_token"]').value;
+            
+            // 创建FormData对象
+            const formData = new FormData();
+            formData.append('csrf_token', csrfToken);
+            
+            fetch(`/visa/project/delete_current_project/${projectId}`, {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': csrfToken
+                },
+                body: formData
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(data => {
+                        throw new Error(data.message || '服务器错误');
+                    });
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    // 删除成功，移除对应的表格行
+                    const row = document.querySelector(`button[onclick="confirmDelete('${projectId}', '${projectName}')"]`).closest('tr');
+                    if (row) {
+                        row.style.transition = 'opacity 0.5s';
+                        row.style.opacity = '0';
+                        setTimeout(() => {
+                            row.remove();
+                        }, 500);
+                    }
+                    showToast('项目删除成功', 'success');
+                } else {
+                    throw new Error(data.message || '删除失败');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showToast(error.message || '删除失败，请重试', 'error');
+            });
+        }
     }
 </script>
 

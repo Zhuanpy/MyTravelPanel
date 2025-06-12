@@ -233,16 +233,40 @@ def visa_processing(visa_type):
 
 @visa_project.route('/delete_current_project/<int:project_id>', methods=['POST'])
 def delete_current_project(project_id):
-
     try:
+        # 获取项目信息
         project = VisaProject.query.get_or_404(project_id)
+        project_folder_name = project.project_folder_name
+        visa_type = project.visa_type
+
+        # 构建项目文件夹路径
+        project_root = Path(__file__).resolve().parent.parent
+        base_folder = project_root / "static" / "资源" / "签证"
+        project_folder = base_folder / project_folder_name
+        
+        # 如果主路径不存在，尝试在签证类型子文件夹中查找
+        if not project_folder.exists():
+            project_folder = base_folder / visa_type / project_folder_name
+
+        # 如果文件夹存在，删除文件夹
+        if project_folder.exists():
+            try:
+                shutil.rmtree(str(project_folder))
+            except Exception as e:
+                print(f"删除文件夹失败: {str(e)}")
+                # 即使文件夹删除失败，我们仍然继续删除数据库记录
+
+        # 删除数据库记录
         db.session.delete(project)
         db.session.commit()
+
         return jsonify({"success": True, "message": "项目删除成功！"}), 200
 
     except Exception as e:
         db.session.rollback()
-        return jsonify({"success": False, "message": str(e)}), 500
+        error_message = f"删除项目失败: {str(e)}"
+        print(error_message)  # 打印错误日志
+        return jsonify({"success": False, "message": error_message}), 500
 
 
 @visa_project.route('/update_project/<int:project_id>', methods=['GET', 'POST'])
