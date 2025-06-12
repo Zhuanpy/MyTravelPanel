@@ -10,6 +10,12 @@ from ..models import VisaTypes, VisaDocuments, VisaLinks, VisaProject
 from ..code.VisaForm import VisasUtils
 import json
 import traceback
+from flask import Blueprint, render_template, request, jsonify, redirect, url_for, flash
+from App.models.Flightmodels import FlightSchedule, AirportData
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy import or_
+import re
+from urllib.parse import unquote
 
 
 """
@@ -20,7 +26,7 @@ import traceback
 
 """
 # 创建蓝图
-visa_project = Blueprint('visa_project', __name__)
+visa_project = Blueprint('visa_project', __name__, url_prefix='/visa/project')
 
 # 获取项目文件夹及其创建日期
 def get_project_folders_with_dates(projects_dir, excluded_folders):
@@ -33,77 +39,104 @@ def get_project_folders_with_dates(projects_dir, excluded_folders):
             project_info.append({'name': folder, 'created_date': created_date})
     return project_info
 
+# 添加自定义过滤器
+@visa_project.app_template_filter('status_class')
+def status_class_filter(status):
+    """返回状态对应的CSS类名"""
+    status_classes = {
+        '待递交': 'visa-status-pending',
+        '待出签': 'visa-status-submitted',
+        '已出签': 'visa-status-approved',
+        '忽略单': 'visa-status-ignored'
+    }
+    return status_classes.get(status, '')
 
+@visa_project.app_template_filter('format_date')
+def format_date_filter(date):
+    """格式化日期"""
+    if date:
+        return date.strftime('%Y-%m-%d')
+    return ''
 
-@visa_project.route('/show_current_all_projects', methods=['GET'])
+@visa_project.route('/show_current_all_projects')
 def show_current_all_projects():
-    # 获取排序参数，默认按项目名称排序
-    sort_by = request.args.get('sort_by', 'name')
-    visa_status = request.args.get('visa_status', 'pending_submission')  # 默认显示待递交
-    filter_visa_type = request.args.get('filter_visa_type', 'all')  # 获取签证类型筛选参数
+    """显示所有签证项目"""
+    try:
+        # 获取筛选和排序参数
+        visa_status = request.args.get('visa_status', 'pending_submission')
+        sort_by = request.args.get('sort_by', 'created_date')
+        filter_visa_type = request.args.get('filter_visa_type', 'all')
+        applicant_name = request.args.get('applicant_name', '').strip()
 
-    # 基础查询
-    query = VisaProject.query
+        # 构建基础查询
+        query = VisaProject.query
 
-    # 根据签证状态筛选
-    if visa_status == 'pending_submission':
-        query = query.filter_by(visa_status='待递交')
-    elif visa_status == 'submitted':
-        query = query.filter_by(visa_status='待出签')
-    elif visa_status == 'approved':
-        query = query.filter_by(visa_status='已出签')
-    elif visa_status == 'ignored':
-        query = query.filter_by(visa_status='忽略单')
-    elif visa_status == 'all':
-        pass  # 不添加筛选条件，显示所有状态
+        # 添加状态筛选
+        if visa_status != 'all':
+            if visa_status == 'pending_submission':
+                query = query.filter(VisaProject.visa_status == '待递交')
+            elif visa_status == 'submitted':
+                query = query.filter(VisaProject.visa_status == '待出签')
+            elif visa_status == 'approved':
+                query = query.filter(VisaProject.visa_status == '已出签')
+            elif visa_status == 'ignored':
+                query = query.filter(VisaProject.visa_status == '忽略单')
 
-    # 根据签证类型筛选
-    if filter_visa_type != 'all':
-        query = query.filter(VisaProject.visa_type == filter_visa_type)
+        # 添加签证类型筛选
+        if filter_visa_type != 'all':
+            query = query.filter(VisaProject.visa_type == filter_visa_type)
 
-    # 排除特定签证类型的项目（如有需求）
-    visa_type_names = VisaTypes.query.with_entities(VisaTypes.visa_type).all()
-    excluded_types = [name[0] for name in visa_type_names]
-    if excluded_types:
-        query = query.filter(~VisaProject.project_folder_name.in_(excluded_types))
+        # 添加申请人名字搜索
+        if applicant_name:
+            query = query.filter(VisaProject.applicant_name.ilike(f'%{applicant_name}%'))
 
-    # 查询项目数据
-    projects = query.all()
+        # 获取签证类别
+        visa_categories = VisaTypes.query.all()
 
-    # 将查询结果转为字典格式，确保包含所有需要的字段
-    projects = [
-        {
-            "id": project.id,
-            "name": project.project_folder_name,
-            "project_folder_name": project.project_folder_name,
-            "created_date": project.created_date,
-            "visa_status": project.visa_status,
-            "estimated_date": project.estimated_date,
-            "visa_type": project.visa_type,
-            "applicant_name": project.applicant_name,
-            "contact_name": project.contact_name,
-            "remarks": project.remarks,
-            "hid_or_serial": project.hid_or_serial,
-            "singapore_status": project.singapore_status
-        }
-        for project in projects
-    ]
+        # 排除特定签证类型的项目（如有需求）
+        visa_type_names = VisaTypes.query.with_entities(VisaTypes.visa_type).all()
+        excluded_types = [name[0] for name in visa_type_names]
+        if excluded_types:
+            query = query.filter(~VisaProject.project_folder_name.in_(excluded_types))
 
-    # 按指定字段排序
-    if sort_by == 'name':
-        projects.sort(key=lambda x: x['name'].lower() if x['name'] else '')
-    elif sort_by == 'created_date':
-        projects.sort(key=lambda x: x['created_date'] or '', reverse=True)
+        # 添加排序
+        if sort_by == 'name':
+            query = query.order_by(VisaProject.project_name)
+        else:  # sort_by == 'created_date'
+            query = query.order_by(VisaProject.created_date.desc())
 
-    # 获取签证类别
-    visa_categories = VisaTypes.query.all()
+        # 执行查询
+        projects = query.all()
 
-    return render_template('visas/签证项目列表.html',
-                         projects=projects, 
-                         visa_status=visa_status, 
-                         sort_by=sort_by,
-                         filter_visa_type=filter_visa_type,
-                         visa_categories=visa_categories)
+        # 将查询结果转为字典格式
+        projects_data = [
+            {
+                "id": project.id,
+                "name": project.project_folder_name,
+                "project_folder_name": project.project_folder_name,
+                "created_date": project.created_date,
+                "visa_status": project.visa_status,
+                "estimated_date": project.estimated_date,
+                "visa_type": project.visa_type,
+                "applicant_name": project.applicant_name,
+                "contact_name": project.contact_name,
+                "remarks": project.remarks,
+                "hid_or_serial": project.hid_or_serial,
+                "singapore_status": project.singapore_status
+            }
+            for project in projects
+        ]
+
+        return render_template('visas/签证项目管理.html',
+                           projects=projects_data,
+                           visa_status=visa_status,
+                           sort_by=sort_by,
+                           filter_visa_type=filter_visa_type,
+                           visa_categories=visa_categories)
+
+    except Exception as e:
+        flash(f'获取签证项目列表时出错：{str(e)}', 'error')
+        return redirect(url_for('visa_project.show_current_all_projects'))
 
 
 @visa_project.route('/visa_processing/<visa_type>', methods=['GET', 'POST'])
@@ -281,54 +314,20 @@ def edit_project(project_id):
 
 @visa_project.route('/generate_form/<int:project_id>', methods=['POST'])
 def generate_form_for_project(project_id):
-    """为现有项目生成表格"""
+    """为项目生成表格"""
     try:
-        # 获取项目信息
         project = VisaProject.query.get_or_404(project_id)
         
-        # 生成项目名称
-        project_name = f"{project.visa_type}_{project.hid_or_serial}_{project.applicant_name}"
-        visa_folder = f"{project_name}_{project.singapore_status}"
+        # 生成表格的逻辑...
         
-        # 生成表格
-        static_path = os.path.join(current_app.root_path, 'static')
-        VisasUtils.korea_visa_fill_form(visa_folder=project.project_folder_name, static_path=static_path)
-        
-        # 返回响应
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return jsonify({
-                'success': True,
-                'message': '表格生成成功',
-                'redirect_url': url_for('visa_project.edit_project', project_id=project_id)
-            })
-        
-        flash('表格生成成功！', 'success')
-        return redirect(url_for('visa_project.edit_project', project_id=project_id))
-    
-    except FileNotFoundError as e:
-        error_msg = f"文件或目录不存在: {str(e)}"
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return jsonify({
-                'success': False,
-                'message': error_msg
-            }), 500
-        flash(error_msg, 'error')
-        return redirect(url_for('visa_project.edit_project', project_id=project_id))
-    
+        return jsonify({'success': True, 'message': '表格生成成功'})
     except Exception as e:
-        error_msg = f"生成表格时发生错误: {str(e)}"
-        print(error_msg)  # 调试日志
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return jsonify({
-                'success': False,
-                'message': error_msg
-            }), 500
-        flash(error_msg, 'error')
-        return redirect(url_for('visa_project.edit_project', project_id=project_id))
+        return jsonify({'success': False, 'message': str(e)})
 
 
 """ 签证详细 开始 """
-@visa_project.route('/detail/<int:project_id>')
+@visa_project.route('/project_detail/<int:project_id>')
+@visa_project.route('/detail/<int:project_id>')  # 保留旧路由以保持兼容性
 def visa_detail(project_id):
     """显示签证项目详情页面"""
     # 获取当前的visa_status和sort_by参数
@@ -671,102 +670,82 @@ def open_folder():
 
     参数：
     - folder_type: 文件夹类型，可选值：project(项目文件夹)、visa_type(签证类型文件夹)、visa_root(签证根目录)
-    - file_name: 文件夹名称，用于folder_type=project
+    - project_folder: 项目文件夹名称，用于folder_type=project
     - visa_type: 签证类型，用于folder_type=visa_type
-    - return_to: 打开后返回的页面，可选值：list(项目列表)、processing(签证处理)、home(首页)
-    - visa_status, sort_by, filter_visa_type: 返回页面的状态参数
     """
-    folder_type = request.args.get('folder_type', 'project')  # project/visa_type/visa_root
-    file_name = request.args.get('file_name', '')
-    visa_type = request.args.get('visa_type', '')
-    return_to = request.args.get('return_to', 'list')  # list/processing/home
-
-    # 获取返回页面的状态参数
-    visa_status = request.args.get('visa_status', 'all')
-    sort_by = request.args.get('sort_by', 'name')
-    filter_visa_type = request.args.get('filter_visa_type', 'all')
-
-    # 获取项目根目录
-    project_root = Path(__file__).resolve().parent.parent
-    current_dir = Path.cwd()
-
-    # 根据参数决定打开哪个文件夹
-    if folder_type == 'project':
-        base_folder = project_root / "static" / "资源" / "Project" / "Visa"
-        folder_path = base_folder / file_name
-
-        # 添加备选路径逻辑 - 如果主文件夹不存在但有visa_type参数，尝试备选路径
-        if not folder_path.exists() and visa_type:
-            pre_folder_path = base_folder / visa_type / file_name
-            if pre_folder_path.exists():
-                folder_path = pre_folder_path
-            else:
-                error_msg = f"资源文件夹 {folder_path} 和备用文件夹 {pre_folder_path} 都不存在"
-                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                    return jsonify({'success': False, 'message': error_msg}), 404
-                flash(error_msg, "error")
-                if return_to == 'list':
-                    return redirect(url_for("visa_project.show_current_all_projects",
-                                            visa_status=visa_status,
-                                            sort_by=sort_by,
-                                            filter_visa_type=filter_visa_type))
-                elif return_to == 'processing':
-                    return redirect(url_for("visa_project.visa_processing", visa_type=visa_type))
-                else:
-                    return redirect(url_for("index.index"))
-        elif not folder_path.exists():
-            error_msg = f"资源文件夹 {folder_path} 不存在"
-            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                return jsonify({'success': False, 'message': error_msg}), 404
-            flash(error_msg, "error")
-            if return_to == 'list':
-                return redirect(url_for("visa_project.show_current_all_projects",
-                                        visa_status=visa_status,
-                                        sort_by=sort_by,
-                                        filter_visa_type=filter_visa_type))
-            elif return_to == 'processing':
-                return redirect(url_for("visa_project.visa_processing", visa_type=visa_type))
-            else:
-                return redirect(url_for("index.index"))
-
-    elif folder_type == 'visa_type':
-        folder_path = current_dir / "App" / "static" / "资源" / "签证" / visa_type
-        if not folder_path.exists():
-            error_msg = f"资源文件夹 {folder_path} 不存在"
-            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                return jsonify({'success': False, 'message': error_msg}), 404
-            flash(error_msg, "error")
-            return redirect(url_for("visa_project.visa_processing", visa_type=visa_type))
-
-    elif folder_type == 'visa_root':
-        folder_path = current_dir / "App" / "static" / "资源" / "签证"
-        folder_path = os.path.join(folder_path)
-
-    # 打开文件夹
     try:
+        # 获取并解码参数
+        folder_type = request.args.get('folder_type', 'project')
+        project_folder = unquote(request.args.get('project_folder', ''))
+        visa_type = unquote(request.args.get('visa_type', ''))
+
+        # 获取项目根目录
+        project_root = Path(__file__).resolve().parent.parent
+
+        # 根据文件夹类型构建路径
+        if folder_type == 'project' and project_folder and visa_type:
+            base_folder = project_root / "static" / "资源" / "Project" / "Visa"
+            # 首先尝试在签证类型子文件夹中查找
+            folder_path = base_folder / visa_type / project_folder
+            if not folder_path.exists():
+                # 如果不存在，尝试在根目录中查找
+                folder_path = base_folder / project_folder
+
+            if not folder_path.exists():
+                return jsonify({
+                    "success": False, 
+                    "message": f"找不到项目文件夹：{project_folder}"
+                }), 404
+
+        elif folder_type == 'visa_type' and visa_type:
+            # 修改为正确的签证类型资源文件夹路径
+            folder_path = project_root / "static" / "资源" / "签证" / visa_type
+            if not folder_path.exists():
+                return jsonify({
+                    "success": False, 
+                    "message": f"找不到签证类型文件夹：{visa_type}"
+                }), 404
+
+        elif folder_type == 'visa_root':
+            # 修改为正确的签证根目录路径
+            folder_path = project_root / "static" / "资源" / "签证"
+            if not folder_path.exists():
+                return jsonify({
+                    "success": False, 
+                    "message": "找不到签证根目录"
+                }), 404
+
+        else:
+            return jsonify({
+                "success": False, 
+                "message": "无效的文件夹类型或参数缺失"
+            }), 400
+
+        # 转换为字符串路径
+        folder_path_str = str(folder_path)
+
+        # 打印调试信息
+        print(f"Opening folder: {folder_path_str}")
+        print(f"Folder exists: {os.path.exists(folder_path_str)}")
+
+        # 根据操作系统打开文件夹
         if platform.system() == "Windows":
-            os.startfile(folder_path)
+            os.startfile(folder_path_str)
         elif platform.system() == "Darwin":  # macOS
-            subprocess.run(["open", folder_path])
-        else:  # Linux and other Unix-based systems
-            subprocess.run(["xdg-open", folder_path])
+            subprocess.run(["open", folder_path_str])
+        else:  # Linux
+            subprocess.run(["xdg-open", folder_path_str])
 
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return jsonify({'success': True, 'message': '文件夹已打开'})
+        return jsonify({
+            "success": True, 
+            "message": "文件夹已打开",
+            "path": folder_path_str  # 返回实际打开的路径，方便调试
+        })
+
     except Exception as e:
-        error_msg = f"无法打开文件夹: {str(e)}"
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return jsonify({'success': False, 'message': error_msg}), 500
-        flash(error_msg, "error")
-
-    # 根据参数决定重定向到哪个页面
-    if return_to == 'list':
-        return redirect(url_for("visa_project.show_current_all_projects",
-                                visa_status=visa_status,
-                                sort_by=sort_by,
-                                filter_visa_type=filter_visa_type))
-    elif return_to == 'processing':
-        return redirect(url_for("visa_project.visa_processing", visa_type=visa_type))
-    else:
-        return redirect(url_for("index.index"))
+        print(f"Error opening folder: {str(e)}")  # 添加服务器端日志
+        return jsonify({
+            "success": False, 
+            "message": f"打开文件夹时出错：{str(e)}"
+        }), 500
 

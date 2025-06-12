@@ -6,7 +6,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <style>
         .visa-detail-container {
-            max-width: 1200px;
+            max-width: 1800px;
             margin: 0 auto;
             padding: 20px;
         }
@@ -577,8 +577,8 @@
                     打开项目文件夹
                 </a>
                 
-                <a class="visa-project-resource-link" href="{{ url_for('visa_project.open_folder', folder_type='visa_type', visa_type=project.visa_type, return_to='detail') }}">
-                    打开签证类型文件夹
+                <a href="javascript:void(0);" onclick="openVisaTypeFolder('{{ project.visa_type }}')" class="visa-project-resource-link">
+                    打开资源文件夹
                 </a>
             </div>
         </div>
@@ -769,16 +769,16 @@ function updateVisaStatus() {
     const csrfToken = formData.get('csrf_token');
 
     fetch(`/visa/project/update_visa_status/{{ project.id }}`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
             'X-Requested-With': 'XMLHttpRequest',
             'X-CSRFToken': csrfToken
-        },
+                    },
         body: `visa_status=${encodeURIComponent(newStatus)}`
     })
     .then(response => {
-        if (!response.ok) {
+                if (!response.ok) {
             return response.json().then(data => {
                 throw new Error(data.message || '服务器错误');
             });
@@ -799,54 +799,83 @@ function updateVisaStatus() {
             }[data.project.visa_status];
             statusElement.className = `visa-detail-status visa-detail-status-${statusClass}`;
             showMessage('状态更新成功', 'success');
-        } else {
+                } else {
             throw new Error(data.message || '更新失败');
-        }
+                }
     })
     .catch(error => {
-        console.error('Error:', error);
+                console.error('Error:', error);
         showMessage(error.message || '更新失败，请重试', 'error');
     });
 }
 
 function showMessage(message, type) {
-    const alertDiv = document.createElement('div');
-    alertDiv.className = `alert alert-${type === 'success' ? 'success' : 'danger'} alert-dismissible fade show`;
-    alertDiv.style.position = 'fixed';
-    alertDiv.style.top = '20px';
-    alertDiv.style.right = '20px';
-    alertDiv.style.zIndex = '1050';
-    alertDiv.innerHTML = `
-        ${message}
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    const toastContainer = document.querySelector('.toast-container');
+    if (!toastContainer) return;
+
+    const toast = document.createElement('div');
+    toast.className = `toast align-items-center text-white bg-${type === 'success' ? 'success' : 'danger'} border-0`;
+    toast.setAttribute('role', 'alert');
+    toast.setAttribute('aria-live', 'assertive');
+    toast.setAttribute('aria-atomic', 'true');
+
+    toast.innerHTML = `
+        <div class="d-flex">
+            <div class="toast-body">
+                ${message}
+            </div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
     `;
-    document.body.appendChild(alertDiv);
-    setTimeout(() => alertDiv.remove(), 3000);
+
+    toastContainer.appendChild(toast);
+    const bsToast = new bootstrap.Toast(toast);
+    bsToast.show();
+
+    toast.addEventListener('hidden.bs.toast', () => {
+        toast.remove();
+    });
 }
 
-function openProjectFolder(fileName, visaType) {
-    const url = `{{ url_for('visa_project.open_folder') }}?folder_type=project&file_name=${encodeURIComponent(fileName)}&visa_type=${encodeURIComponent(visaType)}`;
-    fetch(url, {
+function openProjectFolder(folderName, visaType) {
+    fetch(`/visa/project/open_folder?folder_type=project&project_folder=${folderName}&visa_type=${visaType}`, {
         method: 'GET',
         headers: {
-            'X-Requested-With': 'XMLHttpRequest',
-            'Accept': 'application/json'
+            'X-Requested-With': 'XMLHttpRequest'
         }
     })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        return response.json();
-    })
+    .then(response => response.json())
     .then(data => {
-        if (!data.success) {
-            alert(data.message || '无法打开文件夹');
+        if (data.success) {
+            showMessage('文件夹已打开', 'success');
+        } else {
+            showMessage(data.message || '打开文件夹失败', 'error');
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('打开文件夹时发生错误');
+        showMessage('系统错误，请稍后重试', 'error');
+    });
+}
+
+function openVisaTypeFolder(visaType) {
+    fetch(`/visa/project/open_folder?folder_type=visa_type&visa_type=${visaType}`, {
+        method: 'GET',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showMessage('文件夹已打开', 'success');
+        } else {
+            showMessage(data.message || '打开文件夹失败', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showMessage('系统错误，请稍后重试', 'error');
     });
 }
 </script>

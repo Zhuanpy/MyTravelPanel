@@ -30,10 +30,10 @@ class TodoReminder:
         try:
             with self.app.app_context():
                 now = datetime.now()
-                
+            
                 # 基础查询：未完成的待办事项
                 query = Todo.query.filter(
-                    Todo.is_completed == False,
+                Todo.is_completed == False,
                     Todo.due_date > now
                 )
                 
@@ -43,7 +43,7 @@ class TodoReminder:
                     query = query.filter(Todo.due_date <= future_time)
                 
                 todos = query.all()
-                return [(todo.id, todo.title, todo.due_date) for todo in todos]
+            return [(todo.id, todo.title, todo.due_date) for todo in todos]
         except Exception as e:
             print(f"查询待办事项时出错: {str(e)}")
             return []
@@ -161,11 +161,11 @@ class TodoReminder:
         if not self.running and self.enabled:
             self.running = True
             
-            # 启动桌面通知线程
-            if self.desktop_notification:
-                self.thread = threading.Thread(target=self.check_todos)
-                self.thread.daemon = True
-                self.thread.start()
+        # 启动桌面通知线程
+        if self.desktop_notification:
+            self.thread = threading.Thread(target=self.check_todos)
+            self.thread.daemon = True
+            self.thread.start()
             
             # 启动邮件通知线程
             self.email_thread = threading.Thread(target=self.check_todos_email)
@@ -175,6 +175,6 @@ class TodoReminder:
     def stop(self):
         self.running = False
         if self.thread:
-            self.thread.join()
+            self.thread.join() 
         if self.email_thread:
             self.email_thread.join() 

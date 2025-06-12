@@ -179,7 +179,6 @@ def open_FuXin_pdf():
         flash(f'启动失败：{str(e)}')
         return redirect(url_for("index.index"))
 
-
 @utils_process.route('/open_Photoshop')
 def open_Photoshop():
     try:
