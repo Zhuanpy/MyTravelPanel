@@ -6,7 +6,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <style>
         .visa-detail-container {
-            max-width: 1800px;
+            max-width: 1200px;
             margin: 0 auto;
             padding: 20px;
         }
@@ -543,6 +543,27 @@
                 padding: 0 1rem 1rem;
             }
         }
+
+        .visa-detail-status-select {
+            padding: 6px 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 4px;
+            background-color: white;
+            font-size: 0.875rem;
+            color: #4a5568;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .visa-detail-status-select:hover {
+            border-color: #cbd5e0;
+        }
+
+        .visa-detail-status-select:focus {
+            outline: none;
+            border-color: #4299e1;
+            box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.1);
+        }
     </style>
 {% endblock %}
 
@@ -559,14 +580,17 @@
             <span>{{ project.visa_type|default('未知类型', true) }}申请</span>
         </h1>
         <div class="visa-detail-actions-row">
-            <div class="visa-detail-status visa-detail-status-{{ {
-                '待递交': 'pending',
-                '待出签': 'processing',
-                '已出签': 'completed',
-                '忽略单': 'ignored'
-            }[project.visa_status] }}" onclick="showStatusModal()">
-                {{ project.visa_status }}
-                <i class="fas fa-edit ms-2"></i>
+            <div class="visa-detail-info-item">
+                <span class="visa-detail-info-label">签证状态</span>
+                <form id="statusForm" style="margin: 0;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <select class="visa-detail-status-select" name="status" onchange="updateVisaStatus(this.value)">
+                        <option value="待递交" {% if project.visa_status == '待递交' %}selected{% endif %}>待递交</option>
+                        <option value="待出签" {% if project.visa_status == '待出签' %}selected{% endif %}>待出签</option>
+                        <option value="已出签" {% if project.visa_status == '已出签' %}selected{% endif %}>已出签</option>
+                        <option value="忽略单" {% if project.visa_status == '忽略单' %}selected{% endif %}>忽略单</option>
+                    </select>
+                </form>
             </div>
 
             <div class="visa-detail-header-links">
@@ -579,6 +603,10 @@
                 
                 <a href="javascript:void(0);" onclick="openVisaTypeFolder('{{ project.visa_type }}')" class="visa-project-resource-link">
                     打开资源文件夹
+                </a>
+                
+                <a href="{{ url_for('visa_project.show_current_all_projects') }}" class="visa-project-resource-link"> 
+                    返回项目列表
                 </a>
             </div>
         </div>
@@ -727,58 +755,22 @@
 
 </div>
 
-<!-- 状态修改模态框 -->
-<div class="modal fade" id="statusModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">修改签证状态</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <form id="statusForm">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <div class="form-group">
-                        <label for="visaStatus">签证状态</label>
-                        <select class="form-select" id="visaStatus" name="visa_status">
-                            <option value="待递交" {% if project.visa_status == '待递交' %}selected{% endif %}>待递交</option>
-                            <option value="待出签" {% if project.visa_status == '待出签' %}selected{% endif %}>待出签</option>
-                            <option value="已出签" {% if project.visa_status == '已出签' %}selected{% endif %}>已出签</option>
-                            <option value="忽略单" {% if project.visa_status == '忽略单' %}selected{% endif %}>忽略单</option>
-                        </select>
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-                <button type="button" class="btn btn-primary" onclick="updateVisaStatus()">保存</button>
-            </div>
-        </div>
-    </div>
-</div>
-
 <script>
-function showStatusModal() {
-    new bootstrap.Modal(document.getElementById('statusModal')).show();
-}
-
-function updateVisaStatus() {
+function updateVisaStatus(newStatus) {
     const form = document.getElementById('statusForm');
-    const formData = new FormData(form);
-    const newStatus = formData.get('visa_status');
-    const csrfToken = formData.get('csrf_token');
+    const csrfToken = form.querySelector('input[name="csrf_token"]').value;
 
-    fetch(`/visa/project/update_visa_status/{{ project.id }}`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded',
+    fetch(`/visa/project/update_visa_status`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
             'X-Requested-With': 'XMLHttpRequest',
             'X-CSRFToken': csrfToken
-                    },
-        body: `visa_status=${encodeURIComponent(newStatus)}`
+        },
+        body: `project_id={{ project.id }}&status=${encodeURIComponent(newStatus)}&csrf_token=${encodeURIComponent(csrfToken)}`
     })
     .then(response => {
-                if (!response.ok) {
+        if (!response.ok) {
             return response.json().then(data => {
                 throw new Error(data.message || '服务器错误');
             });
@@ -787,31 +779,29 @@ function updateVisaStatus() {
     })
     .then(data => {
         if (data.success) {
-            bootstrap.Modal.getInstance(document.getElementById('statusModal')).hide();
-            // 更新页面上的状态显示
-            const statusElement = document.querySelector('.visa-detail-status');
-            statusElement.textContent = data.project.visa_status;
-            const statusClass = {
-                '待递交': 'pending',
-                '待出签': 'processing',
-                '已出签': 'completed',
-                '忽略单': 'ignored'
-            }[data.project.visa_status];
-            statusElement.className = `visa-detail-status visa-detail-status-${statusClass}`;
             showMessage('状态更新成功', 'success');
-                } else {
+            setTimeout(() => {
+                window.location.reload();
+            }, 500);
+        } else {
             throw new Error(data.message || '更新失败');
-                }
+        }
     })
     .catch(error => {
-                console.error('Error:', error);
+        console.error('Error:', error);
         showMessage(error.message || '更新失败，请重试', 'error');
+        const select = document.querySelector('.visa-detail-status-select');
+        select.value = '{{ project.visa_status }}';
     });
 }
 
 function showMessage(message, type) {
     const toastContainer = document.querySelector('.toast-container');
-    if (!toastContainer) return;
+    if (!toastContainer) {
+        const container = document.createElement('div');
+        container.className = 'toast-container';
+        document.body.appendChild(container);
+    }
 
     const toast = document.createElement('div');
     toast.className = `toast align-items-center text-white bg-${type === 'success' ? 'success' : 'danger'} border-0`;
@@ -828,7 +818,7 @@ function showMessage(message, type) {
         </div>
     `;
 
-    toastContainer.appendChild(toast);
+    document.querySelector('.toast-container').appendChild(toast);
     const bsToast = new bootstrap.Toast(toast);
     bsToast.show();
 

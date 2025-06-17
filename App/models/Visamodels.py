@@ -101,6 +101,9 @@ class VisaTypes(db.Model):
     identities = db.relationship('VisaSingaporeIdentity',
                                secondary=visa_type_identities,
                                back_populates='visa_types')
+    
+    # 与VisaLinks的一对多关系
+    links = db.relationship('VisaLinks', back_populates='visa_type', cascade='all, delete-orphan')
 
     def __repr__(self):
         return f"<VisaType(id={self.id}, visa_type='{self.visa_type}', country_id={self.country_id})>"
@@ -124,7 +127,8 @@ class VisaTypes(db.Model):
             'fee': self.fee,
             'country_id': self.country_id,
             'country_name': self.country.country_name_CN if self.country else None,
-            'identities': [identity.to_dict() for identity in self.identities]
+            'identities': [identity.to_dict() for identity in self.identities],
+            'links': [link.to_dict() for link in self.links]
         }
 
 
@@ -215,15 +219,24 @@ class VisaLinks(db.Model):
     __tablename__ = 'visalinks'
 
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    visa_type = db.Column(db.String(50), db.ForeignKey('visa_types.visa_type'), nullable=False)
+    visa_type_id = db.Column(db.Integer, db.ForeignKey('visa_types.id', ondelete='CASCADE'), nullable=False)
     name = db.Column(db.String(50), nullable=False)
     link = db.Column(db.Text)
 
     # 建立与 VisaTypes 表的关系
-    visa_type_rel = db.relationship('VisaTypes', backref=db.backref('links', lazy='dynamic'))
+    visa_type = db.relationship('VisaTypes', back_populates='links')
 
     def __repr__(self):
-        return f"<VisaLink(id={self.id}, visa_type='{self.visa_type}', name='{self.name}')>"
+        return f"<VisaLink(id={self.id}, visa_type_id={self.visa_type_id}, name='{self.name}')>"
+        
+    def to_dict(self):
+        """转换为字典格式"""
+        return {
+            'id': self.id,
+            'name': self.name,
+            'link': self.link,
+            'visa_type_id': self.visa_type_id
+        }
 
 
 class VisaProject(db.Model):

@@ -482,30 +482,50 @@ function loadTodos() {
 }
 
 function toggleTodoStatus(id, completed) {
-    fetch('/utils/todos/update', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
-        },
-        body: JSON.stringify({
-            id: id,
-            is_completed: completed
+    // 先获取当前待办事项的数据
+    fetch(`/utils/todos/get/${id}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const todo = data.todo;
+                // 保留原有数据，只更新完成状态
+                return fetch('/utils/todos/update', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
+                    },
+                    body: JSON.stringify({
+                        id: id,
+                        title: todo.title,
+                        description: todo.description,
+                        priority: todo.priority,
+                        due_date: todo.due_date,
+                        is_completed: completed
+                    })
+                });
+            } else {
+                throw new Error(data.message || '获取待办事项失败');
+            }
         })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            loadTodos();
-            showMessage('状态更新成功', 'success');
-        } else {
-            showMessage(data.message || '更新失败', 'error');
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        showMessage('更新失败，请重试', 'error');
-    });
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                loadTodos();
+                showMessage('状态更新成功', 'success');
+            } else {
+                throw new Error(data.message || '更新失败');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showMessage(error.message || '更新失败，请重试', 'error');
+            // 恢复复选框状态
+            const checkbox = document.querySelector(`input[type="checkbox"][onchange*="toggleTodoStatus(${id}"]`);
+            if (checkbox) {
+                checkbox.checked = !completed;
+            }
+        });
 }
 
 function editTodo(id) {
