@@ -564,6 +564,245 @@
             border-color: #4299e1;
             box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.1);
         }
+
+        /* 资料管理样式 */
+        .document-list-container {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+        }
+        @media (max-width: 1000px) {
+            .document-list-container {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        @media (max-width: 700px) {
+            .document-list-container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .document-item {
+            background-color: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            transition: all 0.2s;
+        }
+
+        .document-item:hover {
+            border-color: #cbd5e0;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .document-item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .document-item-info {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .document-name {
+            font-weight: 500;
+            color: #2d3748;
+        }
+
+        .document-type-badge {
+            background-color: #ebf4ff;
+            color: #4299e1;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .document-item-actions {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .document-status-toggle {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .document-ready-checkbox {
+            display: none;
+        }
+
+        .status-indicator {
+            padding: 0.375rem 0.75rem;
+            border-radius: 0.25rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            transition: all 0.2s;
+            cursor: pointer;
+            border: 2px solid transparent;
+            min-width: 60px;
+            text-align: center;
+        }
+
+        .status-indicator:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .status-indicator.ready {
+            background-color: #dcfce7;
+            color: #166534;
+            border-color: #16a34a;
+        }
+
+        .status-indicator.ready:hover {
+            background-color: #bbf7d0;
+        }
+
+        .status-indicator.not-ready {
+            background-color: #fef3c7;
+            color: #92400e;
+            border-color: #f59e0b;
+        }
+
+        .status-indicator.not-ready:hover {
+            background-color: #fde68a;
+        }
+
+        .status-indicator.updating {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .document-edit-btn,
+        .document-delete-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.375rem;
+            border: none;
+            border-radius: 0.25rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .document-edit-btn {
+            background-color: #ebf4ff;
+            color: #4299e1;
+        }
+
+        .document-edit-btn:hover {
+            background-color: #bee3f8;
+        }
+
+        .document-delete-btn {
+            background-color: #fed7d7;
+            color: #c53030;
+        }
+
+        .document-delete-btn:hover {
+            background-color: #feb2b2;
+        }
+
+        .document-notes {
+            margin-top: 0.5rem;
+            padding: 0.5rem;
+            background-color: #f7fafc;
+            border-radius: 0.25rem;
+            font-size: 0.875rem;
+            color: #4a5568;
+        }
+
+        /* 模态框样式 */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-content {
+            background-color: #fefefe;
+            margin: 15% auto;
+            padding: 2rem;
+            border-radius: 0.5rem;
+            width: 90%;
+            max-width: 500px;
+            position: relative;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .modal-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #2d3748;
+            margin: 0;
+        }
+
+        .close {
+            color: #aaa;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .close:hover {
+            color: #000;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: #4a5568;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.25rem;
+            font-size: 0.875rem;
+        }
+
+        .form-textarea {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.25rem;
+            font-size: 0.875rem;
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 1rem;
+            margin-top: 1.5rem;
+        }
     </style>
 {% endblock %}
 
@@ -605,8 +844,12 @@
                     打开资源文件夹
                 </a>
                 
-                <a href="{{ url_for('visa_project.show_current_all_projects') }}" class="visa-project-resource-link"> 
+                <a href="{{ url_for('visa_project.show_current_all_projects', visa_status=request.args.get('visa_status', 'all'), sort_by=request.args.get('sort_by', 'name'), filter_visa_type=request.args.get('filter_visa_type', 'all'), applicant_name=request.args.get('applicant_name', '')) }}" class="visa-project-resource-link"> 
                     返回项目列表
+                </a>
+
+                <a href="{{ url_for('visa_basic.visa_type_document_manager', visa_type=project.visa_type) }}" class="visa-project-resource-link">
+                    文档管理器
                 </a>
             </div>
         </div>
@@ -658,11 +901,7 @@
                 <div class="visa-detail-info-item">
                     <span class="visa-detail-info-label">预估出签日期</span>
                     <span class="visa-detail-info-value">
-                        <form method="POST" action="{{ url_for('visa_project.update_project_details', project_id=project.id) }}">
-                            <input type="hidden" name="current_visa_status" value="{{ current_visa_status }}">
-                            <input type="hidden" name="current_sort_by" value="{{ current_sort_by }}">
-                            <input type="date" name="estimated_date" value="{{ project.estimated_date }}" onchange="this.form.submit()">
-                        </form>
+                        <input type="date" id="estimatedDateInput" value="{{ project.estimated_date }}" onchange="updateEstimatedDate(this.value)">
                     </span>
                 </div>
                 <div class="visa-detail-info-item">
@@ -696,29 +935,79 @@
     <section class="visa-detail-section">
         <div class="visa-detail-section-header">
             <h2>所需文件资料</h2>
+            <div class="visa-detail-actions">
+                <button type="button" class="visa-project-btn visa-project-btn-secondary" onclick="syncProjectDocuments()">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 2v6h-6"></path>
+                        <path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path>
+                        <path d="M3 22v-6h6"></path>
+                        <path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path>
+                    </svg>
+                    同步资料清单
+                </button>
+                <button type="button" class="visa-project-btn visa-project-btn-primary" onclick="showAddDocumentModal()">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                    </svg>
+                    添加资料
+                </button>
+            </div>
         </div>
         <div class="visa-detail-content">
             <div class="visa-detail-documents">
-                <div class="visa-detail-document-content">
-                    {%- if document_data and project.singapore_status in document_data -%}
-                        {%- set doc_info = document_data[project.singapore_status].document_info -%}
-                        {%- if doc_info -%}
-                            <div class="document-text">
-                                {%- set line_number = 1 -%}
-                                {%- for line in doc_info.strip().split('\n') -%}
-                                    {%- if line.strip() -%}
-                                        <p>{{ line.strip() | safe }}</p>
-                                        {%- set line_number = line_number + 1 -%}
-                                    {%- endif -%}
-                                {%- endfor -%}
+                {% if document_statuses %}
+                    <div class="document-list-container">
+                        {% for document_name, status in document_statuses.items() %}
+                            <div class="document-item" data-document-id="{{ status.id }}">
+                                <div class="document-item-header">
+                                    <div class="document-item-info">
+                                        <span class="document-name">{{ document_name }}</span>
+                                        <span class="document-type-badge">{{ status.document_type }}</span>
+                                    </div>
+                                    <div class="document-item-actions">
+                                        <div class="document-status-toggle" 
+                                             data-document-id="{{ status.id }}" 
+                                             data-current-status="{{ 'true' if status.is_ready else 'false' }}"
+                                             onclick="toggleDocumentStatus(this.dataset.documentId, this.dataset.currentStatus === 'true')">
+                                            <span class="status-indicator {% if status.is_ready %}ready{% else %}not-ready{% endif %}" data-document-id="{{ status.id }}">
+                                                {% if status.is_ready %}已准备{% else %}未准备{% endif %}
+                                            </span>
+                                        </div>
+                                        <button type="button" class="document-edit-btn" 
+                                                data-document-id="{{ status.id }}" 
+                                                data-document-name="{{ document_name }}"
+                                                data-document-notes="{{ status.notes or '' }}"
+                                                onclick="editDocumentNotes(this.dataset.documentId, this.dataset.documentName, this.dataset.documentNotes)">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                                            </svg>
+                                        </button>
+                                        <button type="button" class="document-delete-btn" 
+                                                data-document-id="{{ status.id }}" 
+                                                data-document-name="{{ document_name }}"
+                                                onclick="deleteDocument(this.dataset.documentId, this.dataset.documentName)">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <polyline points="3,6 5,6 21,6"></polyline>
+                                                <path d="M19,6v14a2,2 0 0,1 -2,2H7a2,2 0 0,1 -2,-2V6m3,0V4a2,2 0 0,1 2,-2h4a2,2 0 0,1 2,2v2"></path>
+                                            </svg>
+                                        </button>
+                                    </div>
+                                </div>
+                                {% if status.notes %}
+                                    <div class="document-notes">
+                                        <strong>备注:</strong> {{ status.notes }}
+                                    </div>
+                                {% endif %}
                             </div>
-                        {%- else -%}
-                            暂无文件资料要求
-                        {%- endif -%}
-                    {%- else -%}
-                        暂无文件资料要求
-                    {%- endif -%}
-                </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="visa-detail-document-content">
+                        <p>暂无资料清单。请点击"同步资料清单"从模板获取资料，或手动添加资料。</p>
+                    </div>
+                {% endif %}
             </div>
         </div>
     </section>
@@ -755,6 +1044,66 @@
 
 </div>
 
+<!-- 添加资料模态框 -->
+<div id="addDocumentModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 class="modal-title">添加资料</h3>
+            <span class="close" onclick="closeModal('addDocumentModal')">&times;</span>
+        </div>
+        <form id="addDocumentForm">
+            <div class="form-group">
+                <label class="form-label">资料名称</label>
+                <input type="text" class="form-input" id="documentName" name="document_name" list="documentNameList" required>
+                <datalist id="documentNameList"></datalist>
+            </div>
+            <div class="form-group">
+                <label class="form-label">资料类型</label>
+                <select class="form-input" id="documentType" name="document_type">
+                    <option value="document">文档</option>
+                    <option value="additional">补充资料</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">备注</label>
+                <textarea class="form-textarea" id="documentNotes" name="notes" placeholder="可选备注信息"></textarea>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="visa-project-btn visa-project-btn-secondary" onclick="closeModal('addDocumentModal')">取消</button>
+                <button type="submit" class="visa-project-btn visa-project-btn-primary">添加</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- 编辑备注模态框 -->
+<div id="editNotesModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 class="modal-title">编辑备注</h3>
+            <span class="close" onclick="closeModal('editNotesModal')">&times;</span>
+        </div>
+        <form id="editNotesForm">
+            <input type="hidden" id="editDocumentId" name="document_id">
+            <div class="form-group">
+                <label class="form-label">资料名称</label>
+                <input type="text" class="form-input" id="editDocumentName" readonly>
+            </div>
+            <div class="form-group">
+                <label class="form-label">备注</label>
+                <textarea class="form-textarea" id="editDocumentNotes" name="notes" placeholder="备注信息"></textarea>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="visa-project-btn visa-project-btn-secondary" onclick="closeModal('editNotesModal')">取消</button>
+                <button type="submit" class="visa-project-btn visa-project-btn-primary">保存</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
 <script>
 function updateVisaStatus(newStatus) {
     const form = document.getElementById('statusForm');
@@ -792,6 +1141,304 @@ function updateVisaStatus(newStatus) {
         showMessage(error.message || '更新失败，请重试', 'error');
         const select = document.querySelector('.visa-detail-status-select');
         select.value = '{{ project.visa_status }}';
+    });
+}
+
+function updateEstimatedDate(newDate) {
+    if (!newDate) {
+        showMessage('请选择有效的日期', 'error');
+        return;
+    }
+
+    // 显示更新中的状态
+    const dateInput = document.getElementById('estimatedDateInput');
+    const originalValue = dateInput.value;
+    dateInput.disabled = true;
+
+    fetch(`/visa/project/update_estimated_date/{{ project.id }}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: `estimated_date=${encodeURIComponent(newDate)}`
+    })
+    .then(response => {
+        if (!response.ok) {
+            return response.json().then(data => {
+                throw new Error(data.message || '服务器错误');
+            });
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            showMessage('预估出签日期更新成功', 'success');
+            // 更新输入框的值
+            dateInput.value = data.estimated_date;
+        } else {
+            throw new Error(data.message || '更新失败');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showMessage(error.message || '更新失败，请重试', 'error');
+        // 恢复原始值
+        dateInput.value = originalValue;
+    })
+    .finally(() => {
+        // 重新启用输入框
+        dateInput.disabled = false;
+    });
+}
+
+// 资料管理功能
+function toggleDocumentStatus(documentId, currentStatus) {
+    const newStatus = !currentStatus;
+    // 只选中当前行的状态span
+    const statusIndicator = document.querySelector(`[data-document-id="${documentId}"] .status-indicator`);
+    
+    if (!statusIndicator) {
+        console.error('找不到状态指示器');
+        return;
+    }
+    
+    // 添加更新中的状态
+    statusIndicator.classList.add('updating');
+    statusIndicator.textContent = '更新中...';
+    
+    fetch('/visa/project/update_document_status', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: JSON.stringify({
+            document_status_id: documentId,
+            is_ready: newStatus,
+            notes: ''
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // 只更新状态span
+            statusIndicator.textContent = newStatus ? '已准备' : '未准备';
+            statusIndicator.className = `status-indicator ${newStatus ? 'ready' : 'not-ready'}`;
+            showMessage('资料状态更新成功', 'success');
+        } else {
+            throw new Error(data.message || '更新失败');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showMessage(error.message || '更新失败，请重试', 'error');
+        // 恢复原始状态
+        statusIndicator.textContent = currentStatus ? '已准备' : '未准备';
+        statusIndicator.className = `status-indicator ${currentStatus ? 'ready' : 'not-ready'}`;
+    })
+    .finally(() => {
+        // 移除更新中状态
+        statusIndicator.classList.remove('updating');
+    });
+}
+
+function updateDocumentStatus(documentId, isReady) {
+    fetch('/visa/project/update_document_status', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: JSON.stringify({
+            document_status_id: documentId,
+            is_ready: isReady,
+            notes: ''
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // 更新状态指示器
+            const statusIndicator = document.querySelector(`[data-document-id="${documentId}"] .status-indicator`);
+            if (statusIndicator) {
+                statusIndicator.textContent = isReady ? '已准备' : '未准备';
+                statusIndicator.className = `status-indicator ${isReady ? 'ready' : 'not-ready'}`;
+            }
+            showMessage('资料状态更新成功', 'success');
+        } else {
+            throw new Error(data.message || '更新失败');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showMessage(error.message || '更新失败，请重试', 'error');
+        // 恢复复选框状态
+        const checkbox = document.querySelector(`[data-document-id="${documentId}"] .document-ready-checkbox`);
+        if (checkbox) {
+            checkbox.checked = !isReady;
+        }
+    });
+}
+
+function syncProjectDocuments() {
+    if (!confirm('确定要同步资料清单吗？这将从模板获取最新的资料列表。')) {
+        return;
+    }
+
+    fetch(`/visa/project/sync_project_documents/{{ project.id }}`, {
+        method: 'POST',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showMessage(data.message, 'success');
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+        } else {
+            throw new Error(data.message || '同步失败');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showMessage(error.message || '同步失败，请重试', 'error');
+    });
+}
+
+function showAddDocumentModal() {
+    document.getElementById('addDocumentModal').style.display = 'block';
+}
+
+function closeModal(modalId) {
+    document.getElementById(modalId).style.display = 'none';
+}
+
+function editDocumentNotes(documentId, documentName, currentNotes) {
+    document.getElementById('editDocumentId').value = documentId;
+    document.getElementById('editDocumentName').value = documentName;
+    document.getElementById('editDocumentNotes').value = currentNotes;
+    document.getElementById('editNotesModal').style.display = 'block';
+}
+
+function deleteDocument(documentId, documentName) {
+    if (!confirm(`确定要删除资料 "${documentName}" 吗？`)) {
+        return;
+    }
+
+    fetch(`/visa/project/delete_document_status/${documentId}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            showMessage(data.message, 'success');
+            // 移除DOM元素
+            const documentItem = document.querySelector(`[data-document-id="${documentId}"]`);
+            if (documentItem) {
+                documentItem.remove();
+            }
+        } else {
+            throw new Error(data.message || '删除失败');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showMessage(error.message || '删除失败，请重试', 'error');
+    });
+}
+
+// 表单提交处理
+document.getElementById('addDocumentForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = {
+        document_name: document.getElementById('documentName').value,
+        document_type: document.getElementById('documentType').value,
+        notes: document.getElementById('documentNotes').value
+    };
+
+    fetch(`/visa/project/add_custom_document/{{ project.id }}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: JSON.stringify(formData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showMessage(data.message, 'success');
+            closeModal('addDocumentModal');
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+        } else {
+            throw new Error(data.message || '添加失败');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showMessage(error.message || '添加失败，请重试', 'error');
+    });
+});
+
+document.getElementById('editNotesForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const documentId = document.getElementById('editDocumentId').value;
+    const notes = document.getElementById('editDocumentNotes').value;
+
+    fetch('/visa/project/update_document_status', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: JSON.stringify({
+            document_status_id: documentId,
+            is_ready: document.querySelector(`[data-document-id="${documentId}"] .document-ready-checkbox`).checked,
+            notes: notes
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showMessage('备注更新成功', 'success');
+            closeModal('editNotesModal');
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+        } else {
+            throw new Error(data.message || '更新失败');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showMessage(error.message || '更新失败，请重试', 'error');
+    });
+});
+
+// 点击模态框外部关闭
+window.onclick = function(event) {
+    const modals = document.querySelectorAll('.modal');
+    modals.forEach(modal => {
+        if (event.target === modal) {
+            modal.style.display = 'none';
+        }
     });
 }
 
@@ -868,5 +1515,22 @@ function openVisaTypeFolder(visaType) {
         showMessage('系统错误，请稍后重试', 'error');
     });
 }
+
+// 自动补全资料名称
+const docNameInput = document.getElementById('documentName');
+docNameInput.addEventListener('input', function() {
+    const val = this.value;
+    fetch(`/visa/project/get_documents_list?q=${encodeURIComponent(val)}`)
+        .then(res => res.json())
+        .then(data => {
+            const datalist = document.getElementById('documentNameList');
+            datalist.innerHTML = '';
+            data.forEach(name => {
+                const option = document.createElement('option');
+                option.value = name;
+                datalist.appendChild(option);
+            });
+        });
+});
 </script>
 {% endblock %} 

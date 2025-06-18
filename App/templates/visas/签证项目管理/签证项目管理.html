@@ -550,7 +550,7 @@
                     <td>{{ project.singapore_status }}</td>
                     <td>
                         <div class="btn-group">
-                            <a href="{{ url_for('visa_project.visa_detail', project_id=project.id, visa_status=visa_status, sort_by=sort_by) }}" 
+                            <a href="{{ url_for('visa_project.visa_detail', project_id=project.id, visa_status=visa_status, sort_by=sort_by, filter_visa_type=filter_visa_type, applicant_name=request.args.get('applicant_name', '')) }}" 
                                class="btn btn-info" 
                                title="查看签证详细信息">
                                 <i class="fas fa-info-circle"></i> 详细
@@ -568,7 +568,8 @@
                             </a>
                             <button type="button" 
                                     class="btn btn-danger" 
-                                    onclick="confirmDelete('{{ project.id }}', '{{ project.project_folder_name }}')"
+                                    onclick="confirmDelete('{{ project.id }}', this.getAttribute('data-project-name'))"
+                                    data-project-name="{{ project.project_folder_name }}"
                                     title="删除项目">
                                 <i class="fas fa-trash"></i> 删除
                             </button>
@@ -587,7 +588,7 @@
                     <!-- 上一页 -->
                     {% if pagination.has_prev %}
                     <li class="page-item">
-                        <a class="page-link" href="{{ url_for('visa_project.show_current_all_projects', page=pagination.prev_num, visa_status=visa_status, sort_by=sort_by, filter_visa_type=filter_visa_type) }}" aria-label="Previous">
+                        <a class="page-link" href="{{ url_for('visa_project.show_current_all_projects', page=pagination.prev_num, visa_status=visa_status, sort_by=sort_by, filter_visa_type=filter_visa_type, applicant_name=request.args.get('applicant_name', '')) }}" aria-label="Previous">
                             <span aria-hidden="true">&laquo;</span>
                         </a>
                     </li>
@@ -606,7 +607,7 @@
                             </li>
                             {% else %}
                             <li class="page-item">
-                                <a class="page-link" href="{{ url_for('visa_project.show_current_all_projects', page=page, visa_status=visa_status, sort_by=sort_by, filter_visa_type=filter_visa_type) }}">{{ page }}</a>
+                                <a class="page-link" href="{{ url_for('visa_project.show_current_all_projects', page=page, visa_status=visa_status, sort_by=sort_by, filter_visa_type=filter_visa_type, applicant_name=request.args.get('applicant_name', '')) }}">{{ page }}</a>
                             </li>
                             {% endif %}
                         {% else %}
@@ -619,7 +620,7 @@
                     <!-- 下一页 -->
                     {% if pagination.has_next %}
                     <li class="page-item">
-                        <a class="page-link" href="{{ url_for('visa_project.show_current_all_projects', page=pagination.next_num, visa_status=visa_status, sort_by=sort_by, filter_visa_type=filter_visa_type) }}" aria-label="Next">
+                        <a class="page-link" href="{{ url_for('visa_project.show_current_all_projects', page=pagination.next_num, visa_status=visa_status, sort_by=sort_by, filter_visa_type=filter_visa_type, applicant_name=request.args.get('applicant_name', '')) }}" aria-label="Next">
                             <span aria-hidden="true">&raquo;</span>
                         </a>
                     </li>
@@ -674,14 +675,14 @@
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                showMessage('文件夹已打开', 'success');
+                showToast('文件夹已打开', 'success');
             } else {
-                showMessage(data.message || '打开文件夹失败', 'error');
+                showToast(data.message || '打开文件夹失败', 'error');
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            showMessage('系统错误，请稍后重试', 'error');
+            showToast('系统错误，请稍后重试', 'error');
         });
     }
 
@@ -725,10 +726,11 @@
 
         // 创建FormData对象
         const formData = new FormData();
-        formData.append('visa_status', newStatus);
+        formData.append('project_id', projectId);
+        formData.append('status', newStatus);
         formData.append('csrf_token', csrfToken);
 
-        fetch(`/visa/project/update_visa_status/${projectId}`, {
+        fetch(`/visa/project/update_visa_status`, {
             method: 'POST',
             headers: {
                 'X-Requested-With': 'XMLHttpRequest',
@@ -768,7 +770,7 @@
                         }
                     }
 
-                    // 根据新状态更新行的显示/隐藏
+                    // 检查是否需要隐藏行（基于当前筛选条件）
                     const currentFilter = document.querySelector('select[name="visa_status"]').value;
                     if (currentFilter !== 'all') {
                         const shouldShow = (currentFilter === 'pending_submission' && newStatus === '待递交') ||
@@ -777,7 +779,7 @@
                                          (currentFilter === 'ignored' && newStatus === '忽略单');
                         
                         if (!shouldShow) {
-                            // 使用淡出动画
+                            // 使用淡出动画隐藏行
                             row.style.transition = 'opacity 0.5s';
                             row.style.opacity = '0';
                             setTimeout(() => {
@@ -789,6 +791,30 @@
 
                 // 显示成功提示
                 showToast(`签证状态已更新为：${newStatus}`, 'success');
+                
+                // 保持当前筛选状态，延迟刷新页面
+                setTimeout(() => {
+                    // 获取当前URL参数
+                    const urlParams = new URLSearchParams(window.location.search);
+                    
+                    // 保持所有筛选参数
+                    const currentPage = urlParams.get('page') || 1;
+                    const visaStatus = urlParams.get('visa_status') || 'all';
+                    const sortBy = urlParams.get('sort_by') || 'name';
+                    const filterVisaType = urlParams.get('filter_visa_type') || 'all';
+                    const applicantName = urlParams.get('applicant_name') || '';
+                    
+                    // 构建新的URL，保持所有筛选参数
+                    let newUrl = `${window.location.pathname}?page=${currentPage}&visa_status=${visaStatus}&sort_by=${sortBy}&filter_visa_type=${filterVisaType}`;
+                    
+                    // 如果有申请人姓名搜索，添加到URL
+                    if (applicantName) {
+                        newUrl += `&applicant_name=${encodeURIComponent(applicantName)}`;
+                    }
+                    
+                    // 刷新页面以保持筛选状态
+                    window.location.href = newUrl;
+                }, 1000); // 延迟1秒，让用户看到成功提示
             } else {
                 throw new Error(data.message || '更新失败');
             }
@@ -822,12 +848,17 @@
 
     // 删除确认函数
     function confirmDelete(projectId, projectName) {
+        console.log('confirmDelete called with:', projectId, projectName);
+        
         if (confirm(`确定要删除项目 "${projectName}" 吗？此操作不可恢复。`)) {
             const csrfToken = document.querySelector('input[name="csrf_token"]').value;
+            console.log('CSRF Token:', csrfToken);
             
             // 创建FormData对象
             const formData = new FormData();
             formData.append('csrf_token', csrfToken);
+            
+            console.log('Sending delete request for project:', projectId);
             
             fetch(`/visa/project/delete_current_project/${projectId}`, {
                 method: 'POST',
@@ -838,6 +869,7 @@
                 body: formData
             })
             .then(response => {
+                console.log('Delete response status:', response.status);
                 if (!response.ok) {
                     return response.json().then(data => {
                         throw new Error(data.message || '服务器错误');
@@ -846,23 +878,55 @@
                 return response.json();
             })
             .then(data => {
+                console.log('Delete response data:', data);
                 if (data.success) {
                     // 删除成功，移除对应的表格行
-                    const row = document.querySelector(`button[onclick="confirmDelete('${projectId}', '${projectName}')"]`).closest('tr');
-                    if (row) {
-                        row.style.transition = 'opacity 0.5s';
-                        row.style.opacity = '0';
+                    // 使用更可靠的方式找到要删除的行
+                    const targetRow = document.querySelector(`button[data-project-name][onclick*="confirmDelete('${projectId}'"]`).closest('tr');
+                    
+                    if (targetRow) {
+                        targetRow.style.transition = 'opacity 0.5s';
+                        targetRow.style.opacity = '0';
                         setTimeout(() => {
-                            row.remove();
+                            if (targetRow.parentNode) {
+                                targetRow.remove();
+                            }
                         }, 500);
+                    } else {
+                        // 如果找不到对应的行，刷新页面
+                        window.location.reload();
                     }
                     showToast('项目删除成功', 'success');
+                    
+                    // 延迟刷新页面以保持筛选状态
+                    setTimeout(() => {
+                        // 获取当前URL参数
+                        const urlParams = new URLSearchParams(window.location.search);
+                        
+                        // 保持所有筛选参数
+                        const currentPage = urlParams.get('page') || 1;
+                        const visaStatus = urlParams.get('visa_status') || 'all';
+                        const sortBy = urlParams.get('sort_by') || 'name';
+                        const filterVisaType = urlParams.get('filter_visa_type') || 'all';
+                        const applicantName = urlParams.get('applicant_name') || '';
+                        
+                        // 构建新的URL，保持所有筛选参数
+                        let newUrl = `${window.location.pathname}?page=${currentPage}&visa_status=${visaStatus}&sort_by=${sortBy}&filter_visa_type=${filterVisaType}`;
+                        
+                        // 如果有申请人姓名搜索，添加到URL
+                        if (applicantName) {
+                            newUrl += `&applicant_name=${encodeURIComponent(applicantName)}`;
+                        }
+                        
+                        // 刷新页面以保持筛选状态
+                        window.location.href = newUrl;
+                    }, 1000); // 延迟1秒，让用户看到成功提示
                 } else {
                     throw new Error(data.message || '删除失败');
                 }
             })
             .catch(error => {
-                console.error('Error:', error);
+                console.error('Delete error:', error);
                 showToast(error.message || '删除失败，请重试', 'error');
             });
         }
@@ -927,14 +991,5 @@ function removeToast(toast) {
         }
     }, 300);
 }
-
-// 页面加载完成后测试Toast功能
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('Page loaded, testing toast...'); // 调试日志
-    // 延迟1秒后显示测试toast
-    setTimeout(() => {
-        showToast('页面加载完成', 'success');
-    }, 1000);
-});
 </script>
 {% endblock %}

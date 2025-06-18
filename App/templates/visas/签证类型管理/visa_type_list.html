@@ -42,6 +42,9 @@
                 <button onclick="openAddModal()" style="background-color: #1a56db; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">
                     <i class="fas fa-plus"></i> 添加签证类型
                 </button>
+                <a href="{{ url_for('visa_basic.visa_type_document_manager') }}" style="background-color: #10b981; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; text-decoration: none; margin-left: 10px;">
+                    <i class="fas fa-cogs"></i> 签证文档管理器
+                </a>
             </div>
         </div>
     </div>
@@ -76,6 +79,7 @@
                         <button onclick="openEditModal('fee', '{{ vt.visa_type }}', '{{ vt.fee }}')" style="color: #1a56db; text-decoration: none; margin-right: 10px; background: none; border: none; cursor: pointer;">编辑费用</button>
                         <button onclick="openEditModal('processing_time', '{{ vt.visa_type }}', '{{ vt.processing_time }}')" style="color: #1a56db; text-decoration: none; margin-right: 10px; background: none; border: none; cursor: pointer;">编辑时间</button>
                         <button onclick="openEditModal('identities', '{{ vt.visa_type }}')" style="color: #1a56db; text-decoration: none; margin-right: 10px; background: none; border: none; cursor: pointer;">编辑身份</button>
+                        <a href="{{ url_for('visa_basic.visa_type_document_manager') }}?visa_type={{ vt.visa_type }}" style="color: #10b981; text-decoration: none; margin-right: 10px; background: none; border: none; cursor: pointer;">编辑文档</a>
                         <button onclick="openDeleteModal('{{ vt.visa_type }}')" style="color: #dc2626; text-decoration: none; background: none; border: none; cursor: pointer;">删除</button>
                     </td>
                 </tr>
@@ -235,15 +239,15 @@ function openEditModal(field, visaType, currentValue = '') {
     
     // 设置内容
     if (field === 'identities') {
-        // 获取身份选项
-        fetch(`/visa/documents/get_identity_options/${visaType}`)
+        // 获取身份选项（包含SHARE）
+        fetch(`/visa/basic/get_identity_options_with_share/${visaType}`)
             .then(response => response.json())
             .then(data => {
                 console.log('Current identities:', data); // 添加日志
                 if (data.success) {
                     const currentIdentities = data.identity_options;
-                    // 获取所有可用身份
-                    fetch('/visa/documents/get_all_identities')
+                    // 获取所有可用身份（包含SHARE）
+                    fetch('/visa/basic/get_all_identities_with_share')
                         .then(response => response.json())
                         .then(allData => {
                             console.log('All identities:', allData); // 添加日志
@@ -256,10 +260,10 @@ function openEditModal(field, visaType, currentValue = '') {
                                                 <input type="checkbox" 
                                                        name="identities" 
                                                        value="${identity.identity_zh}"
-                                                       id="identity_${identity.id}"
+                                                       id="identity_${identity.id || 'share'}"
                                                        ${currentIdentities.includes(identity.identity_zh) ? 'checked' : ''}
                                                        style="margin-right: 8px;">
-                                                <label for="identity_${identity.id}">${identity.identity_zh}</label>
+                                                <label for="identity_${identity.id || 'share'}">${identity.identity_zh}</label>
                                             </div>
                                         `).join('')}
                                     </div>

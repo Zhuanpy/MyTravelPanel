@@ -706,7 +706,7 @@
                     const successMessage = document.createElement('div');
                     successMessage.className = 'alert alert-success';
                     successMessage.textContent = data.message;
-                    document.querySelector('.container').insertBefore(successMessage, document.querySelector('.visa-project-table'));
+                    document.querySelector('.visa-project-container').insertBefore(successMessage, document.querySelector('.visa-project-table'));
                     
                     // 0.5秒后移除消息并刷新页面
                     setTimeout(() => {

@@ -5,8 +5,8 @@ from datetime import datetime
 from pathlib import Path
 import platform
 import subprocess
-from ..exts import db
-from ..models import VisaTypes, VisaDocuments, VisaLinks, VisaProject, VisaCountries
+from ..exts import db, csrf
+from ..models import VisaTypes, VisaDocuments, VisaLinks, VisaProject, VisaCountries, VisaSingaporeIdentity
 from ..code.VisaForm import VisasUtils
 import json
 import traceback
@@ -16,7 +16,6 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy import or_
 import re
 from urllib.parse import unquote
-
 
 """
 项目管理 (visa_project.py):
@@ -70,18 +69,18 @@ def show_current_all_projects():
         search_name = request.args.get('search_name', '')
         page = request.args.get('page', 1, type=int)
         per_page = 20  # 每页显示20条数据
-        
+
         # 构建基础查询
         query = VisaProject.query
-        
+
         # 应用状态筛选
         if visa_status != 'all':
             query = query.filter(VisaProject.visa_status == visa_status)
-            
+
         # 应用签证类型筛选
         if filter_visa_type != 'all':
             query = query.filter(VisaProject.visa_type == filter_visa_type)
-            
+
         # 应用国家筛选
         if filter_country != 'all':
             query = query.join(VisaTypes, VisaProject.visa_type == VisaTypes.visa_type)\
@@ -91,7 +90,7 @@ def show_current_all_projects():
         # 应用申请人姓名搜索
         if search_name:
             query = query.filter(VisaProject.applicant_name.like(f'%{search_name}%'))
-            
+
         # 应用排序
         if sort_by == 'name':
             query = query.order_by(VisaProject.project_folder_name.asc())
@@ -99,16 +98,19 @@ def show_current_all_projects():
             query = query.order_by(VisaProject.visa_status.asc())
         else:  # 默认按创建日期排序
             query = query.order_by(VisaProject.created_date.desc())
-            
+
         # 执行分页查询
         pagination = query.paginate(page=page, per_page=per_page, error_out=False)
         projects = pagination.items
-        
+
         # 获取所有签证类型
         visa_types = VisaTypes.query.all()
         
         # 获取所有国家
         countries = VisaCountries.query.order_by(VisaCountries.country_name_CN).all()
+        
+        # 获取签证类型分类（用于快速链接）
+        visa_categories = VisaTypes.query.distinct(VisaTypes.visa_type).all()
         
         # 获取每个项目的相关链接
         project_links = {}
@@ -118,22 +120,23 @@ def show_current_all_projects():
                 if types_info:
                     links = VisaLinks.query.filter_by(visa_type_id=types_info.id).order_by(VisaLinks.name.asc()).all()
                     project_links[project.id] = links
-        
-        return render_template('visas/签证项目列表.html',
+
+        return render_template('visas/签证项目管理/签证项目列表.html',
                              projects=projects,
-                             pagination=pagination,
-                             visa_status=visa_status,
-                             sort_by=sort_by,
-                             filter_visa_type=filter_visa_type,
+                           pagination=pagination,
+                           visa_status=visa_status,
+                           sort_by=sort_by,
+                           filter_visa_type=filter_visa_type,
                              filter_country=filter_country,
                              search_name=search_name,
                              visa_types=visa_types,
                              countries=countries,
+                             visa_categories=visa_categories,
                              project_links=project_links)
-                             
+
     except Exception as e:
         flash(f'获取项目列表时出错: {str(e)}', 'error')
-        return redirect(url_for('visa_home.home'))
+        return redirect(url_for('index.index'))
 
 
 @visa_project.route('/visa_processing/<visa_type>', methods=['GET', 'POST'])
@@ -149,65 +152,41 @@ def visa_processing(visa_type):
             form_data['singapore_status'] = 'PR'
 
         # 获取签证类型信息
-        types_info = VisaTypes.query.filter_by(visa_type=visa_type).first_or_404()
+        types_info = VisaTypes.query.filter_by(visa_type=visa_type).first()
+        if not types_info:
+            flash(f'签证类型 "{visa_type}" 不存在', 'error')
+            return redirect(url_for('index.index'))
         
         # 获取相关链接 - 使用visa_type_id查询
         links = VisaLinks.query.filter_by(visa_type_id=types_info.id).order_by(VisaLinks.name.asc()).all()
 
-        # 获取签证文档数据
-        documents = VisaDocuments.query.filter_by(visa_type=visa_type).all()
+        # 获取所有身份
+        from App.models.Visamodels import VisaSingaporeIdentity, VisaDocuments
+        identities = VisaSingaporeIdentity.query.order_by(VisaSingaporeIdentity.identity_zh).all()
         document_data = {}
-        
-        # 获取共用资料
-        common_doc = VisaDocuments.query.filter_by(
-            visa_type=visa_type,
-            singapore_identity='SHARE'
-        ).first()
-
-        # 处理每个身份的文档数据
-        for doc in documents:
-            if doc.singapore_identity == 'SHARE':
-                continue  # 跳过共用资料的单独处理
-                
-            document_info = []
-            additional_info = []
-
-            # 添加共用资料（如果存在）
-            if common_doc and common_doc.document_info:
-                document_info.append(common_doc.document_info)
-            if common_doc and common_doc.additional_info:
-                additional_info.append(common_doc.additional_info)
-
-            # 添加特定身份资料
-            if doc.document_info:
-                if document_info:  # 如果已有共用资料，添加换行符
-                    document_info.append("\n")
-                document_info.append(doc.document_info)
-            if doc.additional_info:
-                if additional_info:  # 如果已有共用资料的补充信息，添加换行符
-                    additional_info.append("\n")
-                additional_info.append(doc.additional_info)
-
-            # 保存处理后的数据
-            document_data[doc.singapore_identity] = {
-                'document_info': "\n".join(document_info) if document_info else "暂无文件资料",
-                'additional_info': "\n".join(additional_info) if additional_info else "暂无补充信息"
-            }
-
-        # 单独处理共用资料显示
-        if common_doc:
-            document_data['SHARE'] = {
-                'document_info': common_doc.document_info if common_doc.document_info else "暂无文件资料",
-                'additional_info': common_doc.additional_info if common_doc.additional_info else "暂无补充信息"
-            }
+        for identity in identities:
+            info = VisaDocuments.get_document_info(types_info.id, identity.id)
+            document_data[identity.identity_zh] = info
+        # 处理共用资料
+        share_info = VisaDocuments.get_document_info(types_info.id, None)
+        document_data['SHARE'] = share_info
 
         # 获取项目列表
         project_root = Path(__file__).resolve().parent.parent
         project_path = project_root / "static" / "资源" / "Project" / "Visa"
-        project_list = [folder for folder in os.listdir(project_path) if os.path.isdir(os.path.join(project_path, folder))]
-        projects = [item for item in project_list if visa_type in item]
+        
+        # 添加错误处理，如果目录不存在则创建空列表
+        try:
+            if project_path.exists():
+                project_list = [folder for folder in os.listdir(project_path) if os.path.isdir(os.path.join(project_path, folder))]
+                projects = [item for item in project_list if visa_type in item]
+            else:
+                projects = []
+        except Exception as e:
+            print(f"获取项目列表时出错: {str(e)}")
+            projects = []
 
-        return render_template('visas/签证项目创建.html',
+        return render_template('visas/签证项目管理/签证项目创建.html',
                              form_data=form_data,
                              visa_type=visa_type,
                              types_info=types_info,
@@ -217,10 +196,10 @@ def visa_processing(visa_type):
                              
     except json.JSONDecodeError:
         flash('表单数据格式错误', 'error')
-        return redirect(url_for('visa_project.visa_processing', visa_type=visa_type))
+        return redirect(url_for('index.index'))
     except Exception as e:
         flash(f'处理签证信息时出错: {str(e)}', 'error')
-        return redirect(url_for('visa_project.visa_processing', visa_type=visa_type))
+        return redirect(url_for('index.index'))
 
 @visa_project.route('/delete_current_project/<int:project_id>', methods=['POST'])
 def delete_current_project(project_id):
@@ -244,8 +223,9 @@ def delete_current_project(project_id):
             try:
                 shutil.rmtree(str(project_folder))
             except Exception as e:
-                print(f"删除文件夹失败: {str(e)}")
-                # 即使文件夹删除失败，我们仍然继续删除数据库记录
+                error_message = f"删除文件夹失败: {str(e)}"
+                print(error_message)  # 打印错误日志
+                return jsonify({"success": False, "message": error_message}), 500
 
         # 删除数据库记录
         db.session.delete(project)
@@ -323,14 +303,14 @@ def update_current_project(project_id):
                    filter_visa_type=current_filter_visa_type))
 
     # 如果是 GET 请求，渲染页面并传递项目数据
-    return render_template('visas/现有签证项目管理.html', project=project)
+    return render_template('visas/签证项目管理/签证项目管理.html', project=project)
 
 
 @visa_project.route('/edit_project/<int:project_id>', methods=['GET'])
 def edit_project(project_id):
     """显示签证项目编辑页面"""
     project = VisaProject.query.get_or_404(project_id)
-    return render_template('visas/签证项目编辑.html', project=project)
+    return render_template('visas/签证项目管理/签证项目编辑.html', project=project)
 
 
 @visa_project.route('/generate_form/<int:project_id>', methods=['POST'])
@@ -352,72 +332,92 @@ def generate_form_for_project(project_id):
 def visa_detail(project_name=None, project_id=None):
     """签证详情页面路由"""
     try:
+        print(f"DEBUG: visa_detail called with project_id={project_id}, project_name={project_name}")
+        
         # 获取项目信息
         if project_id:
             project = VisaProject.query.get_or_404(project_id)
+            print(f"DEBUG: Found project with ID {project_id}: {project.project_folder_name}, visa_type={project.visa_type}")
         else:
-            project = VisaProject.query.filter_by(project_folder_name=project_name).first_or_404()
+            project = VisaProject.query.filter_by(project_folder_name=project_name).first()
+            print(f"DEBUG: Found project with name {project_name}: {project.id if project else 'None'}")
         
         # 获取签证类型信息
-        types_info = VisaTypes.query.filter_by(visa_type=project.visa_type).first_or_404()
+        print(f"DEBUG: Looking for visa type: {project.visa_type}")
+        types_info = VisaTypes.query.filter_by(visa_type=project.visa_type).first()
+        if not types_info:
+            print(f"DEBUG: Visa type '{project.visa_type}' not found in database")
+            flash(f'签证类型 "{project.visa_type}" 不存在', 'error')
+            return redirect(url_for('index.index'))
         
-        # 获取相关链接 - 使用visa_type_id查询
+        print(f"DEBUG: Found visa type info: {types_info.visa_type}")
+        
+        # 获取相关链接
         links = VisaLinks.query.filter_by(visa_type_id=types_info.id).order_by(VisaLinks.name.asc()).all()
-
-        # 获取签证文档数据
-        documents = VisaDocuments.query.filter_by(visa_type=project.visa_type).all()
+        
+        # 获取签证文档数据 - 使用新的表结构
+        documents = VisaDocuments.query.join(VisaTypes).filter(VisaTypes.visa_type == project.visa_type).all()
         document_data = {}
         
-        # 获取共用资料
-        common_doc = VisaDocuments.query.filter_by(
-            visa_type=project.visa_type,
-            singapore_identity='SHARE'
-        ).first()
-
+        # 获取SHARE身份记录
+        share_identity = VisaSingaporeIdentity.query.filter_by(identity_zh='SHARE').first()
+        share_identity_id = share_identity.id if share_identity else None
+        
         # 处理每个身份的文档数据
         for doc in documents:
-            if doc.singapore_identity == 'SHARE':
-                continue  # 跳过共用资料的单独处理
-                
-            document_info = []
-            additional_info = []
-
-            # 添加共用资料（如果存在）
-            if common_doc and common_doc.document_info:
-                document_info.append(common_doc.document_info)
-            if common_doc and common_doc.additional_info:
-                additional_info.append(common_doc.additional_info)
-
-            # 添加特定身份资料
-            if doc.document_info:
-                if document_info:  # 如果已有共用资料，添加换行符
-                    document_info.append("\n")
-                document_info.append(doc.document_info)
-            if doc.additional_info:
-                if additional_info:  # 如果已有共用资料的补充信息，添加换行符
-                    additional_info.append("\n")
-                additional_info.append(doc.additional_info)
-
+            if doc.singapore_identity_id is None:
+                continue  # 跳过singapore_identity_id为None的记录
+            
+            # 检查singapore_identity是否为None
+            if doc.singapore_identity is None:
+                print(f"警告: 文档ID {doc.id} 的singapore_identity为None，跳过处理")
+                continue
+            
+            # 使用新的get_document_info方法获取文档信息
+            doc_info = VisaDocuments.get_document_info(types_info.id, doc.singapore_identity_id)
+            
             # 保存处理后的数据
-            document_data[doc.singapore_identity] = {
-                'document_info': "\n".join(document_info) if document_info else "暂无文件资料",
-                'additional_info': "\n".join(additional_info) if additional_info else "暂无补充信息"
+            document_data[doc.singapore_identity.identity_zh] = {
+                'document_info': doc_info['document_info'],
+                'additional_info': doc_info['additional_info']
             }
-
-        # 单独处理共用资料显示
-        if common_doc:
+        
+        # 单独处理SHARE共用资料显示
+        if share_identity_id:
+            share_doc_info = VisaDocuments.get_document_info(types_info.id, share_identity_id)
             document_data['SHARE'] = {
-                'document_info': common_doc.document_info if common_doc.document_info else "暂无文件资料",
-                'additional_info': common_doc.additional_info if common_doc.additional_info else "暂无补充信息"
+                'document_info': share_doc_info['document_info'],
+                'additional_info': share_doc_info['additional_info']
             }
-
-        return render_template('visas/签证项目详细.html',
+        
+        # 获取项目的资料准备状态
+        from ..models.Visamodels import VisaProjectDocumentStatus
+        project_document_statuses = VisaProjectDocumentStatus.query.filter_by(
+            project_id=project.id
+        ).all()
+        
+        # 将资料状态转换为字典格式，方便模板使用
+        document_statuses = {}
+        for status in project_document_statuses:
+            document_statuses[status.document_name] = {
+                'id': status.id,
+                'is_ready': status.is_ready,
+                'notes': status.notes,
+                'document_type': status.document_type
+            }
+        
+        print(f"DEBUG: Rendering template with project={project.id}, document_data keys={list(document_data.keys())}")
+        print(f"DEBUG: Project document statuses count: {len(project_document_statuses)}")
+        
+        return render_template('visas/签证项目管理/签证项目详细.html',
                              project=project,
                              types_info=types_info,
                              links=links,
-                             document_data=document_data)
+                             document_data=document_data,
+                             document_statuses=document_statuses)
                              
     except Exception as e:
+        print(f"DEBUG: Exception in visa_detail: {str(e)}")
         flash(f'获取签证详情时出错: {str(e)}', 'error')
         return redirect(url_for('visa_project.show_current_all_projects'))
 
@@ -452,7 +452,7 @@ def update_visa_status():
             
         # 获取项目
         project = VisaProject.query.get_or_404(project_id)
-        
+            
         # 更新状态
         project.visa_status = new_status
         
@@ -488,6 +488,13 @@ def visa_create_project(visa_type):
         visa_status = request.form.get('visa_status')
         estimated_date = request.form.get('estimated_date')
         submit_button = request.form.get('submit_button')
+        
+        # 获取资料状态数据
+        document_statuses_json = request.form.get('document_statuses', '[]')
+        try:
+            document_statuses = json.loads(document_statuses_json)
+        except json.JSONDecodeError:
+            document_statuses = []
 
         # 验证必填字段
         if not hid_or_serial or not applicant_name or not visa_type_input or not singapore_status or not visa_status or not estimated_date:
@@ -528,7 +535,7 @@ def visa_create_project(visa_type):
                         'message': error_msg
                     }), 500
                 flash(error_msg, 'error')
-                return redirect(url_for('visa_project.visa_processing', visa_type=visa_type))
+                return redirect(url_for('index.index'))
 
             except Exception as e:
                 error_msg = f"生成表格时发生错误: {str(e)}"
@@ -539,7 +546,7 @@ def visa_create_project(visa_type):
                         'message': error_msg
                     }), 500
                 flash(error_msg, 'error')
-                return redirect(url_for('visa_project.visa_processing', visa_type=visa_type))
+                return redirect(url_for('index.index'))
 
         """ 创建项目思路 """
         "a 创建项目文件夹"
@@ -587,6 +594,21 @@ def visa_create_project(visa_type):
         new_project.singapore_status = singapore_status
 
         db.session.add(new_project)
+        db.session.flush()  # 获取项目ID
+        
+        # 保存资料状态数据
+        if document_statuses:
+            from ..models.Visamodels import VisaProjectDocumentStatus
+            for status_data in document_statuses:
+                new_status = VisaProjectDocumentStatus(
+                    project_id=new_project.id,
+                    document_name=status_data['document_name'],
+                    document_type=status_data['document_type'],
+                    is_ready=status_data['is_ready'],
+                    notes=status_data.get('notes', '')
+                )
+                db.session.add(new_status)
+        
         db.session.commit()
 
         # 如果是 AJAX 请求，返回 JSON 响应
@@ -685,6 +707,49 @@ def update_project_details(project_id):
         return redirect(url_for('visa_project.edit_project', project_id=project_id))
 
 
+@visa_project.route('/update_estimated_date/<int:project_id>', methods=['POST'])
+@csrf.exempt
+def update_estimated_date(project_id):
+    """通过AJAX更新预估出签日期"""
+    try:
+        project = VisaProject.query.get_or_404(project_id)
+        
+        # 获取日期数据
+        estimated_date = request.form.get('estimated_date')
+        
+        if not estimated_date:
+            return jsonify({
+                'success': False,
+                'message': '预估出签日期不能为空'
+            }), 400
+        
+        # 处理日期字段
+        try:
+            project.estimated_date = datetime.strptime(estimated_date, '%Y-%m-%d').date()
+        except ValueError:
+            return jsonify({
+                'success': False,
+                'message': '日期格式错误，请使用YYYY-MM-DD格式'
+            }), 400
+        
+        # 保存到数据库
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': '预估出签日期更新成功',
+            'estimated_date': estimated_date
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        error_msg = f"更新预估出签日期失败: {str(e)}"
+        return jsonify({
+            'success': False,
+            'message': error_msg
+        }), 500
+
+
 @visa_project.route('/open_folder', methods=['GET'])
 def open_folder():
     """
@@ -724,7 +789,7 @@ def open_folder():
             folder_path = project_root / "static" / "资源" / "签证" / visa_type
             if not folder_path.exists():
                 return jsonify({
-                    "success": False,
+                    "success": False, 
                     "message": f"找不到签证类型文件夹：{visa_type}"
                 }), 404
 
@@ -752,14 +817,14 @@ def open_folder():
             subprocess.run(['xdg-open', str(folder_path)])
 
         return jsonify({
-            "success": True,
+            "success": True, 
             "message": "文件夹已打开"
         })
 
     except Exception as e:
         current_app.logger.error(f"打开文件夹时发生错误: {str(e)}")
         return jsonify({
-            "success": False,
+            "success": False, 
             "message": f"打开文件夹时发生错误：{str(e)}"
         }), 500
 
@@ -790,4 +855,601 @@ def delete_project(project_id):
             'success': False,
             'message': f'删除项目时出错：{str(e)}'
         }), 500
+
+@visa_project.route('/save_document_status', methods=['POST'])
+def save_document_status():
+    """保存项目资料准备状态"""
+    try:
+        data = request.get_json()
+        project_id = data.get('project_id')
+        document_statuses = data.get('document_statuses', [])
+        
+        if not project_id:
+            return jsonify({
+                'success': False,
+                'message': '缺少项目ID'
+            }), 400
+        
+        # 获取项目
+        project = VisaProject.query.get_or_404(project_id)
+        
+        # 删除现有的资料状态记录
+        from ..models.Visamodels import VisaProjectDocumentStatus
+        VisaProjectDocumentStatus.query.filter_by(project_id=project_id).delete()
+        
+        # 创建新的资料状态记录
+        for status_data in document_statuses:
+            new_status = VisaProjectDocumentStatus(
+                project_id=project_id,
+                document_name=status_data['document_name'],
+                document_type=status_data['document_type'],
+                is_ready=status_data['is_ready'],
+                notes=status_data.get('notes', '')
+            )
+            db.session.add(new_status)
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': '资料准备状态已保存'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"保存资料准备状态时发生错误: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f'保存失败：{str(e)}'
+        }), 500
+
+
+@visa_project.route('/get_document_status/<int:project_id>')
+def get_document_status(project_id):
+    """获取项目资料准备状态"""
+    try:
+        from ..models.Visamodels import VisaProjectDocumentStatus
+        
+        # 获取项目的资料准备状态
+        statuses = VisaProjectDocumentStatus.query.filter_by(project_id=project_id).all()
+        
+        # 转换为字典格式
+        status_list = [status.to_dict() for status in statuses]
+        
+        return jsonify({
+            'success': True,
+            'document_statuses': status_list
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f"获取资料准备状态时发生错误: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f'获取失败：{str(e)}'
+        }), 500
+
+
+@visa_project.route('/get_project_documents/<visa_type>/<identity>')
+def get_project_documents(visa_type, identity):
+    """获取指定签证类型和身份的所需资料列表（包含共用资料+特定身份资料）"""
+    try:
+        from ..models.Visamodels import VisaDocuments, VisaTypes, VisaSingaporeIdentity
+        
+        # URL解码
+        from urllib.parse import unquote
+        import html
+        decoded_visa_type = unquote(visa_type)
+        decoded_visa_type = html.unescape(decoded_visa_type)
+        decoded_identity = unquote(identity)
+        decoded_identity = html.unescape(decoded_identity)
+        
+        print(f"DEBUG: 获取项目资料 - 签证类型: {decoded_visa_type}, 身份: {decoded_identity}")
+        
+        # 获取签证类型
+        visa_type_record = VisaTypes.query.filter_by(visa_type=decoded_visa_type).first()
+        if not visa_type_record:
+            return jsonify({
+                'success': False,
+                'message': '签证类型不存在'
+            }), 404
+        
+        # 获取SHARE身份记录
+        share_identity = VisaSingaporeIdentity.query.filter_by(identity_zh='SHARE').first()
+        if not share_identity:
+            return jsonify({
+                'success': False,
+                'message': 'SHARE身份记录不存在'
+            }), 404
+        
+        # 获取身份记录
+        identity_record = None
+        if decoded_identity != 'SHARE':
+            identity_record = VisaSingaporeIdentity.query.filter_by(identity_zh=decoded_identity).first()
+            if not identity_record:
+                return jsonify({
+                    'success': False,
+                    'message': '身份不存在'
+                }), 404
+        
+        # 获取共用资料（SHARE）
+        share_doc = VisaDocuments.query.filter_by(
+            visa_type_id=visa_type_record.id,
+            singapore_identity_id=share_identity.id
+        ).first()
+        
+        # 获取特定身份资料
+        specific_doc = None
+        if identity_record and identity_record.id != share_identity.id:
+            specific_doc = VisaDocuments.query.filter_by(
+                visa_type_id=visa_type_record.id,
+                singapore_identity_id=identity_record.id
+            ).first()
+        
+        # 合并文档信息
+        documents = []
+        additional_info = []
+        
+        # 处理共用资料
+        if share_doc and share_doc.selected_documents:
+            for doc in share_doc.selected_documents:
+                documents.append({
+                    'name': doc.name,
+                    'type': 'document',
+                    'category': '共用资料',
+                    'is_shared': True
+                })
+        
+        # 处理特定身份资料
+        if specific_doc and specific_doc.selected_documents:
+            for doc in specific_doc.selected_documents:
+                documents.append({
+                    'name': doc.name,
+                    'type': 'document',
+                    'category': '特定身份资料',
+                    'is_shared': False
+                })
+        
+        # 处理补充信息
+        if share_doc and share_doc.additional_info and share_doc.additional_info.strip() and share_doc.additional_info != '待输入':
+            additional_info.append({
+                'content': share_doc.additional_info,
+                'type': 'additional',
+                'category': '共用补充信息'
+            })
+        
+        if specific_doc and specific_doc.additional_info and specific_doc.additional_info.strip():
+            additional_info.append({
+                'content': specific_doc.additional_info,
+                'type': 'additional',
+                'category': '特定身份补充信息'
+            })
+        
+        print(f"DEBUG: 解析后的文档数量: {len(documents)}")
+        print(f"DEBUG: 解析后的补充信息数量: {len(additional_info)}")
+        print(f"DEBUG: 共用资料数量: {len([d for d in documents if d['is_shared']])}")
+        print(f"DEBUG: 特定身份资料数量: {len([d for d in documents if not d['is_shared']])}")
+        
+        return jsonify({
+            'success': True,
+            'documents': documents,
+            'additional_info': additional_info,
+            'share_count': len([d for d in documents if d['is_shared']]),
+            'specific_count': len([d for d in documents if not d['is_shared']])
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f"获取项目资料时发生错误: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f'获取失败：{str(e)}'
+        }), 500
+
+
+@visa_project.route('/test_japan_visa_data')
+def test_japan_visa_data():
+    """测试日本签证PR身份数据"""
+    try:
+        from ..models.Visamodels import VisaDocuments, VisaTypes, VisaSingaporeIdentity
+        
+        # 获取日本签证类型
+        visa_type = VisaTypes.query.filter_by(visa_type='日本签证').first()
+        if not visa_type:
+            return jsonify({'error': '没有找到日本签证类型'})
+        
+        # 获取PR身份记录
+        pr_identity = VisaSingaporeIdentity.query.filter_by(identity_zh='PR').first()
+        if not pr_identity:
+            return jsonify({'error': '没有找到PR身份记录'})
+        
+        # 检查SHARE记录
+        share_doc = VisaDocuments.query.filter_by(
+            visa_type_id=visa_type.id,
+            singapore_identity_id=None
+        ).first()
+        
+        # 检查PR特定身份记录
+        pr_doc = VisaDocuments.query.filter_by(
+            visa_type_id=visa_type.id,
+            singapore_identity_id=pr_identity.id
+        ).first()
+        
+        # 使用get_document_info方法
+        pr_info = VisaDocuments.get_document_info(visa_type.id, pr_identity.id)
+        
+        result = {
+            'visa_type': {
+                'name': visa_type.visa_type,
+                'id': visa_type.id
+            },
+            'pr_identity': {
+                'name': pr_identity.identity_zh,
+                'id': pr_identity.id
+            },
+            'share_record': {
+                'exists': share_doc is not None,
+                'id': share_doc.id if share_doc else None,
+                'documents_count': len(share_doc.selected_documents) if share_doc and share_doc.selected_documents else 0,
+                'documents': [doc.name for doc in share_doc.selected_documents] if share_doc and share_doc.selected_documents else [],
+                'additional_info': share_doc.additional_info if share_doc else None
+            },
+            'pr_record': {
+                'exists': pr_doc is not None,
+                'id': pr_doc.id if pr_doc else None,
+                'documents_count': len(pr_doc.selected_documents) if pr_doc and pr_doc.selected_documents else 0,
+                'documents': [doc.name for doc in pr_doc.selected_documents] if pr_doc and pr_doc.selected_documents else [],
+                'additional_info': pr_doc.additional_info if pr_doc else None
+            },
+            'get_document_info_result': pr_info
+        }
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        return jsonify({'error': str(e)})
+
+
+@visa_project.route('/check_share_documents/<visa_type>')
+def check_share_documents(visa_type):
+    """检查SHARE记录的关联文档"""
+    try:
+        from ..models.Visamodels import VisaDocuments, VisaTypes, VisaDocumentsList
+        from sqlalchemy import text
+        
+        # 获取签证类型
+        visa_type_record = VisaTypes.query.filter_by(visa_type=visa_type).first()
+        if not visa_type_record:
+            return jsonify({'error': f'签证类型 {visa_type} 不存在'})
+        
+        # 获取SHARE记录
+        share_doc = VisaDocuments.query.filter_by(
+            visa_type_id=visa_type_record.id,
+            singapore_identity_id=None
+        ).first()
+        
+        if not share_doc:
+            return jsonify({'error': 'SHARE记录不存在'})
+        
+        # 直接查询关联表
+        query = text("""
+            SELECT vdl.id, vdl.name, vdl.category
+            FROM visa_documents_list vdl
+            JOIN visa_document_documents vdd ON vdl.id = vdd.document_id
+            WHERE vdd.visa_document_id = :doc_id
+        """)
+        
+        result = db.session.execute(query, {'doc_id': share_doc.id})
+        associated_docs = [{'id': row[0], 'name': row[1], 'category': row[2]} for row in result]
+        
+        # 检查所有可用的文档
+        all_docs = VisaDocumentsList.query.all()
+        all_docs_list = [{'id': doc.id, 'name': doc.name, 'category': doc.category} for doc in all_docs]
+        
+        return jsonify({
+            'visa_type': visa_type,
+            'share_doc_id': share_doc.id,
+            'associated_documents': associated_docs,
+            'all_available_documents': all_docs_list,
+            'message': f'SHARE记录关联了 {len(associated_docs)} 个文档'
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)})
+
+
+@visa_project.route('/add_share_documents/<visa_type>', methods=['POST'])
+def add_share_documents(visa_type):
+    """为SHARE记录添加常用文档"""
+    try:
+        from ..models.Visamodels import VisaDocuments, VisaTypes, VisaDocumentsList
+        
+        # 获取签证类型
+        visa_type_record = VisaTypes.query.filter_by(visa_type=visa_type).first()
+        if not visa_type_record:
+            return jsonify({'error': f'签证类型 {visa_type} 不存在'})
+        
+        # 获取SHARE记录
+        share_doc = VisaDocuments.query.filter_by(
+            visa_type_id=visa_type_record.id,
+            singapore_identity_id=None
+        ).first()
+        
+        if not share_doc:
+            return jsonify({'error': 'SHARE记录不存在'})
+        
+        # 常用共用文档名称
+        common_documents = [
+            '护照原件',
+            '护照复印件', 
+            '近期护照照片',
+            '身份证复印件',
+            '出生证明',
+            '结婚证明（如适用）',
+            '学历证明',
+            '工作证明',
+            '银行对账单',
+            '申请表'
+        ]
+        
+        # 查找或创建这些文档
+        added_docs = []
+        for doc_name in common_documents:
+            # 查找是否已存在该文档
+            existing_doc = VisaDocumentsList.query.filter_by(name=doc_name).first()
+            if not existing_doc:
+                # 创建新文档
+                new_doc = VisaDocumentsList(
+                    name=doc_name,
+                    category='共用资料'
+                )
+                db.session.add(new_doc)
+                db.session.flush()  # 获取ID
+                existing_doc = new_doc
+            
+            # 添加到SHARE记录
+            if existing_doc not in share_doc.selected_documents:
+                share_doc.selected_documents.append(existing_doc)
+                added_docs.append(doc_name)
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'成功为SHARE记录添加了 {len(added_docs)} 个文档',
+            'added_documents': added_docs
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)})
+
+
+@visa_project.route('/update_document_status', methods=['POST'])
+@csrf.exempt
+def update_document_status():
+    """更新资料准备状态"""
+    try:
+        from ..models.Visamodels import VisaProjectDocumentStatus
+        
+        data = request.get_json()
+        document_status_id = data.get('document_status_id')
+        is_ready = data.get('is_ready')
+        notes = data.get('notes', '')
+        
+        if document_status_id is None:
+            return jsonify({
+                'success': False,
+                'message': '缺少资料状态ID'
+            }), 400
+            
+        # 获取资料状态记录
+        document_status = VisaProjectDocumentStatus.query.get(document_status_id)
+        if not document_status:
+            return jsonify({
+                'success': False,
+                'message': '资料状态记录不存在'
+            }), 404
+            
+        # 更新状态
+        document_status.is_ready = is_ready
+        document_status.notes = notes
+        document_status.updated_at = datetime.utcnow()
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': '资料状态更新成功',
+            'data': document_status.to_dict()
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"更新资料状态时发生错误: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f'更新资料状态时出错：{str(e)}'
+        }), 500
+
+
+@visa_project.route('/sync_project_documents/<int:project_id>', methods=['POST'])
+@csrf.exempt
+def sync_project_documents(project_id):
+    """同步项目资料清单（从模板获取并创建项目状态记录）"""
+    try:
+        from ..models.Visamodels import VisaProjectDocumentStatus, VisaTypes, VisaSingaporeIdentity
+        
+        # 获取项目信息
+        project = VisaProject.query.get_or_404(project_id)
+        
+        # 获取签证类型信息
+        types_info = VisaTypes.query.filter_by(visa_type=project.visa_type).first()
+        if not types_info:
+            return jsonify({
+                'success': False,
+                'message': '签证类型不存在'
+            }), 404
+        
+        # 获取SHARE身份记录
+        share_identity = VisaSingaporeIdentity.query.filter_by(identity_zh='SHARE').first()
+        share_identity_id = share_identity.id if share_identity else None
+        
+        # 获取当前项目的资料状态
+        existing_statuses = VisaProjectDocumentStatus.query.filter_by(project_id=project_id).all()
+        existing_document_names = {status.document_name for status in existing_statuses}
+        
+        # 获取模板资料清单
+        template_documents = []
+        
+        # 获取SHARE共用资料
+        if share_identity_id:
+            share_doc = VisaDocuments.query.filter_by(
+                visa_type_id=types_info.id,
+                singapore_identity_id=share_identity_id
+            ).first()
+            if share_doc and share_doc.selected_documents:
+                for doc in share_doc.selected_documents:
+                    template_documents.append({
+                        'name': doc.name,
+                        'type': 'document',
+                        'category': 'SHARE'
+                    })
+        
+        # 获取特定身份资料
+        if project.singapore_status and project.singapore_status != 'SHARE':
+            specific_doc = VisaDocuments.query.filter_by(
+                visa_type_id=types_info.id,
+                singapore_identity_id=share_identity_id
+            ).first()
+            if specific_doc and specific_doc.selected_documents:
+                for doc in specific_doc.selected_documents:
+                    template_documents.append({
+                        'name': doc.name,
+                        'type': 'document',
+                        'category': project.singapore_status
+                    })
+        
+        # 创建新的资料状态记录
+        new_statuses = []
+        for doc in template_documents:
+            if doc['name'] not in existing_document_names:
+                new_status = VisaProjectDocumentStatus(
+                    project_id=project_id,
+                    document_name=doc['name'],
+                    document_type=doc['type'],
+                    is_ready=False,
+                    notes=''
+                )
+                db.session.add(new_status)
+                new_statuses.append(new_status)
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'成功同步 {len(new_statuses)} 个新资料',
+            'new_count': len(new_statuses)
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"同步项目资料时发生错误: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f'同步项目资料时出错：{str(e)}'
+        }), 500
+
+
+@visa_project.route('/add_custom_document/<int:project_id>', methods=['POST'])
+@csrf.exempt
+def add_custom_document(project_id):
+    """为项目添加自定义资料"""
+    try:
+        from ..models.Visamodels import VisaProjectDocumentStatus
+        
+        data = request.get_json()
+        document_name = data.get('document_name')
+        document_type = data.get('document_type', 'document')
+        notes = data.get('notes', '')
+        
+        if not document_name:
+            return jsonify({
+                'success': False,
+                'message': '缺少资料名称'
+            }), 400
+            
+        # 检查是否已存在同名资料
+        existing = VisaProjectDocumentStatus.query.filter_by(
+            project_id=project_id,
+            document_name=document_name
+        ).first()
+        
+        if existing:
+            return jsonify({
+                'success': False,
+                'message': '该资料已存在'
+            }), 400
+        
+        # 创建新的资料状态记录
+        new_status = VisaProjectDocumentStatus(
+            project_id=project_id,
+            document_name=document_name,
+            document_type=document_type,
+            is_ready=False,
+            notes=notes
+        )
+        
+        db.session.add(new_status)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': '自定义资料添加成功',
+            'data': new_status.to_dict()
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"添加自定义资料时发生错误: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f'添加自定义资料时出错：{str(e)}'
+        }), 500
+
+
+@visa_project.route('/delete_document_status/<int:document_status_id>', methods=['DELETE', 'POST'])
+@csrf.exempt
+def delete_document_status(document_status_id):
+    """删除资料状态记录"""
+    try:
+        from ..models.Visamodels import VisaProjectDocumentStatus
+        
+        document_status = VisaProjectDocumentStatus.query.get_or_404(document_status_id)
+        document_name = document_status.document_name
+        
+        db.session.delete(document_status)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'资料 "{document_name}" 已删除'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"删除资料状态时发生错误: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f'删除资料时出错：{str(e)}'
+        }), 500
+
+
+@visa_project.route('/get_documents_list', methods=['GET'])
+def get_documents_list():
+    from App.models.Visamodels import VisaDocumentsList
+    query = request.args.get('q', '').strip()
+    q = VisaDocumentsList.query
+    if query:
+        q = q.filter(VisaDocumentsList.name.ilike(f'%{query}%'))
+    docs = q.order_by(VisaDocumentsList.name.asc()).all()
+    return jsonify([doc.name for doc in docs])
 

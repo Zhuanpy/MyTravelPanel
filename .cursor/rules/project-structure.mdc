@@ -1,0 +1,27 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# 项目结构指南
+
+这是一个基于 Flask 的 Web 应用程序，主要结构如下：
+
+- [app.py](mdc:app.py) 是应用程序的入口点，负责启动 Flask 服务器
+- [App/__init__.py](mdc:App/__init__.py) 包含应用程序工厂函数和主要配置
+- [App/config.py](mdc:App/config.py) 包含应用程序的配置设置
+- [App/exts.py](mdc:App/exts.py) 包含 Flask 扩展的初始化代码
+
+主要目录结构：
+- `App/routes/` - 包含所有路由处理函数
+- `App/models/` - 包含数据库模型定义
+- `App/templates/` - 包含 HTML 模板文件
+- `App/static/` - 包含静态文件（CSS、JavaScript、图片等）
+- `App/forms/` - 包含表单类定义
+- `App/services/` - 包含业务逻辑服务
+- `App/utils/` - 包含工具函数和辅助类
+- `App/code/` - 包含其他代码文件
+
+数据库相关：
+- `migrations/` 目录包含数据库迁移文件
+- `App/database.db` 是 SQLite 数据库文件

@@ -301,10 +301,14 @@
             <a href="{{ url_for('visa_basic.visa_type_list') }}" class="text-link">
                 <i class="fas fa-plus"></i> 签证类型管理
                 </a>
-            <a href="{{ url_for('visa_documents.manage_visas') }}" class="text-link">
-                <i class="fas fa-database"></i> 文件资料管理
+            <a href="{{ url_for('visa_documents_list.documents_list') }}" class="text-link">
+                <i class="fas fa-database"></i> 文档资料
                 </a>
   
+            <a href="{{ url_for('visa_basic.visa_type_document_manager') }}" class="text-link">
+                <i class="fas fa-cogs"></i> 签证文档管理器
+                </a>
+
             <a href="{{ url_for('visa_basic.manage_countries') }}" class="text-link">
                 <i class="fas fa-flag"></i> 签证国家管理
                 </a>
@@ -428,6 +432,9 @@
                 <div class="visa-item-actions">
                     <a href="{{ url_for('visa_project.visa_processing', visa_type='') }}${encodeURIComponent(visaTypes[i] || '')}" class="visa-btn visa-btn-primary">
                         开始处理
+                    </a>
+                    <a href="{{ url_for('visa_basic.visa_intro', visa_type='') }}${encodeURIComponent(visaTypes[i] || '')}" class="visa-btn visa-btn-secondary" style="background: #718096; color: white; margin-left: 8px;">
+                        签证介绍
                     </a>
                 </div>
             `;

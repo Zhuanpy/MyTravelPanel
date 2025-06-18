@@ -20,8 +20,6 @@ flight_home = Blueprint('flight_home', __name__, url_prefix='/flight_home')
 
 """ 航班信息录入"""
 
-@login_required
-@admin_required
 @flight_home.route('/flight_schedule', methods=['GET', 'POST'])
 def input_flight_schedule_info():
     form = FlightScheduleForm()

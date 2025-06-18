@@ -1,0 +1,38 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# 开发指南
+
+## 环境设置
+1. 确保已安装 Python 3.8 或更高版本
+2. 安装所需依赖：`pip install -r requirements.txt`
+3. 初始化数据库：`flask db upgrade`
+
+## 开发流程
+1. 新功能开发：
+   - 在 `App/routes/` 中添加新的路由
+   - 在 `App/models/` 中定义数据模型
+   - 在 `App/templates/` 中创建对应的模板
+   - 在 `App/static/` 中添加必要的静态文件
+
+2. 数据库更改：
+   - 修改模型后运行 `flask db migrate -m "描述"`
+   - 应用迁移：`flask db upgrade`
+
+3. 测试：
+   - 运行单元测试：`python -m pytest`
+   - 手动测试新功能
+
+## 代码规范
+1. 遵循 PEP 8 编码规范
+2. 使用有意义的变量和函数名
+3. 添加适当的注释和文档字符串
+4. 保持代码简洁和可维护性
+
+## 部署
+1. 确保所有依赖都已安装
+2. 设置正确的环境变量
+3. 运行 `python app.py` 启动服务器
+4. 默认访问地址：`http://localhost:5000`
