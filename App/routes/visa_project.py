@@ -70,18 +70,18 @@ def show_current_all_projects():
         search_name = request.args.get('search_name', '')
         page = request.args.get('page', 1, type=int)
         per_page = 20  # 每页显示20条数据
-        
+
         # 构建基础查询
         query = VisaProject.query
-        
+
         # 应用状态筛选
         if visa_status != 'all':
             query = query.filter(VisaProject.visa_status == visa_status)
-            
+
         # 应用签证类型筛选
         if filter_visa_type != 'all':
             query = query.filter(VisaProject.visa_type == filter_visa_type)
-            
+
         # 应用国家筛选
         if filter_country != 'all':
             query = query.join(VisaTypes, VisaProject.visa_type == VisaTypes.visa_type)\
@@ -91,7 +91,7 @@ def show_current_all_projects():
         # 应用申请人姓名搜索
         if search_name:
             query = query.filter(VisaProject.applicant_name.like(f'%{search_name}%'))
-            
+
         # 应用排序
         if sort_by == 'name':
             query = query.order_by(VisaProject.project_folder_name.asc())
@@ -99,11 +99,11 @@ def show_current_all_projects():
             query = query.order_by(VisaProject.visa_status.asc())
         else:  # 默认按创建日期排序
             query = query.order_by(VisaProject.created_date.desc())
-            
+
         # 执行分页查询
         pagination = query.paginate(page=page, per_page=per_page, error_out=False)
         projects = pagination.items
-        
+
         # 获取所有签证类型
         visa_types = VisaTypes.query.all()
         
@@ -118,19 +118,19 @@ def show_current_all_projects():
                 if types_info:
                     links = VisaLinks.query.filter_by(visa_type_id=types_info.id).order_by(VisaLinks.name.asc()).all()
                     project_links[project.id] = links
-        
+
         return render_template('visas/签证项目列表.html',
                              projects=projects,
-                             pagination=pagination,
-                             visa_status=visa_status,
-                             sort_by=sort_by,
-                             filter_visa_type=filter_visa_type,
+                           pagination=pagination,
+                           visa_status=visa_status,
+                           sort_by=sort_by,
+                           filter_visa_type=filter_visa_type,
                              filter_country=filter_country,
                              search_name=search_name,
                              visa_types=visa_types,
                              countries=countries,
                              project_links=project_links)
-                             
+
     except Exception as e:
         flash(f'获取项目列表时出错: {str(e)}', 'error')
         return redirect(url_for('visa_home.home'))
@@ -155,20 +155,25 @@ def visa_processing(visa_type):
         links = VisaLinks.query.filter_by(visa_type_id=types_info.id).order_by(VisaLinks.name.asc()).all()
 
         # 获取签证文档数据
-        documents = VisaDocuments.query.filter_by(visa_type=visa_type).all()
+        documents = VisaDocuments.query.join(VisaTypes).filter(VisaTypes.visa_type == visa_type).all()
         document_data = {}
         
         # 获取共用资料
-        common_doc = VisaDocuments.query.filter_by(
-            visa_type=visa_type,
-            singapore_identity='SHARE'
+        common_doc = VisaDocuments.query.join(VisaTypes).filter(
+            VisaTypes.visa_type == visa_type,
+            VisaDocuments.singapore_identity_id.is_(None)
         ).first()
 
         # 处理每个身份的文档数据
         for doc in documents:
-            if doc.singapore_identity == 'SHARE':
+            if doc.singapore_identity_id is None:
                 continue  # 跳过共用资料的单独处理
                 
+            # 检查singapore_identity是否为None
+            if doc.singapore_identity is None:
+                print(f"警告: 文档ID {doc.id} 的singapore_identity为None，跳过处理")
+                continue
+
             document_info = []
             additional_info = []
 
@@ -189,7 +194,7 @@ def visa_processing(visa_type):
                 additional_info.append(doc.additional_info)
 
             # 保存处理后的数据
-            document_data[doc.singapore_identity] = {
+            document_data[doc.singapore_identity.identity_zh] = {
                 'document_info': "\n".join(document_info) if document_info else "暂无文件资料",
                 'additional_info': "\n".join(additional_info) if additional_info else "暂无补充信息"
             }
@@ -357,28 +362,33 @@ def visa_detail(project_name=None, project_id=None):
             project = VisaProject.query.get_or_404(project_id)
         else:
             project = VisaProject.query.filter_by(project_folder_name=project_name).first_or_404()
-        
+    
         # 获取签证类型信息
         types_info = VisaTypes.query.filter_by(visa_type=project.visa_type).first_or_404()
         
         # 获取相关链接 - 使用visa_type_id查询
         links = VisaLinks.query.filter_by(visa_type_id=types_info.id).order_by(VisaLinks.name.asc()).all()
-
+    
         # 获取签证文档数据
-        documents = VisaDocuments.query.filter_by(visa_type=project.visa_type).all()
+        documents = VisaDocuments.query.join(VisaTypes).filter(VisaTypes.visa_type == project.visa_type).all()
         document_data = {}
-        
-        # 获取共用资料
-        common_doc = VisaDocuments.query.filter_by(
-            visa_type=project.visa_type,
-            singapore_identity='SHARE'
-        ).first()
 
+        # 获取共用资料
+        common_doc = VisaDocuments.query.join(VisaTypes).filter(
+            VisaTypes.visa_type == project.visa_type,
+            VisaDocuments.singapore_identity_id.is_(None)
+        ).first()
+    
         # 处理每个身份的文档数据
         for doc in documents:
-            if doc.singapore_identity == 'SHARE':
+            if doc.singapore_identity_id is None:
                 continue  # 跳过共用资料的单独处理
-                
+
+            # 检查singapore_identity是否为None
+            if doc.singapore_identity is None:
+                print(f"警告: 文档ID {doc.id} 的singapore_identity为None，跳过处理")
+                continue
+
             document_info = []
             additional_info = []
 
@@ -399,7 +409,7 @@ def visa_detail(project_name=None, project_id=None):
                 additional_info.append(doc.additional_info)
 
             # 保存处理后的数据
-            document_data[doc.singapore_identity] = {
+            document_data[doc.singapore_identity.identity_zh] = {
                 'document_info': "\n".join(document_info) if document_info else "暂无文件资料",
                 'additional_info': "\n".join(additional_info) if additional_info else "暂无补充信息"
             }
@@ -413,9 +423,9 @@ def visa_detail(project_name=None, project_id=None):
 
         return render_template('visas/签证项目详细.html',
                              project=project,
-                             types_info=types_info,
+                                 types_info=types_info,
                              links=links,
-                             document_data=document_data)
+                                 document_data=document_data)
                              
     except Exception as e:
         flash(f'获取签证详情时出错: {str(e)}', 'error')
@@ -452,7 +462,7 @@ def update_visa_status():
             
         # 获取项目
         project = VisaProject.query.get_or_404(project_id)
-        
+            
         # 更新状态
         project.visa_status = new_status
         
@@ -724,7 +734,7 @@ def open_folder():
             folder_path = project_root / "static" / "资源" / "签证" / visa_type
             if not folder_path.exists():
                 return jsonify({
-                    "success": False,
+                    "success": False, 
                     "message": f"找不到签证类型文件夹：{visa_type}"
                 }), 404
 
@@ -752,14 +762,14 @@ def open_folder():
             subprocess.run(['xdg-open', str(folder_path)])
 
         return jsonify({
-            "success": True,
+            "success": True, 
             "message": "文件夹已打开"
         })
 
     except Exception as e:
         current_app.logger.error(f"打开文件夹时发生错误: {str(e)}")
         return jsonify({
-            "success": False,
+            "success": False, 
             "message": f"打开文件夹时发生错误：{str(e)}"
         }), 500
 

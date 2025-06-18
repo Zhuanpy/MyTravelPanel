@@ -9,6 +9,8 @@ from .utils.cache import cache
 from datetime import timedelta
 from .config import Config
 from App.utils.background_tasks import TodoReminder
+from .utils.exceptions import register_error_handlers
+import logging
 
 from .routes.statement import statement_blue
 from .routes.utils_tasks import utils_blue
@@ -23,6 +25,7 @@ from .models.Suppliers import Supplier
 from .routes.visa_basic_info import visa_basic
 from .routes.visa_home import visa_home
 from .routes.visa_documents import visa_documents
+from .routes.visa_documents_list import visa_documents_list
 from .routes.visa_links import visa_links
 from .routes.visa_files import visa_files
 from .routes.visa_project import visa_project
@@ -53,9 +56,18 @@ def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
 
+    # 验证配置
+    Config.validate_config()
+
+    # 配置日志
+    configure_logging(app)
+
     # 初始化插件
     init_exts(app=app)
     migrate.init_app(app, db)
+
+    # 注册错误处理器
+    register_error_handlers(app)
 
     app.register_blueprint(dex)
 
@@ -87,6 +99,7 @@ def create_app():
     app.register_blueprint(visa_home, url_prefix='/visa/home')
     app.register_blueprint(visa_basic, url_prefix='/visa/basic')
     app.register_blueprint(visa_documents, url_prefix='/visa/documents')
+    app.register_blueprint(visa_documents_list, url_prefix='/visa/documents_list')
     app.register_blueprint(visa_links, url_prefix='/visa_links')
     app.register_blueprint(visa_files, url_prefix='/visa/files')
     app.register_blueprint(visa_project, url_prefix='/visa/project')
@@ -139,3 +152,24 @@ def create_app():
         app.reminder.start()
 
     return app
+
+
+def configure_logging(app):
+    """配置日志系统"""
+    if not app.debug and not app.testing:
+        # 生产环境日志配置
+        if not os.path.exists('logs'):
+            os.mkdir('logs')
+
+        file_handler = logging.FileHandler('logs/travelpanel.log')
+        file_handler.setFormatter(logging.Formatter(
+            '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'
+        ))
+        file_handler.setLevel(logging.INFO)
+        app.logger.addHandler(file_handler)
+
+        app.logger.setLevel(logging.INFO)
+        app.logger.info('TravelPanel startup')
+    else:
+        # 开发环境日志配置
+        app.logger.setLevel(logging.DEBUG)

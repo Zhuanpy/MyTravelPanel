@@ -1160,7 +1160,10 @@
         const selectedLink = document.querySelector(`.visa-project-identity-link[data-identity="${selectedIdentity}"]`);
         if (selectedLink) {
             selectedLink.classList.add('selected');
-            fetchContent('{{ visa_type }}', selectedIdentity, selectedLink);
+            // 修复签证类型编码问题
+            const visaType = '{{ visa_type }}';
+            const decodedVisaType = visaType.replace(/&amp;/g, '&');
+            fetchContent(decodedVisaType, selectedIdentity, selectedLink);
         }
     });
 
@@ -1286,8 +1289,11 @@
         document.getElementById('content').innerHTML = loadingHtml;
         document.getElementById('additional_content').innerHTML = loadingHtml;
 
-        // 发送请求获取该身份需要的文档
-        const url = `/visa/documents/document_request/{{ visa_type }}/${identityId}`;
+        // 发送请求获取该身份需要的文档 - 修复URL编码问题
+        const visaType = '{{ visa_type }}';
+        const decodedVisaType = visaType.replace(/&amp;/g, '&');
+        const encodedVisaType = encodeURIComponent(decodedVisaType);
+        const url = `/visa/documents/document_request/${encodedVisaType}/${encodeURIComponent(identityId)}`;
         console.log('Fetching from URL:', url);
 
         fetch(url)

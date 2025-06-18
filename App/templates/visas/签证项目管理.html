@@ -848,13 +848,29 @@
             .then(data => {
                 if (data.success) {
                     // 删除成功，移除对应的表格行
-                    const row = document.querySelector(`button[onclick="confirmDelete('${projectId}', '${projectName}')"]`).closest('tr');
-                    if (row) {
-                        row.style.transition = 'opacity 0.5s';
-                        row.style.opacity = '0';
+                    // 使用更可靠的方式找到要删除的行
+                    const deleteButtons = document.querySelectorAll('button[onclick*="confirmDelete"]');
+                    let targetRow = null;
+                    
+                    for (let button of deleteButtons) {
+                        const onclickAttr = button.getAttribute('onclick');
+                        if (onclickAttr && onclickAttr.includes(`'${projectId}'`)) {
+                            targetRow = button.closest('tr');
+                            break;
+                        }
+                    }
+                    
+                    if (targetRow) {
+                        targetRow.style.transition = 'opacity 0.5s';
+                        targetRow.style.opacity = '0';
                         setTimeout(() => {
-                            row.remove();
+                            if (targetRow.parentNode) {
+                                targetRow.remove();
+                            }
                         }, 500);
+                    } else {
+                        // 如果找不到对应的行，刷新页面
+                        window.location.reload();
                     }
                     showToast('项目删除成功', 'success');
                 } else {

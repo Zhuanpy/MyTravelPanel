@@ -5,6 +5,7 @@ from ..models import VisaCountries, VisaTypes, VisaSingaporeIdentity, VisaDocume
 from flask_wtf import FlaskForm
 from wtforms import StringField, SelectMultipleField
 from wtforms.validators import DataRequired
+import time
 
 """
 管理 (visa_basic_info.py):
@@ -142,7 +143,10 @@ def visa_type_list():
     countries = VisaCountries.query.order_by(VisaCountries.country_name_CN).all()
     
     # 获取所有新加坡身份列表（用于添加签证类型）
-    singapore_identities = VisaSingaporeIdentity.query.order_by(VisaSingaporeIdentity.identity_zh).all()
+    singapore_identities = VisaSingaporeIdentity.query\
+        .filter(VisaSingaporeIdentity.identity_zh != 'SHARE')\
+        .order_by(VisaSingaporeIdentity.identity_zh)\
+        .all()
     
     # 构建基础查询
     query = VisaTypes.query
@@ -158,9 +162,11 @@ def visa_type_list():
     # 为每个签证类型获取实际的身份选项
     for vt in visa_types:
         # 从 VisaDocuments 中获取该签证类型的实际身份选项
-        actual_identities = db.session.query(VisaDocuments.singapore_identity)\
-            .filter(VisaDocuments.visa_type == vt.visa_type)\
-            .filter(VisaDocuments.singapore_identity != 'SHARE')\
+        actual_identities = db.session.query(VisaSingaporeIdentity.identity_zh)\
+            .join(VisaDocuments, VisaDocuments.singapore_identity_id == VisaSingaporeIdentity.id)\
+            .filter(VisaDocuments.visa_type_id == vt.id)\
+            .filter(VisaDocuments.singapore_identity_id.isnot(None))\
+            .filter(VisaSingaporeIdentity.identity_zh != 'SHARE')\
             .distinct()\
             .all()
         
@@ -197,8 +203,8 @@ def add_visa_type():
                 identities = VisaSingaporeIdentity.query.filter(VisaSingaporeIdentity.id.in_(identity_ids)).all()
                 for identity in identities:
                     new_doc = VisaDocuments(
-                        visa_type=visa_type,
-                        singapore_identity=identity.identity_zh,
+                        visa_type_id=new_visa_type.id,
+                        singapore_identity_id=identity.id,
                         document_info='待输入',
                         additional_info='待输入'
                     )
@@ -237,7 +243,10 @@ def add_visa_type():
 
     # GET 请求处理 - 返回所有需要的数据
     countries = VisaCountries.query.order_by(VisaCountries.country_name_CN).all()
-    singapore_identities = VisaSingaporeIdentity.query.order_by(VisaSingaporeIdentity.identity_zh).all()
+    singapore_identities = VisaSingaporeIdentity.query\
+        .filter(VisaSingaporeIdentity.identity_zh != 'SHARE')\
+        .order_by(VisaSingaporeIdentity.identity_zh)\
+        .all()
     
     return jsonify({
         'countries': [{'id': c.id, 'name': c.country_name_CN} for c in countries],
@@ -256,18 +265,57 @@ def edit_visa_type(visa_type, field):
 
         if request.method == 'POST':
             try:
+                print(f"DEBUG: 开始处理POST请求，field={field}")  # 调试信息
+                
                 if field == 'identities':
                     # 处理身份选项更新
                     selected_identities = request.form.getlist('identities')
-                    # 删除现有的身份文档
-                    VisaDocuments.query.filter_by(visa_type=visa_type).delete()
+                    print(f"DEBUG: 选择的身份: {selected_identities}")  # 调试信息
+                    print(f"DEBUG: 签证类型记录ID: {visa_type_record.id}")  # 调试信息
+                    
+                    # 删除现有的身份文档 - 使用更安全的方式
+                    try:
+                        # 先查询要删除的文档
+                        docs_to_delete = VisaDocuments.query.filter_by(visa_type_id=visa_type_record.id).all()
+                        print(f"DEBUG: 找到 {len(docs_to_delete)} 个要删除的文档")  # 调试信息
+                        
+                        for doc in docs_to_delete:
+                            db.session.delete(doc)
+                            print(f"DEBUG: 删除文档 ID: {doc.id}")  # 调试信息
+                        
+                        # 或者使用批量删除
+                        # deleted_count = VisaDocuments.query.filter_by(visa_type_id=visa_type_record.id).delete()
+                        # print(f"DEBUG: 删除了 {deleted_count} 个现有文档")  # 调试信息
+                    except Exception as e:
+                        print(f"DEBUG: 删除现有文档时出错: {str(e)}")  # 调试信息
+                        raise e
+                    
                     # 添加新的身份文档
-                    for identity in selected_identities:
-                        new_doc = VisaDocuments(
-                            visa_type=visa_type,
-                            singapore_identity=identity
-                        )
-                        db.session.add(new_doc)
+                    for identity_name in selected_identities:
+                        try:
+                            if identity_name == 'SHARE':
+                                # 对于SHARE身份，创建singapore_identity_id为None的记录
+                                new_doc = VisaDocuments(
+                                    visa_type_id=visa_type_record.id,
+                                    singapore_identity_id=None
+                                )
+                                db.session.add(new_doc)
+                                print(f"DEBUG: 添加SHARE共用资料文档")  # 调试信息
+                            else:
+                                # 对于其他身份，查找对应的身份记录
+                                identity = VisaSingaporeIdentity.query.filter_by(identity_zh=identity_name).first()
+                                if identity:
+                                    new_doc = VisaDocuments(
+                                        visa_type_id=visa_type_record.id,
+                                        singapore_identity_id=identity.id
+                                    )
+                                    db.session.add(new_doc)
+                                    print(f"DEBUG: 添加文档关联: {identity_name} (ID: {identity.id})")  # 调试信息
+                                else:
+                                    print(f"DEBUG: 未找到身份: {identity_name}")  # 调试信息
+                        except Exception as e:
+                            print(f"DEBUG: 处理身份 {identity_name} 时出错: {str(e)}")  # 调试信息
+                            raise e
                 else:
                     # 更新费用或处理时间
                     value = request.form.get('value')
@@ -276,19 +324,42 @@ def edit_visa_type(visa_type, field):
                     else:  # processing_time
                         visa_type_record.processing_time = value
 
+                print(f"DEBUG: 准备提交数据库更改")  # 调试信息
                 db.session.commit()
+                print(f"DEBUG: 数据库提交成功")  # 调试信息
+                
+                # 验证保存结果
+                try:
+                    # 重新查询验证数据是否正确保存
+                    saved_docs = VisaDocuments.query.filter_by(visa_type_id=visa_type_record.id).all()
+                    print(f"DEBUG: 保存后验证 - 找到 {len(saved_docs)} 个文档")
+                    for doc in saved_docs:
+                        identity = VisaSingaporeIdentity.query.get(doc.singapore_identity_id)
+                        print(f"DEBUG: 保存的文档 - 身份: {identity.identity_zh if identity else 'Unknown'} (ID: {doc.singapore_identity_id})")
+                except Exception as e:
+                    print(f"DEBUG: 验证保存结果时出错: {str(e)}")
+                
                 flash('更新成功！', 'success')
                 
                 # 获取当前的国家筛选参数
                 country_id = request.args.get('country')
-                # 构建重定向URL，保持筛选状态
+                # 构建重定向URL，保持筛选状态，并添加时间戳强制刷新
                 redirect_url = url_for('visa_basic.visa_type_list')
+                params = []
                 if country_id:
-                    redirect_url += f'?country={country_id}'
+                    params.append(f'country={country_id}')
+                # 添加时间戳强制刷新
+                params.append(f't={int(time.time())}')
+                if params:
+                    redirect_url += '?' + '&'.join(params)
                 
                 return redirect(redirect_url)
                 
             except Exception as e:
+                print(f"DEBUG: 处理POST请求时发生异常: {str(e)}")  # 调试信息
+                print(f"DEBUG: 异常类型: {type(e)}")  # 调试信息
+                import traceback
+                print(f"DEBUG: 异常堆栈: {traceback.format_exc()}")  # 调试信息
                 db.session.rollback()
                 flash(f'更新失败：{str(e)}', 'error')
                 return redirect(url_for('visa_basic.visa_type_list'))
@@ -296,12 +367,28 @@ def edit_visa_type(visa_type, field):
         # GET 请求处理
         if field == 'identities':
             # 从 VisaDocuments 中获取当前身份选项
-            current_documents = VisaDocuments.query.filter_by(visa_type=visa_type).all()
-            current_identities = [doc.singapore_identity for doc in current_documents if doc.singapore_identity != 'SHARE']
+            current_documents = VisaDocuments.query.join(VisaTypes).filter(
+                VisaTypes.visa_type == visa_type
+            ).all()
+            print(f"DEBUG: 找到 {len(current_documents)} 个当前文档")  # 调试信息
+            
+            current_identities = []
+            for doc in current_documents:
+                if doc.singapore_identity:
+                    current_identities.append(doc.singapore_identity.identity_zh)
+                    print(f"DEBUG: 当前身份: {doc.singapore_identity.identity_zh}")  # 调试信息
+                else:
+                    # 对于singapore_identity_id为None的记录，这通常是SHARE共用资料
+                    current_identities.append('SHARE')
+                    print(f"DEBUG: 当前身份: SHARE (共用资料)")  # 调试信息
             
             # 获取所有可用的身份选项（从 VisaSingaporeIdentity 表）
             all_identities = VisaSingaporeIdentity.query.order_by(VisaSingaporeIdentity.identity_zh).all()
             all_identities = [identity.identity_zh for identity in all_identities]
+            # 添加SHARE选项
+            all_identities.append('SHARE')
+            print(f"DEBUG: 所有可用身份: {all_identities}")  # 调试信息
+            print(f"DEBUG: 当前身份: {current_identities}")  # 调试信息
             
             field_name = '新加坡身份'
             return render_template('visas/edit_visa_type.html',
@@ -332,7 +419,7 @@ def delete_visa_type(visa_type):
         visa_type_record = VisaTypes.query.filter_by(visa_type=visa_type).first_or_404()
         
         # 删除相关的文档记录
-        VisaDocuments.query.filter_by(visa_type=visa_type).delete()
+        VisaDocuments.query.join(VisaTypes).filter(VisaTypes.visa_type == visa_type).delete()
         
         # 删除签证类型记录
         db.session.delete(visa_type_record)
@@ -370,3 +457,159 @@ def visa_home():
     return render_template('visas/签证首页.html', 
                          visa_categories=visa_categories,
                          visas_by_country=visas_by_country)
+
+@visa_basic.route('/test_data/<visa_type>')
+def test_data(visa_type):
+    """测试数据状态"""
+    try:
+        # 获取签证类型记录
+        visa_type_record = VisaTypes.query.filter_by(visa_type=visa_type).first()
+        if not visa_type_record:
+            return jsonify({'error': '签证类型不存在'})
+        
+        # 检查VisaDocuments表中的数据
+        documents = VisaDocuments.query.filter_by(visa_type_id=visa_type_record.id).all()
+        
+        result = {
+            'visa_type': {
+                'id': visa_type_record.id,
+                'name': visa_type_record.visa_type
+            },
+            'documents': []
+        }
+        
+        for doc in documents:
+            doc_info = {
+                'id': doc.id,
+                'visa_type_id': doc.visa_type_id,
+                'singapore_identity_id': doc.singapore_identity_id,
+                'document_info': doc.document_info,
+                'additional_info': doc.additional_info
+            }
+            
+            if doc.singapore_identity:
+                doc_info['identity_name'] = doc.singapore_identity.identity_zh
+            else:
+                doc_info['identity_name'] = 'None (共用资料)'
+            
+            result['documents'].append(doc_info)
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        return jsonify({'error': str(e)})
+
+@visa_basic.route('/test_visa_data/<visa_type>')
+def test_visa_data(visa_type):
+    """测试签证类型数据"""
+    try:
+        # 获取签证类型记录
+        visa_type_record = VisaTypes.query.filter_by(visa_type=visa_type).first()
+        if not visa_type_record:
+            return jsonify({'error': '签证类型不存在'})
+        
+        # 获取关联的文档
+        docs = VisaDocuments.query.filter_by(visa_type_id=visa_type_record.id).all()
+        
+        # 获取身份信息
+        identities = []
+        for doc in docs:
+            if doc.singapore_identity_id:
+                identity = VisaSingaporeIdentity.query.get(doc.singapore_identity_id)
+                if identity:
+                    identities.append({
+                        'id': identity.id,
+                        'name': identity.identity_zh,
+                        'doc_id': doc.id
+                    })
+        
+        return jsonify({
+            'visa_type': visa_type_record.visa_type,
+            'visa_type_id': visa_type_record.id,
+            'total_docs': len(docs),
+            'identities': identities,
+            'docs': [{'id': doc.id, 'identity_id': doc.singapore_identity_id} for doc in docs]
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)})
+
+@visa_basic.route('/get_identity_options_with_share/<visa_type>')
+def get_identity_options_with_share(visa_type):
+    """获取包含SHARE身份的身份选项，用于编辑身份功能"""
+    try:
+        # URL解码签证类型
+        from urllib.parse import unquote
+        import html
+        decoded_visa_type = unquote(visa_type)
+        decoded_visa_type = html.unescape(decoded_visa_type)
+        
+        print(f"获取身份选项 - 原始签证类型: '{visa_type}'")
+        print(f"获取身份选项 - URL解码后: '{decoded_visa_type}'")
+        
+        # 验证签证类型是否存在
+        visa_type_record = VisaTypes.query.filter_by(visa_type=decoded_visa_type).first()
+        if not visa_type_record:
+            print(f"签证类型 '{decoded_visa_type}' 不存在")
+            return jsonify({
+                'success': False,
+                'message': f'签证类型 {decoded_visa_type} 不存在',
+                'identity_options': []
+            }), 404
+        
+        # 从 VisaDocuments 表获取该签证类型实际已选择的身份
+        selected_identities = db.session.query(VisaSingaporeIdentity.identity_zh)\
+            .join(VisaDocuments, VisaDocuments.singapore_identity_id == VisaSingaporeIdentity.id)\
+            .filter(VisaDocuments.visa_type_id == visa_type_record.id)\
+            .distinct()\
+            .all()
+        
+        # 将查询结果转换为列表
+        identity_options = [identity[0] for identity in selected_identities]
+        
+        # 检查是否有SHARE记录（singapore_identity_id为None的记录）
+        share_doc = VisaDocuments.query.filter_by(
+            visa_type_id=visa_type_record.id,
+            singapore_identity_id=None
+        ).first()
+        
+        # 如果存在SHARE记录且SHARE不在已选择的身份列表中，则添加
+        if share_doc and 'SHARE' not in identity_options:
+            identity_options.append('SHARE')
+        
+        print(f"从VisaDocuments表获取的当前已选择身份（包含SHARE）: {identity_options}")
+        
+        return jsonify({
+            'success': True,
+            'identity_options': identity_options
+        })
+    except Exception as e:
+        print(f"获取身份选项时发生错误: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': str(e),
+            'identity_options': []
+        }), 500
+
+
+@visa_basic.route('/get_all_identities_with_share')
+def get_all_identities_with_share():
+    """获取所有身份选项（包含SHARE），用于编辑身份功能"""
+    try:
+        # 从 VisaSingaporeIdentity 表获取所有身份（包括SHARE）
+        identities = VisaSingaporeIdentity.query\
+            .order_by(VisaSingaporeIdentity.identity_zh)\
+            .all()
+        
+        # 转换为列表格式
+        identity_list = [identity.to_dict() for identity in identities]
+        
+        return jsonify({
+            'success': True,
+            'identities': identity_list
+        })
+    except Exception as e:
+        print(f"获取所有身份时发生错误: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500

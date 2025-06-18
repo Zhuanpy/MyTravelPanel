@@ -535,34 +535,34 @@
 {% block content %}
 <div class="visa-container">
     <div class="visa-header-container">
-        <h1>签证链接管理</h1>
-    </div>
+            <h1>签证链接管理</h1>
+        </div>
 
     <!-- 添加新链接表单 -->
     <form method="POST" action="{{ url_for('visa_links.add_visa_link') }}" id="addLinkForm">
         <div class="visa-form-container">
             <div class="visa-form-entry">
                 <span class="visa-entry-number">1</span>
-                <div class="visa-form-row">
-                    <div class="visa-form-group">
+            <div class="visa-form-row">
+                <div class="visa-form-group">
                         <label for="visa_type">签证类型：</label>
                         <select name="visa_type[]" class="visa-form-control" required>
                             <option value="">请选择签证类型</option>
                             {% for visa_type in visa_types %}
                             <option value="{{ visa_type.id }}">{{ visa_type.visa_type }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="visa-form-group">
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="visa-form-group">
                         <label for="name">链接名称：</label>
                         <input type="text" name="name[]" class="visa-form-control" required>
-                    </div>
+                </div>
                     <div class="visa-form-group">
                         <label for="link">链接地址：</label>
                         <input type="url" name="link[]" class="visa-form-control" required>
-                    </div>
                 </div>
             </div>
+    </div>
         </div>
         <div class="visa-form-actions">
             <button type="button" class="visa-add-entry" onclick="addLinkRow()">
@@ -575,30 +575,30 @@
     <!-- 链接列表 -->
     <h3 class="visa-section-title visa-list-title">现有链接列表</h3>
     <table class="visa-table">
-        <thead>
-            <tr>
-                <th>签证类型</th>
+            <thead>
+                <tr>
+                    <th>签证类型</th>
                 <th>链接名称</th>
                 <th>链接地址</th>
-                <th>操作</th>
-            </tr>
-        </thead>
-        <tbody>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
             {% for link, visa_type in links %}
-            <tr>
+                <tr>
                 <td>{{ visa_type.visa_type }}</td>
-                <td>{{ link.name }}</td>
+                    <td>{{ link.name }}</td>
                 <td><a href="{{ link.link }}" target="_blank">{{ link.link }}</a></td>
                 <td>
                     <a href="{{ url_for('visa_links.edit_visa_link', link_id=link.id) }}" class="visa-btn visa-btn-warning">编辑</a>
                     <a href="{{ url_for('visa_links.delete_visa_link', link_id=link.id) }}" class="visa-btn visa-btn-danger" onclick="return confirm('确定要删除这个链接吗？')">删除</a>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-</div>
-
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        </div>
+        
 <script>
 function addLinkRow() {
     const container = document.querySelector('.visa-form-container');
@@ -622,13 +622,13 @@ function addLinkRow() {
         updateEntryNumbers();
     };
     newEntry.appendChild(removeBtn);
-    
-    container.appendChild(newEntry);
+        
+        container.appendChild(newEntry);
 }
 
 function updateEntryNumbers() {
     const entries = document.querySelectorAll('.visa-form-entry');
-    entries.forEach((entry, index) => {
+        entries.forEach((entry, index) => {
         entry.querySelector('.visa-entry-number').textContent = index + 1;
     });
 }

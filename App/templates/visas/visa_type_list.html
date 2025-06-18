@@ -235,15 +235,15 @@ function openEditModal(field, visaType, currentValue = '') {
     
     // 设置内容
     if (field === 'identities') {
-        // 获取身份选项
-        fetch(`/visa/documents/get_identity_options/${visaType}`)
+        // 获取身份选项（包含SHARE）
+        fetch(`/visa/basic/get_identity_options_with_share/${visaType}`)
             .then(response => response.json())
             .then(data => {
                 console.log('Current identities:', data); // 添加日志
                 if (data.success) {
                     const currentIdentities = data.identity_options;
-                    // 获取所有可用身份
-                    fetch('/visa/documents/get_all_identities')
+                    // 获取所有可用身份（包含SHARE）
+                    fetch('/visa/basic/get_all_identities_with_share')
                         .then(response => response.json())
                         .then(allData => {
                             console.log('All identities:', allData); // 添加日志
@@ -256,10 +256,10 @@ function openEditModal(field, visaType, currentValue = '') {
                                                 <input type="checkbox" 
                                                        name="identities" 
                                                        value="${identity.identity_zh}"
-                                                       id="identity_${identity.id}"
+                                                       id="identity_${identity.id || 'share'}"
                                                        ${currentIdentities.includes(identity.identity_zh) ? 'checked' : ''}
                                                        style="margin-right: 8px;">
-                                                <label for="identity_${identity.id}">${identity.identity_zh}</label>
+                                                <label for="identity_${identity.id || 'share'}">${identity.identity_zh}</label>
                                             </div>
                                         `).join('')}
                                     </div>

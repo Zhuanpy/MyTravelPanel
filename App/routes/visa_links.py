@@ -113,39 +113,40 @@ def add_visa_link():
 def edit_visa_link(link_id):
     """编辑签证链接"""
     link = VisaLinks.query.get_or_404(link_id)
-    
+
     if request.method == 'POST':
         try:
             # 获取表单数据
             visa_type_id = request.form.get('visa_type')
             name = request.form.get('name')
             link_url = request.form.get('link')
-            
+
             # 验证数据
             if not visa_type_id or not name or not link_url:
                 flash('所有字段都是必填的', 'error')
                 return redirect(url_for('visa_links.edit_visa_link', link_id=link_id))
-            
+
             # 验证链接格式
             if not link_url.startswith(('http://', 'https://')):
                 flash('链接格式不正确', 'error')
                 return redirect(url_for('visa_links.edit_visa_link', link_id=link_id))
-            
+
             # 验证签证类型是否存在
             visa_type = VisaTypes.query.get(visa_type_id)
             if not visa_type:
                 flash('签证类型不存在', 'error')
                 return redirect(url_for('visa_links.edit_visa_link', link_id=link_id))
-            
+
             # 更新链接信息
             link.visa_type_id = visa_type_id
             link.name = name
             link.link = link_url
-            
+
             db.session.commit()
             flash('链接更新成功', 'success')
+
             return redirect(url_for('visa_links.visa_link_page'))
-            
+
         except Exception as e:
             db.session.rollback()
             flash(f'更新链接时出错：{str(e)}', 'error')
@@ -169,7 +170,7 @@ def delete_visa_link(link_id):
     except Exception as e:
         db.session.rollback()
         flash(f'删除链接时出错：{str(e)}', 'error')
-    
+
     return redirect(url_for('visa_links.visa_link_page'))
 
 
