@@ -1009,14 +1009,14 @@
                     打开{{ visa_type }}资源
                 </a>
                 <a class="visa-project-resource-link" href="{{ url_for('visa_project.show_current_all_projects') }}" target="_blank">项目管理</a>
+                </div>
             </div>
-        </div>
             
         <div id="formAlert" class="visa-project-alert"></div>
             
         <form id="visaForm" class="visa-project-form" method="post" action="{{ url_for('visa_project.visa_create_project', visa_type=visa_type) }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            
+   
             <div class="visa-project-form-row">
                 <div class="visa-project-form-group visa-project-form-col-3">
                     <label for="hid_or_serial">HID或序列号</label>
@@ -1038,7 +1038,7 @@
                         <option value="">请选择身份</option>
                     </select>
                     <div class="visa-project-form-error" id="singapore_status_error" style="display: none;">请选择身份</div>
-                </div>
+            </div>
 
                 <div class="visa-project-form-group visa-project-form-col-3">
                     <label for="applicant_name">申请人名字</label>
@@ -1046,7 +1046,7 @@
                            placeholder="申请人全名" required>
                     <div class="visa-project-form-error" id="applicant_name_error" style="display: none;">申请人名字不能为空</div>
                 </div>
-            </div>
+                </div>
 
             <div class="visa-project-form-row">
                 <div class="visa-project-form-group visa-project-form-col-3">
@@ -1063,7 +1063,7 @@
                         <option value="已出签">已出签</option>
                         <option value="忽略单">忽略单</option>
                     </select>
-                </div>
+            </div>
 
                 <div class="visa-project-form-group visa-project-form-col-3">
                     <label for="estimated_date">预估出签日期</label>
@@ -1079,8 +1079,8 @@
                                data-clear>
                         <div class="visa-project-form-error" id="estimated_date_error">请选择有效的日期</div>
                     </div>
+                    </div>
                 </div>
-            </div>
             </form>
         </section>
 
@@ -1091,12 +1091,16 @@
                 <div class="checklist-header">
                     <h4>资料清单</h4>
                     <div class="checklist-actions">
-                        <button type="button" class="btn btn-sm btn-outline-primary" id="checkAllBtn">全选</button>
-                        <button type="button" class="btn btn-sm btn-outline-secondary" id="uncheckAllBtn">全不选</button>
+                        <button type="button" class="btn btn-sm btn-outline-primary" id="checkAllBtn" title="全选（仅用于显示）">全选</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" id="uncheckAllBtn" title="全不选（仅用于显示）">全不选</button>
                         <a href="{{ url_for('visa_basic.visa_type_document_manager', visa_type=visa_type) }}" class="btn btn-sm btn-outline-info">
                             <i class="fas fa-edit"></i> 文档配置
                         </a>
                     </div>
+                </div>
+                <div style="padding: 10px; background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 4px; margin-bottom: 15px; font-size: 0.875rem; color: #0369a1;">
+                    <i class="fas fa-info-circle"></i> 
+                    创建项目时，所有资料都默认为"未准备好"状态。您可以在项目创建后在项目详情页面中更新资料准备状态。
                 </div>
                 <div id="documentChecklist" class="checklist-items">
             <p>请选择身份查看所需资料</p>
@@ -1112,15 +1116,15 @@
                 <label for="remarks">备注信息</label>
                 <textarea class="visa-project-form-control" id="remarks" name="remarks" 
                           placeholder="添加备注信息" rows="5" form="visaForm"></textarea>
-            </div>
+                </div>
             <div class="visa-project-form-group" style="text-align: right; margin-top: 1rem;">
                 <button type="submit" class="visa-project-create-btn" name="submit_button" value="create_project" id="createBtn" form="visaForm">
                     <i class="fas fa-plus-circle"></i> 创建项目
                 </button>
             </div>
-        </div>
-    </section>
-</div>
+            </div>
+        </section>
+    </div>
 {% endblock %}
 
 {% block scripts %}
@@ -1281,17 +1285,32 @@
         // 收集资料状态数据
         const documentStatuses = [];
         
-        // 收集资料状态
+        // 收集资料状态 - 创建项目时所有资料都默认为未准备好
         const documentItems = document.querySelectorAll('#documentChecklist .checklist-item');
-        documentItems.forEach(item => {
+        console.log(`DEBUG: Found ${documentItems.length} document items`);
+        
+        documentItems.forEach((item, index) => {
             const checkbox = item.querySelector('input[type="checkbox"]');
+            const documentName = item.getAttribute('data-document-name');
+            const documentType = item.getAttribute('data-document-type');
+            
+            console.log(`DEBUG: Item ${index} - Document: ${documentName}, Type: ${documentType}, Checkbox found: ${!!checkbox}`);
+            
+            if (!checkbox) {
+                console.error(`DEBUG: ERROR - No checkbox found for item ${index}`);
+            }
+            
+            // 创建项目时，所有资料都默认为未准备好（is_ready = false）
             documentStatuses.push({
-                document_name: item.getAttribute('data-document-name'),
-                document_type: item.getAttribute('data-document-type'),
-                is_ready: checkbox.checked,
+                document_name: documentName,
+                document_type: documentType,
+                is_ready: false,  // 固定为false，不依赖复选框状态
                 notes: ''
             });
         });
+        
+        console.log('DEBUG: Final document statuses:', documentStatuses);
+        console.log('DEBUG: JSON stringified:', JSON.stringify(documentStatuses));
         
         const submitButton = e.submitter;
         const originalText = submitButton.textContent;
@@ -1305,6 +1324,12 @@
             formData.set('document_statuses', JSON.stringify(documentStatuses));
             console.log('Submitting form with submit_button:', submitButton.value);
             console.log('Document statuses:', documentStatuses);
+            
+            // 调试FormData内容
+            console.log('DEBUG: FormData contents:');
+            for (let [key, value] of formData.entries()) {
+                console.log(`DEBUG: ${key}: ${value}`);
+            }
             
             const response = await fetch(this.action, {
                 method: 'POST',
@@ -1355,38 +1380,38 @@ window.loadIdentityDocuments = function(visaType, singaporeStatus) {
     console.log('DEBUG: singaporeStatus:', singaporeStatus);
     console.log('DEBUG: URL:', url);
     
-    // 显示加载状态
+        // 显示加载状态
     const documentChecklist = document.getElementById('documentChecklist');
     if (documentChecklist) {
         documentChecklist.innerHTML = `
             <div class="visa-project-loading">
                 <i class="fas fa-spinner fa-spin"></i>
                 加载资料清单中...
-            </div>
-        `;
+                </div>
+            `;
     }
     
-    fetch(url)
-        .then(response => {
+        fetch(url)
+            .then(response => {
             console.log('DEBUG: Response status:', response.status);
             console.log('DEBUG: Response ok:', response.ok);
-            if (!response.ok) {
-                throw new Error('Network response was not ok');
-            }
-            return response.json();
-        })
-        .then(data => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
             console.log('DEBUG: Response data:', data);
-            // 处理文件资料内容
+                // 处理文件资料内容
             if (documentChecklist) {
-                let documentInfo = data.document_info || '暂无文件资料';
+                    let documentInfo = data.document_info || '暂无文件资料';
                 console.log('DEBUG: documentInfo:', documentInfo);
-                if (documentInfo !== '暂无文件资料') {
-                    // 移除标签行
-                    documentInfo = documentInfo.replace(/【共用资料】\n?/g, '');
-                    documentInfo = documentInfo.replace(/【特定身份资料】\n?/g, '');
-                    // 将文本分割成行
-                    let lines = documentInfo.split('\n').filter(line => line.trim());
+                    if (documentInfo !== '暂无文件资料') {
+                        // 移除标签行
+                        documentInfo = documentInfo.replace(/【共用资料】\n?/g, '');
+                        documentInfo = documentInfo.replace(/【特定身份资料】\n?/g, '');
+                        // 将文本分割成行
+                        let lines = documentInfo.split('\n').filter(line => line.trim());
                     console.log('DEBUG: lines after filter:', lines);
                     
                     // 生成资料清单HTML
@@ -1403,59 +1428,66 @@ window.loadIdentityDocuments = function(visaType, singaporeStatus) {
                     console.log('DEBUG: checklistHTML:', checklistHTML);
                     documentChecklist.innerHTML = checklistHTML;
                     
+                    // 调试：检查复选框的默认状态
+                    const checkboxes = document.querySelectorAll('#documentChecklist input[type="checkbox"]');
+                    console.log(`DEBUG: Found ${checkboxes.length} checkboxes`);
+                    checkboxes.forEach((checkbox, index) => {
+                        console.log(`DEBUG: Checkbox ${index} - checked: ${checkbox.checked}`);
+                    });
+                    
                     // 设置全选/全不选功能
                     setupChecklistActions();
                 } else {
                     documentChecklist.innerHTML = '<p style="color: #718096; text-align: center; padding: 2rem;">暂无文件资料</p>';
                 }
-            }
-        })
-        .catch(error => {
+                }
+            })
+            .catch(error => {
             console.error('DEBUG: Error:', error);
             if (documentChecklist) {
                 documentChecklist.innerHTML = '<div class="visa-project-alert visa-project-alert-error">获取数据失败，请稍后重试</div>';
             }
-        });
-};
+            });
+    };
 
 window.loadIdentityOptions = function(visaType) {
-    const selectElement = document.getElementById('singapore_status');
-    
+        const selectElement = document.getElementById('singapore_status');
+        
     console.log('DEBUG: 加载身份选项');
     console.log('DEBUG: visaType:', visaType);
     
     // 清空现有选项
-    selectElement.innerHTML = '<option value="">请选择身份</option>';
-    
-    if (visaType) {
-        // 首先解码HTML实体，然后进行URL编码
-        const decodedVisaType = visaType.replace(/&amp;/g, '&');
-        const encodedVisaType = encodeURIComponent(decodedVisaType);
-        const url = `/visa/documents/get_identity_options/${encodedVisaType}`;
+        selectElement.innerHTML = '<option value="">请选择身份</option>';
+        
+        if (visaType) {
+            // 首先解码HTML实体，然后进行URL编码
+            const decodedVisaType = visaType.replace(/&amp;/g, '&');
+            const encodedVisaType = encodeURIComponent(decodedVisaType);
+            const url = `/visa/documents/get_identity_options/${encodedVisaType}`;
         
         console.log('DEBUG: decodedVisaType:', decodedVisaType);
         console.log('DEBUG: encodedVisaType:', encodedVisaType);
         console.log('DEBUG: URL:', url);
-        
-        fetch(url)
-            .then(response => {
+            
+            fetch(url)
+                .then(response => {
                 console.log('DEBUG: Identity options response status:', response.status);
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                return response.json();
-            })
-            .then(data => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
                 console.log('DEBUG: Identity options data:', data);
-                if (data.success && data.identity_options && data.identity_options.length > 0) {
+                    if (data.success && data.identity_options && data.identity_options.length > 0) {
                     console.log('DEBUG: Found identity options:', data.identity_options);
-                    // 添加select选项
-                    data.identity_options.forEach(identity => {
-                        const option = document.createElement('option');
-                        option.value = identity;
-                        option.textContent = identity;
-                        selectElement.appendChild(option);
-                    });
+                        // 添加select选项
+                        data.identity_options.forEach(identity => {
+                            const option = document.createElement('option');
+                            option.value = identity;
+                            option.textContent = identity;
+                            selectElement.appendChild(option);
+                        });
                     // 如果有保存的选中身份，恢复它，否则默认选中第一个有效身份
                     const savedIdentity = localStorage.getItem('selectedIdentity');
                     if (savedIdentity && data.identity_options.includes(savedIdentity)) {
@@ -1465,21 +1497,21 @@ window.loadIdentityOptions = function(visaType) {
                         // 默认选中第一个有效身份
                         selectElement.value = data.identity_options[0];
                         window.loadIdentityDocuments(visaType, data.identity_options[0]);
-                    }
-                } else {
+                            }
+                    } else {
                     console.log('DEBUG: No identity options found');
-                }
-            })
-            .catch(error => {
+                    }
+                })
+                .catch(error => {
                 console.error('DEBUG: 加载身份选项失败:', error);
-            });
-    }
+                });
+        }
 };
 
 // 页面加载时初始化
-document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', function() {
     const visaType = document.getElementById('visa_type').value;
-    if (visaType) {
+        if (visaType) {
         window.loadIdentityOptions(visaType);
     }
 });
@@ -1489,25 +1521,25 @@ function setupChecklistActions() {
     const checkAllBtn = document.getElementById('checkAllBtn');
     const uncheckAllBtn = document.getElementById('uncheckAllBtn');
     const checkboxes = document.querySelectorAll('#documentChecklist input[type="checkbox"]');
-    
+        
     if (checkAllBtn) {
         checkAllBtn.addEventListener('click', function() {
-            checkboxes.forEach(checkbox => {
+        checkboxes.forEach(checkbox => {
                 checkbox.checked = true;
                 checkbox.closest('.checklist-item').classList.add('checked');
             });
         });
     }
-    
+
     if (uncheckAllBtn) {
         uncheckAllBtn.addEventListener('click', function() {
-            checkboxes.forEach(checkbox => {
+        checkboxes.forEach(checkbox => {
                 checkbox.checked = false;
                 checkbox.closest('.checklist-item').classList.remove('checked');
             });
         });
     }
-    
+
     // 为每个复选框添加change事件
     checkboxes.forEach(checkbox => {
         checkbox.addEventListener('change', function() {
@@ -1517,35 +1549,35 @@ function setupChecklistActions() {
             } else {
                 checklistItem.classList.remove('checked');
             }
+            });
         });
-    });
 }
 
 // 打开签证类型文件夹
 function openVisaTypeFolder(visaType) {
     fetch(`/visa/project/open_folder?folder_type=visa_type&visa_type=${encodeURIComponent(visaType)}`, {
         method: 'GET',
-        headers: {
+            headers: {
             'X-Requested-With': 'XMLHttpRequest'
         }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
             // 显示成功消息
             const message = data.message || '文件夹已打开';
             showToast(message, 'success');
-        } else {
+            } else {
             // 显示错误消息
             const message = data.message || '打开文件夹失败';
             showToast(message, 'error');
-        }
-    })
-    .catch(error => {
+            }
+        })
+        .catch(error => {
         console.error('Error:', error);
         showToast('系统错误，请稍后重试', 'error');
-    });
-}
+        });
+    }
 
 // 显示Toast消息
 function showToast(message, type) {
@@ -1564,7 +1596,7 @@ function showToast(message, type) {
     }
 
     // 创建toast消息
-    const toast = document.createElement('div');
+        const toast = document.createElement('div');
     toast.style.cssText = `
         background: ${type === 'success' ? '#48bb78' : '#f56565'};
         color: white;
@@ -1586,7 +1618,7 @@ function showToast(message, type) {
     setTimeout(() => {
         toast.style.transform = 'translateX(0)';
     }, 100);
-
+        
     // 自动移除
     setTimeout(() => {
         toast.style.transform = 'translateX(100%)';
@@ -1595,7 +1627,7 @@ function showToast(message, type) {
                 toast.parentNode.removeChild(toast);
             }
         }, 300);
-    }, 3000);
-}
+        }, 3000);
+    }
 </script>
 {% endblock %}
