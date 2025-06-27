@@ -529,8 +529,10 @@ def visa_create_project(visa_type):
         document_statuses_json = request.form.get('document_statuses', '[]')
         try:
             document_statuses = json.loads(document_statuses_json)
+            print(f"DEBUG: Received document_statuses: {document_statuses}")
         except json.JSONDecodeError:
             document_statuses = []
+            print("DEBUG: Failed to parse document_statuses JSON")
 
         # 验证必填字段
         if not hid_or_serial or not applicant_name or not visa_type_input or not singapore_status or not visa_status or not estimated_date:
@@ -635,15 +637,30 @@ def visa_create_project(visa_type):
         # 保存资料状态数据
         if document_statuses:
             from ..models.Visamodels import VisaProjectDocumentStatus
+            print(f"DEBUG: Saving {len(document_statuses)} document statuses")
             for status_data in document_statuses:
+                is_ready = status_data['is_ready']
+                print(f"DEBUG: Saving document {status_data['document_name']} with is_ready={is_ready} (type: {type(is_ready)})")
+                # 确保is_ready是布尔值
+                if isinstance(is_ready, str):
+                    is_ready = is_ready.lower() in ('true', '1', 'yes', 'on')
+                elif isinstance(is_ready, int):
+                    is_ready = bool(is_ready)
+                elif not isinstance(is_ready, bool):
+                    is_ready = False
+                
+                print(f"DEBUG: Final is_ready value: {is_ready} (type: {type(is_ready)})")
+                
                 new_status = VisaProjectDocumentStatus(
                     project_id=new_project.id,
                     document_name=status_data['document_name'],
                     document_type=status_data['document_type'],
-                    is_ready=status_data['is_ready'],
+                    is_ready=is_ready,
                     notes=status_data.get('notes', '')
                 )
                 db.session.add(new_status)
+        else:
+            print("DEBUG: No document statuses to save")
         
         db.session.commit()
 

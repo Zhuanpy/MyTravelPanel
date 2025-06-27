@@ -1,13 +1,12 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from pathlib import Path
-from ..exts import db
+from ..exts import db, csrf
 from ..models import VisaCountries, VisaTypes, VisaSingaporeIdentity, VisaDocuments
 from ..models.Visamodels import VisaDocumentsList
 from flask_wtf import FlaskForm
 from wtforms import StringField, SelectMultipleField
 from wtforms.validators import DataRequired
 import time
-from flask_wtf.csrf import CSRFProtect
 
 """
 管理 (visa_basic_info.py):
@@ -17,7 +16,6 @@ from flask_wtf.csrf import CSRFProtect
 """
 
 visa_basic = Blueprint('visa_basic', __name__)
-csrf = CSRFProtect()
 
 def create_response(message, status=200):
     """生成标准化的 JSON 响应"""
@@ -66,12 +64,92 @@ def manage_identities():
     return render_template('visas/签证身份管理/manage_identities.html', identities=identities)
 
 @visa_basic.route('/delete_identity/<int:identity_id>', methods=['POST'])
+@csrf.exempt  # 禁用CSRF保护
 def delete_identity(identity_id):
-    identity = VisaSingaporeIdentity.query.get_or_404(identity_id)
-    db.session.delete(identity)
-    db.session.commit()
-    flash('身份信息删除成功！', 'success')
-    return redirect(url_for('visa_basic.manage_identities'))
+    try:
+        identity = VisaSingaporeIdentity.query.get_or_404(identity_id)
+        db.session.delete(identity)
+        db.session.commit()
+        return jsonify({'success': True, 'message': '身份信息删除成功！'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'删除失败：{str(e)}'})
+
+@visa_basic.route('/edit_identity/<int:identity_id>', methods=['GET', 'POST'])
+@csrf.exempt  # 禁用CSRF保护
+def edit_identity(identity_id):
+    try:
+        identity = VisaSingaporeIdentity.query.get_or_404(identity_id)
+        
+        if request.method == 'POST':
+            try:
+                # 获取表单数据
+                identity_zh = request.form.get('identity_zh')
+                identity_en = request.form.get('identity_en')
+                remarks = request.form.get('remarks')
+                
+                print(f"DEBUG: 接收到的表单数据 - identity_zh: {identity_zh}, identity_en: {identity_en}, remarks: {remarks}")
+                
+                # 验证数据
+                if not identity_zh or not identity_en:
+                    error_msg = '中文名称和英文名称不能为空'
+                    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                        return jsonify({'success': False, 'message': error_msg})
+                    else:
+                        flash(error_msg, 'error')
+                        return redirect(url_for('visa_basic.manage_identities'))
+                
+                # 更新数据
+                identity.identity_zh = identity_zh
+                identity.identity_en = identity_en
+                identity.remarks = remarks
+                
+                print(f"DEBUG: 更新后的数据 - identity_zh: {identity.identity_zh}, identity_en: {identity.identity_en}, remarks: {identity.remarks}")
+                
+                db.session.commit()
+                print("DEBUG: 数据库提交成功")
+                
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return jsonify({'success': True, 'message': '身份信息更新成功！'})
+                else:
+                    flash('身份信息更新成功！', 'success')
+                    return redirect(url_for('visa_basic.manage_identities'))
+                    
+            except Exception as e:
+                db.session.rollback()
+                error_msg = f'更新失败：{str(e)}'
+                print(f"DEBUG: 更新异常 - {error_msg}")
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return jsonify({'success': False, 'message': error_msg})
+                else:
+                    flash(error_msg, 'error')
+                    return redirect(url_for('visa_basic.manage_identities'))
+        
+        # GET 请求返回身份数据
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            data = {
+                'success': True,
+                'data': {
+                    'id': identity.id,
+                    'identity_zh': identity.identity_zh,
+                    'identity_en': identity.identity_en,
+                    'remarks': identity.remarks or ''
+                }
+            }
+            print(f"DEBUG: 返回身份数据 - {data}")
+            return jsonify(data)
+        else:
+            return render_template('visas/签证身份管理/manage_identities.html', 
+                                 identities=VisaSingaporeIdentity.query.all(), 
+                                 editing_identity=identity)
+    except Exception as e:
+        error_msg = f'路由异常：{str(e)}'
+        print(f"DEBUG: 路由异常 - {error_msg}")
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': False, 'message': error_msg})
+        else:
+            flash(error_msg, 'error')
+            return redirect(url_for('visa_basic.manage_identities'))
 
 """ visa singapore  identity end """
 
@@ -126,6 +204,94 @@ def add_country():
         country_code=data['country_code']
     )
     return add_to_db(country)
+
+@visa_basic.route('/delete_country/<int:country_id>', methods=['POST'])
+@csrf.exempt  # 禁用CSRF保护
+def delete_country(country_id):
+    try:
+        country = VisaCountries.query.get_or_404(country_id)
+        db.session.delete(country)
+        db.session.commit()
+        return jsonify({'success': True, 'message': '国家删除成功！'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'删除失败：{str(e)}'})
+
+@visa_basic.route('/edit_country/<int:country_id>', methods=['GET', 'POST'])
+@csrf.exempt  # 禁用CSRF保护
+def edit_country(country_id):
+    try:
+        country = VisaCountries.query.get_or_404(country_id)
+        
+        if request.method == 'POST':
+            try:
+                # 获取表单数据
+                country_name_CN = request.form.get('country_name_CN')
+                country_name_EN = request.form.get('country_name_EN')
+                country_code = request.form.get('country_code')
+                
+                print(f"DEBUG: 接收到的表单数据 - country_name_CN: {country_name_CN}, country_name_EN: {country_name_EN}, country_code: {country_code}")
+                
+                # 验证数据
+                if not country_name_CN or not country_name_EN or not country_code:
+                    error_msg = '所有字段都不能为空'
+                    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                        return jsonify({'success': False, 'message': error_msg})
+                    else:
+                        flash(error_msg, 'error')
+                        return redirect(url_for('visa_basic.manage_countries'))
+                
+                # 更新数据
+                country.country_name_CN = country_name_CN
+                country.country_name_EN = country_name_EN
+                country.country_code = country_code
+                
+                print(f"DEBUG: 更新后的数据 - country_name_CN: {country.country_name_CN}, country_name_EN: {country.country_name_EN}, country_code: {country.country_code}")
+                
+                db.session.commit()
+                print("DEBUG: 数据库提交成功")
+                
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return jsonify({'success': True, 'message': '国家信息更新成功！'})
+                else:
+                    flash('国家信息更新成功！', 'success')
+                    return redirect(url_for('visa_basic.manage_countries'))
+                    
+            except Exception as e:
+                db.session.rollback()
+                error_msg = f'更新失败：{str(e)}'
+                print(f"DEBUG: 更新异常 - {error_msg}")
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return jsonify({'success': False, 'message': error_msg})
+                else:
+                    flash(error_msg, 'error')
+                    return redirect(url_for('visa_basic.manage_countries'))
+        
+        # GET 请求返回国家数据
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            data = {
+                'success': True,
+                'data': {
+                    'id': country.id,
+                    'country_name_CN': country.country_name_CN,
+                    'country_name_EN': country.country_name_EN,
+                    'country_code': country.country_code
+                }
+            }
+            print(f"DEBUG: 返回国家数据 - {data}")
+            return jsonify(data)
+        else:
+            return render_template('visas/签证国家管理/manage_countries.html', 
+                                 countries=VisaCountries.query.all(), 
+                                 editing_country=country)
+    except Exception as e:
+        error_msg = f'路由异常：{str(e)}'
+        print(f"DEBUG: 路由异常 - {error_msg}")
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': False, 'message': error_msg})
+        else:
+            flash(error_msg, 'error')
+            return redirect(url_for('visa_basic.manage_countries'))
 
 """ visa  country end """
 

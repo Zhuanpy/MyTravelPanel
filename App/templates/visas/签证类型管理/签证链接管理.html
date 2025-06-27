@@ -619,17 +619,15 @@
             <h1>签证链接管理</h1>
         </div>
 
-    <!-- 添加新链接表单 -->
+    <!-- 链接列表 -->
     <div class="visa-section-header">
-        <h3 class="visa-section-title visa-add-title">签证链接管理</h3>
+        <h3 class="visa-section-title visa-list-title">现有链接列表</h3>
         <button type="button" class="visa-action-btn visa-btn visa-btn-primary" onclick="showAddModal()">
             <i class="fas fa-plus"></i>
             添加链接
         </button>
     </div>
 
-    <!-- 链接列表 -->
-    <h3 class="visa-section-title visa-list-title">现有链接列表</h3>
     <table class="visa-table">
             <thead>
                 <tr>
@@ -714,6 +712,7 @@
                     <div id="addModalAlert" class="visa-modal-alert" style="display: none;"></div>
                     
                     <form method="POST" action="{{ url_for('visa_links.add_visa_link') }}" id="addLinkForm">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <div class="visa-form-container">
                             <div class="visa-form-entry">
                                 <span class="visa-entry-number">1</span>
@@ -752,6 +751,53 @@
             </div>
         </div>
         
+        <!-- 编辑链接弹窗 -->
+        {% if is_editing and link %}
+        <div id="editModal" class="visa-modal-overlay active">
+            <div class="visa-modal">
+                <div class="visa-modal-header">
+                    <h3 class="visa-modal-title">编辑签证链接</h3>
+                    <button type="button" class="visa-modal-close" onclick="closeEditModal()">&times;</button>
+                </div>
+                <div class="visa-modal-body">
+                    <div id="editModalAlert" class="visa-modal-alert" style="display: none;"></div>
+                    
+                    <form method="POST" action="{{ url_for('visa_links.edit_visa_link', link_id=link.id) }}" id="editLinkForm">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <div class="visa-form-container">
+                            <div class="visa-form-row three-columns">
+                                <div class="visa-form-group">
+                                    <label for="edit_visa_type">签证类型：</label>
+                                    <select name="visa_type" class="visa-form-control" required>
+                                        <option value="">请选择签证类型</option>
+                                        {% for visa_type in visa_types %}
+                                        <option value="{{ visa_type.id }}" {% if visa_type.id == link.visa_type_id %}selected{% endif %}>{{ visa_type.visa_type }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="visa-form-group">
+                                    <label for="edit_name">链接名称：</label>
+                                    <input type="text" name="name" class="visa-form-control" value="{{ link.name }}" required>
+                                </div>
+                                <div class="visa-form-group">
+                                    <label for="edit_link">链接地址：</label>
+                                    <input type="url" name="link" class="visa-form-control" value="{{ link.link }}" required>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="visa-form-actions">
+                            <div>
+                                <button type="button" class="visa-btn visa-btn-secondary" onclick="closeEditModal()">取消</button>
+                                <button type="submit" class="visa-btn visa-btn-primary">保存修改</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+</div>
+
 <script>
 // 弹窗控制函数
 function showAddModal() {
@@ -773,12 +819,27 @@ function closeAddModal() {
     document.getElementById('addModalAlert').style.display = 'none';
 }
 
+function closeEditModal() {
+    // 重定向回主页面
+    window.location.href = "{{ url_for('visa_links.visa_link_page') }}";
+}
+
 // 点击弹窗外部关闭
 document.getElementById('addModal').addEventListener('click', function(e) {
     if (e.target === this) {
         closeAddModal();
     }
 });
+
+// 编辑弹窗外部点击关闭
+const editModal = document.getElementById('editModal');
+if (editModal) {
+    editModal.addEventListener('click', function(e) {
+        if (e.target === this) {
+            closeEditModal();
+        }
+    });
+}
 
 // 表单提交处理
 document.getElementById('addLinkForm').addEventListener('submit', function(e) {
@@ -794,30 +855,30 @@ document.getElementById('addLinkForm').addEventListener('submit', function(e) {
     
     fetch(this.action, {
         method: 'POST',
-        body: formData
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
     })
     .then(response => {
         if (response.redirected) {
             window.location.href = response.url;
             return;
         }
-        return response.text();
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
     })
     .then(data => {
         if (data) {
-            // 检查是否包含成功或错误消息
-            if (data.includes('success') || data.includes('成功')) {
-                showModalAlert('链接添加成功！', 'success');
+            if (data.success) {
+                showModalAlert(data.message || '链接添加成功！', 'success');
                 setTimeout(() => {
                     window.location.reload();
                 }, 1500);
-            } else if (data.includes('error') || data.includes('错误')) {
-                showModalAlert('添加失败，请检查输入信息', 'error');
             } else {
-                showModalAlert('操作完成', 'success');
-                setTimeout(() => {
-                    window.location.reload();
-                }, 1500);
+                showModalAlert(data.message || '添加失败，请检查输入信息', 'error');
             }
         }
     })
@@ -832,8 +893,67 @@ document.getElementById('addLinkForm').addEventListener('submit', function(e) {
     });
 });
 
+// 编辑表单提交处理
+const editLinkForm = document.getElementById('editLinkForm');
+if (editLinkForm) {
+    editLinkForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(this);
+        const submitBtn = this.querySelector('button[type="submit"]');
+        const originalText = submitBtn.textContent;
+        
+        // 显示加载状态
+        submitBtn.disabled = true;
+        submitBtn.textContent = '保存中...';
+        
+        fetch(this.action, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => {
+            if (response.redirected) {
+                window.location.href = response.url;
+                return;
+            }
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.text();
+        })
+        .then(data => {
+            // 编辑成功，重定向回主页面
+            window.location.href = "{{ url_for('visa_links.visa_link_page') }}";
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showEditModalAlert('系统错误，请稍后重试', 'error');
+        })
+        .finally(() => {
+            // 恢复按钮状态
+            submitBtn.disabled = false;
+            submitBtn.textContent = originalText;
+        });
+    });
+}
+
 function showModalAlert(message, type) {
     const alert = document.getElementById('addModalAlert');
+    alert.textContent = message;
+    alert.className = `visa-modal-alert visa-modal-alert-${type}`;
+    alert.style.display = 'block';
+    
+    // 3秒后自动隐藏
+    setTimeout(() => {
+        alert.style.display = 'none';
+    }, 3000);
+}
+
+function showEditModalAlert(message, type) {
+    const alert = document.getElementById('editModalAlert');
     alert.textContent = message;
     alert.className = `visa-modal-alert visa-modal-alert-${type}`;
     alert.style.display = 'block';

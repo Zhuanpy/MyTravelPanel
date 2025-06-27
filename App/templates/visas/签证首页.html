@@ -298,17 +298,22 @@
                     <i class="fas fa-project-diagram"></i> 项目管理
                 </a>
    
-            <a href="{{ url_for('visa_basic.visa_type_list') }}" class="text-link">
-                <i class="fas fa-plus"></i> 签证类型管理
-                </a>
+
             <a href="{{ url_for('visa_documents_list.documents_list') }}" class="text-link">
-                <i class="fas fa-database"></i> 文档资料
+                <i class="fas fa-database"></i> 文档资料管理
                 </a>
   
             <a href="{{ url_for('visa_basic.visa_type_document_manager') }}" class="text-link">
-                <i class="fas fa-cogs"></i> 签证文档管理器
+                <i class="fas fa-cogs"></i> 签证文档配置
                 </a>
+            
+            <a href="{{ url_for('visa_basic.visa_type_list') }}" class="text-link">
+                <i class="fas fa-plus"></i> 签证类型管理
+                </a>
+            <a href="{{ url_for('visa_basic.manage_identities') }}" class="text-link"> <i class="fas fa-user"></i>新加坡身份管理
 
+            </a>
+            
             <a href="{{ url_for('visa_basic.manage_countries') }}" class="text-link">
                 <i class="fas fa-flag"></i> 签证国家管理
                 </a>

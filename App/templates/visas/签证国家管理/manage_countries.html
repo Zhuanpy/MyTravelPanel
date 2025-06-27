@@ -1,94 +1,633 @@
 {% extends "base.html" %}
 
+{% block head %}
+{{ super() }}
+<style>
+    .country-container {
+        max-width: 1000px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+    
+    .country-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 30px;
+        border-bottom: 2px solid #e9ecef;
+        padding-bottom: 15px;
+    }
+    
+    .country-header h1 {
+        font-size: 1.75rem;
+        font-weight: 600;
+        color: #2d3748;
+        margin: 0;
+    }
+    
+    .country-add-btn {
+        display: inline-flex;
+        align-items: center;
+        padding: 10px 20px;
+        background-color: #4299e1;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        text-decoration: none;
+    }
+    
+    .country-add-btn:hover {
+        background-color: #3182ce;
+        transform: translateY(-1px);
+    }
+    
+    .country-add-btn i {
+        margin-right: 8px;
+    }
+    
+    .country-table {
+        width: 100%;
+        border-collapse: collapse;
+        background-color: white;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    
+    .country-table th,
+    .country-table td {
+        padding: 12px 16px;
+        text-align: left;
+        border-bottom: 1px solid #e2e8f0;
+    }
+    
+    .country-table th {
+        background-color: #f7fafc;
+        color: #4a5568;
+        font-weight: 600;
+        font-size: 0.875rem;
+    }
+    
+    .country-table tr:hover {
+        background-color: #f8f9fa;
+    }
+    
+    .country-table tr:last-child td {
+        border-bottom: none;
+    }
+    
+    /* 弹窗样式 */
+    .country-modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+        opacity: 0;
+        visibility: hidden;
+        transition: all 0.3s ease;
+    }
+    
+    .country-modal-overlay.active {
+        opacity: 1;
+        visibility: visible;
+    }
+    
+    .country-modal {
+        background-color: #ffffff;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        width: 100%;
+        max-width: 600px;
+        padding: 0;
+        transform: translateY(-20px);
+        transition: transform 0.3s ease;
+    }
+    
+    .country-modal-overlay.active .country-modal {
+        transform: translateY(0);
+    }
+    
+    .country-modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 20px 24px;
+        border-bottom: 1px solid #e2e8f0;
+        background-color: #f7fafc;
+    }
+    
+    .country-modal-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: #2d3748;
+        margin: 0;
+    }
+    
+    .country-modal-close {
+        background: none;
+        border: none;
+        font-size: 1.5rem;
+        cursor: pointer;
+        color: #a0aec0;
+        padding: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        border-radius: 4px;
+        transition: all 0.2s ease;
+    }
+    
+    .country-modal-close:hover {
+        background-color: #edf2f7;
+        color: #4a5568;
+    }
+    
+    .country-modal-body {
+        padding: 24px;
+    }
+    
+    .country-form-group {
+        margin-bottom: 20px;
+    }
+    
+    .country-form-label {
+        display: block;
+        font-weight: 500;
+        margin-bottom: 8px;
+        color: #4a5568;
+    }
+    
+    .country-form-control {
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        font-size: 0.875rem;
+        transition: border-color 0.15s ease-in-out;
+        box-sizing: border-box;
+    }
+    
+    .country-form-control:focus {
+        border-color: #4299e1;
+        outline: 0;
+        box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.1);
+    }
+    
+    .country-form-row {
+        display: flex;
+        gap: 16px;
+    }
+    
+    .country-form-row .country-form-group {
+        flex: 1;
+    }
+    
+    .country-modal-footer {
+        padding: 16px 24px;
+        border-top: 1px solid #e2e8f0;
+        display: flex;
+        justify-content: flex-end;
+        gap: 12px;
+    }
+    
+    .country-btn-secondary {
+        background-color: #e2e8f0;
+        color: #4a5568;
+        border: 1px solid #cbd5e0;
+        padding: 8px 16px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 0.875rem;
+        transition: all 0.2s ease;
+    }
+    
+    .country-btn-secondary:hover {
+        background-color: #cbd5e0;
+        color: #2d3748;
+    }
+    
+    .country-btn-primary {
+        background-color: #4299e1;
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 0.875rem;
+        transition: all 0.2s ease;
+    }
+    
+    .country-btn-primary:hover {
+        background-color: #3182ce;
+    }
+    
+    .country-alert {
+        padding: 12px 16px;
+        border-radius: 6px;
+        margin-bottom: 16px;
+        display: none;
+    }
+    
+    .country-alert-success {
+        background-color: #f0fff4;
+        border: 1px solid #c6f6d5;
+        color: #276749;
+    }
+    
+    .country-alert-error {
+        background-color: #fff5f5;
+        border: 1px solid #fed7d7;
+        color: #c53030;
+    }
+    
+    /* 消息提示样式 */
+    .country-message {
+        margin-top: 15px;
+        padding: 12px 16px;
+        border-radius: 6px;
+        font-weight: 500;
+    }
+    
+    .country-message-success {
+        background-color: #d1fae5;
+        color: #047857;
+        border: 1px solid #6ee7b7;
+    }
+    
+    .country-message-error {
+        background-color: #fee2e2;
+        color: #b91c1c;
+        border: 1px solid #fca5a5;
+    }
+    
+    .country-actions {
+        display: flex;
+        gap: 6px;
+        justify-content: center;
+        flex-wrap: nowrap;
+    }
+    
+    .country-btn {
+        padding: 4px 8px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.75rem;
+        transition: all 0.2s ease;
+        white-space: nowrap;
+        min-width: 60px;
+    }
+    
+    .country-btn-edit {
+        background-color: #3182ce;
+        color: white;
+    }
+    
+    .country-btn-edit:hover {
+        background-color: #2c5282;
+    }
+    
+    .country-btn-delete {
+        background-color: #e53e3e;
+        color: white;
+    }
+    
+    .country-btn-delete:hover {
+        background-color: #c53030;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="container" style="max-width: 1000px; margin: 0 auto; padding: 20px;">
-    <h1 style="font-size: 24px; margin-bottom: 20px; font-weight: bold; text-align: center;">管理国家数据</h1>
-    
-    
-    <!-- 表单 -->
-    <div style="background-color: white; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); padding: 20px; margin-bottom: 20px;">
-        <h2 style="font-size: 18px; margin-bottom: 15px; font-weight: bold;">添加国家</h2>
-        
-        <form method="POST">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <!-- 三个字段并排 -->
-            <div style="display: flex; gap: 15px; margin-bottom: 15px;">
-                <!-- 国家名称（中文） -->
-                <div style="flex: 1;">
-                    <label style="display: block; font-weight: 500; margin-bottom: 5px;">国家名称（中文）</label>
-                    <input type="text" name="country_name_CN" required
-                           style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;"
-                           placeholder="请输入中文名称">
-                </div>
-                
-                <!-- 国家名称（英文） -->
-                <div style="flex: 1;">
-                    <label style="display: block; font-weight: 500; margin-bottom: 5px;">国家名称（英文）</label>
-                    <input type="text" name="country_name_EN" required
-                           style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;"
-                           placeholder="请输入英文名称">
-                </div>
-                
-                <!-- 国家代码 -->
-                <div style="flex: 1;">
-                    <label style="display: block; font-weight: 500; margin-bottom: 5px;">国家代码</label>
-                    <input type="text" name="country_code" required
-                           style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;"
-                           placeholder="请输入国家代码">
-                </div>
-            </div>
-            
-            <!-- 按钮 -->
-            <div style="margin-top: 20px;">
-                <button type="submit" 
-                        style="background-color: #1a56db; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">
-                    <i class="fas fa-plus"></i> 添加国家
-                </button>
-            </div>
-        </form>
+<div class="country-container">
+    <div class="country-header">
+        <h1>管理国家数据</h1>
+        <button type="button" class="country-add-btn" onclick="showAddModal()">
+            <i class="fas fa-plus"></i>
+            添加国家
+        </button>
     </div>
     
     <!-- 国家列表 -->
-    <div style="background-color: white; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); padding: 20px;">
-        <h2 style="font-size: 18px; margin-bottom: 15px; font-weight: bold;">现有国家列表</h2>
-        
-        <div style="overflow-x: auto;">
-            <table style="width: 100%; border-collapse: collapse;">
-                <thead>
-                    <tr style="background-color: #f3f4f6; text-align: left;">
-                        <th style="padding: 10px; border-bottom: 1px solid #e5e7eb;">中文名称</th>
-                        <th style="padding: 10px; border-bottom: 1px solid #e5e7eb;">英文名称</th>
-                        <th style="padding: 10px; border-bottom: 1px solid #e5e7eb;">国家代码</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for country in countries %}
-                    <tr style="border-bottom: 1px solid #e5e7eb;">
-                        <td style="padding: 10px;">{{ country.country_name_CN }}</td>
-                        <td style="padding: 10px;">{{ country.country_name_EN }}</td>
-                        <td style="padding: 10px;">{{ country.country_code }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+    <div style="background-color: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); overflow: hidden;">
+        <table class="country-table">
+            <thead>
+                <tr>
+                    <th>中文名称</th>
+                    <th>英文名称</th>
+                    <th>国家代码</th>
+                    <th style="text-align: center; width: 200px;">操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for country in countries %}
+                <tr>
+                    <td>{{ country.country_name_CN }}</td>
+                    <td>{{ country.country_name_EN }}</td>
+                    <td>{{ country.country_code }}</td>
+                    <td>
+                        <div class="country-actions">
+                            <button onclick="editCountry({{ country.id }})" class="country-btn country-btn-edit">
+                                <i class="fas fa-edit"></i> 编辑
+                            </button>
+                            <button onclick="deleteCountry({{ country.id }})" class="country-btn country-btn-delete">
+                                <i class="fas fa-trash"></i> 删除
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
     
     <!-- 消息提示 -->
     {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
             {% for category, message in messages %}
-                {% if category == 'success' %}
-                <div style="margin-top: 15px; padding: 10px; border-radius: 4px; background-color: #d1fae5; color: #047857; border: 1px solid #6ee7b7;">
-                    <i class="fas fa-check-circle"></i> {{ message }}
+                <div class="country-message country-message-{{ category }}">
+                    <i class="fas fa-{% if category == 'success' %}check-circle{% else %}exclamation-circle{% endif %}"></i> {{ message }}
                 </div>
-                {% else %}
-                <div style="margin-top: 15px; padding: 10px; border-radius: 4px; background-color: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5;">
-                    <i class="fas fa-exclamation-circle"></i> {{ message }}
-                </div>
-                {% endif %}
             {% endfor %}
         {% endif %}
     {% endwith %}
 </div>
+
+<!-- 添加国家弹窗 -->
+<div id="addModal" class="country-modal-overlay">
+    <div class="country-modal">
+        <div class="country-modal-header">
+            <h3 class="country-modal-title">添加新国家</h3>
+            <button type="button" class="country-modal-close" onclick="closeAddModal()">&times;</button>
+        </div>
+        <div class="country-modal-body">
+            <div id="addModalAlert" class="country-alert" style="display: none;"></div>
+            
+            <form method="POST" id="addCountryForm">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                
+                <div class="country-form-row">
+                    <div class="country-form-group">
+                        <label class="country-form-label">国家名称（中文）</label>
+                        <input type="text" name="country_name_CN" class="country-form-control" required placeholder="请输入中文名称">
+                    </div>
+                    <div class="country-form-group">
+                        <label class="country-form-label">国家名称（英文）</label>
+                        <input type="text" name="country_name_EN" class="country-form-control" required placeholder="请输入英文名称">
+                    </div>
+                </div>
+                
+                <div class="country-form-group">
+                    <label class="country-form-label">国家代码</label>
+                    <input type="text" name="country_code" class="country-form-control" required placeholder="请输入国家代码">
+                </div>
+            </form>
+        </div>
+        <div class="country-modal-footer">
+            <button type="button" class="country-btn-secondary" onclick="closeAddModal()">取消</button>
+            <button type="submit" form="addCountryForm" class="country-btn-primary">添加国家</button>
+        </div>
+    </div>
+</div>
+
+<!-- 编辑国家弹窗 -->
+<div id="editModal" class="country-modal-overlay">
+    <div class="country-modal">
+        <div class="country-modal-header">
+            <h3 class="country-modal-title">编辑国家</h3>
+            <button type="button" class="country-modal-close" onclick="closeEditModal()">&times;</button>
+        </div>
+        <div class="country-modal-body">
+            <div id="editModalAlert" class="country-alert" style="display: none;"></div>
+            
+            <form method="POST" id="editCountryForm">
+                <input type="hidden" name="country_id" id="editCountryId">
+                
+                <div class="country-form-row">
+                    <div class="country-form-group">
+                        <label class="country-form-label">国家名称（中文）</label>
+                        <input type="text" name="country_name_CN" id="editCountryNameCN" class="country-form-control" required placeholder="请输入中文名称">
+                    </div>
+                    <div class="country-form-group">
+                        <label class="country-form-label">国家名称（英文）</label>
+                        <input type="text" name="country_name_EN" id="editCountryNameEN" class="country-form-control" required placeholder="请输入英文名称">
+                    </div>
+                </div>
+                
+                <div class="country-form-group">
+                    <label class="country-form-label">国家代码</label>
+                    <input type="text" name="country_code" id="editCountryCode" class="country-form-control" required placeholder="请输入国家代码">
+                </div>
+            </form>
+        </div>
+        <div class="country-modal-footer">
+            <button type="button" class="country-btn-secondary" onclick="closeEditModal()">取消</button>
+            <button type="submit" form="editCountryForm" class="country-btn-primary">保存修改</button>
+        </div>
+    </div>
+</div>
+
+<script>
+// 弹窗控制函数
+function showAddModal() {
+    document.getElementById('addModal').classList.add('active');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeAddModal() {
+    document.getElementById('addModal').classList.remove('active');
+    document.body.style.overflow = '';
+    document.getElementById('addCountryForm').reset();
+    document.getElementById('addModalAlert').style.display = 'none';
+}
+
+function showEditModal() {
+    document.getElementById('editModal').classList.add('active');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeEditModal() {
+    document.getElementById('editModal').classList.remove('active');
+    document.body.style.overflow = '';
+    document.getElementById('editCountryForm').reset();
+    document.getElementById('editModalAlert').style.display = 'none';
+}
+
+// 点击弹窗外部关闭
+document.getElementById('addModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeAddModal();
+    }
+});
+
+document.getElementById('editModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeEditModal();
+    }
+});
+
+// 表单提交处理
+document.getElementById('addCountryForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const submitBtn = document.querySelector('#addModal button[type="submit"]');
+    const originalText = submitBtn.textContent;
+    
+    // 显示加载状态
+    submitBtn.disabled = true;
+    submitBtn.textContent = '添加中...';
+    
+    fetch(window.location.href, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => {
+        if (response.redirected) {
+            window.location.href = response.url;
+            return;
+        }
+        return response.text();
+    })
+    .then(data => {
+        // 添加成功，刷新页面
+        window.location.reload();
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showModalAlert('系统错误，请稍后重试', 'error', 'addModalAlert');
+    })
+    .finally(() => {
+        // 恢复按钮状态
+        submitBtn.disabled = false;
+        submitBtn.textContent = originalText;
+    });
+});
+
+// 编辑表单提交处理
+document.getElementById('editCountryForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const countryId = document.getElementById('editCountryId').value;
+    const submitBtn = document.querySelector('#editModal button[type="submit"]');
+    const originalText = submitBtn.textContent;
+    
+    // 显示加载状态
+    submitBtn.disabled = true;
+    submitBtn.textContent = '保存中...';
+    
+    fetch(`/visa/basic/edit_country/${countryId}`, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            showModalAlert(data.message, 'success', 'editModalAlert');
+            setTimeout(() => {
+                window.location.reload();
+            }, 1500);
+        } else {
+            showModalAlert(data.message, 'error', 'editModalAlert');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showModalAlert('系统错误，请稍后重试', 'error', 'editModalAlert');
+    })
+    .finally(() => {
+        // 恢复按钮状态
+        submitBtn.disabled = false;
+        submitBtn.textContent = originalText;
+    });
+});
+
+function showModalAlert(message, type, alertId) {
+    const alert = document.getElementById(alertId);
+    alert.textContent = message;
+    alert.className = `country-alert country-alert-${type}`;
+    alert.style.display = 'block';
+    
+    // 3秒后自动隐藏
+    setTimeout(() => {
+        alert.style.display = 'none';
+    }, 3000);
+}
+
+function editCountry(id) {
+    // 获取国家数据
+    fetch(`/visa/basic/edit_country/${id}`, {
+        method: 'GET',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // 填充表单数据
+            document.getElementById('editCountryId').value = data.data.id;
+            document.getElementById('editCountryNameCN').value = data.data.country_name_CN;
+            document.getElementById('editCountryNameEN').value = data.data.country_name_EN;
+            document.getElementById('editCountryCode').value = data.data.country_code;
+            
+            // 显示编辑弹窗
+            showEditModal();
+        } else {
+            alert('获取国家数据失败：' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('获取国家数据失败，请稍后重试');
+    });
+}
+
+function deleteCountry(id) {
+    if (confirm('确定要删除这个国家吗？')) {
+        fetch(`/visa/basic/delete_country/${id}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('删除失败：' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('删除失败，请稍后重试');
+        });
+    }
+}
+</script>
 {% endblock %} 
