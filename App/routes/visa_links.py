@@ -15,21 +15,28 @@ visa_links = Blueprint('visa_links', __name__)
 def visa_link_page():
     """签证链接管理页面"""
     try:
-        # 获取所有签证链接，并关联签证类型信息
-        links = db.session.query(VisaLinks, VisaTypes)\
+        # 获取页码参数，默认为1
+        page = request.args.get('page', 1, type=int)
+        per_page = 20  # 每页显示20条数据
+        
+        # 获取所有签证链接，并关联签证类型信息，使用分页
+        pagination = db.session.query(VisaLinks, VisaTypes)\
             .join(VisaTypes)\
             .order_by(VisaTypes.visa_type, VisaLinks.name)\
-            .all()
+            .paginate(page=page, per_page=per_page, error_out=False)
+        
+        links = pagination.items
         
         # 获取所有签证类型用于添加新链接
         visa_types = VisaTypes.query.order_by(VisaTypes.visa_type).all()
         
         return render_template('visas/签证类型管理/签证链接管理.html',
                              links=links,
-                             visa_types=visa_types)
+                             visa_types=visa_types,
+                             pagination=pagination)
     except Exception as e:
         flash(f'获取链接列表时出错: {str(e)}', 'error')
-        return redirect(url_for('dex.index'))
+        return redirect(url_for('index.index'))
 
 @visa_links.route('/visa_link/add_visa_link', methods=['GET', 'POST'])
 def add_visa_link():

@@ -133,6 +133,7 @@
         border-collapse: collapse;
         margin-top: 20px;
         margin-bottom: 2rem;
+        table-layout: fixed; /* 固定表格布局 */
     }
     
     .visa-table th,
@@ -140,6 +141,12 @@
         padding: 0.75rem 1rem;
         text-align: left;
         border-bottom: 1px solid #e2e8f0;
+        height: 60px; /* 固定行高 */
+        vertical-align: middle; /* 垂直居中对齐 */
+        max-height: 60px; /* 最大高度限制 */
+        overflow: hidden; /* 超出部分隐藏 */
+        white-space: nowrap; /* 不换行 */
+        text-overflow: ellipsis; /* 超出显示省略号 */
     }
     
     .visa-table th {
@@ -147,6 +154,43 @@
         color: #4a5568;
         font-weight: 600;
         font-size: 0.875rem;
+        height: 50px; /* 表头稍矮一些 */
+    }
+    
+    /* 固定列宽 */
+    .visa-table th:nth-child(1),
+    .visa-table td:nth-child(1) {
+        width: 20%; /* 签证类型列 */
+    }
+    
+    .visa-table th:nth-child(2),
+    .visa-table td:nth-child(2) {
+        width: 25%; /* 链接名称列 */
+    }
+    
+    .visa-table th:nth-child(3),
+    .visa-table td:nth-child(3) {
+        width: 40%; /* 链接地址列 */
+    }
+    
+    .visa-table th:nth-child(4),
+    .visa-table td:nth-child(4) {
+        width: 15%; /* 操作列 */
+        text-align: center;
+    }
+    
+    /* 链接地址列的链接样式 */
+    .visa-table td:nth-child(3) a {
+        color: #3182ce;
+        text-decoration: none;
+        display: block; /* 块级显示 */
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    
+    .visa-table td:nth-child(3) a:hover {
+        text-decoration: underline;
     }
     
     .visa-table tr:nth-child(even) {
@@ -529,6 +573,43 @@
         font-size: 0.9rem;
         color: #4a5568;
     }
+    
+    /* 弹窗按钮样式优化 */
+    .visa-btn-secondary {
+        color: #4a5568;
+        background-color: #e2e8f0;
+        border: 1px solid #cbd5e0;
+    }
+    
+    .visa-btn-secondary:hover {
+        background-color: #cbd5e0;
+        color: #2d3748;
+    }
+    
+    /* 弹窗表单布局优化 */
+    #addModal .visa-form-actions {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 20px;
+        padding-top: 15px;
+        border-top: 1px solid #e2e8f0;
+    }
+    
+    #addModal .visa-form-actions > div {
+        display: flex;
+        gap: 10px;
+    }
+    
+    /* 弹窗动画优化 */
+    .visa-modal-overlay {
+        backdrop-filter: blur(2px);
+    }
+    
+    .visa-modal {
+        max-height: 90vh;
+        overflow-y: auto;
+    }
 </style>
 {% endblock %}
 
@@ -539,38 +620,13 @@
         </div>
 
     <!-- 添加新链接表单 -->
-    <form method="POST" action="{{ url_for('visa_links.add_visa_link') }}" id="addLinkForm">
-        <div class="visa-form-container">
-            <div class="visa-form-entry">
-                <span class="visa-entry-number">1</span>
-            <div class="visa-form-row">
-                <div class="visa-form-group">
-                        <label for="visa_type">签证类型：</label>
-                        <select name="visa_type[]" class="visa-form-control" required>
-                            <option value="">请选择签证类型</option>
-                            {% for visa_type in visa_types %}
-                            <option value="{{ visa_type.id }}">{{ visa_type.visa_type }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="visa-form-group">
-                        <label for="name">链接名称：</label>
-                        <input type="text" name="name[]" class="visa-form-control" required>
-                </div>
-                    <div class="visa-form-group">
-                        <label for="link">链接地址：</label>
-                        <input type="url" name="link[]" class="visa-form-control" required>
-                </div>
-            </div>
+    <div class="visa-section-header">
+        <h3 class="visa-section-title visa-add-title">签证链接管理</h3>
+        <button type="button" class="visa-action-btn visa-btn visa-btn-primary" onclick="showAddModal()">
+            <i class="fas fa-plus"></i>
+            添加链接
+        </button>
     </div>
-        </div>
-        <div class="visa-form-actions">
-            <button type="button" class="visa-add-entry" onclick="addLinkRow()">
-                <i class="fas fa-plus"></i> 添加更多链接
-            </button>
-            <button type="submit" class="visa-btn visa-btn-primary">保存链接</button>
-        </div>
-    </form>
 
     <!-- 链接列表 -->
     <h3 class="visa-section-title visa-list-title">现有链接列表</h3>
@@ -597,9 +653,197 @@
                 {% endfor %}
             </tbody>
         </table>
+        
+        <!-- 分页控件 -->
+        {% if pagination and pagination.pages > 1 %}
+        <div class="visa-pagination">
+            <div class="visa-pagination-info">
+                显示第 {{ (pagination.page - 1) * pagination.per_page + 1 }}-{{ pagination.page * pagination.per_page if pagination.page * pagination.per_page <= pagination.total else pagination.total }} 条，
+                共 {{ pagination.total }} 条记录
+            </div>
+            
+            <div class="visa-page-item">
+                {% if pagination.has_prev %}
+                    <a href="{{ url_for('visa_links.visa_link_page', page=pagination.prev_num) }}" class="visa-page-link">
+                        &laquo; 上一页
+                    </a>
+                {% else %}
+                    <span class="visa-page-link disabled">&laquo; 上一页</span>
+                {% endif %}
+            </div>
+            
+            {% for page in pagination.iter_pages(left_edge=2, left_current=2, right_current=3, right_edge=2) %}
+                {% if page %}
+                    {% if page == pagination.page %}
+                        <div class="visa-page-item">
+                            <span class="visa-page-link active">{{ page }}</span>
+                        </div>
+                    {% else %}
+                        <div class="visa-page-item">
+                            <a href="{{ url_for('visa_links.visa_link_page', page=page) }}" class="visa-page-link">{{ page }}</a>
+                        </div>
+                    {% endif %}
+                {% else %}
+                    <div class="visa-page-item">
+                        <span class="visa-page-link disabled">...</span>
+                    </div>
+                {% endif %}
+            {% endfor %}
+            
+            <div class="visa-page-item">
+                {% if pagination.has_next %}
+                    <a href="{{ url_for('visa_links.visa_link_page', page=pagination.next_num) }}" class="visa-page-link">
+                        下一页 &raquo;
+                    </a>
+                {% else %}
+                    <span class="visa-page-link disabled">下一页 &raquo;</span>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+        </div>
+        
+        <!-- 添加链接弹窗 -->
+        <div id="addModal" class="visa-modal-overlay">
+            <div class="visa-modal">
+                <div class="visa-modal-header">
+                    <h3 class="visa-modal-title">添加签证链接</h3>
+                    <button type="button" class="visa-modal-close" onclick="closeAddModal()">&times;</button>
+                </div>
+                <div class="visa-modal-body">
+                    <div id="addModalAlert" class="visa-modal-alert" style="display: none;"></div>
+                    
+                    <form method="POST" action="{{ url_for('visa_links.add_visa_link') }}" id="addLinkForm">
+                        <div class="visa-form-container">
+                            <div class="visa-form-entry">
+                                <span class="visa-entry-number">1</span>
+                                <div class="visa-form-row three-columns">
+                                    <div class="visa-form-group">
+                                        <label for="visa_type">签证类型：</label>
+                                        <select name="visa_type[]" class="visa-form-control" required>
+                                            <option value="">请选择签证类型</option>
+                                            {% for visa_type in visa_types %}
+                                            <option value="{{ visa_type.id }}">{{ visa_type.visa_type }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div class="visa-form-group">
+                                        <label for="name">链接名称：</label>
+                                        <input type="text" name="name[]" class="visa-form-control" required>
+                                    </div>
+                                    <div class="visa-form-group">
+                                        <label for="link">链接地址：</label>
+                                        <input type="url" name="link[]" class="visa-form-control" required>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="visa-form-actions">
+                            <button type="button" class="visa-add-entry" onclick="addLinkRow()">
+                                <i class="fas fa-plus"></i> 添加更多链接
+                            </button>
+                            <div>
+                                <button type="button" class="visa-btn visa-btn-secondary" onclick="closeAddModal()">取消</button>
+                                <button type="submit" class="visa-btn visa-btn-primary">保存链接</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
         </div>
         
 <script>
+// 弹窗控制函数
+function showAddModal() {
+    document.getElementById('addModal').classList.add('active');
+    document.body.style.overflow = 'hidden'; // 防止背景滚动
+}
+
+function closeAddModal() {
+    document.getElementById('addModal').classList.remove('active');
+    document.body.style.overflow = ''; // 恢复背景滚动
+    // 清空表单
+    document.getElementById('addLinkForm').reset();
+    // 移除所有额外的表单行
+    const entries = document.querySelectorAll('.visa-form-entry');
+    for (let i = 1; i < entries.length; i++) {
+        entries[i].remove();
+    }
+    // 隐藏提示信息
+    document.getElementById('addModalAlert').style.display = 'none';
+}
+
+// 点击弹窗外部关闭
+document.getElementById('addModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeAddModal();
+    }
+});
+
+// 表单提交处理
+document.getElementById('addLinkForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const submitBtn = this.querySelector('button[type="submit"]');
+    const originalText = submitBtn.textContent;
+    
+    // 显示加载状态
+    submitBtn.disabled = true;
+    submitBtn.textContent = '保存中...';
+    
+    fetch(this.action, {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => {
+        if (response.redirected) {
+            window.location.href = response.url;
+            return;
+        }
+        return response.text();
+    })
+    .then(data => {
+        if (data) {
+            // 检查是否包含成功或错误消息
+            if (data.includes('success') || data.includes('成功')) {
+                showModalAlert('链接添加成功！', 'success');
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1500);
+            } else if (data.includes('error') || data.includes('错误')) {
+                showModalAlert('添加失败，请检查输入信息', 'error');
+            } else {
+                showModalAlert('操作完成', 'success');
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1500);
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showModalAlert('系统错误，请稍后重试', 'error');
+    })
+    .finally(() => {
+        // 恢复按钮状态
+        submitBtn.disabled = false;
+        submitBtn.textContent = originalText;
+    });
+});
+
+function showModalAlert(message, type) {
+    const alert = document.getElementById('addModalAlert');
+    alert.textContent = message;
+    alert.className = `visa-modal-alert visa-modal-alert-${type}`;
+    alert.style.display = 'block';
+    
+    // 3秒后自动隐藏
+    setTimeout(() => {
+        alert.style.display = 'none';
+    }, 3000);
+}
+
 function addLinkRow() {
     const container = document.querySelector('.visa-form-container');
     const entries = container.querySelectorAll('.visa-form-entry');
@@ -623,12 +867,12 @@ function addLinkRow() {
     };
     newEntry.appendChild(removeBtn);
         
-        container.appendChild(newEntry);
+    container.appendChild(newEntry);
 }
 
 function updateEntryNumbers() {
     const entries = document.querySelectorAll('.visa-form-entry');
-        entries.forEach((entry, index) => {
+    entries.forEach((entry, index) => {
         entry.querySelector('.visa-entry-number').textContent = index + 1;
     });
 }

@@ -27,6 +27,18 @@ from urllib.parse import unquote
 # 创建蓝图
 visa_project = Blueprint('visa_project', __name__, url_prefix='/visa/project')
 
+# 定义支持表格生成的签证类型列表
+SUPPORTED_FORM_GENERATION_VISA_TYPES = [
+    '韩国签证',
+    '韩国旅游签证', 
+    '韩国商务签证',
+    # 后续可以添加更多支持表格生成的签证类型
+]
+
+def is_visa_type_supported_for_form_generation(visa_type):
+    """检查签证类型是否支持表格生成功能"""
+    return visa_type in SUPPORTED_FORM_GENERATION_VISA_TYPES
+
 # 获取项目文件夹及其创建日期
 def get_project_folders_with_dates(projects_dir, excluded_folders):
     project_info = []
@@ -319,11 +331,35 @@ def generate_form_for_project(project_id):
     try:
         project = VisaProject.query.get_or_404(project_id)
         
-        # 生成表格的逻辑...
+        # 检查签证类型是否支持表格生成
+        if not is_visa_type_supported_for_form_generation(project.visa_type):
+            return jsonify({
+                'success': False, 
+                'message': f'签证类型 "{project.visa_type}" 暂不支持表格生成功能'
+            }), 400
+        
+        # 生成表格的逻辑
+        project_name = f"{project.visa_type}_{project.hid_or_serial}_{project.applicant_name}"
+        visa_folder = f"{project_name}_{project.singapore_status}"
+        static_path = os.path.join(current_app.root_path, 'static')
+        
+        # 根据签证类型调用相应的表格生成函数
+        if '韩国' in project.visa_type:
+            # 调用韩国签证表格生成函数
+            from ..code.VisaForm import VisasUtils
+            VisasUtils.korea_visa_fill_form(visa_folder=visa_folder, static_path=static_path)
+        else:
+            return jsonify({
+                'success': False, 
+                'message': f'签证类型 "{project.visa_type}" 的表格生成功能尚未实现'
+            }), 400
         
         return jsonify({'success': True, 'message': '表格生成成功'})
+    except FileNotFoundError as e:
+        return jsonify({'success': False, 'message': f'文件或目录不存在: {str(e)}'}), 500
     except Exception as e:
-        return jsonify({'success': False, 'message': str(e)})
+        current_app.logger.error(f"生成表格时发生错误: {str(e)}")
+        return jsonify({'success': False, 'message': f'生成表格时发生错误: {str(e)}'}), 500
 
 
 """ 签证详细 开始 """
