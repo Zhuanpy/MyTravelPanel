@@ -3,7 +3,7 @@ from App.models.Flightmodels import FlightOrder, Passenger, FlightSegment, Fligh
 from App.models.Suppliers import Supplier
 from App.models.Visamodels import VisaCountries
 from datetime import datetime, timedelta
-from ..exts import db, cache
+from App.exts import db, cache
 import random
 import string
 

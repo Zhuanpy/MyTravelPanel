@@ -5,9 +5,9 @@ from datetime import datetime
 from pathlib import Path
 import platform
 import subprocess
-from ..exts import db, csrf
-from ..models import VisaTypes, VisaDocuments, VisaLinks, VisaProject, VisaCountries, VisaSingaporeIdentity
-from ..code.VisaForm import VisasUtils
+from App.exts import db, csrf
+from App.models import VisaTypes, VisaDocuments, VisaLinks, VisaProject, VisaCountries, VisaSingaporeIdentity
+from App.code.VisaForm import VisasUtils
 import json
 import traceback
 from flask import Blueprint, render_template, request, jsonify, redirect, url_for, flash
@@ -148,7 +148,7 @@ def show_current_all_projects():
 
     except Exception as e:
         flash(f'获取项目列表时出错: {str(e)}', 'error')
-        return redirect(url_for('index.index'))
+        return redirect(url_for('visa_project.show_current_all_projects'))
 
 
 @visa_project.route('/visa_processing/<visa_type>', methods=['GET', 'POST'])
@@ -167,7 +167,7 @@ def visa_processing(visa_type):
         types_info = VisaTypes.query.filter_by(visa_type=visa_type).first()
         if not types_info:
             flash(f'签证类型 "{visa_type}" 不存在', 'error')
-            return redirect(url_for('index.index'))
+            return redirect(url_for('visa_project.show_current_all_projects'))
         
         # 获取相关链接 - 使用visa_type_id查询
         links = VisaLinks.query.filter_by(visa_type_id=types_info.id).order_by(VisaLinks.name.asc()).all()
@@ -184,8 +184,8 @@ def visa_processing(visa_type):
         document_data['SHARE'] = share_info
 
         # 获取项目列表
-        project_root = Path(__file__).resolve().parent.parent
-        project_path = project_root / "static" / "资源" / "Project" / "Visa"
+        from App.config import Config
+        project_path = Config.VISA_PROJECTS_PATH
         
         # 添加错误处理，如果目录不存在则创建空列表
         try:
@@ -208,10 +208,10 @@ def visa_processing(visa_type):
                              
     except json.JSONDecodeError:
         flash('表单数据格式错误', 'error')
-        return redirect(url_for('index.index'))
+        return redirect(url_for('visa_project.show_current_all_projects'))
     except Exception as e:
         flash(f'处理签证信息时出错: {str(e)}', 'error')
-        return redirect(url_for('index.index'))
+        return redirect(url_for('visa_project.show_current_all_projects'))
 
 @visa_project.route('/delete_current_project/<int:project_id>', methods=['POST'])
 def delete_current_project(project_id):
@@ -222,8 +222,8 @@ def delete_current_project(project_id):
         visa_type = project.visa_type
 
         # 构建项目文件夹路径
-        project_root = Path(__file__).resolve().parent.parent
-        base_folder = project_root / "static" / "资源" / "签证"
+        from App.config import Config
+        base_folder = Config.VISA_RESOURCES_PATH
         project_folder = base_folder / project_folder_name
         
         # 如果主路径不存在，尝试在签证类型子文件夹中查找
@@ -341,13 +341,14 @@ def generate_form_for_project(project_id):
         # 生成表格的逻辑
         project_name = f"{project.visa_type}_{project.hid_or_serial}_{project.applicant_name}"
         visa_folder = f"{project_name}_{project.singapore_status}"
-        static_path = os.path.join(current_app.root_path, 'static')
+        from App.config import Config
+        static_path = Config.PROJECT_ROOT / "App" / "static"
         
         # 根据签证类型调用相应的表格生成函数
         if '韩国' in project.visa_type:
             # 调用韩国签证表格生成函数
-            from ..code.VisaForm import VisasUtils
-            VisasUtils.korea_visa_fill_form(visa_folder=visa_folder, static_path=static_path)
+            from App.code.VisaForm import VisasUtils
+            VisasUtils.korea_visa_fill_form(visa_folder=visa_folder, static_path=str(static_path))
         else:
             return jsonify({
                 'success': False, 
@@ -371,12 +372,27 @@ def visa_detail(project_name=None, project_id=None):
         print(f"DEBUG: visa_detail called with project_id={project_id}, project_name={project_name}")
         
         # 获取项目信息
+        project = None
         if project_id:
-            project = VisaProject.query.get_or_404(project_id)
-            print(f"DEBUG: Found project with ID {project_id}: {project.project_folder_name}, visa_type={project.visa_type}")
+            try:
+                project = VisaProject.query.get_or_404(project_id)
+                print(f"DEBUG: Found project with ID {project_id}: {project.project_folder_name}, visa_type={project.visa_type}")
+            except Exception as e:
+                print(f"DEBUG: Error getting project with ID {project_id}: {str(e)}")
+                flash(f'项目不存在或已被删除', 'error')
+                return redirect(url_for('visa_project.show_current_all_projects'))
         else:
             project = VisaProject.query.filter_by(project_folder_name=project_name).first()
             print(f"DEBUG: Found project with name {project_name}: {project.id if project else 'None'}")
+            if not project:
+                flash(f'项目不存在或已被删除', 'error')
+                return redirect(url_for('visa_project.show_current_all_projects'))
+        
+        # 检查项目是否有签证类型
+        if not project.visa_type:
+            print(f"DEBUG: Project {project.id} has no visa_type")
+            flash(f'项目缺少签证类型信息', 'error')
+            return redirect(url_for('visa_project.show_current_all_projects'))
         
         # 获取签证类型信息
         print(f"DEBUG: Looking for visa type: {project.visa_type}")
@@ -384,7 +400,7 @@ def visa_detail(project_name=None, project_id=None):
         if not types_info:
             print(f"DEBUG: Visa type '{project.visa_type}' not found in database")
             flash(f'签证类型 "{project.visa_type}" 不存在', 'error')
-            return redirect(url_for('index.index'))
+            return redirect(url_for('visa_project.show_current_all_projects'))
         
         print(f"DEBUG: Found visa type info: {types_info.visa_type}")
         
@@ -427,7 +443,7 @@ def visa_detail(project_name=None, project_id=None):
             }
         
         # 获取项目的资料准备状态
-        from ..models.Visamodels import VisaProjectDocumentStatus
+        from App.models.Visamodels import VisaProjectDocumentStatus
         project_document_statuses = VisaProjectDocumentStatus.query.filter_by(
             project_id=project.id
         ).all()
@@ -454,6 +470,7 @@ def visa_detail(project_name=None, project_id=None):
                              
     except Exception as e:
         print(f"DEBUG: Exception in visa_detail: {str(e)}")
+        print(f"DEBUG: Exception traceback: {traceback.format_exc()}")
         flash(f'获取签证详情时出错: {str(e)}', 'error')
         return redirect(url_for('visa_project.show_current_all_projects'))
 
@@ -552,8 +569,9 @@ def visa_create_project(visa_type):
         if submit_button == 'generate_form':
             try:
                 visa_folder = f"{project_name}_{singapore_status}"
-                static_path = os.path.join(current_app.root_path, 'static')
-                VisasUtils.korea_visa_fill_form(visa_folder=visa_folder, static_path=static_path)
+                from App.config import Config
+                static_path = Config.PROJECT_ROOT / "App" / "static"
+                VisasUtils.korea_visa_fill_form(visa_folder=visa_folder, static_path=str(static_path))
 
                 # 如果是 AJAX 请求，返回 JSON 响应
                 if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -573,7 +591,7 @@ def visa_create_project(visa_type):
                         'message': error_msg
                     }), 500
                 flash(error_msg, 'error')
-                return redirect(url_for('index.index'))
+                return redirect(url_for('visa_project.visa_processing', visa_type=visa_type))
 
             except Exception as e:
                 error_msg = f"生成表格时发生错误: {str(e)}"
@@ -584,36 +602,35 @@ def visa_create_project(visa_type):
                         'message': error_msg
                     }), 500
                 flash(error_msg, 'error')
-                return redirect(url_for('index.index'))
+                return redirect(url_for('visa_project.visa_processing', visa_type=visa_type))
 
         """ 创建项目思路 """
         "a 创建项目文件夹"
-        visa_folder = os.path.join(current_app.root_path, 'static', '资源', 'Project',
-                                   'Visa')  # static\资源\Project\Visa\韩国签证_HID169764_LUO XINFEI_工作准证
+        from App.config import Config
+        visa_folder = Config.VISA_PROJECTS_PATH  # 签证项目文件夹
         project_file_name = f"{project_name}_{singapore_status}"
-        project_folder = os.path.join(visa_folder, project_file_name)
+        project_folder = visa_folder / project_file_name
         os.makedirs(project_folder, exist_ok=True)
 
         "b 将资源文件夹内容复制到创建项目文件夹"
-        source_path = os.path.join(current_app.root_path, 'static', "资源", "签证", visa_type)  # 韩国签证 资源文件，储存表格及表格坐标
-        share_path = os.path.join(source_path, '共用资料')  # 共用资料文件夹复制到指定文件夹  static\资源\签证\韩国签证\共用资料
-        id_path = os.path.join(source_path, singapore_status)  # 身份文件夹资料 复制到 指定文件夹  static\资源\签证\韩国签证\PR
+        source_path = Config.VISA_RESOURCES_PATH / visa_type  # 签证资源文件，储存表格及表格坐标
+        share_path = source_path / '共用资料'  # 共用资料文件夹复制到指定文件夹
+        id_path = source_path / singapore_status  # 身份文件夹资料 复制到 指定文件夹
 
         folders = [share_path, id_path]
 
         for file_path in folders:
             # 检查路径是否存在，如果不存在则创建
-            if not os.path.exists(file_path):
+            if not file_path.exists():
                 print(f"Creating directory: {file_path}")
-                os.makedirs(file_path)
+                file_path.mkdir(parents=True, exist_ok=True)
 
             # 复制源文件夹中的文件
-            for file in os.listdir(file_path):
-                src_path = os.path.join(file_path, file)
-                dst_path = os.path.join(project_folder, file)
-                if os.path.isfile(src_path):
-                    shutil.copy2(src_path, dst_path)
-                    print(f"Copied file: {src_path} -> {dst_path}")
+            for file in file_path.iterdir():
+                if file.is_file():
+                    dst_path = project_folder / file.name
+                    shutil.copy2(file, dst_path)
+                    print(f"Copied file: {file} -> {dst_path}")
 
         # 保存到数据库
         new_project = VisaProject(
@@ -636,7 +653,7 @@ def visa_create_project(visa_type):
         
         # 保存资料状态数据
         if document_statuses:
-            from ..models.Visamodels import VisaProjectDocumentStatus
+            from App.models.Visamodels import VisaProjectDocumentStatus
             print(f"DEBUG: Saving {len(document_statuses)} document statuses")
             for status_data in document_statuses:
                 is_ready = status_data['is_ready']
@@ -819,17 +836,21 @@ def open_folder():
         project_folder = unquote(request.args.get('project_folder', ''))
         visa_type = unquote(request.args.get('visa_type', ''))
 
+        print(f"DEBUG: folder_type={folder_type}, project_folder='{project_folder}', visa_type='{visa_type}'")
+
         # 获取项目根目录
-        project_root = Path(__file__).resolve().parent.parent
+        from App.config import Config
 
         # 根据文件夹类型构建路径
         if folder_type == 'project' and project_folder and visa_type:
-            base_folder = project_root / "static" / "资源" / "Project" / "Visa"
+            base_folder = Config.VISA_PROJECTS_PATH
             # 首先尝试在签证类型子文件夹中查找
             folder_path = base_folder / visa_type / project_folder
             if not folder_path.exists():
                 # 如果不存在，尝试在根目录中查找
                 folder_path = base_folder / project_folder
+
+            print(f"DEBUG: 尝试路径1: {folder_path}")
 
             if not folder_path.exists():
                 return jsonify({
@@ -839,27 +860,33 @@ def open_folder():
 
         elif folder_type == 'visa_type' and visa_type:
             # 修改为正确的签证类型资源文件夹路径
-            folder_path = project_root / "static" / "资源" / "签证" / visa_type
+            folder_path = Config.VISA_RESOURCES_PATH / visa_type
             if not folder_path.exists():
                 return jsonify({
                     "success": False, 
                     "message": f"找不到签证类型文件夹：{visa_type}"
                 }), 404
 
+            print(f"DEBUG: 尝试路径2: {folder_path}")
+
         elif folder_type == 'visa_root':
             # 修改为正确的签证根目录路径
-            folder_path = project_root / "static" / "资源" / "签证"
+            folder_path = Config.VISA_RESOURCES_PATH
             if not folder_path.exists():
                 return jsonify({
                     "success": False, 
                     "message": "找不到签证根目录"
                 }), 404
 
+            print(f"DEBUG: visa_root 路径: {folder_path}")
+
         else:
             return jsonify({
                 "success": False, 
                 "message": "无效的文件夹类型或参数缺失"
             }), 400
+
+        print(f"DEBUG: 最终打开路径: {folder_path}")
 
         # 打开文件夹
         if platform.system() == 'Windows':
@@ -888,8 +915,9 @@ def delete_project(project_id):
         project = VisaProject.query.get_or_404(project_id)
         
         # 删除项目文件夹
-        project_folder = os.path.join(current_app.root_path, 'static', '资源', 'Project', 'Visa', project.project_folder_name)
-        if os.path.exists(project_folder):
+        from App.config import Config
+        project_folder = Config.VISA_PROJECTS_PATH / project.project_folder_name
+        if project_folder.exists():
             shutil.rmtree(project_folder)
         
         # 从数据库中删除项目
@@ -927,7 +955,7 @@ def save_document_status():
         project = VisaProject.query.get_or_404(project_id)
         
         # 删除现有的资料状态记录
-        from ..models.Visamodels import VisaProjectDocumentStatus
+        from App.models.Visamodels import VisaProjectDocumentStatus
         VisaProjectDocumentStatus.query.filter_by(project_id=project_id).delete()
         
         # 创建新的资料状态记录
@@ -961,7 +989,7 @@ def save_document_status():
 def get_document_status(project_id):
     """获取项目资料准备状态"""
     try:
-        from ..models.Visamodels import VisaProjectDocumentStatus
+        from App.models.Visamodels import VisaProjectDocumentStatus
         
         # 获取项目的资料准备状态
         statuses = VisaProjectDocumentStatus.query.filter_by(project_id=project_id).all()
@@ -986,7 +1014,7 @@ def get_document_status(project_id):
 def get_project_documents(visa_type, identity):
     """获取指定签证类型和身份的所需资料列表（包含共用资料+特定身份资料）"""
     try:
-        from ..models.Visamodels import VisaDocuments, VisaTypes, VisaSingaporeIdentity
+        from App.models.Visamodels import VisaDocuments, VisaTypes, VisaSingaporeIdentity
         
         # URL解码
         from urllib.parse import unquote
@@ -1102,7 +1130,7 @@ def get_project_documents(visa_type, identity):
 def test_japan_visa_data():
     """测试日本签证PR身份数据"""
     try:
-        from ..models.Visamodels import VisaDocuments, VisaTypes, VisaSingaporeIdentity
+        from App.models.Visamodels import VisaDocuments, VisaTypes, VisaSingaporeIdentity
         
         # 获取日本签证类型
         visa_type = VisaTypes.query.filter_by(visa_type='日本签证').first()
@@ -1165,7 +1193,7 @@ def test_japan_visa_data():
 def check_share_documents(visa_type):
     """检查SHARE记录的关联文档"""
     try:
-        from ..models.Visamodels import VisaDocuments, VisaTypes, VisaDocumentsList
+        from App.models.Visamodels import VisaDocuments, VisaTypes, VisaDocumentsList
         from sqlalchemy import text
         
         # 获取签证类型
@@ -1213,7 +1241,7 @@ def check_share_documents(visa_type):
 def add_share_documents(visa_type):
     """为SHARE记录添加常用文档"""
     try:
-        from ..models.Visamodels import VisaDocuments, VisaTypes, VisaDocumentsList
+        from App.models.Visamodels import VisaDocuments, VisaTypes, VisaDocumentsList
         
         # 获取签证类型
         visa_type_record = VisaTypes.query.filter_by(visa_type=visa_type).first()
@@ -1281,7 +1309,7 @@ def add_share_documents(visa_type):
 def update_document_status():
     """更新资料准备状态"""
     try:
-        from ..models.Visamodels import VisaProjectDocumentStatus
+        from App.models.Visamodels import VisaProjectDocumentStatus
         
         data = request.get_json()
         document_status_id = data.get('document_status_id')
@@ -1329,7 +1357,7 @@ def update_document_status():
 def sync_project_documents(project_id):
     """同步项目资料清单（从模板获取并创建项目状态记录）"""
     try:
-        from ..models.Visamodels import VisaProjectDocumentStatus, VisaTypes, VisaSingaporeIdentity
+        from App.models.Visamodels import VisaProjectDocumentStatus, VisaTypes, VisaSingaporeIdentity
         
         # 获取项目信息
         project = VisaProject.query.get_or_404(project_id)
@@ -1417,7 +1445,7 @@ def sync_project_documents(project_id):
 def add_custom_document(project_id):
     """为项目添加自定义资料"""
     try:
-        from ..models.Visamodels import VisaProjectDocumentStatus
+        from App.models.Visamodels import VisaProjectDocumentStatus
         
         data = request.get_json()
         document_name = data.get('document_name')
@@ -1474,7 +1502,7 @@ def add_custom_document(project_id):
 def delete_document_status(document_status_id):
     """删除资料状态记录"""
     try:
-        from ..models.Visamodels import VisaProjectDocumentStatus
+        from App.models.Visamodels import VisaProjectDocumentStatus
         
         document_status = VisaProjectDocumentStatus.query.get_or_404(document_status_id)
         document_name = document_status.document_name
@@ -1505,4 +1533,41 @@ def get_documents_list():
         q = q.filter(VisaDocumentsList.name.ilike(f'%{query}%'))
     docs = q.order_by(VisaDocumentsList.name.asc()).all()
     return jsonify([doc.name for doc in docs])
+
+
+@visa_project.route('/test_visa_detail/<int:project_id>')
+def test_visa_detail(project_id):
+    """测试签证详情页面路由"""
+    try:
+        print(f"DEBUG: test_visa_detail called with project_id={project_id}")
+        
+        # 获取项目信息
+        project = VisaProject.query.get(project_id)
+        if not project:
+            return jsonify({'error': '项目不存在'}), 404
+        
+        print(f"DEBUG: Found project: {project.project_folder_name}, visa_type={project.visa_type}")
+        
+        # 获取签证类型信息
+        types_info = VisaTypes.query.filter_by(visa_type=project.visa_type).first()
+        if not types_info:
+            return jsonify({'error': f'签证类型不存在: {project.visa_type}'}), 404
+        
+        return jsonify({
+            'success': True,
+            'project': {
+                'id': project.id,
+                'project_folder_name': project.project_folder_name,
+                'visa_type': project.visa_type,
+                'applicant_name': project.applicant_name
+            },
+            'visa_type': {
+                'id': types_info.id,
+                'visa_type': types_info.visa_type
+            }
+        })
+        
+    except Exception as e:
+        print(f"DEBUG: Exception in test_visa_detail: {str(e)}")
+        return jsonify({'error': str(e)}), 500
 

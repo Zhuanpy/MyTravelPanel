@@ -1,8 +1,8 @@
 from flask import Blueprint, render_template, request, jsonify, redirect, url_for, flash
 from App.models.Flightmodels import FlightSchedule, AirportData
-from ..utils.cache import cache
-from ..code.FlightTicket.ConvertFlight.ConvertFlightItinerary import format_flight_info
-from ..code.utils.utils import FlightData as flight
+from App.utils.cache import cache
+from App.code.FlightTicket.ConvertFlight.ConvertFlightItinerary import format_flight_info
+from App.code.utils.utils import FlightData as flight
 
 flights_athina = Blueprint('flights_athina', __name__, url_prefix='/flights_athina')
 

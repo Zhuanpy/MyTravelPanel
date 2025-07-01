@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, request, flash, redirect, url_for, jsonify
-from ..models.Packagemodels import db, CompanyInfo
+from App.models.Packagemodels import db, CompanyInfo
 from datetime import datetime
 import os
 

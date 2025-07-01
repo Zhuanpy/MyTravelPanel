@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify, render_template, current_app
-from ..models.Utilsmodels import Task, Todo
-from .. import db
+from App.models.Utilsmodels import Task, Todo
+from App import db
 from datetime import datetime
 import traceback
 

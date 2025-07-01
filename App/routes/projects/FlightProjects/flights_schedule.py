@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, request, jsonify, redirect, url_for, flash
 from App.models.Flightmodels import FlightSchedule, AirportData
 from sqlalchemy.exc import IntegrityError
-from ..exts import db
+from App.exts import db
 from sqlalchemy import text
 import re
 

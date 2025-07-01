@@ -5,12 +5,12 @@ from flask import current_app as app
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.exc import NoResultFound
 
-from ..code.FlightTicket.ConvertFlight.read_sql_data import original_airport_code_data, original_flight_timing_data
+from App.code.FlightTicket.ConvertFlight.read_sql_data import original_airport_code_data, original_flight_timing_data
 
-from ..models.Flightmodels import *
-from ..models.Visamodels import *
-from ..forms.flight_forms import FlightScheduleForm
-from ..utils.decorators import login_required, admin_required
+from App.models.Flightmodels import *
+from App.models.Visamodels import *
+from App.forms.flight_forms import FlightScheduleForm
+from App.utils.decorators import login_required, admin_required
 
 from App.code.utils.flightradar24 import get_flight_info
 

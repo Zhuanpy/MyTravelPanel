@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
-from ..exts import db
-from ..models import VisaLinks, VisaTypes, VisaCountries
+from App.exts import db
+from App.models import VisaLinks, VisaTypes, VisaCountries
 
 """
 签证链接管理 (visa_links.py):
@@ -36,7 +36,7 @@ def visa_link_page():
                              pagination=pagination)
     except Exception as e:
         flash(f'获取链接列表时出错: {str(e)}', 'error')
-        return redirect(url_for('index.index'))
+        return redirect(url_for('visa_links.visa_link_page'))
 
 @visa_links.route('/add_visa_link', methods=['GET', 'POST'])
 def add_visa_link():

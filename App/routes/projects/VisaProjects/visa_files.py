@@ -59,7 +59,7 @@ def open_folder():
                 elif return_to == 'processing':
                     return redirect(url_for("visa_project.visa_processing", visa_type=visa_type))
                 else:
-                    return redirect(url_for("index.index"))
+                    return redirect(url_for("visa_project.show_current_all_projects"))
         elif not folder_path.exists():
             error_msg = f"资源文件夹 {folder_path} 不存在"
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -73,7 +73,7 @@ def open_folder():
             elif return_to == 'processing':
                 return redirect(url_for("visa_project.visa_processing", visa_type=visa_type))
             else:
-                return redirect(url_for("index.index"))
+                return redirect(url_for("visa_project.show_current_all_projects"))
 
     elif folder_type == 'visa_type':
         folder_path = current_dir / "App" / "static" / "资源" / "签证" / visa_type
@@ -114,4 +114,4 @@ def open_folder():
     elif return_to == 'processing':
         return redirect(url_for("visa_project.visa_processing", visa_type=visa_type))
     else:
-        return redirect(url_for("index.index")) 
+        return redirect(url_for("visa_project.show_current_all_projects")) 

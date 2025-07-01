@@ -94,7 +94,7 @@ class TourProject(db.Model):
     budget = db.Column(db.Float, nullable=True, comment='项目预算')
 
     def __init__(self, project_name, project_hid, project_status, folder_name, contact_person, contact_info, remarks,
-                 created_at=None):
+                 created_at=None, project_type=None, budget=None):
         self.project_name = project_name
         self.project_hid = project_hid
         self.project_status = project_status
@@ -103,6 +103,8 @@ class TourProject(db.Model):
         self.contact_info = contact_info
         self.remarks = remarks
         self.created_at = created_at or datetime.utcnow()
+        self.project_type = project_type
+        self.budget = budget
 
     def save(self):
         """保存或更新当前实例到数据库"""

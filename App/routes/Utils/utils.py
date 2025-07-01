@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, jsonify, flash
-from ..code.VisaForm import MyPdfFile
-from ..code.utils.WordToPdf import WordToPDFConverter
+from App.code.VisaForm import MyPdfFile
+from App.code.utils.WordToPdf import WordToPDFConverter
 import subprocess
 import os
 import traceback

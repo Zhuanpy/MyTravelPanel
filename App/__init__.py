@@ -1,7 +1,6 @@
-from flask import Flask, send_from_directory, redirect, url_for
+from flask import Flask, send_from_directory
 import os
 from flask_migrate import Migrate
-from flask_login import LoginManager
 
 from .routes.views import dex
 from .exts import db, init_exts
@@ -12,8 +11,8 @@ from App.utils.background_tasks import TodoReminder
 from .utils.exceptions import register_error_handlers
 import logging
 
-from .routes.statement import statement_blue
-from .routes.utils_tasks import utils_blue
+from App.routes.Utils.statement import statement_blue
+from App.routes.Utils.utils_tasks import utils_blue
 
 # 导入所有模型
 from .models.User import User
@@ -22,28 +21,28 @@ from .models.BusinessType import BusinessType
 from .models.Suppliers import Supplier
 
 # 导入签证相关的路由
-from .routes.visa_basic_info import visa_basic
-from .routes.visa_home import visa_home
-from .routes.visa_documents import visa_documents
-from .routes.visa_documents_list import visa_documents_list
-from .routes.visa_links import visa_links
-from .routes.visa_files import visa_files
-from .routes.visa_project import visa_project
+from App.routes.projects.VisaProjects.visa_basic_info import visa_basic
+from App.routes.projects.VisaProjects.visa_home import visa_home
+from App.routes.projects.VisaProjects.visa_documents import visa_documents
+from App.routes.projects.VisaProjects.visa_documents_list import visa_documents_list
+from App.routes.projects.VisaProjects.visa_links import visa_links
+from App.routes.projects.VisaProjects.visa_files import visa_files
+from App.routes.projects.VisaProjects.visa_project import visa_project
 
 # 导入 项目相关的路由
-from .routes.project import projects
+from App.routes.projects.BookingProject.project import projects
 from .routes.business_type import business_types
 
 # 导入机票相关的路由
-from .routes.flights_home_routes import flight_home
-from .routes.flights_schedule import flights_schedule
-from .routes.flights_booking_routes import flights_booking
-from .routes.flights_athina_routes import flights_athina
+from App.routes.projects.FlightProjects.flights_home_routes import flight_home
+from App.routes.projects.FlightProjects.flights_schedule import flights_schedule
+from App.routes.projects.FlightProjects.flights_booking_routes import flights_booking
+from App.routes.projects.FlightProjects.flights_athina_routes import flights_athina
 
 # 导入所有utils相关路由
-from .routes.utils_company_info import company_info
-from .routes.account import account_routes
-from .routes.utils import utils_process
+from App.routes.Utils.utils_company_info import company_info
+from App.routes.Utils.account import account_routes
+from App.routes.Utils.utils import utils_process
 
 # 导入 配套相关的路由
 from .routes.tour_package import package_blue
@@ -109,7 +108,7 @@ def create_app():
     app.register_blueprint(visa_basic, url_prefix='/visa/basic')
     app.register_blueprint(visa_documents, url_prefix='/visa/documents')
     app.register_blueprint(visa_documents_list, url_prefix='/visa/documents_list')
-    app.register_blueprint(visa_links, url_prefix='/visa_links')
+    app.register_blueprint(visa_links, url_prefix='/visa/links')
     app.register_blueprint(visa_files, url_prefix='/visa/files')
     app.register_blueprint(visa_project, url_prefix='/visa/project')
 

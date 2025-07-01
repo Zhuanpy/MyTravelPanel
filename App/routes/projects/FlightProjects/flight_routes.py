@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 from flask import request, render_template
-from ..models.Flightmodels import FlightOrder
+from App.models.Flightmodels import FlightOrder
 from sqlalchemy import and_, or_
 
 @flight_routes.route('/order/list')

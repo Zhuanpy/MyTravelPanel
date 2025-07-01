@@ -1,8 +1,6 @@
 from App import create_app
 from App.models.Visamodels import VisaDocuments, VisaTypes, VisaSingaporeIdentity
 from App.exts import db
-from urllib.parse import unquote
-import html
 
 app = create_app()
 with app.app_context():
@@ -52,9 +50,8 @@ with app.app_context():
     # 测试获取SHARE资料
     if 'SHARE' in identity_options:
         print('\n=== 测试SHARE资料获取 ===')
-        from App.routes.visa_project import get_project_documents
-        import json
-        
+
+
         # 模拟请求参数
         class MockRequest:
             def __init__(self):

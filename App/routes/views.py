@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, jsonify
+from flask import Blueprint, render_template, jsonify, send_from_directory
 from ..models.Packagemodels import ProductCity
 from ..models.Visamodels import VisaTypes
 import os
@@ -59,4 +59,16 @@ def open_bill_project_folder():
 def add_visa_information():
     # Logic to edit the city would go here
     pass
+
+
+@dex.route('/resource/<path:filename>')
+def resource_file(filename):
+    import os
+    from pathlib import Path
+    base_dir = Path.cwd() / '资源' / '旅游产品'
+    # 安全性校验，防止路径穿越
+    safe_path = os.path.normpath(os.path.join(base_dir, filename))
+    if not safe_path.startswith(str(base_dir)):
+        return '非法路径', 403
+    return send_from_directory(base_dir, filename)
 

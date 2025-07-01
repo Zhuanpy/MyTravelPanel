@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, request, redirect, url_for
-from ..models import VisaTypes
+from App.models import VisaTypes
 
 """
 签证首页 (visa_home.py):

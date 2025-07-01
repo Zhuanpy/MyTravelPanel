@@ -102,7 +102,7 @@
                                 截止日期：{{ product.valid_until.strftime('%Y-%m-%d') }}
                             </p>
                             <p class="product-detail">
-                                <a href="{{ url_for('static', filename='资源/旅游产品/' + country_name + '/' + product.city_name + '/' + product.company_name + '/' + product.product_name + '.pdf') }}" target="_blank">
+                                <a href="{{ url_for('index.resource_file', filename=country_name + '/' + product.city_name + '/' + product.company_name + '/' + product.product_name + '.pdf') }}" target="_blank">
                                     查看详细 (PDF)
                                 </a>
                             </p>

@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
-from ..exts import db
-from ..models import VisaDocuments, VisaTypes, VisaSingaporeIdentity, VisaCountries # , # IdentityDocument
-from ..models.Visamodels import VisaDocumentsList
+from App.exts import db
+from App.models import VisaDocuments, VisaTypes, VisaSingaporeIdentity, VisaCountries # , # IdentityDocument
+from App.models.Visamodels import VisaDocumentsList
 from pathlib import Path
 import logging
 from urllib.parse import unquote

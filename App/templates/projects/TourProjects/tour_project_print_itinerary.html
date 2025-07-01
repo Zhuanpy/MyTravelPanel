@@ -125,6 +125,8 @@
             line-height: 1.6;
             font-size: 11pt;
             color: #333;
+            white-space: pre-wrap;
+            word-wrap: break-word;
         }
 
         .no-data {
@@ -379,6 +381,8 @@
                 font-size: 9pt !important;
                 color: #000 !important;
                 line-height: 1.3 !important;
+                white-space: pre-wrap !important;
+                word-wrap: break-word !important;
             }
             
             .price-item {
@@ -537,7 +541,7 @@
             {% if tour.hotel_info %}
             <div class="info-item" style="grid-column: 1 / -1;">
                 <div class="info-label">酒店信息 / Hotel Information</div>
-                <div class="info-value">{{ tour.hotel_info }}</div>
+                <div class="info-value" style="white-space: pre-wrap;">{{ tour.hotel_info }}</div>
             </div>
             {% endif %}
             {% if tour.transport %}
@@ -549,13 +553,13 @@
             {% if tour.meals %}
             <div class="info-item">
                 <div class="info-label">用餐安排 / Meals</div>
-                <div class="info-value">{{ tour.meals }}</div>
+                <div class="info-value" style="white-space: pre-wrap;">{{ tour.meals }}</div>
             </div>
             {% endif %}
             {% if tour.attractions %}
             <div class="info-item" style="grid-column: 1 / -1;">
                 <div class="info-label">景点/活动 / Attractions</div>
-                <div class="info-value">{{ tour.attractions }}</div>
+                <div class="info-value" style="white-space: pre-wrap;">{{ tour.attractions }}</div>
             </div>
             {% endif %}
         </div>
@@ -614,8 +618,8 @@
     {% if tour.important_notes %}
     <div class="price-item">
         <strong>注意事项 / Important Notes:</strong> 
-        {{ tour.important_notes }}<br>
-        <span class="english-text">{{ tour.important_notes }}</span>
+        <div style="white-space: pre-wrap;">{{ tour.important_notes }}</div>
+        <span class="english-text" style="white-space: pre-wrap;">{{ tour.important_notes }}</span>
     </div>
     {% endif %}
     {% if not tour.included_items and not tour.excluded_items and not tour.important_notes %}
