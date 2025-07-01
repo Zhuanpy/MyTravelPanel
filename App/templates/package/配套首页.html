@@ -253,10 +253,10 @@
             <a href="#" id="openProjectFolder" class="package-home-link">
                 <i class="fas fa-project-diagram"></i> 项目文件夹
             </a>
-            <a href="{{ url_for('package_routes.handle_tour_project') }}" class="package-home-link">
+            <a href="{{ url_for('tour_projects.create_tour_project') }}" class="package-home-link">
                 <i class="fas fa-plus"></i> 创建项目
             </a>
-            <a href="{{ url_for('package_routes.show_all_tour_project') }}" class="package-home-link">
+            <a href="{{ url_for('tour_projects.manage_tour_projects') }}" class="package-home-link">
                 <i class="fas fa-tasks"></i> 项目管理
             </a>
         </div>
@@ -290,7 +290,7 @@
                         创建新的旅游项目，设置项目基本信息、日期和详细内容。
                     </p>
                     <div class="package-home-card-actions">
-                        <a href="{{ url_for('package_routes.handle_tour_project') }}" class="package-home-btn package-home-btn-primary">
+                        <a href="{{ url_for('tour_projects.create_tour_project') }}" class="package-home-btn package-home-btn-primary">
                             开始使用
                         </a>
                     </div>
@@ -306,7 +306,7 @@
                         查看和管理所有旅游项目，包括编辑、删除和搜索功能。
                     </p>
                     <div class="package-home-card-actions">
-                        <a href="{{ url_for('package_routes.show_all_tour_project') }}" class="package-home-btn package-home-btn-primary">
+                        <a href="{{ url_for('tour_projects.manage_tour_projects') }}" class="package-home-btn package-home-btn-primary">
                             开始使用
                         </a>
                     </div>

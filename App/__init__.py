@@ -50,6 +50,9 @@ from .routes.tour_package import package_blue
 from .routes.supplier import supplier
 from .routes.tour_product_details import product_details
 
+# 导入旅游项目相关的路由
+from .routes.projects.TourProjects.tour_projects import tour_projects
+
 migrate = Migrate()
 
 def create_app():
@@ -123,6 +126,9 @@ def create_app():
     app.register_blueprint(package_blue, url_prefix='/package')
     app.register_blueprint(supplier, url_prefix='/supplier')
     app.register_blueprint(product_details, url_prefix='/product_details')
+
+    # 注册旅游项目相关的蓝图
+    app.register_blueprint(tour_projects, url_prefix='/tour_projects')
 
     app.register_blueprint(statement_blue, url_prefix='/statement')
 

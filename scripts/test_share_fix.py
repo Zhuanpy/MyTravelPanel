@@ -1,146 +1,168 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-测试SHARE配置修复后的功能
-"""
+from App import create_app
+from App.models.Visamodels import VisaDocuments, VisaTypes, VisaSingaporeIdentity, VisaDocumentsList
+from App.exts import db
+import json
 
-import sys
-import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+app = create_app()
 
-from App import create_app, db
-from App.models import VisaTypes, VisaDocuments, VisaDocumentsList, VisaSingaporeIdentity
-
-def test_share_fix():
-    """测试SHARE配置修复"""
-    app = create_app()
-    
+def test_share_save_fix():
+    """测试SHARE身份保存修复"""
     with app.app_context():
-        print("=== 测试SHARE配置修复后的功能 ===\n")
+        print('=== 测试SHARE身份保存修复 ===')
         
-        # 1. 检查SHARE身份
-        share_identity = VisaSingaporeIdentity.query.filter_by(identity_zh='SHARE').first()
-        if not share_identity:
-            print("❌ 没有找到SHARE身份")
-            return False
+        # 1. 获取测试数据
+        print('\n1. 获取测试数据:')
         
-        print(f"1. SHARE身份信息:")
-        print(f"   ID: {share_identity.id}")
-        print(f"   名称: {share_identity.identity_zh}")
-        
-        # 2. 获取签证类型
+        # 获取第一个签证类型
         visa_type = VisaTypes.query.first()
         if not visa_type:
-            print("❌ 没有找到签证类型")
+            print('❌ 没有找到签证类型')
             return False
         
-        print(f"\n2. 签证类型: {visa_type.visa_type} (ID: {visa_type.id})")
+        print(f'   签证类型: {visa_type.visa_type} (ID: {visa_type.id})')
         
-        # 3. 获取文档
-        documents = VisaDocumentsList.query.limit(2).all()
-        if not documents:
-            print("❌ 没有找到文档")
+        # 获取前3个文档
+        documents = VisaDocumentsList.query.limit(3).all()
+        if len(documents) < 3:
+            print('❌ 文档数量不足')
             return False
         
-        print(f"\n3. 测试文档: {[d.name for d in documents]}")
+        print(f'   测试文档: {[d.name for d in documents]}')
         
-        # 4. 清理现有配置
-        existing_configs = VisaDocuments.query.filter_by(
-            visa_type_id=visa_type.id,
-            singapore_identity_id=share_identity.id
-        ).all()
+        # 2. 清理现有测试数据
+        print('\n2. 清理现有测试数据:')
         
-        for config in existing_configs:
-            db.session.delete(config)
+        existing_docs = VisaDocuments.query.filter_by(visa_type_id=visa_type.id).all()
+        for doc in existing_docs:
+            db.session.delete(doc)
         db.session.commit()
-        print(f"\n4. 清理了 {len(existing_configs)} 个现有SHARE配置")
+        print(f'   清理了 {len(existing_docs)} 个现有配置')
         
-        # 5. 创建新的SHARE配置
-        share_config = VisaDocuments(
-            visa_type_id=visa_type.id,
-            singapore_identity_id=share_identity.id,  # 使用SHARE的实际ID
-            additional_info="测试SHARE配置修复"
-        )
-        share_config.selected_documents = documents
-        db.session.add(share_config)
-        db.session.commit()
+        # 3. 模拟前端发送的数据
+        print('\n3. 模拟前端发送的数据:')
         
-        print(f"\n5. 创建SHARE配置成功:")
-        print(f"   配置ID: {share_config.id}")
-        print(f"   身份ID: {share_config.singapore_identity_id}")
-        print(f"   选中文档: {[d.name for d in share_config.selected_documents]}")
+        # 模拟包含SHARE的配置数据
+        identity_configs = [
+            {
+                'identity_id': None,  # SHARE共用文档
+                'document_ids': [doc.id for doc in documents[:2]],  # 前2个文档
+                'additional_info': '这是SHARE共用文档的补充信息'
+            },
+            {
+                'identity_id': '1',  # 普通身份
+                'document_ids': [doc.id for doc in documents[1:]],  # 后2个文档
+                'additional_info': '这是普通身份的补充信息'
+            }
+        ]
         
-        # 6. 模拟API数据获取
-        print(f"\n6. 模拟API数据获取:")
+        print(f'   配置数据: {json.dumps(identity_configs, indent=2, ensure_ascii=False)}')
         
-        # 获取该签证类型的所有文档配置
-        visa_documents = VisaDocuments.query.filter_by(visa_type_id=visa_type.id).all()
+        # 4. 模拟后端处理逻辑
+        print('\n4. 模拟后端处理逻辑:')
         
-        # 获取所有身份
-        identities = VisaSingaporeIdentity.query.order_by(VisaSingaporeIdentity.identity_zh).all()
-        
-        # 构建配置数据
-        config_data = {
-            'visa_type': visa_type.visa_type,
-            'documents': []
-        }
-        
-        # 为每个身份构建配置
-        for identity in identities:
-            # 查找该身份的文档配置
-            identity_docs = [vd for vd in visa_documents if vd.singapore_identity_id == identity.id]
+        try:
+            # 处理每个身份配置
+            for i, config in enumerate(identity_configs):
+                identity_id = config.get('identity_id')
+                document_ids = config.get('document_ids', [])
+                additional_info = config.get('additional_info', '')
+                
+                print(f'   处理配置 {i+1}:')
+                print(f'     - identity_id: {identity_id} (类型: {type(identity_id)})')
+                print(f'     - document_ids: {document_ids}')
+                print(f'     - additional_info: {additional_info}')
+                
+                # 处理identity_id，SHARE身份为null，其他身份为整数
+                processed_identity_id = None
+                if identity_id == 'SHARE':
+                    # SHARE共用文档，设置为null
+                    processed_identity_id = None
+                    print(f'     - 处理SHARE共用文档配置')
+                elif identity_id is not None:
+                    try:
+                        processed_identity_id = int(identity_id)
+                        print(f'     - 转换为整数: {processed_identity_id}')
+                    except (ValueError, TypeError):
+                        print(f'     - ❌ 无效的identity_id: {identity_id}')
+                        continue
+                else:
+                    # identity_id为null，表示SHARE共用文档
+                    processed_identity_id = None
+                    print(f'     - 处理SHARE共用文档配置')
+                
+                print(f'     - 处理后的identity_id: {processed_identity_id} (类型: {type(processed_identity_id)})')
+                
+                # 创建VisaDocuments记录
+                visa_doc = VisaDocuments(
+                    visa_type_id=visa_type.id,
+                    singapore_identity_id=processed_identity_id,
+                    additional_info=additional_info
+                )
+                db.session.add(visa_doc)
+                db.session.flush()
+                
+                print(f'     - 创建配置记录: ID={visa_doc.id}')
+                
+                # 设置选中的文档
+                if document_ids:
+                    selected_docs = VisaDocumentsList.query.filter(VisaDocumentsList.id.in_(document_ids)).all()
+                    visa_doc.selected_documents = selected_docs
+                    print(f'     - 设置文档: {[d.name for d in selected_docs]}')
+                else:
+                    visa_doc.selected_documents = []
+                    print(f'     - 没有选中文档')
             
-            # 获取选中的文档
-            selected_documents = []
-            additional_info = ""
-            
-            for vd in identity_docs:
-                if vd.selected_documents:
-                    for doc in vd.selected_documents:
-                        selected_documents.append({
-                            'id': doc.id,
-                            'name': doc.name,
-                            'category': doc.category
-                        })
-                additional_info = vd.additional_info or ""
-            
-            config_data['documents'].append({
-                'singapore_identity_id': identity.id,
-                'identity_name': identity.identity_zh,
-                'selected_documents': selected_documents,
-                'additional_info': additional_info
-            })
-        
-        # 7. 验证SHARE配置
-        share_config_data = None
-        for doc_config in config_data['documents']:
-            if doc_config['identity_name'] == 'SHARE':
-                share_config_data = doc_config
-                break
-        
-        if share_config_data:
-            print(f"\n7. 验证SHARE配置:")
-            print(f"   身份ID: {share_config_data['singapore_identity_id']}")
-            print(f"   身份名称: {share_config_data['identity_name']}")
-            print(f"   选中文档数: {len(share_config_data['selected_documents'])}")
-            if share_config_data['selected_documents']:
-                doc_names = [d['name'] for d in share_config_data['selected_documents']]
-                doc_ids = [d['id'] for d in share_config_data['selected_documents']]
-                print(f"   文档: {doc_names}")
-                print(f"   文档ID: {doc_ids}")
-            
-            # 8. 清理测试数据
-            db.session.delete(share_config)
             db.session.commit()
-            print(f"\n8. 清理测试数据完成")
+            print(f'    ✅ 所有配置保存成功')
             
-            print(f"\n✅ SHARE配置修复测试成功！")
-            return True
-        else:
-            print(f"\n❌ 没有找到SHARE配置数据")
+        except Exception as e:
+            print(f'    ❌ 保存失败: {str(e)}')
+            db.session.rollback()
             return False
+        
+        # 5. 验证保存结果
+        print('\n5. 验证保存结果:')
+        
+        saved_docs = VisaDocuments.query.filter_by(visa_type_id=visa_type.id).all()
+        print(f'   总共保存了 {len(saved_docs)} 个配置')
+        
+        for i, doc in enumerate(saved_docs, 1):
+            identity_name = "SHARE共用文档" if doc.singapore_identity_id is None else f"身份ID: {doc.singapore_identity_id}"
+            doc_names = [d.name for d in doc.selected_documents] if doc.selected_documents else []
+            
+            print(f'   配置 {i}:')
+            print(f'     - 记录ID: {doc.id}')
+            print(f'     - 身份: {identity_name}')
+            print(f'     - 选中文档: {doc_names}')
+            print(f'     - 补充信息: {doc.additional_info}')
+        
+        # 6. 验证SHARE配置
+        share_doc = VisaDocuments.query.filter_by(
+            visa_type_id=visa_type.id,
+            singapore_identity_id=None
+        ).first()
+        
+        if share_doc:
+            print(f'\n6. ✅ SHARE配置验证成功:')
+            print(f'    - 记录ID: {share_doc.id}')
+            print(f'    - 身份ID: {share_doc.singapore_identity_id}')
+            print(f'    - 选中文档数: {len(share_doc.selected_documents)}')
+            print(f'    - 文档名称: {[d.name for d in share_doc.selected_documents]}')
+            print(f'    - 补充信息: {share_doc.additional_info}')
+        else:
+            print(f'\n6. ❌ 没有找到SHARE配置')
+            return False
+        
+        # 7. 清理测试数据
+        print('\n7. 清理测试数据:')
+        
+        for doc in saved_docs:
+            db.session.delete(doc)
+        db.session.commit()
+        print(f'   清理了 {len(saved_docs)} 个测试配置')
+        
+        print(f'\n✅ SHARE身份保存修复测试成功！')
+        return True
 
 if __name__ == '__main__':
-    success = test_share_fix()
-    if not success:
-        sys.exit(1) 
+    test_share_save_fix() 

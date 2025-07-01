@@ -68,12 +68,20 @@ def add_product():
             )
             db.session.add(new_product)
             db.session.commit()
-            flash('产品添加成功！', 'success')
-            return redirect(url_for('product_details.tour_product_details'))
+            
+            # 检查是否是AJAX请求
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({'success': True, 'message': '产品添加成功'})
+            else:
+                flash('产品添加成功！', 'success')
+                return redirect(url_for('product_details.tour_product_details'))
         except Exception as e:
             db.session.rollback()
-            flash(f'添加失败：{str(e)}', 'error')
-            return redirect(url_for('product_details.add_product'))
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({'success': False, 'message': str(e)})
+            else:
+                flash(f'添加失败：{str(e)}', 'error')
+                return redirect(url_for('product_details.add_product'))
     
     return render_template('package/add_product.html')
 
@@ -92,11 +100,19 @@ def edit_product(id):
             product.duration = clean_text(request.form['duration'])
             
             db.session.commit()
-            flash('产品更新成功！', 'success')
-            return redirect(url_for('product_details.tour_product_details'))
+            
+            # 检查是否是AJAX请求
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({'success': True, 'message': '产品更新成功'})
+            else:
+                flash('产品更新成功！', 'success')
+                return redirect(url_for('product_details.tour_product_details'))
         except Exception as e:
             db.session.rollback()
-            flash(f'更新失败：{str(e)}', 'error')
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({'success': False, 'message': str(e)})
+            else:
+                flash(f'更新失败：{str(e)}', 'error')
     
     return render_template('package/edit_product.html', product=product)
 

@@ -83,58 +83,6 @@ class ProductCity(db.Model):
 
         return None
 
-# 定义 tour_project 表的模型
-class TourProject(db.Model):
-
-    __tablename__ = 'tour_project'
-
-    id = db.Column(db.Integer, primary_key=True)  # 自增主键
-    project_name = db.Column(db.String(100), nullable=False)  # 项目名称
-    project_hid = db.Column(db.String(255), nullable=True)  # 项目HID，允许为空
-    creation_date = db.Column(db.DateTime, default=datetime.utcnow)  # 创建日期，默认为当前时间
-    departure_date = db.Column(db.Date, nullable=False)  # 出发日期
-    project_status = db.Column(db.String(50), nullable=False)  # 项目状态
-    folder_name = db.Column(db.String(100), nullable=False)  # 项目状态
-    contact_person = db.Column(db.String(100), nullable=False)  # 联系人
-    contact_info = db.Column(db.String(100), nullable=False)  # 联系方式
-    remarks = db.Column(db.Text, nullable=True)  # 备注
-
-    def __init__(self, project_name, project_hid, departure_date, project_status, folder_name, contact_person, contact_info, remarks,
-                 creation_date=None):
-        self.project_name = project_name
-        self.project_hid = project_hid
-        self.departure_date = departure_date
-        self.project_status = project_status
-        self.folder_name = folder_name
-        self.contact_person = contact_person
-        self.contact_info = contact_info
-        self.remarks = remarks
-        self.creation_date = creation_date or datetime.utcnow()
-
-    def save(self):
-        """保存或更新当前实例到数据库"""
-        db.session.add(self)
-        db.session.commit()
-
-    @classmethod
-    def get_by_id(cls, project_id):
-        """通过 ID 获取实例"""
-        return cls.query.get(project_id)
-
-    def to_dict(self):
-        """将模型实例转化为字典，用于 JSON 响应"""
-        return {
-            "id": self.id,
-            "project_name": self.project_name,
-            "project_hid": self.project_hid,
-            "creation_date": self.creation_date.strftime('%Y-%m-%d'),
-            "departure_date": self.departure_date.strftime('%Y-%m-%d'),
-            "project_status": self.project_status,
-            "folder_name": self.folder_name,
-            "contact_person": self.contact_person,
-            "contact_info": self.contact_info,
-            "remarks": self.remarks
-        }
 
 class TourProduct(db.Model):
     __tablename__ = 'tour_products'

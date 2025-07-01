@@ -3,7 +3,6 @@ import os
 from datetime import datetime, timedelta
 import sys
 import subprocess
-import html
 from flask import Blueprint, render_template, url_for, flash, redirect, request, jsonify
 from flask import current_app as app
 from sqlalchemy.exc import SQLAlchemyError
@@ -11,7 +10,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from ..exts import db
 from ..forms.ProductForm import ProductForm
 from ..models.Accountsmodels import SupplierData
-from ..models.Packagemodels import Product, TourProject, ProductCity
+from ..models.Packagemodels import Product, ProductCity
 
 
 # 创建蓝图
@@ -543,203 +542,9 @@ def create_folder(base_dir, folder_name):
 
 @package_blue.route('/tour_project', methods=['GET', 'POST'])
 def handle_tour_project():
-    """
-    处理创建旅游项目的路由，支持 GET 和 POST 方法。
+    """重定向到新的旅游项目创建页面"""
+    return redirect(url_for('tour_projects.create_tour_project'))
 
-    - GET 方法用于渲染"创建旅游项目"页面。
-    - POST 方法用于处理表单提交并创建对应的旅游项目文件夹。
-
-    :return: 根据请求类型返回 HTML 页面或 JSON 响应
-    """
-
-    if request.method == 'GET':
-        # 渲染"创建旅游项目"页面
-        return render_template("package/旅游项目创建.html")
-
-    elif request.method == 'POST':
-        """
-        处理表单提交，将旅游项目信息保存到数据库并创建对应的文件夹。
-
-        1. 获取前端表单的数据
-        2. 验证数据的完整性与格式
-        3. 创建文件夹
-        4. 保存数据到数据库
-        5. 返回操作结果
-        """
-
-        try:
-            # 从前端表单中获取用户输入的数据
-            project_name = request.form.get('projectName', '').strip()  # 项目名称
-            project_hid = request.form.get('projectHID', '').strip()  # 项目HID（可选）
-            departure_date = request.form.get('departureDate', '').strip()  # 出发日期
-            project_status = request.form.get('projectStatus', '').strip()  # 项目状态
-            contact_person = request.form.get('contactPerson', '').strip()  # 联系人
-            contact_info = request.form.get('contactInfo', '').strip()  # 联系方式
-            remarks = request.form.get('remarks', '').strip()  # 备注
-            creation_date = datetime.now().date()
-
-            # 验证必填字段是否完整
-            if not all([project_name, departure_date, project_status, contact_person, contact_info]):
-                return jsonify({'status': 'error', 'message': '所有字段均为必填'}), 400
-
-            # 验证出发日期格式
-            try:
-                formatted_date = datetime.strptime(departure_date, "%d/%m/%Y").date()
-            except ValueError:
-                # 日期格式不正确时返回错误信息
-                return jsonify({'status': 'error', 'message': '出发日期格式无效，请按照 dd/mm/yyyy 格式填写'}), 400
-
-            # 创建文件夹路径
-            tour_project_path = os.path.join(app.root_path, app.static_folder, "资源", "Project", "Tour")  # 获取当前文件的绝对路径
-
-            # 构建文件夹名称，增强可读性
-            if project_hid:
-                folder_name = f"{creation_date}_{project_hid}_{project_name}"
-
-            else:
-                folder_name = f"{creation_date}_{project_name}"
-
-            # 创建文件夹（文件夹已存在则不会创建）
-            create_folder(tour_project_path, folder_name)
-
-            # 创建 TourProject 实例，准备保存到数据库
-            new_project = TourProject(
-                project_name=project_name,
-                project_hid=project_hid if project_hid else None,  # 如果没有项目HID，则为 None
-                departure_date=formatted_date,
-                project_status=project_status,
-                folder_name=folder_name,
-                contact_person=contact_person,
-                contact_info=contact_info,
-                remarks=remarks,
-                creation_date=creation_date  # 自动记录创建日期
-            )
-
-            # 将新项目添加到数据库会话
-            db.session.add(new_project)
-
-            # 提交到数据库
-            db.session.commit()
-
-            # 返回成功消息，重定向到项目页面
-            return redirect(url_for('package_routes.handle_tour_project'))
-
-        except ValueError as ve:
-            # 处理日期格式错误
-            logging.error(f"日期格式错误: {ve}")
-            return jsonify({'status': 'error', 'message': '日期格式错误'}), 400
-
-        except Exception as e:
-            # 记录其他错误日志
-            logging.error(f"数据库操作失败: {e}")
-            return jsonify({'status': 'error', 'message': '创建旅游项目失败，请稍后重试'}), 500
-
-
-@package_blue.route('/travel/travel/show_all_tour_project', methods=['GET', 'POST'])
-def show_all_tour_project():
-    # 获取表单参数（如果没有则使用默认值）
-    travel_status = request.args.get('travel_status', '处理中')  # 默认显示"处理中"状态，而不是'all'
-    sort_by = request.args.get('sort_by', 'name')
-    order = request.args.get('order', 'asc')
-
-    # 构建查询条件
-    query = TourProject.query
-
-    # 筛选旅游项目状态
-    if travel_status == 'all':
-        # 排除忽略单
-        query = query.filter(TourProject.project_status != '忽略单')
-
-    elif travel_status:
-        query = query.filter(TourProject.project_status == travel_status)
-
-    # 排序方式
-    if sort_by == 'name':
-        column = TourProject.project_name
-
-    elif sort_by == 'created_date':
-        column = TourProject.creation_date
-
-    else:
-        column = TourProject.project_name  # 默认按名称排序
-
-    # 排序顺序
-    if order == 'asc':
-        query = query.order_by(column.asc())
-
-    elif order == 'desc':
-        query = query.order_by(column.desc())
-
-    # 获取所有符合条件的项目
-    tour_projects = query.all()
-
-    return render_template('package/旅游项目管理.html', projects=tour_projects,
-                           travel_status=travel_status, sort_by=sort_by, order=order)
-
-@package_blue.route('/update_travel_project/<int:project_id>', methods=['POST'])
-def update_travel_project(project_id):
-
-    project = TourProject.get_by_id(project_id)
-    project.project_status = request.form.get("project_status")
-    project.departure_date = request.form.get("departure_date")
-    project.contact_person = request.form.get("contact_person")
-    project.contact_info = request.form.get("contact_info")
-    project.remarks = request.form.get("remarks")
-    project.project_hid = request.form.get("project_hid")
-    project.folder_name = request.form.get("folder_name")
-    # 保存更新到数据库
-    project.save()
-
-    # 获取筛选参数
-    current_status = request.form.get('current_travel_status', 'all')
-    current_sort_by = request.form.get('current_sort_by', 'name')
-    current_order = request.form.get('current_order', 'asc')
-
-    # 返回更新后的页面，并保持当前筛选状态
-    return redirect(url_for('package_routes.show_all_tour_project',
-                            travel_status=current_status,
-                            sort_by=current_sort_by,
-                            order=current_order))
-import urllib.parse
-
-@package_blue.route('/travel/projects/open', methods=['GET', 'POST'])
-def open_travel_project_file():
-    folder_name = request.args.get('folder_name', '')
-    # 解码 URL
-    folder_name = urllib.parse.unquote(folder_name)
-    # 处理 HTML 实体
-    folder_name = html.unescape(folder_name)
-
-    tour_project_path = os.path.join(app.root_path, app.static_folder, "资源", "Project", "Tour")
-    file_path = os.path.join(tour_project_path, folder_name)
-
-    # 检查文件夹是否存在
-    if os.path.exists(file_path):
-        if sys.platform == "win32":
-            os.startfile(file_path)  # 在 Windows 上打开文件夹
-        else:
-            opener = "open" if sys.platform == "darwin" else "xdg-open"
-            subprocess.call([opener, file_path])  # 在 macOS 或 Linux 上打开文件夹
-        return jsonify({"message": "success"})
-    else:
-        return jsonify({"message": "文件夹不存在"}), 404
-
-
-@package_blue.route('/travel/travel/delete_travel_project/<int:project_id>', methods=['POST'])
-def delete_travel_project(project_id):
-    try:
-        # 假设你的项目数据存储在数据库中
-        project = TourProject.query.get(project_id)
-        if not project:
-            return jsonify({"success": False, "message": "项目不存在"}), 404
-
-        db.session.delete(project)
-        db.session.commit()
-        return jsonify({"success": True}), 200
-
-    except Exception as e:
-        
-        return jsonify({"success": False, "message": str(e)}), 500
 
 @package_blue.route('/')
 def index():
