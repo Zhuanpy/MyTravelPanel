@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+
+{% block title %}行程团管理{% endblock %}
+
+{% block head %}
+<style>
+    /* 重置和基础样式 - 使用更具体的选择器避免与Bootstrap冲突 */
+    .tour-groups-page * {
+        box-sizing: border-box !important;
+    }
+
+    .tour-groups-page {
+        background-color: #f0f2f5 !important;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important;
+        line-height: 1.6 !important;
+        color: #333 !important;
+        margin: 0 !important;
+        padding: 20px !important;
+        min-height: 100vh !important;
+    }
+
+    /* 主容器 - 现代化设计 */
+    .tour-groups-page .container {
+        max-width: 1200px !important;
+        margin: 20px auto !important;
+        padding: 30px !important;
+        background: #ffffff !important;
+        box-shadow: 0 0 20px rgba(0, 0, 0, 0.1) !important;
+        border-radius: 12px !important;
+    }
+
+    .title {
+        color: #4CAF50;
+        text-align: center;
+        margin-bottom: 30px;
+        font-size: 24px;
+    }
+
+    .btn {
+        display: inline-block;
+        padding: 10px 20px;
+        margin: 5px;
+        background-color: #4CAF50;
+        color: white;
+        text-decoration: none;
+        border-radius: 4px;
+        border: none;
+        cursor: pointer;
+    }
+
+    .btn:hover {
+        background-color: #45a049;
+    }
+
+    .btn-danger {
+        background-color: #f44336;
+    }
+
+    .btn-danger:hover {
+        background-color: #da190b;
+    }
+
+    .table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+    }
+
+    .table th, .table td {
+        padding: 12px;
+        text-align: left;
+        border-bottom: 1px solid #ddd;
+    }
+
+    .table th {
+        background-color: #f2f2f2;
+        font-weight: bold;
+    }
+
+    .table tr:hover {
+        background-color: #f5f5f5;
+    }
+
+    .actions {
+        display: flex;
+        gap: 5px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="tour-groups-page">
+    <div class="container">
+    <h1 class="title">行程团管理</h1>
+    
+    <div style="text-align: center; margin-bottom: 20px;">
+        <a href="{{ url_for('tour_projects.create_tour_group') }}" class="btn">创建新行程团</a>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }}" style="padding: 10px; margin: 10px 0; border-radius: 4px; 
+                     background-color: {% if category == 'success' %}#d4edda{% else %}#f8d7da{% endif %};
+                     color: {% if category == 'success' %}#155724{% else %}#721c24{% endif %};
+                     border: 1px solid {% if category == 'success' %}#c3e6cb{% else %}#f5c6cb{% endif %};">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    {% if groups %}
+    <table class="table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>行程名称</th>
+                <th>出发日期</th>
+                <th>返回日期</th>
+                <th>人数</th>
+                <th>旅行社</th>
+                <th>地接社</th>
+                <th>创建时间</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for group in groups %}
+            <tr>
+                <td>{{ group.id }}</td>
+                <td>{{ group.title }}</td>
+                <td>{{ group.departure_date.strftime('%Y-%m-%d') if group.departure_date else '未设置' }}</td>
+                <td>{{ group.return_date.strftime('%Y-%m-%d') if group.return_date else '未设置' }}</td>
+                <td>{{ group.pax }} 人</td>
+                <td>{{ group.agency or '未设置' }}</td>
+                <td>{{ group.operator or '未设置' }}</td>
+                <td>{{ group.created_at.strftime('%Y-%m-%d %H:%M') if group.created_at else '未设置' }}</td>
+                <td class="actions">
+                    <a href="{{ url_for('tour_projects.view_tour_group', group_id=group.id) }}" class="btn">查看</a>
+                    <a href="{{ url_for('tour_projects.edit_tour_group', group_id=group.id) }}" class="btn">编辑</a>
+                    <form method="POST" action="{{ url_for('tour_projects.delete_tour_group', group_id=group.id) }}" 
+                          style="display: inline;" onsubmit="return confirm('确定要删除这个行程团吗？')">
+                        <button type="submit" class="btn btn-danger">删除</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div style="text-align: center; padding: 40px; color: #666;">
+        <p>暂无行程团数据</p>
+        <a href="{{ url_for('tour_projects.create_tour_group') }}" class="btn">创建第一个行程团</a>
+    </div>
+    {% endif %}
+    </div>
+</div>
+{% endblock %} 

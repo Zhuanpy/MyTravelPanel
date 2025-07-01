@@ -1,0 +1,577 @@
+{% extends "base.html" %}
+
+{% block title %}旅游项目管理{% endblock %}
+
+{% block head %}
+<style>
+    /* 重置和基础样式 - 使用更具体的选择器避免与Bootstrap冲突 */
+    .tour-project-list-page * {
+        box-sizing: border-box !important;
+    }
+
+    .tour-project-list-page {
+        background-color: #f0f2f5 !important;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important;
+        line-height: 1.6 !important;
+        color: #333 !important;
+        margin: 0 !important;
+        padding: 20px !important;
+        min-height: 100vh !important;
+    }
+
+    /* 主容器 - 现代化设计 */
+    .tour-project-list-page .tour-container {
+        max-width: 1800px !important;
+        margin: 20px auto !important;
+        padding: 30px !important;
+        background: white !important;
+        box-shadow: 0 0 20px rgba(0, 0, 0, 0.1) !important;
+        border-radius: 12px !important;
+    }
+
+    .tour-title {
+        color: #4CAF50;
+        text-align: center;
+        margin-bottom: 30px;
+        font-size: 28px;
+        font-weight: 600;
+    }
+
+    /* 排序选择样式 */
+    .tour-sort-options {
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        margin-bottom: 30px;
+        padding: 15px 20px;
+        background: #f8f9fa;
+        border-radius: 8px;
+        border: 1px solid #e9ecef;
+        flex-wrap: nowrap;
+        gap: 15px;
+    }
+
+    .tour-sort-options label {
+        margin-right: 8px;
+        font-weight: 500;
+        color: #495057;
+        display: flex;
+        align-items: center;
+        white-space: nowrap;
+        font-size: 14px;
+    }
+
+    .tour-sort-options select {
+        margin-right: 0;
+        padding: 8px 12px;
+        border: 1px solid #ced4da;
+        border-radius: 6px;
+        background-color: white;
+        font-size: 14px;
+        min-width: 100px;
+        max-width: 120px;
+    }
+
+    .tour-sort-options select:focus {
+        outline: none;
+        border-color: #4CAF50;
+        box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.2);
+    }
+
+    /* 表格样式 */
+    .tour-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        margin-top: 20px;
+        font-size: 14px;
+        background: white;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .tour-table th, 
+    .tour-table td {
+        padding: 16px 12px;
+        border: 1px solid #e9ecef;
+        text-align: center;
+        vertical-align: middle;
+        min-width: 80px;
+    }
+
+    .tour-table th {
+        background: linear-gradient(135deg, #4CAF50, #45a049);
+        color: white;
+        font-weight: 600;
+        font-size: 14px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+    }
+
+    .tour-table tr:nth-child(even) {
+        background-color: #f8f9fa;
+    }
+
+    .tour-table tr:hover {
+        background-color: #e8f5e8;
+        transform: scale(1.01);
+        transition: all 0.2s ease;
+    }
+
+    .tour-action-link,
+    .tour-delete-link {
+        text-decoration: none;
+        color: #007BFF;
+        padding: 8px 12px;
+        border-radius: 4px;
+        font-weight: 500;
+        transition: all 0.2s ease;
+        display: inline-block;
+        min-width: 80px;
+    }
+
+    .tour-action-link:hover {
+        background-color: #007BFF;
+        color: white;
+        text-decoration: none;
+        transform: translateY(-1px);
+    }
+
+    .tour-delete-link {
+        color: #dc3545;
+    }
+
+    .tour-delete-link:hover {
+        background-color: #dc3545;
+        color: white;
+        text-decoration: none;
+        transform: translateY(-1px);
+    }
+
+    .tour-input-field,
+    .tour-select-field {
+        width: 100%;
+        padding: 10px 12px;
+        margin: 2px 0;
+        border: 1px solid #ced4da;
+        border-radius: 6px;
+        font-size: 14px;
+        transition: all 0.2s ease;
+        box-sizing: border-box;
+    }
+
+    .tour-input-field:focus,
+    .tour-select-field:focus {
+        outline: none;
+        border-color: #4CAF50;
+        box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.1);
+        transform: translateY(-1px);
+    }
+
+    .tour-input-field[type="date"] {
+        padding: 8px 10px;
+        min-width: 120px;
+    }
+    
+
+
+    /* 优化项目状态选择框的样式 */
+    .tour-select-field {
+        min-width: 100px;
+        padding: 8px 10px;
+        font-size: 14px;
+        border: 1px solid #ced4da;
+        border-radius: 6px;
+        background-color: white;
+        cursor: pointer;
+    }
+
+    /* 表格列宽优化 */
+    .tour-table th:nth-child(1), .tour-table td:nth-child(1) { width: 80px; }  /* 项目ID */
+    .tour-table th:nth-child(2), .tour-table td:nth-child(2) { width: 100px; } /* 创建时间 */
+    .tour-table th:nth-child(3), .tour-table td:nth-child(3) { width: 120px; } /* 项目HID */
+    .tour-table th:nth-child(4), .tour-table td:nth-child(4) { width: 150px; } /* 项目名称 */
+    .tour-table th:nth-child(5), .tour-table td:nth-child(5) { width: 100px; } /* 项目状态 */
+    .tour-table th:nth-child(6), .tour-table td:nth-child(6) { width: 100px; } /* 联系人 */
+    .tour-table th:nth-child(7), .tour-table td:nth-child(7) { width: 120px; } /* 联系方式 */
+    .tour-table th:nth-child(8), .tour-table td:nth-child(8) { width: 200px; } /* 文件夹名称 */
+    .tour-table th:nth-child(9), .tour-table td:nth-child(9) { width: 150px; } /* 备注 */
+    .tour-table th:nth-child(10), .tour-table td:nth-child(10) { width: 100px; } /* 保存修改 */
+    .tour-table th:nth-child(11), .tour-table td:nth-child(11) { width: 100px; } /* 编辑项目 */
+    .tour-table th:nth-child(12), .tour-table td:nth-child(12) { width: 100px; } /* 项目详细 */
+    .tour-table th:nth-child(13), .tour-table td:nth-child(13) { width: 100px; } /* 打开项目 */
+    .tour-table th:nth-child(14), .tour-table td:nth-child(14) { width: 100px; } /* 删除项目 */
+
+    /* 按钮样式优化 */
+    .tour-table button[type="submit"] {
+        background: #4CAF50;
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 13px;
+        font-weight: 500;
+        transition: all 0.2s ease;
+        min-width: 80px;
+        }
+
+    .tour-table button[type="submit"]:hover {
+        background: #45a049;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+
+    /* 闪现消息样式 */
+    .tour-flash-message {
+        position: fixed;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        padding: 15px 25px;
+        color: white;
+        border-radius: 8px;
+        z-index: 1000;
+        font-size: 14px;
+        font-weight: 500;
+        display: none;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    }
+
+    /* 响应式调整 */
+    @media (max-width: 1200px) {
+        .tour-container {
+            margin: 20px;
+            padding: 20px;
+        }
+        
+        .tour-table {
+            font-size: 13px;
+        }
+        
+        .tour-table th, 
+        .tour-table td {
+            padding: 12px 8px;
+        }
+        
+        .tour-input-field, 
+    .tour-select-field {
+            padding: 8px 10px;
+            font-size: 13px;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .tour-container {
+            margin: 10px;
+            padding: 15px;
+        }
+        
+        .tour-sort-options {
+            flex-direction: row !important;
+            flex-wrap: nowrap;
+            gap: 10px;
+        }
+        
+        .tour-sort-options label,
+        .tour-sort-options select {
+            margin-right: 0;
+            margin-bottom: 0;
+        }
+        
+        .tour-table {
+            font-size: 12px;
+            overflow-x: auto;
+        }
+        
+        .tour-table th, 
+    .tour-table td {
+            padding: 8px 6px;
+            min-width: 60px;
+        }
+        
+        .tour-input-field, 
+        .tour-select-field {
+            width: 100%;
+            padding: 6px 8px;
+            font-size: 12px;
+        }
+    }
+
+    /* 空状态样式 */
+    .tour-empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        color: #6c757d;
+    }
+
+    .tour-empty-state i {
+        font-size: 48px;
+        margin-bottom: 20px;
+        color: #dee2e6;
+    }
+
+    .tour-empty-state h3 {
+        margin-bottom: 10px;
+        color: #495057;
+    }
+
+    .tour-empty-state p {
+        margin-bottom: 20px;
+        font-size: 16px;
+    }
+
+    .tour-empty-state .btn {
+        display: inline-block;
+        padding: 12px 24px;
+        background: #4CAF50;
+        color: white;
+        text-decoration: none;
+        border-radius: 6px;
+        font-weight: 500;
+        transition: all 0.2s ease;
+    }
+
+    .tour-empty-state .btn:hover {
+        background: #45a049;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        color: white;
+        text-decoration: none;
+    }
+
+    /* 加载状态 */
+    .tour-loading {
+        text-align: center;
+        padding: 40px;
+        color: #6c757d;
+    }
+
+    .tour-loading i {
+        font-size: 24px;
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    .tour-sort-item {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+    .tour-sort-item label {
+        margin: 0;
+    }
+
+    /* 项目名称单行省略号 */
+    .tour-table td.project-name-cell {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 150px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="tour-project-list-page">
+    <div class="tour-container">
+    <!-- 闪现消息区域 -->
+    <div id="flash-message" class="tour-flash-message" style="display: none;">
+        <span id="flash-message-text"></span>
+    </div>
+    
+    <h1 class="tour-title">现有旅游项目管理</h1>
+
+    <!-- 筛选和排序选项表单 -->
+    <div class="tour-sort-options">
+        <form method="GET" action="{{ url_for('tour_projects.manage_tour_projects') }}" style="display: flex; align-items: center; gap: 15px; margin: 0;">
+            <div class="tour-sort-item">
+                <label for="travel_status">旅游项目状态：</label>
+            <select name="travel_status" id="travel_status" onchange="this.form.submit()">
+                <option value="all" {% if travel_status == 'all' %}selected{% endif %}>全部追中单</option>
+                <option value="处理中" {% if travel_status == '处理中' %}selected{% endif %}>处理中</option>
+                <option value="待出行" {% if travel_status == '待出行' %}selected{% endif %}>待出行</option>
+                <option value="已完成" {% if travel_status == '已完成' %}selected{% endif %}>已完成</option>
+                <option value="忽略单" {% if travel_status == '忽略单' %}selected{% endif %}>忽略单</option>
+            </select>
+            </div>
+            <div class="tour-sort-item">
+            <label for="sort_by">排序方式：</label>
+            <select name="sort_by" id="sort_by" onchange="this.form.submit()">
+                <option value="name" {% if sort_by == 'name' %}selected{% endif %}>按项目名称</option>
+                <option value="created_date" {% if sort_by == 'created_date' %}selected{% endif %}>按创建时间</option>
+            </select>
+            </div>
+            <div class="tour-sort-item">
+            <label for="order">排序顺序：</label>
+            <select name="order" id="order" onchange="this.form.submit()">
+                <option value="asc" {% if order == 'asc' %}selected{% endif %}>升序</option>
+                <option value="desc" {% if order == 'desc' %}selected{% endif %}>降序</option>
+            </select>
+            </div>
+        </form>
+    </div>
+
+    <!-- 项目列表 -->
+    {% if projects %}
+    <table class="tour-table">
+        <thead>
+            <tr>    
+                <th>项目ID</th>
+                <th>创建时间</th>
+                <th>项目HID</th>
+                <th>项目名称</th>
+                <th>项目状态</th>
+                <th>联系人</th>
+                <th>联系方式</th>
+                <th>备注</th>
+                <th>保存修改</th>
+                <th>编辑项目</th>
+                <th>项目详细</th>
+                <th>打开项目</th>
+                <th>删除项目</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for project in projects %}
+            <form method="POST" action="{{ url_for('tour_projects.update_tour_project', project_id=project.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="current_travel_status" value="{{ travel_status }}">
+                <input type="hidden" name="current_sort_by" value="{{ sort_by }}">
+                <input type="hidden" name="current_order" value="{{ order }}">
+                <tr>
+                    <td>{{ project.id }}</td>
+                    <td>{{ project.created_at.strftime('%Y-%m-%d') }}</td>
+                    <td><input type="text" name="project_hid" value="{{ project.project_hid or 'N/A'}}" class="tour-input-field"></td>
+                    <td class="project-name-cell">{{ project.project_name }}</td>
+                    <td>
+                        <select name="project_status" class="tour-select-field">
+                            <option value="处理中" {% if project.project_status == '处理中' %}selected{% endif %}>处理中</option>
+                            <option value="待出行" {% if project.project_status == '待出行' %}selected{% endif %}>待出行</option>
+                            <option value="已完成" {% if project.project_status == '已完成' %}selected{% endif %}>已完成</option>
+                            <option value="忽略单" {% if project.project_status == '忽略单' %}selected{% endif %}>忽略单</option>
+                        </select>
+                    </td>
+                    <td><input type="text" name="contact_person" value="{{ project.contact_person }}" class="tour-input-field"></td>
+                    <td><input type="text" name="contact_info" value="{{ project.contact_info }}" class="tour-input-field"></td>
+                    <td><input type="text" name="remarks" value="{{ project.remarks or '' }}" class="tour-input-field"></td>
+                    
+                    <!-- 保存修改按钮 -->
+                    <td><button type="submit" class="tour-action-link">保存修改</button></td>
+                    
+                    <!-- 编辑项目按钮 -->
+                    <td>
+                        <a href="{{ url_for('tour_projects.edit_tour_project', project_id=project.id) }}" class="tour-action-link">编辑项目</a>
+                    </td>
+                    
+                    <!-- 项目详细按钮 -->
+                    <td>
+                        <a href="{{ url_for('tour_projects.project_details', project_id=project.id) }}" class="tour-action-link">项目详细</a>
+                    </td>
+                    
+                    <!-- 打开项目按钮 -->
+                    <td>
+                        <a href="#" id="open-project-{{ project.id }}" class="tour-action-link">打开项目</a>
+                    </td>
+
+                    <!-- 删除项目按钮 -->
+                    <td>
+                        <a class="tour-delete-link" href="#" data-project-id="{{ project.id }}" onclick="deleteProject(event, this)">删除</a>
+                    </td>
+                </tr>
+            </form>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="tour-empty-state">
+        <i class="fas fa-folder-open"></i>
+        <h3>暂无项目数据</h3>
+        <p>当前筛选条件下没有找到任何旅游项目</p>
+        <a href="{{ url_for('tour_projects.create_tour_project') }}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> 创建第一个项目
+        </a>
+    </div>
+    {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/Js/ff.js"></script>
+
+<script>
+    // 显示闪现消息函数
+    function showFlashMessage(message, isSuccess) {
+        const flashMessage = document.getElementById("flash-message");
+        flashMessage.textContent = message;
+        flashMessage.style.backgroundColor = isSuccess ? 'green' : 'red';
+        flashMessage.style.display = 'block';
+        setTimeout(() => flashMessage.style.display = 'none', 1000);
+    }
+
+    // 删除项目函数
+    function deleteProject(event, element) {
+        event.preventDefault();
+
+        const projectId = element.getAttribute('data-project-id');
+        if (confirm("确定要删除此项目吗？")) {
+            // 获取CSRF令牌
+            const csrfToken = document.querySelector('input[name="csrf_token"]').value;
+            
+            fetch(`/tour_projects/delete/${projectId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: `csrf_token=${encodeURIComponent(csrfToken)}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showFlashMessage("项目删除成功！", true);
+                    element.closest('tr').remove();
+                } else {
+                    showFlashMessage("删除失败：" + data.message, false);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showFlashMessage("请求失败，请稍后重试！", false);
+            });
+        }
+    }
+
+    // 页面加载完成后，绑定每个"打开项目"按钮的事件
+    document.addEventListener('DOMContentLoaded', function() {
+        // 使用JavaScript动态绑定事件，避免Jinja2模板语法冲突
+        const openProjectButtons = document.querySelectorAll('[id^="open-project-"]');
+        openProjectButtons.forEach(function(button) {
+            button.addEventListener('click', function(event) {
+                event.preventDefault();
+                const projectId = this.id.replace('open-project-', '');
+                // 从表格行中获取文件夹名称
+                const row = this.closest('tr');
+                const folderNameInput = row.querySelector('input[name="folder_name"]');
+                const folderName = folderNameInput ? folderNameInput.value : '';
+                
+                if (folderName) {
+                    let encodedFolderName = encodeURIComponent(folderName);
+                    sendPostRequest("/tour_projects/open_folder?folder_name=" + encodedFolderName, '资源文件夹已打开!');
+                } else {
+                    showFlashMessage("无法获取文件夹名称", false);
+                }
+            });
+        });
+    });
+</script>
+{% endblock %}

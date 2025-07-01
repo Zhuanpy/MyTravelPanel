@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="text-danger">HTTP 错误 {{ error.code }}</h4>
+                </div>
+                <div class="card-body">
+                    <h5 class="card-title">{{ error.name }}</h5>
+                    <p class="card-text">{{ error.description }}</p>
+                    <a href="{{ url_for('index.index') }}" class="btn btn-primary">返回首页</a>
+                    <button onclick="history.back()" class="btn btn-secondary">返回上一页</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

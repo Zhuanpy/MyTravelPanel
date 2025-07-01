@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>行程确认书 / Itinerary Confirmation</title>
+    <style>
+        body {
+            font-family: "Arial", sans-serif;
+            margin: 30px;
+            font-size: 10pt;
+            line-height: 1.4;
+            color: #333;
+            max-width: 210mm; /* A4宽度 */
+            margin-left: auto;
+            margin-right: auto;
+            background: #f5f5f5;
+        }
+
+        header, footer {
+            text-align: center;
+            color: #888;
+        }
+
+        header {
+            border-bottom: 2px solid #4CAF50;
+            padding-bottom: 15px;
+            margin-bottom: 25px;
+        }
+
+        footer {
+            border-top: 2px solid #4CAF50;
+            padding-top: 15px;
+            margin-top: 40px;
+            font-size: 10pt;
+        }
+
+        h1 {
+            text-align: center;
+            color: #4CAF50;
+            font-size: 20pt;
+            margin-bottom: 8px;
+        }
+
+        .section-title {
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+            color: white;
+            padding: 8px 12px;
+            font-weight: bold;
+            margin-top: 20px;
+            border-radius: 5px;
+            font-size: 12pt;
+        }
+
+        .section-title-bilingual {
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+            color: white;
+            padding: 8px 12px;
+            font-weight: bold;
+            margin-top: 20px;
+            border-radius: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .section-title-chinese {
+            font-size: 12pt;
+        }
+
+        .section-title-english {
+            font-size: 10pt;
+            opacity: 0.9;
+            font-style: italic;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        table td, table th {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+
+        table th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .content {
+            margin-bottom: 30px;
+        }
+
+        .itinerary-day {
+            margin-bottom: 20px;
+            padding: 15px;
+            border: 2px solid #4CAF50;
+            border-radius: 8px;
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .day-header {
+            font-weight: bold;
+            color: #4CAF50;
+            margin-bottom: 8px;
+            font-size: 14pt;
+            border-bottom: 2px solid #4CAF50;
+            padding-bottom: 4px;
+        }
+
+        .day-date {
+            color: #666;
+            font-size: 10pt;
+            margin-bottom: 12px;
+            font-style: italic;
+        }
+
+        .day-content {
+            line-height: 1.6;
+            font-size: 11pt;
+            color: #333;
+        }
+
+        .no-data {
+            text-align: center;
+            color: #999;
+            font-style: italic;
+            padding: 30px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 1px dashed #ccc;
+        }
+
+        .bilingual-text {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .chinese-text {
+            font-weight: bold;
+            color: #4CAF50;
+        }
+
+        .english-text {
+            color: #666;
+            font-style: italic;
+            font-size: 9pt;
+        }
+
+        .price-section {
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            border: 1px solid #4CAF50;
+        }
+
+        .price-item {
+            margin-bottom: 12px;
+            padding: 8px;
+            background: white;
+            border-radius: 5px;
+            border-left: 4px solid #4CAF50;
+        }
+
+        .price-list {
+            margin: 8px 0;
+            padding-left: 20px;
+        }
+
+        .price-list li {
+            margin-bottom: 4px;
+            line-height: 1.4;
+        }
+
+        .company-info {
+            background: #f8f9fa;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            border: 1px solid #e9ecef;
+        }
+
+        .company-name {
+            font-size: 16pt;
+            font-weight: bold;
+            color: #4CAF50;
+            margin-bottom: 8px;
+        }
+
+        .company-details {
+            font-size: 9pt;
+            color: #666;
+            line-height: 1.4;
+        }
+
+        .group-details {
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .group-header {
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+            color: white;
+            padding: 12px 15px;
+            font-weight: 600;
+            font-size: 14pt;
+        }
+
+        .group-content {
+            padding: 15px;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-bottom: 15px;
+        }
+
+        .info-item {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 6px;
+            border: 1px solid #e9ecef;
+        }
+
+        .info-label {
+            font-weight: 600;
+            color: #555;
+            margin-bottom: 4px;
+            font-size: 10pt;
+        }
+
+        .info-value {
+            color: #333;
+            font-size: 11pt;
+        }
+
+        .print-container {
+            background: white;
+            padding: 20mm;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+
+        @media print {
+            @page {
+                size: A4;
+                margin: 1.5cm;
+            }
+            
+            body {
+                margin: 0;
+                font-size: 9pt;
+                line-height: 1.3;
+                color: #000;
+                background: white;
+                max-width: none;
+            }
+            
+            .print-container {
+                background: white !important;
+                padding: 0 !important;
+                box-shadow: none !important;
+                min-height: auto !important;
+                height: auto !important;
+            }
+            
+            /* 确保内容可以正常分页 */
+            .itinerary-day {
+                page-break-inside: avoid;
+                break-inside: avoid;
+            }
+            
+            .section-title, .section-title-bilingual {
+                page-break-after: avoid;
+                break-after: avoid;
+            }
+            
+            .group-details {
+                page-break-inside: avoid;
+                break-inside: avoid;
+            }
+            
+            .price-section {
+                page-break-inside: avoid;
+                break-inside: avoid;
+            }
+            
+            header {
+                margin-bottom: 15px;
+                padding-bottom: 8px;
+            }
+            
+            .company-info {
+                background: white !important;
+                border: 1px solid #ccc !important;
+                padding: 8px !important;
+            }
+            
+            .company-name {
+                font-size: 12pt !important;
+                color: #000 !important;
+            }
+            
+            .company-details {
+                font-size: 8pt !important;
+                color: #333 !important;
+            }
+            
+            h1 {
+                font-size: 16pt !important;
+                color: #000 !important;
+                margin-bottom: 12px !important;
+            }
+            
+            .section-title-chinese {
+                font-size: 11pt !important;
+            }
+            
+            .section-title-english {
+                font-size: 9pt !important;
+            }
+            
+            .group-header {
+                background: #f0f0f0 !important;
+                color: #000 !important;
+                font-size: 11pt !important;
+                padding: 8px 12px !important;
+            }
+            
+            .group-content {
+                padding: 12px !important;
+            }
+            
+            .info-grid {
+                grid-template-columns: repeat(3, 1fr) !important;
+                gap: 8px !important;
+            }
+            
+            .info-item {
+                background: white !important;
+                border: 1px solid #ddd !important;
+                padding: 6px !important;
+            }
+            
+            .info-label {
+                font-size: 8pt !important;
+                color: #333 !important;
+            }
+            
+            .info-value {
+                font-size: 9pt !important;
+                color: #000 !important;
+            }
+            
+            .day-header {
+                font-size: 11pt !important;
+                color: #000 !important;
+                border-bottom: 1px solid #ccc !important;
+                padding-bottom: 4px !important;
+            }
+            
+            .day-date {
+                font-size: 8pt !important;
+                color: #666 !important;
+            }
+            
+            .day-content {
+                font-size: 9pt !important;
+                color: #000 !important;
+                line-height: 1.3 !important;
+            }
+            
+            .price-item {
+                background: white !important;
+                border: 1px solid #ddd !important;
+                padding: 6px !important;
+                margin-bottom: 8px !important;
+            }
+
+            .price-list {
+                margin: 6px 0 !important;
+                padding-left: 15px !important;
+            }
+
+            .price-list li {
+                margin-bottom: 3px !important;
+                line-height: 1.3 !important;
+                font-size: 9pt !important;
+            }
+            
+            .price-item strong {
+                color: #000 !important;
+            }
+            
+            .english-text {
+                font-size: 7pt !important;
+                color: #666 !important;
+            }
+            
+            .no-data {
+                background: white !important;
+                border: 1px dashed #ccc !important;
+                color: #666 !important;
+                padding: 20px !important;
+            }
+            
+            footer {
+                margin-top: 30px !important;
+                padding-top: 10px !important;
+                border-top: 1px solid #ccc !important;
+                font-size: 8pt !important;
+                color: #666 !important;
+            }
+            
+            table {
+                page-break-inside: avoid;
+                border: 1px solid #ccc !important;
+            }
+            
+            table th, table td {
+                border: 1px solid #ccc !important;
+                padding: 8px !important;
+                font-size: 9pt !important;
+            }
+            
+            table th {
+                background: #f0f0f0 !important;
+                color: #000 !important;
+            }
+            
+            .section-title, .section-title-bilingual {
+                font-size: 11pt !important;
+                background: #f0f0f0 !important;
+                color: #000 !important;
+                margin-top: 15px !important;
+            }
+            
+            .group-details {
+                background: white !important;
+                border: 1px solid #ccc !important;
+                box-shadow: none !important;
+            }
+            
+            .itinerary-day {
+                border: 1px solid #ccc !important;
+                background: white !important;
+                box-shadow: none !important;
+                padding: 12px !important;
+                margin-bottom: 15px !important;
+            }
+            
+            .price-section {
+                background: white !important;
+                border: 1px solid #ccc !important;
+                padding: 12px !important;
+            }
+            
+            /* 隐藏不需要打印的元素 */
+            .no-print {
+                display: none !important;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="print-container">
+<header>
+    <div class="company-info">
+        <div class="company-name">{{ company.company_name if company else 'LEGEND TRAVEL PTE LTD' }}</div>
+        <div class="company-details">
+            {% if company and company.address %}
+                {{ company.address }}
+            {% else %}
+                1 PARK ROAD 02-K74, PEOPLE'S PARK COMPLEX SINGAPORE 059108
+            {% endif %}
+            <br>
+            Tel: {{ company.phone if company else '+65 64389986' }} 
+            | Email: {{ company.email if company else 'legendtravel.director@gmail.com' }}
+            {% if company and company.website %}
+                | Website: {{ company.website }}
+            {% endif %}
+        </div>
+    </div>
+</header>
+
+<div class="bilingual-text">
+    <h1 class="chinese-text">行程确认书</h1>
+    <h1 class="english-text">Itinerary Confirmation</h1>
+</div>
+
+{% if tour %}
+<div class="section-title-bilingual">
+    <span class="section-title-chinese">团组详情</span>
+    <span class="section-title-english">Group Details</span>
+</div>
+
+<div class="group-details">
+    <div class="group-header">{{ tour.title }}</div>
+    <div class="group-content">
+        <div class="info-grid">
+            <div class="info-item">
+                <div class="info-label">出发日期 / Departure Date</div>
+                <div class="info-value">{{ tour.departure_date.strftime('%Y年%m月%d日') if tour.departure_date else '未设置 / Not Set' }}</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">返回日期 / Return Date</div>
+                <div class="info-value">{{ tour.return_date.strftime('%Y年%m月%d日') if tour.return_date else '未设置 / Not Set' }}</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">行程天数 / Duration</div>
+                <div class="info-value">{{ tour.duration_days }} 天 / {{ tour.duration_days }} Days</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">参团人数 / Participants</div>
+                <div class="info-value">{{ tour.pax }} 人 / {{ tour.pax }} Pax</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">旅行社 / Agency</div>
+                <div class="info-value">{{ tour.agency or '未设置 / Not Set' }}</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">地接社 / Operator</div>
+                <div class="info-value">{{ tour.operator or '未设置 / Not Set' }}</div>
+            </div>
+            {% if tour.hotel_info %}
+            <div class="info-item" style="grid-column: 1 / -1;">
+                <div class="info-label">酒店信息 / Hotel Information</div>
+                <div class="info-value">{{ tour.hotel_info }}</div>
+            </div>
+            {% endif %}
+            {% if tour.transport %}
+            <div class="info-item" style="grid-column: 1 / -1;">
+                <div class="info-label">交通工具 / Transport</div>
+                <div class="info-value" style="white-space: pre-wrap;">{{ tour.transport }}</div>
+            </div>
+            {% endif %}
+            {% if tour.meals %}
+            <div class="info-item">
+                <div class="info-label">用餐安排 / Meals</div>
+                <div class="info-value">{{ tour.meals }}</div>
+            </div>
+            {% endif %}
+            {% if tour.attractions %}
+            <div class="info-item" style="grid-column: 1 / -1;">
+                <div class="info-label">景点/活动 / Attractions</div>
+                <div class="info-value">{{ tour.attractions }}</div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="no-data">未找到团组信息 / No Group Information Found</div>
+{% endif %}
+
+<div class="section-title-bilingual">
+    <span class="section-title-chinese">每日行程安排</span>
+    <span class="section-title-english">Daily Itinerary</span>
+</div>
+
+{% if itinerary and itinerary|length > 0 %}
+    {% for day in itinerary %}
+        <div class="itinerary-day">
+            <div class="day-header">{{ day.day_title }}</div>
+            <div class="day-date">{{ day.date.strftime('%Y年%m月%d日') if day.date else '' }}</div>
+            <div class="day-content">{{ day.content | safe }}</div>
+        </div>
+    {% endfor %}
+{% else %}
+    <div class="no-data">暂无行程安排 / No Itinerary Available</div>
+{% endif %}
+
+<div class="section-title-bilingual">
+    <span class="section-title-chinese">价格与包含项目</span>
+    <span class="section-title-english">Price & Inclusions</span>
+</div>
+<div class="price-section">
+    {% if tour.included_items %}
+    <div class="price-item">
+        <strong>包含项目 / Included:</strong> 
+        <ul class="price-list">
+            {% for item in tour.included_items.split('\n') %}
+                {% if item.strip() %}
+                    <li>{{ loop.index }}. {{ item.strip() }}</li>
+                {% endif %}
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+    {% if tour.excluded_items %}
+    <div class="price-item">
+        <strong>不包含 / Excluded:</strong> 
+        <ul class="price-list">
+            {% for item in tour.excluded_items.split('\n') %}
+                {% if item.strip() %}
+                    <li>{{ loop.index }}. {{ item.strip() }}</li>
+                {% endif %}
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+    {% if tour.important_notes %}
+    <div class="price-item">
+        <strong>注意事项 / Important Notes:</strong> 
+        {{ tour.important_notes }}<br>
+        <span class="english-text">{{ tour.important_notes }}</span>
+    </div>
+    {% endif %}
+    {% if not tour.included_items and not tour.excluded_items and not tour.important_notes %}
+    <div class="price-item">
+        <strong>包含项目 / Included:</strong> 
+        <ul class="price-list">
+            <li>1. 4星级酒店（2人/间）</li>
+            <li>2. 交通接送</li>
+            <li>3. 中文导游</li>
+            <li>4. 景点门票</li>
+        </ul>
+    </div>
+    <div class="price-item">
+        <strong>不包含 / Excluded:</strong> 
+        <ul class="price-list">
+            <li>1. 餐食</li>
+            <li>2. 小费（30元/人/天）</li>
+            <li>3. 机票费用</li>
+        </ul>
+    </div>
+    <div class="price-item">
+        <strong>注意事项 / Important Notes:</strong> 
+        请提前30分钟到达集合地点，携带有效身份证件<br>
+        <span class="english-text">Please arrive 30 minutes before departure time, bring valid ID documents</span>
+    </div>
+    {% endif %}
+</div>
+
+<footer>
+    <div style="margin-bottom: 10px;">
+        {{ company.company_name if company else 'LEGEND TRAVEL PTE LTD' }} 
+        {% if company and company.company_description %}
+            | {{ company.company_description }}
+        {% endif %}
+    </div>
+</footer>
+</div>
+
+</body>
+</html>
