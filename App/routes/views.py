@@ -32,7 +32,9 @@ def open_package_folder():
     current_dir = Path.cwd()
     folder_path = current_dir / "App" / "static" / "资源" / "旅游产品"
     folder_path = os.path.join(folder_path)
-    os.startfile(folder_path)
+    # 使用 explorer 命令确保文件夹置顶显示
+    import subprocess
+    subprocess.run(['explorer', str(folder_path)], shell=True)
     # 返回JSON响应，表示成功操作
     return jsonify({"status": "success"})
 
@@ -40,9 +42,12 @@ def open_package_folder():
 @dex.route('/open_package_project_folder', methods=['GET', 'POST'])
 def open_package_project_folder():
     current_dir = Path.cwd()
-    folder_path = current_dir / "App" / "static" / "资源" / "Project" / "Tour"
+    from App.config import Config
+    folder_path = Config.TOUR_PROJECTS_PATH
     folder_path = os.path.join(folder_path)
-    os.startfile(folder_path)
+    # 使用 explorer 命令确保文件夹置顶显示
+    import subprocess
+    subprocess.run(['explorer', str(folder_path)], shell=True)
     return jsonify({"status": "success"})
 
 
@@ -51,7 +56,9 @@ def open_bill_project_folder():
     current_dir = Path.cwd()
     folder_path = current_dir / "App" / "static" / "资源" / "账单"
     folder_path = os.path.join(folder_path)
-    os.startfile(folder_path)
+    # 使用 explorer 命令确保文件夹置顶显示
+    import subprocess
+    subprocess.run(['explorer', str(folder_path)], shell=True)
     return jsonify({"status": "success"})
 
 

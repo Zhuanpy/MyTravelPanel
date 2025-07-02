@@ -137,11 +137,20 @@
                 <td>{{ group.operator or '未设置' }}</td>
                 <td>{{ group.created_at.strftime('%Y-%m-%d %H:%M') if group.created_at else '未设置' }}</td>
                 <td class="actions">
-                    <a href="{{ url_for('tour_projects.view_tour_group', group_id=group.id) }}" class="btn">查看</a>
-                    <a href="{{ url_for('tour_projects.edit_tour_group', group_id=group.id) }}" class="btn">编辑</a>
+                    <a href="{{ url_for('tour_projects.view_tour_group', group_id=group.id) }}" class="btn btn-success" target="_blank">
+                        <i class="fas fa-print"></i> 确认书
+                    </a>
+                    <a href="{{ url_for('tour_projects.view_tour_itinerary', group_id=group.id) }}" class="btn btn-info" target="_blank">
+                        <i class="fas fa-route"></i> 行程单
+                    </a>
+                    <a href="{{ url_for('tour_projects.edit_tour_group', group_id=group.id) }}" class="btn btn-primary">
+                        <i class="fas fa-edit"></i> 编辑
+                    </a>
                     <form method="POST" action="{{ url_for('tour_projects.delete_tour_group', group_id=group.id) }}" 
                           style="display: inline;" onsubmit="return confirm('确定要删除这个行程团吗？')">
-                        <button type="submit" class="btn btn-danger">删除</button>
+                        <button type="submit" class="btn btn-danger">
+                            <i class="fas fa-trash"></i> 删除
+                        </button>
                     </form>
                 </td>
             </tr>

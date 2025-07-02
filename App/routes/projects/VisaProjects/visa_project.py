@@ -890,7 +890,8 @@ def open_folder():
 
         # 打开文件夹
         if platform.system() == 'Windows':
-            os.startfile(str(folder_path))
+            # 使用 explorer 命令确保文件夹置顶显示
+            subprocess.run(['explorer', str(folder_path)], shell=True)
         elif platform.system() == 'Darwin':  # macOS
             subprocess.run(['open', str(folder_path)])
         else:  # Linux

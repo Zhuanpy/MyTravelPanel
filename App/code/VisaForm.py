@@ -125,7 +125,8 @@ class VisasUtils:
         :param visa_folder: 项目文件夹夹名称
         :param static_path: 数据 flask 项目 static 文件夹路径，其它资源文件通过此文件夹找
         """
-        visa_project_path = os.path.join(static_path, "资源", "Project", "Visa")
+        from App.config import Config
+        visa_project_path = Config.VISA_PROJECTS_PATH
 
         form_path = os.path.join(visa_project_path, visa_folder)
         form_temp_path = os.path.join(form_path, "temp")

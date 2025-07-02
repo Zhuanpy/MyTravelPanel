@@ -52,7 +52,8 @@ def create_tour_project():
                 return redirect(url_for('tour_projects.create_tour_project'))
 
             # 创建文件夹路径
-            tour_project_path = os.path.join(os.getcwd(), "App", "static", "资源", "Project", "Tour")
+            from App.config import Config
+            tour_project_path = Config.TOUR_PROJECTS_PATH
 
             # 构建文件夹名称，增强可读性
             if project_hid:
@@ -210,19 +211,81 @@ def open_tour_project_folder():
     # 处理 HTML 实体
     folder_name = html.unescape(folder_name)
 
-    tour_project_path = os.path.join(os.getcwd(), "App", "static", "资源", "Project", "Tour")
-    file_path = os.path.join(tour_project_path, folder_name)
+    # 使用配置中的路径
+    from App.config import Config
+    file_path = Config.TOUR_PROJECTS_PATH / folder_name
 
     # 检查文件夹是否存在
-    if os.path.exists(file_path):
+    if file_path.exists():
         if sys.platform == "win32":
-            os.startfile(file_path)  # 在 Windows 上打开文件夹
+            try:
+                # 使用 explorer 命令打开文件夹
+                subprocess.run(['explorer', str(file_path)], shell=True)
+                
+                # 等待一下让窗口打开，然后强制置顶
+                import time
+                time.sleep(0.3)
+                
+                # 使用 PowerShell 强制置顶窗口
+                ps_script = f'''
+                Add-Type -TypeDefinition @"
+                using System;
+                using System.Runtime.InteropServices;
+                using System.Diagnostics;
+                
+                public class Win32 {{
+                    [DllImport("user32.dll")]
+                    [return: MarshalAs(UnmanagedType.Bool)]
+                    public static extern bool SetForegroundWindow(IntPtr hWnd);
+                    
+                    [DllImport("user32.dll")]
+                    public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+                    
+                    [DllImport("user32.dll")]
+                    public static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int X, int Y, int cx, int cy, uint uFlags);
+                    
+                    [DllImport("user32.dll")]
+                    public static extern IntPtr FindWindow(string lpClassName, string lpWindowName);
+                    
+                    public const int SW_RESTORE = 9;
+                    public const int SW_SHOW = 5;
+                    public const uint SWP_NOMOVE = 0x0002;
+                    public const uint SWP_NOSIZE = 0x0001;
+                    public const uint SWP_SHOWWINDOW = 0x0040;
+                    public static readonly IntPtr HWND_TOPMOST = new IntPtr(-1);
+                }}
+"@
+                
+                # 查找所有 explorer 进程
+                $explorers = Get-Process explorer -ErrorAction SilentlyContinue
+                foreach ($explorer in $explorers) {{
+                    if ($explorer.MainWindowHandle -ne [IntPtr]::Zero) {{
+                        $title = $explorer.MainWindowTitle
+                        if ($title -and $title -ne "") {{
+                            Write-Host "Found explorer window: $title"
+                            # 强制置顶窗口
+                            [Win32]::ShowWindow($explorer.MainWindowHandle, [Win32]::SW_RESTORE)
+                            [Win32]::SetForegroundWindow($explorer.MainWindowHandle)
+                            [Win32]::SetWindowPos($explorer.MainWindowHandle, [Win32]::HWND_TOPMOST, 0, 0, 0, 0, [Win32]::SWP_NOMOVE -bor [Win32]::SWP_NOSIZE -bor [Win32]::SWP_SHOWWINDOW)
+                            break
+                        }}
+                    }}
+                }}
+                '''
+                
+                # 执行 PowerShell 脚本
+                subprocess.run(['powershell', '-Command', ps_script], shell=True, capture_output=True, text=True)
+                
+            except Exception as e:
+                print(f"打开文件夹时出错: {e}")
+                # 如果出错，回退到基本方法
+                subprocess.run(['explorer', str(file_path)], shell=True)
         else:
             opener = "open" if sys.platform == "darwin" else "xdg-open"
-            subprocess.call([opener, file_path])  # 在 macOS 或 Linux 上打开文件夹
-        return jsonify({"message": "success"})
+            subprocess.call([opener, str(file_path)])  # 在 macOS 或 Linux 上打开文件夹
+        return jsonify({"success": True, "message": "文件夹已成功打开"})
     else:
-        return jsonify({"message": "文件夹不存在"}), 404
+        return jsonify({"success": False, "message": f"文件夹不存在: {file_path}"}), 404
 
 # 新增：行程团管理相关路由
 @tour_projects.route('/groups', methods=['GET'])
@@ -287,13 +350,27 @@ def create_tour_group(project_id):
 def view_tour_group(group_id):
     """查看行程团详情"""
     group = TourGroup.query.get_or_404(group_id)
-    # 使用数据库排序，按date字段升序排列
     itineraries = TourItinerary.query.filter_by(tour_id=group_id).order_by(TourItinerary.date.asc()).all()
     company = CompanyInfo.query.first()
+    current_time = datetime.now()
+    return render_template('projects/TourProjects/tour_project_print_confirmation.html',
+                         tour=group, 
+                         itinerary=itineraries,
+                         company=company,
+                         current_time=current_time)
+
+@tour_projects.route('/groups/<int:group_id>/itinerary', methods=['GET'])
+def view_tour_itinerary(group_id):
+    """查看行程单（仅包含每日行程安排和价格信息）"""
+    group = TourGroup.query.get_or_404(group_id)
+    itineraries = TourItinerary.query.filter_by(tour_id=group_id).order_by(TourItinerary.date.asc()).all()
+    company = CompanyInfo.query.first()
+    current_time = datetime.now()
     return render_template('projects/TourProjects/tour_project_print_itinerary.html',
                          tour=group, 
                          itinerary=itineraries,
-                         company=company)
+                         company=company,
+                         current_time=current_time)
 
 @tour_projects.route('/groups/<int:group_id>/edit', methods=['GET', 'POST'])
 def edit_tour_group(group_id):
@@ -335,6 +412,7 @@ def edit_tour_group(group_id):
             group.included_items = request.form.get('included_items')
             group.excluded_items = request.form.get('excluded_items')
             group.important_notes = request.form.get('important_notes')
+            
             from App import db
             db.session.commit()
             print("团信息更新成功")

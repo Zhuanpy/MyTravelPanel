@@ -37,8 +37,9 @@ def open_folder():
     current_dir = Path.cwd()
     
     # 根据参数决定打开哪个文件夹
+    from App.config import Config
     if folder_type == 'project':
-        base_folder = project_root / "static" / "资源" / "Project" / "Visa"
+        base_folder = Config.VISA_PROJECTS_PATH
         folder_path = base_folder / file_name
         
         # 添加备选路径逻辑
@@ -76,7 +77,7 @@ def open_folder():
                 return redirect(url_for("visa_project.show_current_all_projects"))
 
     elif folder_type == 'visa_type':
-        folder_path = current_dir / "App" / "static" / "资源" / "签证" / visa_type
+        folder_path = Config.VISA_RESOURCES_PATH / visa_type
         if not folder_path.exists():
             error_msg = f"资源文件夹 {folder_path} 不存在"
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -85,13 +86,14 @@ def open_folder():
             return redirect(url_for("visa_project.visa_processing", visa_type=visa_type))
 
     elif folder_type == 'visa_root':
-        folder_path = current_dir / "App" / "static" / "资源" / "签证"
+        folder_path = Config.VISA_RESOURCES_PATH
         folder_path = os.path.join(folder_path)
 
     # 打开文件夹
     try:
         if platform.system() == "Windows":
-            os.startfile(folder_path)
+            # 使用 explorer 命令确保文件夹置顶显示
+            subprocess.run(['explorer', str(folder_path)], shell=True)
         elif platform.system() == "Darwin":  # macOS
             subprocess.run(["open", folder_path])
         else:  # Linux and other Unix-based systems

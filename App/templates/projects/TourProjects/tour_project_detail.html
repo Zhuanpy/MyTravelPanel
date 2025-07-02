@@ -531,9 +531,14 @@
         </a>
         {% if groups %}
         <a href="{{ url_for('tour_projects.view_tour_group', group_id=groups[0].id) }}" class="btn btn-success" target="_blank">
-            <i class="fas fa-print"></i> 打印行程单
+            <i class="fas fa-print"></i> 打印确认书
         </a>
+        <a href="{{ url_for('tour_projects.view_tour_itinerary', group_id=groups[0].id) }}" class="btn btn-info" target="_blank">
+            <i class="fas fa-route"></i> 打印行程单
+        </a>
+        
         {% endif %}
+        
         <button onclick="deleteProject({{ project.id }})" class="btn btn-danger">
             <i class="fas fa-trash"></i> 删除项目
         </button>

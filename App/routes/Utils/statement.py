@@ -5,6 +5,7 @@ from flask import current_app as app
 import os
 from App.config import Config
 from pathlib import Path
+import subprocess
 
 # 创建蓝图
 statement_blue = Blueprint('statement_routes', __name__)
@@ -21,7 +22,7 @@ def open_uob_statement_folder():
     if request.method == 'GET':
         return redirect(url_for('statement_routes.uob_bank'))
     folder_path = Config.BILLING_DATA_PATH / "ZHANG ZHUAN UOB MASTER"
-    os.startfile(str(folder_path))
+    subprocess.run(['explorer', str(folder_path)], shell=True)
     flash('成功打开UOB账单文件夹')
     return redirect(url_for('statement_routes.uob_bank'))
 
@@ -92,7 +93,7 @@ def open_ocbc_statement_folder():
     if request.method == 'GET':
         return redirect(url_for('statement_routes.ocbc_bank'))
     folder_path = Config.BILLING_DATA_PATH / "OCBC"
-    os.startfile(str(folder_path))
+    subprocess.run(['explorer', str(folder_path)], shell=True)
     flash('成功打开OCBC账单文件夹')
     return redirect(url_for('statement_routes.ocbc_bank'))
 
@@ -153,7 +154,7 @@ def open_cmb_statement_folder():
     if request.method == 'GET':
         return redirect(url_for('statement_routes.cmb_bank'))
     folder_path = Config.BILLING_DATA_PATH / "CMB"
-    os.startfile(str(folder_path))
+    subprocess.run(['explorer', str(folder_path)], shell=True)
     flash('成功打开招商银行账单文件夹')
     return redirect(url_for('statement_routes.cmb_bank'))
 

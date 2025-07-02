@@ -199,7 +199,8 @@ def flight_schedule_data():
 @flight_home.route('/open_project_folder', methods=['GET', 'POST'])
 def open_project_folder():
     # 获取目标文件夹路径
-    path_ = os.path.join(app.root_path, app.static_folder, "资源", "机票产品")
+    from App.config import Config
+    path_ = Config.FLIGHT_RESOURCES_PATH
 
     # 检查路径是否有效
     if not os.path.exists(path_):
@@ -228,7 +229,8 @@ def open_project_folder():
 @flight_home.route('/open_flight_project_folder', methods=['GET', 'POST'])
 def open_flight_project_folder():
     # 获取目标文件夹路径
-    path_ = os.path.join(app.root_path, app.static_folder, "资源", "Project", "机票")
+    from App.config import Config
+    path_ = Config.FLIGHT_PROJECTS_PATH
 
     # 检查路径是否有效
     if not os.path.exists(path_):
@@ -256,8 +258,9 @@ def open_flight_project_folder():
 
 @flight_home.route('/open_refund_folder', methods=['GET', 'POST'])
 def open_refund_folder():
-    # 拼接目标文件夹路径  Project\机票\退票
-    folder_path = os.path.join(app.root_path, app.static_folder, "资源", "Project","机票","退票")
+    # 使用配置中的退票文件夹路径
+    from App.config import Config
+    folder_path = Config.FLIGHT_REFUND_PATH
 
     # 检查路径是否存在
     if not os.path.exists(folder_path):

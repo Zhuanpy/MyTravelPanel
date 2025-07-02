@@ -442,12 +442,13 @@
         </thead>
         <tbody>
             {% for project in projects %}
-            <form method="POST" action="{{ url_for('tour_projects.update_tour_project', project_id=project.id) }}">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <input type="hidden" name="current_travel_status" value="{{ travel_status }}">
-                <input type="hidden" name="current_sort_by" value="{{ sort_by }}">
-                <input type="hidden" name="current_order" value="{{ order }}">
-                <tr>
+            <tr>
+                <form method="POST" action="{{ url_for('tour_projects.update_tour_project', project_id=project.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="current_travel_status" value="{{ travel_status }}">
+                    <input type="hidden" name="current_sort_by" value="{{ sort_by }}">
+                    <input type="hidden" name="current_order" value="{{ order }}">
+                    <input type="hidden" name="folder_name" value="{{ project.folder_name }}">
                     <td>{{ project.id }}</td>
                     <td>{{ project.created_at.strftime('%Y-%m-%d') }}</td>
                     <td><input type="text" name="project_hid" value="{{ project.project_hid or 'N/A'}}" class="tour-input-field"></td>
@@ -486,8 +487,8 @@
                     <td>
                         <a class="tour-delete-link" href="#" data-project-id="{{ project.id }}" onclick="deleteProject(event, this)">删除</a>
                     </td>
-                </tr>
-            </form>
+                </form>
+            </tr>
             {% endfor %}
         </tbody>
     </table>
@@ -561,8 +562,13 @@
                 const projectId = this.id.replace('open-project-', '');
                 // 从表格行中获取文件夹名称
                 const row = this.closest('tr');
-                const folderNameInput = row.querySelector('input[name="folder_name"]');
+                const folderNameInput = row.querySelector('input[name="folder_name"]') || row.parentElement.querySelector('input[name="folder_name"]');
                 const folderName = folderNameInput ? folderNameInput.value : '';
+                
+                console.log('Project ID:', projectId);
+                console.log('Row:', row);
+                console.log('Folder name input:', folderNameInput);
+                console.log('Folder name value:', folderName);
                 
                 if (folderName) {
                     let encodedFolderName = encodeURIComponent(folderName);
