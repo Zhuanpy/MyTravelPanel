@@ -228,11 +228,16 @@
         <div class="visa-project-section-header">
             <h2>项目信息</h2>
             <div class="visa-project-header-links">
-                <a class="visa-project-resource-link" href="{{ url_for('visa_project.show_current_all_projects') }}">
+                <a class="visa-project-resource-link"
+                   href="{{ url_for('visa_project.show_current_all_projects',
+                                    visa_status=request.args.get('visa_status', 'all'),
+                                    sort_by=request.args.get('sort_by', 'name'),
+                                    filter_visa_type=request.args.get('filter_visa_type', 'all'),
+                                    applicant_name=request.args.get('applicant_name', '')) }}">
                     返回项目列表
                 </a>
                 <a class="visa-project-resource-link" href="javascript:void(0)" 
-                   onclick="openProjectFolder('{{ project.project_folder_name }}', '{{ project.visa_type }}', '{{ url_for('visa_project.open_folder') }}')"
+                   onclick="openProjectFolder('{{ project.project_folder_name }}', '{{ project.visa_type }}')"
                 >
                     打开项目文件夹
                 </a>
@@ -423,26 +428,36 @@
         // 添加打开文件夹的函数
         window.openProjectFolder = async function(projectFolderName, visaType, endpoint) {
             try {
-                // 构建查询参数
+                // 对参数进行URL编码，确保特殊字符被正确处理
+                const encodedFolderName = encodeURIComponent(projectFolderName);
+                const encodedVisaType = encodeURIComponent(visaType);
+                
+                // 构建查询参数，使用正确的参数名
                 const params = new URLSearchParams({
                     folder_type: 'project',
-                    file_name: projectFolderName,
-                    visa_type: visaType,
-                    visa_status: 'all',
-                    sort_by: 'name',
-                    return_to: 'list'
+                    project_folder: encodedFolderName,
+                    visa_type: encodedVisaType
                 });
 
                 // 使用正确的URL结构
                 const response = await fetch(`/visa/project/open_folder?${params.toString()}`, {
-                    method: 'GET'
+                    method: 'GET',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
                 });
 
                 if (!response.ok) {
-                    throw new Error('Failed to open folder');
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || 'Failed to open folder');
                 }
 
-                showAlert('文件夹打开请求已发送', true);
+                const data = await response.json();
+                if (data.success) {
+                    showAlert('文件夹已打开', true);
+                } else {
+                    showAlert(data.message || '打开文件夹失败', false);
+                }
             } catch (error) {
                 console.error('Error opening folder:', error);
                 showAlert('打开文件夹时发生错误', false);
