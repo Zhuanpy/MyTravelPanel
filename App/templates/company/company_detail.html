@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+{% block title %}{{ company.company_name }} - 公司详情{% endblock %}
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>{{ company.company_name }}</h2>
+        <div>
+            <a href="{{ url_for('company.edit_company', company_id=company.id) }}" class="btn btn-warning">
+                <i class="fas fa-edit"></i> 编辑
+            </a>
+            <a href="{{ url_for('company.list_companies') }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> 返回列表
+            </a>
+        </div>
+    </div>
+    
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+    
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">基本信息</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>公司名称：</strong>{{ company.company_name }}</p>
+                            {% if company.company_code %}
+                                <p><strong>公司代码：</strong>{{ company.company_code }}</p>
+                            {% endif %}
+                            {% if company.contact_person %}
+                                <p><strong>联系人：</strong>{{ company.contact_person }}</p>
+                            {% endif %}
+                            {% if company.contact_phone %}
+                                <p><strong>联系电话：</strong>{{ company.contact_phone }}</p>
+                            {% endif %}
+                            {% if company.contact_email %}
+                                <p><strong>联系邮箱：</strong>{{ company.contact_email }}</p>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            {% if company.industry %}
+                                <p><strong>行业：</strong>
+                                    {% set industry_map = {
+                                        'technology': '科技',
+                                        'finance': '金融',
+                                        'manufacturing': '制造业',
+                                        'healthcare': '医疗健康',
+                                        'education': '教育',
+                                        'retail': '零售',
+                                        'tourism': '旅游',
+                                        'real_estate': '房地产',
+                                        'consulting': '咨询',
+                                        'other': '其他'
+                                    } %}
+                                    {{ industry_map.get(company.industry, company.industry) }}
+                                </p>
+                            {% endif %}
+                            {% if company.company_size %}
+                                <p><strong>公司规模：</strong>
+                                    {% set size_map = {
+                                        'startup': '初创公司',
+                                        'small': '小型公司',
+                                        'medium': '中型公司',
+                                        'large': '大型公司',
+                                        'enterprise': '企业级'
+                                    } %}
+                                    {{ size_map.get(company.company_size, company.company_size) }}
+                                </p>
+                            {% endif %}
+                            {% if company.credit_limit %}
+                                <p><strong>信用额度：</strong>{{ company.currency }} {{ "{:,.2f}".format(company.credit_limit) }}</p>
+                            {% endif %}
+                            <p><strong>状态：</strong>
+                                {% if company.status == 'active' %}
+                                    <span class="badge bg-success">活跃</span>
+                                {% elif company.status == 'inactive' %}
+                                    <span class="badge bg-secondary">非活跃</span>
+                                {% elif company.status == 'suspended' %}
+                                    <span class="badge bg-warning">暂停</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                    
+                    {% if company.address %}
+                        <div class="mt-3">
+                            <p><strong>公司地址：</strong></p>
+                            <p class="text-muted">{{ company.address }}</p>
+                        </div>
+                    {% endif %}
+                    
+                    {% if company.remarks %}
+                        <div class="mt-3">
+                            <p><strong>备注：</strong></p>
+                            <p class="text-muted">{{ company.remarks }}</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">统计信息</h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>创建时间：</strong>{{ company.created_at.strftime('%Y-%m-%d %H:%M') if company.created_at else '-' }}</p>
+                    <p><strong>最后更新：</strong>{{ company.updated_at.strftime('%Y-%m-%d %H:%M') if company.updated_at else '-' }}</p>
+                    {% if company.created_by %}
+                        <p><strong>创建人：</strong>{{ company.created_by }}</p>
+                    {% endif %}
+                    
+                    <hr>
+                    
+                    <h6>关联项目</h6>
+                    <p class="text-muted">该公司的项目数量：{{ company.projects.count() }}</p>
+                    
+                    {% if company.projects.count() > 0 %}
+                        <div class="mt-3">
+                            <h6>最近项目</h6>
+                            {% for project in company.projects.limit(3).all() %}
+                                <div class="mb-2">
+                                    <a href="{{ url_for('projects.header_detail', header_id=project.id) }}" 
+                                       class="text-decoration-none">
+                                        {{ project.hid }} - {{ project.desc }}
+                                    </a>
+                                    <br>
+                                    <small class="text-muted">{{ project.created_at.strftime('%Y-%m-%d') if project.created_at else '' }}</small>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

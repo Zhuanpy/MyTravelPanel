@@ -7,7 +7,7 @@ from flask.cli import with_appcontext
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from App.exts import db
-from App.models.Visamodels import VisaLinks, VisaTypes
+from App.models.Product.Visamodels import VisaLinks, VisaTypes
 
 @click.command()
 @with_appcontext

@@ -16,9 +16,9 @@ from App.routes.Utils.utils_tasks import utils_blue
 
 # 导入所有模型
 from .models.User import User
-from .models.Project import Project, ProjectRef, ProjectEO
-from .models.BusinessType import BusinessType
-from .models.Suppliers import Supplier
+from App.models.projects.BookingProject import ProjectHeader, ProjectRef, ProjectEO
+from App.models.Product.BusinessType import BusinessType
+from App.models.Product.Suppliers import Supplier
 
 # 导入签证相关的路由
 from App.routes.projects.VisaProjects.visa_basic_info import visa_basic
@@ -32,6 +32,9 @@ from App.routes.projects.VisaProjects.visa_project import visa_project
 # 导入 项目相关的路由
 from App.routes.projects.BookingProject.project import projects
 from .routes.business_type import business_types
+
+# 导入客户公司管理路由
+from App.routes.company import company
 
 # 导入机票相关的路由
 from App.routes.projects.FlightProjects.flights_home_routes import flight_home
@@ -114,6 +117,9 @@ def create_app():
 
     app.register_blueprint(projects, url_prefix='/projects')
     app.register_blueprint(business_types, url_prefix='/business_types')
+    
+    # 注册客户公司管理蓝图
+    app.register_blueprint(company, url_prefix='/customer_companies')
 
     app.register_blueprint(flight_home, url_prefix='/flight_home')
     app.register_blueprint(flights_schedule, url_prefix='/flight_schedule')

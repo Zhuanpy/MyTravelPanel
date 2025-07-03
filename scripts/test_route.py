@@ -1,8 +1,6 @@
 from App import create_app
-from App.models.Visamodels import VisaDocuments, VisaTypes, VisaSingaporeIdentity
-from App.exts import db
+from App.models.Product.Visamodels import VisaDocuments, VisaTypes, VisaSingaporeIdentity
 from urllib.parse import unquote
-import html
 
 app = create_app()
 with app.app_context():

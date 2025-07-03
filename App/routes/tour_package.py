@@ -1,15 +1,12 @@
-import logging
 import os
 from datetime import datetime, timedelta
-import sys
-import subprocess
 from flask import Blueprint, render_template, url_for, flash, redirect, request, jsonify
 from flask import current_app as app
 from sqlalchemy.exc import SQLAlchemyError
 from ..exts import db
 from ..forms.ProductForm import ProductForm
 from ..models.Accountsmodels import SupplierData
-from ..models.Packagemodels import Product, ProductCity
+from App.models.Product.Packagemodels import Product, ProductCity
 from App.config import Config
 from pathlib import Path
 

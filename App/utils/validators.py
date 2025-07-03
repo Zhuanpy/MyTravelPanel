@@ -79,21 +79,25 @@ class ProjectValidator(BaseValidator):
     def validate_project_data(cls, data: Dict[str, Any]) -> None:
         """验证项目数据"""
         # 验证必填字段
-        cls.validate_required(data.get('project_name'), 'project_name')
-        cls.validate_required(data.get('start_date'), 'start_date')
-        cls.validate_required(data.get('end_date'), 'end_date')
+        cls.validate_required(data.get('desc'), 'desc')
+        cls.validate_required(data.get('company_name'), 'company_name')
+        cls.validate_required(data.get('staff_name'), 'staff_name')
         
         # 验证字符串长度
         cls.validate_string_length(
-            data.get('project_name', ''), 'project_name', 
+            data.get('desc', ''), 'desc', 
+            min_length=1, max_length=200
+        )
+        
+        cls.validate_string_length(
+            data.get('company_name', ''), 'company_name', 
             min_length=1, max_length=100
         )
         
-        # 验证金额
-        if data.get('total_amount'):
-            cls.validate_numeric_range(
-                float(data['total_amount']), 'total_amount', min_value=0
-            )
+        cls.validate_string_length(
+            data.get('staff_name', ''), 'staff_name', 
+            min_length=1, max_length=50
+        )
 
 
 class UserValidator(BaseValidator):

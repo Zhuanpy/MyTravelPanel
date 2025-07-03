@@ -1,5 +1,5 @@
 from App import create_app, db
-from App.models.Visamodels import VisaProject
+from App.models.Product.Visamodels import VisaProject
 import sys
 
 def update_visa_projects(dry_run=False, limit=None):

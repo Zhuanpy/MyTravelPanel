@@ -151,12 +151,9 @@
                     <th>类型</th>
                     <th>描述</th>
                     <th>供应商</th>
-                    <th>供应商联系人</th>
-                    <th>供应商电话</th>
                     <th>销售价格</th>
                     <th>成本价格</th>
                     <th>货币</th>
-                    <th>预计交付日期</th>
                     <th>状态</th>
                     <th>支付状态</th>
                     <th>操作</th>
@@ -217,8 +214,6 @@ function addNewRow() {
                 {% endfor %}
             </select>
         </td>
-        <td><input type="text" class="form-control" name="supplier_contact[]"></td>
-        <td><input type="text" class="form-control" name="supplier_phone[]"></td>
         <td><input type="number" step="0.01" class="form-control selling-input" name="selling_price[]" value="0" onchange="updateTotals(this)"></td>
         <td><input type="number" step="0.01" class="form-control cost-input" name="cost_price[]" value="0" onchange="updateTotals(this)"></td>
         <td>
@@ -228,7 +223,6 @@ function addNewRow() {
                 <option value="USD">USD</option>
             </select>
         </td>
-        <td><input type="date" class="form-control" name="expected_delivery_date[]"></td>
         <td>
             <select class="form-control" name="ref_status[]">
                 <option value="draft">草稿</option>
@@ -397,12 +391,9 @@ function saveRefs() {
     formData.append('supplier_id', supplierId);
     formData.append('name', row.querySelector('[name="ref_name[]"]').value || '');
     formData.append('description', description);
-    formData.append('supplier_contact', row.querySelector('[name="supplier_contact[]"]').value || '');
-    formData.append('supplier_phone', row.querySelector('[name="supplier_phone[]"]').value || '');
     formData.append('selling_price', row.querySelector('[name="selling_price[]"]').value || '0');
     formData.append('cost_price', row.querySelector('[name="cost_price[]"]').value || '0');
     formData.append('currency', row.querySelector('[name="currency[]"]').value);
-    formData.append('expected_delivery_date', row.querySelector('[name="expected_delivery_date[]"]').value || '');
     formData.append('status', row.querySelector('[name="ref_status[]"]').value);
     formData.append('payment_status', row.querySelector('[name="ref_payment_status[]"]').value);
     formData.append('remarks', row.querySelector('[name="remarks[]"]').value || '');

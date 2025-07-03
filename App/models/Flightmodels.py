@@ -2,6 +2,8 @@ from ..exts import db
 from datetime import datetime
 from sqlalchemy import DECIMAL
 from ..code.utils.cache import cached
+# 导入项目相关模型
+from .projects.BookingProject import ProjectHeader, ProjectRef
 
 
 class AirportData(db.Model):
@@ -87,16 +89,21 @@ class FlightOrder(db.Model):
     __tablename__ = 'flight_orders'
     
     id = db.Column(db.Integer, primary_key=True)
-    order_number = db.Column(db.String(20), unique=True, nullable=False, comment='订单编号')
+    order_number = db.Column(db.String(50), unique=True, nullable=False, comment='订单编号')
     hid_number = db.Column(db.String(50), comment='会员号')
-    passenger_name = db.Column(db.String(50), nullable=False, comment='乘客姓名')
-    contact_person = db.Column(db.String(50), comment='联系人')
+    
+    # 项目关联字段
+    project_header_id = db.Column(db.Integer, db.ForeignKey('project_headers.id'), nullable=True, comment='关联项目主表ID')
+    project_ref_id = db.Column(db.Integer, db.ForeignKey('project_refs.id'), nullable=True, comment='关联项目明细ID')
+    
+    passenger_name = db.Column(db.String(100), nullable=False, comment='乘客姓名')
+    contact_person = db.Column(db.String(100), comment='联系人')
     contact_phone = db.Column(db.String(20), nullable=True, comment='联系人电话')
     contact_name = db.Column(db.String(50), nullable=False, comment='联系人姓名')
     supplier_name = db.Column(db.String(100), comment='供应商名称')
     
     # 航班信息
-    departure_date = db.Column(db.Date, comment='出发日期')
+    departure_date = db.Column(db.Date, nullable=False, comment='出发日期')
     itinerary = db.Column(db.String(200), comment='行程信息')
     departure_city = db.Column(db.String(50), comment='出发城市')
     arrival_city = db.Column(db.String(50), comment='到达城市')
@@ -114,16 +121,18 @@ class FlightOrder(db.Model):
     status = db.Column(db.String(20), nullable=False, default='pending', comment='订单状态')
     order_status = db.Column(db.String(20), comment='订单状态')
     payment_status = db.Column(db.String(20), comment='支付状态')
-    payment_method = db.Column(db.String(20), comment='支付方式')
+    payment_method = db.Column(db.String(30), comment='支付方式')
     selling_price = db.Column(DECIMAL(10, 2), comment='售价')
     cost_price = db.Column(DECIMAL(10, 2), comment='成本')
-    actual_payment = db.Column(DECIMAL(10, 2), comment='实际支付金额')
+    actual_payment = db.Column(db.Float, comment='实际支付金额')
     
     # 票务信息
     ticket_issue_time = db.Column(db.DateTime, comment='出票时间')
     operator = db.Column(db.String(50), comment='操作员')
     refund_change_policy = db.Column(db.Text, comment='退改政策')
     baggage_allowance = db.Column(db.String(100), comment='行李额')
+    pnr_code = db.Column(db.String(20), comment='PNR编码')
+    e_ticket_number = db.Column(db.String(50), comment='电子客票号')
     client_type = db.Column(db.String(20), comment='客户类型')
     
     # 其他信息
@@ -135,6 +144,10 @@ class FlightOrder(db.Model):
     # 关联信息
     passengers = db.relationship('Passenger', backref='order', lazy=True)
     flight_segments = db.relationship('FlightSegment', backref='order', lazy=True)
+    
+    # 项目关联关系
+    project_header = db.relationship('ProjectHeader', backref='flight_orders', lazy=True)
+    project_ref = db.relationship('ProjectRef', backref='flight_orders', lazy=True)
 
     @property
     @cached(expire_minutes=30)
@@ -164,6 +177,19 @@ class FlightOrder(db.Model):
             last_segment = max(self.flight_segments, key=lambda x: x.departure_time)
             return last_segment.arrival_airport
         return self.arrival_city
+
+    # 从机票订单访问项目信息
+    @property
+    @cached(expire_minutes=30)
+    def project_header_hid(self):
+        """获取HID编号"""
+        return self.project_header.hid if self.project_header else None
+
+    @property
+    @cached(expire_minutes=30)
+    def project_ref_ref_number(self):
+        """获取REF编号"""
+        return self.project_ref.ref_number if self.project_ref else None
 
 
 class Passenger(db.Model):

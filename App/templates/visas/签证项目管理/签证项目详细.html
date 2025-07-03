@@ -1494,7 +1494,11 @@ function showMessage(message, type) {
 }
 
 function openProjectFolder(folderName, visaType) {
-    fetch(`/visa/project/open_folder?folder_type=project&project_folder=${folderName}&visa_type=${visaType}`, {
+    // 对参数进行URL编码，确保特殊字符被正确处理
+    const encodedFolderName = encodeURIComponent(folderName);
+    const encodedVisaType = encodeURIComponent(visaType);
+    
+    fetch(`/visa/project/open_folder?folder_type=project&project_folder=${encodedFolderName}&visa_type=${encodedVisaType}`, {
         method: 'GET',
         headers: {
             'X-Requested-With': 'XMLHttpRequest'
@@ -1515,7 +1519,10 @@ function openProjectFolder(folderName, visaType) {
 }
 
 function openVisaTypeFolder(visaType) {
-    fetch(`/visa/project/open_folder?folder_type=visa_type&visa_type=${visaType}`, {
+    // 对参数进行URL编码，确保特殊字符被正确处理
+    const encodedVisaType = encodeURIComponent(visaType);
+    
+    fetch(`/visa/project/open_folder?folder_type=visa_type&visa_type=${encodedVisaType}`, {
         method: 'GET',
         headers: {
             'X-Requested-With': 'XMLHttpRequest'

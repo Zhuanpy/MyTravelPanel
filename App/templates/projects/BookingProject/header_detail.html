@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}项目详情 - {{ header.hid }}{% endblock %}
+{% block content %}
+<div class="container mt-4">
+    <h2>项目主表信息</h2>
+    <table class="table">
+        <tr><th>编号</th><td>{{ header.hid }}</td></tr>
+        <tr><th>描述</th><td>{{ header.desc }}</td></tr>
+        <tr><th>公司</th><td>{{ header.company_name }}</td></tr>
+        <tr><th>经办人</th><td>{{ header.staff_name }}</td></tr>
+        <tr><th>币种</th><td>{{ header.currency }}</td></tr>
+        <tr><th>状态</th><td>{{ header.status }}</td></tr>
+    </table>
+    <hr>
+    <h3>明细列表（REF）</h3>
+    <a href="{{ url_for('projects.create_ref', header_id=header.id) }}" class="btn btn-success mb-2">添加明细</a>
+    <table class="table table-bordered">
+        <thead>
+            <tr>
+                <th>REF编号</th>
+                <th>名称</th>
+                <th>类型</th>
+                <th>供应商</th>
+                <th>金额</th>
+                <th>状态</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for ref in header.refs %}
+            <tr>
+                <td>{{ ref.ref_number }}</td>
+                <td>{{ ref.name }}</td>
+                <td>{{ ref.ref_type.name if ref.ref_type else '' }}</td>
+                <td>{{ ref.supplier.name if ref.supplier else '' }}</td>
+                <td>{{ ref.selling_price or '' }}</td>
+                <td>{{ ref.status }}</td>
+                <td>
+                    <a href="{{ url_for('projects.ref_detail', ref_id=ref.id) }}" class="btn btn-sm btn-info">详情</a>
+                    <a href="{{ url_for('projects.edit_ref', ref_id=ref.id) }}" class="btn btn-sm btn-warning">编辑</a>
+                    <a href="{{ url_for('projects.delete_ref', ref_id=ref.id) }}" class="btn btn-sm btn-danger">删除</a>
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %} 

@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, request, jsonify, redirect, url_for, flash
 from App.exts import db
 from ....models.projects.TourProject import TourGroup, TourItinerary,TourProject
-from ....models.Packagemodels import CompanyInfo, TourProduct
+from App.models.Product.Packagemodels import CompanyInfo
 from datetime import datetime
 import os
 import sys
@@ -9,8 +9,6 @@ import subprocess
 import urllib.parse
 import html
 import logging
-from App.exts import csrf
-from flask_wtf.csrf import CSRFError
 
 # 创建蓝图
 tour_projects = Blueprint('tour_projects', __name__)
@@ -375,7 +373,7 @@ def view_tour_itinerary(group_id):
 @tour_projects.route('/groups/<int:group_id>/edit', methods=['GET', 'POST'])
 def edit_tour_group(group_id):
     from App.models.projects.TourProject import TourGroup, TourItinerary
-    from flask import request, redirect, url_for, render_template, flash, jsonify
+    from flask import request, redirect, url_for, flash, jsonify
     from datetime import datetime
     
     group = TourGroup.query.get_or_404(group_id)
@@ -460,7 +458,6 @@ def edit_tour_group(group_id):
 @tour_projects.route('/group/<int:group_id>/delete', methods=['POST'])
 def delete_tour_group(group_id):
     """删除行程团"""
-    from App.exts import csrf
     from flask_wtf.csrf import CSRFError
     
     try:
@@ -525,7 +522,6 @@ def add_itinerary(group_id):
 def edit_itinerary(itinerary_id):
     """编辑行程安排"""
     from flask import jsonify
-    from App.exts import csrf
     from flask_wtf.csrf import CSRFError
     
     itinerary = TourItinerary.query.get_or_404(itinerary_id)
@@ -575,7 +571,6 @@ def edit_itinerary(itinerary_id):
 @tour_projects.route('/itinerary/<int:itinerary_id>/delete', methods=['POST'])
 def delete_itinerary(itinerary_id):
     """删除行程安排"""
-    from App.exts import csrf
     from flask_wtf.csrf import CSRFError
     
     try:
@@ -703,7 +698,6 @@ def project_details(project_id):
 def create_itinerary(group_id):
     from App.models.projects.TourProject import TourItinerary, TourGroup
     from flask import request, redirect, url_for, render_template, flash, jsonify
-    from App.exts import csrf
     from flask_wtf.csrf import CSRFError
     
     group = TourGroup.query.get_or_404(group_id)

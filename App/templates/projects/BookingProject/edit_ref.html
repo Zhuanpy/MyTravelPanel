@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+{% block title %}编辑明细（REF）{% endblock %}
+{% block content %}
+<div class="container mt-4">
+    <h2>编辑明细（REF）</h2>
+    <form method="post">
+        {{ form.hidden_tag() }}
+        <div class="row">
+            <div class="col-md-6">
+                <div class="mb-3">
+                    {{ form.ref_number.label(class="form-label") }}
+                    {{ form.ref_number(class="form-control", readonly=true) }}
+                    {% if form.ref_number.errors %}
+                        <div class="text-danger">
+                            {% for error in form.ref_number.errors %}
+                                <small>{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+                <div class="mb-3">
+                    {{ form.name.label(class="form-label") }}
+                    {{ form.name(class="form-control") }}
+                    {% if form.name.errors %}
+                        <div class="text-danger">
+                            {% for error in form.name.errors %}
+                                <small>{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+                <div class="mb-3">
+                    {{ form.ref_type_id.label(class="form-label") }}
+                    {{ form.ref_type_id(class="form-select") }}
+                    {% if form.ref_type_id.errors %}
+                        <div class="text-danger">
+                            {% for error in form.ref_type_id.errors %}
+                                <small>{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+                <div class="mb-3">
+                    {{ form.description.label(class="form-label") }}
+                    {{ form.description(class="form-control") }}
+                    {% if form.description.errors %}
+                        <div class="text-danger">
+                            {% for error in form.description.errors %}
+                                <small>{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="mb-3">
+                    {{ form.supplier_id.label(class="form-label") }}
+                    {{ form.supplier_id(class="form-select") }}
+                    {% if form.supplier_id.errors %}
+                        <div class="text-danger">
+                            {% for error in form.supplier_id.errors %}
+                                <small>{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+                <div class="mb-3">
+                    {{ form.selling_price.label(class="form-label") }}
+                    {{ form.selling_price(class="form-control") }}
+                    {% if form.selling_price.errors %}
+                        <div class="text-danger">
+                            {% for error in form.selling_price.errors %}
+                                <small>{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+                <div class="mb-3">
+                    {{ form.cost_price.label(class="form-label") }}
+                    {{ form.cost_price(class="form-control") }}
+                    {% if form.cost_price.errors %}
+                        <div class="text-danger">
+                            {% for error in form.cost_price.errors %}
+                                <small>{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+                <div class="mb-3">
+                    {{ form.currency.label(class="form-label") }}
+                    {{ form.currency(class="form-select") }}
+                    {% if form.currency.errors %}
+                        <div class="text-danger">
+                            {% for error in form.currency.errors %}
+                                <small>{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-6">
+                <div class="mb-3">
+                    {{ form.status.label(class="form-label") }}
+                    {{ form.status(class="form-select") }}
+                    {% if form.status.errors %}
+                        <div class="text-danger">
+                            {% for error in form.status.errors %}
+                                <small>{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="mb-3">
+                    {{ form.payment_status.label(class="form-label") }}
+                    {{ form.payment_status(class="form-select") }}
+                    {% if form.payment_status.errors %}
+                        <div class="text-danger">
+                            {% for error in form.payment_status.errors %}
+                                <small>{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="mb-3">
+            {{ form.remarks.label(class="form-label") }}
+            {{ form.remarks(class="form-control", rows=3) }}
+            {% if form.remarks.errors %}
+                <div class="text-danger">
+                    {% for error in form.remarks.errors %}
+                        <small>{{ error }}</small>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+        <div class="d-flex gap-2">
+            {{ form.submit(class="btn btn-primary", value="保存修改") }}
+            <a href="{{ url_for('projects.header_detail', header_id=ref.header_id) }}" class="btn btn-secondary">取消</a>
+        </div>
+    </form>
+</div>
+{% endblock %} 

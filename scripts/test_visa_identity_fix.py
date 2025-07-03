@@ -11,7 +11,7 @@ import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from App import create_app
-from App.models.Visamodels import db, VisaTypes, VisaSingaporeIdentity, VisaDocuments
+from App.models.Product.Visamodels import db, VisaTypes, VisaSingaporeIdentity, VisaDocuments
 from sqlalchemy import text
 
 def test_visa_identity_consistency():

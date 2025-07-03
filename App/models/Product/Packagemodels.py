@@ -1,6 +1,6 @@
 from datetime import datetime
 from datetime import date
-from ..exts import db  # 确保你已正确导入 db 对象
+from App.exts import db  # 确保你已正确导入 db 对象
 from sqlalchemy import Date
 from flask_sqlalchemy import SQLAlchemy
 

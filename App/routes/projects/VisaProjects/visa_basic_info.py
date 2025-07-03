@@ -2,9 +2,9 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from pathlib import Path
 from App.exts import db, csrf
 from App.models import VisaCountries, VisaTypes, VisaSingaporeIdentity, VisaDocuments
-from App.models.Visamodels import VisaDocumentsList
+from App.models.Product.Visamodels import VisaDocumentsList
 from flask_wtf import FlaskForm
-from wtforms import StringField, SelectMultipleField
+from wtforms import StringField
 from wtforms.validators import DataRequired
 import time
 

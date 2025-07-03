@@ -2,8 +2,8 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from App import create_app, db
-from App.models.Visamodels import VisaProject, VisaTypes
+from App import create_app
+from App.models.Product.Visamodels import VisaProject, VisaTypes
 
 def check_visa_project(project_id):
     """检查签证项目是否存在"""

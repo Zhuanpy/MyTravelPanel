@@ -1,9 +1,9 @@
 from flask import Blueprint, render_template, request, jsonify, redirect, url_for, flash
 from App.models.Flightmodels import FlightOrder, Passenger, FlightSegment, FlightSchedule, AirportData
-from App.models.Suppliers import Supplier
-from App.models.Visamodels import VisaCountries
+from App.models.Product.Suppliers import Supplier
+from App.models.Product.Visamodels import VisaCountries
 from datetime import datetime, timedelta
-from App.exts import db, cache
+from App.exts import db
 import random
 import string
 

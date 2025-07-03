@@ -1,7 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, jsonify
-from ..models.BusinessType import BusinessType
+from App.models.Product.BusinessType import BusinessType
 from ..exts import db
-from datetime import datetime
 
 business_types = Blueprint('business_types', __name__)
 

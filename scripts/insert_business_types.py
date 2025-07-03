@@ -1,5 +1,5 @@
 from App import create_app
-from App.models.BusinessType import BusinessType
+from App.models.Product.BusinessType import BusinessType
 from App.exts import db
 
 def insert_business_types():

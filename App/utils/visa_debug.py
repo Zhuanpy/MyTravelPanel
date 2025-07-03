@@ -1,8 +1,7 @@
 """
 签证文档调试工具
 """
-from flask import current_app
-from ..models.Visamodels import VisaDocuments, VisaTypes, VisaDocumentsList, VisaSingaporeIdentity
+from App.models.Product.Visamodels import VisaDocuments, VisaTypes, VisaDocumentsList
 from ..exts import db
 
 

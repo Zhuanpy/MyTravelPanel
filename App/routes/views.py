@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, jsonify, send_from_directory
-from ..models.Packagemodels import ProductCity
-from ..models.Visamodels import VisaTypes
+from App.models.Product.Packagemodels import ProductCity
+from App.models.Product.Visamodels import VisaTypes
 import os
 from pathlib import Path
 

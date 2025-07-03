@@ -1,10 +1,9 @@
 from flask import Blueprint, render_template, request, jsonify, send_file, flash, redirect, url_for
-from ..models.Packagemodels import db, TourProduct, CompanyInfo
+from App.models.Product.Packagemodels import db, TourProduct, CompanyInfo
 import io
 import pdfkit
 from datetime import datetime
 import os
-import re
 import base64
 
 # 创建蓝图

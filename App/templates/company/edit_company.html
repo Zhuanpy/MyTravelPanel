@@ -1,0 +1,210 @@
+{% extends "base.html" %}
+{% block title %}编辑公司 - {{ company.company_name }}{% endblock %}
+{% block content %}
+<div class="container mt-4">
+    <h2>编辑公司 - {{ company.company_name }}</h2>
+    
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+    
+    <form method="post" action="{{ url_for('company.edit_company', company_id=company.id) }}">
+        {{ form.hidden_tag() }}
+        
+        <!-- 第一行：公司名称*、公司代码、联系人、联系电话 -->
+        <div class="row">
+            <div class="col-md-3">
+                <div class="mb-3">
+                    {{ form.company_name.label(class="form-label") }} <span class="text-danger">*</span>
+                    {{ form.company_name(class="form-control") }}
+                    {% if form.company_name.errors %}
+                        <div class="text-danger">
+                            {% for error in form.company_name.errors %}
+                                <small>{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="col-md-3">
+                <div class="mb-3">
+                    {{ form.company_code.label(class="form-label") }}
+                    {{ form.company_code(class="form-control") }}
+                    {% if form.company_code.errors %}
+                        <div class="text-danger">
+                            {% for error in form.company_code.errors %}
+                                <small>{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="col-md-3">
+                <div class="mb-3">
+                    {{ form.contact_person.label(class="form-label") }}
+                    {{ form.contact_person(class="form-control") }}
+                    {% if form.contact_person.errors %}
+                        <div class="text-danger">
+                            {% for error in form.contact_person.errors %}
+                                <small>{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="col-md-3">
+                <div class="mb-3">
+                    {{ form.contact_phone.label(class="form-label") }}
+                    {{ form.contact_phone(class="form-control") }}
+                    {% if form.contact_phone.errors %}
+                        <div class="text-danger">
+                            {% for error in form.contact_phone.errors %}
+                                <small>{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- 第二行：联系邮箱、行业、公司规模、状态 -->
+        <div class="row">
+            <div class="col-md-3">
+                <div class="mb-3">
+                    {{ form.contact_email.label(class="form-label") }}
+                    {{ form.contact_email(class="form-control") }}
+                    {% if form.contact_email.errors %}
+                        <div class="text-danger">
+                            {% for error in form.contact_email.errors %}
+                                <small>{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="col-md-3">
+                <div class="mb-3">
+                    {{ form.industry.label(class="form-label") }}
+                    {{ form.industry(class="form-select") }}
+                    {% if form.industry.errors %}
+                        <div class="text-danger">
+                            {% for error in form.industry.errors %}
+                                <small>{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="col-md-3">
+                <div class="mb-3">
+                    {{ form.company_size.label(class="form-label") }}
+                    {{ form.company_size(class="form-select") }}
+                    {% if form.company_size.errors %}
+                        <div class="text-danger">
+                            {% for error in form.company_size.errors %}
+                                <small>{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="col-md-3">
+                <div class="mb-3">
+                    {{ form.status.label(class="form-label") }} <span class="text-danger">*</span>
+                    {{ form.status(class="form-select") }}
+                    {% if form.status.errors %}
+                        <div class="text-danger">
+                            {% for error in form.status.errors %}
+                                <small>{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- 第三行：信用额度、币种 -->
+        <div class="row">
+            <div class="col-md-3">
+                <div class="mb-3">
+                    {{ form.credit_limit.label(class="form-label") }}
+                    {{ form.credit_limit(class="form-control") }}
+                    {% if form.credit_limit.errors %}
+                        <div class="text-danger">
+                            {% for error in form.credit_limit.errors %}
+                                <small>{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="col-md-3">
+                <div class="mb-3">
+                    {{ form.currency.label(class="form-label") }} <span class="text-danger">*</span>
+                    {{ form.currency(class="form-select") }}
+                    {% if form.currency.errors %}
+                        <div class="text-danger">
+                            {% for error in form.currency.errors %}
+                                <small>{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- 第四行：公司地址 -->
+        <div class="row">
+            <div class="col-12">
+                <div class="mb-3">
+                    {{ form.address.label(class="form-label") }}
+                    {{ form.address(class="form-control", rows=3) }}
+                    {% if form.address.errors %}
+                        <div class="text-danger">
+                            {% for error in form.address.errors %}
+                                <small>{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- 第五行：备注 -->
+        <div class="row">
+            <div class="col-12">
+                <div class="mb-3">
+                    {{ form.remarks.label(class="form-label") }} <small class="text-muted">(可选)</small>
+                    {{ form.remarks(class="form-control", rows=3) }}
+                    {% if form.remarks.errors %}
+                        <div class="text-danger">
+                            {% for error in form.remarks.errors %}
+                                <small>{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="d-flex gap-2">
+            {{ form.submit(class="btn btn-primary") }}
+            <a href="{{ url_for('company.company_detail', company_id=company.id) }}" class="btn btn-secondary">{{ form.cancel.label }}</a>
+        </div>
+    </form>
+</div>
+{% endblock %} 

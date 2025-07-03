@@ -1,15 +1,13 @@
 """
 项目管理服务
 """
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any
 from datetime import datetime, date
-from sqlalchemy import and_, or_
+from sqlalchemy import or_
 from flask import current_app
 
 from .base_service import BaseService, ServiceResponse
-from ..models.Project import Project, ProjectRef, ProjectEO, Customer
-from ..models.BusinessType import BusinessType
-from ..models.Suppliers import Supplier
+from App.models.projects.BookingProject import ProjectHeader, Customer
 from ..utils.validators import ProjectValidator
 from ..utils.exceptions import ValidationError, BusinessLogicError, ResourceNotFoundError
 
@@ -17,58 +15,34 @@ from ..utils.exceptions import ValidationError, BusinessLogicError, ResourceNotF
 class ProjectService(BaseService):
     """项目管理服务"""
     
-    model = Project
+    model = ProjectHeader
     
     @classmethod
     def validate_create_data(cls, data: Dict[str, Any]) -> None:
         """验证创建项目数据"""
         ProjectValidator.validate_project_data(data)
-        
-        # 验证日期逻辑
-        start_date = data.get('start_date')
-        end_date = data.get('end_date')
-        
-        if isinstance(start_date, str):
-            start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
-        if isinstance(end_date, str):
-            end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
-        
-        if start_date and end_date and start_date > end_date:
-            raise ValidationError("Start date cannot be after end date")
     
     @classmethod
-    def validate_update_data(cls, data: Dict[str, Any], instance: Project) -> None:
+    def validate_update_data(cls, data: Dict[str, Any], instance: ProjectHeader) -> None:
         """验证更新项目数据"""
         # 只验证提供的字段
-        if 'project_name' in data:
+        if 'desc' in data:
             ProjectValidator.validate_project_data(data)
-        
-        # 验证日期逻辑
-        start_date = data.get('start_date', instance.start_date)
-        end_date = data.get('end_date', instance.end_date)
-        
-        if isinstance(start_date, str):
-            start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
-        if isinstance(end_date, str):
-            end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
-        
-        if start_date and end_date and start_date > end_date:
-            raise ValidationError("Start date cannot be after end date")
     
     @classmethod
     def create_project_with_customer(cls, project_data: Dict[str, Any], 
                                    customer_data: Dict[str, Any] = None) -> ServiceResponse:
         """创建项目并关联客户"""
         try:
-            # 如果提供了客户数据，先创建或获取客户
-            customer = None
-            if customer_data:
-                customer = CustomerService.create_or_get_customer(customer_data)
-                project_data['customer_id'] = customer.id
+            # 如果提供了客户数据，先创建或获取客户（暂时注释掉，因为ProjectHeader模型没有customer_id字段）
+            # customer = None
+            # if customer_data:
+            #     customer = CustomerService.create_or_get_customer(customer_data)
+            #     project_data['customer_id'] = customer.id
             
             # 生成项目编号
             if 'hid' not in project_data:
-                project_data['hid'] = cls.generate_project_hid()
+                project_data['hid'] = ProjectHeader.generate_hid()
             
             # 创建项目
             project = cls.create(project_data)
@@ -86,13 +60,7 @@ class ProjectService(BaseService):
             current_app.logger.error(f"Unexpected error creating project: {str(e)}")
             return ServiceResponse.error_response(message="Failed to create project")
     
-    @classmethod
-    def generate_project_hid(cls) -> str:
-        """生成项目编号"""
-        # 这里可以实现更复杂的编号生成逻辑
-        from datetime import datetime
-        timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
-        return f"PRJ{timestamp}"
+
     
     @classmethod
     def get_project_with_details(cls, project_id: int) -> ServiceResponse:
@@ -103,7 +71,6 @@ class ProjectService(BaseService):
             # 获取项目相关的所有数据
             project_data = {
                 'project': project.to_dict() if hasattr(project, 'to_dict') else project,
-                'customer': project.customer.to_dict() if project.customer and hasattr(project.customer, 'to_dict') else project.customer,
                 'refs': [ref.to_dict() if hasattr(ref, 'to_dict') else ref for ref in project.refs],
                 'total_refs': len(project.refs),
                 'total_amount': sum(ref.selling_price or 0 for ref in project.refs),
@@ -123,7 +90,6 @@ class ProjectService(BaseService):
     
     @classmethod
     def search_projects(cls, query: str = None, status: str = None, 
-                       start_date: date = None, end_date: date = None,
                        page: int = 1, per_page: int = 20) -> ServiceResponse:
         """搜索项目"""
         try:
@@ -133,9 +99,9 @@ class ProjectService(BaseService):
             if query:
                 search_query = search_query.filter(
                     or_(
-                        cls.model.project_name.ilike(f'%{query}%'),
+                        cls.model.desc.ilike(f'%{query}%'),
                         cls.model.hid.ilike(f'%{query}%'),
-                        cls.model.name.ilike(f'%{query}%')
+                        cls.model.company_name.ilike(f'%{query}%')
                     )
                 )
             
@@ -143,11 +109,11 @@ class ProjectService(BaseService):
             if status:
                 search_query = search_query.filter(cls.model.status == status)
             
-            # 日期范围过滤
-            if start_date:
-                search_query = search_query.filter(cls.model.start_date >= start_date)
-            if end_date:
-                search_query = search_query.filter(cls.model.end_date <= end_date)
+            # 日期范围过滤（暂时注释掉，因为ProjectHeader模型没有start_date和end_date字段）
+            # if start_date:
+            #     search_query = search_query.filter(cls.model.start_date >= start_date)
+            # if end_date:
+            #     search_query = search_query.filter(cls.model.end_date <= end_date)
             
             # 分页
             pagination = search_query.paginate(
@@ -185,7 +151,7 @@ class ProjectService(BaseService):
                 'total_projects': cls.model.query.count(),
                 'active_projects': cls.model.query.filter(cls.model.status == 'active').count(),
                 'completed_projects': cls.model.query.filter(cls.model.status == 'completed').count(),
-                'total_amount': cls.model.query.with_entities(func.sum(cls.model.total_amount)).scalar() or 0,
+                'total_amount': 0,  # ProjectHeader模型没有total_amount字段，暂时设为0
                 'projects_by_status': {}
             }
             

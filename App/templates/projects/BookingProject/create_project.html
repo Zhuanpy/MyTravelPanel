@@ -89,14 +89,9 @@
     }
 
     .ref-content {
-        display: none;
         padding: 10px;
         border: 1px solid #ddd;
         margin-bottom: 10px;
-    }
-
-    .ref-content.active {
-        display: block;
     }
 
     .eo-section {
@@ -258,17 +253,9 @@
                         <select class="form-control" name="supplier_id[]">
                             <option value="">请选择</option>
                             {% for supplier in suppliers %}
-                            <option value="{{ supplier.id }}">{{ supplier.name }}</option>
+                            <option value="{{ supplier.supplier_id }}">{{ supplier.name }}</option>
                             {% endfor %}
                         </select>
-                    </div>
-                    <div class="header-row">
-                        <span class="header-label">供应商联系人:</span>
-                        <input type="text" class="form-control" name="supplier_contact[]">
-                    </div>
-                    <div class="header-row">
-                        <span class="header-label">供应商电话:</span>
-                        <input type="text" class="form-control" name="supplier_phone[]">
                     </div>
                     <div class="header-row">
                         <span class="header-label">销售价格:</span>
@@ -285,10 +272,6 @@
                             <option value="CNY">CNY</option>
                             <option value="USD">USD</option>
                         </select>
-                    </div>
-                    <div class="header-row">
-                        <span class="header-label">预计交付日期:</span>
-                        <input type="date" class="form-control" name="expected_delivery_date[]">
                     </div>
                     <div class="header-row">
                         <span class="header-label">备注:</span>
@@ -346,7 +329,73 @@ function addRef() {
             <button class="add-button" onclick="addEO(this)">添加EO</button>
         </div>
         <div class="ref-content">
-            <!-- REF fields will be added here -->
+            <div class="header-row">
+                <span class="header-label">REF编号:</span>
+                <input type="text" class="form-control" name="ref_number[]" readonly>
+            </div>
+            <div class="header-row">
+                <span class="header-label">REF名称:</span>
+                <input type="text" class="form-control" name="ref_name[]">
+            </div>
+            <div class="header-row">
+                <span class="header-label">REF类型:</span>
+                <select class="form-control" name="ref_type_id[]" required>
+                    {% for type in business_types %}
+                    <option value="{{ type.id }}">{{ type.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="header-row">
+                <span class="header-label">描述:</span>
+                <textarea class="form-control" name="ref_description[]" required></textarea>
+            </div>
+            <div class="header-row">
+                <span class="header-label">供应商:</span>
+                <select class="form-control" name="supplier_id[]">
+                    <option value="">请选择</option>
+                    {% for supplier in suppliers %}
+                    <option value="{{ supplier.supplier_id }}">{{ supplier.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="header-row">
+                <span class="header-label">销售价格:</span>
+                <input type="number" class="form-control" name="selling_price[]" step="0.01">
+            </div>
+            <div class="header-row">
+                <span class="header-label">成本价格:</span>
+                <input type="number" class="form-control" name="cost_price[]" step="0.01">
+            </div>
+            <div class="header-row">
+                <span class="header-label">货币:</span>
+                <select class="form-control" name="currency[]">
+                    <option value="SGD">SGD</option>
+                    <option value="CNY">CNY</option>
+                    <option value="USD">USD</option>
+                </select>
+            </div>
+            <div class="header-row">
+                <span class="header-label">备注:</span>
+                <textarea class="form-control" name="ref_remarks[]"></textarea>
+            </div>
+            <div class="header-row">
+                <span class="header-label">状态:</span>
+                <select class="form-control" name="ref_status[]">
+                    <option value="draft">草稿</option>
+                    <option value="processing">处理中</option>
+                    <option value="completed">已完成</option>
+                    <option value="cancelled">已取消</option>
+                </select>
+            </div>
+            <div class="header-row">
+                <span class="header-label">支付状态:</span>
+                <select class="form-control" name="ref_payment_status[]">
+                    <option value="unpaid">未支付</option>
+                    <option value="partial">部分支付</option>
+                    <option value="paid">已支付</option>
+                    <option value="refunded">已退款</option>
+                </select>
+            </div>
         </div>
     `;
     refsContainer.appendChild(newRef);
@@ -381,7 +430,7 @@ function addEO(refButton) {
             <span class="header-label">供应商:</span>
             <select class="form-control" name="eo_supplier_id[]" required>
                 {% for supplier in suppliers %}
-                <option value="{{ supplier.id }}">{{ supplier.name }}</option>
+                <option value="{{ supplier.supplier_id }}">{{ supplier.name }}</option>
                 {% endfor %}
             </select>
         </div>
@@ -488,12 +537,9 @@ function saveProject() {
         formData.append(`ref_type_id[${refIndex}]`, refContent.querySelector('[name="ref_type_id[]"]').value);
         formData.append(`ref_description[${refIndex}]`, refContent.querySelector('[name="ref_description[]"]').value);
         formData.append(`supplier_id[${refIndex}]`, refContent.querySelector('[name="supplier_id[]"]').value);
-        formData.append(`supplier_contact[${refIndex}]`, refContent.querySelector('[name="supplier_contact[]"]').value);
-        formData.append(`supplier_phone[${refIndex}]`, refContent.querySelector('[name="supplier_phone[]"]').value);
         formData.append(`selling_price[${refIndex}]`, refContent.querySelector('[name="selling_price[]"]').value);
         formData.append(`cost_price[${refIndex}]`, refContent.querySelector('[name="cost_price[]"]').value);
         formData.append(`currency[${refIndex}]`, refContent.querySelector('[name="currency[]"]').value);
-        formData.append(`expected_delivery_date[${refIndex}]`, refContent.querySelector('[name="expected_delivery_date[]"]').value);
         formData.append(`ref_remarks[${refIndex}]`, refContent.querySelector('[name="ref_remarks[]"]').value);
         formData.append(`ref_status[${refIndex}]`, refContent.querySelector('[name="ref_status[]"]').value);
         formData.append(`ref_payment_status[${refIndex}]`, refContent.querySelector('[name="ref_payment_status[]"]').value);
@@ -525,8 +571,8 @@ function saveProject() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            // Redirect to REF creation page
-            window.location.href = `/projects/${data.hid}/create_ref`;
+            // Redirect to project view page
+            window.location.href = `/projects/${data.project_id}`;
         } else {
             alert('保存失败: ' + data.error);
         }
@@ -540,8 +586,6 @@ function saveProject() {
 // 初始化第一个REF的编号
 document.addEventListener('DOMContentLoaded', function() {
     generateRefNumber(0);
-    });
-    </div>
-</div>
+});
 </script>
 {% endblock %} 

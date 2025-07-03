@@ -1,4 +1,4 @@
-from ..exts import db
+from App.exts import db
 from datetime import datetime
 import logging
 from sqlalchemy.orm import validates

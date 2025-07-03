@@ -1,7 +1,6 @@
 from flask import Blueprint, render_template, request, jsonify, flash, redirect, url_for
-from App.models.Visamodels import VisaDocumentsList
+from App.models.Product.Visamodels import VisaDocumentsList
 from App.exts import db
-from flask_wtf.csrf import generate_csrf
 
 visa_documents_list = Blueprint('visa_documents_list', __name__)
 

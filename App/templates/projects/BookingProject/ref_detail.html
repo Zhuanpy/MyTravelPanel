@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}明细详情 - {{ ref.ref_number }}{% endblock %}
+{% block content %}
+<div class="container mt-4">
+    <h2>明细信息（REF）</h2>
+    <table class="table">
+        <tr><th>编号</th><td>{{ ref.ref_number }}</td></tr>
+        <tr><th>名称</th><td>{{ ref.name }}</td></tr>
+        <tr><th>类型</th><td>{{ ref.ref_type.name if ref.ref_type else '' }}</td></tr>
+        <tr><th>供应商</th><td>{{ ref.supplier.name if ref.supplier else '' }}</td></tr>
+        <tr><th>金额</th><td>{{ ref.selling_price or '' }}</td></tr>
+        <tr><th>状态</th><td>{{ ref.status }}</td></tr>
+    </table>
+    <hr>
+    <h3>EO子明细列表</h3>
+    <a href="{{ url_for('projects.create_eo', ref_id=ref.id) }}" class="btn btn-success mb-2">添加EO</a>
+    <table class="table table-bordered">
+        <thead>
+            <tr>
+                <th>EO编号</th>
+                <th>名称</th>
+                <th>类型</th>
+                <th>供应商</th>
+                <th>金额</th>
+                <th>状态</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for eo in ref.eos %}
+            <tr>
+                <td>{{ eo.eo_number }}</td>
+                <td>{{ eo.name }}</td>
+                <td>{{ eo.supplier_type }}</td>
+                <td>{{ eo.supplier.name if eo.supplier else '' }}</td>
+                <td>{{ eo.amount or '' }}</td>
+                <td>{{ eo.status }}</td>
+                <td>
+                    <a href="{{ url_for('projects.edit_eo', eo_id=eo.id) }}" class="btn btn-sm btn-warning">编辑</a>
+                    <a href="{{ url_for('projects.delete_eo', eo_id=eo.id) }}" class="btn btn-sm btn-danger">删除</a>
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %} 

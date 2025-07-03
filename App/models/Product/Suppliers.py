@@ -1,4 +1,4 @@
-from ..exts import db  # 确保你已正确导入 db 对象
+from App.exts import db  # 确保你已正确导入 db 对象
 from datetime import datetime
 
 class Supplier(db.Model):

@@ -1,7 +1,6 @@
 from App import create_app
-from App.models.Visamodels import VisaDocuments, VisaTypes, VisaSingaporeIdentity, VisaDocumentsList
+from App.models.Product.Visamodels import VisaDocuments, VisaTypes, VisaSingaporeIdentity
 from App.exts import db
-import json
 
 app = create_app()
 

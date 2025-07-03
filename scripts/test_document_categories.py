@@ -1,7 +1,5 @@
 from App import create_app
-from App.models.Visamodels import VisaDocumentsList
-from App.exts import db
-import json
+from App.models.Product.Visamodels import VisaDocumentsList
 
 app = create_app()
 

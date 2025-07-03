@@ -1,6 +1,5 @@
 from flask import Blueprint, render_template, request, flash, redirect, url_for, jsonify
-from App.models.Packagemodels import db, CompanyInfo
-from datetime import datetime
+from App.models.Product.Packagemodels import db, CompanyInfo
 import os
 
 # 创建蓝图

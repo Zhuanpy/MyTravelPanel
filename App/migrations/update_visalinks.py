@@ -1,5 +1,5 @@
 from ..exts import db
-from ..models.Visamodels import VisaLinks, VisaTypes
+from App.models.Product.Visamodels import VisaLinks, VisaTypes
 
 def update_visalinks():
     try:

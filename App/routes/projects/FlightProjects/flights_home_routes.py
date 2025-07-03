@@ -1,18 +1,13 @@
 import os
 import subprocess
 from flask import Blueprint, render_template, request, jsonify, flash, redirect, url_for
-from flask import current_app as app
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.exc import NoResultFound
 
 from App.code.FlightTicket.ConvertFlight.read_sql_data import original_airport_code_data, original_flight_timing_data
 
 from App.models.Flightmodels import *
-from App.models.Visamodels import *
+from App.models.Product.Visamodels import *
 from App.forms.flight_forms import FlightScheduleForm
-from App.utils.decorators import login_required, admin_required
-
-from App.code.utils.flightradar24 import get_flight_info
 
 # 创建蓝图
 flight_home = Blueprint('flight_home', __name__, url_prefix='/flight_home')

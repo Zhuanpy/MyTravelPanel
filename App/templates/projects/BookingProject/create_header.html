@@ -1,0 +1,269 @@
+{% extends "base.html" %}
+{% block title %}新建项目主表（HID）{% endblock %}
+{% block content %}
+<div class="container mt-4">
+    <h2>新建项目主表（HID）</h2>
+    
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+    
+    <form method="post" action="{{ url_for('projects.create_header') }}">
+        {{ form.hidden_tag() }}
+        
+        <!-- 第一行：项目编号、项目描述、选择公司、经办人 -->
+        <div class="row">
+            <div class="col-md-3">
+                <div class="mb-3">
+                    {{ form.hid.label(class="form-label") }}
+                    {{ form.hid(class="form-control", readonly=true) }}
+                    {% if form.hid.errors %}
+                        <div class="text-danger">
+                            {% for error in form.hid.errors %}
+                                <small>{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="col-md-3">
+                <div class="mb-3">
+                    {{ form.desc.label(class="form-label") }} <span class="text-danger">*</span>
+                    {{ form.desc(class="form-control") }}
+                    {% if form.desc.errors %}
+                        <div class="text-danger">
+                            {% for error in form.desc.errors %}
+                                <small>{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="col-md-3">
+                <div class="mb-3">
+                    {{ form.company_id.label(class="form-label") }}
+                    {{ form.company_id(class="form-select") }}
+                    {% if form.company_id.errors %}
+                        <div class="text-danger">
+                            {% for error in form.company_id.errors %}
+                                <small>{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="col-md-3">
+                <div class="mb-3">
+                    {{ form.staff_name.label(class="form-label") }} <span class="text-danger">*</span>
+                    {{ form.staff_name(class="form-control") }}
+                    {% if form.staff_name.errors %}
+                        <div class="text-danger">
+                            {% for error in form.staff_name.errors %}
+                                <small>{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- 第二行：公司名称（手动输入） -->
+        <div class="row">
+            <div class="col-md-6">
+                <div class="mb-3">
+                    {{ form.company_name.label(class="form-label") }} <span class="text-danger">*</span>
+                    {{ form.company_name(class="form-control") }}
+                    {% if form.company_name.errors %}
+                        <div class="text-danger">
+                            {% for error in form.company_name.errors %}
+                                <small>{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="mb-3">
+                    <label class="form-label">&nbsp;</label>
+                    <div>
+                        <a href="{{ url_for('company.create_company') }}" target="_blank" class="btn btn-outline-primary btn-sm">
+                            <i class="fas fa-plus"></i> 新增公司
+                        </a>
+                        <small class="text-muted ms-2">如果列表中没有合适的公司，可以点击新增</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 第二行：币种、状态、联系人、部门 -->
+        <div class="row">
+            <div class="col-md-3">
+                <div class="mb-3">
+                    {{ form.currency.label(class="form-label") }}
+                    {{ form.currency(class="form-select") }}
+                    {% if form.currency.errors %}
+                        <div class="text-danger">
+                            {% for error in form.currency.errors %}
+                                <small>{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="col-md-3">
+                <div class="mb-3">
+                    {{ form.status.label(class="form-label") }}
+                    {{ form.status(class="form-select") }}
+                    {% if form.status.errors %}
+                        <div class="text-danger">
+                            {% for error in form.status.errors %}
+                                <small>{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="col-md-3">
+                <div class="mb-3">
+                    {{ form.contact.label(class="form-label") }}
+                    {{ form.contact(class="form-control") }}
+                    {% if form.contact.errors %}
+                        <div class="text-danger">
+                            {% for error in form.contact.errors %}
+                                <small>{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="col-md-3">
+                <div class="mb-3">
+                    {{ form.dept.label(class="form-label") }}
+                    {{ form.dept(class="form-control") }}
+                    {% if form.dept.errors %}
+                        <div class="text-danger">
+                            {% for error in form.dept.errors %}
+                                <small>{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- 第三行：额度限制、国家、类型、来源 -->
+        <div class="row">
+            <div class="col-md-3">
+                <div class="mb-3">
+                    {{ form.limit.label(class="form-label") }}
+                    {{ form.limit(class="form-control") }}
+                    {% if form.limit.errors %}
+                        <div class="text-danger">
+                            {% for error in form.limit.errors %}
+                                <small>{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="col-md-3">
+                <div class="mb-3">
+                    {{ form.country.label(class="form-label") }}
+                    {{ form.country(class="form-control") }}
+                    {% if form.country.errors %}
+                        <div class="text-danger">
+                            {% for error in form.country.errors %}
+                                <small>{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="col-md-3">
+                <div class="mb-3">
+                    {{ form.type.label(class="form-label") }}
+                    {{ form.type(class="form-control") }}
+                    {% if form.type.errors %}
+                        <div class="text-danger">
+                            {% for error in form.type.errors %}
+                                <small>{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="col-md-3">
+                <div class="mb-3">
+                    {{ form.source.label(class="form-label") }}
+                    {{ form.source(class="form-control") }}
+                    {% if form.source.errors %}
+                        <div class="text-danger">
+                            {% for error in form.source.errors %}
+                                <small>{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- 第四行：备注 -->
+        <div class="row">
+            <div class="col-12">
+                <div class="mb-3">
+                    {{ form.remarks.label(class="form-label") }} <small class="text-muted">(可选)</small>
+                    {{ form.remarks(class="form-control", rows=3) }}
+                    {% if form.remarks.errors %}
+                        <div class="text-danger">
+                            {% for error in form.remarks.errors %}
+                                <small>{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="d-flex gap-2">
+            {{ form.submit(class="btn btn-primary") }}
+            <a href="{{ url_for('projects.list_projects') }}" class="btn btn-secondary">{{ form.cancel.label }}</a>
+        </div>
+    </form>
+</div>
+
+<script>
+// 当选择公司时自动填充公司名称
+document.addEventListener('DOMContentLoaded', function() {
+    const companySelect = document.getElementById('company_id');
+    const companyNameInput = document.getElementById('company_name');
+    
+    if (companySelect && companyNameInput) {
+        companySelect.addEventListener('change', function() {
+            const selectedOption = this.options[this.selectedIndex];
+            if (this.value && this.value !== '0') {
+                companyNameInput.value = selectedOption.text;
+            } else {
+                companyNameInput.value = '';
+            }
+        });
+    }
+});
+</script>
+{% endblock %} 
