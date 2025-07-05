@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}创建机票订单{% endblock %}
+{% block title %}创建机票REF{% endblock %}
 
 {% block head %}
 <!-- 添加 Font Awesome -->
@@ -382,22 +382,38 @@
 {% block content %}
 <div class="order-container">
     <div class="order-header">
-        <h1 class="order-title">创建机票订单</h1>
+        <h1 class="order-title">创建机票REF</h1>
         <!-- 顶部按钮 -->
         <div class="text-center" style="margin-bottom: 15px;">
             <button type="submit" form="orderForm" class="order-btn order-btn-primary">
                 <i class="fas fa-save"></i> 提交订单
             </button>
-            <a href="{{ url_for('flights_booking.order_list') }}" class="order-btn order-btn-secondary">
-                <i class="fas fa-arrow-left"></i> 返回列表
+            <a href="{{ url_for('projects.header_detail', header_id=header_id) }}" class="order-btn order-btn-secondary">
+                <i class="fas fa-arrow-left"></i> 返回HID详情
             </a>
         </div>
     </div>
     
-    <form id="orderForm" method="POST" action="{{ url_for('flights_booking.submit_order') }}">
+    <form id="orderForm" method="POST" action="{{ url_for('projects.submit_flight_ref') }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <input type="hidden" name="project_header_id" value="{{ header_id }}">
-        <input type="hidden" name="project_ref_id" value="{{ ref_id or '' }}">
+        <input type="hidden" name="header_id" value="{{ header_id }}">
+        <input type="hidden" name="ref_id" value="{{ ref_id or '' }}">
+        
+        <!-- REF基本信息 -->
+        <div class="order-card">
+            <h2 class="order-section-title">REF基本信息</h2>
+            <div style="display: flex; flex-wrap: nowrap; gap: 10px; align-items: flex-end; overflow-x: auto;">
+                <div style="width: 220px; min-width: 220px; flex-shrink: 0;">
+                    <label class="order-label">REF名称</label>
+                    <input type="text" class="order-input" name="name" value="机票订单" style="width: 100%; box-sizing: border-box;">
+                </div>
+                <div style="width: 220px; min-width: 220px; flex-shrink: 0;">
+                    <label class="order-label">描述</label>
+                    <input type="text" class="order-input" name="description" value="机票订单" style="width: 100%; box-sizing: border-box;">
+                </div>
+            </div>
+        </div>
+        
         <!-- 航段解析器 -->
         <div class="order-card">
             <h2 class="order-section-title">航段解析</h2>
@@ -463,10 +479,10 @@
                         </td>
                         <td style="width: 200px; padding: 0; vertical-align: bottom;">
                             <label class="order-label">供应商名称</label>
-                            <select class="order-input" name="supplier_name" id="supplier_name" required>
+                            <select class="order-input" name="supplier_id" id="supplier_name" required>
                                 <option value="">请选择供应商</option>
                                 {% for supplier in suppliers %}
-                                <option value="{{ supplier.name }}" data-type="{{ supplier.supplier_type }}">{{ supplier.name }}</option>
+                                <option value="{{ supplier.supplier_id }}" data-type="{{ supplier.supplier_type }}">{{ supplier.name }}</option>
                                 {% endfor %}
                             </select>
                         </td>
@@ -511,8 +527,8 @@
             <button type="submit" class="order-btn order-btn-primary">
                 <i class="fas fa-save"></i> 提交订单
             </button>
-            <a href="{{ url_for('flights_booking.order_list') }}" class="order-btn order-btn-secondary">
-                <i class="fas fa-arrow-left"></i> 返回列表
+            <a href="{{ url_for('projects.header_detail', header_id=header_id) }}" class="order-btn order-btn-secondary">
+                <i class="fas fa-arrow-left"></i> 返回HID详情
             </a>
         </div>
     </form>

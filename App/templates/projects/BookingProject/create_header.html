@@ -77,22 +77,25 @@
             </div>
         </div>
         
-        <!-- 第二行：公司名称（手动输入） -->
+        <!-- 第二行：负责人姓名 -->
         <div class="row">
-            <div class="col-md-6">
+            <div class="col-md-3">
                 <div class="mb-3">
-                    {{ form.company_name.label(class="form-label") }} <span class="text-danger">*</span>
-                    {{ form.company_name(class="form-control") }}
-                    {% if form.company_name.errors %}
+                    {{ form.leader_name.label(class="form-label") }}
+                    {{ form.leader_name(class="form-control") }}
+                    {% if form.leader_name.errors %}
                         <div class="text-danger">
-                            {% for error in form.company_name.errors %}
+                            {% for error in form.leader_name.errors %}
                                 <small>{{ error }}</small>
                             {% endfor %}
                         </div>
                     {% endif %}
                 </div>
             </div>
-            
+        </div>
+        
+        <!-- 第二行：新增公司链接 -->
+        <div class="row">
             <div class="col-md-6">
                 <div class="mb-3">
                     <label class="form-label">&nbsp;</label>
@@ -248,22 +251,5 @@
     </form>
 </div>
 
-<script>
-// 当选择公司时自动填充公司名称
-document.addEventListener('DOMContentLoaded', function() {
-    const companySelect = document.getElementById('company_id');
-    const companyNameInput = document.getElementById('company_name');
-    
-    if (companySelect && companyNameInput) {
-        companySelect.addEventListener('change', function() {
-            const selectedOption = this.options[this.selectedIndex];
-            if (this.value && this.value !== '0') {
-                companyNameInput.value = selectedOption.text;
-            } else {
-                companyNameInput.value = '';
-            }
-        });
-    }
-});
-</script>
+
 {% endblock %} 

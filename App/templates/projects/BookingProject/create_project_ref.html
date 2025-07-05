@@ -273,9 +273,9 @@ function updateTotals(input) {
 }
 
 function generateRefNumber() {
-    const hid = document.querySelector('[name="hid"]').value;
+    // 新的REF编号格式：R01, R02, R03...
     const refCount = document.querySelectorAll('.ref-section').length;
-    return `${hid}-R${String(refCount).padStart(2, '0')}`;
+    return `R${String(refCount).padStart(2, '0')}`;
 }
 
 function addEO(button) {

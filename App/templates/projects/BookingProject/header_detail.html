@@ -1,48 +1,621 @@
 {% extends "base.html" %}
 {% block title %}项目详情 - {{ header.hid }}{% endblock %}
 {% block content %}
-<div class="container mt-4">
-    <h2>项目主表信息</h2>
-    <table class="table">
-        <tr><th>编号</th><td>{{ header.hid }}</td></tr>
-        <tr><th>描述</th><td>{{ header.desc }}</td></tr>
-        <tr><th>公司</th><td>{{ header.company_name }}</td></tr>
-        <tr><th>经办人</th><td>{{ header.staff_name }}</td></tr>
-        <tr><th>币种</th><td>{{ header.currency }}</td></tr>
-        <tr><th>状态</th><td>{{ header.status }}</td></tr>
-    </table>
-    <hr>
-    <h3>明细列表（REF）</h3>
-    <a href="{{ url_for('projects.create_ref', header_id=header.id) }}" class="btn btn-success mb-2">添加明细</a>
-    <table class="table table-bordered">
-        <thead>
-            <tr>
-                <th>REF编号</th>
-                <th>名称</th>
-                <th>类型</th>
-                <th>供应商</th>
-                <th>金额</th>
-                <th>状态</th>
-                <th>操作</th>
-            </tr>
-        </thead>
-        <tbody>
-        {% for ref in header.refs %}
-            <tr>
-                <td>{{ ref.ref_number }}</td>
-                <td>{{ ref.name }}</td>
-                <td>{{ ref.ref_type.name if ref.ref_type else '' }}</td>
-                <td>{{ ref.supplier.name if ref.supplier else '' }}</td>
-                <td>{{ ref.selling_price or '' }}</td>
-                <td>{{ ref.status }}</td>
-                <td>
-                    <a href="{{ url_for('projects.ref_detail', ref_id=ref.id) }}" class="btn btn-sm btn-info">详情</a>
-                    <a href="{{ url_for('projects.edit_ref', ref_id=ref.id) }}" class="btn btn-sm btn-warning">编辑</a>
-                    <a href="{{ url_for('projects.delete_ref', ref_id=ref.id) }}" class="btn btn-sm btn-danger">删除</a>
-                </td>
-            </tr>
-        {% endfor %}
-        </tbody>
-    </table>
+<style>
+    .project-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 1rem 2rem;
+        border-radius: 10px;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        min-height: 60px;
+    }
+    
+    .project-title {
+        font-size: 1.5rem;
+        font-weight: 600;
+        margin-bottom: 0.25rem;
+    }
+    
+    .project-subtitle {
+        font-size: 0.9rem;
+        opacity: 0.9;
+        margin-bottom: 0;
+    }
+    
+    .info-card {
+        background: white;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        border: 1px solid #e9ecef;
+    }
+    
+    .info-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 0.75rem;
+        margin-bottom: 1rem;
+    }
+    
+    .info-grid-compact {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 0.5rem;
+        margin-bottom: 0.75rem;
+    }
+    
+    .info-item {
+        display: flex;
+        flex-direction: column;
+        min-height: auto;
+    }
+    
+    .info-label {
+        font-size: 0.75rem;
+        color: #6c757d;
+        font-weight: 500;
+        margin-bottom: 0.125rem;
+        text-transform: uppercase;
+        letter-spacing: 0.25px;
+    }
+    
+    .info-value {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: #212529;
+        line-height: 1.2;
+    }
+    
+    .status-badge {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.875rem;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .status-draft { background-color: #fff3cd; color: #856404; }
+    .status-active { background-color: #d1ecf1; color: #0c5460; }
+    .status-completed { background-color: #d4edda; color: #155724; }
+    .status-cancelled { background-color: #f8d7da; color: #721c24; }
+    
+    .action-buttons {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+    
+    .btn-group-vertical {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .ref-section {
+        background: white;
+        border-radius: 8px;
+        padding: 1.5rem;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        border: 1px solid #e9ecef;
+    }
+    
+    .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+        padding-bottom: 1rem;
+        border-bottom: 2px solid #f8f9fa;
+    }
+    
+    .section-title {
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: #212529;
+        margin: 0;
+    }
+    
+    .add-ref-buttons {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+    
+    .table-responsive {
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    
+    .table th {
+        background-color: #f8f9fa;
+        border-bottom: 2px solid #dee2e6;
+        font-weight: 600;
+        color: #495057;
+        text-transform: uppercase;
+        font-size: 0.875rem;
+        letter-spacing: 0.5px;
+    }
+    
+    .table td {
+        vertical-align: middle;
+    }
+    
+    .navigation-info {
+        background: rgba(255, 255, 255, 0.1);
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        font-size: 0.875rem;
+    }
+    
+    .payment-status-summary {
+        background: #f8f9fa;
+        padding: 1.5rem;
+        border-radius: 8px;
+        border: 1px solid #e9ecef;
+    }
+    
+    .status-item {
+        margin-bottom: 1rem;
+    }
+    
+    .status-label {
+        font-size: 0.875rem;
+        color: #495057;
+        font-weight: 500;
+    }
+    
+    .status-count {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: #212529;
+        background: white;
+        padding: 0.25rem 0.5rem;
+        border-radius: 12px;
+        min-width: 30px;
+        text-align: center;
+    }
+    
+    .progress {
+        background-color: #e9ecef;
+        border-radius: 3px;
+    }
+    
+    .progress-bar {
+        border-radius: 3px;
+    }
+</style>
+
+<div class="container-fluid">
+    <!-- 项目头部 -->
+    <div class="project-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div class="d-flex align-items-center gap-3">
+                <h1 class="project-title mb-0">{{ header.hid }}</h1>
+                <span class="project-subtitle mb-0">| {{ header.desc }}</span>
+            </div>
+            
+            <div class="d-flex align-items-center gap-3">
+                <!-- 导航按钮 -->
+                <div class="d-flex align-items-center gap-2">
+                    {% if prev_header %}
+                        <a href="{{ url_for('projects.header_detail', header_id=prev_header.id) }}" 
+                           class="btn btn-outline-light btn-sm" title="上一个项目: {{ prev_header.hid }}">
+                            <i class="fas fa-chevron-left"></i>
+                        </a>
+                    {% else %}
+                        <button class="btn btn-outline-light btn-sm" disabled>
+                            <i class="fas fa-chevron-left"></i>
+                        </button>
+                    {% endif %}
+                    
+                    <span class="navigation-info">
+                        {% if prev_header and next_header %}
+                            {{ prev_header.hid }} ← {{ header.hid }} → {{ next_header.hid }}
+                        {% elif prev_header %}
+                            {{ prev_header.hid }} ← {{ header.hid }}
+                        {% elif next_header %}
+                            {{ header.hid }} → {{ next_header.hid }}
+                        {% else %}
+                            {{ header.hid }}
+                        {% endif %}
+                    </span>
+                    
+                    {% if next_header %}
+                        <a href="{{ url_for('projects.header_detail', header_id=next_header.id) }}" 
+                           class="btn btn-outline-light btn-sm" title="下一个项目: {{ next_header.hid }}">
+                            <i class="fas fa-chevron-right"></i>
+                        </a>
+                    {% else %}
+                        <button class="btn btn-outline-light btn-sm" disabled>
+                            <i class="fas fa-chevron-right"></i>
+                        </button>
+                    {% endif %}
+                </div>
+                
+                <a href="{{ url_for('projects.list_projects') }}" class="btn btn-light btn-sm">
+                    <i class="fas fa-list"></i> 返回列表
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- 项目基本信息 -->
+    <div class="info-card">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <h3 class="section-title">基本信息</h3>
+            <a href="{{ url_for('projects.edit_header', header_id=header.id) }}" class="btn btn-warning btn-sm">
+                <i class="fas fa-edit"></i> 编辑项目
+            </a>
+        </div>
+        
+        <div class="info-grid">
+            <div class="info-item">
+                <span class="info-label">项目编号</span>
+                <span class="info-value">{{ header.hid }}</span>
+            </div>
+            
+            <div class="info-item">
+                <span class="info-label">经办人</span>
+                <span class="info-value">{{ header.staff_name }}</span>
+            </div>
+            
+            <div class="info-item">
+                <span class="info-label">负责人</span>
+                <span class="info-value">{{ header.leader_name or '未设置' }}</span>
+            </div>
+            
+            <div class="info-item">
+                <span class="info-label">币种</span>
+                <span class="info-value">{{ header.currency or '未设置' }}</span>
+            </div>
+            
+            <div class="info-item">
+                <span class="info-label">状态</span>
+                <span class="status-badge status-{{ header.status }}">
+                    {% if header.status == 'draft' %}草稿
+                    {% elif header.status == 'active' %}进行中
+                    {% elif header.status == 'completed' %}已完成
+                    {% else %}已取消
+                    {% endif %}
+                </span>
+            </div>
+            
+            {% if header.contact %}
+            <div class="info-item">
+                <span class="info-label">联系人</span>
+                <span class="info-value">{{ header.contact }}</span>
+            </div>
+            {% endif %}
+            
+            {% if header.dept %}
+            <div class="info-item">
+                <span class="info-label">部门</span>
+                <span class="info-value">{{ header.dept }}</span>
+            </div>
+            {% endif %}
+            
+            {% if header.limit %}
+            <div class="info-item">
+                <span class="info-label">额度限制</span>
+                <span class="info-value">{{ header.limit }}</span>
+            </div>
+            {% endif %}
+            
+            <div class="info-item">
+                <span class="info-label">公司</span>
+                <span class="info-value">{{ company.company_name if company else '未设置' }}</span>
+            </div>
+
+            <div class="info-item" style="grid-column: 2 / 4;">
+                <span class="info-label">项目描述</span>
+                <span class="info-value">{{ header.desc }}</span>
+            </div>
+            
+            {% if header.remarks %}
+            <div class="info-item" style="grid-column: 2 / 4;">
+                <span class="info-label">备注</span>
+                <span class="info-value">{{ header.remarks }}</span>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+
+    <!-- REF列表 -->
+    <div class="ref-section">
+        <div class="section-header">
+            <h3 class="section-title">REF明细列表</h3>
+            <div class="add-ref-buttons">
+                <a href="{{ url_for('projects.create_flight_ref', header_id=header.id) }}" class="btn btn-success btn-sm">
+                    <i class="fas fa-plane"></i> 机票
+                </a>
+                <a href="{{ url_for('projects.create_hotel_ref', header_id=header.id) }}" class="btn btn-success btn-sm">
+                    <i class="fas fa-bed"></i> 酒店
+                </a>
+                <a href="{{ url_for('projects.create_tour_ref', header_id=header.id) }}" class="btn btn-success btn-sm">
+                    <i class="fas fa-map-marked-alt"></i> 旅游团
+                </a>
+                <a href="{{ url_for('projects.create_visa_ref', header_id=header.id) }}" class="btn btn-success btn-sm">
+                    <i class="fas fa-passport"></i> 签证
+                </a>
+                <a href="{{ url_for('projects.create_insurance_ref', header_id=header.id) }}" class="btn btn-success btn-sm">
+                    <i class="fas fa-shield-alt"></i> 保险
+                </a>
+                <a href="{{ url_for('projects.create_transport_ref', header_id=header.id) }}" class="btn btn-success btn-sm">
+                    <i class="fas fa-car"></i> 交通
+                </a>
+                <a href="{{ url_for('projects.create_other_ref', header_id=header.id) }}" class="btn btn-success btn-sm">
+                    <i class="fas fa-plus"></i> 其他
+                </a>
+            </div>
+        </div>
+        
+        {% if header.refs %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>REF编号</th>
+                        <th>名称</th>
+                        <th>类型</th>
+                        <th>供应商</th>
+                        <th>售价</th>
+                        <th>成本</th>
+                        <th>未付款</th>
+                        <th>利润</th>
+                        <th>状态</th>
+                        <th width="200">操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for ref in header.refs %}
+                    <tr>
+                        <td><strong>{{ ref.ref_number }}</strong></td>
+                        <td>{{ ref.name or ref.description }}</td>
+                        <td>
+                            <span class="badge bg-primary">{{ ref.ref_type.name if ref.ref_type else '未分类' }}</span>
+                        </td>
+                        <td>{{ ref.supplier.name if ref.supplier else '-' }}</td>
+                        <td>
+                            {% if ref.selling_price %}
+                                <span class="text-success">{{ ref.currency }} {{ "%.2f"|format(ref.selling_price) }}</span>
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if ref.cost_price %}
+                                <span class="text-info">{{ ref.currency }} {{ "%.2f"|format(ref.cost_price) }}</span>
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if ref.selling_price and ref.payment_status %}
+                                {% if ref.payment_status == 'paid' %}
+                                    <span class="text-success">{{ ref.currency }} 0.00</span>
+                                {% elif ref.payment_status == 'partial' %}
+                                    <span class="text-warning">部分付款</span>
+                                {% else %}
+                                    <span class="text-danger">{{ ref.currency }} {{ "%.2f"|format(ref.selling_price) }}</span>
+                                {% endif %}
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if ref.ref_profit is defined %}
+                                <span class="{% if ref.ref_profit >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                    {{ ref.currency }} {{ "%.2f"|format(ref.ref_profit) }}
+                                    {% if ref.ref_profit_margin > 0 %}
+                                        <small class="text-muted">({{ "%.1f"|format(ref.ref_profit_margin) }}%)</small>
+                                    {% endif %}
+                                </span>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="status-badge status-{{ ref.status }}">
+                                {% if ref.status == 'draft' %}草稿
+                                {% elif ref.status == 'processing' %}处理中
+                                {% elif ref.status == 'completed' %}已完成
+                                {% else %}已取消
+                                {% endif %}
+                            </span>
+                        </td>
+                        <td>
+                            <div class="action-buttons">
+                                {% if ref.ref_type and ref.ref_type.name == '机票' %}
+                                    <a href="{{ url_for('projects.flight_ref_detail', ref_id=ref.id) }}" class="btn btn-sm btn-info">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    <a href="{{ url_for('projects.edit_flight_ref', ref_id=ref.id) }}" class="btn btn-sm btn-warning">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                {% else %}
+                                    <a href="{{ url_for('projects.ref_detail', ref_id=ref.id) }}" class="btn btn-sm btn-info">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    <a href="{{ url_for('projects.edit_ref', ref_id=ref.id) }}" class="btn btn-sm btn-warning">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                {% endif %}
+                                <a href="{{ url_for('projects.delete_ref', ref_id=ref.id) }}" class="btn btn-sm btn-danger">
+                                    <i class="fas fa-trash"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5">
+            <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+            <h5 class="text-muted">暂无REF明细</h5>
+            <p class="text-muted">点击上方按钮添加第一个REF</p>
+        </div>
+        {% endif %}
+    </div>
 </div>
+
+    <!-- 余额和付款状态 -->
+    <div class="info-card">
+        <h3 class="section-title mb-3">财务概览</h3>
+        
+        <div class="row">
+            <!-- 金额统计 -->
+            <div class="col-md-8">
+                <div class="info-grid">
+                    <div class="info-item">
+                        <span class="info-label">总销售金额</span>
+                        <span class="info-value text-success">
+                            {{ header.currency or 'SGD' }} {{ "%.2f"|format(header.total_selling_amount) }}
+                        </span>
+                    </div>
+                    
+                    <div class="info-item">
+                        <span class="info-label">总成本金额</span>
+                        <span class="info-value text-info">
+                            {{ header.currency or 'SGD' }} {{ "%.2f"|format(header.total_cost_amount) }}
+                        </span>
+                    </div>
+                    
+                    <div class="info-item">
+                        <span class="info-label">总利润</span>
+                        <span class="info-value {% if header.total_profit >= 0 %}text-success{% else %}text-danger{% endif %}">
+                            {{ header.currency or 'SGD' }} {{ "%.2f"|format(header.total_profit) }}
+                        </span>
+                    </div>
+                    
+                    <div class="info-item">
+                        <span class="info-label">已付款金额</span>
+                        <span class="info-value text-primary">
+                            {{ header.currency or 'SGD' }} {{ "%.2f"|format(header.total_paid_amount) }}
+                        </span>
+                    </div>
+                    
+                    <div class="info-item">
+                        <span class="info-label">未付款金额</span>
+                        <span class="info-value text-danger">
+                            {{ header.currency or 'SGD' }} {{ "%.2f"|format(header.total_unpaid_amount) }}
+                        </span>
+                    </div>
+                    
+                    <div class="info-item">
+                        <span class="info-label">付款进度</span>
+                        <span class="info-value">
+                            {% if header.total_selling_amount > 0 %}
+                                {{ "%.1f"|format((header.total_paid_amount / header.total_selling_amount) * 100) }}%
+                            {% else %}
+                                0%
+                            {% endif %}
+                        </span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 付款状态统计 -->
+            <div class="col-md-4">
+                <div class="payment-status-summary">
+                    <h6 class="text-muted mb-3">付款状态统计</h6>
+                    
+                    <div class="status-item">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="status-label">已付款</span>
+                            <span class="status-count">{{ header.payment_status_summary.paid }}</span>
+                        </div>
+                        <div class="progress" style="height: 6px;">
+                            <div class="progress-bar bg-success" style="width: {% if header.payment_status_summary.total > 0 %}{{ (header.payment_status_summary.paid / header.payment_status_summary.total) * 100 }}{% else %}0{% endif %}%"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="status-item">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="status-label">部分付款</span>
+                            <span class="status-count">{{ header.payment_status_summary.partial }}</span>
+                        </div>
+                        <div class="progress" style="height: 6px;">
+                            <div class="progress-bar bg-warning" style="width: {% if header.payment_status_summary.total > 0 %}{{ (header.payment_status_summary.partial / header.payment_status_summary.total) * 100 }}{% else %}0{% endif %}%"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="status-item">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="status-label">未付款</span>
+                            <span class="status-count">{{ header.payment_status_summary.unpaid }}</span>
+                        </div>
+                        <div class="progress" style="height: 6px;">
+                            <div class="progress-bar bg-danger" style="width: {% if header.payment_status_summary.total > 0 %}{{ (header.payment_status_summary.unpaid / header.payment_status_summary.total) * 100 }}{% else %}0{% endif %}%"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="text-center mt-3">
+                        <small class="text-muted">总计: {{ header.payment_status_summary.total }} 个REF</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    
+<!-- 键盘导航提示 -->
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1000;">
+    <div class="alert alert-info alert-dismissible fade show" role="alert" style="max-width: 300px;">
+        <small>
+            <strong>键盘快捷键：</strong><br>
+            <kbd>←</kbd> 上一个项目<br>
+            <kbd>→</kbd> 下一个项目<br>
+            <kbd>L</kbd> 返回列表
+        </small>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+</div>
+
+<script>
+// 键盘导航功能
+document.addEventListener('keydown', function(event) {
+    // 如果用户正在输入框中，不触发导航
+    if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA' || event.target.tagName === 'SELECT') {
+        return;
+    }
+    
+    switch(event.key) {
+        case 'ArrowLeft':
+            {% if prev_header %}
+            event.preventDefault();
+            window.location.href = '{{ url_for("projects.header_detail", header_id=prev_header.id) }}';
+            {% endif %}
+            break;
+        case 'ArrowRight':
+            {% if next_header %}
+            event.preventDefault();
+            window.location.href = '{{ url_for("projects.header_detail", header_id=next_header.id) }}';
+            {% endif %}
+            break;
+        case 'l':
+        case 'L':
+            event.preventDefault();
+            window.location.href = '{{ url_for("projects.list_projects") }}';
+            break;
+    }
+});
+
+// 5秒后自动隐藏键盘提示
+setTimeout(function() {
+    const alert = document.querySelector('.alert');
+    if (alert) {
+        const bsAlert = new bootstrap.Alert(alert);
+        bsAlert.close();
+    }
+}, 5000);
+</script>
 {% endblock %} 

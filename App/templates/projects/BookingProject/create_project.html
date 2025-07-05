@@ -478,15 +478,10 @@ function addEO(refButton) {
 }
 
 function generateRefNumber(index) {
-    const hid = document.querySelector('[name="hid"]').value;
-    fetch(`/projects/generate_ref_number/${hid}`)
-        .then(response => response.json())
-        .then(data => {
-            if (data.ref_number) {
-                document.querySelectorAll('[name="ref_number[]"]')[index].value = data.ref_number;
-            }
-        })
-        .catch(error => console.error('Error:', error));
+    // 新的REF编号格式：R01, R02, R03...
+    const refCount = document.querySelectorAll('.ref-section').length;
+    const refNumber = `R${String(refCount).padStart(2, '0')}`;
+    document.querySelectorAll('[name="ref_number[]"]')[index].value = refNumber;
 }
 
 function generateEONumber(refSection) {

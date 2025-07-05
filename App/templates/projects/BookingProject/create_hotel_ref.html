@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}新建酒店明细{% endblock %}
+{% block content %}
+<div class="container mt-4">
+    <h2>新建酒店明细</h2>
+    <form method="post">
+        <!-- 基础字段 -->
+        <div class="form-group">
+            <label>编号</label>
+            <input type="text" name="ref_number" class="form-control" required>
+        </div>
+        <div class="form-group">
+            <label>名称</label>
+            <input type="text" name="name" class="form-control" required>
+        </div>
+        <div class="form-group">
+            <label>供应商</label>
+            <input type="text" name="supplier" class="form-control">
+        </div>
+        <div class="form-group">
+            <label>金额</label>
+            <input type="number" name="selling_price" class="form-control">
+        </div>
+        <div class="form-group">
+            <label>状态</label>
+            <input type="text" name="status" class="form-control">
+        </div>
+        <!-- 酒店专属字段 -->
+        <div class="form-group">
+            <label>酒店名称</label>
+            <input type="text" name="hotel_name" class="form-control">
+        </div>
+        <div class="form-group">
+            <label>入住日期</label>
+            <input type="date" name="checkin_date" class="form-control">
+        </div>
+        <div class="form-group">
+            <label>退房日期</label>
+            <input type="date" name="checkout_date" class="form-control">
+        </div>
+        <div class="form-group">
+            <label>房型</label>
+            <input type="text" name="room_type" class="form-control">
+        </div>
+        <div class="form-group">
+            <label>客人信息</label>
+            <textarea name="guest_info" class="form-control"></textarea>
+        </div>
+        <button type="submit" class="btn btn-success">提交</button>
+    </form>
+</div>
+{% endblock %} 

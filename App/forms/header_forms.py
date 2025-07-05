@@ -19,10 +19,7 @@ class ProjectHeaderForm(FlaskForm):
         Optional()
     ], coerce=int, choices=[])
     
-    company_name = StringField('公司名称', [
-        DataRequired(message='公司名称不能为空'),
-        Length(max=100, message='公司名称不能超过100个字符')
-    ])
+
     
     def __init__(self, *args, **kwargs):
         super(ProjectHeaderForm, self).__init__(*args, **kwargs)
@@ -46,6 +43,10 @@ class ProjectHeaderForm(FlaskForm):
     staff_name = StringField('经办人姓名', [
         DataRequired(message='经办人姓名不能为空'),
         Length(max=50, message='经办人姓名不能超过50个字符')
+    ])
+    
+    leader_name = StringField('负责人姓名', [
+        Length(max=100, message='负责人姓名不能超过100个字符')
     ])
     
     currency = SelectField('币种', [

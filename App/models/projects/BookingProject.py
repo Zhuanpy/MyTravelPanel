@@ -96,13 +96,13 @@ class ProjectHeader(db.Model):
     hid = db.Column(db.String(20), unique=True, nullable=False, comment='项目编号（如H20240702001）')
     desc = db.Column(db.String(200), comment='项目描述')
     company_id = db.Column(db.Integer, db.ForeignKey('customer_companies.id'), comment='客户公司ID')
-    company_name = db.Column(db.String(100), comment='公司名称')
     limit = db.Column(db.String(50), comment='额度限制')
     contact = db.Column(db.String(50), comment='联系人')
     dept = db.Column(db.String(50), comment='部门')
     staff_id = db.Column(db.Integer, comment='经办人ID')
     staff_name = db.Column(db.String(50), comment='经办人姓名')
     currency = db.Column(db.String(10), comment='币种')
+    leader_name = db.Column(db.String(100), nullable=True)
     type = db.Column(db.String(50), comment='类型')
     source = db.Column(db.String(50), comment='来源')
     country = db.Column(db.String(50), comment='国家')
@@ -130,13 +130,13 @@ class ProjectHeader(db.Model):
             'hid': self.hid,
             'desc': self.desc,
             'company_id': self.company_id,
-            'company_name': self.company_name,
             'limit': self.limit,
             'contact': self.contact,
             'dept': self.dept,
             'staff_id': self.staff_id,
             'staff_name': self.staff_name,
             'currency': self.currency,
+            'leader_name': self.leader_name,
             'type': self.type,
             'source': self.source,
             'country': self.country,
@@ -150,18 +150,83 @@ class ProjectHeader(db.Model):
     @classmethod
     def generate_hid(cls):
         """生成项目编号（HID）"""
-        # 格式: H + YYYYMMDD + 3位序号, 例如: H20240310001
-        today = datetime.now().strftime('%Y%m%d')
+        # 格式: H + 数字序号, 例如: H1, H2, H3...
         
-        # 查找今天创建的项目数量
-        today_count = cls.query.filter(
-            cls.hid.like(f'H{today}%')
-        ).count()
+        # 查找最后一个HID编号
+        last_header = cls.query.filter(
+            cls.hid.like('H%')
+        ).order_by(
+            db.func.cast(db.func.substring(cls.hid, 2), db.Integer).desc()
+        ).first()
         
-        # 生成3位序号
-        sequence = str(today_count + 1).zfill(3)
+        if last_header:
+            # 提取数字部分
+            try:
+                last_number = int(last_header.hid[1:])  # 去掉'H'前缀
+                new_number = last_number + 1
+            except ValueError:
+                # 如果解析失败，从1开始
+                new_number = 1
+        else:
+            new_number = 1
         
-        return f'H{today}{sequence}'
+        return f'H{new_number}'
+
+    @property
+    def total_selling_amount(self):
+        """总销售金额"""
+        total = 0
+        for ref in self.refs:
+            if ref.selling_price:
+                total += float(ref.selling_price)
+        return total
+
+    @property
+    def total_cost_amount(self):
+        """总成本金额"""
+        total = 0
+        for ref in self.refs:
+            if ref.cost_price:
+                total += float(ref.cost_price)
+        return total
+
+    @property
+    def total_profit(self):
+        """总利润"""
+        return self.total_selling_amount - self.total_cost_amount
+
+    @property
+    def total_paid_amount(self):
+        """总已付款金额"""
+        total = 0
+        for ref in self.refs:
+            if ref.payment_status == 'paid' and ref.selling_price:
+                total += float(ref.selling_price)
+            elif ref.payment_status == 'partial' and ref.selling_price:
+                # 如果是部分付款，这里需要根据实际情况计算
+                # 暂时按50%计算，实际应该从EO表中获取
+                total += float(ref.selling_price) * 0.5
+        return total
+
+    @property
+    def total_unpaid_amount(self):
+        """总未付款金额"""
+        return self.total_selling_amount - self.total_paid_amount
+
+    @property
+    def payment_status_summary(self):
+        """付款状态汇总"""
+        paid_count = sum(1 for ref in self.refs if ref.payment_status == 'paid')
+        partial_count = sum(1 for ref in self.refs if ref.payment_status == 'partial')
+        unpaid_count = sum(1 for ref in self.refs if ref.payment_status == 'unpaid')
+        total_count = len(self.refs)
+        
+        return {
+            'paid': paid_count,
+            'partial': partial_count,
+            'unpaid': unpaid_count,
+            'total': total_count
+        }
 
 class ProjectRef(db.Model):
     """项目REF表"""
@@ -179,6 +244,11 @@ class ProjectRef(db.Model):
     supplier_contact = db.Column(db.String(50), nullable=True, comment='供应商联系人')
     supplier_phone = db.Column(db.String(20), nullable=True, comment='供应商联系电话')
     
+    # 联系人信息
+    contact_name = db.Column(db.String(50), nullable=True, comment='联系人姓名')
+    contact_phone = db.Column(db.String(20), nullable=True, comment='联系电话')
+    contact_email = db.Column(db.String(100), nullable=True, comment='电子邮箱')
+    
     # 价格信息
     selling_price = db.Column(db.Numeric(10, 2), nullable=True, comment='销售价格')
     cost_price = db.Column(db.Numeric(10, 2), nullable=True, comment='成本价格')
@@ -191,6 +261,7 @@ class ProjectRef(db.Model):
     # 备注和附加信息
     remarks = db.Column(db.Text, nullable=True, comment='备注')
     attachments = db.Column(db.Text, nullable=True, comment='附件列表(JSON)')
+    extra_info = db.Column(db.Text, nullable=True, comment='各业务类型专属字段(JSON)')
     
     # 状态信息
     status = db.Column(db.Enum('draft', 'processing', 'completed', 'cancelled'),
@@ -206,6 +277,10 @@ class ProjectRef(db.Model):
     ref_type = db.relationship('BusinessType', backref='refs')
     supplier = db.relationship('Supplier', backref='refs')
     items = db.relationship('RefOrderItem', backref='ref', cascade='all, delete-orphan')
+    
+    # 机票相关关联关系
+    flight_passengers = db.relationship('ProjectFlightPassenger', backref='ref', cascade='all, delete-orphan')
+    flight_segments = db.relationship('ProjectFlightSegment', backref='ref', cascade='all, delete-orphan')
 
     def __repr__(self):
         return f'<ProjectRef {self.ref_number}>'
@@ -222,6 +297,9 @@ class ProjectRef(db.Model):
             'supplier_id': self.supplier_id,
             'supplier_contact': self.supplier_contact,
             'supplier_phone': self.supplier_phone,
+            'contact_name': self.contact_name,
+            'contact_phone': self.contact_phone,
+            'contact_email': self.contact_email,
             'selling_price': float(self.selling_price) if self.selling_price else None,
             'cost_price': float(self.cost_price) if self.cost_price else None,
             'currency': self.currency,
@@ -256,28 +334,61 @@ class ProjectRef(db.Model):
             return 0
         return (self.profit / self.total_amount) * 100
 
-    @classmethod
-    def generate_ref_number(cls, project_hid):
-        """生成REF编号"""
-        # 检查项目是否存在（仅在非新项目时检查）
-        today = datetime.now().strftime('%Y%m%d')
-        if not project_hid.endswith(today):
-            header = ProjectHeader.query.filter_by(hid=project_hid).first()
-            if not header:
-                raise ValueError(f'项目编号 {project_hid} 不存在')
+    @property
+    def ref_profit(self):
+        """计算REF利润（售价-成本）"""
+        if self.selling_price and self.cost_price:
+            return float(self.selling_price) - float(self.cost_price)
+        elif self.selling_price:
+            return float(self.selling_price)
+        else:
+            return 0
 
-        # 查找当前主表最后一个REF编号
+    @property
+    def ref_profit_margin(self):
+        """计算REF利润率"""
+        if self.selling_price and self.selling_price > 0:
+            return (self.ref_profit / float(self.selling_price)) * 100
+        return 0
+
+    # 机票相关计算属性
+    @property
+    def total_flight_selling_price(self):
+        """计算机票总售价"""
+        return sum(p.selling_price or 0 for p in self.flight_passengers)
+
+    @property
+    def total_flight_cost_price(self):
+        """计算机票总成本"""
+        return sum(p.cost_price or 0 for p in self.flight_passengers)
+
+    @property
+    def flight_profit(self):
+        """计算机票利润"""
+        return self.total_flight_selling_price - self.total_flight_cost_price
+
+    @classmethod
+    def generate_ref_number(cls, project_hid=None):
+        """生成REF编号"""
+        # 查找全局最后一个REF编号（按数字排序）
         last_ref = cls.query.filter(
-            cls.ref_number.like(f'{project_hid}-R%')
-        ).order_by(cls.ref_number.desc()).first()
+            cls.ref_number.like('R%')
+        ).order_by(
+            db.func.cast(db.func.substring(cls.ref_number, 2), db.Integer).desc()
+        ).first()
 
         if last_ref:
-            last_number = int(last_ref.ref_number.split('-R')[1])
-            new_number = str(last_number + 1).zfill(2)
+            # 提取数字部分
+            try:
+                last_number = int(last_ref.ref_number[1:])  # 去掉'R'前缀
+                new_number = str(last_number + 1).zfill(2)
+            except ValueError:
+                # 如果解析失败，从01开始
+                new_number = '01'
         else:
             new_number = '01'
 
-        return f'{project_hid}-R{new_number}'
+        return f'R{new_number}'
 
 class ProjectEO(db.Model):
     """项目EO表"""
@@ -347,7 +458,7 @@ class ProjectEO(db.Model):
     @classmethod
     def generate_eo_number(cls, ref_number):
         """生成EO编号"""
-        # 格式: REF编号-E + 2位序号, 例如: H2024031001-R01-E01
+        # 格式: REF编号-E + 2位序号, 例如: R01-E01
         last_eo = cls.query.filter(
             cls.eo_number.like(f'{ref_number}-E%')
         ).order_by(cls.eo_number.desc()).first()
@@ -380,4 +491,94 @@ class RefOrderItem(db.Model):
     @property
     def calculate_total(self):
         """计算总价"""
-        return float(self.unit_price * self.quantity) 
+        return float(self.unit_price * self.quantity)
+
+
+
+
+class ProjectFlightPassenger(db.Model):
+    """机票乘客信息表 - 3级表"""
+    __tablename__ = 'project_flight_passengers'
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    ref_id = db.Column(db.Integer, db.ForeignKey('project_refs.id'), nullable=False, comment='REF明细ID')
+    
+    # 乘客基本信息
+    name = db.Column(db.String(50), nullable=False, comment='乘客姓名')
+    passenger_type = db.Column(db.String(10), nullable=False, default='adult', comment='乘客类型：adult/child/infant')
+    
+    # 票价信息
+    selling_price = db.Column(db.Numeric(10, 2), comment='售价')
+    cost_price = db.Column(db.Numeric(10, 2), comment='成本')
+    
+    # 票务信息
+    ticket_number = db.Column(db.String(50), comment='电子客票号')
+    pnr = db.Column(db.String(6), comment='PNR编码')
+    
+    # 时间信息
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def __repr__(self):
+        return f'<ProjectFlightPassenger {self.name}>'
+
+    def to_dict(self):
+        """转换为字典格式"""
+        return {
+            'id': self.id,
+            'ref_id': self.ref_id,
+            'name': self.name,
+            'passenger_type': self.passenger_type,
+            'selling_price': float(self.selling_price) if self.selling_price else None,
+            'cost_price': float(self.cost_price) if self.cost_price else None,
+            'ticket_number': self.ticket_number,
+            'pnr': self.pnr,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+        }
+
+
+class ProjectFlightSegment(db.Model):
+    """机票航段信息表 - 3级表"""
+    __tablename__ = 'project_flight_segments'
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    ref_id = db.Column(db.Integer, db.ForeignKey('project_refs.id'), nullable=False, comment='REF明细ID')
+    
+    # 航班信息
+    flight_number = db.Column(db.String(10), nullable=False, comment='航班号')
+    departure_airport = db.Column(db.String(3), nullable=False, comment='出发机场')
+    arrival_airport = db.Column(db.String(3), nullable=False, comment='到达机场')
+    departure_time = db.Column(db.DateTime, nullable=False, comment='起飞时间')
+    arrival_time = db.Column(db.DateTime, nullable=False, comment='到达时间')
+    
+    # 舱位信息
+    cabin_class = db.Column(db.String(20), nullable=False, comment='舱位等级')
+    cabin_code = db.Column(db.String(2), nullable=False, comment='舱位代码')
+    
+    # 航段状态
+    status = db.Column(db.String(20), nullable=False, default='pending', comment='航段状态')
+    
+    # 时间信息
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def __repr__(self):
+        return f'<ProjectFlightSegment {self.flight_number}>'
+
+    def to_dict(self):
+        """转换为字典格式"""
+        return {
+            'id': self.id,
+            'ref_id': self.ref_id,
+            'flight_number': self.flight_number,
+            'departure_airport': self.departure_airport,
+            'arrival_airport': self.arrival_airport,
+            'departure_time': self.departure_time.isoformat() if self.departure_time else None,
+            'arrival_time': self.arrival_time.isoformat() if self.arrival_time else None,
+            'cabin_class': self.cabin_class,
+            'cabin_code': self.cabin_code,
+            'status': self.status,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+        } 

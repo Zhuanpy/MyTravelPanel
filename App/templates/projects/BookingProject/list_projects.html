@@ -44,6 +44,9 @@
                     </form>
                 </div>
             </div>
+            
+            <!-- CSRF Token for delete operations -->
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
             <!-- 项目列表 -->
             <div class="card">
@@ -56,6 +59,7 @@
                                         <th>项目编号</th>
                                         <th>项目描述</th>
                                         <th>客户公司</th>
+                                        <th>负责人</th>
                                         <th>状态</th>
                                         <th>创建时间</th>
                                         <th>最后更新</th>
@@ -80,6 +84,13 @@
                                                 {{ project.company_name }}
                                             {% else %}
                                                 <span class="text-muted">未指定</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if project.leader_name %}
+                                                {{ project.leader_name }}
+                                            {% else %}
+                                                <span class="text-muted">未设置</span>
                                             {% endif %}
                                         </td>
                                         <td>
@@ -125,6 +136,10 @@
                                                    class="btn btn-sm btn-outline-success" title="添加REF">
                                                     <i class="fas fa-plus"></i> REF
                                                 </a>
+                                                <button onclick="deleteProject({{ project.id }}, '{{ project.hid }}')" 
+                                                        class="btn btn-sm btn-outline-danger" title="删除项目">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
                                             </div>
                                         </td>
                                     </tr>
@@ -287,5 +302,37 @@ $(document).ready(function() {
         function() { $(this).removeClass('table-active'); }
     );
 });
+
+// 删除项目函数
+function deleteProject(projectId, projectHid) {
+    if (confirm(`确定要删除项目 "${projectHid}" 吗？此操作不可恢复，将同时删除所有相关的REF数据。`)) {
+        // 获取CSRF token
+        const csrfToken = document.querySelector('input[name="csrf_token"]').value;
+        
+        // 创建表单数据
+        const formData = new FormData();
+        formData.append('csrf_token', csrfToken);
+        
+        fetch(`{{ url_for('projects.delete_header', header_id=0) }}`.replace('0', projectId), {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: formData
+        })
+        .then(response => {
+            if (response.ok) {
+                // 删除成功，刷新页面
+                window.location.reload();
+            } else {
+                throw new Error('删除失败');
+            }
+        })
+        .catch(error => {
+            console.error('删除错误:', error);
+            alert('删除失败，请稍后重试！');
+        });
+    }
+}
 </script>
 {% endblock %} 

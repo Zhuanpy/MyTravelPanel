@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}新建交通明细{% endblock %}
+{% block content %}
+<div class="container mt-4">
+    <h2>新建交通明细</h2>
+    <form method="post">
+        <!-- 基础字段 -->
+        <div class="form-group">
+            <label>编号</label>
+            <input type="text" name="ref_number" class="form-control" required>
+        </div>
+        <div class="form-group">
+            <label>名称</label>
+            <input type="text" name="name" class="form-control" required>
+        </div>
+        <div class="form-group">
+            <label>供应商</label>
+            <input type="text" name="supplier" class="form-control">
+        </div>
+        <div class="form-group">
+            <label>金额</label>
+            <input type="number" name="selling_price" class="form-control">
+        </div>
+        <div class="form-group">
+            <label>状态</label>
+            <input type="text" name="status" class="form-control">
+        </div>
+        <!-- 交通专属字段 -->
+        <div class="form-group">
+            <label>交通工具类型</label>
+            <input type="text" name="transport_type" class="form-control">
+        </div>
+        <div class="form-group">
+            <label>起点</label>
+            <input type="text" name="start_point" class="form-control">
+        </div>
+        <div class="form-group">
+            <label>终点</label>
+            <input type="text" name="end_point" class="form-control">
+        </div>
+        <div class="form-group">
+            <label>出发时间</label>
+            <input type="datetime-local" name="start_time" class="form-control">
+        </div>
+        <button type="submit" class="btn btn-success">提交</button>
+    </form>
+</div>
+{% endblock %} 
