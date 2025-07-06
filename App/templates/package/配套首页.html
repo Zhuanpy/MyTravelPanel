@@ -259,6 +259,9 @@
             <a href="{{ url_for('tour_projects.manage_tour_projects') }}" class="package-home-link">
                 <i class="fas fa-tasks"></i> 项目管理
             </a>
+            <a href="{{ url_for('package_budget.list_budgets') }}" class="package-home-link">
+                <i class="fas fa-calculator"></i> 预算报价
+            </a>
         </div>
     </div>
     
@@ -355,6 +358,22 @@
                     </p>
                     <div class="package-home-card-actions">
                         <a href="{{ url_for('package_routes.all_packages') }}" class="package-home-btn package-home-btn-primary">
+                            开始使用
+                        </a>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="package-home-card">
+                <div class="package-home-card-header">
+                    <i class="fas fa-calculator"></i> 预算报价
+                </div>
+                <div class="package-home-card-body">
+                    <p class="package-home-card-description">
+                        管理旅游配套的价格预算，创建、编辑和导出预算报价单。
+                    </p>
+                    <div class="package-home-card-actions">
+                        <a href="{{ url_for('package_budget.list_budgets') }}" class="package-home-btn package-home-btn-primary">
                             开始使用
                         </a>
                     </div>
