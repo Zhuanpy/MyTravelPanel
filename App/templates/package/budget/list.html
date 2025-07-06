@@ -1,0 +1,220 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container">
+    <div class="row mb-3">
+        <div class="col-md-8">
+            <h2><i class="fas fa-calculator"></i> 配套价格预算单列表</h2>
+        </div>
+        <div class="col-md-4 text-end">
+            <a href="{{ url_for('package_budget.create') }}" class="btn btn-primary">
+                <i class="fas fa-plus"></i> 新建预算单
+            </a>
+        </div>
+    </div>
+
+    <!-- 搜索和筛选区域 -->
+    <div class="card mb-3">
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-3">
+                    <input type="text" name="search" class="form-control" placeholder="搜索套餐名称..." value="{{ request.args.get('search', '') }}">
+                </div>
+                <div class="col-md-2">
+                    <select name="status" class="form-control">
+                        <option value="">所有状态</option>
+                        <option value="draft" {{ 'selected' if request.args.get('status') == 'draft' }}>草稿</option>
+                        <option value="active" {{ 'selected' if request.args.get('status') == 'active' }}>激活</option>
+                        <option value="archived" {{ 'selected' if request.args.get('status') == 'archived' }}>归档</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <select name="is_template" class="form-control">
+                        <option value="">所有类型</option>
+                        <option value="1" {{ 'selected' if request.args.get('is_template') == '1' }}>模板</option>
+                        <option value="0" {{ 'selected' if request.args.get('is_template') == '0' }}>普通预算</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-outline-secondary w-100">
+                        <i class="fas fa-search"></i> 搜索
+                    </button>
+                </div>
+                <div class="col-md-2">
+                    <a href="{{ url_for('package_budget.list_budgets') }}" class="btn btn-outline-info w-100">
+                        <i class="fas fa-refresh"></i> 重置
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 预算单列表 -->
+    <div class="card">
+        <div class="card-body">
+            {% if budgets %}
+            <div class="table-responsive">
+                <table class="table table-hover table-striped">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>ID</th>
+                            <th>套餐名称</th>
+                            <th>人数配置</th>
+                            <th>币种</th>
+                            <th>总价</th>
+                            <th>状态</th>
+                            <th>类型</th>
+                            <th>创建时间</th>
+                            <th>创建人</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for budget in budgets %}
+                        <tr>
+                            <td><span class="badge bg-secondary">{{ budget.id }}</span></td>
+                            <td>
+                                <strong>{{ budget.package_name }}</strong>
+                                {% if budget.is_template %}
+                                    <span class="badge bg-warning text-dark">模板</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="badge bg-primary">{{ budget.adult_count }}成人</span>
+                                {% if budget.child_count > 0 %}
+                                    <span class="badge bg-info">{{ budget.child_count }}儿童</span>
+                                {% endif %}
+                            </td>
+                            <td><span class="badge bg-success">{{ budget.currency }}</span></td>
+                            <td>
+                                <strong class="text-success">{{ "%.2f"|format(budget.total_price) }}</strong>
+                            </td>
+                            <td>
+                                {% if budget.status == 'draft' %}
+                                    <span class="badge bg-secondary">草稿</span>
+                                {% elif budget.status == 'active' %}
+                                    <span class="badge bg-success">激活</span>
+                                {% elif budget.status == 'archived' %}
+                                    <span class="badge bg-warning text-dark">归档</span>
+                                {% else %}
+                                    <span class="badge bg-light text-dark">{{ budget.status }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if budget.is_template %}
+                                    <span class="badge bg-warning text-dark">模板</span>
+                                {% else %}
+                                    <span class="badge bg-info">普通</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ budget.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                            <td>{{ budget.created_by or '-' }}</td>
+                            <td>
+                                <div class="btn-group" role="group">
+                                    <a href="{{ url_for('package_budget.detail', budget_id=budget.id) }}" 
+                                       class="btn btn-sm btn-outline-primary" title="查看详情">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    <a href="{{ url_for('package_budget.edit', budget_id=budget.id) }}" 
+                                       class="btn btn-sm btn-outline-warning" title="编辑">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <button type="button" class="btn btn-sm btn-outline-danger" 
+                                            onclick="deleteBudget({{ budget.id }})" title="删除">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- 分页 -->
+            {% if pagination %}
+            <nav aria-label="预算单分页">
+                <ul class="pagination justify-content-center">
+                    {% if pagination.has_prev %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('package_budget.list_budgets', page=pagination.prev_num, **request.args) }}">上一页</a>
+                        </li>
+                    {% endif %}
+                    
+                    {% for page_num in pagination.iter_pages() %}
+                        {% if page_num %}
+                            {% if page_num != pagination.page %}
+                                <li class="page-item">
+                                    <a class="page-link" href="{{ url_for('package_budget.list_budgets', page=page_num, **request.args) }}">{{ page_num }}</a>
+                                </li>
+                            {% else %}
+                                <li class="page-item active">
+                                    <span class="page-link">{{ page_num }}</span>
+                                </li>
+                            {% endif %}
+                        {% else %}
+                            <li class="page-item disabled">
+                                <span class="page-link">...</span>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if pagination.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('package_budget.list_budgets', page=pagination.next_num, **request.args) }}">下一页</a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+            
+            {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                <h4 class="text-muted">暂无预算单</h4>
+                <p class="text-muted">点击上方"新建预算单"按钮开始创建</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- 删除确认模态框 -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">确认删除</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>确定要删除这个预算单吗？此操作不可撤销。</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <form id="deleteForm" method="post" style="display: inline;">
+                    <button type="submit" class="btn btn-danger">确认删除</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function deleteBudget(budgetId) {
+    if (confirm('确定要删除这个预算单吗？此操作不可撤销。')) {
+        fetch(`/package_budget/${budgetId}/delete`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        }).then(response => {
+            if (response.ok) {
+                location.reload();
+            } else {
+                alert('删除失败，请重试');
+            }
+        });
+    }
+}
+</script>
+{% endblock %} 

@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container">
+    <h2>新建配套价格预算单</h2>
+    <form method="post">
+        <div class="mb-3">
+            <label>套餐名称</label>
+            <input type="text" name="package_name" class="form-control" required>
+        </div>
+        <div class="mb-3">
+            <label>成人数量</label>
+            <input type="number" name="adult_count" class="form-control" required>
+        </div>
+        <div class="mb-3">
+            <label>儿童数量</label>
+            <input type="number" name="child_count" class="form-control" required>
+        </div>
+        <div class="mb-3">
+            <label>币种</label>
+            <input type="text" name="currency" class="form-control" value="SGD">
+        </div>
+        <div class="mb-3">
+            <label>备注</label>
+            <textarea name="remarks" class="form-control"></textarea>
+        </div>
+        <button type="submit" class="btn btn-success">保存</button>
+        <a href="{{ url_for('package_budget.list_budgets') }}" class="btn btn-secondary">返回</a>
+    </form>
+</div>
+{% endblock %} 
