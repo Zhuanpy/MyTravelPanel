@@ -356,6 +356,29 @@
         transition: all 0.2s ease;
     }
 
+    /* ========= 准备方选择样式 ========= */
+    .responsible-party-checkboxes {
+        transition: all 0.2s ease;
+    }
+
+    .responsible-party-option {
+        transition: all 0.2s ease;
+    }
+
+    .responsible-party-option:hover {
+        background: var(--color-accent-bg) !important;
+        border-color: var(--color-accent) !important;
+    }
+
+    .responsible-party-option input[type="radio"] {
+        cursor: pointer;
+    }
+
+    .responsible-party-option input[type="radio"]:disabled {
+        cursor: not-allowed;
+        opacity: 0.5;
+    }
+
     /* ========= 补充信息区域 ========= */
     .additional-info h4 {
         font-size: 1rem;
@@ -967,6 +990,7 @@
                 const checkbox = this.querySelector('input[type="checkbox"]');
                 const icon = this.querySelector('i');
                 const label = this.querySelector('label');
+                const responsibleOptions = this.querySelectorAll('.responsible-party-option input[type="radio"]');
                 
                 checkbox.checked = !checkbox.checked;
                 this.classList.toggle('selected', checkbox.checked);
@@ -976,6 +1000,11 @@
                     icon.className = checkbox.checked ? 'fas fa-check-square' : 'fas fa-square';
                     icon.style.color = checkbox.checked ? 'var(--color-accent)' : '#ccc';
                 }
+                
+                // 启用/禁用准备方选择框
+                responsibleOptions.forEach(radio => {
+                    radio.disabled = !checkbox.checked;
+                });
                 
                 // 更新身份徽章
                 const identityId = this.dataset.identityId;
@@ -1114,14 +1143,27 @@
         saveButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 保存中...';
         
         try {
-            const selectedDocIds = Array.from(identityConfig.querySelectorAll('input[type="checkbox"]:checked'))
-                .map(cb => parseInt(cb.id.split('_')[1]));
+            // 收集选中的文档和准备方信息
+            const selectedDocuments = [];
+            identityConfig.querySelectorAll('input[type="checkbox"]:checked').forEach(checkbox => {
+                const docId = parseInt(checkbox.id.split('_')[1]);
+                const responsibleRadio = document.querySelector(`input[name="responsible_${docId}_${identityId}"]:checked`);
+                const responsibleParty = responsibleRadio ? responsibleRadio.value : 'FOR_APPLICATION';
+                
+                selectedDocuments.push({
+                    document_id: docId,
+                    responsible_party: responsibleParty
+                });
+            });
+            
             const additionalInfo = identityConfig.querySelector('textarea').value;
             
             const requestData = {
-                document_ids: selectedDocIds,
+                documents: selectedDocuments,
                 additional_info: additionalInfo
             };
+            
+            console.log('DEBUG: 保存身份配置数据:', requestData);
             
             // 从meta标签获取CSRF令牌
             const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
@@ -1141,7 +1183,7 @@
                 showMessage('身份配置已保存', 'success');
                 // 更新身份徽章
                 const badge = identityConfig.querySelector('.identity-badge');
-                badge.textContent = `${selectedDocIds.length} 个文档`;
+                badge.textContent = `${selectedDocuments.length} 个文档`;
             } else {
                 showMessage('保存失败: ' + data.message, 'error');
             }
@@ -1152,6 +1194,42 @@
             // 恢复按钮状态
             saveButton.disabled = false;
             saveButton.innerHTML = originalText;
+        }
+    }
+
+    // 更新准备方
+    async function updateResponsibleParty(docId, identityId, responsibleParty) {
+        try {
+            console.log(`DEBUG: 更新准备方 - 文档ID: ${docId}, 身份ID: ${identityId}, 准备方: ${responsibleParty}`);
+            
+            // 更新UI样式
+            const documentItem = document.querySelector(`[data-doc-id="${docId}"][data-identity-id="${identityId}"]`);
+            if (documentItem) {
+                const options = documentItem.querySelectorAll('.responsible-party-option');
+                options.forEach(option => {
+                    const radio = option.querySelector('input[type="radio"]');
+                    const span = option.querySelector('span');
+                    
+                    if (radio.value === responsibleParty) {
+                        option.style.background = 'var(--color-accent-bg)';
+                        option.style.borderColor = 'var(--color-accent)';
+                        span.style.color = 'var(--color-accent)';
+                        span.style.fontWeight = '500';
+                    } else {
+                        option.style.background = 'transparent';
+                        option.style.borderColor = '#ccc';
+                        span.style.color = '#666';
+                        span.style.fontWeight = '400';
+                    }
+                });
+            }
+            
+            // 自动保存到后端
+            await saveIdentityConfig(identityId);
+            
+        } catch (error) {
+            console.error('更新准备方失败:', error);
+            showMessage('更新准备方失败，请重试', 'error');
         }
     }
 
@@ -1217,7 +1295,17 @@
                             // 使用转换后的数字ID数组进行匹配
                             const docIdNum = parseInt(doc.id);
                             const isSelected = selectedDocIdsNum.includes(docIdNum);
-                            console.log(`DEBUG: 文档 ${doc.name} (ID: ${doc.id}, 数字ID: ${docIdNum}) - 选中状态: ${isSelected}, selectedDocIdsNum: [${selectedDocIdsNum.join(', ')}]`);
+                            
+                            // 获取准备方信息
+                            let responsibleParty = 'FOR_APPLICATION';
+                            if (isSelected && selectedDocIds && selectedDocIds.length > 0) {
+                                const selectedDoc = selectedDocIds.find(d => d.id === docIdNum);
+                                if (selectedDoc && selectedDoc.responsible_party) {
+                                    responsibleParty = selectedDoc.responsible_party;
+                                }
+                            }
+                            
+                            console.log(`DEBUG: 文档 ${doc.name} (ID: ${doc.id}, 数字ID: ${docIdNum}) - 选中状态: ${isSelected}, 准备方: ${responsibleParty}, selectedDocIdsNum: [${selectedDocIdsNum.join(', ')}]`);
                             
                             return `
                                 <div class="document-item ${isSelected ? 'selected' : ''}" data-identity-id="${identityId}" data-doc-id="${doc.id}">
@@ -1225,10 +1313,32 @@
                                            id="doc_${doc.id}_${identityId}" 
                                            ${isSelected ? 'checked' : ''} 
                                            style="display: none;">
-                                    <label for="doc_${doc.id}_${identityId}" style="cursor: pointer; width: 100%;">
+                                    <label for="doc_${doc.id}_${identityId}" style="cursor: pointer; flex: 1;">
                                         <i class="fas ${isSelected ? 'fa-check-square' : 'fa-square'}" style="margin-right: 8px; color: ${isSelected ? 'var(--color-accent)' : '#ccc'};"></i>
                                         ${doc.name}
                                     </label>
+                                    <div class="responsible-party-checkboxes" style="margin-left: 8px; display: flex; gap: 8px; align-items: center; font-size: 0.8rem;">
+                                        <label class="responsible-party-option" style="display: flex; align-items: center; gap: 4px; cursor: pointer; padding: 2px 6px; border-radius: 3px; background: ${responsibleParty === 'FOR_APPLICATION' ? 'var(--color-accent-bg)' : 'transparent'}; border: 1px solid ${responsibleParty === 'FOR_APPLICATION' ? 'var(--color-accent)' : '#ccc'};">
+                                            <input type="radio" 
+                                                   name="responsible_${doc.id}_${identityId}" 
+                                                   value="FOR_APPLICATION" 
+                                                   ${responsibleParty === 'FOR_APPLICATION' ? 'checked' : ''} 
+                                                   ${isSelected ? '' : 'disabled'}
+                                                   style="margin: 0;"
+                                                   onchange="updateResponsibleParty('${doc.id}', '${identityId}', 'FOR_APPLICATION')">
+                                            <span style="color: ${responsibleParty === 'FOR_APPLICATION' ? 'var(--color-accent)' : '#666'}; font-weight: ${responsibleParty === 'FOR_APPLICATION' ? '500' : '400'};">申请人</span>
+                                        </label>
+                                        <label class="responsible-party-option" style="display: flex; align-items: center; gap: 4px; cursor: pointer; padding: 2px 6px; border-radius: 3px; background: ${responsibleParty === 'FOR_AGENT' ? 'var(--color-accent-bg)' : 'transparent'}; border: 1px solid ${responsibleParty === 'FOR_AGENT' ? 'var(--color-accent)' : '#ccc'};">
+                                            <input type="radio" 
+                                                   name="responsible_${doc.id}_${identityId}" 
+                                                   value="FOR_AGENT" 
+                                                   ${responsibleParty === 'FOR_AGENT' ? 'checked' : ''} 
+                                                   ${isSelected ? '' : 'disabled'}
+                                                   style="margin: 0;"
+                                                   onchange="updateResponsibleParty('${doc.id}', '${identityId}', 'FOR_AGENT')">
+                                            <span style="color: ${responsibleParty === 'FOR_AGENT' ? 'var(--color-accent)' : '#666'}; font-weight: ${responsibleParty === 'FOR_AGENT' ? '500' : '400'};">旅行社</span>
+                                        </label>
+                                    </div>
                                 </div>
                             `;
                         }).join('')}

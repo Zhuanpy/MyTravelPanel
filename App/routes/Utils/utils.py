@@ -165,6 +165,74 @@ def word_to_pdf():
         flash(error_msg)
         return redirect(url_for('utils_process.file_processing'))
 
+@utils_process.route('/split_screenshot_to_pdf', methods=['POST'])
+def split_screenshot_to_pdf():
+    try:
+        # 获取表单数据
+        folder_path = request.form.get('screenshotFolderPath')
+        margin_size = int(request.form.get('marginSize', 20))  # 默认20毫米边距
+        
+        if not folder_path:
+            error_msg = '请提供长截图文件夹路径'
+            if is_ajax():
+                return jsonify({'success': False, 'message': error_msg}), 400
+            flash(error_msg)
+            return redirect(url_for('utils_process.file_processing'))
+
+        # 规范化路径
+        folder_path = os.path.normpath(folder_path)
+        
+        # 检查路径是否有效
+        if not os.path.exists(folder_path):
+            error_msg = f'提供的文件夹路径不存在: {folder_path}'
+            if is_ajax():
+                return jsonify({'success': False, 'message': error_msg}), 400
+            flash(error_msg)
+            return redirect(url_for('utils_process.file_processing'))
+            
+        if not os.path.isdir(folder_path):
+            error_msg = f'提供的路径不是文件夹: {folder_path}'
+            if is_ajax():
+                return jsonify({'success': False, 'message': error_msg}), 400
+            flash(error_msg)
+            return redirect(url_for('utils_process.file_processing'))
+
+        # 检查文件夹中是否有图片文件
+        image_files = [f for f in os.listdir(folder_path) 
+                      if f.lower().endswith(('.jpg', '.jpeg', '.png', '.bmp', '.webp'))]
+        if not image_files:
+            error_msg = f'文件夹中没有图片文件: {folder_path}'
+            if is_ajax():
+                return jsonify({'success': False, 'message': error_msg}), 400
+            flash(error_msg)
+            return redirect(url_for('utils_process.file_processing'))
+
+        # 处理长截图切分
+        from App.code.utils.screenshot_splitter import ScreenshotSplitter
+        splitter = ScreenshotSplitter(folder_path, margin_size)
+        result = splitter.process_screenshots()
+
+        # 返回成功信息
+        success_msg = f'成功处理 {len(image_files)} 个长截图文件，生成 {result["pages"]} 页PDF'
+        if is_ajax():
+            return jsonify({
+                'success': True, 
+                'message': success_msg,
+                'files_processed': len(image_files),
+                'pages_generated': result["pages"]
+            })
+        flash(success_msg)
+        return redirect(url_for('utils_process.file_processing'))
+
+    except Exception as e:
+        error_msg = f'长截图切分失败: {str(e)}'
+        current_app.logger.error(f'长截图切分错误: {error_msg}\n{traceback.format_exc()}')
+        if is_ajax():
+            return jsonify({'success': False, 'message': error_msg}), 500
+        flash(error_msg)
+        return redirect(url_for('utils_process.file_processing'))
+
+
 @utils_process.route('/open_FuXin_pdf')
 def open_FuXin_pdf():
     try:

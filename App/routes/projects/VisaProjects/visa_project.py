@@ -125,7 +125,13 @@ def show_current_all_projects():
             if project.visa_type:
                 types_info = VisaTypes.query.filter_by(visa_type=project.visa_type).first()
                 if types_info:
+                    # 优先通过visa_type_id查找，没有数据时再通过visa_countries_id查找
                     links = VisaLinks.query.filter_by(visa_type_id=types_info.id).order_by(VisaLinks.name.asc()).all()
+                    
+                    # 如果通过visa_type_id没有找到链接，则通过visa_countries_id查找
+                    if not links and types_info.country_id:
+                        links = VisaLinks.query.filter_by(visa_countries_id=types_info.country_id).order_by(VisaLinks.name.asc()).all()
+                    
                     project_links[project.id] = links
 
         return render_template('visas/签证项目管理/签证项目列表.html',
@@ -166,6 +172,10 @@ def visa_processing(visa_type):
         
         # 获取相关链接 - 使用visa_type_id查询
         links = VisaLinks.query.filter_by(visa_type_id=types_info.id).order_by(VisaLinks.name.asc()).all()
+        
+        # 如果通过visa_type_id没有找到链接，则通过visa_countries_id查找
+        if not links and types_info.country_id:
+            links = VisaLinks.query.filter_by(visa_countries_id=types_info.country_id).order_by(VisaLinks.name.asc()).all()
 
         # 获取所有身份
         from App.models.Product.Visamodels import VisaSingaporeIdentity, VisaDocuments
@@ -399,8 +409,16 @@ def visa_detail(project_name=None, project_id=None):
         
         print(f"DEBUG: Found visa type info: {types_info.visa_type}")
         
-        # 获取相关链接
+        # 获取相关链接 - 优先通过visa_type_id查找，没有数据时再通过visa_countries_id查找
         links = VisaLinks.query.filter_by(visa_type_id=types_info.id).order_by(VisaLinks.name.asc()).all()
+        
+        # 如果通过visa_type_id没有找到链接，则通过visa_countries_id查找
+        if not links and types_info.country_id:
+            print(f"DEBUG: No links found by visa_type_id, trying visa_countries_id: {types_info.country_id}")
+            links = VisaLinks.query.filter_by(visa_countries_id=types_info.country_id).order_by(VisaLinks.name.asc()).all()
+            print(f"DEBUG: Found {len(links)} links by visa_countries_id")
+        
+        print(f"DEBUG: Total links found: {len(links)}")
         
         # 获取签证文档数据 - 使用新的表结构
         documents = VisaDocuments.query.join(VisaTypes).filter(VisaTypes.visa_type == project.visa_type).all()
@@ -1066,24 +1084,53 @@ def get_project_documents(visa_type, identity):
         documents = []
         additional_info = []
         
+        # 查询关联表中的准备方信息
+        from sqlalchemy import text
+        
+        # 获取共用资料的准备方信息
+        share_responsible_parties = {}
+        if share_doc:
+            sql = text("""
+                SELECT document_id, responsible_party 
+                FROM visa_document_documents 
+                WHERE visa_document_id = :visa_doc_id
+            """)
+            result = db.session.execute(sql, {'visa_doc_id': share_doc.id})
+            share_responsible_parties = {row.document_id: row.responsible_party for row in result}
+        
+        # 获取特定身份资料的准备方信息
+        specific_responsible_parties = {}
+        if specific_doc:
+            sql = text("""
+                SELECT document_id, responsible_party 
+                FROM visa_document_documents 
+                WHERE visa_document_id = :visa_doc_id
+            """)
+            result = db.session.execute(sql, {'visa_doc_id': specific_doc.id})
+            specific_responsible_parties = {row.document_id: row.responsible_party for row in result}
+        
         # 处理共用资料
         if share_doc and share_doc.selected_documents:
             for doc in share_doc.selected_documents:
+                responsible_party = share_responsible_parties.get(doc.id, 'FOR_APPLICATION')
                 documents.append({
                     'name': doc.name,
                     'type': 'document',
                     'category': '共用资料',
-                    'is_shared': True
+                    'is_shared': True,
+                    'responsible_party': responsible_party
                 })
         
         # 处理特定身份资料
         if specific_doc and specific_doc.selected_documents:
             for doc in specific_doc.selected_documents:
+                responsible_party = specific_responsible_parties.get(doc.id, 'FOR_APPLICATION')
                 documents.append({
                     'name': doc.name,
                     'type': 'document',
                     'category': '特定身份资料',
-                    'is_shared': False
+                    'is_shared': False,
+                    'responsible_party': responsible_party
                 })
         
         # 处理补充信息

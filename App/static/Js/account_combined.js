@@ -624,13 +624,28 @@ async function visitWebsite(url, accountId) {
     
     // 然后异步增加点击次数
     try {
+        // 获取CSRF令牌
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+        
         // 使用正确的API路径
-        await fetch(`/account/api/accounts/increment_click/${accountId}`, {
+        const response = await fetch(`/account/api/accounts/increment_click/${accountId}`, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
             }
         });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        if (data.success) {
+            console.log('点击次数更新成功');
+        } else {
+            console.error('点击次数更新失败:', data.message);
+        }
     } catch (error) {
         console.error('记录点击次数失败:', error);
     }
