@@ -19,24 +19,43 @@ def visa_link_page():
         page = request.args.get('page', 1, type=int)
         per_page = 20  # 每页显示20条数据
         
-        # 获取所有签证链接，并关联签证类型信息，使用分页
-        pagination = db.session.query(VisaLinks, VisaTypes)\
-            .join(VisaTypes)\
-            .order_by(VisaTypes.visa_type, VisaLinks.name)\
+        # 获取筛选参数
+        filter_visa_type = request.args.get('filter_visa_type', '')
+        filter_country = request.args.get('filter_country', '')
+        
+        # 构建查询
+        query = db.session.query(VisaLinks, VisaTypes, VisaCountries)\
+            .join(VisaTypes, VisaLinks.visa_type_id == VisaTypes.id)\
+            .outerjoin(VisaCountries, VisaLinks.visa_countries_id == VisaCountries.id)
+        
+        # 应用筛选条件
+        if filter_visa_type:
+            query = query.filter(VisaTypes.id == filter_visa_type)
+        
+        if filter_country:
+            query = query.filter(VisaCountries.id == filter_country)
+        
+        # 排序和分页
+        pagination = query.order_by(VisaTypes.visa_type, VisaLinks.name)\
             .paginate(page=page, per_page=per_page, error_out=False)
         
         links = pagination.items
         
-        # 获取所有签证类型用于添加新链接
+        # 获取所有签证类型用于添加新链接和筛选
         visa_types = VisaTypes.query.order_by(VisaTypes.visa_type).all()
+        countries = VisaCountries.query.order_by(VisaCountries.country_name_CN).all()
         
         return render_template('visas/签证类型管理/签证链接管理.html',
                              links=links,
                              visa_types=visa_types,
-                             pagination=pagination)
+                             countries=countries,
+                             pagination=pagination,
+                             filter_visa_type=filter_visa_type,
+                             filter_country=filter_country)
     except Exception as e:
         flash(f'获取链接列表时出错: {str(e)}', 'error')
-        return redirect(url_for('visa_links.visa_link_page'))
+        # 重定向到签证首页而不是同一个页面，避免循环重定向
+        return redirect(url_for('visa_home.home'))
 
 @visa_links.route('/add_visa_link', methods=['GET', 'POST'])
 def add_visa_link():
@@ -49,14 +68,15 @@ def add_visa_link():
             # 获取表单数据数组
             visa_type_ids = request.form.getlist('visa_type[]')
             names = request.form.getlist('name[]')
-            links = request.form.getlist('link[]')
+            links_ = request.form.getlist('link[]')
+            countries_ids = request.form.getlist('visa_countries_id[]')
             
             print(f"DEBUG: 接收到的数据 - visa_type_ids: {visa_type_ids}")
             print(f"DEBUG: 接收到的数据 - names: {names}")
-            print(f"DEBUG: 接收到的数据 - links: {links}")
+            print(f"DEBUG: 接收到的数据 - links_: {links_}")
             
             # 检查是否有数据
-            if not visa_type_ids or not names or not links:
+            if not visa_type_ids or not names or not links_:
                 error_msg = '请至少提交一个签证链接数据'
                 print(f"DEBUG: 数据验证失败 - {error_msg}")
                 if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -65,9 +85,9 @@ def add_visa_link():
                 return redirect(url_for('visa_links.visa_link_page'))
             
             # 检查数组长度是否匹配
-            if len(visa_type_ids) != len(names) or len(visa_type_ids) != len(links):
+            if len(visa_type_ids) != len(names) or len(visa_type_ids) != len(links_):
                 error_msg = '提交的数据格式不正确'
-                print(f"DEBUG: 数组长度不匹配 - visa_type_ids: {len(visa_type_ids)}, names: {len(names)}, links: {len(links)}")
+                print(f"DEBUG: 数组长度不匹配 - visa_type_ids: {len(visa_type_ids)}, names: {len(names)}, links_: {len(links_)}")
                 if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                     return jsonify({'success': False, 'message': error_msg}), 400
                 flash(error_msg, 'error')
@@ -81,7 +101,8 @@ def add_visa_link():
             for i in range(len(visa_type_ids)):
                 visa_type_id = visa_type_ids[i].strip()
                 name = names[i].strip()
-                link = links[i].strip()
+                link = links_[i].strip()
+                visa_countries_id = countries_ids[i].strip() if i < len(countries_ids) else None
                 
                 print(f"DEBUG: 处理第{i+1}个链接 - visa_type_id: {visa_type_id}, name: {name}, link: {link}")
                 
@@ -108,7 +129,8 @@ def add_visa_link():
                     new_link = VisaLinks(
                         visa_type_id=visa_type_id,
                         name=name,
-                        link=link
+                        link=link,
+                        visa_countries_id=visa_countries_id
                     )
                     db.session.add(new_link)
                     success_count += 1
@@ -167,6 +189,7 @@ def add_visa_link():
             flash(error_msg, 'error')
             return redirect(url_for('visa_links.visa_link_page'))
     
+    # GET 请求时重定向到主页面
     return redirect(url_for('visa_links.visa_link_page'))
 
 @visa_links.route('/edit_visa_link/<int:link_id>', methods=['GET', 'POST'])
@@ -181,6 +204,7 @@ def edit_visa_link(link_id):
                 visa_type_id = request.form.get('visa_type')
                 name = request.form.get('name')
                 link_url = request.form.get('link')
+                visa_countries_id = request.form.get('visa_countries_id')
 
                 # 验证数据
                 if not visa_type_id or not name or not link_url:
@@ -211,6 +235,7 @@ def edit_visa_link(link_id):
                 link.visa_type_id = visa_type_id
                 link.name = name
                 link.link = link_url
+                link.visa_countries_id = visa_countries_id
 
                 db.session.commit()
                 
@@ -230,16 +255,19 @@ def edit_visa_link(link_id):
         
         # GET 请求，显示编辑表单
         visa_types = VisaTypes.query.order_by(VisaTypes.visa_type).all()
+        countries = VisaCountries.query.order_by(VisaCountries.country_name_CN).all()
         return render_template('visas/签证类型管理/签证链接管理.html',
                              link=link,
                              visa_types=visa_types,
+                             countries=countries,
                              is_editing=True)
     except Exception as e:
         error_msg = f'获取链接信息时出错：{str(e)}'
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             return jsonify({'success': False, 'message': error_msg}), 500
         flash(error_msg, 'error')
-        return redirect(url_for('visa_links.visa_link_page'))
+        # 重定向到签证首页而不是同一个页面，避免循环重定向
+        return redirect(url_for('visa_home.home'))
 
 @visa_links.route('/delete_visa_link/<int:link_id>')
 def delete_visa_link(link_id):

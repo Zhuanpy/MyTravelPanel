@@ -1,5 +1,6 @@
 from flask import Blueprint, jsonify, request, render_template, send_file
 from App.exts import db
+from App.exts import csrf
 import logging
 from sqlalchemy import case
 from datetime import datetime
@@ -20,6 +21,7 @@ def account_page():
     return render_template('utils/账号管理.html')
 
 @account_routes.route('/api/accounts/increment_click/<int:account_id>', methods=['POST'])
+@csrf.exempt
 def increment_click(account_id):
     try:
         logger.info(f"Received click increment request for account_id: {account_id}")

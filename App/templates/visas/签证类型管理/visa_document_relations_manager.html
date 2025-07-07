@@ -1,0 +1,484 @@
+{% extends "base.html" %}
+
+{% block title %}签证文档关联关系管理{% endblock %}
+
+{% block head %}
+<style>
+.responsible-party-option:hover {
+    background: #e3f2fd !important;
+    border-color: #2196f3 !important;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.responsible-party-option {
+    transition: all 0.2s ease;
+}
+
+.responsible-party-option input[type="radio"] {
+    cursor: pointer;
+}
+
+.responsible-party-option input[type="radio"]:focus {
+    outline: none;
+}
+
+.responsible-party-option-inline:hover {
+    background: #e3f2fd !important;
+    border-color: #2196f3 !important;
+    transform: translateY(-1px);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.responsible-party-option-inline {
+    transition: all 0.2s ease;
+}
+
+.responsible-party-option-inline input[type="radio"] {
+    cursor: pointer;
+}
+
+.responsible-party-option-inline input[type="radio"]:focus {
+    outline: none;
+}
+
+@keyframes fadeInOut {
+    0% {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.8);
+    }
+    50% {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+    }
+    100% {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.8);
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i class="fas fa-link"></i> 签证文档关联关系管理
+                    </h3>
+                    <div class="card-tools">
+                        <button type="button" class="btn btn-primary btn-sm" onclick="refreshData()">
+                            <i class="fas fa-sync-alt"></i> 刷新数据
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <!-- 筛选区域 -->
+                    <div class="row mb-3">
+                        <div class="col-md-2">
+                            <label for="filterCountry">国家筛选:</label>
+                            <select class="form-control" id="filterCountry">
+                                <option value="">全部国家</option>
+                                {% for country in countries %}
+                                <option value="{{ country.country_name_CN }}">{{ country.country_name_CN }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label for="filterVisaType">签证类型筛选:</label>
+                            <select class="form-control" id="filterVisaType">
+                                <option value="">全部签证类型</option>
+                                {% for visa_type in visa_types %}
+                                <option value="{{ visa_type.visa_type }}">{{ visa_type.visa_type }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label for="filterIdentity">身份筛选:</label>
+                            <select class="form-control" id="filterIdentity">
+                                <option value="">全部身份</option>
+                                <option value="SHARE">SHARE</option>
+                                {% for identity in identities %}
+                                <option value="{{ identity.identity_zh }}">{{ identity.identity_zh }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label for="filterResponsibleParty">准备方筛选:</label>
+                            <select class="form-control" id="filterResponsibleParty">
+                                <option value="">全部</option>
+                                <option value="FOR_APPLICATION">申请人准备</option>
+                                <option value="FOR_AGENT">旅行社准备</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label>&nbsp;</label>
+                            <button type="button" class="btn btn-info btn-block" onclick="applyFilters()">
+                                <i class="fas fa-filter"></i> 应用筛选
+                            </button>
+                        </div>
+                        <div class="col-md-2">
+                            <label>&nbsp;</label>
+                            <button type="button" class="btn btn-secondary btn-block" onclick="clearFilters()">
+                                <i class="fas fa-times"></i> 清除筛选
+                            </button>
+                        </div>
+                    </div>
+
+
+
+                    <!-- 数据表格 -->
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-striped" id="relationsTable">
+                            <thead class="thead-dark">
+                                <tr>
+                                    <th>签证类型</th>
+                                    <th>国家</th>
+                                    <th>身份</th>
+                                    <th>文档名称</th>
+                                    <th>文档分类</th>
+                                    <th>准备方</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="relationsTableBody">
+                                <!-- 数据将通过JavaScript动态加载 -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- 加载提示 -->
+                    <div id="loadingIndicator" class="text-center" style="display: none;">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="sr-only">加载中...</span>
+                        </div>
+                        <p class="mt-2">正在加载数据...</p>
+                    </div>
+
+                    <!-- 无数据提示 -->
+                    <div id="noDataIndicator" class="text-center" style="display: none;">
+                        <i class="fas fa-inbox fa-3x text-muted"></i>
+                        <p class="mt-2 text-muted">暂无数据</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+let allRelations = [];
+let filteredRelations = [];
+
+// 页面加载完成后执行
+$(document).ready(function() {
+    loadRelations();
+    
+    // 绑定筛选器变化事件
+    $('#filterCountry, #filterVisaType, #filterIdentity, #filterResponsibleParty').change(function() {
+        applyFilters();
+    });
+    
+
+});
+
+// 加载关联关系数据
+function loadRelations() {
+    showLoading(true);
+    
+    $.ajax({
+        url: '/visa/basic/api/get_document_relations',
+        method: 'GET',
+        success: function(response) {
+            if (response.success) {
+                allRelations = response.relations;
+                filteredRelations = [...allRelations];
+                renderTable();
+            } else {
+                showError('加载数据失败: ' + response.message);
+            }
+        },
+        error: function(xhr, status, error) {
+            showError('网络错误: ' + error);
+        },
+        complete: function() {
+            showLoading(false);
+        }
+    });
+}
+
+// 渲染表格
+function renderTable() {
+    const tbody = $('#relationsTableBody');
+    tbody.empty();
+    
+    if (filteredRelations.length === 0) {
+        $('#noDataIndicator').show();
+        $('#relationsTable').hide();
+        return;
+    }
+    
+    $('#noDataIndicator').hide();
+    $('#relationsTable').show();
+    
+    filteredRelations.forEach(function(relation) {
+        const row = $('<tr>');
+        
+        // 准备方选择框
+        const responsiblePartyOptions = `
+            <div class="responsible-party-inline" style="display: flex; gap: 8px; align-items: center;">
+                <label class="responsible-party-option-inline" style="display: flex; align-items: center; gap: 4px; cursor: pointer; padding: 4px 8px; border: 1px solid #ddd; border-radius: 4px; background: ${relation.responsible_party === 'FOR_APPLICATION' ? '#007bff' : '#f8f9fa'}; transition: all 0.2s ease;">
+                    <input type="radio" 
+                           name="responsible_${relation.visa_document_id}_${relation.document_id}" 
+                           value="FOR_APPLICATION" 
+                           ${relation.responsible_party === 'FOR_APPLICATION' ? 'checked' : ''} 
+                           style="margin: 0;"
+                           onchange="updateResponsiblePartyInline('${relation.visa_document_id}', '${relation.document_id}', 'FOR_APPLICATION')">
+                    <span style="color: ${relation.responsible_party === 'FOR_APPLICATION' ? 'white' : '#495057'}; font-size: 0.85rem; font-weight: ${relation.responsible_party === 'FOR_APPLICATION' ? '500' : '400'};">申请人</span>
+                </label>
+                <label class="responsible-party-option-inline" style="display: flex; align-items: center; gap: 4px; cursor: pointer; padding: 4px 8px; border: 1px solid #ddd; border-radius: 4px; background: ${relation.responsible_party === 'FOR_AGENT' ? '#007bff' : '#f8f9fa'}; transition: all 0.2s ease;">
+                    <input type="radio" 
+                           name="responsible_${relation.visa_document_id}_${relation.document_id}" 
+                           value="FOR_AGENT" 
+                           ${relation.responsible_party === 'FOR_AGENT' ? 'checked' : ''} 
+                           style="margin: 0;"
+                           onchange="updateResponsiblePartyInline('${relation.visa_document_id}', '${relation.document_id}', 'FOR_AGENT')">
+                    <span style="color: ${relation.responsible_party === 'FOR_AGENT' ? 'white' : '#495057'}; font-size: 0.85rem; font-weight: ${relation.responsible_party === 'FOR_AGENT' ? '500' : '400'};">旅行社</span>
+                </label>
+            </div>
+        `;
+        
+        row.html(`
+            <td>${relation.visa_type}</td>
+            <td>${relation.country_name}</td>
+            <td>${relation.identity_name}</td>
+            <td>${relation.document_name}</td>
+            <td>${relation.document_category || '-'}</td>
+            <td>${responsiblePartyOptions}</td>
+            <td>
+                <button class="btn btn-sm btn-outline-danger" onclick="deleteRelation('${relation.visa_document_id}', '${relation.document_id}')">
+                    <i class="fas fa-trash"></i> 删除
+                </button>
+            </td>
+        `);
+        
+        tbody.append(row);
+    });
+}
+
+// 应用筛选
+function applyFilters() {
+    const countryFilter = $('#filterCountry').val();
+    const visaTypeFilter = $('#filterVisaType').val();
+    const identityFilter = $('#filterIdentity').val();
+    const responsiblePartyFilter = $('#filterResponsibleParty').val();
+    
+    filteredRelations = allRelations.filter(function(relation) {
+        const matchCountry = !countryFilter || relation.country_name === countryFilter;
+        const matchVisaType = !visaTypeFilter || relation.visa_type === visaTypeFilter;
+        const matchIdentity = !identityFilter || relation.identity_name === identityFilter;
+        const matchResponsibleParty = !responsiblePartyFilter || relation.responsible_party === responsiblePartyFilter;
+        
+        return matchCountry && matchVisaType && matchIdentity && matchResponsibleParty;
+    });
+    
+    renderTable();
+}
+
+// 清除筛选
+function clearFilters() {
+    $('#filterCountry').val('');
+    $('#filterVisaType').val('');
+    $('#filterIdentity').val('');
+    $('#filterResponsibleParty').val('');
+    
+    filteredRelations = [...allRelations];
+    renderTable();
+}
+
+
+
+// 删除关联关系
+function deleteRelation(visaDocumentId, documentId) {
+    if (!confirm('确定要删除这条关联关系吗？')) {
+        return;
+    }
+    
+    $.ajax({
+        url: '/visa/basic/api/delete_document_relation',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({
+            visa_document_id: visaDocumentId,
+            document_id: documentId
+        }),
+        success: function(response) {
+            if (response.success) {
+                showQuickSuccess('删除成功');
+                loadRelations(); // 重新加载数据
+            } else {
+                showError('删除失败: ' + response.message);
+            }
+        },
+        error: function(xhr, status, error) {
+            showError('网络错误: ' + error);
+        }
+    });
+}
+
+
+
+// 更新表格中的准备方选择
+function updateResponsiblePartyInline(visaDocumentId, documentId, responsibleParty) {
+    try {
+        console.log(`DEBUG: 更新表格中的准备方 - 签证文档ID: ${visaDocumentId}, 文档ID: ${documentId}, 准备方: ${responsibleParty}`);
+        
+        // 更新UI样式
+        const container = document.querySelector(`input[name="responsible_${visaDocumentId}_${documentId}"][value="${responsibleParty}"]`).closest('.responsible-party-inline');
+        const options = container.querySelectorAll('.responsible-party-option-inline');
+        
+        options.forEach(option => {
+            const radio = option.querySelector('input[type="radio"]');
+            const span = option.querySelector('span');
+            
+            if (radio.value === responsibleParty) {
+                option.style.background = '#007bff';
+                option.style.borderColor = '#007bff';
+                span.style.color = 'white';
+                span.style.fontWeight = '500';
+            } else {
+                option.style.background = '#f8f9fa';
+                option.style.borderColor = '#ddd';
+                span.style.color = '#495057';
+                span.style.fontWeight = '400';
+            }
+        });
+        
+        // 立即保存到后端
+        $.ajax({
+            url: '/visa/basic/api/update_document_relation',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                visa_document_id: visaDocumentId,
+                document_id: documentId,
+                responsible_party: responsibleParty
+            }),
+            success: function(response) {
+                if (response.success) {
+                    // 静默更新，不显示成功消息
+                } else {
+                    showError('更新失败: ' + response.message);
+                    // 如果保存失败，重新加载数据
+                    loadRelations();
+                }
+            },
+            error: function(xhr, status, error) {
+                showError('网络错误: ' + error);
+                // 如果保存失败，重新加载数据
+                loadRelations();
+            }
+        });
+        
+    } catch (error) {
+        console.error('更新准备方失败:', error);
+        showError('更新准备方失败，请重试');
+    }
+}
+
+
+
+// 刷新数据
+function refreshData() {
+    loadRelations();
+}
+
+// 显示加载状态
+function showLoading(show) {
+    if (show) {
+        $('#loadingIndicator').show();
+        $('#relationsTable').hide();
+        $('#noDataIndicator').hide();
+    } else {
+        $('#loadingIndicator').hide();
+    }
+}
+
+// 显示快速成功消息（弹窗形式）
+function showQuickSuccess(message) {
+    // 创建弹窗元素
+    const toast = $(`
+        <div class="quick-toast" style="
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #28a745;
+            color: white;
+            padding: 15px 25px;
+            border-radius: 8px;
+            font-weight: 500;
+            z-index: 9999;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            animation: fadeInOut 0.5s ease-in-out;
+        ">
+            <i class="fas fa-check-circle" style="margin-right: 8px;"></i>
+            ${message}
+        </div>
+    `);
+    
+    // 添加到页面
+    $('body').append(toast);
+    
+    // 0.5秒后自动移除
+    setTimeout(function() {
+        toast.remove();
+    }, 500);
+}
+
+// 显示成功消息
+function showSuccess(message) {
+    // 使用Bootstrap的toast或alert
+    const alert = $(`
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            ${message}
+            <button type="button" class="close" data-dismiss="alert">
+                <span>&times;</span>
+            </button>
+        </div>
+    `);
+    
+    $('.card-body').prepend(alert);
+    
+    // 3秒后自动消失
+    setTimeout(function() {
+        alert.alert('close');
+    }, 3000);
+}
+
+// 显示错误消息
+function showError(message) {
+    const alert = $(`
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            ${message}
+            <button type="button" class="close" data-dismiss="alert">
+                <span>&times;</span>
+            </button>
+        </div>
+    `);
+    
+    $('.card-body').prepend(alert);
+    
+    // 5秒后自动消失
+    setTimeout(function() {
+        alert.alert('close');
+    }, 5000);
+}
+</script>
+{% endblock %} 

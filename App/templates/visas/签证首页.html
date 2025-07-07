@@ -33,55 +33,104 @@
     }
     
 /* ========= 页面头部 ========= */
-    .visa-home-header {
-    background: var(--color-light-bg);
-    padding: 32px 24px 18px 24px;
+.visa-home-header {
+    background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+    padding: 2.5rem 2rem 2rem 2rem;
     border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-sm);
-    margin-bottom: 28px;
-        text-align: center;
+    box-shadow: var(--shadow-md);
+    margin-bottom: 2.5rem;
+    text-align: center;
     position: relative;
-    }
-    
-    .visa-home-title {
-    font-size: 2.2rem;
-    font-weight: 700;
+    border: 1px solid var(--color-border);
+    overflow: hidden;
+}
+
+.visa-home-header::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="25" cy="25" r="1" fill="%23ffffff" opacity="0.1"/><circle cx="75" cy="75" r="1" fill="%23ffffff" opacity="0.1"/><circle cx="50" cy="10" r="0.5" fill="%23ffffff" opacity="0.1"/><circle cx="10" cy="60" r="0.5" fill="%23ffffff" opacity="0.1"/><circle cx="90" cy="40" r="0.5" fill="%23ffffff" opacity="0.1"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>');
+    pointer-events: none;
+}
+
+.visa-home-title {
+    font-size: 2.5rem;
+    font-weight: 800;
     color: var(--color-text-dark);
-    margin-bottom: 18px;
-    letter-spacing: 1px;
-    }
-    
+    margin-bottom: 1.5rem;
+    letter-spacing: 1.5px;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    position: relative;
+    z-index: 1;
+}
+
 .visa-home-subtitle {
-    margin-top: 18px;
-    font-size: 1.1rem;
+    margin-top: 1.5rem;
+    font-size: 1.2rem;
     color: var(--color-text-gray);
     letter-spacing: 0.5px;
+    font-weight: 500;
+    position: relative;
+    z-index: 1;
 }
 
 /* ========= 链接按钮 ========= */
 .text-link {
     display: inline-flex;
     align-items: center;
-    margin: 0 10px 10px 0;
-    padding: 7px 16px;
-    font-size: 1rem;
-    color: var(--color-accent);
-    background: var(--color-accent-bg);
-    border-radius: 6px;
+    margin: 0 12px 12px 0;
+    padding: 12px 20px;
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: var(--color-primary);
+    background: white;
+    border-radius: var(--radius);
     text-decoration: none;
-    transition: all 0.2s ease;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     box-shadow: var(--shadow-sm);
-    border: 1px solid #e0e7ef;
+    border: 2px solid var(--color-border);
+    position: relative;
+    overflow: hidden;
+}
+
+.text-link::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(42, 82, 152, 0.1), transparent);
+    transition: left 0.5s;
+}
+
+.text-link:hover::before {
+    left: 100%;
 }
 
 .text-link i {
-    margin-right: 6px;
+    margin-right: 8px;
     font-size: 1.1em;
+    transition: transform 0.3s ease;
 }
 
 .text-link:hover {
-    background: var(--color-accent-bg-hover);
-    color: #17406a;
+    background: var(--color-primary);
+    color: white;
+    border-color: var(--color-primary);
+    box-shadow: var(--shadow-lg);
+    transform: translateY(-2px);
+}
+
+.text-link:hover i {
+    transform: scale(1.1);
+}
+
+.text-link:active {
+    transform: translateY(0);
     box-shadow: var(--shadow-md);
 }
 
@@ -89,58 +138,110 @@
 .text-link.disabled {
     pointer-events: none;
     color: #aaa;
-    background: #eee;
-    border-color: #eee;
-    }
+    background: #f5f5f5;
+    border-color: #e0e0e0;
+    box-shadow: none;
+}
     
 /* ========= 国家卡片网格 ========= */
 .countries-grid {
-        display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-        gap: 1.5rem;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 2rem;
     margin-top: 2rem;
-    }
-    
+}
+
 .country-card {
     background: white;
-    border-radius: var(--radius);
+    border-radius: var(--radius-lg);
     box-shadow: var(--shadow-md);
-    transition: transform 0.2s, box-shadow 0.2s;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     cursor: pointer;
-        overflow: hidden;
-    }
-    
+    overflow: hidden;
+    position: relative;
+    border: 1px solid var(--color-border);
+}
+
+.country-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--color-primary), var(--color-accent));
+    transform: scaleX(0);
+    transition: transform 0.3s ease;
+}
+
+.country-card:hover::before {
+    transform: scaleX(1);
+}
+
 .country-card:hover {
-    transform: translateY(-5px);
-    box-shadow: var(--shadow-lg);
-    }
-    
+    transform: translateY(-8px) scale(1.02);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+}
+
+.country-card:active {
+    transform: translateY(-4px) scale(1.01);
+}
+
 .country-card-header {
-    padding: 1.5rem;
-    background: var(--color-primary);
+    padding: 1.75rem;
+    background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-accent) 100%);
     color: white;
-        display: flex;
-        align-items: center;
-    gap: 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    position: relative;
+    overflow: hidden;
+}
+
+.country-card-header::after {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+    transition: transform 0.3s ease;
+}
+
+.country-card:hover .country-card-header::after {
+    transform: scale(1.2);
 }
 
 .country-card-header i {
-    font-size: 1.5rem;
-    }
-    
+    font-size: 1.75rem;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
+}
+
 .country-card-title {
-    font-size: 1.25rem;
-        font-weight: 600;
-    margin-bottom: 0.5rem;
-    }
-    
+    font-size: 1.35rem;
+    font-weight: 700;
+    margin: 0;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
 .country-card-body {
-    padding: 1.5rem;
-    }
-    
+    padding: 1.75rem;
+    background: linear-gradient(180deg, #f8fafc 0%, white 100%);
+}
+
 .country-card-info {
-    color: #718096;
-    font-size: 0.875rem;
+    color: var(--color-text-gray);
+    font-size: 0.95rem;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.country-card-info::before {
+    content: '📋';
+    font-size: 1.1em;
 }
 
 /* ========= 弹窗 Modal ========= */
@@ -149,95 +250,175 @@
     position: fixed;
     top: 0; left: 0;
     width: 100%; height: 100%;
-    background: rgba(0, 0, 0, 0.5);
+    background: rgba(0, 0, 0, 0.6);
     z-index: 1000;
+    backdrop-filter: blur(4px);
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
 }
 
 .modal-content {
     position: relative;
     background: white;
     width: 90%;
-    max-width: 800px;
-    margin: 50px auto;
-    border-radius: var(--radius);
-    box-shadow: var(--shadow-lg);
-    max-height: 80vh;
+    max-width: 900px;
+    margin: 30px auto;
+    border-radius: var(--radius-lg);
+    box-shadow: 0 25px 50px rgba(0, 0, 0, 0.25);
+    max-height: 85vh;
     overflow-y: auto;
+    animation: slideIn 0.3s ease;
+    border: 1px solid var(--color-border);
+}
+
+@keyframes slideIn {
+    from { 
+        transform: translateY(-50px) scale(0.95);
+        opacity: 0;
     }
-    
+    to { 
+        transform: translateY(0) scale(1);
+        opacity: 1;
+    }
+}
+
 .modal-header {
-    padding: 1.5rem;
+    padding: 2rem 2rem 1.5rem 2rem;
     border-bottom: 1px solid var(--color-border);
     display: flex;
     justify-content: space-between;
     align-items: center;
-    }
+    background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+}
 
 .modal-title {
-    font-size: 1.5rem;
-    font-weight: 600;
+    font-size: 1.75rem;
+    font-weight: 700;
     color: var(--color-text-dark);
+    margin: 0;
 }
 
 .close-modal {
     background: none;
     border: none;
-    font-size: 1.5rem;
-    color: #718096;
+    font-size: 1.75rem;
+    color: var(--color-text-gray);
     cursor: pointer;
-    padding: 0.5rem;
+    padding: 0.75rem;
+    border-radius: 50%;
+    transition: all 0.3s ease;
+    width: 50px;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.close-modal:hover {
+    background: rgba(0, 0, 0, 0.1);
+    color: var(--color-text-dark);
+    transform: rotate(90deg);
 }
 
 .modal-body {
-    padding: 1.5rem;
-        }
+    padding: 2rem;
+}
         
 /* ========= 签证类型列表 ========= */
 .visa-list {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    gap: 1rem;
-    }
-    
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 1.5rem;
+}
+
 .visa-item {
-    background: #f7fafc;
-    border-radius: 6px;
-    padding: 1rem;
-    border: 1px solid var(--color-border);
-    }
-    
+    background: white;
+    border-radius: var(--radius);
+    padding: 1.5rem;
+    border: 2px solid var(--color-border);
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.visa-item::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 4px;
+    height: 100%;
+    background: linear-gradient(180deg, var(--color-primary), var(--color-accent));
+    transform: scaleY(0);
+    transition: transform 0.3s ease;
+}
+
+.visa-item:hover::before {
+    transform: scaleY(1);
+}
+
+.visa-item:hover {
+    border-color: var(--color-primary);
+    box-shadow: var(--shadow-lg);
+    transform: translateY(-2px);
+}
+
 .visa-item-header {
-        display: flex;
-        align-items: center;
-    gap: 0.5rem;
-    margin-bottom: 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
 }
 
 .visa-item-title {
-    font-weight: 600;
+    font-weight: 700;
     color: var(--color-text-dark);
+    font-size: 1.1rem;
 }
 
 .visa-item-info {
     display: grid;
-    gap: 0.5rem;
-    margin-bottom: 1rem;
-    }
-    
+    gap: 0.75rem;
+    margin-bottom: 1.25rem;
+}
+
 .visa-item-info-row {
     display: flex;
     justify-content: space-between;
-    font-size: 0.875rem;
+    align-items: center;
+    font-size: 0.9rem;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.visa-item-info-row:last-child {
+    border-bottom: none;
 }
 
 .visa-item-label {
-    color: #718096;
-    }
-    
+    color: var(--color-text-gray);
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.visa-item-label::before {
+    content: '•';
+    color: var(--color-primary);
+    font-weight: bold;
+}
+
 .visa-item-value {
     color: var(--color-text-dark);
-    font-weight: 500;
-    }
+    font-weight: 600;
+    text-align: right;
+}
     
 /* ========= 按钮 ========= */
 .visa-btn {
@@ -306,7 +487,9 @@
             <a href="{{ url_for('visa_basic.visa_type_document_manager') }}" class="text-link">
                 <i class="fas fa-cogs"></i> 签证文档配置
                 </a>
-            
+            <a href="{{ url_for('visa_links.visa_link_page') }}" class="text-link">
+                <i class="fas fa-link"></i> 签证链接管理
+                </a>
             <a href="{{ url_for('visa_basic.visa_type_list') }}" class="text-link">
                 <i class="fas fa-plus"></i> 签证类型管理
                 </a>
@@ -316,6 +499,10 @@
             
             <a href="{{ url_for('visa_basic.manage_countries') }}" class="text-link">
                 <i class="fas fa-flag"></i> 签证国家管理
+                </a>
+
+            <a href="{{ url_for('visa_basic.visa_document_relations_manager') }}" class="text-link">
+                <i class="fas fa-link"></i> 文档关联管理
                 </a>
 
             <a href="javascript:void(0);" onclick="openVisaRootFolder()" class="text-link">

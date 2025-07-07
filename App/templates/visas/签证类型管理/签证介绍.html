@@ -68,12 +68,19 @@
         padding: 2rem;
     }
     
+    #documentContent {
+        min-height: 300px;
+        transition: all 0.3s ease;
+    }
+    
     .visa-intro-info-card {
         background: #f8fafc;
         border-radius: 8px;
         padding: 1.5rem;
         margin-bottom: 1rem;
         border-left: 4px solid #4299e1;
+        min-height: 120px;
+        transition: all 0.3s ease;
     }
     
     .visa-intro-info-card h3 {
@@ -138,6 +145,7 @@
         flex-wrap: wrap;
         gap: 0.5rem;
         align-items: flex-start;
+        min-height: 100px;
     }
     
     .visa-intro-document-item {
@@ -186,6 +194,7 @@
         border-radius: 8px;
         padding: 1.5rem;
         border: 1px solid #e2e8f0;
+        min-height: 50px;
     }
     
     .visa-intro-reminder-item {
@@ -210,6 +219,52 @@
         line-height: 1.5;
         white-space: pre-wrap;
     }
+    
+    /* 准备方选择器样式 */
+    .visa-intro-responsible-party-selector {
+        margin-bottom: 2rem;
+    }
+    
+    .visa-intro-responsible-party-buttons {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .visa-intro-responsible-party-button {
+        padding: 0.75rem 1.5rem;
+        background: #f7fafc;
+        border: 2px solid #e2e8f0;
+        border-radius: 0.5rem;
+        color: #4a5568;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+        margin: 0.25rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .visa-intro-responsible-party-button:hover {
+        background: #edf2f7;
+        border-color: #cbd5e0;
+        color: #2d3748;
+    }
+    
+    .visa-intro-responsible-party-button.active {
+        background: #4299e1;
+        border-color: #4299e1;
+        color: white;
+    }
+    
+    .visa-intro-responsible-party-button.active:hover {
+        background: #3182ce;
+        border-color: #3182ce;
+    }
+    
+
     
     /* 序号样式 */
     .visa-intro-reminder-item .content::before {
@@ -300,6 +355,11 @@
         text-align: center;
         padding: 2rem;
         color: #718096;
+        min-height: 150px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
     }
     
     .visa-intro-loading i {
@@ -314,6 +374,11 @@
         color: #718096;
         background: #f7fafc;
         border-radius: 8px;
+        min-height: 150px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
     }
     
     .visa-intro-empty i {
@@ -391,6 +456,15 @@
             text-align: center;
         }
         
+        .visa-intro-responsible-party-buttons {
+            flex-direction: column;
+        }
+        
+        .visa-intro-responsible-party-button {
+            width: 100%;
+            text-align: center;
+        }
+        
         .visa-intro-document-item {
             max-width: 100%;
             min-width: auto;
@@ -461,6 +535,22 @@
                 </div>
             </div>
             
+            <!-- 准备方选择标签 -->
+            <div class="visa-intro-responsible-party-selector" id="responsiblePartySelector" style="display: none;">
+                <h3 style="margin-bottom: 1rem; color: #2d3748;">选择资料准备方</h3>
+                <div class="visa-intro-responsible-party-buttons">
+                    <button class="visa-intro-responsible-party-button active" data-party="all">
+                        <i class="fas fa-list"></i> 全部资料
+                    </button>
+                    <button class="visa-intro-responsible-party-button" data-party="FOR_APPLICATION">
+                        <i class="fas fa-user"></i> 申请人准备资料
+                    </button>
+                    <button class="visa-intro-responsible-party-button" data-party="FOR_AGENT">
+                        <i class="fas fa-building"></i> 旅行社准备资料
+                    </button>
+                </div>
+            </div>
+            
             <div id="documentContent">
                 <div class="visa-intro-loading">
                     <i class="fas fa-spinner fa-spin"></i>
@@ -478,8 +568,31 @@
 {% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    let currentDocuments = []; // 存储当前文档数据
+    let currentAdditionalInfo = []; // 存储当前补充信息
+    let currentIdentity = ''; // 存储当前选择的身份
+    
     // 加载身份选项
     loadIdentityOptions();
+    
+    // 绑定准备方选择按钮事件
+    document.addEventListener('click', function(e) {
+        if (e.target.closest('.visa-intro-responsible-party-button')) {
+            const button = e.target.closest('.visa-intro-responsible-party-button');
+            const party = button.getAttribute('data-party');
+            
+            // 移除其他按钮的active类
+            document.querySelectorAll('.visa-intro-responsible-party-button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            // 添加当前按钮的active类
+            button.classList.add('active');
+            
+            // 过滤并显示文档
+            filterAndRenderDocuments(party);
+        }
+    });
     
     // 加载身份选项函数
     function loadIdentityOptions() {
@@ -539,6 +652,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // 加载文档
     function loadDocuments(identity) {
+        currentIdentity = identity;
         const visaType = encodeURIComponent('{{ visa_type }}');
         const identityParam = identity === 'SHARE' ? 'SHARE' : encodeURIComponent(identity);
         
@@ -549,17 +663,45 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    renderDocuments(data.documents, data.additional_info, identity);
+                    // 存储文档数据
+                    currentDocuments = data.documents || [];
+                    currentAdditionalInfo = data.additional_info || [];
+                    
+                    // 显示准备方选择器
+                    document.getElementById('responsiblePartySelector').style.display = 'block';
+                    
+                    // 默认显示全部资料
+                    filterAndRenderDocuments('all');
                 } else {
                     document.getElementById('documentContent').innerHTML = 
                         '<div class="visa-intro-empty"><i class="fas fa-exclamation-triangle"></i><p>加载资料失败：' + data.message + '</p></div>';
+                    document.getElementById('responsiblePartySelector').style.display = 'none';
                 }
             })
             .catch(error => {
                 console.error('加载文档失败:', error);
                 document.getElementById('documentContent').innerHTML = 
                     '<div class="visa-intro-empty"><i class="fas fa-exclamation-triangle"></i><p>加载资料时发生错误</p></div>';
+                document.getElementById('responsiblePartySelector').style.display = 'none';
             });
+    }
+    
+    // 过滤并渲染文档
+    function filterAndRenderDocuments(party) {
+        // 添加防抖处理
+        if (filterAndRenderDocuments.timeout) {
+            clearTimeout(filterAndRenderDocuments.timeout);
+        }
+        
+        filterAndRenderDocuments.timeout = setTimeout(() => {
+            let filteredDocuments = currentDocuments;
+            
+            if (party !== 'all') {
+                filteredDocuments = currentDocuments.filter(doc => doc.responsible_party === party);
+            }
+            
+            renderDocuments(filteredDocuments, currentAdditionalInfo, currentIdentity);
+        }, 50); // 50ms 防抖延迟
     }
     
     // 渲染文档

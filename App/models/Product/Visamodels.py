@@ -129,7 +129,8 @@ class VisaTypes(db.Model):
 # 签证资料和文档的多对多关联表
 visa_document_documents = db.Table('visa_document_documents',
     db.Column('visa_document_id', db.Integer, db.ForeignKey('visa_documents_request.id', ondelete='CASCADE'), primary_key=True),
-    db.Column('document_id', db.Integer, db.ForeignKey('visa_documents_list.id', ondelete='CASCADE'), primary_key=True)
+    db.Column('document_id', db.Integer, db.ForeignKey('visa_documents_list.id', ondelete='CASCADE'), primary_key=True),
+    db.Column('responsible_party', db.String(20), default='FOR_APPLICATION', comment='资料准备方：FOR_APPLICATION(申请人准备)/FOR_AGENT(旅行社准备)')
 )
 
 
@@ -316,11 +317,15 @@ class VisaLinks(db.Model):
 
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     visa_type_id = db.Column(db.Integer, db.ForeignKey('visa_types.id', ondelete='CASCADE'), nullable=False)
+    visa_countries_id = db.Column(db.Integer, db.ForeignKey('visa_countries.id', ondelete='CASCADE'), nullable=True)
     name = db.Column(db.String(50), nullable=False)
     link = db.Column(db.Text)
 
     # 建立与 VisaTypes 表的关系
     visa_type = db.relationship('VisaTypes', back_populates='links')
+    
+    # 建立与 VisaCountries 表的关系
+    country = db.relationship('VisaCountries')
 
     def __repr__(self):
         return f"<VisaLink(id={self.id}, visa_type_id={self.visa_type_id}, name='{self.name}')>"
@@ -331,7 +336,9 @@ class VisaLinks(db.Model):
             'id': self.id,
             'name': self.name,
             'link': self.link,
-            'visa_type_id': self.visa_type_id
+            'visa_type_id': self.visa_type_id,
+            'visa_countries_id': self.visa_countries_id,
+            'country_name': self.country.country_name_CN if self.country else None
         }
 
 

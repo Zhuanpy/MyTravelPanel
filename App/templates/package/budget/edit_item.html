@@ -21,17 +21,29 @@
             <form method="post" id="editItemForm">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                 <div class="row">
-                    <div class="col-md-3">
-                        <label class="form-label">类别</label>
-                        <input type="text" name="category" class="form-control" value="{{ item.category }}" placeholder="如：住宿、交通、门票">
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label">项目类型</label>
-                        <input type="text" name="item_type" class="form-control" value="{{ item.item_type }}" placeholder="如：酒店、机票、景点">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="category">类别 <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="category" name="category" 
+                                   value="{{ item.category or '' }}" required>
+                        </div>
                     </div>
                     <div class="col-md-6">
-                        <label class="form-label">项目名称 <span class="text-danger">*</span></label>
-                        <input type="text" name="item_name" class="form-control" value="{{ item.item_name }}" placeholder="项目详细名称" required>
+                        <div class="form-group">
+                            <label for="item_name">项目名称 <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="item_name" name="item_name" 
+                                   value="{{ item.item_name or '' }}" required>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <div class="form-group">
+                            <label for="item_details">项目详细</label>
+                            <textarea class="form-control" id="item_details" name="item_details" rows="3" 
+                                      placeholder="例如：酒店入住日期、退房日期、酒店房型、是否含早等信息">{{ item.item_details or '' }}</textarea>
+                        </div>
                     </div>
                 </div>
                 
@@ -136,29 +148,6 @@
                 </div>
                 
                 <div class="row mt-3">
-                    <div class="col-md-2">
-                        <label class="form-label">总价覆盖</label>
-                        <input type="number" name="total_override" class="form-control" step="0.01" 
-                               placeholder="覆盖总价" value="{{ item.total_override or '' }}">
-                    </div>
-                    <div class="col-md-2">
-                        <label class="form-label">税率(%)</label>
-                        <input type="number" name="tax_rate" class="form-control" step="0.1" 
-                               placeholder="0.0" value="{{ (item.tax_rate * 100) if item.tax_rate else '' }}">
-                    </div>
-                    <div class="col-md-2">
-                        <label class="form-label">税费金额</label>
-                        <input type="number" name="tax_amount" class="form-control" step="0.01" 
-                               placeholder="0.00" value="{{ item.tax_amount or '' }}">
-                    </div>
-                    <div class="col-md-2">
-                        <label class="form-label">排序</label>
-                        <input type="number" name="sort_order" class="form-control" 
-                               placeholder="0" value="{{ item.sort_order or 0 }}">
-                    </div>
-                </div>
-                
-                <div class="row mt-3">
                     <div class="col-md-3">
                         <div class="form-check">
                             <input type="checkbox" name="count_adult_apply" class="form-check-input" value="1"
@@ -248,13 +237,111 @@
 </div>
 
 <script>
-// 实时预览功能
+// 计价方式切换功能
 document.addEventListener('DOMContentLoaded', function() {
+    const personBasedRadio = document.getElementById('person_based');
+    const itemBasedRadio = document.getElementById('item_based');
+    const personBasedPricing = document.getElementById('personBasedPricing');
+    const itemBasedPricing = document.getElementById('itemBasedPricing');
+    
+    // 计价方式切换处理
+    function handlePricingMethodChange() {
+        if (personBasedRadio.checked) {
+            // 显示人均计价方式
+            personBasedPricing.style.display = 'block';
+            itemBasedPricing.style.display = 'none';
+            
+            // 清空物品计价相关字段
+            document.querySelector('input[name="item_unit_price"]').value = '';
+            document.querySelector('input[name="item_quantity"]').value = '1';
+            
+            // 更新预览
+            updatePreview();
+        } else if (itemBasedRadio.checked) {
+            // 显示物品计价方式
+            personBasedPricing.style.display = 'none';
+            itemBasedPricing.style.display = 'block';
+            
+            // 清空人均计价相关字段
+            document.querySelector('input[name="adult_price"]').value = '';
+            document.querySelector('input[name="child_price"]').value = '';
+            
+            // 更新预览
+            updatePreview();
+        }
+    }
+    
+    // 绑定计价方式切换事件
+    personBasedRadio.addEventListener('change', handlePricingMethodChange);
+    itemBasedRadio.addEventListener('change', handlePricingMethodChange);
+    
+    // 物品计价方式的实时计算
+    const itemUnitPrice = document.querySelector('input[name="item_unit_price"]');
+    const itemQuantity = document.querySelector('input[name="item_quantity"]');
+    const itemTotalCost = document.getElementById('itemTotalCost');
+    const itemAdultUnitPrice = document.getElementById('itemAdultUnitPrice');
+    const itemChildUnitPrice = document.getElementById('itemChildUnitPrice');
+    
+    function calculateItemBasedPricing() {
+        const unitPrice = parseFloat(itemUnitPrice.value) || 0;
+        const quantity = parseInt(itemQuantity.value) || 1;
+        const totalCost = unitPrice * quantity;
+        
+        // 更新总价显示
+        itemTotalCost.value = totalCost.toFixed(2);
+        
+        // 计算人均价格
+        const budgetAdultCount = {{ budget.adult_count }};
+        const budgetChildCount = {{ budget.child_count }};
+        const totalPeople = budgetAdultCount + budgetChildCount;
+        
+        if (totalPeople > 0) {
+            const perPersonCost = totalCost / totalPeople;
+            itemAdultUnitPrice.value = perPersonCost.toFixed(2);
+            itemChildUnitPrice.value = perPersonCost.toFixed(2);
+        } else {
+            itemAdultUnitPrice.value = '0.00';
+            itemChildUnitPrice.value = '0.00';
+        }
+        
+        // 更新预览
+        updatePreview();
+    }
+    
+    // 绑定物品计价方式的计算事件
+    itemUnitPrice.addEventListener('input', calculateItemBasedPricing);
+    itemQuantity.addEventListener('input', calculateItemBasedPricing);
+    
+    // 人均计价方式的实时计算
+    const adultPrice = document.querySelector('input[name="adult_price"]');
+    const childPrice = document.querySelector('input[name="child_price"]');
+    const personTotalCost = document.getElementById('personTotalCost');
+    
+    function calculatePersonBasedPricing() {
+        const adultPriceValue = parseFloat(adultPrice.value) || 0;
+        const childPriceValue = parseFloat(childPrice.value) || 0;
+        const budgetAdultCount = {{ budget.adult_count }};
+        const budgetChildCount = {{ budget.child_count }};
+        
+        const adultTotal = adultPriceValue * budgetAdultCount;
+        const childTotal = childPriceValue * budgetChildCount;
+        const totalCost = adultTotal + childTotal;
+        
+        // 更新总价显示
+        personTotalCost.value = totalCost.toFixed(2);
+        
+        // 更新预览
+        updatePreview();
+    }
+    
+    // 绑定人均计价方式的计算事件
+    adultPrice.addEventListener('input', calculatePersonBasedPricing);
+    childPrice.addEventListener('input', calculatePersonBasedPricing);
+
+    // 实时预览功能
     const itemName = document.getElementById('editItemForm').querySelector('input[name="item_name"]');
     const category = document.getElementById('editItemForm').querySelector('input[name="category"]');
     const itemType = document.getElementById('editItemForm').querySelector('input[name="item_type"]');
-    const adultPrice = document.getElementById('editItemForm').querySelector('input[name="adult_price"]');
-    const childPrice = document.getElementById('editItemForm').querySelector('input[name="child_price"]');
 
     function updatePreview() {
         // 更新项目名称预览
@@ -266,53 +353,69 @@ document.addEventListener('DOMContentLoaded', function() {
         // 更新类型预览
         document.getElementById('preview_type').textContent = itemType.value || '-';
         
-        // 更新价格预览
-        const adultPriceValue = parseFloat(adultPrice.value) || 0;
-        const childPriceValue = parseFloat(childPrice.value) || 0;
-        
-        document.getElementById('preview_adult_price').textContent = 
-            adultPriceValue > 0 ? adultPriceValue.toFixed(2) : '-';
-        document.getElementById('preview_child_price').textContent = 
-            childPriceValue > 0 ? childPriceValue.toFixed(2) : '-';
-        
-        // 计算小计预览（简化版本）
-        const budgetAdultCount = {{ budget.adult_count }};
-        const budgetChildCount = {{ budget.child_count }};
-        const countAdultApply = document.querySelector('input[name="count_adult_apply"]').checked;
-        const countChildApply = document.querySelector('input[name="count_child_apply"]').checked;
-        
-        let subtotal = 0;
-        if (countAdultApply) {
-            subtotal += adultPriceValue * budgetAdultCount;
+        // 根据计价方式更新价格预览
+        if (personBasedRadio.checked) {
+            // 人均计价方式预览
+            const adultPriceValue = parseFloat(adultPrice.value) || 0;
+            const childPriceValue = parseFloat(childPrice.value) || 0;
+            
+            document.getElementById('preview_adult_price').textContent = 
+                adultPriceValue > 0 ? adultPriceValue.toFixed(2) : '-';
+            document.getElementById('preview_child_price').textContent = 
+                childPriceValue > 0 ? childPriceValue.toFixed(2) : '-';
+            
+            // 计算小计预览
+            const budgetAdultCount = {{ budget.adult_count }};
+            const budgetChildCount = {{ budget.child_count }};
+            const countAdultApply = document.querySelector('input[name="count_adult_apply"]').checked;
+            const countChildApply = document.querySelector('input[name="count_child_apply"]').checked;
+            
+            let subtotal = 0;
+            if (countAdultApply) {
+                subtotal += adultPriceValue * budgetAdultCount;
+            }
+            if (countChildApply) {
+                subtotal += childPriceValue * budgetChildCount;
+            }
+            
+            document.getElementById('preview_subtotal').textContent = subtotal.toFixed(2);
+            
+        } else if (itemBasedRadio.checked) {
+            // 物品计价方式预览
+            const unitPrice = parseFloat(itemUnitPrice.value) || 0;
+            const quantity = parseInt(itemQuantity.value) || 1;
+            const totalCost = unitPrice * quantity;
+            
+            document.getElementById('preview_adult_price').textContent = 
+                totalCost > 0 ? (totalCost / {{ budget.adult_count }}).toFixed(2) : '-';
+            document.getElementById('preview_child_price').textContent = 
+                totalCost > 0 ? (totalCost / {{ budget.child_count }}).toFixed(2) : '-';
+            document.getElementById('preview_subtotal').textContent = totalCost.toFixed(2);
         }
-        if (countChildApply) {
-            subtotal += childPriceValue * budgetChildCount;
-        }
-        
-        document.getElementById('preview_subtotal').textContent = subtotal.toFixed(2);
     }
 
     // 绑定事件监听器
     itemName.addEventListener('input', updatePreview);
     category.addEventListener('input', updatePreview);
     itemType.addEventListener('input', updatePreview);
-    adultPrice.addEventListener('input', updatePreview);
-    childPrice.addEventListener('input', updatePreview);
     
     // 复选框变化时也更新预览
     document.querySelector('input[name="count_adult_apply"]').addEventListener('change', updatePreview);
     document.querySelector('input[name="count_child_apply"]').addEventListener('change', updatePreview);
 
-    // 初始化预览
+    // 初始化预览和计算
     updatePreview();
+    if (itemBasedRadio.checked) {
+        calculateItemBasedPricing();
+    } else if (personBasedRadio.checked) {
+        calculatePersonBasedPricing();
+    }
 });
 
 // 表单验证
 document.getElementById('editItemForm').addEventListener('submit', function(e) {
     const itemName = document.querySelector('input[name="item_name"]').value.trim();
-    const adultPrice = parseFloat(document.querySelector('input[name="adult_price"]').value) || 0;
-    const childPrice = parseFloat(document.querySelector('input[name="child_price"]').value) || 0;
-    const totalOverride = parseFloat(document.querySelector('input[name="total_override"]').value) || 0;
+    const pricingMethod = document.querySelector('input[name="pricing_method"]:checked').value;
     
     if (!itemName) {
         e.preventDefault();
@@ -320,9 +423,33 @@ document.getElementById('editItemForm').addEventListener('submit', function(e) {
         return false;
     }
     
-    if (adultPrice === 0 && childPrice === 0 && totalOverride === 0) {
+    if (pricingMethod === 'person_based') {
+        // 人均计价方式验证
+        const adultPrice = parseFloat(document.querySelector('input[name="adult_price"]').value) || 0;
+        const childPrice = parseFloat(document.querySelector('input[name="child_price"]').value) || 0;
+        
+        if (adultPrice === 0 && childPrice === 0) {
+            e.preventDefault();
+            alert('人均计价方式需要至少填写成人单价或儿童单价');
+            return false;
+        }
+    } else if (pricingMethod === 'item_based') {
+        // 物品计价方式验证
+        const itemUnitPrice = parseFloat(document.querySelector('input[name="item_unit_price"]').value) || 0;
+        const itemQuantity = parseInt(document.querySelector('input[name="item_quantity"]').value) || 0;
+        
+        if (itemUnitPrice === 0 || itemQuantity === 0) {
+            e.preventDefault();
+            alert('物品计价方式需要填写物品单价和件数');
+            return false;
+        }
+    }
+    
+    // 总价覆盖验证
+    const totalOverride = parseFloat(document.querySelector('input[name="total_override"]').value) || 0;
+    if (totalOverride < 0) {
         e.preventDefault();
-        alert('请至少输入一个价格');
+        alert('总价覆盖不能为负数');
         return false;
     }
 });

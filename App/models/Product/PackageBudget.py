@@ -36,8 +36,8 @@ class BudgetItem(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     header_id = db.Column(db.Integer, db.ForeignKey('package_budget_header.id'))
     category = db.Column(db.String(50))
-    item_type = db.Column(db.String(50))  # 如住宿/交通/门票等
     item_name = db.Column(db.String(255))
+    item_details = db.Column(db.Text)  # 项目详细信息，如酒店入住日期、房型等
     
     # 计价方式：'item_based' 或 'person_based'
     pricing_method = db.Column(db.String(20), default='person_based')

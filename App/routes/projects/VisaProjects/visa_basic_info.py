@@ -898,14 +898,27 @@ def get_visa_documents(visa_type):
                 print(f"DEBUG: 处理配置记录 ID: {vd.id}")
                 if vd.selected_documents:
                     print(f"DEBUG: 该配置有 {len(vd.selected_documents)} 个选中文档")
+                    
+                    # 查询关联表中的准备方信息
+                    from sqlalchemy import text
+                    sql = text("""
+                        SELECT document_id, responsible_party 
+                        FROM visa_document_documents 
+                        WHERE visa_document_id = :visa_doc_id
+                    """)
+                    result = db.session.execute(sql, {'visa_doc_id': vd.id})
+                    responsible_parties = {row.document_id: row.responsible_party for row in result}
+                    
                     for doc in vd.selected_documents:
+                        responsible_party = responsible_parties.get(doc.id, 'FOR_APPLICATION')
                         doc_info = {
                             'id': doc.id,
                             'name': doc.name,
-                            'category': doc.category
+                            'category': doc.category,
+                            'responsible_party': responsible_party
                         }
                         selected_documents.append(doc_info)
-                        print(f"DEBUG: 添加文档: {doc.name} (ID: {doc.id})")
+                        print(f"DEBUG: 添加文档: {doc.name} (ID: {doc.id}, 准备方: {responsible_party})")
                 else:
                     print(f"DEBUG: 该配置没有选中文档")
                 additional_info = vd.additional_info or ""
@@ -1165,8 +1178,14 @@ def update_identity_documents(visa_type, identity_id):
                 'message': f'JSON解析错误: {str(json_error)}'
             }), 400
         
-        document_ids = data.get('document_ids', [])
+        # 支持新的数据结构（包含准备方信息）
+        documents_data = data.get('documents', [])
         additional_info = data.get('additional_info', '')
+        
+        # 兼容旧的数据结构
+        if not documents_data and 'document_ids' in data:
+            document_ids = data.get('document_ids', [])
+            documents_data = [{'document_id': doc_id, 'responsible_party': 'FOR_APPLICATION'} for doc_id in document_ids]
         
         # 查找或创建VisaDocuments记录
         existing_doc = VisaDocuments.query.filter_by(
@@ -1190,11 +1209,31 @@ def update_identity_documents(visa_type, identity_id):
             db.session.flush()
             print(f"DEBUG: 创建新记录 - ID: {visa_doc.id}")
         
-        # 更新选中的文档
-        if document_ids:
-            documents = VisaDocumentsList.query.filter(VisaDocumentsList.id.in_(document_ids)).all()
-            visa_doc.selected_documents = documents
-            print(f"DEBUG: 设置了 {len(documents)} 个文档")
+        # 更新选中的文档和准备方信息
+        if documents_data:
+            # 清空现有的关联
+            visa_doc.selected_documents = []
+            
+            # 添加新的关联，包含准备方信息
+            for doc_data in documents_data:
+                doc_id = doc_data.get('document_id')
+                responsible_party = doc_data.get('responsible_party', 'FOR_APPLICATION')
+                
+                if doc_id:
+                    # 直接操作关联表，设置准备方信息
+                    from sqlalchemy import text
+                    sql = text("""
+                        INSERT INTO visa_document_documents (visa_document_id, document_id, responsible_party)
+                        VALUES (:visa_doc_id, :doc_id, :responsible_party)
+                        ON DUPLICATE KEY UPDATE responsible_party = :responsible_party
+                    """)
+                    db.session.execute(sql, {
+                        'visa_doc_id': visa_doc.id,
+                        'doc_id': doc_id,
+                        'responsible_party': responsible_party
+                    })
+            
+            print(f"DEBUG: 设置了 {len(documents_data)} 个文档")
         else:
             visa_doc.selected_documents = []
             print(f"DEBUG: 清空了所有文档")
@@ -1276,3 +1315,261 @@ def visa_intro(visa_type):
         print(f"加载签证介绍页面时发生错误: {str(e)}")
         flash('加载签证介绍页面失败', 'error')
         return redirect(url_for('visa_basic.visa_home'))
+
+@visa_basic.route('/visa_document_relations_manager')
+def visa_document_relations_manager():
+    """visa_document_documents 关联关系管理界面"""
+    try:
+        # 获取所有签证类型
+        visa_types = VisaTypes.query.order_by(VisaTypes.visa_type).all()
+        # 获取所有文档
+        documents = VisaDocumentsList.query.order_by(VisaDocumentsList.name).all()
+        # 获取所有身份
+        identities = VisaSingaporeIdentity.query.order_by(VisaSingaporeIdentity.identity_zh).all()
+        # 获取所有国家
+        countries = VisaCountries.query.order_by(VisaCountries.country_name_CN).all()
+        
+        return render_template('visas/签证类型管理/visa_document_relations_manager.html',
+                             visa_types=visa_types,
+                             documents=documents,
+                             identities=identities,
+                             countries=countries)
+    except Exception as e:
+        flash(f'加载管理界面时出错: {str(e)}', 'error')
+        return redirect(url_for('visa_basic.visa_home'))
+
+
+@visa_basic.route('/api/get_document_relations')
+def get_document_relations():
+    """获取所有文档关联关系"""
+    try:
+        from sqlalchemy import text
+        
+        sql = text("""
+            SELECT 
+                vdd.visa_document_id,
+                vdd.document_id,
+                vdd.responsible_party,
+                vt.visa_type,
+                vc.country_name_CN,
+                vsi.identity_zh,
+                vdl.name as document_name,
+                vdl.category as document_category
+            FROM visa_document_documents vdd
+            JOIN visa_documents_request vdr ON vdd.visa_document_id = vdr.id
+            JOIN visa_types vt ON vdr.visa_type_id = vt.id
+            JOIN visa_countries vc ON vt.country_id = vc.id
+            LEFT JOIN visa_singapore_identity vsi ON vdr.singapore_identity_id = vsi.id
+            JOIN visa_documents_list vdl ON vdd.document_id = vdl.id
+            ORDER BY vt.visa_type, vsi.identity_zh, vdl.name
+        """)
+        
+        result = db.session.execute(sql)
+        relations = []
+        
+        for row in result:
+            relations.append({
+                'visa_document_id': row.visa_document_id,
+                'document_id': row.document_id,
+                'responsible_party': row.responsible_party,
+                'visa_type': row.visa_type,
+                'country_name': row.country_name_CN,
+                'identity_name': row.identity_zh or 'SHARE',
+                'document_name': row.document_name,
+                'document_category': row.document_category
+            })
+        
+        return jsonify({
+            'success': True,
+            'relations': relations
+        })
+    except Exception as e:
+        print(f"获取文档关联关系时发生错误: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f'获取数据失败: {str(e)}'
+        }), 500
+
+
+@visa_basic.route('/api/update_document_relation', methods=['POST'])
+@csrf.exempt
+def update_document_relation():
+    """更新单个文档关联关系"""
+    try:
+        from flask import request
+        
+        data = request.get_json()
+        visa_document_id = data.get('visa_document_id')
+        document_id = data.get('document_id')
+        responsible_party = data.get('responsible_party')
+        
+        if not all([visa_document_id, document_id, responsible_party]):
+            return jsonify({
+                'success': False,
+                'message': '缺少必要参数'
+            }), 400
+        
+        # 验证responsible_party值
+        if responsible_party not in ['FOR_APPLICATION', 'FOR_AGENT']:
+            return jsonify({
+                'success': False,
+                'message': '无效的准备方值'
+            }), 400
+        
+        # 更新数据库
+        from sqlalchemy import text
+        sql = text("""
+            UPDATE visa_document_documents 
+            SET responsible_party = :responsible_party
+            WHERE visa_document_id = :visa_document_id AND document_id = :document_id
+        """)
+        
+        db.session.execute(sql, {
+            'responsible_party': responsible_party,
+            'visa_document_id': visa_document_id,
+            'document_id': document_id
+        })
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': '更新成功'
+        })
+    except Exception as e:
+        db.session.rollback()
+        print(f"更新文档关联关系时发生错误: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f'更新失败: {str(e)}'
+        }), 500
+
+
+@visa_basic.route('/api/delete_document_relation', methods=['POST'])
+@csrf.exempt
+def delete_document_relation():
+    """删除文档关联关系"""
+    try:
+        from flask import request
+        
+        data = request.get_json()
+        visa_document_id = data.get('visa_document_id')
+        document_id = data.get('document_id')
+        
+        if not all([visa_document_id, document_id]):
+            return jsonify({
+                'success': False,
+                'message': '缺少必要参数'
+            }), 400
+        
+        # 删除关联关系
+        from sqlalchemy import text
+        sql = text("""
+            DELETE FROM visa_document_documents 
+            WHERE visa_document_id = :visa_document_id AND document_id = :document_id
+        """)
+        
+        result = db.session.execute(sql, {
+            'visa_document_id': visa_document_id,
+            'document_id': document_id
+        })
+        
+        db.session.commit()
+        
+        if result.rowcount > 0:
+            return jsonify({
+                'success': True,
+                'message': '删除成功'
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'message': '记录不存在'
+            }), 404
+    except Exception as e:
+        db.session.rollback()
+        print(f"删除文档关联关系时发生错误: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f'删除失败: {str(e)}'
+        }), 500
+
+
+@visa_basic.route('/api/batch_update_responsible_party', methods=['POST'])
+@csrf.exempt
+def batch_update_responsible_party():
+    """批量更新准备方"""
+    try:
+        from flask import request
+        
+        data = request.get_json()
+        visa_type = data.get('visa_type')
+        identity_name = data.get('identity_name')
+        responsible_party = data.get('responsible_party')
+        
+        if not all([visa_type, responsible_party]):
+            return jsonify({
+                'success': False,
+                'message': '缺少必要参数'
+            }), 400
+        
+        # 验证responsible_party值
+        if responsible_party not in ['FOR_APPLICATION', 'FOR_AGENT']:
+            return jsonify({
+                'success': False,
+                'message': '无效的准备方值'
+            }), 400
+        
+        # 获取签证类型ID
+        visa_type_record = VisaTypes.query.filter_by(visa_type=visa_type).first()
+        if not visa_type_record:
+            return jsonify({
+                'success': False,
+                'message': '签证类型不存在'
+            }), 400
+        
+        # 获取身份ID
+        identity_id = None
+        if identity_name and identity_name != 'SHARE':
+            identity_record = VisaSingaporeIdentity.query.filter_by(identity_zh=identity_name).first()
+            if identity_record:
+                identity_id = identity_record.id
+        
+        # 获取签证文档记录
+        visa_doc = VisaDocuments.query.filter_by(
+            visa_type_id=visa_type_record.id,
+            singapore_identity_id=identity_id
+        ).first()
+        
+        if not visa_doc:
+            return jsonify({
+                'success': False,
+                'message': '未找到对应的签证文档记录'
+            }), 404
+        
+        # 批量更新
+        from sqlalchemy import text
+        sql = text("""
+            UPDATE visa_document_documents 
+            SET responsible_party = :responsible_party
+            WHERE visa_document_id = :visa_document_id
+        """)
+        
+        result = db.session.execute(sql, {
+            'responsible_party': responsible_party,
+            'visa_document_id': visa_doc.id
+        })
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'批量更新成功，影响 {result.rowcount} 条记录'
+        })
+    except Exception as e:
+        db.session.rollback()
+        print(f"批量更新准备方时发生错误: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f'批量更新失败: {str(e)}'
+        }), 500

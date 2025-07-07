@@ -1,10 +1,12 @@
 import os
 from datetime import datetime
-from flask import Blueprint, render_template, url_for, flash, redirect, request, jsonify, current_app
+from flask import Blueprint, render_template, url_for, flash, redirect, request, jsonify, current_app, Response
 from sqlalchemy import or_, and_
 from sqlalchemy.exc import SQLAlchemyError
-from ..exts import db
+from ..exts import db, csrf
 from ..models.Product.PackageBudget import BudgetHeader, BudgetItem
+import urllib.parse
+
 
 # 创建蓝图
 package_budget = Blueprint('package_budget', __name__, url_prefix='/package_budget')
@@ -130,7 +132,6 @@ def detail(budget_id):
         category_totals = {}
         adult_total = 0
         child_total = 0
-        tax_total = 0
         
         for item in budget.items:
             # 分类统计
@@ -139,30 +140,23 @@ def detail(budget_id):
                 category_totals[category] = 0
             category_totals[category] += item.subtotal or 0
             
-            # 计算成人费用 - 使用adult_unit_price属性
+            # 计算成人费用
             if item.count_adult_apply:
                 adult_count = item.adult_count_override or budget.adult_count
                 adult_unit_price = item.adult_unit_price or 0
                 adult_total += adult_unit_price * adult_count
             
-            # 计算儿童费用 - 使用child_unit_price属性
+            # 计算儿童费用
             if item.count_child_apply:
                 child_count = item.child_count_override or budget.child_count
                 child_unit_price = item.child_unit_price or 0
                 child_total += child_unit_price * child_count
-            
-            # 计算税费
-            if item.tax_rate:
-                tax_total += (item.subtotal or 0) * item.tax_rate
-            if item.tax_amount:
-                tax_total += float(item.tax_amount or 0)
         
         return render_template('package/budget/detail.html',
                              budget=budget,
                              category_totals=category_totals,
                              adult_total=adult_total,
-                             child_total=child_total,
-                             tax_total=tax_total)
+                             child_total=child_total)
     
     except Exception as e:
         current_app.logger.error(f"Error in budget detail: {e}")
@@ -252,6 +246,7 @@ def delete(budget_id):
 
 
 @package_budget.route('/<int:budget_id>/add_item', methods=['POST'])
+@csrf.exempt
 def add_item(budget_id):
     """添加预算项目"""
     header = BudgetHeader.query.get_or_404(budget_id)
@@ -259,11 +254,15 @@ def add_item(budget_id):
     try:
         # 获取表单数据
         category = request.form.get('category', '').strip()
-        item_type = request.form.get('item_type', '').strip()
         item_name = request.form.get('item_name', '').strip()
+        item_details = request.form.get('item_details', '').strip()
         pricing_method = request.form.get('pricing_method', 'person_based')
         
         # 验证必填字段
+        if not category:
+            flash('类别不能为空', 'error')
+            return redirect(url_for('package_budget.detail', budget_id=budget_id))
+        
         if not item_name:
             flash('项目名称不能为空', 'error')
             return redirect(url_for('package_budget.detail', budget_id=budget_id))
@@ -272,8 +271,8 @@ def add_item(budget_id):
         item = BudgetItem(
             header_id=budget_id,
             category=category,
-            item_type=item_type,
             item_name=item_name,
+            item_details=item_details,
             pricing_method=pricing_method
         )
         
@@ -318,20 +317,6 @@ def add_item(budget_id):
         if child_count_override:
             item.child_count_override = int(child_count_override)
         
-        # 处理总价覆盖
-        total_override = request.form.get('total_override')
-        if total_override:
-            item.total_override = float(total_override)
-        
-        # 处理税费
-        tax_rate = request.form.get('tax_rate')
-        tax_amount = request.form.get('tax_amount')
-        
-        if tax_rate:
-            item.tax_rate = float(tax_rate)
-        if tax_amount:
-            item.tax_amount = float(tax_amount)
-        
         # 处理备注
         remarks = request.form.get('remarks', '').strip()
         if remarks:
@@ -356,6 +341,7 @@ def add_item(budget_id):
 
 
 @package_budget.route('/<int:budget_id>/item/<int:item_id>/edit', methods=['GET', 'POST'])
+@csrf.exempt
 def edit_item(budget_id, item_id):
     """编辑预算项目"""
     header = BudgetHeader.query.get_or_404(budget_id)
@@ -365,19 +351,23 @@ def edit_item(budget_id, item_id):
         try:
             # 获取表单数据
             category = request.form.get('category', '').strip()
-            item_type = request.form.get('item_type', '').strip()
             item_name = request.form.get('item_name', '').strip()
+            item_details = request.form.get('item_details', '').strip()
             pricing_method = request.form.get('pricing_method', 'person_based')
             
             # 验证必填字段
+            if not category:
+                flash('类别不能为空', 'error')
+                return redirect(url_for('package_budget.edit_item', budget_id=budget_id, item_id=item_id))
+            
             if not item_name:
                 flash('项目名称不能为空', 'error')
                 return redirect(url_for('package_budget.edit_item', budget_id=budget_id, item_id=item_id))
             
             # 更新基本信息
             item.category = category
-            item.item_type = item_type
             item.item_name = item_name
+            item.item_details = item_details
             item.pricing_method = pricing_method
             
             # 根据计价方式处理价格数据
@@ -438,27 +428,6 @@ def edit_item(budget_id, item_id):
             else:
                 item.child_count_override = None
             
-            # 处理总价覆盖
-            total_override = request.form.get('total_override')
-            if total_override:
-                item.total_override = float(total_override)
-            else:
-                item.total_override = None
-            
-            # 处理税费
-            tax_rate = request.form.get('tax_rate')
-            tax_amount = request.form.get('tax_amount')
-            
-            if tax_rate:
-                item.tax_rate = float(tax_rate)
-            else:
-                item.tax_rate = 0
-                
-            if tax_amount:
-                item.tax_amount = float(tax_amount)
-            else:
-                item.tax_amount = None
-            
             # 处理备注
             remarks = request.form.get('remarks', '').strip()
             item.remarks = remarks if remarks else None
@@ -477,6 +446,7 @@ def edit_item(budget_id, item_id):
 
 
 @package_budget.route('/<int:budget_id>/item/<int:item_id>/delete', methods=['POST'])
+@csrf.exempt
 def delete_item(budget_id, item_id):
     """删除预算项目"""
     try:
@@ -542,7 +512,6 @@ def duplicate(budget_id):
             new_item = BudgetItem(
                 header_id=new_budget.id,
                 category=original_item.category,
-                item_type=original_item.item_type,
                 item_name=original_item.item_name,
                 adult_price=original_item.adult_price,
                 child_price=original_item.child_price,
@@ -605,7 +574,6 @@ def export_budget(budget_id):
             export_data['items'].append({
                 'id': item.id,
                 'category': item.category,
-                'item_type': item.item_type,
                 'item_name': item.item_name,
                 'adult_price': float(item.adult_price) if item.adult_price else None,
                 'child_price': float(item.child_price) if item.child_price else None,
@@ -685,4 +653,91 @@ def list_templates():
     except Exception as e:
         current_app.logger.error(f"Error in list templates: {e}")
         flash('获取模板列表时发生错误', 'error')
-        return render_template('package/budget/templates.html', templates=[], pagination=None) 
+        return render_template('package/budget/templates.html', templates=[], pagination=None)
+
+
+@package_budget.route('/<int:budget_id>/download_txt', methods=['GET'])
+def download_budget_txt(budget_id):
+    """下载预算项目为txt文件（顾客版本）"""
+    try:
+        budget = BudgetHeader.query.get_or_404(budget_id)
+        
+        # 检查预算单是否存在项目
+        if not budget.items:
+            flash('预算单中没有项目，无法生成下载文件', 'warning')
+            return redirect(url_for('package_budget.detail', budget_id=budget_id))
+        
+        # 生成txt内容
+        content = []
+        
+        # 标题部分
+        content.append("=" * 60)
+        content.append(f"旅游配套详情")
+        content.append("=" * 60)
+        content.append("")
+        
+        # 基本信息
+        content.append("【配套信息】")
+        content.append(f"配套名称：{budget.package_name}")
+        content.append(f"成人人数：{budget.adult_count}人")
+        content.append(f"儿童人数：{budget.child_count}人")
+        content.append("")
+        
+        # 项目明细
+        content.append("【包含项目】")
+        content.append("-" * 40)
+        content.append("")
+        
+        total_price = 0
+        
+        for i, item in enumerate(budget.items, 1):
+            # 项目标题
+            content.append(f"{i:2d}. {item.item_name}")
+            
+            # 项目详情
+            if item.item_details:
+                details_lines = item.item_details.split('\n')
+                for line in details_lines:
+                    if line.strip():
+                        content.append(f"    {line.strip()}")
+            
+            # 计算项目总价（用于内部计算，不显示给顾客）
+            item_total = item.subtotal or 0
+            total_price += item_total
+            
+            # 可选项目标记
+            if item.is_optional:
+                content.append("    [可选项目]")
+            
+            # 备注（如果有重要信息）
+            if item.remarks:
+                content.append(f"    备注：{item.remarks}")
+            
+            content.append("")
+        
+        # 总价
+        content.append("=" * 60)
+        content.append("【总价】")
+        content.append("-" * 40)
+        content.append(f"总价：{total_price:.2f} {budget.currency}")
+        content.append("=" * 60)
+        content.append("")
+        
+        # 备注信息
+        if budget.remarks:
+            content.append("【备注】")
+            content.append("-" * 40)
+            content.append(budget.remarks)
+            content.append("")
+        
+        # 生成纯ASCII文件名避免编码问题
+        filename = f"{budget.package_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
+        filename = "".join(c for c in filename if c.isalnum() or c in (' ', '-', '_', '.')).rstrip()
+        
+        response = Response('\n'.join(content), mimetype='text/plain; charset=utf-8')
+        response.headers['Content-Disposition'] = f'attachment; filename=\"{filename}\"'
+        return response
+    except Exception as e:
+        current_app.logger.error(f"Error in download_budget_txt for budget {budget_id}: {e}")
+        flash(f'下载失败: {str(e)}', 'error')
+        return redirect(url_for('package_budget.detail', budget_id=budget_id)) 

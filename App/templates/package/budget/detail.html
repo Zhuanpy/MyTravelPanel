@@ -28,8 +28,16 @@
     <div class="row">
         <div class="col-md-8">
             <div class="card mb-3">
-                <div class="card-header">
+                <div class="card-header d-flex justify-content-between align-items-center">
                     <h5 class="card-title mb-0"><i class="fas fa-info-circle"></i> 基本信息</h5>
+                    <div class="btn-group" role="group">
+                        <a href="{{ url_for('package_budget.edit', budget_id=budget.id) }}" class="btn btn-outline-primary btn-sm">
+                            <i class="fas fa-edit"></i> 编辑
+                        </a>
+                        <a href="{{ url_for('package_budget.download_budget_txt', budget_id=budget.id) }}" class="btn btn-outline-success btn-sm">
+                            <i class="fas fa-download"></i> 下载TXT
+                        </a>
+                    </div>
                 </div>
                 <div class="card-body">
                     <div class="row">
@@ -115,14 +123,10 @@
                         <span>儿童费用：</span>
                         <span class="text-info">{{ "%.2f"|format(child_total) }}</span>
                     </div>
-                    <div class="d-flex justify-content-between mb-2">
-                        <span>税费：</span>
-                        <span class="text-warning">{{ "%.2f"|format(tax_total) }}</span>
-                    </div>
                     <hr>
                     <div class="d-flex justify-content-between">
                         <strong>总价：</strong>
-                        <strong class="text-success fs-5">{{ "%.2f"|format(budget.total_price) }}</strong>
+                        <strong class="text-success fs-5">{{ "%.2f"|format(adult_total + child_total) }}</strong>
                     </div>
                 </div>
             </div>
@@ -159,129 +163,62 @@
                     <thead class="table-dark">
                         <tr>
                             <th>序号</th>
-                            <th>类别</th>
                             <th>项目名称</th>
-                            <th>物品单价</th>
-                            <th>物品件数</th>
-                            <th>成人单价</th>
-                            <th>儿童单价</th>
+                            <th>类别</th>
+                            <th>项目详细</th>
+                            <th>计价方式</th>
                             <th>适用人数</th>
-                            <th>税费</th>
-                            <th>小计</th>
-                            <th>可选</th>
-                            <th>备注</th>
+                            <th>人均价格</th>
                             <th>操作</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {% for item in budget.items|sort(attribute='sort_order') %}
+                        {% for item in budget.items %}
                         <tr>
                             <td>{{ loop.index }}</td>
                             <td>
                                 <strong>{{ item.item_name }}</strong>
-                                {% if item.category %}<br><small class="text-muted">{{ item.category }}</small>{% endif %}
-                                {% if item.item_type %}<br><small class="text-muted">{{ item.item_type }}</small>{% endif %}
-                                {% if item.is_optional %}<span class="badge bg-warning">可选</span>{% endif %}
+                                {% if item.is_optional %}
+                                    <span class="badge bg-warning text-dark">可选</span>
+                                {% endif %}
                             </td>
+                            <td>{{ item.category or '未分类' }}</td>
                             <td>
-                                {% if item.pricing_method == 'item_based' %}
-                                    <!-- 模板1：物品计价方式 -->
-                                    <div class="pricing-info">
-                                        <div class="row">
-                                            <div class="col-6">
-                                                <small class="text-muted">物品单价:</small><br>
-                                                <strong>${{ "%.2f"|format(item.item_unit_price) if item.item_unit_price else '0.00' }}</strong>
-                                            </div>
-                                            <div class="col-6">
-                                                <small class="text-muted">物品件数:</small><br>
-                                                <strong>{{ item.item_quantity or 1 }}</strong>
-                                            </div>
-                                        </div>
-                                        <hr class="my-1">
-                                        <div class="row">
-                                            <div class="col-6">
-                                                <small class="text-muted">物品总价:</small><br>
-                                                <strong class="text-primary">${{ "%.2f"|format(item.total_item_cost) if item.total_item_cost else '0.00' }}</strong>
-                                            </div>
-                                            <div class="col-6">
-                                                <small class="text-muted">人均分摊:</small><br>
-                                                <strong>${{ "%.2f"|format(item.adult_unit_price) if item.adult_unit_price else '0.00' }}</strong>
-                                            </div>
-                                        </div>
-                                    </div>
+                                {% if item.item_details %}
+                                    <small class="text-muted">{{ item.item_details[:50] }}{% if item.item_details|length > 50 %}...{% endif %}</small>
                                 {% else %}
-                                    <!-- 模板2：人均计价方式 -->
-                                    <div class="pricing-info">
-                                        <div class="row">
-                                            <div class="col-6">
-                                                <small class="text-muted">成人单价:</small><br>
-                                                <strong>${{ "%.2f"|format(item.adult_price) if item.adult_price else '0.00' }}</strong>
-                                            </div>
-                                            <div class="col-6">
-                                                <small class="text-muted">儿童单价:</small><br>
-                                                <strong>${{ "%.2f"|format(item.child_price) if item.child_price else '0.00' }}</strong>
-                                            </div>
-                                        </div>
-                                    </div>
+                                    <span class="text-muted">-</span>
                                 {% endif %}
                             </td>
                             <td>
-                                <div class="person-counts">
-                                    {% if item.count_adult_apply %}
-                                        <div class="mb-1">
-                                            <small class="text-muted">成人:</small>
-                                            <span class="badge bg-primary">{{ item.adult_count_override or budget.adult_count }}</span>
-                                            {% if item.adult_count_override and item.adult_count_override != budget.adult_count %}
-                                                <small class="text-warning">(覆盖)</small>
-                                            {% endif %}
-                                        </div>
-                                    {% endif %}
-                                    {% if item.count_child_apply %}
-                                        <div>
-                                            <small class="text-muted">儿童:</small>
-                                            <span class="badge bg-info">{{ item.child_count_override or budget.child_count }}</span>
-                                            {% if item.child_count_override and item.child_count_override != budget.child_count %}
-                                                <small class="text-warning">(覆盖)</small>
-                                            {% endif %}
-                                        </div>
-                                    {% endif %}
-                                </div>
+                                {% if item.pricing_method == 'item_based' %}
+                                    <span class="badge bg-primary">物品计价</span>
+                                    <br><small class="text-muted">{{ "%.2f"|format(item.item_unit_price or 0) }} × {{ item.item_quantity or 1 }}</small>
+                                {% else %}
+                                    <span class="badge bg-success">人均计价</span>
+                                    <br><small class="text-muted">成人: {{ "%.2f"|format(item.adult_price or 0) }} | 儿童: {{ "%.2f"|format(item.child_price or 0) }}</small>
+                                {% endif %}
                             </td>
                             <td>
-                                <div class="unit-prices">
-                                    {% if item.count_adult_apply %}
-                                        <div class="mb-1">
-                                            <small class="text-muted">成人人均:</small><br>
-                                            <strong class="text-primary">${{ "%.2f"|format(item.adult_unit_price) if item.adult_unit_price else '0.00' }}</strong>
-                                        </div>
-                                    {% endif %}
-                                    {% if item.count_child_apply %}
-                                        <div>
-                                            <small class="text-muted">儿童人均:</small><br>
-                                            <strong class="text-info">${{ "%.2f"|format(item.child_unit_price) if item.child_unit_price else '0.00' }}</strong>
-                                        </div>
-                                    {% endif %}
-                                </div>
+                                {% if item.count_adult_apply %}
+                                    <span class="badge bg-info">成人: {{ item.adult_count_override or budget.adult_count }}</span>
+                                {% endif %}
+                                {% if item.count_child_apply %}
+                                    <span class="badge bg-warning">儿童: {{ item.child_count_override or budget.child_count }}</span>
+                                {% endif %}
                             </td>
                             <td>
-                                <div class="subtotal-info">
-                                    <strong class="text-success">${{ "%.2f"|format(item.subtotal) if item.subtotal else '0.00' }}</strong>
-                                    {% if item.total_override %}
-                                        <br><small class="text-warning">(手动设置)</small>
-                                    {% endif %}
-                                    {% if item.tax_rate or item.tax_amount %}
-                                        <br><small class="text-muted">含税</small>
-                                    {% endif %}
-                                </div>
+                                <span class="text-primary fw-bold">{{ "%.2f"|format(item.adult_unit_price) }}</span>
+                                {% if item.count_child_apply %}
+                                    <br><span class="text-info">{{ "%.2f"|format(item.child_unit_price) }}</span>
+                                {% endif %}
                             </td>
                             <td>
                                 <div class="btn-group btn-group-sm" role="group">
-                                    <a href="{{ url_for('package_budget.edit_item', budget_id=budget.id, item_id=item.id) }}" 
-                                       class="btn btn-outline-primary" title="编辑">
+                                    <button type="button" class="btn btn-outline-primary" onclick="editItem({{ item.id }})">
                                         <i class="fas fa-edit"></i>
-                                    </a>
-                                    <button type="button" class="btn btn-outline-danger" 
-                                            onclick="deleteItem({{ item.id }})" title="删除">
+                                    </button>
+                                    <button type="button" class="btn btn-outline-danger" onclick="deleteItem({{ item.id }})">
                                         <i class="fas fa-trash"></i>
                                     </button>
                                 </div>
@@ -308,19 +245,29 @@
             </div>
             <div class="card-body">
                 <form method="post" action="{{ url_for('package_budget.add_item', budget_id=budget.id) }}" id="itemForm">
-                    <input type="hidden" name="csrf_token" value=""/>
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token else '' }}"/>
                     <div class="row">
-                        <div class="col-md-3">
-                            <label class="form-label">类别</label>
-                            <input type="text" name="category" class="form-control" placeholder="如：住宿、交通、门票" required>
-                        </div>
-                        <div class="col-md-3">
-                            <label class="form-label">项目类型</label>
-                            <input type="text" name="item_type" class="form-control" placeholder="如：酒店、机票、景点">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="category">类别 <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="category" name="category" required>
+                            </div>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label">项目名称 <span class="text-danger">*</span></label>
-                            <input type="text" name="item_name" class="form-control" placeholder="项目详细名称" required>
+                            <div class="form-group">
+                                <label for="item_name">项目名称 <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="item_name" name="item_name" required>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <div class="form-group">
+                                <label for="item_details">项目详细</label>
+                                <textarea class="form-control" id="item_details" name="item_details" rows="3" 
+                                          placeholder="例如：酒店入住日期、退房日期、酒店房型、是否含早等信息"></textarea>
+                            </div>
                         </div>
                     </div>
                     
@@ -558,8 +505,8 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('itemTotalCost').value = totalCost.toFixed(2);
         
         // 计算人均价格
-        const adultCount = {{ budget.adult_count }};
-        const childCount = {{ budget.child_count }};
+        const adultCount = parseInt('{{ budget.adult_count }}') || 0;
+        const childCount = parseInt('{{ budget.child_count }}') || 0;
         const countAdultApply = document.querySelector('input[name="count_adult_apply"]').checked;
         const countChildApply = document.querySelector('input[name="count_child_apply"]').checked;
         
@@ -584,8 +531,8 @@ document.addEventListener('DOMContentLoaded', function() {
     function updatePersonBasedCalculations() {
         const adultPrice = parseFloat(adultPriceInput.value) || 0;
         const childPrice = parseFloat(childPriceInput.value) || 0;
-        const adultCount = {{ budget.adult_count }};
-        const childCount = {{ budget.child_count }};
+        const adultCount = parseInt('{{ budget.adult_count }}') || 0;
+        const childCount = parseInt('{{ budget.child_count }}') || 0;
         const countAdultApply = document.querySelector('input[name="count_adult_apply"]').checked;
         const countChildApply = document.querySelector('input[name="count_child_apply"]').checked;
         

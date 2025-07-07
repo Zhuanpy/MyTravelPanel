@@ -6,7 +6,7 @@
 {{ super() }}
 <style>
     .visa-container {
-        max-width: 1200px;
+        max-width: 1400px;
         margin: 0 auto;
         padding: 20px;
     }
@@ -160,23 +160,29 @@
     /* 固定列宽 */
     .visa-table th:nth-child(1),
     .visa-table td:nth-child(1) {
-        width: 20%; /* 签证类型列 */
+        width: 18%; /* 签证类型列 */
     }
     
     .visa-table th:nth-child(2),
     .visa-table td:nth-child(2) {
-        width: 25%; /* 链接名称列 */
+        width: 15%; /* 国家列 */
     }
     
     .visa-table th:nth-child(3),
     .visa-table td:nth-child(3) {
-        width: 40%; /* 链接地址列 */
+        width: 20%; /* 链接名称列 */
     }
     
     .visa-table th:nth-child(4),
     .visa-table td:nth-child(4) {
+        width: 32%; /* 链接地址列 */
+    }
+    
+    .visa-table th:nth-child(5),
+    .visa-table td:nth-child(5) {
         width: 15%; /* 操作列 */
         text-align: center;
+        min-width: 140px; /* 确保操作列有最小宽度 */
     }
     
     /* 链接地址列的链接样式 */
@@ -610,6 +616,92 @@
         max-height: 90vh;
         overflow-y: auto;
     }
+    
+    /* 操作按钮样式优化 */
+    .visa-table td:last-child {
+        text-align: center;
+        white-space: nowrap;
+        padding: 8px 4px;
+    }
+    
+    .visa-table td:last-child .visa-btn {
+        margin: 0 2px;
+        padding: 4px 8px;
+        font-size: 0.75rem;
+        min-width: 50px;
+        display: inline-block;
+        text-decoration: none;
+        border-radius: 3px;
+        border: 1px solid transparent;
+        cursor: pointer;
+    }
+    
+    .visa-table td:last-child .visa-btn i {
+        margin-right: 3px;
+        font-size: 0.7rem;
+    }
+    
+    /* 删除按钮特殊样式 */
+    .visa-btn-danger {
+        color: #fff;
+        background-color: #e53e3e;
+        border-color: #e53e3e;
+        transition: all 0.2s ease;
+    }
+    
+    .visa-btn-danger:hover {
+        background-color: #c53030;
+        border-color: #c53030;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(229, 62, 62, 0.3);
+        text-decoration: none;
+        color: #fff;
+    }
+    
+    /* 编辑按钮特殊样式 */
+    .visa-btn-warning {
+        color: #fff;
+        background-color: #d69e2e;
+        border-color: #d69e2e;
+        transition: all 0.2s ease;
+    }
+    
+    .visa-btn-warning:hover {
+        background-color: #b7791f;
+        border-color: #b7791f;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(214, 158, 46, 0.3);
+        text-decoration: none;
+        color: #fff;
+    }
+    
+    /* 响应式设计 */
+    @media (max-width: 768px) {
+        .visa-container {
+            max-width: 100%;
+            padding: 10px;
+        }
+        
+        .visa-table {
+            font-size: 0.8rem;
+        }
+        
+        .visa-table th,
+        .visa-table td {
+            padding: 0.5rem 0.3rem;
+        }
+        
+        .visa-table td:last-child .visa-btn {
+            padding: 3px 6px;
+            font-size: 0.7rem;
+            min-width: 40px;
+        }
+        
+        .visa-table td:last-child .visa-btn i {
+            margin-right: 2px;
+            font-size: 0.6rem;
+        }
+    }
 </style>
 {% endblock %}
 
@@ -628,25 +720,71 @@
         </button>
     </div>
 
+    <!-- 筛选区域 -->
+    <div class="visa-filter-container">
+        <h4 class="visa-filter-title">筛选条件</h4>
+        <form method="GET" action="{{ url_for('visa_links.visa_link_page') }}" class="visa-form-row">
+            <div class="visa-form-group">
+                <label for="filter_visa_type">签证类型：</label>
+                <select name="filter_visa_type" class="visa-form-control" onchange="this.form.submit()">
+                    <option value="">全部签证类型</option>
+                    {% for visa_type in visa_types %}
+                    <option value="{{ visa_type.id }}" {% if filter_visa_type|string == visa_type.id|string %}selected{% endif %}>{{ visa_type.visa_type }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="visa-form-group">
+                <label for="filter_country">国家：</label>
+                <select name="filter_country" class="visa-form-control" onchange="this.form.submit()">
+                    <option value="">全部国家</option>
+                    {% for country in countries %}
+                    <option value="{{ country.id }}" {% if filter_country|string == country.id|string %}selected{% endif %}>{{ country.country_name_CN }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="visa-form-group">
+                <label>&nbsp;</label>
+                <div>
+                    <button type="submit" class="visa-btn visa-btn-primary">
+                        <i class="fas fa-search"></i> 筛选
+                    </button>
+                    <a href="{{ url_for('visa_links.visa_link_page') }}" class="visa-btn visa-btn-secondary">
+                        <i class="fas fa-times"></i> 清除筛选
+                    </a>
+                </div>
+            </div>
+        </form>
+        <div class="visa-result-count">
+            共找到 {{ pagination.total }} 条记录
+        </div>
+    </div>
+
     <table class="visa-table">
             <thead>
                 <tr>
                     <th>签证类型</th>
-                <th>链接名称</th>
-                <th>链接地址</th>
+                    <th>国家</th>
+                    <th>链接名称</th>
+                    <th>链接地址</th>
                     <th>操作</th>
                 </tr>
             </thead>
             <tbody>
-            {% for link, visa_type in links %}
+            {% for link, visa_type, country in links %}
                 <tr>
                 <td>{{ visa_type.visa_type }}</td>
-                    <td>{{ link.name }}</td>
+                    <td>{{ country.country_name_CN if country else '' }}</td>
+                <td>{{ link.name }}</td>
                 <td><a href="{{ link.link }}" target="_blank">{{ link.link }}</a></td>
                 <td>
-                    <a href="{{ url_for('visa_links.edit_visa_link', link_id=link.id) }}" class="visa-btn visa-btn-warning">编辑</a>
-                    <a href="{{ url_for('visa_links.delete_visa_link', link_id=link.id) }}" class="visa-btn visa-btn-danger" onclick="return confirm('确定要删除这个链接吗？')">删除</a>
-                    </td>
+                    <a href="{{ url_for('visa_links.edit_visa_link', link_id=link.id) }}" class="visa-btn visa-btn-warning">
+                        <i class="fas fa-edit"></i> 编辑
+                    </a>
+                    <a href="{{ url_for('visa_links.delete_visa_link', link_id=link.id) }}" class="visa-btn visa-btn-danger" 
+                       onclick="return confirm('确定要删除链接 \'{{ link.name }}\' 吗？')">
+                        <i class="fas fa-trash"></i> 删除
+                    </a>
+                </td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -662,7 +800,7 @@
             
             <div class="visa-page-item">
                 {% if pagination.has_prev %}
-                    <a href="{{ url_for('visa_links.visa_link_page', page=pagination.prev_num) }}" class="visa-page-link">
+                    <a href="{{ url_for('visa_links.visa_link_page', page=pagination.prev_num, filter_visa_type=filter_visa_type, filter_country=filter_country) }}" class="visa-page-link">
                         &laquo; 上一页
                     </a>
                 {% else %}
@@ -678,7 +816,7 @@
                         </div>
                     {% else %}
                         <div class="visa-page-item">
-                            <a href="{{ url_for('visa_links.visa_link_page', page=page) }}" class="visa-page-link">{{ page }}</a>
+                            <a href="{{ url_for('visa_links.visa_link_page', page=page, filter_visa_type=filter_visa_type, filter_country=filter_country) }}" class="visa-page-link">{{ page }}</a>
                         </div>
                     {% endif %}
                 {% else %}
@@ -690,7 +828,7 @@
             
             <div class="visa-page-item">
                 {% if pagination.has_next %}
-                    <a href="{{ url_for('visa_links.visa_link_page', page=pagination.next_num) }}" class="visa-page-link">
+                    <a href="{{ url_for('visa_links.visa_link_page', page=pagination.next_num, filter_visa_type=filter_visa_type, filter_country=filter_country) }}" class="visa-page-link">
                         下一页 &raquo;
                     </a>
                 {% else %}
@@ -723,6 +861,15 @@
                                             <option value="">请选择签证类型</option>
                                             {% for visa_type in visa_types %}
                                             <option value="{{ visa_type.id }}">{{ visa_type.visa_type }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div class="visa-form-group">
+                                        <label for="visa_countries_id">国家：</label>
+                                        <select name="visa_countries_id[]" class="visa-form-control" required>
+                                            <option value="">请选择国家</option>
+                                            {% for country in countries %}
+                                            <option value="{{ country.id }}">{{ country.country_name_CN }}</option>
                                             {% endfor %}
                                         </select>
                                     </div>
@@ -772,6 +919,15 @@
                                         <option value="">请选择签证类型</option>
                                         {% for visa_type in visa_types %}
                                         <option value="{{ visa_type.id }}" {% if visa_type.id == link.visa_type_id %}selected{% endif %}>{{ visa_type.visa_type }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="visa-form-group">
+                                    <label for="edit_visa_countries_id">国家：</label>
+                                    <select name="visa_countries_id" class="visa-form-control" required>
+                                        <option value="">请选择国家</option>
+                                        {% for country in countries %}
+                                        <option value="{{ country.id }}" {% if link.visa_countries_id == country.id %}selected{% endif %}>{{ country.country_name_CN }}</option>
                                         {% endfor %}
                                     </select>
                                 </div>
