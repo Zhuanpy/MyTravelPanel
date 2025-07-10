@@ -6,6 +6,17 @@ import os
 from App.config import Config
 from pathlib import Path
 import subprocess
+import pandas as pd
+import tempfile
+from App.exts import csrf
+from App.utils.report_utils import (
+    get_report_headers_string,
+    read_excel_file,
+    read_csv_file,
+    compare_profit_columns,
+    add_comparison_column
+)
+from App.config import safe_json
 
 # 创建蓝图
 statement_blue = Blueprint('statement_routes', __name__)
@@ -244,3 +255,407 @@ def company_bill():
         os.startfile(str(folder_path))
         flash('成功打开公司账单文件夹')
     return redirect(url_for("index.index"))
+
+
+@statement_blue.route('/compare_reports', methods=['POST'])
+@csrf.exempt
+def compare_reports():
+    """对比两个报表的利润列数据"""
+    try:
+        print("=== 开始处理报表对比请求 ===")
+        
+        # 获取上传的文件
+        report_a = request.files.get('report_a')
+        report_b = request.files.get('report_b')
+        profit_column = request.form.get('profit_column', '').strip()
+        header_setting = request.form.get('header_setting', 'default')
+        custom_headers = request.form.get('custom_headers', '').strip()
+        
+        # 如果没有提供自定义表头，使用config中的默认表头
+        if not custom_headers:
+            custom_headers = get_report_headers_string('order_report')
+        
+        print(f"Debug: report_a filename = {report_a.filename if report_a else 'None'}")
+        print(f"Debug: report_b filename = {report_b.filename if report_b else 'None'}")
+        print(f"Debug: profit_column = {profit_column}")
+        print(f"Debug: header_setting = {header_setting}")
+        print(f"Debug: custom_headers = {custom_headers}")
+        
+        # 检查请求参数
+        print(f"Debug: request.files keys = {list(request.files.keys())}")
+        print(f"Debug: request.form keys = {list(request.form.keys())}")
+        
+        if not report_a or not report_b:
+            return jsonify({'success': False, 'error': '请选择两个报表文件'})
+        
+        # 移除利润列验证，因为现在是自动设置的
+        
+        # 读取报表文件
+        def read_report_file(file, header_setting, custom_headers=None):
+            """读取Excel或CSV文件"""
+            try:
+                print(f"Debug: 读取文件 {file.filename}, header_setting={header_setting}")
+                
+                if file.filename.lower().endswith('.csv'):
+                    if header_setting == 'none':
+                        # 无表头，第一行是数据
+                        df = pd.read_csv(file, encoding='utf-8', header=None)
+                    elif header_setting == 'custom' and custom_headers:
+                        # 使用自定义表头
+                        headers = [h.strip() for h in custom_headers.split(',')]
+                        df = pd.read_csv(file, encoding='utf-8', header=None, names=headers)
+                    else:
+                        # 使用默认表头（第一行作为表头）
+                        df = pd.read_csv(file, encoding='utf-8')
+                else:
+                    # 处理Excel文件（.xlsx, .xls）
+                    if header_setting == 'custom' and custom_headers:
+                        # 使用自定义表头
+                        headers = [h.strip() for h in custom_headers.split(',')]
+                        print(f"Debug: 使用自定义表头: {headers}")
+                        # 尝试不同的引擎
+                        try:
+                            df = pd.read_excel(file, header=None, names=headers, engine='openpyxl')
+                        except:
+                            try:
+                                df = pd.read_excel(file, header=None, names=headers, engine='xlrd')
+                            except:
+                                # 最后尝试不指定引擎
+                                df = pd.read_excel(file, header=None, names=headers)
+                    else:
+                        # 使用默认表头（第一行作为表头）
+                        try:
+                            df = pd.read_excel(file, engine='openpyxl')
+                        except:
+                            try:
+                                df = pd.read_excel(file, engine='xlrd')
+                            except:
+                                # 最后尝试不指定引擎
+                                df = pd.read_excel(file)
+                return df
+            except Exception as e:
+                print(f"Debug: 文件读取最终失败: {str(e)}")
+                raise Exception(f"读取文件失败: {str(e)}")
+        
+        # 读取两个报表
+        print(f"Debug: 开始读取报表A...")
+        df_a = read_report_file(report_a, header_setting, custom_headers)
+        print(f"Debug: 报表A读取成功，列数: {len(df_a.columns)}, 行数: {len(df_a)}")
+        print(f"Debug: 报表A列名: {list(df_a.columns)}")
+        
+        print(f"Debug: 开始读取报表B...")
+        df_b = read_report_file(report_b, header_setting, custom_headers)
+        print(f"Debug: 报表B读取成功，列数: {len(df_b.columns)}, 行数: {len(df_b)}")
+        print(f"Debug: 报表B列名: {list(df_b.columns)}")
+        
+        # 检查利润列是否存在
+        if profit_column not in df_a.columns:
+            return jsonify({'success': False, 'error': f'报表A中未找到列: {profit_column}'})
+        
+        if profit_column not in df_b.columns:
+            return jsonify({'success': False, 'error': f'报表B中未找到列: {profit_column}'})
+        
+        # 获取项目标识列（假设第一列是项目标识）
+        id_column_a = df_a.columns[0]
+        id_column_b = df_b.columns[0]
+        
+        # 创建数据字典，以项目标识为键
+        data_a = {}
+        data_b = {}
+        
+        # 处理报表A
+        for _, row in df_a.iterrows():
+            item_id = str(row[id_column_a]).strip()
+            profit_value = row[profit_column]
+            if pd.notna(profit_value):  # 排除空值
+                try:
+                    # 尝试转换为浮点数
+                    float_value = float(profit_value)
+                    data_a[item_id] = float_value
+                except (ValueError, TypeError):
+                    # 如果转换失败，记录警告并跳过
+                    print(f"警告：报表A中项目 {item_id} 的利润值 '{profit_value}' 无法转换为数字，已跳过")
+                    continue
+        
+        # 处理报表B
+        for _, row in df_b.iterrows():
+            item_id = str(row[id_column_b]).strip()
+            profit_value = row[profit_column]
+            if pd.notna(profit_value):  # 排除空值
+                try:
+                    # 尝试转换为浮点数
+                    float_value = float(profit_value)
+                    data_b[item_id] = float_value
+                except (ValueError, TypeError):
+                    # 如果转换失败，记录警告并跳过
+                    print(f"警告：报表B中项目 {item_id} 的利润值 '{profit_value}' 无法转换为数字，已跳过")
+                    continue
+        
+        # 找出不同的数据
+        differences = []
+        all_items = set(data_a.keys()) | set(data_b.keys())
+        
+        for item in all_items:
+            value_a = data_a.get(item, 0)
+            value_b = data_b.get(item, 0)
+            
+            if abs(value_a - value_b) > 0.01:  # 允许0.01的误差
+                differences.append({
+                    'item': item,
+                    'value_a': f"{value_a:.2f}",
+                    'value_b': f"{value_b:.2f}",
+                    'difference': round(value_b - value_a, 2)
+                })
+        
+        # 为两个报表添加对比列
+        # 为报表A添加对比列
+        df_a['数据一致性'] = '否'  # 默认设为否
+        for idx, row in df_a.iterrows():
+            item_id = str(row[id_column_a]).strip()
+            value_a = data_a.get(item_id, 0)
+            value_b = data_b.get(item_id, 0)
+            if abs(value_a - value_b) <= 0.01:  # 如果差异小于等于0.01，认为相同
+                df_a.at[idx, '数据一致性'] = '是'
+        
+        # 为报表B添加对比列
+        df_b['数据一致性'] = '否'  # 默认设为否
+        for idx, row in df_b.iterrows():
+            item_id = str(row[id_column_b]).strip()
+            value_a = data_a.get(item_id, 0)
+            value_b = data_b.get(item_id, 0)
+            if abs(value_a - value_b) <= 0.01:  # 如果差异小于等于0.01，认为相同
+                df_b.at[idx, '数据一致性'] = '是'
+        
+        # 保存带有对比结果的报表到临时目录
+        temp_dir = tempfile.mkdtemp()
+        report_a_filename = f'报表A_对比结果_{os.path.basename(report_a.filename)}'
+        report_b_filename = f'报表B_对比结果_{os.path.basename(report_b.filename)}'
+        report_a_path = os.path.join(temp_dir, report_a_filename)
+        report_b_path = os.path.join(temp_dir, report_b_filename)
+        
+        # 根据原文件格式保存
+        if report_a.filename.lower().endswith('.csv'):
+            df_a.to_csv(report_a_path, index=False, encoding='utf-8-sig')
+        else:
+            # 保存为Excel文件
+            try:
+                df_a.to_excel(report_a_path, index=False, engine='openpyxl')
+            except:
+                try:
+                    df_a.to_excel(report_a_path, index=False, engine='xlwt')
+                except:
+                    # 最后尝试不指定引擎
+                    df_a.to_excel(report_a_path, index=False)
+            
+        if report_b.filename.lower().endswith('.csv'):
+            df_b.to_csv(report_b_path, index=False, encoding='utf-8-sig')
+        else:
+            # 保存为Excel文件
+            try:
+                df_b.to_excel(report_b_path, index=False, engine='openpyxl')
+            except:
+                try:
+                    df_b.to_excel(report_b_path, index=False, engine='xlwt')
+                except:
+                    # 最后尝试不指定引擎
+                    df_b.to_excel(report_b_path, index=False)
+        
+        # 将文件路径存储到session中供下载使用
+        from flask import session
+        session['report_a_path'] = report_a_path
+        session['report_b_path'] = report_b_path
+        session['report_a_filename'] = report_a_filename
+        session['report_b_filename'] = report_b_filename
+        
+        # 统计信息
+        summary = {
+            'total_a': len(data_a),
+            'total_b': len(data_b),
+            'matched': len(all_items) - len(differences),
+            'differences': len(differences)
+        }
+        
+        # 添加处理信息
+        processed_info = {
+            'total_rows_a': len(df_a),
+            'total_rows_b': len(df_b),
+            'valid_profit_a': len(data_a),
+            'valid_profit_b': len(data_b),
+            'skipped_a': len(df_a) - len(data_a),
+            'skipped_b': len(df_b) - len(data_b)
+        }
+        
+        return jsonify({
+            'success': True,
+            'differences': differences,
+            'summary': summary,
+            'processed_info': processed_info
+        })
+        
+    except Exception as e:
+        print(f"Debug: 最终错误: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)})
+
+
+
+
+
+@statement_blue.route('/download_report/<report_type>', methods=['GET'])
+@csrf.exempt
+def download_report(report_type):
+    """下载带有对比结果的报表文件"""
+    try:
+        from flask import session, send_file
+        
+        if report_type == 'A':
+            file_path = session.get('report_a_path')
+            filename = session.get('report_a_filename', '报表A_对比结果.xlsx')
+        elif report_type == 'B':
+            file_path = session.get('report_b_path')
+            filename = session.get('report_b_filename', '报表B_对比结果.xlsx')
+        else:
+            return jsonify({'success': False, 'error': '无效的报表类型'})
+        
+        if not file_path or not os.path.exists(file_path):
+            return jsonify({'success': False, 'error': '文件不存在，请重新进行对比'})
+        
+        return send_file(
+            file_path,
+            as_attachment=True,
+            download_name=filename,
+            mimetype='application/octet-stream'
+        )
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@statement_blue.route('/batch_compare_reports', methods=['POST'])
+@csrf.exempt
+def batch_compare_reports():
+    """批量对比两个文件夹中的报表"""
+    try:
+        print("=== 开始处理批量报表对比请求 ===")
+        
+        # 获取上传的文件
+        folder_a_files = request.files.getlist('folder_a_files')
+        folder_b_files = request.files.getlist('folder_b_files')
+        
+        print(f"Debug: 文件夹A文件数量 = {len(folder_a_files)}")
+        print(f"Debug: 文件夹B文件数量 = {len(folder_b_files)}")
+        
+        if not folder_a_files:
+            return jsonify({'success': False, 'error': '请选择文件夹A的文件'})
+        
+        if not folder_b_files:
+            return jsonify({'success': False, 'error': '请选择文件夹B的文件'})
+        
+        # 过滤出Excel和CSV文件
+        def filter_report_files(files):
+            return [f for f in files if f.filename.lower().endswith(('.xlsx', '.xls', '.csv'))]
+        
+        folder_a_files = filter_report_files(folder_a_files)
+        folder_b_files = filter_report_files(folder_b_files)
+        
+        print(f"Debug: 过滤后文件夹A文件数量 = {len(folder_a_files)}")
+        print(f"Debug: 过滤后文件夹B文件数量 = {len(folder_b_files)}")
+        
+        if not folder_a_files:
+            return jsonify({'success': False, 'error': '文件夹A中没有有效的报表文件'})
+        
+        if not folder_b_files:
+            return jsonify({'success': False, 'error': '文件夹B中没有有效的报表文件'})
+        
+        # 打印A、B第一个文件的前5行数据
+        if folder_a_files and folder_b_files:
+            from App.utils.report_utils import BatchReportComparer
+            comparer = BatchReportComparer('order_report')
+            df_a = comparer.read_report_file(folder_a_files[0])
+            df_b = comparer.read_report_file(folder_b_files[0])
+            print('调试: A文件前5行:')
+            print(df_a.head())
+            print('调试: B文件前5行:')
+            print(df_b.head())
+
+        # 使用批量报表对比工具
+        from App.utils.report_utils import BatchReportComparer
+        
+        comparer = BatchReportComparer('order_report')
+        results = comparer.compare_reports_by_filename(folder_a_files, folder_b_files)
+        
+        # 生成Excel报告
+        import tempfile
+        import os
+        temp_dir = tempfile.mkdtemp()
+        report_filename = f'批量报表对比报告_{os.path.basename(temp_dir)}.xlsx'
+        report_path = os.path.join(temp_dir, report_filename)
+        
+        excel_path = comparer.generate_excel_report_new(results, report_path)
+        
+        if excel_path:
+            # 将文件路径存储到session中供下载使用
+            from flask import session
+            session['batch_report_path'] = excel_path
+            session['batch_report_filename'] = report_filename
+        
+        # 准备详细差异信息用于前端显示
+        detailed_differences = []
+        if 'differences' in results:
+            for diff in results['differences']:
+                detailed_differences.append({
+                    '报表A': diff.get('所属文件A', ''),
+                    '报表B': diff.get('所属文件B', ''),
+                    'HID': diff.get('order_id', ''),
+                    'A利润': diff.get('A利润', ''),
+                    'B利润': diff.get('B利润', ''),
+                    '备注': diff.get('差异说明', '')
+                })
+        
+        # 提取缺失的HID（A有B无的）
+        missing_hids = []
+        if 'differences' in results:
+            for diff in results['differences']:
+                if diff.get('差异说明', '').startswith('报表A含有order_id') and not diff.get('B利润'):
+                    missing_hids.append(diff.get('order_id', ''))
+        
+        print(f"Debug: 批量对比完成，结果: {results}")
+        
+        return jsonify({
+            'success': True,
+            'summary': safe_json(results['summary']),
+            'differences': safe_json(results['differences']),
+            'missing_hids': safe_json(missing_hids),
+            'detailed_differences': safe_json(detailed_differences)
+        })
+        
+    except Exception as e:
+        print(f"Debug: 批量对比最终错误: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@statement_blue.route('/download_batch_report', methods=['GET'])
+@csrf.exempt
+def download_batch_report():
+    """下载批量对比汇总报告"""
+    try:
+        from flask import session, send_file
+        
+        file_path = session.get('batch_report_path')
+        filename = session.get('batch_report_filename', '批量报表对比报告.xlsx')
+        
+        if not file_path or not os.path.exists(file_path):
+            return jsonify({'success': False, 'error': '报告文件不存在，请重新进行批量对比'})
+        
+        return send_file(
+            file_path,
+            as_attachment=True,
+            download_name=filename,
+            mimetype='application/octet-stream'
+        )
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})

@@ -1,5 +1,7 @@
 import pandas as pd
 import os
+from App.config import Config
+from App.utils.report_utils import get_report_headers
 
 pd.set_option('display.max_columns', None)
 pd.set_option('display.width', 1000)
@@ -8,8 +10,11 @@ pd.set_option('display.width', 1000)
 class CountHid:
 
     def __init__(self, booking_path:str, name="Zz"):
-
         self._path = os.path.join(booking_path, name)
+        
+        # 获取表头配置
+        self.invoice_headers = get_report_headers('invoice_data')
+        self.hid_headers = get_report_headers('hid_data')
 
     def read_all_inv(self, complete_month=0):
 
@@ -36,10 +41,11 @@ class CountHid:
 
             name = os.path.join(path, f)
 
-            df = pd.read_excel(name, sheet_name='Sheet1', header=None)  # , names=columns)
+            df = pd.read_excel(name, sheet_name='Sheet1', header=None)
 
-            # 删除不需要的列
-            df = df.drop(columns=[1, 7, 9, 10, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28])
+            # 删除不需要的列（保留需要的列：0,2,3,4,5,6,8,11,12,13,14）
+            columns_to_drop = [1, 7, 9, 10, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28]
+            df = df.drop(columns=[col for col in columns_to_drop if col in df.columns])
 
             # 删除关键列的空值行
             df = df.dropna(subset=[0, 2])
@@ -53,6 +59,12 @@ class CountHid:
             df[5] = df[5].str[2:]
             df[3] = pd.to_datetime(df[3], format='%d-%m-%y')
             df[5] = pd.to_datetime(df[5], format='%d-%m-%y')
+
+            # 应用表头
+            if len(df.columns) == len(self.invoice_headers):
+                df.columns = self.invoice_headers
+            else:
+                print(f"警告：发票数据列数({len(df.columns)})与表头数({len(self.invoice_headers)})不匹配")
 
             # 合并数据
             datas = pd.concat([datas, df], ignore_index=True)
@@ -74,9 +86,9 @@ class CountHid:
             name = os.path.join(hid_path, f)
             df = pd.read_excel(name, sheet_name='Sheet1', header=None)
 
-            # 使用列名而不是列索引，提高代码可读性
-            # 注意：如果不确定列名，可以考虑输出 df.columns 看看具体的列名
-            df = df.drop(columns=[1, 11, 6, 12, 13, 14, 15])
+            # 删除不需要的列（保留需要的列：0,2,3,4,5,7,8,9,10,11）
+            columns_to_drop = [1, 11, 6, 12, 13, 14, 15]
+            df = df.drop(columns=[col for col in columns_to_drop if col in df.columns])
 
             # 使用 drop na 处理缺失值，确保删除的是非空值而不是任何值
             df = df.dropna(subset=[0, 2])
@@ -88,6 +100,12 @@ class CountHid:
             df[4] = df[4].str[2:]
             df[2] = pd.to_datetime(df[2], format='%d-%m-%y')
             df[4] = pd.to_datetime(df[4], format='%d-%m-%y')
+
+            # 应用表头
+            if len(df.columns) == len(self.hid_headers):
+                df.columns = self.hid_headers
+            else:
+                print(f"警告：HID数据列数({len(df.columns)})与表头数({len(self.hid_headers)})不匹配")
 
             datas = pd.concat([datas, df], ignore_index=True)
 
@@ -135,25 +153,25 @@ class CountHid:
         hid = self.read_all_hid(complete_month)
 
         # 清除不正常订单：去除发票中已存在的订单，且过滤掉盈利为0的订单
-        hid = hid[~hid[0].isin(list(inv[0]))]
-        hid = hid[hid[7] != 0]
+        hid = hid[~hid['hid'].isin(list(inv['hid']))]
+        hid = hid[hid['selling_price'] != 0]
 
         # 清除已经发现有争议订单
         disputed = self.read_disputed()
-        hid = hid[~hid[0].isin(disputed)]
+        hid = hid[~hid['hid'].isin(disputed)]
 
-        hid = hid.sort_values(by=[0])
+        hid = hid.sort_values(by=['hid'])
         hid = hid.reset_index(drop=True)
-        profits = hid[9].sum()
+        profits = hid['profit'].sum()
 
         # 获取最新做账进度，做账至几月份，并保存记录
-        last_month = hid[2][0].strftime('%Y%m')
+        last_month = hid['order_date'].iloc[0].strftime('%Y%m')
         with open(complete_path, 'w') as f:
             f.write('\n'.join([last_month]))
 
         # 整理前几个月的订单并计算利润
-        pre_booking = hid[hid[2] < pd.to_datetime(pre_month)]
-        pre_sum = pre_booking[9].sum()  # 计算前几个月订单的利润
+        pre_booking = hid[hid['order_date'] < pd.to_datetime(pre_month)]
+        pre_sum = pre_booking['profit'].sum()  # 计算前几个月订单的利润
 
         # r = f'全部未结算总额：SGD {int(profits)}; \n截至{pre_month[:4]}年{pre_month[-2:]}月的未结算总额: SGD {int(pre_sum)}'
 
@@ -163,7 +181,6 @@ class CountHid:
 class CountMonth:
 
     def __init__(self, start_month=202304, end_month=202307, file_path: str = None, name="Zz", ):
-
         """
         初始化函数，设置起始月份、结束月份以及文件路径。
         如果未提供 file_path，则使用默认路径 'E:/WORKING/B-账单/BOOKING/{name}'。
@@ -173,12 +190,14 @@ class CountMonth:
         end_month (int): 结束月份，格式为 YYYYMM。
         file_path (str): 文件路径，默认为 None。
         name (str): 名称，用于构建默认路径时使用。
-
         """
 
         self._path = file_path if file_path else f'E:/WORKING/B-账单/BOOKING/{name}'
         self.start_month = start_month
         self.end_month = end_month
+        
+        # 获取HID数据表头配置
+        self.hid_headers = get_report_headers('hid_data')
 
     def import_my_performance(self, ):
 
@@ -208,8 +227,9 @@ class CountMonth:
             name = os.path.join(hid_path, f)
             df = pd.read_excel(name, sheet_name='Sheet1', header=None)
 
-            # 删除不需要的列
-            df = df.drop(columns=[1, 11, 6, 13, 14, 15])
+            # 删除不需要的列（保留需要的列：0,2,3,4,5,7,8,9,10,11,12）
+            columns_to_drop = [1, 11, 6, 13, 14, 15]
+            df = df.drop(columns=[col for col in columns_to_drop if col in df.columns])
             df = df.dropna(subset=[12])
             df[0] = df[0].astype(int)
             df[[2, 4]] = df[[2, 4]].astype(str)
@@ -221,11 +241,19 @@ class CountMonth:
             df[2] = pd.to_datetime(df[2], format='%d-%m-%y')
             df[4] = pd.to_datetime(df[4], format='%d-%m-%y')
 
+            # 应用表头
+            if len(df.columns) == len(self.hid_headers) + 1:  # +1 for the additional column 12
+                # 为额外的列添加名称
+                extended_headers = self.hid_headers + ['additional_info']
+                df.columns = extended_headers
+            else:
+                print(f"警告：HID数据列数({len(df.columns)})与表头数({len(self.hid_headers)})不匹配")
+
             # 按日期和编号排序
-            df = df.sort_values(by=[2, 0]).reset_index(drop=True)
+            df = df.sort_values(by=['order_date', 'hid']).reset_index(drop=True)
 
             # 获取首尾 HID
-            hids = df[0].values
+            hids = df['hid'].values
             first_hid = hids[0]
             last_hid = hids[-1]
 
@@ -236,9 +264,9 @@ class CountMonth:
             performance = pd.concat([performance, df], ignore_index=True)
 
         # 按编号排序并格式化月份
-        performance[2] = pd.to_datetime(performance[2])
-        performance = performance.sort_values(by=0)
-        performance['month'] = performance[2].dt.strftime('%Y-%m')
+        performance['order_date'] = pd.to_datetime(performance['order_date'])
+        performance = performance.sort_values(by='hid')
+        performance['month'] = performance['order_date'].dt.strftime('%Y-%m')
 
         return performance
 
