@@ -35,9 +35,9 @@
     
     .info-grid {
         display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: 0.75rem;
-        margin-bottom: 1rem;
+        grid-template-columns: repeat(8, 1fr);
+        gap: 12px 18px;
+        margin-bottom: 10px;
     }
     
     .info-grid-compact {
@@ -50,23 +50,22 @@
     .info-item {
         display: flex;
         flex-direction: column;
-        min-height: auto;
+        align-items: flex-start;
+        padding: 6px 0;
+        min-width: 0;
+        word-break: break-all;
     }
     
     .info-label {
-        font-size: 0.75rem;
-        color: #6c757d;
-        font-weight: 500;
-        margin-bottom: 0.125rem;
-        text-transform: uppercase;
-        letter-spacing: 0.25px;
+        font-size: 0.92em;
+        color: #888;
+        margin-bottom: 2px;
     }
     
     .info-value {
-        font-size: 0.875rem;
-        font-weight: 600;
-        color: #212529;
-        line-height: 1.2;
+        font-size: 1.08em;
+        color: #222;
+        font-weight: 500;
     }
     
     .status-badge {
@@ -189,6 +188,17 @@
     .progress-bar {
         border-radius: 3px;
     }
+
+    @media (max-width: 1600px) {
+        .info-grid {
+            grid-template-columns: repeat(4, 1fr);
+        }
+    }
+    @media (max-width: 900px) {
+        .info-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
 </style>
 
 <div class="container-fluid">
@@ -199,7 +209,9 @@
                 <h1 class="project-title mb-0">{{ header.hid }}</h1>
                 <span class="project-subtitle mb-0">| {{ header.desc }}</span>
             </div>
-            
+            <!-- <a href="{{ url_for('projects.edit_header', header_id=header.id) }}" class="btn btn-warning btn-sm" style="margin-right: 8px;">
+                <i class="fas fa-edit"></i> 编辑项目主表
+            </a> -->
             <div class="d-flex align-items-center gap-3">
                 <!-- 导航按钮 -->
                 <div class="d-flex align-items-center gap-2">
@@ -208,6 +220,7 @@
                            class="btn btn-outline-light btn-sm" title="上一个项目: {{ prev_header.hid }}">
                             <i class="fas fa-chevron-left"></i>
                         </a>
+                
                     {% else %}
                         <button class="btn btn-outline-light btn-sm" disabled>
                             <i class="fas fa-chevron-left"></i>
@@ -238,9 +251,16 @@
                     {% endif %}
                 </div>
                 
-                <a href="{{ url_for('projects.list_projects') }}" class="btn btn-light btn-sm">
-                    <i class="fas fa-list"></i> 返回列表
-                </a>
+                <div class="text-center" style="margin-bottom: 15px;">
+         
+                    <a href="{{ url_for('projects.list_projects') }}" 
+                       class="btn btn-sm"
+                       style="background: #fff; color: #222; border: 1.5px solid #888; font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,0.04); transition: background 0.2s; margin-left: 8px;"
+                       onmouseover="this.style.background='#f2f2f2';" 
+                       onmouseout="this.style.background='#fff';">
+                        <i class="fas fa-arrow-left"></i> 返回列表
+                    </a>
+                </div>
             </div>
         </div>
     </div>
@@ -249,9 +269,7 @@
     <div class="info-card">
         <div class="d-flex justify-content-between align-items-center mb-2">
             <h3 class="section-title">基本信息</h3>
-            <a href="{{ url_for('projects.edit_header', header_id=header.id) }}" class="btn btn-warning btn-sm">
-                <i class="fas fa-edit"></i> 编辑项目
-            </a>
+
         </div>
         
         <div class="info-grid">
@@ -259,16 +277,22 @@
                 <span class="info-label">项目编号</span>
                 <span class="info-value">{{ header.hid }}</span>
             </div>
+
+            <div class="info-item">
+                <span class="info-label">公司</span>
+                <span class="info-value" id="company-name-span" style="display: inline;" data-header-id="{{ header.id }}">{{ company.company_name if company else '未设置' }}</span>
+                <select id="company-select" style="display: none; width: 90%;">
+                    {% for c in companies %}
+                        <option value="{{ c.id }}" {% if company and c.id == company.id %}selected{% endif %}>{{ c.company_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
             
             <div class="info-item">
                 <span class="info-label">经办人</span>
                 <span class="info-value">{{ header.staff_name }}</span>
             </div>
             
-            <div class="info-item">
-                <span class="info-label">负责人</span>
-                <span class="info-value">{{ header.leader_name or '未设置' }}</span>
-            </div>
             
             <div class="info-item">
                 <span class="info-label">币种</span>
@@ -277,13 +301,19 @@
             
             <div class="info-item">
                 <span class="info-label">状态</span>
-                <span class="status-badge status-{{ header.status }}">
+                <span class="status-badge status-{{ header.status }}" id="status-span" style="cursor: pointer;" data-header-id="{{ header.id }}">
                     {% if header.status == 'draft' %}草稿
                     {% elif header.status == 'active' %}进行中
                     {% elif header.status == 'completed' %}已完成
                     {% else %}已取消
                     {% endif %}
                 </span>
+                <select id="status-select" style="display: none; width: 90%;">
+                    <option value="draft" {% if header.status == 'draft' %}selected{% endif %}>草稿</option>
+                    <option value="active" {% if header.status == 'active' %}selected{% endif %}>进行中</option>
+                    <option value="completed" {% if header.status == 'completed' %}selected{% endif %}>已完成</option>
+                    <option value="cancelled" {% if header.status == 'cancelled' %}selected{% endif %}>已取消</option>
+                </select>
             </div>
             
             {% if header.contact %}
@@ -307,14 +337,12 @@
             </div>
             {% endif %}
             
-            <div class="info-item">
-                <span class="info-label">公司</span>
-                <span class="info-value">{{ company.company_name if company else '未设置' }}</span>
-            </div>
 
-            <div class="info-item" style="grid-column: 2 / 4;">
+
+            <div class="info-item">
                 <span class="info-label">项目描述</span>
-                <span class="info-value">{{ header.desc }}</span>
+                <span class="info-value" id="project-desc" data-header-id="{{ header.id }}">{{ header.desc }}</span>
+                <input type="text" id="project-desc-input" style="display:none;width:80%;" />
             </div>
             
             {% if header.remarks %}
@@ -362,8 +390,8 @@
                 <thead>
                     <tr>
                         <th>REF编号</th>
-                        <th>名称</th>
                         <th>类型</th>
+                        <th>名称</th>
                         <th>供应商</th>
                         <th>售价</th>
                         <th>成本</th>
@@ -377,10 +405,8 @@
                 {% for ref in header.refs %}
                     <tr>
                         <td><strong>{{ ref.ref_number }}</strong></td>
+                        <td>{{ ref.ref_type.name if ref.ref_type else '未分类' }}</td>
                         <td>{{ ref.name or ref.description }}</td>
-                        <td>
-                            <span class="badge bg-primary">{{ ref.ref_type.name if ref.ref_type else '未分类' }}</span>
-                        </td>
                         <td>{{ ref.supplier.name if ref.supplier else '-' }}</td>
                         <td>
                             {% if ref.selling_price %}
@@ -437,6 +463,20 @@
                                         <i class="fas fa-eye"></i>
                                     </a>
                                     <a href="{{ url_for('projects.edit_flight_ref', ref_id=ref.id) }}" class="btn btn-sm btn-warning">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                {% elif ref.ref_type and ref.ref_type.name == '其他' %}
+                                    <a href="{{ url_for('projects.ref_detail', ref_id=ref.id) }}" class="btn btn-sm btn-info">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    <a href="{{ url_for('projects.edit_other_ref', ref_id=ref.id) }}" class="btn btn-sm btn-warning">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                {% elif ref.ref_type and ref.ref_type.name == '签证' %}
+                                    <a href="{{ url_for('projects.ref_detail', ref_id=ref.id) }}" class="btn btn-sm btn-info">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    <a href="{{ url_for('projects.edit_visa_ref', ref_id=ref.id) }}" class="btn btn-sm btn-warning">
                                         <i class="fas fa-edit"></i>
                                     </a>
                                 {% else %}
@@ -617,5 +657,156 @@ setTimeout(function() {
         bsAlert.close();
     }
 }, 5000);
+</script>
+{% endblock %} 
+{% block scripts %}
+{{ super() }}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const descSpan = document.getElementById('project-desc');
+    const descInput = document.getElementById('project-desc-input');
+    if (!descSpan || !descInput) return;
+
+    descSpan.addEventListener('click', function() {
+        descInput.value = descSpan.textContent.trim();
+        descSpan.style.display = 'none';
+        descInput.style.display = '';
+        descInput.focus();
+        descInput.select();
+    });
+
+    function saveDesc() {
+        const newDesc = descInput.value.trim();
+        const headerId = descSpan.getAttribute('data-header-id');
+        if (!headerId) return;
+        if (newDesc === '') {
+            alert('项目描述不能为空');
+            return;
+        }
+        fetch('/projects/update_header_desc', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token() }}'
+            },
+            body: JSON.stringify({ header_id: headerId, desc: newDesc })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                descSpan.textContent = newDesc;
+            } else {
+                alert(data.message || '保存失败');
+            }
+            descSpan.style.display = '';
+            descInput.style.display = 'none';
+        })
+        .catch(() => {
+            alert('网络错误，保存失败');
+            descSpan.style.display = '';
+            descInput.style.display = 'none';
+        });
+    }
+
+    descInput.addEventListener('blur', saveDesc);
+    descInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            saveDesc();
+        }
+        if (e.key === 'Escape') {
+            descSpan.style.display = '';
+            descInput.style.display = 'none';
+        }
+    });
+
+    // 公司选择逻辑
+    const companySpan = document.getElementById('company-name-span');
+    const companySelect = document.getElementById('company-select');
+    if (companySpan && companySelect) {
+        companySpan.addEventListener('click', function() {
+            companySpan.style.display = 'none';
+            companySelect.style.display = '';
+            companySelect.focus();
+        });
+        companySelect.addEventListener('change', function() {
+            const headerId = companySpan.getAttribute('data-header-id');
+            const companyId = companySelect.value;
+            fetch('/projects/update_header_company', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify({ header_id: headerId, company_id: companyId })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    companySpan.textContent = companySelect.options[companySelect.selectedIndex].text;
+                } else {
+                    alert(data.message || '保存失败');
+                }
+                companySpan.style.display = '';
+                companySelect.style.display = 'none';
+            })
+            .catch(() => {
+                alert('网络错误，保存失败');
+                companySpan.style.display = '';
+                companySelect.style.display = 'none';
+            });
+        });
+        companySelect.addEventListener('blur', function() {
+            companySpan.style.display = '';
+            companySelect.style.display = 'none';
+        });
+    }
+
+    // 状态选择逻辑
+    const statusSpan = document.getElementById('status-span');
+    const statusSelect = document.getElementById('status-select');
+    if (statusSpan && statusSelect) {
+        statusSpan.addEventListener('click', function() {
+            statusSpan.style.display = 'none';
+            statusSelect.style.display = '';
+            statusSelect.focus();
+        });
+        statusSelect.addEventListener('change', function() {
+            const headerId = statusSpan.getAttribute('data-header-id');
+            const status = statusSelect.value;
+            fetch('/projects/update_header_status', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify({ header_id: headerId, status: status })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    // 更新显示的文本
+                    const statusText = statusSelect.options[statusSelect.selectedIndex].text;
+                    statusSpan.textContent = statusText;
+                    // 更新CSS类
+                    statusSpan.className = `status-badge status-${status}`;
+                } else {
+                    alert(data.message || '保存失败');
+                }
+                statusSpan.style.display = '';
+                statusSelect.style.display = 'none';
+            })
+            .catch(() => {
+                alert('网络错误，保存失败');
+                statusSpan.style.display = '';
+                statusSelect.style.display = 'none';
+            });
+        });
+        statusSelect.addEventListener('blur', function() {
+            statusSpan.style.display = '';
+            statusSelect.style.display = 'none';
+        });
+    }
+});
 </script>
 {% endblock %} 

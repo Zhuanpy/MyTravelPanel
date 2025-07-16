@@ -40,6 +40,12 @@ class BaseValidator:
         if not email:
             return
         
+        # 允许的特殊值（不区分大小写）
+        allowed_special_values = ['n/a', 'none', '无', 'na', 'null', '']
+        if email.lower().strip() in allowed_special_values:
+            return
+        
+        # 标准邮箱格式验证
         email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
         if not re.match(email_pattern, email):
             raise ValidationError(f"Invalid {field_name} format", field=field_name)

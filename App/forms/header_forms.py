@@ -26,6 +26,10 @@ class ProjectHeaderForm(FlaskForm):
         # 动态加载公司选项
         companies = CustomerCompany.query.filter_by(status='active').order_by(CustomerCompany.company_name).all()
         self.company_id.choices = [(0, '请选择公司')] + [(c.id, c.company_name) for c in companies]
+        
+        # 如果是编辑模式，移除项目编号的长度验证
+        if 'obj' in kwargs and kwargs['obj']:
+            self.hid.validators = [DataRequired(message='项目编号不能为空')]
     
     limit = StringField('额度限制', [
         Length(max=50, message='额度限制不能超过50个字符')
@@ -53,15 +57,7 @@ class ProjectHeaderForm(FlaskForm):
         DataRequired(message='请选择币种')
     ], choices=[
         ('SGD', '新加坡元'),
-        ('CNY', '人民币'),
-        ('USD', '美元'),
-        ('EUR', '欧元'),
-        ('JPY', '日元'),
-        ('KRW', '韩元'),
-        ('THB', '泰铢'),
-        ('MYR', '马来西亚林吉特'),
-        ('IDR', '印尼盾'),
-        ('VND', '越南盾')
+        ('CNY', '人民币')
     ])
     
     type = StringField('类型', [

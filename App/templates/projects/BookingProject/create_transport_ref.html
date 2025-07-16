@@ -4,6 +4,8 @@
 <div class="container mt-4">
     <h2>新建交通明细</h2>
     <form method="post">
+        <!-- CSRF令牌 -->
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <!-- 基础字段 -->
         <div class="form-group">
             <label>编号</label>
@@ -15,7 +17,12 @@
         </div>
         <div class="form-group">
             <label>供应商</label>
-            <input type="text" name="supplier" class="form-control">
+            <select name="supplier_id" class="form-control">
+                <option value="">请选择供应商</option>
+                {% for supplier in suppliers %}
+                    <option value="{{ supplier.supplier_id }}">{{ supplier.name }}</option>
+                {% endfor %}
+            </select>
         </div>
         <div class="form-group">
             <label>金额</label>
@@ -23,7 +30,12 @@
         </div>
         <div class="form-group">
             <label>状态</label>
-            <input type="text" name="status" class="form-control">
+            <select name="status" class="form-control">
+                <option value="draft">草稿</option>
+                <option value="processing">处理中</option>
+                <option value="completed">已完成</option>
+                <option value="cancelled">已取消</option>
+            </select>
         </div>
         <!-- 交通专属字段 -->
         <div class="form-group">

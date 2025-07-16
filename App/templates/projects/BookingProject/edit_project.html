@@ -64,6 +64,8 @@
 <div class="container mt-4">
     <h2>编辑项目</h2>
     <form method="POST">
+        <!-- CSRF令牌 -->
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="card">
             <div class="card-header">
                 <h5 class="mb-0">项目基本信息</h5>

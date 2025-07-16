@@ -1,6 +1,25 @@
 from flask_wtf import FlaskForm
 from wtforms import StringField, TextAreaField, SelectField, DecimalField, SubmitField
-from wtforms.validators import DataRequired, Length, Email, Optional, NumberRange
+from wtforms.validators import DataRequired, Length, Optional, NumberRange
+import re
+
+def validate_email_with_special_values(form, field):
+    """自定义邮箱验证器，允许特殊值如N/A、NONE等"""
+    if not field.data:
+        return
+    
+    email = field.data.strip()
+    
+    # 允许的特殊值（不区分大小写）
+    allowed_special_values = ['n/a', 'none', '无', 'na', 'null', '']
+    if email.lower() in allowed_special_values:
+        return
+    
+    # 标准邮箱格式验证
+    email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    if not re.match(email_pattern, email):
+        from wtforms import ValidationError
+        raise ValidationError('请输入有效的邮箱地址或使用N/A、NONE等特殊值')
 
 class CustomerCompanyForm(FlaskForm):
     """客户公司表单"""
@@ -22,7 +41,7 @@ class CustomerCompanyForm(FlaskForm):
     ])
     
     contact_email = StringField('联系邮箱', [
-        Email(message='请输入有效的邮箱地址'),
+        validate_email_with_special_values,
         Length(max=100, message='邮箱不能超过100个字符')
     ])
     

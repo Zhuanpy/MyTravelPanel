@@ -1,62 +1,33 @@
-import sys
 import os
-import click
-from flask.cli import with_appcontext
+import pandas as pd
 
-# 添加项目根目录到Python路径
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# 设置文件路径
+input_path = r"E:\Todays file\aaa\202208.xls"
+output_path = r"E:\Todays file\aaa\202208_fixed.xlsx"
 
-from App.exts import db
-from App.models.Product.Visamodels import VisaLinks, VisaTypes
 
-@click.command()
-@with_appcontext
-def update_visalinks():
-    """更新visalinks表数据，将visa_type转换为visa_type_id"""
-    try:
-        print("开始更新visalinks表数据...")
-        
-        # 1. 获取所有现有的visalinks记录
-        old_links = VisaLinks.query.all()
-        
-        # 2. 创建临时表来存储新的数据
-        temp_links = []
-        for link in old_links:
-            # 根据visa_type字符串查找对应的VisaTypes记录
-            visa_type = VisaTypes.query.filter_by(visa_type=link.visa_type).first()
-            if visa_type:
-                temp_links.append({
-                    'id': link.id,
-                    'visa_type_id': visa_type.id,
-                    'name': link.name,
-                    'link': link.link
-                })
-            else:
-                print(f"警告: 找不到visa_type为 '{link.visa_type}' 的记录")
-        
-        # 3. 删除旧表数据
-        db.session.query(VisaLinks).delete()
-        
-        # 4. 插入新数据
-        for link_data in temp_links:
-            new_link = VisaLinks(
-                id=link_data['id'],
-                visa_type_id=link_data['visa_type_id'],
-                name=link_data['name'],
-                link=link_data['link']
-            )
-            db.session.add(new_link)
-        
-        # 5. 提交更改
-        db.session.commit()
-        print("成功更新visalinks表数据！")
-        print(f"共更新了 {len(temp_links)} 条记录")
-        return True
-        
-    except Exception as e:
-        db.session.rollback()
-        print(f"更新visalinks表数据时发生错误: {str(e)}")
-        return False
+# 尝试修复
+def try_fix_xls(file_path, output_file):
+    try_encodings = ['utf-8', 'gbk', 'gb2312']
+    success = False
+
+    for enc in try_encodings:
+        try:
+            # 假设文件实际是 CSV 格式但扩展名是 .xls
+            df = pd.read_csv(file_path, encoding=enc, delimiter='\t', engine='python', error_bad_lines=False)
+            df.to_excel(output_file, index=False)
+            print(f"成功读取并转换文件，使用编码：{enc}")
+            success = True
+            break
+        except Exception as e:
+            print(f"尝试编码 {enc} 失败：{e}")
+
+    if not success:
+        print("无法修复该文件。可能不是文本格式或已损坏。")
+
 
 if __name__ == "__main__":
-    update_visalinks() 
+    if os.path.exists(input_path):
+        try_fix_xls(input_path, output_path)
+    else:
+        print("文件不存在，请确认路径是否正确。")
