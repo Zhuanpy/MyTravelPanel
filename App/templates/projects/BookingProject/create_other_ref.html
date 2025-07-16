@@ -67,6 +67,17 @@
                             </div>
                             <div class="col-md-6">
                                 <div class="form-group">
+                                    <label>负责人姓名</label>
+                                    <input type="text" name="leader_name" class="form-control" 
+                                           placeholder="请输入负责人姓名"
+                                           value="{{ ref.leader_name if ref else '' }}">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <div class="form-group">
                                     <label>状态</label>
                                     <select name="status" class="form-control">
                                         <option value="draft" {% if ref and ref.status == 'draft' %}selected{% endif %}>草稿</option>

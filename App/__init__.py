@@ -10,6 +10,7 @@ from .config import Config
 from App.utils.background_tasks import TodoReminder
 from .utils.exceptions import register_error_handlers
 import logging
+import json
 
 from App.routes.Utils.statement import statement_blue
 from App.routes.Utils.utils_tasks import utils_blue
@@ -169,6 +170,17 @@ def create_app():
     # 使用应用上下文初始化提醒服务
     with app.app_context():
         app.reminder.start()
+
+    # 添加模板过滤器
+    @app.template_filter('from_json')
+    def from_json_filter(value):
+        """将JSON字符串转换为Python对象"""
+        if value is None:
+            return {}
+        try:
+            return json.loads(value)
+        except (json.JSONDecodeError, TypeError):
+            return {}
 
     return app
 

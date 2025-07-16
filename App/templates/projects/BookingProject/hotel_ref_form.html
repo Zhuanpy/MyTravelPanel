@@ -156,6 +156,27 @@
                             </div>
                             <div class="col-md-6">
                                 <div class="form-group">
+                                    <label>负责人姓名</label>
+                                    {% if is_edit %}
+                                        {{ form.leader_name(class="form-control", placeholder="请输入负责人姓名") }}
+                                        {% if form.leader_name.errors %}
+                                            <div class="text-danger">
+                                                {% for error in form.leader_name.errors %}
+                                                    <small>{{ error }}</small>
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
+                                    {% else %}
+                                        <input type="text" name="leader_name" class="form-control" 
+                                               placeholder="请输入负责人姓名" value="{{ hotel_info.leader_name if hotel_info else '' }}">
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <div class="form-group">
                                     <label>状态</label>
                                     {% if is_edit %}
                                         {{ form.status(class="form-control") }}

@@ -195,6 +195,14 @@
             <a href="{{ url_for('projects.edit_visa_ref', ref_id=ref.id) }}" class="btn btn-warning">
                 编辑REF
             </a>
+        {% elif ref.ref_type and ref.ref_type.name == '保险' %}
+            <a href="{{ url_for('projects.edit_insurance_ref', ref_id=ref.id) }}" class="btn btn-warning">
+                编辑REF
+            </a>
+        {% elif ref.ref_type and ref.ref_type.name == '旅游团' %}
+            <a href="{{ url_for('projects.edit_tour_ref', ref_id=ref.id) }}" class="btn btn-warning">
+                编辑REF
+            </a>
         {% else %}
             <a href="{{ url_for('projects.edit_ref', ref_id=ref.id) }}" class="btn btn-warning">
                 编辑REF

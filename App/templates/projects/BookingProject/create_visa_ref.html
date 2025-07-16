@@ -13,32 +13,32 @@
                         <!-- CSRF令牌 -->
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         
-                        <!-- 基础字段 -->
-                        <div class="row mb-4">
-                            <div class="col-md-12">
-                                <div class="form-group">
-                                    <label>名称 <span class="text-danger">*</span></label>
-                                    <input type="text" name="name" class="form-control" required 
-                                           value="{{ ref.name if ref else '' }}">
-                                    <div class="invalid-feedback">请输入名称</div>
-                                </div>
-                            </div>
-                        </div>
+                        <!-- 隐藏的名称字段，自动生成 -->
+                        <input type="hidden" name="name" id="auto_name" value="{{ ref.name if ref and not is_create else '' }}">
                         
                         <div class="row mb-4">
                             <div class="col-md-6">
                                 <div class="form-group">
                                     <label>国家 <span class="text-danger">*</span></label>
-                                    <input type="text" name="country" class="form-control" required 
-                                           value="{{ ref.country if ref else '' }}">
-                                    <div class="invalid-feedback">请输入国家名称</div>
+                                    <select name="country" id="country" class="form-control" required>
+                                        <option value="">请选择国家</option>
+                                        {% for country in countries %}
+                                            <option value="{{ country.country_name_CN }}" 
+                                                    data-country-id="{{ country.id }}"
+                                                    {% if visa_info and visa_info.get('country') == country.country_name_CN %}selected{% endif %}>
+                                                {{ country.country_name_CN }}
+                                            </option>
+                                        {% endfor %}
+                                    </select>
+                                    <div class="invalid-feedback">请选择国家</div>
                                 </div>
                             </div>
                             <div class="col-md-6">
                                 <div class="form-group">
                                     <label>签证类型</label>
-                                    <input type="text" name="visa_type" class="form-control" 
-                                           value="{{ ref.visa_type if ref else '' }}">
+                                    <select name="visa_type" id="visa_type" class="form-control">
+                                        <option value="">请先选择国家</option>
+                                    </select>
                                 </div>
                             </div>
                         </div>
@@ -49,7 +49,7 @@
                                     <label>售价 (SGD)</label>
                                     <div class="input-group">
                                         <input type="number" name="selling_price" class="form-control" min="0" step="0.01" placeholder="0.00"
-                                               value="{{ "%.2f"|format(ref.selling_price) if ref and ref.selling_price else '' }}">
+                                               value="{{ "%.2f"|format(ref.selling_price) if ref and ref.selling_price and not is_create else '' }}">
                                         <span class="input-group-text">SGD</span>
                                     </div>
                                     <div class="invalid-feedback">请输入有效的售价</div>
@@ -60,7 +60,7 @@
                                     <label>成本 (SGD)</label>
                                     <div class="input-group">
                                         <input type="number" name="cost_price" class="form-control" min="0" step="0.01" placeholder="0.00"
-                                               value="{{ "%.2f"|format(ref.cost_price) if ref and ref.cost_price else '' }}">
+                                               value="{{ "%.2f"|format(ref.cost_price) if ref and ref.cost_price and not is_create else '' }}">
                                         <span class="input-group-text">SGD</span>
                                     </div>
                                     <div class="invalid-feedback">请输入有效的成本价格</div>
@@ -76,7 +76,7 @@
                                         <option value="">请选择供应商</option>
                                         {% for supplier in suppliers %}
                                             <option value="{{ supplier.supplier_id }}" 
-                                                    {% if ref and ref.supplier_id == supplier.supplier_id %}selected{% endif %}>
+                                                    {% if ref and ref.supplier_id == supplier.supplier_id and not is_create %}selected{% endif %}>
                                                 {{ supplier.name }}
                                             </option>
                                         {% endfor %}
@@ -85,12 +85,23 @@
                             </div>
                             <div class="col-md-6">
                                 <div class="form-group">
+                                    <label>负责人姓名</label>
+                                    <input type="text" name="leader_name" class="form-control" 
+                                           placeholder="请输入负责人姓名"
+                                           value="{{ ref.leader_name if ref and not is_create else '' }}">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <div class="form-group">
                                     <label>状态</label>
                                     <select name="status" class="form-control">
-                                        <option value="draft" {% if ref and ref.status == 'draft' %}selected{% endif %}>草稿</option>
-                                        <option value="processing" {% if ref and ref.status == 'processing' %}selected{% endif %}>处理中</option>
-                                        <option value="completed" {% if ref and ref.status == 'completed' %}selected{% endif %}>已完成</option>
-                                        <option value="cancelled" {% if ref and ref.status == 'cancelled' %}selected{% endif %}>已取消</option>
+                                        <option value="draft" {% if ref and ref.status == 'draft' and not is_create %}selected{% endif %}>草稿</option>
+                                        <option value="processing" {% if ref and ref.status == 'processing' and not is_create %}selected{% endif %}>处理中</option>
+                                        <option value="completed" {% if ref and ref.status == 'completed' and not is_create %}selected{% endif %}>已完成</option>
+                                        <option value="cancelled" {% if ref and ref.status == 'cancelled' and not is_create %}selected{% endif %}>已取消</option>
                                     </select>
                                 </div>
                             </div>
@@ -101,7 +112,7 @@
                                 <div class="form-group">
                                     <label>出行日期</label>
                                     <input type="date" name="expected_delivery_date" class="form-control" max="2050-12-31"
-                                           value="{{ ref.expected_delivery_date.strftime('%Y-%m-%d') if ref and ref.expected_delivery_date else '' }}">
+                                           value="{{ ref.expected_delivery_date.strftime('%Y-%m-%d') if ref and ref.expected_delivery_date and not is_create else '' }}">
                                     <div class="invalid-feedback">请选择有效的出行日期</div>
                                 </div>
                             </div>
@@ -109,7 +120,7 @@
                                 <div class="form-group">
                                     <label>结束日期</label>
                                     <input type="date" name="actual_delivery_date" class="form-control" max="2050-12-31"
-                                           value="{{ ref.actual_delivery_date.strftime('%Y-%m-%d') if ref and ref.actual_delivery_date else '' }}">
+                                           value="{{ ref.actual_delivery_date.strftime('%Y-%m-%d') if ref and ref.actual_delivery_date and not is_create else '' }}">
                                     <div class="invalid-feedback">请选择有效的结束日期</div>
                                 </div>
                             </div>
@@ -119,7 +130,7 @@
                             <div class="col-md-12">
                                 <div class="form-group">
                                     <label>申请人信息</label>
-                                    <textarea name="applicant_info" class="form-control" rows="3" placeholder="请输入申请人信息，如姓名、护照号、联系方式等">{{ ref.applicant_info if ref else '' }}</textarea>
+                                    <textarea name="applicant_info" class="form-control" rows="3" placeholder="请输入申请人信息，如姓名、护照号、联系方式等">{{ visa_info.get('applicant_info', '') if visa_info else '' }}</textarea>
                                 </div>
                             </div>
                         </div>
@@ -128,7 +139,7 @@
                             <div class="col-md-12">
                                 <div class="form-group">
                                     <label>备注信息</label>
-                                    <textarea name="remarks" class="form-control" rows="3" placeholder="请输入备注信息，如特殊要求、注意事项等">{{ ref.remarks if ref else '' }}</textarea>
+                                    <textarea name="remarks" class="form-control" rows="3" placeholder="请输入备注信息，如特殊要求、注意事项等">{{ ref.remarks if ref and not is_create else '' }}</textarea>
                                 </div>
                             </div>
                         </div>
@@ -342,11 +353,94 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 3000);
     }
     
+    // 国家选择变化时更新签证类型
+    document.getElementById('country').addEventListener('change', function() {
+        const countrySelect = this;
+        const visaTypeSelect = document.getElementById('visa_type');
+        const selectedCountry = countrySelect.value;
+        
+        // 清空签证类型下拉框
+        visaTypeSelect.innerHTML = '<option value="">请先选择国家</option>';
+        
+        if (selectedCountry) {
+            // 根据国家名称找到对应的国家ID
+            const countryOption = countrySelect.options[countrySelect.selectedIndex];
+            const countryId = countryOption.getAttribute('data-country-id');
+            
+            if (countryId) {
+                // 显示加载状态
+                visaTypeSelect.disabled = true;
+                
+                // 获取该国家的签证类型
+                fetch(`/projects/api/get_visa_types/${countryId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            data.visa_types.forEach(type => {
+                                const option = document.createElement('option');
+                                option.value = type.visa_type;
+                                option.textContent = type.visa_type;
+                                visaTypeSelect.appendChild(option);
+                            });
+                            
+                            // 如果是编辑模式，尝试恢复之前选择的签证类型
+                            {% if visa_info and visa_info.get('visa_type') %}
+                            const savedVisaType = '{{ visa_info.get("visa_type", "") }}';
+                            if (savedVisaType) {
+                                for (let option of visaTypeSelect.options) {
+                                    if (option.value === savedVisaType) {
+                                        option.selected = true;
+                                        // 更新自动生成的名称
+                                        updateAutoName(savedVisaType);
+                                        break;
+                                    }
+                                }
+                            }
+                            {% endif %}
+                        } else {
+                            console.error('获取签证类型失败:', data.message);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('请求签证类型时出错:', error);
+                    })
+                    .finally(() => {
+                        visaTypeSelect.disabled = false;
+                    });
+            }
+        }
+    });
+    
+    // 签证类型选择变化时自动更新名称
+    document.getElementById('visa_type').addEventListener('change', function() {
+        const selectedVisaType = this.value;
+        updateAutoName(selectedVisaType);
+    });
+    
+    // 更新自动生成的名称
+    function updateAutoName(visaType) {
+        const nameField = document.getElementById('auto_name');
+        if (visaType) {
+            nameField.value = visaType + '申请';
+        } else {
+            nameField.value = '';
+        }
+    }
+    
+    // 页面加载时，如果有预选的国家，触发change事件
+    {% if visa_info and visa_info.get('country') %}
+    document.addEventListener('DOMContentLoaded', function() {
+        const countrySelect = document.getElementById('country');
+        if (countrySelect.value) {
+            countrySelect.dispatchEvent(new Event('change'));
+        }
+    });
+    {% endif %}
+    
     // 添加字段说明提示
     const tooltips = {
-        'name': '请输入签证服务的名称',
-        'country': '请输入申请签证的国家名称',
-        'visa_type': '如：旅游签证、商务签证、学生签证等',
+        'country': '请选择申请签证的国家',
+        'visa_type': '根据选择的国家显示可用的签证类型',
         'selling_price': '向客户收取的价格',
         'cost_price': '签证申请的实际成本',
         'supplier_id': '选择提供签证服务的供应商',

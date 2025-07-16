@@ -25,6 +25,16 @@
                         </div>
                         
                         <div class="row mb-4">
+                            <div class="col-md-12">
+                                <div class="form-group">
+                                    <label>REF名称</label>
+                                    <input type="text" name="name" class="form-control" readonly style="background-color: #f8f9fa;">
+                                    <small class="form-text text-muted">自动填入酒店名称</small>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-4">
                             <div class="col-md-6">
                                 <div class="form-group">
                                     <label>房型</label>
@@ -87,6 +97,16 @@
                             </div>
                             <div class="col-md-6">
                                 <div class="form-group">
+                                    <label>负责人姓名</label>
+                                    <input type="text" name="leader_name" class="form-control" 
+                                           placeholder="请输入负责人姓名">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <div class="form-group">
                                     <label>状态</label>
                                     <select name="status" class="form-control">
                                         <option value="draft">草稿</option>
@@ -128,6 +148,13 @@
 document.addEventListener('DOMContentLoaded', function() {
     const form = document.querySelector('form');
     const inputs = form.querySelectorAll('input, select, textarea');
+    
+    // 初始化REF名称字段
+    const hotelNameField = document.querySelector('input[name="hotel_name"]');
+    const refNameField = document.querySelector('input[name="name"]');
+    if (hotelNameField && refNameField) {
+        refNameField.value = hotelNameField.value;
+    }
     
     // 实时校验函数
     function validateField(field) {
@@ -262,6 +289,14 @@ document.addEventListener('DOMContentLoaded', function() {
         input.addEventListener('input', function() {
             if (this.classList.contains('is-invalid')) {
                 validateField(this);
+            }
+            
+            // 当酒店名称变化时，自动更新REF名称
+            if (this.name === 'hotel_name') {
+                const refNameField = document.querySelector('input[name="name"]');
+                if (refNameField) {
+                    refNameField.value = this.value;
+                }
             }
         });
     });

@@ -252,12 +252,13 @@
                 </div>
                 
                 <div class="text-center" style="margin-bottom: 15px;">
+                    <a href="{{ url_for('projects.create_header') }}" 
+                       class="btn btn-primary btn-sm me-2">
+                        <i class="fas fa-plus"></i> 新建HID
+                    </a>
          
                     <a href="{{ url_for('projects.list_projects') }}" 
-                       class="btn btn-sm"
-                       style="background: #fff; color: #222; border: 1.5px solid #888; font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,0.04); transition: background 0.2s; margin-left: 8px;"
-                       onmouseover="this.style.background='#f2f2f2';" 
-                       onmouseout="this.style.background='#fff';">
+                       class="btn btn-secondary btn-sm">
                         <i class="fas fa-arrow-left"></i> 返回列表
                     </a>
                 </div>
@@ -316,12 +317,11 @@
                 </select>
             </div>
             
-            {% if header.contact %}
             <div class="info-item">
                 <span class="info-label">联系人</span>
-                <span class="info-value">{{ header.contact }}</span>
+                <span class="info-value" id="contact-span" data-header-id="{{ header.id }}" style="cursor: pointer;">{{ header.contact if header.contact else 'N/A' }}</span>
+                <input type="text" id="contact-input" style="display: none; width: 80%;" />
             </div>
-            {% endif %}
             
             {% if header.dept %}
             <div class="info-item">
@@ -386,43 +386,57 @@
         
         {% if header.refs %}
         <div class="table-responsive">
-            <table class="table table-hover mb-0">
+            <table class="table table-hover mb-0" style="table-layout: fixed; width: 100%;">
                 <thead>
                     <tr>
-                        <th>REF编号</th>
-                        <th>类型</th>
-                        <th>名称</th>
-                        <th>供应商</th>
-                        <th>售价</th>
-                        <th>成本</th>
-                        <th>未付款</th>
-                        <th>利润</th>
-                        <th>状态</th>
-                        <th width="200">操作</th>
+                        <th style="width: 120px;">REF编号</th>
+                        <th style="width: 80px;">类型</th>
+                        <th style="width: 100px;">出行人</th>
+                        <th style="width: 200px;">名称</th>
+                        <th style="width: 150px;">供应商</th>
+                        <th style="width: 100px;">售价</th>
+                        <th style="width: 100px;">成本</th>
+                        <th style="width: 120px;">利润</th>
+                        <th style="width: 100px;">未付款</th>
+                        <th style="width: 80px;">状态</th>
+                        <th style="width: 200px;">操作</th>
                     </tr>
                 </thead>
                 <tbody>
                 {% for ref in header.refs %}
                     <tr>
-                        <td><strong>{{ ref.ref_number }}</strong></td>
-                        <td>{{ ref.ref_type.name if ref.ref_type else '未分类' }}</td>
-                        <td>{{ ref.name or ref.description }}</td>
-                        <td>{{ ref.supplier.name if ref.supplier else '-' }}</td>
-                        <td>
+                        <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"><strong>{{ ref.ref_number }}</strong></td>
+                        <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ ref.ref_type.name if ref.ref_type else '未分类' }}</td>
+                        <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ ref.leader_name or '-' }}">{{ ref.leader_name or '-' }}</td>
+                        <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ ref.name or ref.description }}">{{ ref.name or ref.description }}</td>
+                        <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ ref.supplier.name if ref.supplier else '-' }}">{{ ref.supplier.name if ref.supplier else '-' }}</td>
+                        <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                             {% if ref.selling_price %}
                                 <span class="text-success">{{ ref.currency }} {{ "%.2f"|format(ref.selling_price) }}</span>
                             {% else %}
                                 -
                             {% endif %}
                         </td>
-                        <td>
+                        <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                             {% if ref.cost_price %}
                                 <span class="text-info">{{ ref.currency }} {{ "%.2f"|format(ref.cost_price) }}</span>
                             {% else %}
                                 -
                             {% endif %}
                         </td>
-                        <td>
+                        <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                            {% if ref.ref_profit is defined %}
+                                <span class="{% if ref.ref_profit >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                    {{ ref.currency }} {{ "%.2f"|format(ref.ref_profit) }}
+                                    {% if ref.ref_profit_margin > 0 %}
+                                        <small class="text-muted">({{ "%.1f"|format(ref.ref_profit_margin) }}%)</small>
+                                    {% endif %}
+                                </span>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                             {% if ref.selling_price and ref.payment_status %}
                                 {% if ref.payment_status == 'paid' %}
                                     <span class="text-success">{{ ref.currency }} 0.00</span>
@@ -435,19 +449,7 @@
                                 <span class="text-muted">-</span>
                             {% endif %}
                         </td>
-                        <td>
-                            {% if ref.ref_profit is defined %}
-                                <span class="{% if ref.ref_profit >= 0 %}text-success{% else %}text-danger{% endif %}">
-                                    {{ ref.currency }} {{ "%.2f"|format(ref.ref_profit) }}
-                                    {% if ref.ref_profit_margin > 0 %}
-                                        <small class="text-muted">({{ "%.1f"|format(ref.ref_profit_margin) }}%)</small>
-                                    {% endif %}
-                                </span>
-                            {% else %}
-                                <span class="text-muted">-</span>
-                            {% endif %}
-                        </td>
-                        <td>
+                        <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                             <span class="status-badge status-{{ ref.status }}">
                                 {% if ref.status == 'draft' %}草稿
                                 {% elif ref.status == 'processing' %}处理中
@@ -456,7 +458,7 @@
                                 {% endif %}
                             </span>
                         </td>
-                        <td>
+                        <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                             <div class="action-buttons">
                                 {% if ref.ref_type and ref.ref_type.name == '机票' %}
                                     <a href="{{ url_for('projects.flight_ref_detail', ref_id=ref.id) }}" class="btn btn-sm btn-info">
@@ -807,6 +809,73 @@ document.addEventListener('DOMContentLoaded', function() {
             statusSelect.style.display = 'none';
         });
     }
+
+    // 联系人编辑逻辑
+    const contactSpan = document.getElementById('contact-span');
+    const contactInput = document.getElementById('contact-input');
+    if (contactSpan && contactInput) {
+        contactSpan.addEventListener('click', function() {
+            const currentValue = contactSpan.textContent.trim();
+            contactInput.value = currentValue === 'N/A' ? '' : currentValue;
+            contactSpan.style.display = 'none';
+            contactInput.style.display = '';
+            contactInput.focus();
+            contactInput.select();
+        });
+
+        function saveContact() {
+            const newContact = contactInput.value.trim();
+            const headerId = contactSpan.getAttribute('data-header-id');
+            if (!headerId) return;
+            
+            fetch('/projects/update_header_contact', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify({ header_id: headerId, contact: newContact })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    contactSpan.textContent = newContact || 'N/A';
+                } else {
+                    alert(data.message || '保存失败');
+                }
+                contactSpan.style.display = '';
+                contactInput.style.display = 'none';
+            })
+            .catch(() => {
+                alert('网络错误，保存失败');
+                contactSpan.style.display = '';
+                contactInput.style.display = 'none';
+            });
+        }
+
+        contactInput.addEventListener('blur', saveContact);
+        contactInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                saveContact();
+            }
+            if (e.key === 'Escape') {
+                contactSpan.style.display = '';
+                contactInput.style.display = 'none';
+            }
+        });
+    }
+    
+    // 快速消失的flash消息处理
+    const flashMessages = document.querySelectorAll('.alert');
+    flashMessages.forEach(function(alert) {
+        // 检查是否是机票REF保存成功的消息
+        const messageText = alert.textContent || alert.innerText;
+        if (messageText.includes('机票REF保存成功')) {
+            // 立即隐藏机票REF保存成功的消息
+            alert.style.display = 'none';
+        }
+    });
 });
 </script>
 {% endblock %} 

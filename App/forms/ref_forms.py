@@ -38,6 +38,23 @@ class ProjectRefForm(FlaskForm):
         Length(max=20, message='供应商联系电话不能超过20个字符')
     ])
     
+    # 联系人信息
+    contact_name = StringField('联系人姓名', [
+        Length(max=50, message='联系人姓名不能超过50个字符')
+    ])
+    
+    contact_phone = StringField('联系电话', [
+        Length(max=20, message='联系电话不能超过20个字符')
+    ])
+    
+    contact_email = StringField('电子邮箱', [
+        Length(max=100, message='电子邮箱不能超过100个字符')
+    ])
+    
+    leader_name = StringField('负责人姓名', [
+        Length(max=100, message='负责人姓名不能超过100个字符')
+    ])
+    
     # 价格信息
     selling_price = DecimalField('销售价格', [
         Optional(),

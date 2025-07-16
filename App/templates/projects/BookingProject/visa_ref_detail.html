@@ -195,32 +195,28 @@
             </div>
             <div class="applicant-info">
                 <div class="applicant-info-item">
-                    <span class="applicant-info-label">申请人姓名</span>
-                    <span class="applicant-info-value">待完善</span>
-                </div>
-                <div class="applicant-info-item">
-                    <span class="applicant-info-label">护照号码</span>
-                    <span class="applicant-info-value">待完善</span>
+                    <span class="applicant-info-label">申请国家</span>
+                    <span class="applicant-info-value">{{ visa_info.get('country', '未设置') }}</span>
                 </div>
                 <div class="applicant-info-item">
                     <span class="applicant-info-label">签证类型</span>
-                    <span class="applicant-info-value">待完善</span>
+                    <span class="applicant-info-value">{{ visa_info.get('visa_type', '未设置') }}</span>
                 </div>
                 <div class="applicant-info-item">
-                    <span class="applicant-info-label">申请国家</span>
-                    <span class="applicant-info-value">待完善</span>
+                    <span class="applicant-info-label">申请人信息</span>
+                    <span class="applicant-info-value">{{ visa_info.get('applicant_info', '未设置') }}</span>
                 </div>
                 <div class="applicant-info-item">
-                    <span class="applicant-info-label">申请日期</span>
-                    <span class="applicant-info-value">待完善</span>
+                    <span class="applicant-info-label">出行日期</span>
+                    <span class="applicant-info-value">{{ ref.expected_delivery_date.strftime('%Y-%m-%d') if ref.expected_delivery_date else '未设置' }}</span>
                 </div>
                 <div class="applicant-info-item">
-                    <span class="applicant-info-label">预计出签日期</span>
-                    <span class="applicant-info-value">待完善</span>
+                    <span class="applicant-info-label">结束日期</span>
+                    <span class="applicant-info-value">{{ ref.actual_delivery_date.strftime('%Y-%m-%d') if ref.actual_delivery_date else '未设置' }}</span>
                 </div>
             </div>
         </div>
-        <p style="color: #718096; text-align: center; padding: 20px;">签证申请人详细信息待完善</p>
+
     </div>
 
     <!-- 操作按钮 -->

@@ -2,6 +2,24 @@
 
 {% block title %}项目列表{% endblock %}
 
+{% block head %}
+<style>
+    .project-link {
+        color: #007bff !important;
+        transition: color 0.2s ease;
+    }
+    
+    .project-link:hover {
+        color: #0056b3 !important;
+        text-decoration: underline !important;
+    }
+    
+    .project-link:active {
+        color: #004085 !important;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid mt-4">
     <div class="row">
@@ -44,6 +62,11 @@
                             <label for="leader" class="form-label">负责人</label>
                             <input type="text" class="form-control" id="leader" name="leader" 
                                    placeholder="负责人姓名" value="{{ request.args.get('leader', '') }}">
+                        </div>
+                        <div class="col-md-2">
+                            <label for="contact" class="form-label">联系人</label>
+                            <input type="text" class="form-control" id="contact" name="contact" 
+                                   placeholder="联系人姓名" value="{{ request.args.get('contact', '') }}">
                         </div>
                         <div class="col-md-2">
                             <label for="date_from" class="form-label">创建日期从</label>
@@ -184,6 +207,9 @@
                                     {% if request.args.get('leader') %}
                                         <span class="badge bg-warning me-1">负责人: {{ request.args.get('leader') }}</span>
                                     {% endif %}
+                                    {% if request.args.get('contact') %}
+                                        <span class="badge bg-info me-1">联系人: {{ request.args.get('contact') }}</span>
+                                    {% endif %}
                                     {% if request.args.get('selling_min') or request.args.get('selling_max') %}
                                         <span class="badge bg-success me-1">售价范围</span>
                                     {% endif %}
@@ -198,51 +224,63 @@
                         </div>
                         
                         <div class="table-responsive">
-                            <table class="table table-hover">
+                            <table class="table table-hover" style="table-layout: fixed; width: 100%;">
                                 <thead class="table-light">
                                     <tr>
-                                        <th>项目编号</th>
-                                        <th>项目描述</th>
-                                        <th>客户公司</th>
-                                        <th>负责人</th>
-                                        <th>状态</th>
-                                        <th>总售价 (SGD)</th>
-                                        <th>总成本 (SGD)</th>
-                                        <th>总利润 (SGD)</th>
-                                        <th>Balance (SGD)</th>
-                                        <th>创建时间</th>
-                                        <th>最后更新</th>
-                                        <th>操作</th>
+                                        <th style="width: 120px;">项目编号</th>
+                                        <th style="width: 200px;">项目描述</th>
+                                        <th style="width: 150px;">客户公司</th>
+                                        <th style="width: 100px;">负责人</th>
+                                        <th style="width: 100px;">联系人</th>
+                                        <th style="width: 80px;">状态</th>
+                                        <th style="width: 120px;">总售价 (SGD)</th>
+                                        <th style="width: 120px;">总成本 (SGD)</th>
+                                        <th style="width: 120px;">总利润 (SGD)</th>
+                                        <th style="width: 120px;">Balance (SGD)</th>
+                                        <th style="width: 140px;">创建时间</th>
+                                        <th style="width: 140px;">最后更新</th>
+                                        <th style="width: 200px;">操作</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {% for project in projects %}
                                     <tr>
-                                        <td>
-                                            <strong>{{ project.hid }}</strong>
+                                        <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                            <a href="{{ url_for('projects.header_detail', header_id=project.id) }}" 
+                                               class="text-decoration-none fw-bold project-link" 
+                                               title="点击查看项目详情">
+                                                {{ project.hid }}
+                                            </a>
                                         </td>
-                                        <td>
+                                        <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{% if project.desc %}{{ project.desc }}{% else %}无描述{% endif %}">
                                             {% if project.desc %}
-                                                {{ project.desc[:50] }}{% if project.desc|length > 50 %}...{% endif %}
+                                                {{ project.desc }}
                                             {% else %}
                                                 <span class="text-muted">无描述</span>
                                             {% endif %}
                                         </td>
-                                        <td>
+                                        <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{% if project.company_name %}{{ project.company_name }}{% else %}未指定{% endif %}">
                                             {% if project.company_name %}
                                                 {{ project.company_name }}
                                             {% else %}
                                                 <span class="text-muted">未指定</span>
                                             {% endif %}
                                         </td>
-                                        <td>
+                                        <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{% if project.leader_name %}{{ project.leader_name }}{% else %}未设置{% endif %}">
                                             {% if project.leader_name %}
                                                 {{ project.leader_name }}
                                             {% else %}
                                                 <span class="text-muted">未设置</span>
                                             {% endif %}
                                         </td>
-                                        <td>
+                                        <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{% if project.contact %}{{ project.contact }}{% else %}N/A{% endif %}">
+                                            {% if project.contact %}
+                                                {{ project.contact }}
+                                            {% else %}
+                                                <span class="text-muted">N/A</span>
+                                            {% endif %}
+                                        </td>
+                                        <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                                             {% set status_colors = {
                                                 'draft': 'secondary',
                                                 'active': 'primary',
@@ -257,17 +295,17 @@
                                                 {% else %}{{ project.status }}{% endif %}
                                             </span>
                                         </td>
-                                        <td>
+                                        <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                                             <span class="text-success fw-bold">
                                                 ${{ "%.2f"|format(project_stats[project.id]['total_selling_price']) }}
                                             </span>
                                         </td>
-                                        <td>
+                                        <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                                             <span class="text-danger fw-bold">
                                                 ${{ "%.2f"|format(project_stats[project.id]['total_cost_price']) }}
                                             </span>
                                         </td>
-                                        <td>
+                                        <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                                             {% set profit = project_stats[project.id]['total_profit'] %}
                                             {% if profit > 0 %}
                                                 <span class="text-success fw-bold">${{ "%.2f"|format(profit) }}</span>
@@ -277,7 +315,7 @@
                                                 <span class="text-muted">$0.00</span>
                                             {% endif %}
                                         </td>
-                                        <td>
+                                        <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                                             {% set balance = project_stats[project.id]['balance'] %}
                                             {% if balance > 0 %}
                                                 <span class="text-danger fw-bold">${{ "%.2f"|format(balance) }}</span>
@@ -287,21 +325,21 @@
                                                 <span class="text-muted fw-bold">${{ "%.2f"|format(balance) }}</span>
                                             {% endif %}
                                         </td>
-                                        <td>
+                                        <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                                             {% if project.created_at %}
                                                 {{ project.created_at.strftime('%Y-%m-%d %H:%M') }}
                                             {% else %}
                                                 <span class="text-muted">-</span>
                                             {% endif %}
                                         </td>
-                                        <td>
+                                        <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                                             {% if project.updated_at %}
                                                 {{ project.updated_at.strftime('%Y-%m-%d %H:%M') }}
                                             {% else %}
                                                 <span class="text-muted">-</span>
                                             {% endif %}
                                         </td>
-                                        <td>
+                                        <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                                             <div class="btn-group" role="group">
                                                 <a href="{{ url_for('projects.header_detail', header_id=project.id) }}" 
                                                    class="btn btn-sm btn-outline-primary" title="查看详情">
@@ -560,11 +598,11 @@ $(document).ready(function() {
     // 自动提交筛选表单，但排除分页链接
     $('#status, #search, #company, #leader, #date_from, #date_to, #selling_min, #selling_max, #profit_min, #profit_max, #balance_min, #balance_max, #sort_by').on('change keyup', function() {
         // 清除所有延迟提交的搜索
-        clearTimeout(window.searchTimeout);
+            clearTimeout(window.searchTimeout);
         // 延迟提交表单
-        window.searchTimeout = setTimeout(function() {
-            $('form').submit();
-        }, 500);
+            window.searchTimeout = setTimeout(function() {
+                $('form').submit();
+            }, 500);
     });
     
     // 防止分页链接被表单提交事件干扰
@@ -584,16 +622,6 @@ $(document).ready(function() {
         if ($(document.activeElement).closest('.pagination').length) {
             e.preventDefault();
             return false;
-        }
-    });
-    
-    // 表格行点击事件
-    $('tbody tr').click(function(e) {
-        if (!$(e.target).closest('.btn-group').length) {
-            var detailUrl = $(this).find('.btn-outline-primary').attr('href');
-            if (detailUrl) {
-                window.location.href = detailUrl;
-            }
         }
     });
     

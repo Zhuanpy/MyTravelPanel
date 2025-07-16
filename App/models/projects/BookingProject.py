@@ -248,6 +248,7 @@ class ProjectRef(db.Model):
     contact_name = db.Column(db.String(50), nullable=True, comment='联系人姓名')
     contact_phone = db.Column(db.String(20), nullable=True, comment='联系电话')
     contact_email = db.Column(db.String(100), nullable=True, comment='电子邮箱')
+    leader_name = db.Column(db.String(100), nullable=True, comment='负责人姓名')
     
     # 价格信息
     selling_price = db.Column(db.Numeric(10, 2), nullable=True, comment='销售价格')
@@ -300,6 +301,7 @@ class ProjectRef(db.Model):
             'contact_name': self.contact_name,
             'contact_phone': self.contact_phone,
             'contact_email': self.contact_email,
+            'leader_name': self.leader_name,
             'selling_price': float(self.selling_price) if self.selling_price else None,
             'cost_price': float(self.cost_price) if self.cost_price else None,
             'currency': self.currency,

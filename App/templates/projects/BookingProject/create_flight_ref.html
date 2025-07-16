@@ -407,6 +407,10 @@
                     <label class="order-label">REF名称</label>
                     <input type="text" class="order-input" name="name" value="{{ ref.name if ref is defined and ref else '机票订单' }}" style="width: 100%; box-sizing: border-box; background-color: #f8f9fa; color: #6c757d;" readonly>
                 </div>
+                <div style="width: 220px; min-width: 220px; flex-shrink: 0;">
+                    <label class="order-label">负责人姓名</label>
+                    <input type="text" class="order-input" name="leader_name" id="leader_name" value="{{ ref.leader_name if ref is defined and ref else '' }}" placeholder="自动填入第一位乘客姓名">
+                </div>
                 <div style="width: 220px; min-width: 220px; flex-shrink: 0; display: none;">
                     <label class="order-label">描述</label>
                     <input type="text" class="order-input" name="description" value="{{ ref.description if ref is defined and ref else '机票订单' }}" style="width: 100%; box-sizing: border-box;">
@@ -796,6 +800,11 @@ function loadExistingData() {
     
     // 加载数据后更新描述
     updateFlightDescription();
+    
+    // 加载乘客数据后重新初始化leader_name
+    setTimeout(function() {
+        initializeLeaderNameForEdit();
+    }, 100);
 }
 
 // 添加带数据的乘客
@@ -809,7 +818,7 @@ function addPassengerWithData(data) {
                 <!-- 乘客姓名 -->
                 <div class="passenger-field passenger-field-name">
                     <label class="required">乘客姓名</label>
-                    <input type="text" class="order-input" name="passenger_name[]" value="${data.name}" required>
+                    <input type="text" class="order-input passenger-name-input" name="passenger_name[]" value="${data.name}" required onchange="updateLeaderName()">
                 </div>
                 
                 <!-- 乘客类型 -->
@@ -1100,7 +1109,7 @@ function addPassenger() {
                 <!-- 乘客姓名 -->
                 <div class="passenger-field passenger-field-name">
                     <label class="required">乘客姓名</label>
-                    <input type="text" class="order-input" name="passenger_name[]" required>
+                    <input type="text" class="order-input passenger-name-input" name="passenger_name[]" required onchange="updateLeaderName()">
                 </div>
                 
                 <!-- 乘客类型 -->
@@ -1478,10 +1487,52 @@ function loadExistingSegmentsToParser() {
     console.log('已加载现有航段到解析器:', parserText);
 }
 
-// 更新添加航段按钮的点击事件处理
+
+
+// 更新负责人姓名的函数
+function updateLeaderName() {
+    const firstPassengerName = $('.passenger-name-input').first().val();
+    if (firstPassengerName && firstPassengerName.trim()) {
+        $('#leader_name').val(firstPassengerName.trim());
+    }
+}
+
+// 编辑模式下初始化leader_name
+function initializeLeaderNameForEdit() {
+    // 如果是编辑模式且有现有的leader_name数据，优先使用现有数据
+    const existingLeaderName = $('#leader_name').val();
+    console.log('现有leader_name值:', existingLeaderName);
+    
+    // 检查是否有有效的leader_name数据（不为空字符串且不是null/undefined）
+    if (existingLeaderName && existingLeaderName.trim() && existingLeaderName !== 'None' && existingLeaderName !== 'null') {
+        console.log('使用现有leader_name数据:', existingLeaderName);
+        return;
+    }
+    
+    // 如果没有有效的leader_name数据，使用第一位乘客姓名
+    const firstPassengerName = $('.passenger-name-input').first().val();
+    if (firstPassengerName && firstPassengerName.trim()) {
+        console.log('使用第一位乘客姓名作为leader_name:', firstPassengerName);
+        $('#leader_name').val(firstPassengerName.trim());
+    } else {
+        console.log('没有乘客姓名，leader_name保持为空');
+    }
+}
+
+// 监听乘客姓名的变化
+$(document).on('change', '.passenger-name-input', function() {
+    updateLeaderName();
+});
+
+// 页面加载时初始化leader_name
 $(document).ready(function() {
     // 更新添加航段按钮的onclick属性
     $('button[onclick="addFlightSegment()"]').attr('onclick', 'addFlightSegment(null, true)');
+    
+    // 延迟初始化leader_name，确保乘客数据已加载
+    setTimeout(function() {
+        initializeLeaderNameForEdit();
+    }, 500);
 });
 </script>
 {% endblock %} 

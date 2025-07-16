@@ -201,6 +201,7 @@ def submit_flight_ref():
             ref.name = request.form.get('name', '机票订单')
             ref.description = request.form.get('description', '机票订单')
             ref.supplier_id = request.form.get('supplier_id') if request.form.get('supplier_id') and request.form.get('supplier_id') != '0' else None
+            ref.leader_name = request.form.get('leader_name', '')
             ref.contact_name = request.form.get('contact_name')
             ref.contact_phone = request.form.get('contact_phone')
             ref.contact_email = request.form.get('contact_email')
@@ -225,6 +226,7 @@ def submit_flight_ref():
                 ref_type_id=flight_business_type.id,
                 description=request.form.get('description', '机票订单'),
                 supplier_id=request.form.get('supplier_id') if request.form.get('supplier_id') and request.form.get('supplier_id') != '0' else None,
+                leader_name=request.form.get('leader_name', ''),
                 contact_name=request.form.get('contact_name'),
                 contact_phone=request.form.get('contact_phone'),
                 contact_email=request.form.get('contact_email'),
@@ -405,7 +407,18 @@ def hotel_ref_detail(ref_id):
 def visa_ref_detail(ref_id):
     """签证REF详情页面"""
     ref = ProjectRef.query.get_or_404(ref_id)
-    return render_template('projects/BookingProject/visa_ref_detail.html', ref=ref)
+    
+    # 解析签证专属信息
+    visa_info = {}
+    if ref.extra_info:
+        try:
+            visa_info = json.loads(ref.extra_info)
+        except json.JSONDecodeError:
+            visa_info = {}
+    
+    return render_template('projects/BookingProject/visa_ref_detail.html', 
+                         ref=ref, 
+                         visa_info=visa_info)
 
 @projects.route('/tour-ref/detail/<int:ref_id>')
 def tour_ref_detail(ref_id):
@@ -474,6 +487,7 @@ def list_projects():
     search = request.args.get('search')
     company = request.args.get('company')
     leader = request.args.get('leader')
+    contact = request.args.get('contact')
     date_from = request.args.get('date_from')
     date_to = request.args.get('date_to')
     selling_min = request.args.get('selling_min')
@@ -503,6 +517,9 @@ def list_projects():
     
     if leader:
         query = query.filter(ProjectHeader.leader_name.contains(leader))
+    
+    if contact:
+        query = query.filter(ProjectHeader.contact.contains(contact))
     
     if date_from:
         query = query.filter(ProjectHeader.created_at >= date_from)
@@ -742,6 +759,14 @@ def edit_ref(ref_id):
     if ref.ref_type and ref.ref_type.name == '签证':
         return redirect(url_for('projects.edit_visa_ref', ref_id=ref_id))
     
+    # 如果是保险类型的REF，重定向到专门的编辑路由
+    if ref.ref_type and ref.ref_type.name == '保险':
+        return redirect(url_for('projects.edit_insurance_ref', ref_id=ref_id))
+    
+    # 如果是旅游团类型的REF，重定向到专门的编辑路由
+    if ref.ref_type and ref.ref_type.name == '旅游团':
+        return redirect(url_for('projects.edit_tour_ref', ref_id=ref_id))
+    
     form = ProjectRefForm(obj=ref)
     
     # 解析酒店专属信息（如果是酒店类型）
@@ -803,6 +828,7 @@ def edit_ref(ref_id):
                 ref.description = form.description.data
                 ref.supplier_contact = form.supplier_contact.data
                 ref.supplier_phone = form.supplier_phone.data
+                ref.leader_name = form.leader_name.data
                 ref.selling_price = form.selling_price.data
                 ref.cost_price = form.cost_price.data
                 ref.currency = form.currency.data
@@ -848,6 +874,7 @@ def edit_ref(ref_id):
                 ref.description = form.description.data
                 ref.supplier_contact = form.supplier_contact.data
                 ref.supplier_phone = form.supplier_phone.data
+                ref.leader_name = form.leader_name.data
                 ref.selling_price = form.selling_price.data
                 ref.cost_price = form.cost_price.data
                 ref.currency = form.currency.data
@@ -1001,6 +1028,7 @@ def create_hotel_ref(header_id):
                 description=request.form.get('name', '酒店预订'),
                 supplier_id=request.form.get('supplier_id') if request.form.get('supplier_id') else None,
                 supplier_contact=request.form.get('supplier_contact', ''),
+                leader_name=request.form.get('leader_name', ''),
                 selling_price=float(request.form.get('selling_price', 0)) if request.form.get('selling_price') else None,
                 cost_price=float(request.form.get('cost_price', 0)) if request.form.get('cost_price') else None,
                 status=request.form.get('status') or 'draft',
@@ -1060,6 +1088,15 @@ def create_tour_ref(header_id):
                 db.session.add(tour_business_type)
                 db.session.flush()
             
+            # 处理旅游团专属字段
+            tour_extra_info = {
+                'tour_name': request.form.get('tour_name', ''),
+                'people_count': request.form.get('people_count', ''),
+                'departure_date': request.form.get('departure_date', ''),
+                'end_date': request.form.get('end_date', ''),
+                'itinerary': request.form.get('itinerary', '')
+            }
+            
             # 创建旅游团REF
             ref = ProjectRef(
                 header_id=header.id,
@@ -1069,31 +1106,48 @@ def create_tour_ref(header_id):
                 description=request.form.get('name', '旅游团'),
                 supplier_id=request.form.get('supplier_id') if request.form.get('supplier_id') else None,
                 supplier_contact=request.form.get('supplier_contact', ''),
+                leader_name=request.form.get('leader_name', ''),
                 selling_price=float(request.form.get('selling_price', 0)) if request.form.get('selling_price') else None,
+                cost_price=float(request.form.get('cost_price', 0)) if request.form.get('cost_price') else None,
+                expected_delivery_date=request.form.get('departure_date'),
+                actual_delivery_date=request.form.get('end_date'),
                 status=request.form.get('status') or 'draft',
                 payment_status='unpaid',
                 currency='SGD',
-                remarks=f"团名: {request.form.get('tour_name', '')}\n"
-                       f"行程: {request.form.get('itinerary', '')}\n"
-                       f"人数: {request.form.get('people_count', '')}\n"
-                       f"出发日期: {request.form.get('departure_date', '')}"
+                remarks=request.form.get('remarks', ''),
+                extra_info=json.dumps(tour_extra_info)
             )
             
             db.session.add(ref)
             db.session.commit()
             
-            flash('旅游团明细创建成功！', 'success')
-            return redirect(url_for('projects.header_detail', header_id=header_id))
+            # 检查是否是AJAX请求
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({'success': True, 'message': '旅游团明细创建成功！'})
+            else:
+                flash('旅游团明细创建成功！', 'success')
+                return redirect(url_for('projects.header_detail', header_id=header_id))
             
         except Exception as e:
             db.session.rollback()
-            flash(f'创建失败：{str(e)}', 'error')
-            return redirect(url_for('projects.header_detail', header_id=header_id))
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({'success': False, 'message': f'创建失败：{str(e)}'})
+            else:
+                flash(f'创建失败：{str(e)}', 'error')
+                return redirect(url_for('projects.header_detail', header_id=header_id))
     
     # 获取供应商数据
     suppliers = Supplier.query.all()
     
-    return render_template('projects/BookingProject/create_tour_ref.html', suppliers=suppliers)
+    # 在创建模式下，tour_info为空字典
+    tour_info = {}
+    
+    return render_template('projects/BookingProject/create_tour_ref.html', 
+                         suppliers=suppliers,
+                         ref=None,
+                         tour_info=tour_info,
+                         is_create=True,
+                         project_id=header_id)
 
 @projects.route('/ref/create_visa/<int:header_id>', methods=['GET', 'POST'])
 def create_visa_ref(header_id):
@@ -1113,23 +1167,39 @@ def create_visa_ref(header_id):
                 db.session.add(visa_business_type)
                 db.session.flush()
             
+            # 获取自动生成的名称
+            auto_name = request.form.get('name', '')
+            if not auto_name:
+                # 如果没有自动生成的名称，使用默认值
+                auto_name = '签证申请'
+            
             # 创建签证REF
             ref = ProjectRef(
                 header_id=header.id,
                 ref_number=ref_number,
-                name=request.form.get('name', '签证申请'),
+                name=auto_name,
                 ref_type_id=visa_business_type.id,
-                description=request.form.get('name', '签证申请'),
+                description=auto_name,
                 supplier_id=request.form.get('supplier_id') if request.form.get('supplier_id') else None,
                 supplier_contact=request.form.get('supplier_contact', ''),
+                leader_name=request.form.get('leader_name', ''),
                 selling_price=float(request.form.get('selling_price', 0)) if request.form.get('selling_price') else None,
+                cost_price=float(request.form.get('cost_price', 0)) if request.form.get('cost_price') else None,
                 status=request.form.get('status') or 'draft',
                 payment_status='unpaid',
                 currency='SGD',
-                remarks=f"国家: {request.form.get('country', '')}\n"
-                       f"签证类型: {request.form.get('visa_type', '')}\n"
-                       f"申请人信息: {request.form.get('applicant_info', '')}"
+                expected_delivery_date=request.form.get('expected_delivery_date'),
+                actual_delivery_date=request.form.get('actual_delivery_date'),
+                remarks=request.form.get('remarks', '')
             )
+            
+            # 存储签证专属信息到extra_info字段
+            visa_extra_info = {
+                'country': request.form.get('country', ''),
+                'visa_type': request.form.get('visa_type', ''),
+                'applicant_info': request.form.get('applicant_info', '')
+            }
+            ref.extra_info = json.dumps(visa_extra_info)
             
             db.session.add(ref)
             db.session.commit()
@@ -1145,7 +1215,44 @@ def create_visa_ref(header_id):
     # 获取供应商数据
     suppliers = Supplier.query.all()
     
-    return render_template('projects/BookingProject/create_visa_ref.html', suppliers=suppliers, ref=None)
+    # 获取所有国家数据
+    from App.models.Product.Visamodels import VisaCountries
+    countries = VisaCountries.query.order_by(VisaCountries.country_name_CN).all()
+    
+    # 在创建模式下，visa_info为空字典
+    visa_info = {}
+    
+    return render_template('projects/BookingProject/create_visa_ref.html', 
+                         suppliers=suppliers, 
+                         ref=None,
+                         countries=countries,
+                         visa_info=visa_info,
+                         is_create=True)
+
+
+@projects.route('/api/get_visa_types/<int:country_id>')
+def get_visa_types_by_country(country_id):
+    """根据国家ID获取签证类型"""
+    try:
+        from App.models.Product.Visamodels import VisaTypes
+        visa_types = VisaTypes.query.filter_by(country_id=country_id).order_by(VisaTypes.visa_type).all()
+        
+        visa_types_data = []
+        for vt in visa_types:
+            visa_types_data.append({
+                'id': vt.id,
+                'visa_type': vt.visa_type
+            })
+        
+        return jsonify({
+            'success': True,
+            'visa_types': visa_types_data
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
 
 @projects.route('/ref/create_insurance/<int:header_id>', methods=['GET', 'POST'])
 def create_insurance_ref(header_id):
@@ -1165,22 +1272,35 @@ def create_insurance_ref(header_id):
                 db.session.add(insurance_business_type)
                 db.session.flush()
             
+            # 处理保险专属字段
+            insurance_extra_info = {
+                'insurance_company': request.form.get('insurance_company', ''),
+                'insurance_type': request.form.get('insurance_type', ''),
+                'insured_person': request.form.get('insured_person', ''),
+                'insured_id_number': request.form.get('insured_id_number', ''),
+                'insurance_details': request.form.get('insurance_details', '')
+            }
+            
             # 创建保险REF
             ref = ProjectRef(
                 header_id=header.id,
                 ref_number=ref_number,
-                name=request.form.get('name', '保险'),
+                name=request.form.get('name', '保险服务'),
                 ref_type_id=insurance_business_type.id,
-                description=request.form.get('name', '保险'),
+                description=request.form.get('name', '保险服务'),
                 supplier_id=request.form.get('supplier_id') if request.form.get('supplier_id') else None,
                 supplier_contact=request.form.get('supplier_contact', ''),
+                supplier_phone=request.form.get('supplier_phone', ''),
+                leader_name=request.form.get('leader_name', ''),
                 selling_price=float(request.form.get('selling_price', 0)) if request.form.get('selling_price') else None,
+                cost_price=float(request.form.get('cost_price', 0)) if request.form.get('cost_price') else None,
+                expected_delivery_date=request.form.get('expected_delivery_date'),
+                actual_delivery_date=request.form.get('actual_delivery_date'),
                 status=request.form.get('status') or 'draft',
                 payment_status='unpaid',
                 currency='SGD',
-                remarks=f"保险类型: {request.form.get('insurance_type', '')}\n"
-                       f"保险金额: {request.form.get('insurance_amount', '')}\n"
-                       f"保险期限: {request.form.get('insurance_period', '')}"
+                remarks=request.form.get('remarks', ''),
+                extra_info=json.dumps(insurance_extra_info)
             )
             
             db.session.add(ref)
@@ -1197,7 +1317,9 @@ def create_insurance_ref(header_id):
     # 获取供应商数据
     suppliers = Supplier.query.all()
     
-    return render_template('projects/BookingProject/create_insurance_ref.html', suppliers=suppliers)
+    return render_template('projects/BookingProject/create_insurance_ref.html', 
+                         suppliers=suppliers,
+                         is_create=True)
 
 @projects.route('/ref/create_transport/<int:header_id>', methods=['GET', 'POST'])
 def create_transport_ref(header_id):
@@ -1226,6 +1348,7 @@ def create_transport_ref(header_id):
                 description=request.form.get('name', '交通'),
                 supplier_id=request.form.get('supplier_id') if request.form.get('supplier_id') else None,
                 supplier_contact=request.form.get('supplier_contact', ''),
+                leader_name=request.form.get('leader_name', ''),
                 selling_price=float(request.form.get('selling_price', 0)) if request.form.get('selling_price') else None,
                 status=request.form.get('status') or 'draft',
                 payment_status='unpaid',
@@ -1280,6 +1403,7 @@ def create_other_ref(header_id):
                 supplier_id=request.form.get('supplier_id') if request.form.get('supplier_id') else None,
                 supplier_contact=request.form.get('supplier_contact', ''),
                 supplier_phone=request.form.get('supplier_phone', ''),
+                leader_name=request.form.get('leader_name', ''),
                 selling_price=float(request.form.get('selling_price', 0)) if request.form.get('selling_price') else None,
                 cost_price=float(request.form.get('cost_price', 0)) if request.form.get('cost_price') else None,
                 currency='SGD',
@@ -1323,6 +1447,7 @@ def edit_other_ref(ref_id):
             ref.supplier_id = request.form.get('supplier_id') if request.form.get('supplier_id') else None
             ref.supplier_contact = request.form.get('supplier_contact', '')
             ref.supplier_phone = request.form.get('supplier_phone', '')
+            ref.leader_name = request.form.get('leader_name', '')
             ref.selling_price = float(request.form.get('selling_price', 0)) if request.form.get('selling_price') else None
             ref.cost_price = float(request.form.get('cost_price', 0)) if request.form.get('cost_price') else None
             ref.expected_delivery_date = request.form.get('expected_delivery_date')
@@ -1357,12 +1482,19 @@ def edit_visa_ref(ref_id):
     
     if request.method == 'POST':
         try:
+            # 获取自动生成的名称
+            auto_name = request.form.get('name', '')
+            if not auto_name:
+                # 如果没有自动生成的名称，使用默认值
+                auto_name = '签证服务'
+            
             # 更新REF数据
-            ref.name = request.form.get('name', '签证服务')
-            ref.description = request.form.get('name', '签证服务')  # 使用name作为description
+            ref.name = auto_name
+            ref.description = auto_name  # 使用name作为description
             ref.supplier_id = request.form.get('supplier_id') if request.form.get('supplier_id') else None
             ref.supplier_contact = request.form.get('supplier_contact', '')
             ref.supplier_phone = request.form.get('supplier_phone', '')
+            ref.leader_name = request.form.get('leader_name', '')
             ref.selling_price = float(request.form.get('selling_price', 0)) if request.form.get('selling_price') else None
             ref.cost_price = float(request.form.get('cost_price', 0)) if request.form.get('cost_price') else None
             ref.expected_delivery_date = request.form.get('expected_delivery_date')
@@ -1371,9 +1503,12 @@ def edit_visa_ref(ref_id):
             ref.remarks = request.form.get('remarks', '')
             
             # 处理签证专属字段
-            ref.country = request.form.get('country', '')
-            ref.visa_type = request.form.get('visa_type', '')
-            ref.applicant_info = request.form.get('applicant_info', '')
+            visa_extra_info = {
+                'country': request.form.get('country', ''),
+                'visa_type': request.form.get('visa_type', ''),
+                'applicant_info': request.form.get('applicant_info', '')
+            }
+            ref.extra_info = json.dumps(visa_extra_info)
             
             db.session.commit()
             flash('签证REF更新成功！', 'success')
@@ -1387,9 +1522,85 @@ def edit_visa_ref(ref_id):
     # 获取供应商数据
     suppliers = Supplier.query.all()
     
+    # 获取所有国家数据
+    from App.models.Product.Visamodels import VisaCountries
+    countries = VisaCountries.query.order_by(VisaCountries.country_name_CN).all()
+    
+    # 解析签证专属信息
+    visa_info = {}
+    if ref and ref.extra_info:
+        try:
+            visa_info = json.loads(ref.extra_info)
+        except json.JSONDecodeError:
+            visa_info = {}
+    
     return render_template('projects/BookingProject/create_visa_ref.html', 
                          ref=ref, 
-                         suppliers=suppliers)
+                         suppliers=suppliers,
+                         countries=countries,
+                         visa_info=visa_info,
+                         is_create=False)
+
+@projects.route('/ref/edit_insurance/<int:ref_id>', methods=['GET', 'POST'])
+def edit_insurance_ref(ref_id):
+    ref = ProjectRef.query.get_or_404(ref_id)
+    
+    # 确保这是保险类型的REF
+    if not ref.ref_type or ref.ref_type.name != '保险':
+        flash('只能编辑保险类型的REF', 'error')
+        return redirect(url_for('projects.header_detail', header_id=ref.header_id))
+    
+    if request.method == 'POST':
+        try:
+            # 更新REF数据
+            ref.name = request.form.get('name', '保险服务')
+            ref.description = request.form.get('name', '保险服务')
+            ref.supplier_id = request.form.get('supplier_id') if request.form.get('supplier_id') else None
+            ref.supplier_contact = request.form.get('supplier_contact', '')
+            ref.supplier_phone = request.form.get('supplier_phone', '')
+            ref.leader_name = request.form.get('leader_name', '')
+            ref.selling_price = float(request.form.get('selling_price', 0)) if request.form.get('selling_price') else None
+            ref.cost_price = float(request.form.get('cost_price', 0)) if request.form.get('cost_price') else None
+            ref.expected_delivery_date = request.form.get('expected_delivery_date')
+            ref.actual_delivery_date = request.form.get('actual_delivery_date')
+            ref.status = request.form.get('status') or 'draft'
+            ref.remarks = request.form.get('remarks', '')
+            
+            # 处理保险专属字段
+            insurance_extra_info = {
+                'insurance_company': request.form.get('insurance_company', ''),
+                'insurance_type': request.form.get('insurance_type', ''),
+                'insured_person': request.form.get('insured_person', ''),
+                'insured_id_number': request.form.get('insured_id_number', ''),
+                'insurance_details': request.form.get('insurance_details', '')
+            }
+            ref.extra_info = json.dumps(insurance_extra_info)
+            
+            db.session.commit()
+            flash('保险REF更新成功！', 'success')
+            return redirect(url_for('projects.header_detail', header_id=ref.header_id))
+            
+        except Exception as e:
+            db.session.rollback()
+            flash(f'更新失败：{str(e)}', 'error')
+            return redirect(url_for('projects.header_detail', header_id=ref.header_id))
+    
+    # 获取供应商数据
+    suppliers = Supplier.query.all()
+    
+    # 解析保险专属信息
+    insurance_info = {}
+    if ref and ref.extra_info:
+        try:
+            insurance_info = json.loads(ref.extra_info)
+        except json.JSONDecodeError:
+            insurance_info = {}
+    
+    return render_template('projects/BookingProject/create_insurance_ref.html', 
+                         ref=ref, 
+                         suppliers=suppliers,
+                         insurance_info=insurance_info,
+                         is_create=False)
 
 @projects.route('/update_header_desc', methods=['POST'])
 def update_header_desc():
@@ -1431,4 +1642,87 @@ def update_header_status():
         return jsonify({'success': False, 'message': '项目不存在'})
     header.status = status
     db.session.commit()
+    return jsonify({'success': True})
+
+@projects.route('/update_header_contact', methods=['POST'])
+def update_header_contact():
+    data = request.get_json()
+    header_id = data.get('header_id')
+    contact = data.get('contact')
+    if not header_id:
+        return jsonify({'success': False, 'message': '参数错误'})
+    header = ProjectHeader.query.get(header_id)
+    if not header:
+        return jsonify({'success': False, 'message': '项目不存在'})
+    header.contact = contact
+    db.session.commit()
     return jsonify({'success': True}) 
+
+@projects.route('/ref/edit_tour/<int:ref_id>', methods=['GET', 'POST'])
+def edit_tour_ref(ref_id):
+    ref = ProjectRef.query.get_or_404(ref_id)
+    
+    # 确保这是旅游团类型的REF
+    if not ref.ref_type or ref.ref_type.name != '旅游团':
+        flash('只能编辑旅游团类型的REF', 'error')
+        return redirect(url_for('projects.header_detail', header_id=ref.header_id))
+    
+    if request.method == 'POST':
+        try:
+            # 更新REF数据
+            ref.name = request.form.get('name', '旅游团')
+            ref.description = request.form.get('name', '旅游团')
+            ref.supplier_id = request.form.get('supplier_id') if request.form.get('supplier_id') else None
+            ref.supplier_contact = request.form.get('supplier_contact', '')
+            ref.leader_name = request.form.get('leader_name', '')
+            ref.selling_price = float(request.form.get('selling_price', 0)) if request.form.get('selling_price') else None
+            ref.cost_price = float(request.form.get('cost_price', 0)) if request.form.get('cost_price') else None
+            ref.expected_delivery_date = request.form.get('departure_date')
+            ref.actual_delivery_date = request.form.get('end_date')
+            ref.status = request.form.get('status') or 'draft'
+            ref.remarks = request.form.get('remarks', '')
+            
+            # 处理旅游团专属字段
+            tour_extra_info = {
+                'tour_name': request.form.get('tour_name', ''),
+                'people_count': request.form.get('people_count', ''),
+                'departure_date': request.form.get('departure_date', ''),
+                'end_date': request.form.get('end_date', ''),
+                'itinerary': request.form.get('itinerary', '')
+            }
+            ref.extra_info = json.dumps(tour_extra_info)
+            
+            db.session.commit()
+            
+            # 检查是否是AJAX请求
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({'success': True, 'message': '旅游团REF更新成功！'})
+            else:
+                flash('旅游团REF更新成功！', 'success')
+                return redirect(url_for('projects.header_detail', header_id=ref.header_id))
+            
+        except Exception as e:
+            db.session.rollback()
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({'success': False, 'message': f'更新失败：{str(e)}'})
+            else:
+                flash(f'更新失败：{str(e)}', 'error')
+                return redirect(url_for('projects.header_detail', header_id=ref.header_id))
+    
+    # 获取供应商数据
+    suppliers = Supplier.query.all()
+    
+    # 解析旅游团专属信息
+    tour_info = {}
+    if ref and ref.extra_info:
+        try:
+            tour_info = json.loads(ref.extra_info)
+        except json.JSONDecodeError:
+            tour_info = {}
+    
+    return render_template('projects/BookingProject/create_tour_ref.html', 
+                         ref=ref, 
+                         suppliers=suppliers,
+                         tour_info=tour_info,
+                         is_create=False,
+                         project_id=ref.header_id) 
