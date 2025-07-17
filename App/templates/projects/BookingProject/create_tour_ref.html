@@ -9,9 +9,9 @@
                     <h2 class="mb-0">{% if ref %}编辑旅游团明细{% else %}新建旅游团明细{% endif %}</h2>
                 </div>
                 <div class="card-body">
-                    <form method="post">
-                        <!-- CSRF令牌 -->
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <form method="post">
+        <!-- CSRF令牌 -->
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         
                         <div class="row mb-4">
                             <div class="col-md-6">
@@ -36,7 +36,7 @@
                         
                         <div class="row mb-4">
                             <div class="col-md-6">
-                                <div class="form-group">
+        <div class="form-group">
                                     <label>售价 (SGD)</label>
                                     <div class="input-group">
                                         <input type="number" name="selling_price" class="form-control" min="0" step="0.01" placeholder="0.00"
@@ -45,9 +45,9 @@
                                     </div>
                                     <div class="invalid-feedback">请输入有效的售价</div>
                                 </div>
-                            </div>
+        </div>
                             <div class="col-md-6">
-                                <div class="form-group">
+        <div class="form-group">
                                     <label>成本 (SGD)</label>
                                     <div class="input-group">
                                         <input type="number" name="cost_price" class="form-control" min="0" step="0.01" placeholder="0.00"
@@ -57,22 +57,22 @@
                                     <div class="invalid-feedback">请输入有效的成本价格</div>
                                 </div>
                             </div>
-                        </div>
+        </div>
                         
                         <div class="row mb-4">
                             <div class="col-md-6">
-                                <div class="form-group">
-                                    <label>供应商</label>
-                                    <select name="supplier_id" class="form-control">
-                                        <option value="">请选择供应商</option>
-                                        {% for supplier in suppliers %}
+        <div class="form-group">
+            <label>供应商</label>
+            <select name="supplier_id" class="form-control">
+                <option value="">请选择供应商</option>
+                {% for supplier in suppliers %}
                                             <option value="{{ supplier.supplier_id }}" 
                                                     {% if ref and ref.supplier_id == supplier.supplier_id and not is_create %}selected{% endif %}>
                                                 {{ supplier.name }}
                                             </option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
+                {% endfor %}
+            </select>
+        </div>
                             </div>
                             <div class="col-md-6">
                                 <div class="form-group">
@@ -82,54 +82,73 @@
                                            value="{{ ref.leader_name if ref and not is_create else '' }}">
                                 </div>
                             </div>
-                        </div>
+                            <div class="col-md-6">
+        <div class="form-group">
+                                    <label>EO编号</label>
+                                    <div style="display: flex; align-items: center; gap: 5px;">
+                                        <input type="text" class="form-control" name="eo_numbers" value="{% if ref and ref.eos %}{% for eo in ref.eos %}{{ eo.eo_number }}{% if not loop.last %}, {% endif %}{% endfor %}{% endif %}" style="background-color: #f8f9fa; color: #6c757d;" readonly>
+                                        {% if ref %}
+                                            {% if ref.eos and ref.eos|length > 0 %}
+                                            <button type="button" class="btn btn-secondary btn-sm" disabled>
+                                                <i class="fas fa-check"></i> 已生成EO
+                                            </button>
+                                            {% else %}
+                                            <button type="button" class="btn btn-primary btn-sm" onclick="quickCreateEO({{ ref.id }})">
+                                                <i class="fas fa-plus"></i> 生成EO
+                                            </button>
+                                            {% endif %}
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+        </div>
                         
                         <div class="row mb-4">
                             <div class="col-md-6">
-                                <div class="form-group">
-                                    <label>状态</label>
-                                    <select name="status" class="form-control">
+        <div class="form-group">
+            <label>状态</label>
+            <select name="status" class="form-control">
                                         <option value="draft" {% if ref and ref.status == 'draft' and not is_create %}selected{% endif %}>草稿</option>
                                         <option value="processing" {% if ref and ref.status == 'processing' and not is_create %}selected{% endif %}>处理中</option>
                                         <option value="completed" {% if ref and ref.status == 'completed' and not is_create %}selected{% endif %}>已完成</option>
                                         <option value="cancelled" {% if ref and ref.status == 'cancelled' and not is_create %}selected{% endif %}>已取消</option>
-                                    </select>
-                                </div>
+            </select>
+        </div>
                             </div>
                         </div>
                         
                         <div class="row mb-4">
                             <div class="col-md-6">
-                                <div class="form-group">
+        <div class="form-group">
                                     <label>出发日期</label>
                                     <input type="date" name="departure_date" class="form-control" max="2050-12-31"
                                            value="{% if ref and ref.extra_info %}{% set tour_info = ref.extra_info|from_json %}{{ tour_info.get('departure_date', '') }}{% elif tour_info %}{{ tour_info.get('departure_date', '') }}{% endif %}">
                                     <div class="invalid-feedback">请选择有效的出发日期</div>
                                 </div>
-                            </div>
+        </div>
                             <div class="col-md-6">
-                                <div class="form-group">
+        <div class="form-group">
                                     <label>结束日期</label>
                                     <input type="date" name="end_date" class="form-control" max="2050-12-31"
                                            value="{% if ref and ref.extra_info %}{% set tour_info = ref.extra_info|from_json %}{{ tour_info.get('end_date', '') }}{% elif tour_info %}{{ tour_info.get('end_date', '') }}{% endif %}">
                                     <div class="invalid-feedback">请选择有效的结束日期</div>
                                 </div>
                             </div>
-                        </div>
+        </div>
                         
                         <div class="row mb-4">
                             <div class="col-md-12">
-                                <div class="form-group">
+        <div class="form-group">
                                     <label>行程安排</label>
                                     <textarea name="itinerary" class="form-control" rows="4" 
                                               placeholder="请输入详细行程安排...">{% if ref and ref.extra_info %}{% set tour_info = ref.extra_info|from_json %}{{ tour_info.get('itinerary', '') }}{% elif tour_info %}{{ tour_info.get('itinerary', '') }}{% endif %}</textarea>
                                 </div>
                             </div>
-                        </div>
+        </div>
                         
                         <div class="row mb-4">
                             <div class="col-md-12">
-                                <div class="form-group">
+        <div class="form-group">
                                     <label>备注信息</label>
                                     <textarea name="remarks" class="form-control" rows="3" 
                                               placeholder="请输入备注信息，如特殊要求、注意事项等">{{ ref.remarks if ref and not is_create else '' }}</textarea>
@@ -270,5 +289,38 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 });
+</script>
+
+<script>
+// 获取CSRF Token函数
+function getCsrfToken() {
+    return document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+}
+
+// 一键生成EO函数
+function quickCreateEO(refId) {
+    if (confirm('确定要生成EO吗？系统将自动创建EO并填充所有数据。')) {
+        fetch(`/projects/eo/quick_create/${refId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken()
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                location.reload();
+            } else {
+                alert('生成失败：' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('生成失败，请稍后重试');
+        });
+    }
+}
 </script>
 {% endblock %} 

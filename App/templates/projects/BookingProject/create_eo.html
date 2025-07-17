@@ -3,7 +3,49 @@
 {% block content %}
 <div class="container mt-4">
     <h2>新建EO子明细</h2>
-    <p class="text-muted">REF：{{ ref.ref_number }} - {{ ref.name or ref.description }}</p>
+    
+    <!-- REF信息卡片 -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">REF信息</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-3">
+                    <strong>REF编号：</strong>{{ ref.ref_number }}
+                </div>
+                <div class="col-md-3">
+                    <strong>REF名称：</strong>{{ ref.name or ref.description or '未设置' }}
+                </div>
+                <div class="col-md-3">
+                    <strong>REF类型：</strong>{{ ref.ref_type.name if ref.ref_type else '未设置' }}
+                </div>
+                <div class="col-md-3">
+                    <strong>供应商：</strong>{{ ref.supplier.name if ref.supplier else '未设置' }}
+                </div>
+            </div>
+            <div class="row mt-2">
+                <div class="col-md-3">
+                    <strong>售价：</strong>{{ ref.currency }} {{ "%.2f"|format(ref.selling_price) if ref.selling_price else '未设置' }}
+                </div>
+                <div class="col-md-3">
+                    <strong>成本：</strong>{{ ref.currency }} {{ "%.2f"|format(ref.cost_price) if ref.cost_price else '未设置' }}
+                </div>
+                <div class="col-md-3">
+                    <strong>货币：</strong>{{ ref.currency or 'SGD' }}
+                </div>
+                <div class="col-md-3">
+                    <strong>状态：</strong>{{ ref.status }}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 预填充提示 -->
+    <div class="alert alert-info">
+        <i class="fas fa-info-circle"></i>
+        <strong>提示：</strong>以下字段已从REF信息中自动预填充，您可以根据需要修改。
+    </div>
     
     {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
@@ -36,6 +78,7 @@
                 <div class="mb-3">
                     {{ form.name.label(class="form-label") }}
                     {{ form.name(class="form-control") }}
+                    <small class="text-muted">从REF名称自动填充</small>
                     {% if form.name.errors %}
                         <div class="text-danger">
                             {% for error in form.name.errors %}
@@ -48,6 +91,7 @@
                 <div class="mb-3">
                     {{ form.supplier_type.label(class="form-label") }}
                     {{ form.supplier_type(class="form-select") }}
+                    <small class="text-muted">根据REF类型自动推断</small>
                     {% if form.supplier_type.errors %}
                         <div class="text-danger">
                             {% for error in form.supplier_type.errors %}
@@ -60,6 +104,13 @@
                 <div class="mb-3">
                     {{ form.supplier_id.label(class="form-label") }}
                     {{ form.supplier_id(class="form-select") }}
+                    <small class="text-muted">
+                        {% if ref.supplier %}
+                            从REF供应商自动填充：{{ ref.supplier.name }}
+                        {% else %}
+                            请选择供应商（REF中未设置供应商）
+                        {% endif %}
+                    </small>
                     {% if form.supplier_id.errors %}
                         <div class="text-danger">
                             {% for error in form.supplier_id.errors %}
@@ -74,6 +125,7 @@
                 <div class="mb-3">
                     {{ form.amount.label(class="form-label") }}
                     {{ form.amount(class="form-control") }}
+                    <small class="text-muted">从REF成本价格自动填充</small>
                     {% if form.amount.errors %}
                         <div class="text-danger">
                             {% for error in form.amount.errors %}
@@ -86,6 +138,7 @@
                 <div class="mb-3">
                     {{ form.currency.label(class="form-label") }}
                     {{ form.currency(class="form-select") }}
+                    <small class="text-muted">从REF货币自动填充</small>
                     {% if form.currency.errors %}
                         <div class="text-danger">
                             {% for error in form.currency.errors %}
@@ -154,6 +207,7 @@
         <div class="mb-3">
             {{ form.remarks.label(class="form-label") }}
             {{ form.remarks(class="form-control", rows=3) }}
+            <small class="text-muted">从REF备注自动填充</small>
             {% if form.remarks.errors %}
                 <div class="text-danger">
                     {% for error in form.remarks.errors %}

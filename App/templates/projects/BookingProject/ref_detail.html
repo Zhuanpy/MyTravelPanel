@@ -139,6 +139,18 @@
                 <th>备注</th>
                 <td colspan="3">{{ ref.remarks or '无' }}</td>
             </tr>
+            <tr>
+                <th>EO编号</th>
+                <td colspan="3">
+                    {% if ref.eos %}
+                        {% for eo in ref.eos %}
+                            <span class="badge bg-info me-1">{{ eo.eo_number }}</span>
+                        {% endfor %}
+                    {% else %}
+                        <span class="text-muted">暂无EO编号</span>
+                    {% endif %}
+                </td>
+            </tr>
         </table>
     </div>
     

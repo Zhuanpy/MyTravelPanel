@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+{% block title %}新增项目收款 - {{ header.hid }}{% endblock %}
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-success text-white">
+                    <h4 class="mb-0"><i class="fas fa-money-bill-wave"></i> 新增项目收款</h4>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {{ form.hidden_tag() }}
+                        <div class="row mb-4">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">收款单号</label>
+                                <input type="text" class="form-control" value="{{ receipt_number }}" readonly>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                {{ form.amount.label(class="form-label") }}
+                                {{ form.amount(class="form-control", placeholder="请输入收款金额") }}
+                                {% for error in form.amount.errors %}
+                                    <div class="text-danger small">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        <div class="row mb-4">
+                            <div class="col-md-6 mb-3">
+                                {{ form.distribution_method.label(class="form-label") }}
+                                {{ form.distribution_method(class="form-select") }}
+                                <div class="form-text">
+                                    <strong>分配方式说明：</strong><br>
+                                    • <strong>自动分配</strong>：系统根据各REF未收款金额按比例自动分配<br>
+                                    • <strong>手动指定</strong>：手动指定每个REF的分配金额（需确保总分配金额等于收款金额）
+                                </div>
+                                {% for error in form.distribution_method.errors %}
+                                    <div class="text-danger small">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                {{ form.currency.label(class="form-label") }}
+                                {{ form.currency(class="form-select") }}
+                                {% for error in form.currency.errors %}
+                                    <div class="text-danger small">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        <div class="row mb-4">
+                            <div class="col-md-6 mb-3">
+                                {{ form.payment_method.label(class="form-label") }}
+                                {{ form.payment_method(class="form-select") }}
+                                {% for error in form.payment_method.errors %}
+                                    <div class="text-danger small">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                {{ form.payment_date.label(class="form-label") }}
+                                {{ form.payment_date(class="form-control") }}
+                                {% for error in form.payment_date.errors %}
+                                    <div class="text-danger small">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        <div class="row mb-4">
+                            <div class="col-md-6 mb-3">
+                                {{ form.payer_name.label(class="form-label") }}
+                                {{ form.payer_name(class="form-control", placeholder="付款人姓名") }}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                {{ form.payer_contact.label(class="form-label") }}
+                                {{ form.payer_contact(class="form-control", placeholder="付款人联系方式") }}
+                            </div>
+                        </div>
+                        <div class="row mb-4">
+                            <div class="col-md-6 mb-3">
+                                {{ form.payer_company.label(class="form-label") }}
+                                {{ form.payer_company(class="form-control", placeholder="付款人公司") }}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                {{ form.bank_name.label(class="form-label") }}
+                                {{ form.bank_name(class="form-control", placeholder="银行名称") }}
+                            </div>
+                        </div>
+                        <div class="row mb-4">
+                            <div class="col-md-6 mb-3">
+                                {{ form.account_number.label(class="form-label") }}
+                                {{ form.account_number(class="form-control", placeholder="账号") }}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                {{ form.transaction_id.label(class="form-label") }}
+                                {{ form.transaction_id(class="form-control", placeholder="交易流水号") }}
+                            </div>
+                        </div>
+                        <div class="row mb-4">
+                            <div class="col-md-12 mb-3">
+                                {{ form.remarks.label(class="form-label") }}
+                                {{ form.remarks(class="form-control", rows=2, placeholder="备注") }}
+                            </div>
+                        </div>
+                        <div class="row mb-4">
+                            <div class="col-md-12 mb-3">
+                                <label class="form-label">项目总未收款金额</label>
+                                <input type="text" class="form-control text-danger" value="{{ header.currency or 'SGD' }} {{ '%.2f'|format(unpaid_amount) }}" readonly>
+                                <div class="form-text">
+                                    <i class="fas fa-info-circle text-info"></i>
+                                    如果选择分配到REF，收款金额不能超过此金额
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row mt-4">
+                            <div class="col-12 d-flex justify-content-between">
+                                <a href="{{ url_for('projects.header_receipts', header_id=header.id) }}" class="btn btn-secondary">
+                                    <i class="fas fa-arrow-left"></i> 返回收款列表
+                                </a>
+                                <button type="submit" class="btn btn-success">
+                                    <i class="fas fa-save"></i> 保存收款记录
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const distributionMethod = document.getElementById('distribution_method');
+    const amountField = document.getElementById('amount');
+    const unpaidAmount = {{ unpaid_amount }};
+    
+    function updateAmountValidation() {
+        const method = distributionMethod.value;
+        const amount = parseFloat(amountField.value) || 0;
+        
+        if (method !== 'project_level' && amount > unpaidAmount) {
+            amountField.setCustomValidity(`收款金额不能超过未收款总额：{{ header.currency or 'SGD' }} ${unpaidAmount.toFixed(2)}`);
+        } else {
+            amountField.setCustomValidity('');
+        }
+    }
+    
+    distributionMethod.addEventListener('change', updateAmountValidation);
+    amountField.addEventListener('input', updateAmountValidation);
+    
+    // 初始验证
+    updateAmountValidation();
+});
+</script>
+{% endblock %} 

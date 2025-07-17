@@ -89,6 +89,25 @@
                                            value="{{ ref.leader_name if ref and not is_create else '' }}">
                                 </div>
                             </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>EO编号</label>
+                                    <div style="display: flex; align-items: center; gap: 5px;">
+                                        <input type="text" class="form-control" name="eo_numbers" value="{% if ref and ref.eos %}{% for eo in ref.eos %}{{ eo.eo_number }}{% if not loop.last %}, {% endif %}{% endfor %}{% endif %}" style="background-color: #f8f9fa; color: #6c757d;" readonly>
+                                        {% if ref %}
+                                            {% if ref.eos and ref.eos|length > 0 %}
+                                            <button type="button" class="btn btn-secondary btn-sm" disabled>
+                                                <i class="fas fa-check"></i> 已生成EO
+                                            </button>
+                                            {% else %}
+                                            <button type="button" class="btn btn-primary btn-sm" onclick="quickCreateEO({{ ref.id }})">
+                                                <i class="fas fa-plus"></i> 生成EO
+                                            </button>
+                                            {% endif %}
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                         
                         <div class="row mb-4">
@@ -179,6 +198,11 @@
 </div>
 
 <script>
+// 获取CSRF Token函数
+function getCsrfToken() {
+    return document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+}
+
 // 表单校验和用户反馈
 document.addEventListener('DOMContentLoaded', function() {
     const form = document.querySelector('form');
@@ -409,5 +433,33 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 });
+</script>
+
+<script>
+// 一键生成EO函数
+function quickCreateEO(refId) {
+    if (confirm('确定要生成EO吗？系统将自动创建EO并填充所有数据。')) {
+        fetch(`/projects/eo/quick_create/${refId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken()
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                location.reload();
+            } else {
+                alert('生成失败：' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('生成失败，请稍后重试');
+        });
+    }
+}
 </script>
 {% endblock %} 

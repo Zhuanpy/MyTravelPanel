@@ -112,12 +112,17 @@
     }
     
     .order-btn-secondary {
-        background-color: #718096;
+        background-color: #6c757d;
         color: white;
+        border: 1px solid #6c757d;
+        cursor: not-allowed;
+        opacity: 0.6;
     }
     
     .order-btn-secondary:hover {
-        background-color: #4A5568;
+        background-color: #6c757d;
+        color: white;
+        opacity: 0.6;
     }
     
     .order-btn-danger {
@@ -376,6 +381,20 @@
     .input-with-currency input {
         padding-left: 45px;
     }
+
+    .order-btn-secondary {
+        background-color: #6c757d;
+        color: white;
+        border: 1px solid #6c757d;
+        cursor: not-allowed;
+        opacity: 0.6;
+    }
+    
+    .order-btn-secondary:hover {
+        background-color: #6c757d;
+        color: white;
+        opacity: 0.6;
+    }
 </style>
 {% endblock %}
 
@@ -410,6 +429,23 @@
                 <div style="width: 220px; min-width: 220px; flex-shrink: 0;">
                     <label class="order-label">负责人姓名</label>
                     <input type="text" class="order-input" name="leader_name" id="leader_name" value="{{ ref.leader_name if ref is defined and ref else '' }}" placeholder="自动填入第一位乘客姓名">
+                </div>
+                <div style="width: 220px; min-width: 220px; flex-shrink: 0;">
+                    <label class="order-label">EO编号</label>
+                    <div style="display: flex; align-items: center; gap: 5px;">
+                        <input type="text" class="order-input" name="eo_numbers" value="{% if ref is defined and ref and ref.eos %}{% for eo in ref.eos %}{{ eo.eo_number }}{% if not loop.last %}, {% endif %}{% endfor %}{% endif %}" style="width: 100%; box-sizing: border-box; background-color: #f8f9fa; color: #6c757d;" readonly>
+                        {% if ref is defined and ref %}
+                            {% if ref.eos and ref.eos|length > 0 %}
+                            <button type="button" class="order-btn order-btn-secondary" style="padding: 8px 12px; font-size: 12px;" disabled>
+                                <i class="fas fa-check"></i> 已生成EO
+                            </button>
+                            {% else %}
+                            <button type="button" class="order-btn order-btn-primary" style="padding: 8px 12px; font-size: 12px;" onclick="quickCreateEO({{ ref.id }})">
+                                <i class="fas fa-plus"></i> 生成EO
+                            </button>
+                            {% endif %}
+                        {% endif %}
+                    </div>
                 </div>
                 <div style="width: 220px; min-width: 220px; flex-shrink: 0; display: none;">
                     <label class="order-label">描述</label>
@@ -615,6 +651,11 @@ console.log('isEditMode:', window.isEditMode);
 </script>
 
 <script>
+// 获取CSRF Token函数
+function getCsrfToken() {
+    return document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+}
+
 // 等待所有必要的脚本加载完成
 document.addEventListener('DOMContentLoaded', function() {
     // 确保jQuery和Select2都已加载
@@ -1534,5 +1575,33 @@ $(document).ready(function() {
         initializeLeaderNameForEdit();
     }, 500);
 });
+</script>
+
+<script>
+// 一键生成EO函数
+function quickCreateEO(refId) {
+    if (confirm('确定要生成EO吗？系统将自动创建EO并填充所有数据。')) {
+        fetch(`/projects/eo/quick_create/${refId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken()
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                location.reload();
+            } else {
+                alert('生成失败：' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('生成失败，请稍后重试');
+        });
+    }
+}
 </script>
 {% endblock %} 

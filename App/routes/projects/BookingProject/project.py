@@ -1,10 +1,11 @@
 from flask import Blueprint, render_template, request, redirect, url_for, jsonify, flash
-from App.models.projects.BookingProject import db, ProjectHeader, ProjectRef, ProjectEO, ProjectFlightPassenger, ProjectFlightSegment, CustomerCompany
+from App.models.projects.BookingProject import db, ProjectHeader, ProjectRef, ProjectEO, ProjectFlightPassenger, ProjectFlightSegment, CustomerCompany, ProjectReceipt
 from App.models.Product.Suppliers import Supplier
 from App.models.Product.BusinessType import BusinessType
 from App.forms.header_forms import ProjectHeaderForm
 from App.forms.ref_forms import ProjectRefForm
 from App.forms.eo_forms import ProjectEOForm
+from App.forms.receipt_forms import ProjectReceiptForm, ProjectLevelReceiptForm
 from datetime import datetime
 from sqlalchemy import func
 import traceback  # 添加traceback模块
@@ -444,9 +445,12 @@ def create_eo(ref_id):
     form = ProjectEOForm()
     form.ref_id.data = ref_id
     
+    # 确保供应商选项已加载
+    form._load_choices()
+    
     if form.validate_on_submit():
         try:
-            eo_number = ProjectEO.generate_eo_number(ref.ref_number)
+            eo_number = ProjectEO.generate_eo_number()
             eo = ProjectEO(
                 ref_id=ref.id,
                 eo_number=eo_number,
@@ -474,8 +478,55 @@ def create_eo(ref_id):
                 flash(f'{getattr(form, field).label.text}: {error}', 'error')
     
     # 预填充EO编号
-    eo_number = ProjectEO.generate_eo_number(ref.ref_number)
+    eo_number = ProjectEO.generate_eo_number()
     form.eo_number.data = eo_number
+    
+    # 从REF中自动获取和预填充数据
+    if request.method == 'GET':
+        # 预填充EO名称（使用REF名称）
+        if not form.name.data:
+            form.name.data = ref.name or ref.description or f"{ref.ref_type.name if ref.ref_type else 'REF'}订单"
+        
+        # 预填充供应商类型（根据REF类型推断）
+        if not form.supplier_type.data:
+            if ref.ref_type:
+                ref_type_name = ref.ref_type.name
+                if '机票' in ref_type_name:
+                    form.supplier_type.data = 'flight'
+                elif '酒店' in ref_type_name:
+                    form.supplier_type.data = 'hotel'
+                elif '签证' in ref_type_name:
+                    form.supplier_type.data = 'visa'
+                elif '交通' in ref_type_name or '用车' in ref_type_name:
+                    form.supplier_type.data = 'transport'
+                elif '旅游' in ref_type_name or '团' in ref_type_name:
+                    form.supplier_type.data = 'local_operator'
+                elif '保险' in ref_type_name:
+                    form.supplier_type.data = 'other'
+                else:
+                    form.supplier_type.data = 'other'
+        
+        # 预填充供应商ID（使用REF的供应商）
+        if not form.supplier_id.data and ref.supplier_id:
+            form.supplier_id.data = ref.supplier_id
+        
+        # 预填充金额（使用REF的成本价格）
+        if not form.amount.data and ref.cost_price:
+            form.amount.data = ref.cost_price
+        
+        # 预填充货币（使用REF的货币）
+        if not form.currency.data and ref.currency:
+            form.currency.data = ref.currency
+        elif not form.currency.data:
+            form.currency.data = 'SGD'  # 默认货币
+        
+        # 预填充备注（使用REF的备注）
+        if not form.remarks.data and ref.remarks:
+            form.remarks.data = ref.remarks
+        
+        # 预填充状态（默认为已确认）
+        if not form.status.data:
+            form.status.data = 'confirmed'
     
     return render_template('projects/BookingProject/create_eo.html',
                            form=form, ref=ref, eo_number=eo_number)
@@ -1126,7 +1177,7 @@ def create_tour_ref(header_id):
                 return jsonify({'success': True, 'message': '旅游团明细创建成功！'})
             else:
                 flash('旅游团明细创建成功！', 'success')
-                return redirect(url_for('projects.header_detail', header_id=header_id))
+            return redirect(url_for('projects.header_detail', header_id=header_id))
             
         except Exception as e:
             db.session.rollback()
@@ -1134,7 +1185,7 @@ def create_tour_ref(header_id):
                 return jsonify({'success': False, 'message': f'创建失败：{str(e)}'})
             else:
                 flash(f'创建失败：{str(e)}', 'error')
-                return redirect(url_for('projects.header_detail', header_id=header_id))
+            return redirect(url_for('projects.header_detail', header_id=header_id))
     
     # 获取供应商数据
     suppliers = Supplier.query.all()
@@ -1642,7 +1693,7 @@ def update_header_status():
         return jsonify({'success': False, 'message': '项目不存在'})
     header.status = status
     db.session.commit()
-    return jsonify({'success': True})
+    return jsonify({'success': True}) 
 
 @projects.route('/update_header_contact', methods=['POST'])
 def update_header_contact():
@@ -1726,3 +1777,647 @@ def edit_tour_ref(ref_id):
                          tour_info=tour_info,
                          is_create=False,
                          project_id=ref.header_id) 
+
+@projects.route('/eo/quick_create/<int:ref_id>', methods=['POST'])
+def quick_create_eo(ref_id):
+    """一键生成EO - API接口"""
+    try:
+        ref = ProjectRef.query.get_or_404(ref_id)
+        
+        # 生成EO编号
+        eo_number = ProjectEO.generate_eo_number()
+        
+        # 根据REF类型推断供应商类型
+        supplier_type = 'other'
+        if ref.ref_type:
+            ref_type_name = ref.ref_type.name
+            if '机票' in ref_type_name:
+                supplier_type = 'flight'
+            elif '酒店' in ref_type_name:
+                supplier_type = 'hotel'
+            elif '签证' in ref_type_name:
+                supplier_type = 'visa'
+            elif '交通' in ref_type_name or '用车' in ref_type_name:
+                supplier_type = 'transport'
+            elif '旅游' in ref_type_name or '团' in ref_type_name:
+                supplier_type = 'local_operator'
+            elif '保险' in ref_type_name:
+                supplier_type = 'other'
+        
+        # 创建EO
+        eo = ProjectEO(
+            ref_id=ref.id,
+            eo_number=eo_number,
+            name=ref.name or ref.description or f"{ref.ref_type.name if ref.ref_type else 'REF'}订单",
+            supplier_type=supplier_type,
+            supplier_id=ref.supplier_id or 1,  # 如果没有供应商，使用默认供应商
+            external_system=None,
+            external_status=None,
+            external_reference=None,
+            amount=ref.cost_price or 0,
+            currency=ref.currency or 'SGD',
+            remarks=ref.remarks,
+            status='confirmed'
+        )
+        
+        db.session.add(eo)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'EO {eo_number} 创建成功！',
+            'eo_number': eo_number
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'message': f'创建失败：{str(e)}'
+        }), 500
+
+@projects.route('/receipt/create/<int:ref_id>', methods=['GET', 'POST'])
+def create_receipt(ref_id):
+    """创建收款记录"""
+    from App.forms.receipt_forms import ProjectReceiptForm
+    from App.models.projects.BookingProject import ProjectReceipt
+    
+    ref = ProjectRef.query.get_or_404(ref_id)
+    form = ProjectReceiptForm()
+    
+    # 预填充收款单号
+    receipt_number = ProjectReceipt.generate_receipt_number()
+    
+    if form.validate_on_submit():
+        try:
+            # 创建收款记录
+            receipt = ProjectReceipt(
+                receipt_number=receipt_number,
+                ref_id=ref.id,
+                header_id=ref.header_id,
+                amount=form.amount.data,
+                currency=form.currency.data,
+                payment_method=form.payment_method.data,
+                payment_date=form.payment_date.data,
+                payer_name=form.payer_name.data,
+                payer_contact=form.payer_contact.data,
+                payer_company=form.payer_company.data,
+                bank_name=form.bank_name.data,
+                account_number=form.account_number.data,
+                transaction_id=form.transaction_id.data,
+                remarks=form.remarks.data,
+                status='confirmed'  # 默认已确认
+            )
+            
+            db.session.add(receipt)
+            
+            # 先提交收款记录，然后更新REF的付款状态
+            db.session.add(receipt)
+            db.session.flush()  # 刷新session，获取receipt.id
+            
+            # 重新查询REF以获取最新的收款记录
+            ref = ProjectRef.query.get(ref_id)
+            
+            # 更新REF的付款状态
+            # 计算总收款金额（包括新创建的收款记录）
+            total_received = sum(float(r.amount) for r in ref.receipts if r.status == 'confirmed')
+            if total_received >= ref.selling_price:
+                ref.payment_status = 'paid'
+            elif total_received > 0:
+                ref.payment_status = 'partial'
+            else:
+                ref.payment_status = 'unpaid'
+            
+            db.session.commit()
+            
+            flash(f'收款记录 {receipt_number} 创建成功！', 'success')
+            return redirect(url_for('projects.header_detail', header_id=ref.header_id))
+            
+        except Exception as e:
+            db.session.rollback()
+            flash(f'创建失败：{str(e)}', 'error')
+    
+    # 获取REF的未付款金额
+    total_received = sum(float(r.amount) for r in ref.receipts if r.status == 'confirmed')
+    unpaid_amount = float(ref.selling_price or 0) - total_received
+    
+    return render_template('projects/BookingProject/create_receipt.html',
+                         form=form,
+                         ref=ref,
+                         receipt_number=receipt_number,
+                         unpaid_amount=unpaid_amount)
+
+@projects.route('/receipt/<int:receipt_id>')
+def receipt_detail(receipt_id):
+    """收款记录详情"""
+    from App.models.projects.BookingProject import ProjectReceipt
+    
+    receipt = ProjectReceipt.query.get_or_404(receipt_id)
+    return render_template('projects/BookingProject/receipt_detail.html', receipt=receipt)
+
+@projects.route('/receipt/<int:receipt_id>/edit', methods=['GET', 'POST'])
+def edit_receipt(receipt_id):
+    """编辑收款记录"""
+    from App.forms.receipt_forms import ProjectReceiptForm
+    from App.models.projects.BookingProject import ProjectReceipt
+    
+    receipt = ProjectReceipt.query.get_or_404(receipt_id)
+    form = ProjectReceiptForm(obj=receipt)
+    
+    if form.validate_on_submit():
+        try:
+            # 更新收款记录
+            receipt.amount = form.amount.data
+            receipt.currency = form.currency.data
+            receipt.payment_method = form.payment_method.data
+            receipt.payment_date = form.payment_date.data
+            receipt.payer_name = form.payer_name.data
+            receipt.payer_contact = form.payer_contact.data
+            receipt.payer_company = form.payer_company.data
+            receipt.bank_name = form.bank_name.data
+            receipt.account_number = form.account_number.data
+            receipt.transaction_id = form.transaction_id.data
+            receipt.remarks = form.remarks.data
+            
+            # 先提交收款记录更新
+            db.session.flush()
+            
+            # 重新查询REF以获取最新的收款记录
+            ref = ProjectRef.query.get(receipt.ref_id)
+            
+            # 更新REF的付款状态
+            # 计算总收款金额（只计算已确认的收款记录）
+            total_received = sum(float(r.amount) for r in ref.receipts if r.status == 'confirmed')
+            if total_received >= ref.selling_price:
+                ref.payment_status = 'paid'
+            elif total_received > 0:
+                ref.payment_status = 'partial'
+            else:
+                ref.payment_status = 'unpaid'
+            
+            db.session.commit()
+            
+            flash('收款记录更新成功！', 'success')
+            return redirect(url_for('projects.header_detail', header_id=receipt.header_id))
+            
+        except Exception as e:
+            db.session.rollback()
+            flash(f'更新失败：{str(e)}', 'error')
+    
+    return render_template('projects/BookingProject/edit_receipt.html',
+                         form=form,
+                         receipt=receipt)
+
+@projects.route('/receipt/<int:receipt_id>/delete', methods=['POST'])
+def delete_receipt(receipt_id):
+    """删除收款记录"""
+    from App.models.projects.BookingProject import ProjectReceipt
+    
+    receipt = ProjectReceipt.query.get_or_404(receipt_id)
+    header_id = receipt.header_id
+    
+    try:
+        # 先删除收款记录
+        db.session.delete(receipt)
+        db.session.flush()
+        
+        # 重新查询REF以获取最新的收款记录
+        ref = ProjectRef.query.get(receipt.ref_id)
+        
+        # 更新REF的付款状态
+        # 计算总收款金额（只计算已确认的收款记录）
+        total_received = sum(float(r.amount) for r in ref.receipts if r.status == 'confirmed')
+        if total_received >= ref.selling_price:
+            ref.payment_status = 'paid'
+        elif total_received > 0:
+            ref.payment_status = 'partial'
+        else:
+            ref.payment_status = 'unpaid'
+        
+        db.session.commit()
+        flash('收款记录删除成功！', 'success')
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'删除失败：{str(e)}', 'error')
+    
+    return redirect(url_for('projects.header_detail', header_id=header_id))
+
+@projects.route('/receipt/<int:receipt_id>/status', methods=['POST'])
+def update_receipt_status(receipt_id):
+    """更新收款记录状态"""
+    from App.models.projects.BookingProject import ProjectReceipt
+    
+    data = request.get_json()
+    status = data.get('status')
+    
+    if status not in ['pending', 'confirmed', 'cancelled']:
+        return jsonify({'success': False, 'message': '无效的状态'})
+    
+    receipt = ProjectReceipt.query.get_or_404(receipt_id)
+    
+    try:
+        receipt.status = status
+        
+        # 先提交收款记录状态更新
+        db.session.flush()
+        
+        # 重新查询REF以获取最新的收款记录
+        ref = ProjectRef.query.get(receipt.ref_id)
+        
+        # 更新REF的付款状态
+        # 计算总收款金额（只计算已确认的收款记录）
+        total_received = sum(float(r.amount) for r in ref.receipts if r.status == 'confirmed')
+        if total_received >= ref.selling_price:
+            ref.payment_status = 'paid'
+        elif total_received > 0:
+            ref.payment_status = 'partial'
+        else:
+            ref.payment_status = 'unpaid'
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'收款状态已更新为 {receipt.status_display}'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'更新失败：{str(e)}'})
+
+@projects.route('/api/ref/<int:ref_id>/receipts')
+def get_ref_receipts(ref_id):
+    """获取REF的收款记录列表 - API接口"""
+    from App.models.projects.BookingProject import ProjectReceipt
+    
+    ref = ProjectRef.query.get_or_404(ref_id)
+    receipts = ProjectReceipt.query.filter_by(ref_id=ref_id).order_by(ProjectReceipt.created_at.desc()).all()
+    
+    return jsonify({
+        'success': True,
+        'receipts': [receipt.to_dict() for receipt in receipts],
+        'total_received': sum(float(r.amount) for r in receipts if r.status == 'confirmed'),
+        'unpaid_amount': float(ref.selling_price or 0) - sum(float(r.amount) for r in receipts if r.status == 'confirmed')
+    })
+
+@projects.route('/ref/<int:ref_id>/receipts')
+def ref_receipts(ref_id):
+    """查看REF的收款记录列表"""
+    from App.models.projects.BookingProject import ProjectReceipt
+    
+    ref = ProjectRef.query.get_or_404(ref_id)
+    receipts = ProjectReceipt.query.filter_by(ref_id=ref_id).order_by(ProjectReceipt.created_at.desc()).all()
+    
+    # 计算已收款和未收款金额
+    total_received = sum(float(r.amount) for r in receipts if r.status == 'confirmed')
+    unpaid_amount = float(ref.selling_price or 0) - total_received
+    
+    return render_template('projects/BookingProject/ref_receipts.html',
+                         ref=ref,
+                         receipts=receipts,
+                         total_received=total_received,
+                         unpaid_amount=unpaid_amount)
+
+# 项目级别收款管理路由
+@projects.route('/header/<int:header_id>/receipts')
+def header_receipts(header_id):
+    """查看项目的收款记录列表"""
+    from App.models.projects.BookingProject import ProjectReceipt
+    import json
+    
+    header = ProjectHeader.query.get_or_404(header_id)
+    
+    # 获取所有收款记录（项目级别和REF级别）
+    all_receipts = ProjectReceipt.query.filter(
+        ProjectReceipt.header_id == header_id
+    ).order_by(ProjectReceipt.created_at.desc()).all()
+    
+    # 为每条收款记录添加分配到的REF信息
+    for receipt in all_receipts:
+        if receipt.ref_id is None and receipt.extra_info:
+            # 项目级别收款，解析分配信息
+            try:
+                distribution_info = json.loads(receipt.extra_info)
+                distributed_refs = []
+                if 'distribution' in distribution_info:
+                    for dist in distribution_info['distribution']:
+                        ref_id = dist.get('ref_id')
+                        if ref_id:
+                            ref = ProjectRef.query.get(ref_id)
+                            if ref:
+                                distributed_refs.append({
+                                    'id': ref.id,
+                                    'ref_number': ref.ref_number,
+                                    'name': ref.name or ref.description,
+                                    'amount': dist.get('amount', 0)
+                                })
+                receipt.distributed_refs = distributed_refs
+            except (json.JSONDecodeError, KeyError, TypeError):
+                receipt.distributed_refs = []
+        else:
+            receipt.distributed_refs = []
+    
+    # 统计所有REF的实际已收款金额（包括项目级别分配）
+    total_received = 0
+    for ref in header.refs:
+        if ref.selling_price:
+            total_received += ProjectReceipt.get_ref_total_received(ref.id, header_id)
+    unpaid_amount = float(header.total_selling_amount or 0) - total_received
+    
+    return render_template('projects/BookingProject/header_receipts.html',
+                         header=header,
+                         all_receipts=all_receipts,
+                         total_received=total_received,
+                         unpaid_amount=unpaid_amount)
+
+@projects.route('/header/<int:header_id>/receipt/create', methods=['GET', 'POST'])
+def create_header_receipt(header_id):
+    """创建项目级别收款记录"""
+    from App.forms.receipt_forms import ProjectLevelReceiptForm
+    from App.models.projects.BookingProject import ProjectReceipt
+    
+    header = ProjectHeader.query.get_or_404(header_id)
+    form = ProjectLevelReceiptForm()
+    
+    # 动态生成REF选择选项
+    unpaid_refs = []
+    for ref in header.refs:
+        if ref.selling_price:
+            # 计算该REF的未收款金额
+            total_received = ProjectReceipt.get_ref_total_received(ref.id, header_id)
+            ref_unpaid = float(ref.selling_price) - total_received
+            if ref_unpaid > 0:
+                unpaid_refs.append((ref.id, f"{ref.ref_number} - {ref.name or ref.description} (未收款: {ref.currency or 'SGD'} {ref_unpaid:.2f})"))
+    
+    form.selected_refs.choices = unpaid_refs
+    
+    # 预填充收款单号
+    receipt_number = ProjectReceipt.generate_receipt_number()
+    
+    if form.validate_on_submit():
+        try:
+            amount = float(form.amount.data)
+            distribution_method = form.distribution_method.data
+            
+            # 验证收款金额不能超过未收款总额
+            unpaid_amount = ProjectReceipt.get_project_unpaid_amount(header_id)
+            if amount > unpaid_amount:
+                flash(f'收款金额不能超过未收款总额：{header.currency or "SGD"} {unpaid_amount:.2f}', 'error')
+                return render_template('projects/BookingProject/create_header_receipt.html',
+                                     form=form,
+                                     header=header,
+                                     receipt_number=receipt_number,
+                                     unpaid_amount=unpaid_amount)
+            
+            # 根据分配方式处理
+            if distribution_method == 'manual':
+                # 手动分配：只分配给选中的REF
+                selected_ref_ids = form.selected_refs.data
+                if not selected_ref_ids:
+                    flash('请选择要分配的REF', 'error')
+                    return render_template('projects/BookingProject/create_header_receipt.html',
+                                         form=form,
+                                         header=header,
+                                         receipt_number=receipt_number,
+                                         unpaid_amount=unpaid_amount)
+                
+                # 计算选中REF的总未收款金额
+                selected_unpaid_total = 0
+                for ref_id in selected_ref_ids:
+                    ref = ProjectRef.query.get(ref_id)
+                    if ref and ref.selling_price:
+                        total_received = ProjectReceipt.get_ref_total_received(ref.id, header_id)
+                        ref_unpaid = float(ref.selling_price) - total_received
+                        if ref_unpaid > 0:
+                            selected_unpaid_total += ref_unpaid
+                
+                if amount > selected_unpaid_total:
+                    flash(f'收款金额不能超过选中REF的未收款总额：{header.currency or "SGD"} {selected_unpaid_total:.2f}', 'error')
+                    return render_template('projects/BookingProject/create_header_receipt.html',
+                                         form=form,
+                                         header=header,
+                                         receipt_number=receipt_number,
+                                         unpaid_amount=unpaid_amount)
+                
+                # 按比例分配给选中的REF
+                distribution = []
+                remaining_amount = amount
+                for ref_id in selected_ref_ids:
+                    ref = ProjectRef.query.get(ref_id)
+                    if ref and ref.selling_price:
+                        total_received = ProjectReceipt.get_ref_total_received(ref.id, header_id)
+                        ref_unpaid = float(ref.selling_price) - total_received
+                        if ref_unpaid > 0:
+                            # 按比例分配
+                            allocated = min(ref_unpaid, remaining_amount * (ref_unpaid / selected_unpaid_total))
+                            if allocated > 0:
+                                distribution.append({
+                                    'ref_id': ref.id,
+                                    'amount': allocated,
+                                    'method': 'manual'
+                                })
+                                remaining_amount -= allocated
+                
+                distribution_result = {
+                    'success': True,
+                    'distribution': distribution,
+                    'remaining_amount': remaining_amount,
+                    'total_unpaid': selected_unpaid_total
+                }
+            else:
+                # 自动分配：分配给所有有未收款的REF
+                distribution_result = ProjectReceipt.distribute_project_receipt(
+                    header_id, amount, distribution_method
+                )
+            
+            if not distribution_result['success']:
+                flash(distribution_result['message'], 'error')
+                return render_template('projects/BookingProject/create_header_receipt.html',
+                                     form=form,
+                                     header=header,
+                                     receipt_number=receipt_number,
+                                     unpaid_amount=unpaid_amount)
+            
+            # 创建项目级别收款记录
+            project_receipt = ProjectReceipt(
+                receipt_number=receipt_number,
+                ref_id=None,  # 项目级别收款记录，ref_id为None
+                header_id=header.id,
+                amount=amount,
+                currency=form.currency.data,
+                payment_method=form.payment_method.data,
+                payment_date=form.payment_date.data,
+                payer_name=form.payer_name.data,
+                payer_contact=form.payer_contact.data,
+                payer_company=form.payer_company.data,
+                bank_name=form.bank_name.data,
+                account_number=form.account_number.data,
+                transaction_id=form.transaction_id.data,
+                remarks=form.remarks.data,
+                status='confirmed'
+            )
+            
+            # 在extra_info中存储分配信息
+            distribution_info = {
+                'distribution_method': distribution_method,
+                'distribution': distribution_result['distribution'],
+                'total_amount': amount,
+                'remaining_amount': distribution_result['remaining_amount'],
+                'selected_refs': form.selected_refs.data if distribution_method == 'manual' else None
+            }
+            project_receipt.extra_info = json.dumps(distribution_info)
+            
+            db.session.add(project_receipt)
+            
+            # 先提交收款记录
+            db.session.flush()
+            
+            # 更新各个REF的付款状态
+            for ref in header.refs:
+                if ref.selling_price:
+                    # 使用辅助方法计算该REF的实际已收款总额
+                    total_received = ProjectReceipt.get_ref_total_received(ref.id, header.id)
+                    if total_received >= ref.selling_price:
+                        ref.payment_status = 'paid'
+                    elif total_received > 0:
+                        ref.payment_status = 'partial'
+                    else:
+                        ref.payment_status = 'unpaid'
+            
+            db.session.commit()
+            
+            flash(f'项目级别收款记录 {receipt_number} 创建成功！已分配到各REF。', 'success')
+            
+            return redirect(url_for('projects.header_receipts', header_id=header.id))
+            
+        except Exception as e:
+            db.session.rollback()
+            flash(f'创建失败：{str(e)}', 'error')
+    
+    # 获取项目的未付款金额
+    unpaid_amount = ProjectReceipt.get_project_unpaid_amount(header_id)
+    
+    return render_template('projects/BookingProject/create_header_receipt.html',
+                         form=form,
+                         header=header,
+                         receipt_number=receipt_number,
+                         unpaid_amount=unpaid_amount)
+
+@projects.route('/header/<int:header_id>/receipt/<int:receipt_id>/edit', methods=['GET', 'POST'])
+def edit_header_receipt(header_id, receipt_id):
+    """编辑项目级别收款记录"""
+    from App.forms.receipt_forms import ProjectLevelReceiptForm
+    from App.models.projects.BookingProject import ProjectReceipt
+    
+    header = ProjectHeader.query.get_or_404(header_id)
+    receipt = ProjectReceipt.query.filter_by(
+        id=receipt_id, 
+        header_id=header_id, 
+        ref_id=None
+    ).first_or_404()
+    
+    form = ProjectLevelReceiptForm(obj=receipt)
+    
+    if form.validate_on_submit():
+        try:
+            # 更新收款记录
+            receipt.amount = form.amount.data
+            receipt.currency = form.currency.data
+            receipt.payment_method = form.payment_method.data
+            receipt.payment_date = form.payment_date.data
+            receipt.payer_name = form.payer_name.data
+            receipt.payer_contact = form.payer_contact.data
+            receipt.payer_company = form.payer_company.data
+            receipt.bank_name = form.bank_name.data
+            receipt.account_number = form.account_number.data
+            receipt.transaction_id = form.transaction_id.data
+            receipt.remarks = form.remarks.data
+            
+            db.session.commit()
+            
+            flash('项目级别收款记录更新成功！', 'success')
+            return redirect(url_for('projects.header_receipts', header_id=header.id))
+            
+        except Exception as e:
+            db.session.rollback()
+            flash(f'更新失败：{str(e)}', 'error')
+    
+    return render_template('projects/BookingProject/edit_header_receipt.html',
+                         form=form,
+                         header=header,
+                         receipt=receipt)
+
+@projects.route('/header/<int:header_id>/receipt/<int:receipt_id>/delete', methods=['POST'])
+def delete_header_receipt(header_id, receipt_id):
+    """删除项目级别收款记录"""
+    from App.models.projects.BookingProject import ProjectReceipt
+    
+    receipt = ProjectReceipt.query.filter_by(
+        id=receipt_id, 
+        header_id=header_id, 
+        ref_id=None
+    ).first_or_404()
+    
+    try:
+        # 删除项目级别收款记录
+        db.session.delete(receipt)
+        
+        # 更新各个REF的付款状态
+        header = ProjectHeader.query.get(header_id)
+        for ref in header.refs:
+            if ref.selling_price:
+                # 使用辅助方法计算该REF的实际已收款总额
+                total_received = ProjectReceipt.get_ref_total_received(ref.id, header.id)
+                if total_received >= ref.selling_price:
+                    ref.payment_status = 'paid'
+                elif total_received > 0:
+                    ref.payment_status = 'partial'
+                else:
+                    ref.payment_status = 'unpaid'
+        
+        db.session.commit()
+        flash(f'项目级别收款记录 {receipt.receipt_number} 删除成功！', 'success')
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'删除失败：{str(e)}', 'error')
+    
+    return redirect(url_for('projects.header_receipts', header_id=header_id))
+
+@projects.route('/api/header/<int:header_id>/unpaid_refs')
+def get_header_unpaid_refs(header_id):
+    """获取项目下各REF的未收款详情 - API接口"""
+    from App.models.projects.BookingProject import ProjectReceipt
+    
+    header = ProjectHeader.query.get_or_404(header_id)
+    
+    unpaid_refs = []
+    total_unpaid = 0
+    
+    for ref in header.refs:
+        if ref.selling_price:
+            # 使用辅助方法计算该REF的已收款总额
+            ref_received = ProjectReceipt.get_ref_total_received(ref.id, header_id)
+            ref_unpaid = float(ref.selling_price) - ref_received
+            
+            if ref_unpaid > 0:
+                unpaid_refs.append({
+                    'ref_id': ref.id,
+                    'ref_number': ref.ref_number,
+                    'ref_name': ref.name or ref.description,
+                    'ref_type': ref.ref_type.name if ref.ref_type else '未分类',
+                    'selling_price': float(ref.selling_price),
+                    'received_amount': ref_received,
+                    'unpaid_amount': ref_unpaid,
+                    'unpaid_percentage': (ref_unpaid / float(ref.selling_price)) * 100
+                })
+                total_unpaid += ref_unpaid
+    
+    return jsonify({
+        'success': True,
+        'header_id': header_id,
+        'header_hid': header.hid,
+        'total_unpaid': total_unpaid,
+        'unpaid_refs': unpaid_refs
+    })

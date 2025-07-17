@@ -394,6 +394,7 @@
                         <th style="width: 100px;">出行人</th>
                         <th style="width: 200px;">名称</th>
                         <th style="width: 150px;">供应商</th>
+                        <th style="width: 100px;">EO编号</th>
                         <th style="width: 100px;">售价</th>
                         <th style="width: 100px;">成本</th>
                         <th style="width: 120px;">利润</th>
@@ -410,6 +411,15 @@
                         <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ ref.leader_name or '-' }}">{{ ref.leader_name or '-' }}</td>
                         <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ ref.name or ref.description }}">{{ ref.name or ref.description }}</td>
                         <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ ref.supplier.name if ref.supplier else '-' }}">{{ ref.supplier.name if ref.supplier else '-' }}</td>
+                        <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                            {% if ref.eos %}
+                                {% for eo in ref.eos %}
+                                    <span class="badge bg-info me-1">{{ eo.eo_number }}</span>
+                                {% endfor %}
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
                         <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                             {% if ref.selling_price %}
                                 <span class="text-success">{{ ref.currency }} {{ "%.2f"|format(ref.selling_price) }}</span>
@@ -437,13 +447,13 @@
                             {% endif %}
                         </td>
                         <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                            {% if ref.selling_price and ref.payment_status %}
-                                {% if ref.payment_status == 'paid' %}
+                            {% if ref.selling_price %}
+                                {% if ref.unpaid_amount <= 0 %}
                                     <span class="text-success">{{ ref.currency }} 0.00</span>
-                                {% elif ref.payment_status == 'partial' %}
-                                    <span class="text-warning">部分付款</span>
+                                {% elif ref.unpaid_amount < ref.selling_price %}
+                                    <span class="text-warning">{{ ref.currency }} {{ "%.2f"|format(ref.unpaid_amount) }}</span>
                                 {% else %}
-                                    <span class="text-danger">{{ ref.currency }} {{ "%.2f"|format(ref.selling_price) }}</span>
+                                    <span class="text-danger">{{ ref.currency }} {{ "%.2f"|format(ref.unpaid_amount) }}</span>
                                 {% endif %}
                             {% else %}
                                 <span class="text-muted">-</span>
@@ -489,6 +499,16 @@
                                         <i class="fas fa-edit"></i>
                                     </a>
                                 {% endif %}
+                                
+
+                                
+                                <!-- 查看收款记录按钮 -->
+                                {% if ref.receipts %}
+                                    <a href="{{ url_for('projects.ref_receipts', ref_id=ref.id) }}" class="btn btn-sm btn-info">
+                                        <i class="fas fa-list"></i>
+                                    </a>
+                                {% endif %}
+                                
                                 <a href="{{ url_for('projects.delete_ref', ref_id=ref.id) }}" class="btn btn-sm btn-danger">
                                     <i class="fas fa-trash"></i>
                                 </a>
@@ -511,7 +531,12 @@
 
     <!-- 余额和付款状态 -->
     <div class="info-card">
-        <h3 class="section-title mb-3">财务概览</h3>
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <h3 class="section-title mb-3">财务概览</h3>
+            <a href="{{ url_for('projects.header_receipts', header_id=header.id) }}" class="btn btn-outline-success btn-sm">
+                <i class="fas fa-money-bill-wave"></i> 项目收款管理
+            </a>
+        </div>
         
         <div class="row">
             <!-- 金额统计 -->
@@ -576,7 +601,7 @@
                             <span class="status-count">{{ header.payment_status_summary.paid }}</span>
                         </div>
                         <div class="progress" style="height: 6px;">
-                            <div class="progress-bar bg-success" style="width: {% if header.payment_status_summary.total > 0 %}{{ (header.payment_status_summary.paid / header.payment_status_summary.total) * 100 }}{% else %}0{% endif %}%"></div>
+                            <div class="progress-bar bg-success" style="width: '{% if header.payment_status_summary.total > 0 %}{{ (header.payment_status_summary.paid / header.payment_status_summary.total) * 100 }}{% else %}0{% endif %}%';"></div>
                         </div>
                     </div>
                     
@@ -586,7 +611,7 @@
                             <span class="status-count">{{ header.payment_status_summary.partial }}</span>
                         </div>
                         <div class="progress" style="height: 6px;">
-                            <div class="progress-bar bg-warning" style="width: {% if header.payment_status_summary.total > 0 %}{{ (header.payment_status_summary.partial / header.payment_status_summary.total) * 100 }}{% else %}0{% endif %}%"></div>
+                            <div class="progress-bar bg-warning" style="width: '{% if header.payment_status_summary.total > 0 %}{{ (header.payment_status_summary.partial / header.payment_status_summary.total) * 100 }}{% else %}0{% endif %}%';"></div>
                         </div>
                     </div>
                     
@@ -596,7 +621,7 @@
                             <span class="status-count">{{ header.payment_status_summary.unpaid }}</span>
                         </div>
                         <div class="progress" style="height: 6px;">
-                            <div class="progress-bar bg-danger" style="width: {% if header.payment_status_summary.total > 0 %}{{ (header.payment_status_summary.unpaid / header.payment_status_summary.total) * 100 }}{% else %}0{% endif %}%"></div>
+                            <div class="progress-bar bg-danger" style="width: '{% if header.payment_status_summary.total > 0 %}{{ (header.payment_status_summary.unpaid / header.payment_status_summary.total) * 100 }}{% else %}0{% endif %}%';"></div>
                         </div>
                     </div>
                     
@@ -624,24 +649,25 @@
 
 <script>
 // 键盘导航功能
+// 用字符串拼接方式输出Jinja表达式，避免JS语法错误
+var prevHeaderUrl = {% if prev_header %}'{{ url_for("projects.header_detail", header_id=prev_header.id) }}'{% else %}null{% endif %};
+var nextHeaderUrl = {% if next_header %}'{{ url_for("projects.header_detail", header_id=next_header.id) }}'{% else %}null{% endif %};
 document.addEventListener('keydown', function(event) {
-    // 如果用户正在输入框中，不触发导航
     if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA' || event.target.tagName === 'SELECT') {
         return;
     }
-    
     switch(event.key) {
         case 'ArrowLeft':
-            {% if prev_header %}
-            event.preventDefault();
-            window.location.href = '{{ url_for("projects.header_detail", header_id=prev_header.id) }}';
-            {% endif %}
+            if (prevHeaderUrl) {
+                event.preventDefault();
+                window.location.href = prevHeaderUrl;
+            }
             break;
         case 'ArrowRight':
-            {% if next_header %}
-            event.preventDefault();
-            window.location.href = '{{ url_for("projects.header_detail", header_id=next_header.id) }}';
-            {% endif %}
+            if (nextHeaderUrl) {
+                event.preventDefault();
+                window.location.href = nextHeaderUrl;
+            }
             break;
         case 'l':
         case 'L':

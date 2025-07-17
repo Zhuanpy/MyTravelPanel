@@ -114,6 +114,11 @@ class ProjectRefForm(FlaskForm):
         ('refunded', '已退款')
     ])
     
+    # EO信息字段（只读显示）
+    eo_numbers = StringField('EO编号', [
+        Optional()
+    ])
+    
     submit = SubmitField('保存REF')
     cancel = SubmitField('取消')
 

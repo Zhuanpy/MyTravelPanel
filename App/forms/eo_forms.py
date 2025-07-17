@@ -71,11 +71,11 @@ class ProjectEOForm(FlaskForm):
     status = SelectField('状态', [
         DataRequired(message='请选择状态')
     ], choices=[
-        ('draft', '草稿'),
         ('confirmed', '已确认'),
+        ('draft', '草稿'),
         ('paid', '已支付'),
         ('cancelled', '已取消')
-    ])
+    ], default='confirmed')
     
     submit = SubmitField('保存EO')
     cancel = SubmitField('取消')
@@ -88,7 +88,7 @@ class ProjectEOForm(FlaskForm):
     def _load_choices(self):
         """动态加载下拉选项"""
         try:
-            from App.models.Product.Supplier import Supplier
+            from App.models.Product.Suppliers import Supplier
             
             # 加载供应商
             suppliers = Supplier.query.all()
