@@ -357,7 +357,7 @@ function saveRefs() {
     const hid = document.querySelector('[name="hid"]').value;
     
     // Add CSRF token
-    formData.append('csrf_token', '{{ csrf_token() }}');
+    formData.append('csrf_token', '{{ csrf_token }}');
     
     // Add detail rows
     const rows = document.getElementById('detailTableBody').getElementsByTagName('tr');
@@ -409,7 +409,7 @@ function saveRefs() {
         method: 'POST',
         body: formData,
         headers: {
-            'X-CSRFToken': '{{ csrf_token() }}',
+            'X-CSRFToken': '{{ csrf_token }}',
             'X-Requested-With': 'XMLHttpRequest'
         }
     })

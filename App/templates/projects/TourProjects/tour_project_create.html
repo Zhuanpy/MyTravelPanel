@@ -253,8 +253,8 @@
     
     <!-- <a href="/" class="home-link">Home page</a> -->
     <h2>创建旅游项目</h2>
-    <form id="tourForm" method="POST" action="{{url_for('tour_projects.create_tour_project')}}">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <form id="tourForm" method="POST" action="{{url_for('tour_projects.create_tour_project')}}" onsubmit="return handleSubmit(event)">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         <div class="form-row">
             <div class="form-group">
                 <label for="project_name" class="required-field">项目名称:</label>
@@ -285,7 +285,7 @@
             </div>
             <div class="form-group">
                 <label for="departure_date" class="required-field">出发日期:</label>
-                <input type="text" id="departure_date" name="departureDate" placeholder="dd/mm/yyyy" required>
+                <input type="date" id="departure_date" name="departureDate" required>
             </div>
         </div>
         <div class="form-row">
@@ -294,8 +294,8 @@
                 <input type="text" id="contact_person" name="contactPerson" placeholder="例如: 张三" required>
             </div>
             <div class="form-group">
-                <label for="contact_info" class="required-field">联系方式:</label>
-                <input type="text" id="contact_info" name="contactInfo" placeholder="例如: 123456789" required>
+                <label for="contact_info">联系方式:</label>
+                <input type="text" id="contact_info" name="contactInfo" placeholder="例如: 123456789">
             </div>
         </div>
         <div class="form-row">
@@ -321,49 +321,18 @@
         setTimeout(() => flashMessage.style.display = 'none', 3000);
     }
 
-    function validateForm(event) {
-        const departureDate = document.getElementById('departure_date');
-        
-        // 验证出发日期格式
-        if (departureDate && departureDate.value) {
-            const datePattern = /^\d{2}\/\d{2}\/\d{4}$/;
-
-            if (!datePattern.test(departureDate.value)) {
-                event.preventDefault();
-                showFlashMessage('请按照 dd/mm/yyyy 格式填写有效的出发日期。', false);
-                return false;
-            }
-
-            const [day, month, year] = departureDate.value.split('/').map(Number);
-            const date = new Date(`${year}-${month}-${day}`);
-
-            if (isNaN(date.getTime()) || date.getDate() !== day || date.getMonth() + 1 !== month || date.getFullYear() !== year) {
-                event.preventDefault();
-                showFlashMessage('请填写有效的出发日期。', false);
-                return false;
-            }
-        }
-        
-        return true;
-    }
-
-    // 表单提交处理
-    document.getElementById('tourForm').addEventListener('submit', function(event) {
-        if (!validateForm(event)) {
-            return;
-        }
-        
-        // 显示加载状态
+    // 简化的表单提交处理函数
+    function handleSubmit(event) {
+        // 由于 type=date，浏览器已自动校验格式，无需额外校验
         const submitButton = event.target.querySelector('button[type="submit"]');
         const originalText = submitButton.textContent;
         submitButton.textContent = '创建中...';
         submitButton.disabled = true;
-        
-        // 表单提交成功后恢复按钮状态
-        setTimeout(() => {
-            submitButton.textContent = originalText;
-            submitButton.disabled = false;
-        }, 2000);
+        return true; // 允许表单提交
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        // 可选：输出调试信息
     });
 </script>
 {% endblock %}

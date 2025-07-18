@@ -1015,7 +1015,7 @@
         <div id="formAlert" class="visa-project-alert"></div>
             
         <form id="visaForm" class="visa-project-form" method="post" action="{{ url_for('visa_project.visa_create_project', visa_type=visa_type) }}">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
    
             <div class="visa-project-form-row">
                 <div class="visa-project-form-group visa-project-form-col-3">

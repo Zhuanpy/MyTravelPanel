@@ -664,7 +664,7 @@
     </div>
 
     <!-- 添加 CSRF 令牌隐藏输入 -->
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
 </div>
 
 <!-- 添加 Toast 容器 -->
@@ -696,7 +696,7 @@
             fetch(`/visa/project/delete_project/${projectId}`, {
                 method: 'POST',
                 headers: {
-                    'X-CSRFToken': '{{ csrf_token() }}'
+                    'X-CSRFToken': '{{ csrf_token }}'
                 }
             })
             .then(response => response.json())
@@ -824,7 +824,7 @@
         fetch(`/visa/project/open_folder?folder_type=project&project_folder=${encodeURIComponent(projectFolder)}&visa_type=${encodeURIComponent(visaType)}`, {
             method: 'GET',
             headers: {
-                'X-CSRFToken': '{{ csrf_token() }}'
+                'X-CSRFToken': '{{ csrf_token }}'
             }
         })
         .then(response => response.json())

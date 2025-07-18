@@ -20,7 +20,7 @@
                 </div>
                 <div class="card-body">
                     <form method="post" enctype="multipart/form-data" id="importForm">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}"/>
                         <div class="mb-3">
                             <label for="import_file" class="form-label">选择JSON文件 <span class="text-danger">*</span></label>
                             <input type="file" id="import_file" name="import_file" class="form-control" 

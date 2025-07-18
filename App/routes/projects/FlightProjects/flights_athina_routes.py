@@ -3,6 +3,7 @@ from App.models.Flightmodels import FlightSchedule, AirportData
 from App.utils.cache import cache
 from App.code.FlightTicket.ConvertFlight.ConvertFlightItinerary import format_flight_info
 from App.code.utils.utils import FlightData as flight
+from App.exts import csrf
 
 flights_athina = Blueprint('flights_athina', __name__, url_prefix='/flights_athina')
 
@@ -68,30 +69,36 @@ def athina_simple():
 
 
 @flights_athina.route('/itinerary_conversion', methods=['GET', 'POST'])
+@csrf.exempt
 def itinerary_conversion():
     if request.method == 'GET':
         return render_template('flights/flight_conversion.html', output_text="")
 
     elif request.method == 'POST':
         try:
-            input_text = request.form['input_text']
-            language = request.form['language']
-            luggage = request.form['luggage']
-            price = request.form['price']
+            print(f"Received form data: {dict(request.form)}")  # 调试信息
+            
+            input_text = request.form.get('input_text', '')
+            language = request.form.get('language', 'chinese')
+            luggage = request.form.get('luggage', '')
+            price = request.form.get('price', '')
+            
+            print(f"Parsed data - input_text: '{input_text}', language: '{language}', luggage: '{luggage}', price: '{price}'")  # 调试信息
 
             # 根据选择的语言进行文字转换
             output_text = ""
 
             if language == "chinese":
                 # 中文行程转换逻辑
-                output_text = format_flight_info(city_language=city_language, texts=input_text, luggage=luggage,
+                output_text = format_flight_info(city_language, texts=input_text, luggage=luggage,
                                                price=price)
 
             elif language == "english":
                 # 英文行程转换逻辑
-                output_text = format_flight_info(city_language=city_language, texts=input_text, language='EN',
+                output_text = format_flight_info(city_language, texts=input_text, language='EN',
                                                luggage=luggage, price=price)
 
+            print(f"Generated output_text: '{output_text}'")  # 调试信息
             return jsonify({'output_text': output_text})
             
         except Exception as e:
@@ -101,6 +108,7 @@ def itinerary_conversion():
 
 # 机票 行程转换
 @flights_athina.route('/simplify_itinerary_by_flight_and_date', methods=['GET', 'POST'])
+@csrf.exempt
 def simplify_itinerary_by_flight_and_date():
     if request.method == 'GET':  # 加载页面
 
@@ -141,14 +149,14 @@ def simplify_itinerary_by_flight_and_date():
 
             if language == "中文":
                 # 中文行程转换逻辑
-                itinerary = format_flight_info(city_language=city_language,
+                itinerary = format_flight_info(city_language,
                                                texts=input_text,
                                                luggage=baggage,
                                                price=price)
 
             elif language == "英文":
                 # 英文行程转换逻辑
-                itinerary = format_flight_info(city_language=city_language,
+                itinerary = format_flight_info(city_language,
                                                texts=input_text,
                                                language='EN',
                                                luggage=baggage,
@@ -161,6 +169,7 @@ def simplify_itinerary_by_flight_and_date():
 
 
 @flights_athina.route('/athinaPage', methods=['GET', 'POST'])
+@csrf.exempt
 def athina_page_handler():
     if request.method == 'GET':
         return render_template('flights/ATHINA系统航班预定代码.html')

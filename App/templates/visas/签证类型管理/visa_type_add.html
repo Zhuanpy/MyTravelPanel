@@ -10,7 +10,7 @@
             {% if form %}
                 {{ form.csrf_token }}
             {% else %}
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
             {% endif %}
             <!-- 第一行：签证类型名称和所属国家 -->
             <div style="display: flex; gap: 20px; margin-bottom: 15px;">

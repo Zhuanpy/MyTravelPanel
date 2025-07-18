@@ -850,7 +850,7 @@
                     <div id="addModalAlert" class="visa-modal-alert" style="display: none;"></div>
                     
                     <form method="POST" action="{{ url_for('visa_links.add_visa_link') }}" id="addLinkForm">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                         <div class="visa-form-container">
                             <div class="visa-form-entry">
                                 <span class="visa-entry-number">1</span>
@@ -910,7 +910,7 @@
                     <div id="editModalAlert" class="visa-modal-alert" style="display: none;"></div>
                     
                     <form method="POST" action="{{ url_for('visa_links.edit_visa_link', link_id=link.id) }}" id="editLinkForm">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                         <div class="visa-form-container">
                             <div class="visa-form-row three-columns">
                                 <div class="visa-form-group">

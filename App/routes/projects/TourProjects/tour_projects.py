@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, request, jsonify, redirect, url_for, flash
-from App.exts import db
+from App.exts import db, csrf
 from ....models.projects.TourProject import TourGroup, TourItinerary,TourProject
 from App.models.Product.Packagemodels import CompanyInfo
 from datetime import datetime
@@ -9,6 +9,8 @@ import subprocess
 import urllib.parse
 import html
 import logging
+from flask_wtf.csrf import generate_csrf
+from flask_wtf.csrf import CSRFError
 
 # 创建蓝图
 tour_projects = Blueprint('tour_projects', __name__)
@@ -21,10 +23,15 @@ def create_folder(base_path, folder_name):
     return folder_path
 
 @tour_projects.route('/create', methods=['GET', 'POST'])
+@csrf.exempt
 def create_tour_project():
     """创建旅游项目页面"""
     if request.method == 'POST':
         try:
+            print("=== 收到POST请求 ===")
+            print(f"表单数据: {dict(request.form)}")
+            print(f"请求头: {dict(request.headers)}")
+            
             # 从前端表单中获取用户输入的数据
             project_name = request.form.get('projectName', '').strip()  # 项目名称
             project_hid = request.form.get('projectHID', '').strip()  # 项目HID（可选）
@@ -37,27 +44,55 @@ def create_tour_project():
             remarks = request.form.get('remarks', '').strip()  # 备注
             creation_date = datetime.now().date()
 
+            print(f"解析后的数据:")
+            print(f"  project_name: '{project_name}'")
+            print(f"  project_hid: '{project_hid}'")
+            print(f"  project_type: '{project_type}'")
+            print(f"  budget_value: '{budget_value}'")
+            print(f"  departure_date: '{departure_date}'")
+            print(f"  project_status: '{project_status}'")
+            print(f"  contact_person: '{contact_person}'")
+            print(f"  contact_info: '{contact_info}'")
+            print(f"  remarks: '{remarks}'")
+
             # 验证必填字段是否完整
-            if not all([project_name, departure_date, project_status, contact_person, contact_info]):
-                flash('所有字段均为必填', 'error')
+            required_fields = [project_name, departure_date, project_status, contact_person]
+            print(f"必填字段检查: {required_fields}")
+            print(f"所有字段都有值: {all(required_fields)}")
+            
+            if not all(required_fields):
+                missing_fields = []
+                if not project_name: missing_fields.append('项目名称')
+                if not departure_date: missing_fields.append('出发日期')
+                if not project_status: missing_fields.append('项目状态')
+                if not contact_person: missing_fields.append('联系人')
+                
+                error_msg = f'缺少必填字段: {", ".join(missing_fields)}'
+                print(f"验证失败: {error_msg}")
+                flash(error_msg, 'error')
                 return redirect(url_for('tour_projects.create_tour_project'))
 
             # 验证出发日期格式
             try:
-                formatted_date = datetime.strptime(departure_date, "%d/%m/%Y").date()
-            except ValueError:
-                flash('出发日期格式无效，请按照 dd/mm/yyyy 格式填写', 'error')
+                formatted_date = datetime.strptime(departure_date, "%Y-%m-%d").date()
+                print(f"日期解析成功: {formatted_date}")
+            except ValueError as e:
+                print(f"日期解析失败: {e}")
+                flash('出发日期格式无效，请选择有效的日期', 'error')
                 return redirect(url_for('tour_projects.create_tour_project'))
 
             # 创建文件夹路径
             from App.config import Config
             tour_project_path = Config.TOUR_PROJECTS_PATH
+            print(f"项目路径: {tour_project_path}")
 
             # 构建文件夹名称，增强可读性
             if project_hid:
                 folder_name = f"{creation_date}_{project_hid}_{project_name}"
             else:
                 folder_name = f"{creation_date}_{project_name}"
+            
+            print(f"文件夹名称: {folder_name}")
 
             # 创建文件夹（文件夹已存在则不会创建）
             create_folder(tour_project_path, folder_name)
@@ -67,8 +102,13 @@ def create_tour_project():
             if budget_value:
                 try:
                     budget = float(budget_value)
+                    print(f"预算转换成功: {budget}")
                 except ValueError:
                     budget = None
+                    print(f"预算转换失败，设置为None")
+            else:
+                budget = None
+                print(f"预算为空，设置为None")
             
             # 创建 TourProject 实例，准备保存到数据库
             new_project = TourProject(
@@ -80,25 +120,32 @@ def create_tour_project():
                 folder_name=folder_name,
                 contact_person=contact_person,
                 contact_info=contact_info,
-                remarks=remarks
+                remarks=remarks,
+                departure_date=formatted_date
             )
+
+            print("TourProject实例创建成功")
 
             # 将新项目添加到数据库会话
             db.session.add(new_project)
 
             # 提交到数据库
             db.session.commit()
+            print("数据库提交成功")
 
             flash('旅游项目创建成功！', 'success')
             return redirect(url_for('tour_projects.manage_tour_projects'))
 
         except Exception as e:
             # 记录其他错误日志
+            print(f"发生异常: {str(e)}")
+            import traceback
+            traceback.print_exc()
             logging.error(f"数据库操作失败: {e}")
             flash('创建旅游项目失败，请稍后重试', 'error')
             return redirect(url_for('tour_projects.create_tour_project'))
 
-    return render_template('projects/TourProjects/tour_project_create.html')
+    return render_template('projects/TourProjects/tour_project_create.html', csrf_token=generate_csrf())
 
 @tour_projects.route('/manage', methods=['GET'])
 def manage_tour_projects():
@@ -142,6 +189,7 @@ def manage_tour_projects():
                          order=order)
 
 @tour_projects.route('/update/<int:project_id>', methods=['POST'])
+@csrf.exempt
 def update_tour_project(project_id):
     """更新旅游项目"""
     try:
@@ -186,6 +234,7 @@ def update_tour_project(project_id):
                           order=current_order))
 
 @tour_projects.route('/delete/<int:project_id>', methods=['POST'])
+@csrf.exempt
 def delete_tour_project(project_id):
     """删除旅游项目"""
     try:
@@ -293,6 +342,7 @@ def list_tour_groups():
     return render_template('projects/TourProjects/tour_groups.html', groups=groups)
 
 @tour_projects.route('/create_tour_group/<int:project_id>', methods=['POST'])
+@csrf.exempt
 def create_tour_group(project_id):
     """创建新的行程团"""
     try:
@@ -371,6 +421,7 @@ def view_tour_itinerary(group_id):
                          current_time=current_time)
 
 @tour_projects.route('/groups/<int:group_id>/edit', methods=['GET', 'POST'])
+@csrf.exempt
 def edit_tour_group(group_id):
     from App.models.projects.TourProject import TourGroup, TourItinerary
     from flask import request, redirect, url_for, flash, jsonify
@@ -456,6 +507,7 @@ def edit_tour_group(group_id):
         return redirect(url_for('tour_projects.edit_tour_project', project_id=group.project_id))
 
 @tour_projects.route('/group/<int:group_id>/delete', methods=['POST'])
+@csrf.exempt
 def delete_tour_group(group_id):
     """删除行程团"""
     from flask_wtf.csrf import CSRFError
@@ -497,6 +549,7 @@ def delete_tour_group(group_id):
 
 # 行程安排管理
 @tour_projects.route('/groups/<int:group_id>/itinerary/add', methods=['GET', 'POST'])
+@csrf.exempt
 def add_itinerary(group_id):
     """添加行程安排"""
     group = TourGroup.query.get_or_404(group_id)
@@ -519,6 +572,7 @@ def add_itinerary(group_id):
     return render_template('projects/TourProjects/add_itinerary.html', group=group)
 
 @tour_projects.route('/itinerary/<int:itinerary_id>/edit', methods=['GET', 'POST'])
+@csrf.exempt
 def edit_itinerary(itinerary_id):
     """编辑行程安排"""
     from flask import jsonify
@@ -569,6 +623,7 @@ def edit_itinerary(itinerary_id):
         return render_template('projects/TourProjects/edit_itinerary.html', itinerary=itinerary)
 
 @tour_projects.route('/itinerary/<int:itinerary_id>/delete', methods=['POST'])
+@csrf.exempt
 def delete_itinerary(itinerary_id):
     """删除行程安排"""
     from flask_wtf.csrf import CSRFError
@@ -612,6 +667,7 @@ def delete_itinerary(itinerary_id):
             return redirect(url_for('tour_projects.edit_tour_project', project_id=project_id))
 
 @tour_projects.route('/edit/<int:project_id>', methods=['GET', 'POST'])
+@csrf.exempt
 def edit_tour_project(project_id):
     """编辑旅游项目页面"""
     project = TourProject.query.get_or_404(project_id)
@@ -695,6 +751,7 @@ def project_details(project_id):
                          groups=groups)
 
 @tour_projects.route('/itinerary/create/<int:group_id>', methods=['GET', 'POST'])
+@csrf.exempt
 def create_itinerary(group_id):
     from App.models.projects.TourProject import TourItinerary, TourGroup
     from flask import request, redirect, url_for, render_template, flash, jsonify

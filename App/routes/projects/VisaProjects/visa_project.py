@@ -219,6 +219,7 @@ def visa_processing(visa_type):
         return redirect(url_for('visa_project.show_current_all_projects'))
 
 @visa_project.route('/delete_current_project/<int:project_id>', methods=['POST'])
+@csrf.exempt
 def delete_current_project(project_id):
     try:
         # 获取项目信息
@@ -258,6 +259,7 @@ def delete_current_project(project_id):
 
 
 @visa_project.route('/update_project/<int:project_id>', methods=['GET', 'POST'])
+@csrf.exempt
 def update_current_project(project_id):
     # 从数据库中获取该项目
     project = VisaProject.query.get_or_404(project_id)
@@ -331,6 +333,7 @@ def edit_project(project_id):
 
 
 @visa_project.route('/generate_form/<int:project_id>', methods=['POST'])
+@csrf.exempt
 def generate_form_for_project(project_id):
     """为项目生成表格"""
     try:
@@ -489,6 +492,7 @@ def visa_detail(project_name=None, project_id=None):
 
 
 @visa_project.route('/update_visa_status', methods=['POST'])
+@csrf.exempt
 def update_visa_status():
     """更新项目状态"""
     try:
@@ -544,6 +548,7 @@ def update_visa_status():
 
 
 @visa_project.route('/<visa_type>/visa_create_project', methods=['POST'])
+@csrf.exempt
 def visa_create_project(visa_type):
     try:
         # 获取表单数据
@@ -718,6 +723,7 @@ def visa_create_project(visa_type):
         return redirect(url_for('visa_project.visa_processing', visa_type=visa_type))
 
 @visa_project.route('/update_project_details/<int:project_id>', methods=['POST'])
+@csrf.exempt
 def update_project_details(project_id):
     """处理签证项目编辑表单提交"""
     try:
@@ -923,6 +929,7 @@ def open_folder():
         }), 500
 
 @visa_project.route('/delete_project/<int:project_id>', methods=['POST'])
+@csrf.exempt
 def delete_project(project_id):
     """删除签证项目"""
     try:
@@ -952,6 +959,7 @@ def delete_project(project_id):
         }), 500
 
 @visa_project.route('/save_document_status', methods=['POST'])
+@csrf.exempt
 def save_document_status():
     """保存项目资料准备状态"""
     try:
@@ -1281,6 +1289,7 @@ def check_share_documents(visa_type):
 
 
 @visa_project.route('/add_share_documents/<visa_type>', methods=['POST'])
+@csrf.exempt
 def add_share_documents(visa_type):
     """为SHARE记录添加常用文档"""
     try:

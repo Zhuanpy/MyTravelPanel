@@ -77,7 +77,7 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus {
 <div class="tour-container">
     <h2 class="tour-title">添加行程</h2>
     <form method="POST">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         <div class="form-group">
             <label>日期标题：</label>
             <input type="text" name="day_title" class="form-control" required>

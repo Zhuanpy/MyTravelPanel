@@ -378,7 +378,7 @@
     <div class="flight-schedule-card">
         <h2 class="flight-schedule-subtitle">输入航班信息</h2>
         <form id="flightForm" method="POST" action="{{ url_for('flights_schedule.input_flight_schedule_info') }}">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
             <input type="hidden" name="search_flight_number" value="{{ request.args.get('search_flight_number', '') }}">
             <div id="flightInputsContainer">
                 <div class="flight-schedule-form-row">
@@ -427,7 +427,7 @@
     <div class="flight-schedule-card">
         <h2 class="flight-schedule-subtitle">搜索航班</h2>
         <form id="searchForm" method="GET" action="{{ url_for('flights_schedule.search_flights') }}">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
             <div class="flight-schedule-input-group">
                 <input type="text" name="search_flight_number" placeholder="输入航班号" value="{{ request.args.get('search_flight_number', '') }}" class="flight-schedule-input">
                 <button type="submit" class="flight-schedule-btn-info">
@@ -673,7 +673,7 @@
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json",
-                        "X-CSRFToken": "{{ csrf_token() }}"
+                        "X-CSRFToken": "{{ csrf_token }}"
                     },
                     body: JSON.stringify({
                         flight_id: flightId,
@@ -772,7 +772,7 @@
                     method: 'DELETE',
                     headers: {
                         'Content-Type': 'application/json',
-                        'X-CSRFToken': '{{ csrf_token() }}'
+                        'X-CSRFToken': '{{ csrf_token }}'
                     }
                 });
 

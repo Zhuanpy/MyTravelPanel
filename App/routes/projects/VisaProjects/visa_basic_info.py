@@ -196,6 +196,7 @@ def manage_countries():
     return render_template('visas/签证国家管理/manage_countries.html', countries=countries)
 
 @visa_basic.route('/add_country', methods=['POST'])
+@csrf.exempt
 def add_country():
     data = request.get_json()
     country = VisaCountries(
@@ -594,6 +595,7 @@ def edit_visa_type(visa_type, field):
         return redirect(url_for('visa_basic.visa_type_list'))
 
 @visa_basic.route('/visa/delete_visa_type/<visa_type>', methods=['POST'])
+@csrf.exempt
 def delete_visa_type(visa_type):
     try:
         # 获取签证类型记录

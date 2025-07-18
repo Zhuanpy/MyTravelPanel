@@ -554,7 +554,7 @@
         </header>
         <section class="modal-card-body" style="overflow-y: auto; max-height: calc(90vh - 120px);">
             <form id="editDocumentForm" method="post" autocomplete="off">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                 <input type="hidden" name="document_id" id="editDocumentId">
                 
                 <div class="columns">

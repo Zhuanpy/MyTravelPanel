@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
-from App.exts import db
+from App.exts import db, csrf
 from App.models import VisaDocuments, VisaTypes, VisaSingaporeIdentity, VisaCountries # , # IdentityDocument
 from App.models.Product.Visamodels import VisaDocumentsList
 import logging
@@ -196,6 +196,7 @@ def edit_document(id):
     return render_template('visas/签证文档管理/visa_document_edit.html', document=document)
 
 @visa_documents.route('/update/<int:id>', methods=['POST'])
+@csrf.exempt
 def update_document(id):
     document = VisaDocuments.query.get_or_404(id)
     
@@ -212,6 +213,7 @@ def update_document(id):
         return redirect(url_for('visa_documents.edit_document', id=id))
 
 @visa_documents.route('/delete/<int:id>', methods=['POST'])
+@csrf.exempt
 def delete_document(id):
     document = VisaDocuments.query.get_or_404(id)
     visa_type = document.visa_type.visa_type
@@ -227,6 +229,7 @@ def delete_document(id):
     return redirect(url_for('visa_documents.manage_visas', visa_type=visa_type))
 
 @visa_documents.route('/delete_visa_document', methods=['POST'])
+@csrf.exempt
 def delete_visa_document():
     """删除签证文档的API接口"""
     try:
@@ -667,6 +670,7 @@ def check_share_documents(visa_type):
         return jsonify({'error': str(e)})
 
 @visa_documents.route('/create_share_documents/<visa_type>', methods=['POST'])
+@csrf.exempt
 def create_share_documents(visa_type):
     """创建SHARE共用资料记录"""
     try:
@@ -703,6 +707,7 @@ def create_share_documents(visa_type):
         return jsonify({'error': str(e)})
 
 @visa_documents.route('/add_common_documents/<visa_type>', methods=['POST'])
+@csrf.exempt
 def add_common_documents(visa_type):
     """为SHARE记录添加常用共用文档"""
     try:
@@ -965,6 +970,7 @@ def debug_share_documents(visa_type):
 
 
 @visa_documents.route('/fix_share_documents/<visa_type>', methods=['POST'])
+@csrf.exempt
 def fix_share_documents_route(visa_type):
     """修复指定签证类型的SHARE文档问题"""
     try:

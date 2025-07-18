@@ -249,14 +249,13 @@
         {% endwith %}
         
         <form action="{{ url_for('flights_athina.itinerary_conversion') }}" method="post" id="conversionForm">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="flight-app-itinerary-container">
                 <div class="flight-app-itinerary-column">
                     <label for="input_text" class="flight-app-label">
                         <i class="fas fa-plane-departure"></i> 输入行程：
                     </label>
                     <div class="flight-app-input-wrapper">
-                        <textarea id="input_text" name="input_text" class="flight-app-textarea">{{ request.form['input_text'] }}</textarea>
+                        <textarea id="input_text" name="input_text" class="flight-app-textarea">{{ request.form.get('input_text', '') }}</textarea>
                     </div>
                 </div>
                 
@@ -290,7 +289,7 @@
                                 <option value="40kg">40kg</option>
                                 <option value="46kg(23kg*2)">46kg(23kg*2)</option>
                             </select>
-                            <input type="text" id="luggage" name="luggage" class="flight-app-input" value="{{ request.form['luggage'] }}" placeholder="自定义行李额度">
+                            <input type="text" id="luggage" name="luggage" class="flight-app-input" value="{{ request.form.get('luggage', '') }}" placeholder="自定义行李额度">
                         </div>
                     </div>
                 </div>
@@ -300,7 +299,7 @@
                         <i class="fas fa-tag"></i> 价格：
                     </label>
                     <div class="flight-app-input-wrapper">
-                        <input type="text" id="price" name="price" class="flight-app-input" value="{{ request.form['price'] }}">
+                        <input type="text" id="price" name="price" class="flight-app-input" value="{{ request.form.get('price', '') }}">
                     </div>
                 </div>
             </div>
@@ -308,11 +307,11 @@
             <div class="flight-app-bottom-row">
                 <div class="flight-app-radio-group">
                     <div class="flight-app-radio-item">
-                        <input type="radio" id="chinese" name="language" value="chinese" {% if not request.form['language'] or request.form['language'] == 'chinese' %}checked{% endif %}>
+                        <input type="radio" id="chinese" name="language" value="chinese" {% if not request.form.get('language') or request.form.get('language') == 'chinese' %}checked{% endif %}>
                         <label for="chinese">中文行程</label>
                     </div>
                     <div class="flight-app-radio-item">
-                        <input type="radio" id="english" name="language" value="english" {% if request.form['language'] == 'english' %}checked{% endif %}>
+                        <input type="radio" id="english" name="language" value="english" {% if request.form.get('language') == 'english' %}checked{% endif %}>
                         <label for="english">English itinerary</label>
                     </div>
                 </div>
@@ -345,8 +344,7 @@
                 method: 'POST',
                 body: formData,
                 headers: {
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
+                    'X-Requested-With': 'XMLHttpRequest'
                 }
             })
             .then(response => {

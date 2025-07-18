@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
-from App.exts import db
+from App.exts import db, csrf
 from App.models import VisaLinks, VisaTypes, VisaCountries
 
 """
@@ -58,6 +58,7 @@ def visa_link_page():
         return redirect(url_for('visa_home.home'))
 
 @visa_links.route('/add_visa_link', methods=['GET', 'POST'])
+@csrf.exempt
 def add_visa_link():
     """添加签证链接"""
     if request.method == 'POST':
@@ -193,6 +194,7 @@ def add_visa_link():
     return redirect(url_for('visa_links.visa_link_page'))
 
 @visa_links.route('/edit_visa_link/<int:link_id>', methods=['GET', 'POST'])
+@csrf.exempt
 def edit_visa_link(link_id):
     """编辑签证链接"""
     try:

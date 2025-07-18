@@ -283,6 +283,7 @@
                 <span class="info-label">公司</span>
                 <span class="info-value" id="company-name-span" style="display: inline;" data-header-id="{{ header.id }}">{{ company.company_name if company else '未设置' }}</span>
                 <select id="company-select" style="display: none; width: 90%;">
+                    <option value="">清除选择</option>
                     {% for c in companies %}
                         <option value="{{ c.id }}" {% if company and c.id == company.id %}selected{% endif %}>{{ c.company_name }}</option>
                     {% endfor %}
@@ -393,12 +394,12 @@
                         <th style="width: 80px;">类型</th>
                         <th style="width: 100px;">出行人</th>
                         <th style="width: 200px;">名称</th>
-                        <th style="width: 150px;">供应商</th>
                         <th style="width: 100px;">EO编号</th>
                         <th style="width: 100px;">售价</th>
                         <th style="width: 100px;">成本</th>
                         <th style="width: 120px;">利润</th>
                         <th style="width: 100px;">未付款</th>
+                        <th style="width: 150px;">供应商</th>
                         <th style="width: 80px;">状态</th>
                         <th style="width: 200px;">操作</th>
                     </tr>
@@ -410,7 +411,6 @@
                         <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ ref.ref_type.name if ref.ref_type else '未分类' }}</td>
                         <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ ref.leader_name or '-' }}">{{ ref.leader_name or '-' }}</td>
                         <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ ref.name or ref.description }}">{{ ref.name or ref.description }}</td>
-                        <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ ref.supplier.name if ref.supplier else '-' }}">{{ ref.supplier.name if ref.supplier else '-' }}</td>
                         <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                             {% if ref.eos %}
                                 {% for eo in ref.eos %}
@@ -459,6 +459,7 @@
                                 <span class="text-muted">-</span>
                             {% endif %}
                         </td>
+                        <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ ref.supplier.name if ref.supplier else '-' }}">{{ ref.supplier.name if ref.supplier else '-' }}</td>
                         <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                             <span class="status-badge status-{{ ref.status }}">
                                 {% if ref.status == 'draft' %}草稿
@@ -516,6 +517,27 @@
                         </td>
                     </tr>
                 {% endfor %}
+                
+                <!-- 总计行 -->
+                <tr class="table-dark fw-bold">
+                    <td colspan="4"></td>
+                    <td class="text-center">
+                        <strong>总计</strong>
+                    </td>
+                    <td class="text-success">
+                        <strong>{{ header.currency or 'SGD' }} {{ "%.2f"|format(header.total_selling_amount) }}</strong>
+                    </td>
+                    <td class="text-info">
+                        <strong>{{ header.currency or 'SGD' }} {{ "%.2f"|format(header.total_cost_amount) }}</strong>
+                    </td>
+                    <td class="{% if header.total_profit >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        <strong>{{ header.currency or 'SGD' }} {{ "%.2f"|format(header.total_profit) }}</strong>
+                    </td>
+                    <td class="text-danger">
+                        <strong>{{ header.currency or 'SGD' }} {{ "%.2f"|format(header.total_unpaid_amount) }}</strong>
+                    </td>
+                    <td colspan="3"></td>
+                </tr>
                 </tbody>
             </table>
         </div>
@@ -715,7 +737,7 @@ document.addEventListener('DOMContentLoaded', function() {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRFToken': '{{ csrf_token() }}'
+                'X-CSRFToken': '{{ csrf_token }}'
             },
             body: JSON.stringify({ header_id: headerId, desc: newDesc })
         })
@@ -764,7 +786,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRFToken': '{{ csrf_token() }}'
+                    'X-CSRFToken': '{{ csrf_token }}'
                 },
                 body: JSON.stringify({ header_id: headerId, company_id: companyId })
             })
@@ -806,7 +828,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRFToken': '{{ csrf_token() }}'
+                    'X-CSRFToken': '{{ csrf_token }}'
                 },
                 body: JSON.stringify({ header_id: headerId, status: status })
             })
@@ -858,7 +880,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRFToken': '{{ csrf_token() }}'
+                    'X-CSRFToken': '{{ csrf_token }}'
                 },
                 body: JSON.stringify({ header_id: headerId, contact: newContact })
             })

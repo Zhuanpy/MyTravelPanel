@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, jsonify, flash, redirect, url_for
 from App.models.Product.Visamodels import VisaDocumentsList
-from App.exts import db
+from App.exts import db, csrf
 
 visa_documents_list = Blueprint('visa_documents_list', __name__)
 
@@ -42,6 +42,7 @@ def documents_list():
         return redirect(url_for('visa_project.show_current_all_projects'))
 
 @visa_documents_list.route('/add', methods=['POST'])
+@csrf.exempt
 def add_document():
     """添加新文档"""
     try:
@@ -226,6 +227,7 @@ def get_categories():
         }), 500
 
 @visa_documents_list.route('/bulk_operations', methods=['POST'])
+@csrf.exempt
 def bulk_operations():
     """批量操作文档"""
     try:
@@ -311,6 +313,7 @@ def export_documents():
         }), 500
 
 @visa_documents_list.route('/import', methods=['POST'])
+@csrf.exempt
 def import_documents():
     """导入文档列表"""
     try:

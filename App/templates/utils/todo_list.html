@@ -214,7 +214,7 @@
             </div>
             <div class="modal-body">
                 <form id="addTodoForm">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                     <div class="form-group">
                         <label for="title">标题</label>
                         <input type="text" class="form-control" id="title" name="title" required>
@@ -255,7 +255,7 @@
             </div>
             <div class="modal-body">
                 <form id="editTodoForm">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                     <input type="hidden" id="editId" name="id">
                     <div class="form-group">
                         <label for="editTitle">标题</label>

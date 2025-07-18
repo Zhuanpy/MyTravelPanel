@@ -1,5 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, jsonify, flash
 from App.models.projects.BookingProject import db, ProjectHeader, ProjectRef, ProjectEO, ProjectFlightPassenger, ProjectFlightSegment, CustomerCompany, ProjectReceipt
+from App.exts import csrf
 from App.models.Product.Suppliers import Supplier
 from App.models.Product.BusinessType import BusinessType
 from App.forms.header_forms import ProjectHeaderForm
@@ -189,6 +190,7 @@ def create_flight_ref(header_id):
                          supplier_types=supplier_types)
 
 @projects.route('/flight-ref/submit', methods=['POST'])
+@csrf.exempt
 def submit_flight_ref():
     """提交机票REF数据"""
     try:
@@ -784,7 +786,28 @@ def edit_header(header_id):
     
     if form.validate_on_submit():
         try:
-            form.populate_obj(header)
+            # 处理company_id字段，将0转换为None
+            if form.company_id.data == 0:
+                header.company_id = None
+            else:
+                header.company_id = form.company_id.data
+            
+            # 更新其他字段
+            header.hid = form.hid.data
+            header.desc = form.desc.data
+            header.limit = form.limit.data
+            header.contact = form.contact.data
+            header.dept = form.dept.data
+            header.staff_id = form.staff_id.data if form.staff_id.data else None
+            header.staff_name = form.staff_name.data
+            header.leader_name = form.leader_name.data
+            header.currency = form.currency.data
+            header.type = form.type.data
+            header.source = form.source.data
+            header.country = form.country.data
+            header.status = form.status.data
+            header.remarks = form.remarks.data
+            
             db.session.commit()
             flash('项目主表更新成功！', 'success')
             return redirect(url_for('projects.header_detail', header_id=header.id))
@@ -799,6 +822,7 @@ def edit_header(header_id):
     return render_template('projects/BookingProject/edit_header.html', form=form, header=header)
 
 @projects.route('/ref/<int:ref_id>/edit', methods=['GET', 'POST'])
+@csrf.exempt
 def edit_ref(ref_id):
     ref = ProjectRef.query.get_or_404(ref_id)
     
@@ -936,7 +960,6 @@ def edit_ref(ref_id):
                 ref.payment_status = form.payment_status.data
                 
                 db.session.commit()
-                flash('REF明细更新成功！', 'success')
                 return redirect(url_for('projects.ref_detail', ref_id=ref.id))
             except Exception as e:
                 db.session.rollback()
@@ -957,6 +980,7 @@ def edit_ref(ref_id):
         return render_template('projects/BookingProject/edit_ref.html', form=form, ref=ref, hotel_info=hotel_info)
 
 @projects.route('/eo/<int:eo_id>/edit', methods=['GET', 'POST'])
+@csrf.exempt
 def edit_eo(eo_id):
     eo = ProjectEO.query.get_or_404(eo_id)
     form = ProjectEOForm(obj=eo)
@@ -965,7 +989,6 @@ def edit_eo(eo_id):
         try:
             form.populate_obj(eo)
             db.session.commit()
-            flash('EO子明细更新成功！', 'success')
             return redirect(url_for('projects.eo_detail', eo_id=eo.id))
         except Exception as e:
             db.session.rollback()
@@ -996,6 +1019,7 @@ def generate_ref_number():
         }), 400 
 
 @projects.route('/ref/delete/<int:ref_id>', methods=['POST', 'GET'])
+@csrf.exempt
 def delete_ref(ref_id):
     ref = ProjectRef.query.get_or_404(ref_id)
     header_id = ref.header_id
@@ -1005,6 +1029,7 @@ def delete_ref(ref_id):
     return redirect(url_for('projects.header_detail', header_id=header_id))
 
 @projects.route('/header/delete/<int:header_id>', methods=['POST'])
+@csrf.exempt
 def delete_header(header_id):
     """删除项目主表"""
     try:
@@ -1482,6 +1507,7 @@ def create_other_ref(header_id):
     return render_template('projects/BookingProject/create_other_ref.html', suppliers=suppliers) 
 
 @projects.route('/ref/edit_other/<int:ref_id>', methods=['GET', 'POST'])
+@csrf.exempt
 def edit_other_ref(ref_id):
     ref = ProjectRef.query.get_or_404(ref_id)
     
@@ -1507,7 +1533,6 @@ def edit_other_ref(ref_id):
             ref.remarks = request.form.get('remarks', '')
             
             db.session.commit()
-            flash('其他REF更新成功！', 'success')
             return redirect(url_for('projects.header_detail', header_id=ref.header_id))
             
         except Exception as e:
@@ -1523,6 +1548,7 @@ def edit_other_ref(ref_id):
                          suppliers=suppliers)
 
 @projects.route('/ref/edit_visa/<int:ref_id>', methods=['GET', 'POST'])
+@csrf.exempt
 def edit_visa_ref(ref_id):
     ref = ProjectRef.query.get_or_404(ref_id)
     
@@ -1562,7 +1588,6 @@ def edit_visa_ref(ref_id):
             ref.extra_info = json.dumps(visa_extra_info)
             
             db.session.commit()
-            flash('签证REF更新成功！', 'success')
             return redirect(url_for('projects.header_detail', header_id=ref.header_id))
             
         except Exception as e:
@@ -1593,6 +1618,7 @@ def edit_visa_ref(ref_id):
                          is_create=False)
 
 @projects.route('/ref/edit_insurance/<int:ref_id>', methods=['GET', 'POST'])
+@csrf.exempt
 def edit_insurance_ref(ref_id):
     ref = ProjectRef.query.get_or_404(ref_id)
     
@@ -1628,7 +1654,6 @@ def edit_insurance_ref(ref_id):
             ref.extra_info = json.dumps(insurance_extra_info)
             
             db.session.commit()
-            flash('保险REF更新成功！', 'success')
             return redirect(url_for('projects.header_detail', header_id=ref.header_id))
             
         except Exception as e:
@@ -1654,6 +1679,7 @@ def edit_insurance_ref(ref_id):
                          is_create=False)
 
 @projects.route('/update_header_desc', methods=['POST'])
+@csrf.exempt
 def update_header_desc():
     data = request.get_json()
     header_id = data.get('header_id')
@@ -1668,20 +1694,28 @@ def update_header_desc():
     return jsonify({'success': True}) 
 
 @projects.route('/update_header_company', methods=['POST'])
+@csrf.exempt
 def update_header_company():
     data = request.get_json()
     header_id = data.get('header_id')
     company_id = data.get('company_id')
-    if not header_id or not company_id:
+    if not header_id:
         return jsonify({'success': False, 'message': '参数错误'})
     header = ProjectHeader.query.get(header_id)
     if not header:
         return jsonify({'success': False, 'message': '项目不存在'})
-    header.company_id = company_id
+    
+    # 处理company_id，将0或空值转换为None
+    if not company_id or company_id == 0:
+        header.company_id = None
+    else:
+        header.company_id = company_id
+    
     db.session.commit()
     return jsonify({'success': True})
 
 @projects.route('/update_header_status', methods=['POST'])
+@csrf.exempt
 def update_header_status():
     data = request.get_json()
     header_id = data.get('header_id')
@@ -1696,6 +1730,7 @@ def update_header_status():
     return jsonify({'success': True}) 
 
 @projects.route('/update_header_contact', methods=['POST'])
+@csrf.exempt
 def update_header_contact():
     data = request.get_json()
     header_id = data.get('header_id')
@@ -1710,6 +1745,7 @@ def update_header_contact():
     return jsonify({'success': True}) 
 
 @projects.route('/ref/edit_tour/<int:ref_id>', methods=['GET', 'POST'])
+@csrf.exempt
 def edit_tour_ref(ref_id):
     ref = ProjectRef.query.get_or_404(ref_id)
     
@@ -1749,7 +1785,6 @@ def edit_tour_ref(ref_id):
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                 return jsonify({'success': True, 'message': '旅游团REF更新成功！'})
             else:
-                flash('旅游团REF更新成功！', 'success')
                 return redirect(url_for('projects.header_detail', header_id=ref.header_id))
             
         except Exception as e:
@@ -1779,6 +1814,7 @@ def edit_tour_ref(ref_id):
                          project_id=ref.header_id) 
 
 @projects.route('/eo/quick_create/<int:ref_id>', methods=['POST'])
+@csrf.exempt
 def quick_create_eo(ref_id):
     """一键生成EO - API接口"""
     try:
@@ -1890,7 +1926,6 @@ def create_receipt(ref_id):
             
             db.session.commit()
             
-            flash(f'收款记录 {receipt_number} 创建成功！', 'success')
             return redirect(url_for('projects.header_detail', header_id=ref.header_id))
             
         except Exception as e:
@@ -1916,6 +1951,7 @@ def receipt_detail(receipt_id):
     return render_template('projects/BookingProject/receipt_detail.html', receipt=receipt)
 
 @projects.route('/receipt/<int:receipt_id>/edit', methods=['GET', 'POST'])
+@csrf.exempt
 def edit_receipt(receipt_id):
     """编辑收款记录"""
     from App.forms.receipt_forms import ProjectReceiptForm
@@ -1957,7 +1993,6 @@ def edit_receipt(receipt_id):
             
             db.session.commit()
             
-            flash('收款记录更新成功！', 'success')
             return redirect(url_for('projects.header_detail', header_id=receipt.header_id))
             
         except Exception as e:
@@ -1969,6 +2004,7 @@ def edit_receipt(receipt_id):
                          receipt=receipt)
 
 @projects.route('/receipt/<int:receipt_id>/delete', methods=['POST'])
+@csrf.exempt
 def delete_receipt(receipt_id):
     """删除收款记录"""
     from App.models.projects.BookingProject import ProjectReceipt
@@ -1995,7 +2031,6 @@ def delete_receipt(receipt_id):
             ref.payment_status = 'unpaid'
         
         db.session.commit()
-        flash('收款记录删除成功！', 'success')
         
     except Exception as e:
         db.session.rollback()
@@ -2004,6 +2039,7 @@ def delete_receipt(receipt_id):
     return redirect(url_for('projects.header_detail', header_id=header_id))
 
 @projects.route('/receipt/<int:receipt_id>/status', methods=['POST'])
+@csrf.exempt
 def update_receipt_status(receipt_id):
     """更新收款记录状态"""
     from App.models.projects.BookingProject import ProjectReceipt
@@ -2152,6 +2188,10 @@ def create_header_receipt(header_id):
     
     form.selected_refs.choices = unpaid_refs
     
+    # 如果没有未付款的REF，添加一个提示选项
+    if not unpaid_refs:
+        form.selected_refs.choices = [(0, "暂无未付款的REF")]
+    
     # 预填充收款单号
     receipt_number = ProjectReceipt.generate_receipt_number()
     
@@ -2174,7 +2214,7 @@ def create_header_receipt(header_id):
             if distribution_method == 'manual':
                 # 手动分配：只分配给选中的REF
                 selected_ref_ids = form.selected_refs.data
-                if not selected_ref_ids:
+                if not selected_ref_ids or (len(selected_ref_ids) == 1 and selected_ref_ids[0] == 0):
                     flash('请选择要分配的REF', 'error')
                     return render_template('projects/BookingProject/create_header_receipt.html',
                                          form=form,
@@ -2287,8 +2327,6 @@ def create_header_receipt(header_id):
             
             db.session.commit()
             
-            flash(f'项目级别收款记录 {receipt_number} 创建成功！已分配到各REF。', 'success')
-            
             return redirect(url_for('projects.header_receipts', header_id=header.id))
             
         except Exception as e:
@@ -2305,6 +2343,7 @@ def create_header_receipt(header_id):
                          unpaid_amount=unpaid_amount)
 
 @projects.route('/header/<int:header_id>/receipt/<int:receipt_id>/edit', methods=['GET', 'POST'])
+@csrf.exempt
 def edit_header_receipt(header_id, receipt_id):
     """编辑项目级别收款记录"""
     from App.forms.receipt_forms import ProjectLevelReceiptForm
@@ -2336,7 +2375,6 @@ def edit_header_receipt(header_id, receipt_id):
             
             db.session.commit()
             
-            flash('项目级别收款记录更新成功！', 'success')
             return redirect(url_for('projects.header_receipts', header_id=header.id))
             
         except Exception as e:
@@ -2349,6 +2387,7 @@ def edit_header_receipt(header_id, receipt_id):
                          receipt=receipt)
 
 @projects.route('/header/<int:header_id>/receipt/<int:receipt_id>/delete', methods=['POST'])
+@csrf.exempt
 def delete_header_receipt(header_id, receipt_id):
     """删除项目级别收款记录"""
     from App.models.projects.BookingProject import ProjectReceipt
@@ -2377,7 +2416,6 @@ def delete_header_receipt(header_id, receipt_id):
                     ref.payment_status = 'unpaid'
         
         db.session.commit()
-        flash(f'项目级别收款记录 {receipt.receipt_number} 删除成功！', 'success')
         
     except Exception as e:
         db.session.rollback()

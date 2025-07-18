@@ -11,7 +11,7 @@
                 <div class="card-body">
                     <form method="post">
                         <!-- CSRF令牌 -->
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                         
                         <div class="row mb-4">
                             <div class="col-md-6">
@@ -89,25 +89,7 @@
                                            value="{{ ref.leader_name if ref and not is_create else '' }}">
                                 </div>
                             </div>
-                            <div class="col-md-6">
-                                <div class="form-group">
-                                    <label>EO编号</label>
-                                    <div style="display: flex; align-items: center; gap: 5px;">
-                                        <input type="text" class="form-control" name="eo_numbers" value="{% if ref and ref.eos %}{% for eo in ref.eos %}{{ eo.eo_number }}{% if not loop.last %}, {% endif %}{% endfor %}{% endif %}" style="background-color: #f8f9fa; color: #6c757d;" readonly>
-                                        {% if ref %}
-                                            {% if ref.eos and ref.eos|length > 0 %}
-                                            <button type="button" class="btn btn-secondary btn-sm" disabled>
-                                                <i class="fas fa-check"></i> 已生成EO
-                                            </button>
-                                            {% else %}
-                                            <button type="button" class="btn btn-primary btn-sm" onclick="quickCreateEO({{ ref.id }})">
-                                                <i class="fas fa-plus"></i> 生成EO
-                                            </button>
-                                            {% endif %}
-                                        {% endif %}
-                                    </div>
-                                </div>
-                            </div>
+
                         </div>
                         
                         <div class="row mb-4">
@@ -188,6 +170,15 @@
                                     {% if ref %}更新{% else %}提交{% endif %}
                                 </button>
                                 <a href="javascript:history.back()" class="btn btn-secondary btn-lg px-5 ms-2">返回</a>
+                                {% if ref and ref.eos and ref.eos|length > 0 %}
+                                    <span class="btn btn-outline-info btn-lg px-5 ms-2" style="cursor: default;">
+                                        <i class="fas fa-check"></i> EO: {% for eo in ref.eos %}{{ eo.eo_number }}{% if not loop.last %}, {% endif %}{% endfor %}
+                                    </span>
+                                {% else %}
+                                    <button type="button" class="btn btn-primary btn-lg px-5 ms-2" onclick="quickCreateEO({{ ref.id if ref else 'null' }})">
+                                        <i class="fas fa-plus"></i> 生成EO
+                                    </button>
+                                {% endif %}
                             </div>
                         </div>
                     </form>

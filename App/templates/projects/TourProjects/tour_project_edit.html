@@ -822,7 +822,7 @@ html body .tour-project-edit-page .modal .form-grid {
             </div>
             <div class="section-content">
                 <form method="POST" id="projectForm">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                     <div class="form-grid">
                         <div class="form-group">
                             <label class="form-label">项目名称</label>
@@ -1012,7 +1012,7 @@ html body .tour-project-edit-page .modal .form-grid {
         </div>
         <div class="modal-body">
             <form id="createGroupForm">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                 <div class="form-grid" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 20px;">
                     <div class="form-group">
                         <label class="form-label">团队名称</label>
@@ -1101,7 +1101,7 @@ html body .tour-project-edit-page .modal .form-grid {
         </div>
         <div class="modal-body">
             <form id="editGroupForm">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                 <input type="hidden" name="group_id" id="editGroupId">
                 <div class="form-grid" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 20px;">
                     <div class="form-group">
@@ -1191,7 +1191,7 @@ html body .tour-project-edit-page .modal .form-grid {
         </div>
         <div class="modal-body">
             <form id="addItineraryForm">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                 <input type="hidden" name="group_id" id="addItineraryGroupId">
                 <div class="form-grid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-bottom: 20px;">
                     <div class="form-group">
@@ -1225,7 +1225,7 @@ html body .tour-project-edit-page .modal .form-grid {
         </div>
         <div class="modal-body">
             <form id="editItineraryForm">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                 <input type="hidden" name="itinerary_id" id="editItineraryId">
                 <div class="form-grid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-bottom: 20px;">
                     <div class="form-group">
@@ -1505,7 +1505,7 @@ function updateGroup() {
 function deleteGroup(groupId) {
     if (confirm('确定要删除这个团队吗？此操作不可撤销。')) {
         const formData = new FormData();
-        formData.append('csrf_token', '{{ csrf_token() }}');
+        formData.append('csrf_token', '{{ csrf_token }}');
         
         fetch(`{{ url_for("tour_projects.delete_tour_group", group_id=0) }}`.replace('0', groupId), {
             method: 'POST',
@@ -1647,7 +1647,7 @@ function autoGenerateItineraries(groupId) {
             const formattedDate = `${year}-${month}-${day}`;
             
             const formData = new FormData();
-            formData.append('csrf_token', '{{ csrf_token() }}');
+            formData.append('csrf_token', '{{ csrf_token }}');
             formData.append('day_title', `Day ${i + 1}：`);
             formData.append('date', formattedDate);
             formData.append('content', `第${i + 1}天行程安排`);
@@ -1807,7 +1807,7 @@ function updateItinerary() {
 function deleteItinerary(itineraryId) {
     if (confirm('确定要删除这个行程吗？此操作不可撤销。')) {
         const formData = new FormData();
-        formData.append('csrf_token', '{{ csrf_token() }}');
+        formData.append('csrf_token', '{{ csrf_token }}');
         
         fetch(`{{ url_for("tour_projects.delete_itinerary", itinerary_id=0) }}`.replace('0', itineraryId), {
             method: 'POST',

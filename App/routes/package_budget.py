@@ -69,6 +69,7 @@ def list_budgets():
 
 
 @package_budget.route('/create', methods=['GET', 'POST'])
+@csrf.exempt
 def create():
     """创建新预算单"""
     if request.method == 'POST':
@@ -165,6 +166,7 @@ def detail(budget_id):
 
 
 @package_budget.route('/<int:budget_id>/edit', methods=['GET', 'POST'])
+@csrf.exempt
 def edit(budget_id):
     """编辑预算单"""
     try:
@@ -219,6 +221,7 @@ def edit(budget_id):
 
 
 @package_budget.route('/<int:budget_id>/delete', methods=['POST'])
+@csrf.exempt
 def delete(budget_id):
     """删除预算单"""
     try:
@@ -486,6 +489,7 @@ def delete_item(budget_id, item_id):
 
 
 @package_budget.route('/<int:budget_id>/duplicate', methods=['POST'])
+@csrf.exempt
 def duplicate(budget_id):
     """复制预算单"""
     try:
@@ -598,6 +602,7 @@ def export_budget(budget_id):
 
 
 @package_budget.route('/import', methods=['GET', 'POST'])
+@csrf.exempt
 def import_budget():
     """导入预算单"""
     if request.method == 'POST':
