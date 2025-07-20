@@ -1046,6 +1046,55 @@
                     <span class="visa-detail-info-value">{{ project.hid_or_serial or '未设置' }}</span>
                 </div>
                 <div class="visa-detail-info-item">
+                    <span class="visa-detail-info-label">项目HID</span>
+                    <div class="visa-detail-info-value">
+                        {% if has_header and project.header %}
+                            <span>{{ project.header.hid }}</span>
+                            <a href="{{ url_for('projects.header_detail', header_id=project.header.id) }}" class="btn btn-sm btn-info ml-2" target="_blank">查看</a>
+                        {% else %}
+                            <span class="text-muted">未关联</span>
+                            <button type="button" class="btn btn-sm btn-primary ml-2" onclick="createProjectLinks()" data-original-text="创建HID">创建HID</button>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="visa-detail-info-item">
+                    <span class="visa-detail-info-label">REF编号</span>
+                    <div class="visa-detail-info-value">
+                        {% if has_ref and project.ref %}
+                            <span>{{ project.ref.ref_number }}</span>
+                            <a href="{{ url_for('projects.ref_detail', ref_id=project.ref.id) }}" class="btn btn-sm btn-info ml-2" target="_blank">查看</a>
+                        {% else %}
+                            <span class="text-muted">未关联</span>
+                            <button type="button" class="btn btn-sm btn-primary ml-2" onclick="createProjectLinks()" data-original-text="创建REF">创建REF</button>
+                        {% endif %}
+                    </div>
+                </div>
+                {% if has_ref and project.ref and project.ref.extra_info %}
+                    {% set extra_info = project.ref.extra_info|from_json %}
+                    {% if extra_info.visa_country or extra_info.visa_type %}
+                        <div class="visa-detail-info-item">
+                            <span class="visa-detail-info-label">签证国家</span>
+                            <span class="visa-detail-info-value">{{ extra_info.visa_country or '未设置' }}</span>
+                        </div>
+                        <div class="visa-detail-info-item">
+                            <span class="visa-detail-info-label">签证类型</span>
+                            <span class="visa-detail-info-value">{{ extra_info.visa_type or '未设置' }}</span>
+                        </div>
+                        {% if extra_info.processing_time %}
+                        <div class="visa-detail-info-item">
+                            <span class="visa-detail-info-label">处理时间</span>
+                            <span class="visa-detail-info-value">{{ extra_info.processing_time }}</span>
+                        </div>
+                        {% endif %}
+                        {% if extra_info.visa_fee %}
+                        <div class="visa-detail-info-item">
+                            <span class="visa-detail-info-label">申请费用</span>
+                            <span class="visa-detail-info-value">{{ extra_info.visa_fee }}</span>
+                        </div>
+                        {% endif %}
+                    {% endif %}
+                {% endif %}
+                <div class="visa-detail-info-item">
                     <span class="visa-detail-info-label">签证类型</span>
                     <span class="visa-detail-info-value">{{ project.visa_type or '未设置' }}</span>
                 </div>
@@ -1688,6 +1737,55 @@ function openVisaTypeFolder(visaType) {
     .catch(error => {
         console.error('Error:', error);
         showMessage('系统错误，请稍后重试', 'error');
+    });
+}
+
+// 创建HID和REF关联
+function createProjectLinks() {
+    const projectId = {{ project.id }};
+    
+    // 显示确认对话框
+    if (!confirm('确定要为这个签证项目创建HID和REF关联吗？')) {
+        return;
+    }
+    
+    // 显示加载状态
+    const buttons = document.querySelectorAll('button[onclick="createProjectLinks()"]');
+    buttons.forEach(btn => {
+        btn.disabled = true;
+        btn.innerHTML = '创建中...';
+    });
+    
+    fetch(`/visa/project/create_project_links/${projectId}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showMessage(data.message, 'success');
+            // 刷新页面以显示新创建的HID和REF
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+        } else {
+            throw new Error(data.message || '创建失败');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showMessage(error.message || '创建HID和REF失败，请重试', 'error');
+    })
+    .finally(() => {
+        // 恢复按钮状态
+        buttons.forEach(btn => {
+            btn.disabled = false;
+            const originalText = btn.getAttribute('data-original-text') || '创建HID';
+            btn.innerHTML = originalText;
+        });
     });
 }
 

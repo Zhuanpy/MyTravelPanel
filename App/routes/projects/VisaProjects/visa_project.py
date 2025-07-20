@@ -559,18 +559,157 @@ def visa_detail(project_name=None, project_id=None):
         print(f"DEBUG: Rendering template with project={project.id}, document_data keys={list(document_data.keys())}")
         print(f"DEBUG: Project document statuses count: {len(project_document_statuses)}")
         
+        # 检查项目是否已关联HID和REF
+        has_header = project.header_id is not None
+        has_ref = project.ref_id is not None
+        
         return render_template('visas/签证项目管理/签证项目详细.html',
                              project=project,
                              types_info=types_info,
                              links=links,
                              document_data=document_data,
-                             document_statuses=document_statuses)
+                             document_statuses=document_statuses,
+                             has_header=has_header,
+                             has_ref=has_ref)
                              
     except Exception as e:
         print(f"DEBUG: Exception in visa_detail: {str(e)}")
         print(f"DEBUG: Exception traceback: {traceback.format_exc()}")
         flash(f'获取签证详情时出错: {str(e)}', 'error')
         return redirect(url_for('visa_project.show_current_all_projects'))
+
+
+@visa_project.route('/create_project_links/<int:project_id>', methods=['POST'])
+@csrf.exempt
+def create_project_links(project_id):
+    """为签证项目创建HID和REF关联"""
+    try:
+        from App.models.projects.BookingProject import ProjectHeader, ProjectRef
+        from App.models.Product.BusinessType import BusinessType
+        
+        # 获取签证项目
+        project = VisaProject.query.get_or_404(project_id)
+        
+        # 检查是否已经有关联
+        if project.header_id and project.ref_id:
+            return jsonify({
+                'success': False,
+                'message': '项目已关联HID和REF'
+            }), 400
+        
+        # 获取签证业务类型ID
+        visa_business_type = BusinessType.query.filter_by(code='visa').first()
+        if not visa_business_type:
+            return jsonify({
+                'success': False,
+                'message': '未找到签证业务类型'
+            }), 400
+        
+        # 获取签证类型信息
+        types_info = VisaTypes.query.filter_by(visa_type=project.visa_type).first()
+        
+        # 创建或获取项目主表（HID）
+        header = None
+        if not project.header_id:
+            # 生成HID
+            hid = ProjectHeader.generate_hid()
+            
+            # 创建项目主表
+            header = ProjectHeader(
+                hid=hid,
+                desc=f"{project.applicant_name} {project.visa_type}签证项目",
+                contact=project.contact_name or project.applicant_name,
+                currency='SGD',
+                type='visa',
+                source='visa_system',
+                country=types_info.country.country_name_CN if types_info and types_info.country else '未知',
+                status='active'
+            )
+            db.session.add(header)
+            db.session.flush()  # 获取header.id
+            
+            # 更新签证项目的header_id
+            project.header_id = header.id
+            print(f"DEBUG: Created header with ID {header.id}, HID: {hid}")
+        
+        # 创建REF明细
+        ref = None
+        if not project.ref_id:
+            # 生成REF编号
+            ref_number = ProjectRef.generate_ref_number(header.hid if header else None)
+            
+            # 准备签证相关的额外信息
+            visa_extra_info = {
+                'visa_type': project.visa_type,
+                'visa_country': types_info.country.country_name_CN if types_info and types_info.country else '未知',
+                'visa_country_code': types_info.country.country_code if types_info and types_info.country else None,
+                'singapore_status': project.singapore_status,
+                'visa_status': project.visa_status,
+                'processing_time': types_info.processing_time if types_info else None,
+                'visa_fee': types_info.fee if types_info else None,
+                'source_system': 'visa_system',
+                'created_from_visa_project': True,
+                'visa_project_id': project.id
+            }
+            
+            # 解析申请费用，提取数字部分
+            selling_price = None
+            if types_info and types_info.fee:
+                try:
+                    # 尝试从费用字符串中提取数字
+                    import re
+                    fee_match = re.search(r'(\d+(?:\.\d+)?)', types_info.fee)
+                    if fee_match:
+                        selling_price = float(fee_match.group(1))
+                        print(f"DEBUG: Extracted selling price: {selling_price} from fee: {types_info.fee}")
+                except (ValueError, AttributeError) as e:
+                    print(f"DEBUG: Failed to extract selling price from fee '{types_info.fee}': {str(e)}")
+            
+            # 创建REF明细
+            ref = ProjectRef(
+                header_id=header.id if header else project.header_id,
+                ref_number=ref_number,
+                name=f"{project.applicant_name} {project.visa_type}签证",
+                ref_type_id=visa_business_type.id,
+                description=f"{project.applicant_name}的{project.visa_type}签证申请",
+                contact_name=project.contact_name or project.applicant_name,
+                contact_phone=project.contact_phone if hasattr(project, 'contact_phone') else None,
+                contact_email=project.contact_email if hasattr(project, 'contact_email') else None,
+                leader_name=project.applicant_name,  # 使用申请人姓名作为负责人姓名
+                selling_price=selling_price,  # 使用申请费用作为售价
+                currency='SGD',
+                expected_delivery_date=project.estimated_date,
+                remarks=project.remarks,
+                status='processing',
+                payment_status='unpaid',
+                extra_info=json.dumps(visa_extra_info, ensure_ascii=False)
+            )
+            db.session.add(ref)
+            db.session.flush()  # 获取ref.id
+            
+            # 更新签证项目的ref_id
+            project.ref_id = ref.id
+            print(f"DEBUG: Created ref with ID {ref.id}, REF: {ref_number}")
+        
+        # 提交事务
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'HID和REF创建成功',
+            'header_id': header.id if header else project.header_id,
+            'ref_id': ref.id if ref else project.ref_id,
+            'hid': header.hid if header else None,
+            'ref_number': ref.ref_number if ref else None
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"DEBUG: Error creating project links: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f'创建HID和REF时出错：{str(e)}'
+        }), 500
 
 
 @visa_project.route('/update_visa_status', methods=['POST'])

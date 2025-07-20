@@ -363,6 +363,14 @@ class VisaProject(db.Model):
 
     # 与资料准备状态的一对多关系
     document_statuses = db.relationship('VisaProjectDocumentStatus', back_populates='project', cascade='all, delete-orphan')
+    
+    # 与项目系统的关联
+    header_id = db.Column(db.Integer, db.ForeignKey('project_headers.id'), nullable=True, comment='关联的项目主表ID')
+    ref_id = db.Column(db.Integer, db.ForeignKey('project_refs.id'), nullable=True, comment='关联的REF明细ID')
+    
+    # 关系定义
+    header = db.relationship('ProjectHeader', backref='visa_projects')
+    ref = db.relationship('ProjectRef', backref='visa_projects')
 
     def __init__(self, name, visa_status='待递交', estimated_date=None):
         if visa_status not in self.VALID_STATUSES:
