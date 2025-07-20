@@ -603,18 +603,9 @@ def list_projects():
         total_cost_price = sum([float(ref.cost_price or 0) for ref in refs])
         total_profit = total_selling_price - total_cost_price
         
-        # 计算已付款金额（根据payment_status）
-        total_paid_amount = 0
-        for ref in refs:
-            if ref.payment_status == 'paid' and ref.selling_price:
-                total_paid_amount += float(ref.selling_price)
-            elif ref.payment_status == 'partial' and ref.selling_price:
-                # 如果是部分付款，暂时按50%计算
-                # 实际应该从EO表中获取具体付款金额
-                total_paid_amount += float(ref.selling_price) * 0.5
-        
-        # Balance = 总售价 - 已付款金额（未付款金额）
-        balance = total_selling_price - total_paid_amount
+        # 使用模型中的正确方法计算已付款金额
+        total_paid_amount = project.total_paid_amount
+        balance = project.total_unpaid_amount  # 使用模型中的未付款金额
         
         project_stats[project.id] = {
             'total_selling_price': total_selling_price,

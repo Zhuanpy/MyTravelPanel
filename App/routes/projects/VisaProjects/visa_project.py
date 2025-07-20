@@ -339,11 +339,32 @@ def generate_form_for_project(project_id):
     try:
         project = VisaProject.query.get_or_404(project_id)
         
+        # 添加调试信息
+        current_app.logger.info(f"生成表格请求 - 项目ID: {project_id}")
+        current_app.logger.info(f"项目信息 - 签证类型: {project.visa_type}, HID: {project.hid_or_serial}, 申请人: {project.applicant_name}, 身份: {project.singapore_status}")
+        
         # 检查签证类型是否支持表格生成
         if not is_visa_type_supported_for_form_generation(project.visa_type):
+            current_app.logger.warning(f"不支持的签证类型: {project.visa_type}")
             return jsonify({
                 'success': False, 
                 'message': f'签证类型 "{project.visa_type}" 暂不支持表格生成功能'
+            }), 400
+        
+        # 检查项目必要字段
+        missing_fields = []
+        if not project.hid_or_serial:
+            missing_fields.append('HID/序列号')
+        if not project.applicant_name:
+            missing_fields.append('申请人姓名')
+        if not project.singapore_status:
+            missing_fields.append('新加坡身份')
+            
+        if missing_fields:
+            current_app.logger.warning(f"项目信息不完整，缺少字段: {', '.join(missing_fields)}")
+            return jsonify({
+                'success': False, 
+                'message': f'项目信息不完整，请确保以下字段已填写: {", ".join(missing_fields)}'
             }), 400
         
         # 生成表格的逻辑
@@ -351,6 +372,62 @@ def generate_form_for_project(project_id):
         visa_folder = f"{project_name}_{project.singapore_status}"
         from App.config import Config
         static_path = Config.PROJECT_ROOT / "App" / "static"
+        
+        # 检查项目文件夹是否存在
+        visa_project_path = Config.VISA_PROJECTS_PATH
+        form_path = visa_project_path / visa_folder
+        
+        current_app.logger.info(f"检查项目文件夹: {form_path}")
+        if not form_path.exists():
+            current_app.logger.warning(f"项目文件夹不存在: {form_path}")
+            return jsonify({
+                'success': False, 
+                'message': f'项目文件夹不存在: {visa_folder}，请先创建项目'
+            }), 400
+        
+        # 检查FormSample.xls文件是否存在
+        form_sample_path = form_path / "FormSample.xls"
+        current_app.logger.info(f"检查表单模板文件: {form_sample_path}")
+        if not form_sample_path.exists():
+            current_app.logger.warning(f"表单模板文件不存在: {form_sample_path}")
+            return jsonify({
+                'success': False, 
+                'message': f'表单模板文件不存在: {form_sample_path}'
+            }), 400
+        
+        # 检查韩国签证资源文件是否存在
+        from App.config import Config
+        source_path = Config.PROJECT_ROOT / "资源" / "签证" / "韩国签证" / "source"
+        
+        current_app.logger.info(f"检查韩国签证资源路径: {source_path}")
+        
+        if not source_path.exists():
+            current_app.logger.warning(f"韩国签证资源文件不存在: {source_path}")
+            return jsonify({
+                'success': False, 
+                'message': f'韩国签证资源文件不存在: {source_path}'
+            }), 400
+        
+        # 检查坐标列表文件是否存在
+        coord_file = source_path / "坐标列表.xls"
+        current_app.logger.info(f"检查坐标列表文件: {coord_file}")
+        if not coord_file.exists():
+            current_app.logger.warning(f"坐标列表文件不存在: {coord_file}")
+            return jsonify({
+                'success': False, 
+                'message': f'坐标列表文件不存在: {coord_file}'
+            }), 400
+        
+        # 检查项目文件夹中的FormSample.xls文件
+        project_folder = Config.VISA_PROJECTS_PATH / visa_folder
+        form_sample_file = project_folder / "FormSample.xls"
+        current_app.logger.info(f"检查表单模板文件: {form_sample_file}")
+        if not form_sample_file.exists():
+            current_app.logger.warning(f"表单模板文件不存在: {form_sample_file}")
+            return jsonify({
+                'success': False, 
+                'message': f'表单模板文件不存在: {form_sample_file}，请确保项目文件夹中有FormSample.xls文件'
+            }), 400
         
         # 根据签证类型调用相应的表格生成函数
         if '韩国' in project.visa_type:
@@ -365,9 +442,14 @@ def generate_form_for_project(project_id):
         
         return jsonify({'success': True, 'message': '表格生成成功'})
     except FileNotFoundError as e:
+        current_app.logger.error(f"文件或目录不存在: {str(e)}")
         return jsonify({'success': False, 'message': f'文件或目录不存在: {str(e)}'}), 500
+    except ImportError as e:
+        current_app.logger.error(f"导入模块失败: {str(e)}")
+        return jsonify({'success': False, 'message': f'系统配置错误，请联系管理员: {str(e)}'}), 500
     except Exception as e:
         current_app.logger.error(f"生成表格时发生错误: {str(e)}")
+        current_app.logger.error(f"错误详情: {traceback.format_exc()}")
         return jsonify({'success': False, 'message': f'生成表格时发生错误: {str(e)}'}), 500
 
 

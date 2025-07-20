@@ -134,53 +134,206 @@ class VisasUtils:
         """检查路径是否存在，如果不存在则创建它。"""
         os.makedirs(form_temp_path, exist_ok=True)
 
-        source_path = os.path.join(static_path, "资源", "签证", "韩国签证", "source")  # 韩国签证 资源文件，储存表格及表格坐标
+        from App.config import Config
+        source_path = os.path.join(Config.PROJECT_ROOT, "资源", "签证", "韩国签证", "source")  # 韩国签证 图片文件和坐标文件路径
+
+        # 检查源路径是否存在
+        if not os.path.exists(source_path):
+            raise FileNotFoundError(f"韩国签证资源路径不存在: {source_path}")
 
         for p in range(1, 6):
             page = f'PAGE0{p}'
             loc_file = os.path.join(source_path, "坐标列表.xls")
+            
+            # 检查坐标文件是否存在
+            if not os.path.exists(loc_file):
+                raise FileNotFoundError(f"坐标列表文件不存在: {loc_file}")
+            
             # 读取坐标信息
-            loc_list = pd.read_excel(loc_file, sheet_name='Sheet1')
-            loc_list = loc_list[loc_list['PAGE'] == page]
-            loc_list[["坐标序列"]] = loc_list[["坐标序列"]].astype(str)
-            loc_list[["坐标X", "坐标Y"]] = loc_list[["坐标X", "坐标Y"]].astype(int)
+            try:
+                loc_list = pd.read_excel(loc_file, sheet_name='Sheet1')
+                print(f"坐标文件列名: {list(loc_list.columns)}")
+                print(f"查找页面: {page}")
+                
+                # 过滤当前页面的数据
+                loc_list = loc_list[loc_list['PAGE'] == page]
+                print(f"找到 {len(loc_list)} 条坐标数据")
+                
+                # 确保坐标序列是字符串类型
+                loc_list['坐标序列'] = loc_list['坐标序列'].astype(str)
+                
+                # 确保坐标X和坐标Y是整数类型
+                loc_list['坐标X'] = loc_list['坐标X'].astype(int)
+                loc_list['坐标Y'] = loc_list['坐标Y'].astype(int)
+                
+                print(f"坐标序列示例: {list(loc_list['坐标序列'].head())}")
+                
+            except Exception as e:
+                raise Exception(f"读取坐标文件失败: {str(e)}")
 
             # 清理填写表格信息
             form_sample = os.path.join(form_path, "FormSample.xls")
-            form = pd.read_excel(form_sample, sheet_name='Sheet1')
-            form = form[form['PAGE'] == page]
-            form = form[~(form['DETAIL'].isnull())]
-            form[["坐标序列", "DETAIL"]] = form[["坐标序列", "DETAIL"]].astype(str)
+            
+            print(f"尝试读取表单文件: {form_sample}")
+            
+            # 检查表单模板文件是否存在
+            if not os.path.exists(form_sample):
+                print(f"错误: 表单模板文件不存在: {form_sample}")
+                print(f"请确保在项目文件夹 {form_path} 中有 FormSample.xls 文件")
+                raise FileNotFoundError(f"表单模板文件不存在: {form_sample}")
+            
+            print(f"成功找到表单文件: {form_sample}")
+            
+            try:
+                form = pd.read_excel(form_sample, sheet_name='Sheet1')
+                
+                # 检查必需的列是否存在
+                required_columns = ['PAGE', 'DETAIL', '坐标序列', '类型']
+                missing_columns = [col for col in required_columns if col not in form.columns]
+                
+                if missing_columns:
+                    print(f"警告: FormSample.xls 缺少以下列: {missing_columns}")
+                    print(f"现有列: {list(form.columns)}")
+                    
+                    # 如果缺少PAGE列，添加默认值
+                    if 'PAGE' not in form.columns:
+                        form['PAGE'] = page
+                        print(f"已添加默认PAGE列: {page}")
+                    
+                    # 如果缺少其他列，添加空值
+                    for col in missing_columns:
+                        if col != 'PAGE':
+                            form[col] = ''
+                            print(f"已添加空列: {col}")
+                
+                # 过滤当前页面的数据
+                form = form[form['PAGE'] == page]
+                
+                # 过滤非空数据
+                if 'DETAIL' in form.columns:
+                    form = form[~(form['DETAIL'].isnull())]
+                
+                # 确保数据类型正确
+                if '坐标序列' in form.columns and 'DETAIL' in form.columns:
+                    form[["坐标序列", "DETAIL"]] = form[["坐标序列", "DETAIL"]].astype(str)
+                
+                print(f"处理页面 {page}，找到 {len(form)} 条数据")
+                
+            except Exception as e:
+                raise Exception(f"读取表单模板文件失败: {str(e)}")
 
             # 打开图片并创建绘图对象
-            image_name = f"Form-page-{p}.jpg"
+            image_name = f"Form-page-{p}.jpg"  # 使用Form-page-1.jpg, Form-page-2.jpg等格式
             image_path = os.path.join(source_path, image_name)
-            image = Image.open(image_path)
-            draw = ImageDraw.Draw(image)
+            
+            print(f"尝试读取图片: {image_path}")
+            
+            # 检查图片文件是否存在
+            if not os.path.exists(image_path):
+                print(f"警告: 图片文件不存在，跳过页面 {p}: {image_path}")
+                print(f"请确保在 {source_path} 文件夹中有以下图片文件:")
+                for i in range(1, 6):
+                    print(f"  - Form-page-{i}.jpg")
+                
+                # 创建一个简单的占位图片
+                try:
+                    # 创建一个简单的白色图片作为占位符
+                    placeholder_image = Image.new('RGB', (800, 1000), color='white')
+                    draw = ImageDraw.Draw(placeholder_image)
+                    
+                    # 尝试加载字体
+                    try:
+                        font = ImageFont.truetype("simsun.ttc", 30)
+                    except OSError:
+                        font = ImageFont.load_default()
+                    
+                    # 在图片上添加提示文字
+                    draw.text((50, 50), f"韩国签证表格 - 第{p}页", font=font, fill=(0, 0, 0))
+                    draw.text((50, 100), "请准备对应的表单模板图片", font=font, fill=(255, 0, 0))
+                    draw.text((50, 150), f"文件路径: {image_path}", font=font, fill=(0, 0, 255))
+                    
+                    # 保存占位图片
+                    placeholder_image.save(image_path)
+                    print(f"已创建占位图片: {image_path}")
+                    
+                    # 重新打开图片
+                    image = Image.open(image_path)
+                    draw = ImageDraw.Draw(image)
+                except Exception as e:
+                    print(f"创建占位图片失败: {str(e)}")
+                    continue
+            else:
+                print(f"成功找到图片文件: {image_path}")
+            
+            try:
+                image = Image.open(image_path)
+                draw = ImageDraw.Draw(image)
+            except Exception as e:
+                raise Exception(f"打开图片文件失败 {image_path}: {str(e)}")
 
             # 设置字体、字号和颜色
-            font = ImageFont.truetype("simsun.ttc", 50)  # 楷体字体文件
+            try:
+                font = ImageFont.truetype("simsun.ttc", 50)  # 楷体字体文件
+            except OSError:
+                # 如果找不到simsun.ttc，尝试使用默认字体
+                try:
+                    font = ImageFont.load_default()
+                except Exception as e:
+                    raise Exception(f"无法加载字体: {str(e)}")
+            
             text_color = (0, 0, 255)  # 文字颜色
 
             for i in form.index:
-                filling_texts = form.loc[i, 'DETAIL']
-                form_type = form.loc[i, '类型']
-                filling_Number = form.loc[i, '坐标序列']
+                try:
+                    # 安全获取数据，提供默认值
+                    filling_texts = form.loc[i, 'DETAIL'] if 'DETAIL' in form.columns else ''
+                    form_type = form.loc[i, '类型'] if '类型' in form.columns else '文本'
+                    filling_Number = form.loc[i, '坐标序列'] if '坐标序列' in form.columns else ''
 
-                if form_type == "选择":
-                    filling_Number = filling_Number + filling_texts
-                    filling_texts = "√"
+                    # 跳过空数据
+                    if not filling_texts or not filling_Number:
+                        print(f"跳过空数据: 行 {i}, 文本='{filling_texts}', 坐标序列='{filling_Number}'")
+                        continue
 
-                x = loc_list.loc[loc_list['坐标序列'] == filling_Number, '坐标X'].iloc[0]
-                y = loc_list.loc[loc_list['坐标序列'] == filling_Number, '坐标Y'].iloc[0]
+                    if form_type == "选择":
+                        filling_Number = filling_Number + filling_texts
+                        filling_texts = "√"
 
-                text_position = (x, y)
-                draw.text(text_position, filling_texts, font=font, fill=text_color)
+                    # 查找坐标
+                    print(f"查找坐标序列: '{filling_Number}'")
+                    print(f"可用的坐标序列: {list(loc_list['坐标序列'].unique())}")
+                    
+                    coord_data = loc_list.loc[loc_list['坐标序列'] == filling_Number]
+                    if coord_data.empty:
+                        print(f"警告: 未找到坐标序列 '{filling_Number}'，跳过")
+                        print(f"请检查坐标文件中的坐标序列是否与FormSample.xls中的坐标序列匹配")
+                        continue
 
-            image_name = f"{page}.jpg"
-            image.save(os.path.join(form_temp_path, image_name))
+                    x = coord_data['坐标X'].iloc[0]
+                    y = coord_data['坐标Y'].iloc[0]
 
-        cls.combine_JPG2Pdf(form_temp_path, form_path)
+                    text_position = (x, y)
+                    draw.text(text_position, filling_texts, font=font, fill=text_color)
+                    print(f"成功填写: '{filling_texts}' 到坐标 ({x}, {y})")
+                    
+                except Exception as e:
+                    print(f"警告: 处理表单数据时出错 (行 {i}): {str(e)}")
+                    continue
+
+            # 保存图片
+            try:
+                save_image_name = f"{page}.jpg"
+                save_path = os.path.join(form_temp_path, save_image_name)
+                image.save(save_path)
+                print(f"保存图片到: {save_path}")
+            except Exception as e:
+                raise Exception(f"保存图片失败: {str(e)}")
+
+        # 合并为PDF
+        try:
+            cls.combine_JPG2Pdf(form_temp_path, form_path)
+        except Exception as e:
+            raise Exception(f"合并PDF失败: {str(e)}")
 
     @classmethod
     def check_and_create_folder(cls, path):
