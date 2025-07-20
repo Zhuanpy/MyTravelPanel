@@ -694,7 +694,18 @@ def list_projects():
             self.has_next = page < total_pages
             self.prev_num = page - 1 if page > 1 else None
             self.next_num = page + 1 if page < total_pages else None
-            self.iter_pages = lambda: range(1, total_pages + 1)
+            
+        def iter_pages(self, left_edge=2, left_current=2, right_current=3, right_edge=2):
+            """生成分页页码列表，支持省略号"""
+            last = 0
+            for num in range(1, self.pages + 1):
+                if num <= left_edge or \
+                   (num > self.page - left_current - 1 and num < self.page + right_current) or \
+                   num > self.pages - right_edge:
+                    if last + 1 != num:
+                        yield None  # 省略号
+                    yield num
+                    last = num
     
     pagination = Pagination(page, per_page, total_count)
     
@@ -1050,6 +1061,7 @@ def delete_header(header_id):
 
 # 业务类型ref创建路由
 @projects.route('/ref/create_flight/<int:header_id>', methods=['GET', 'POST'])
+@csrf.exempt
 def create_flight_ref_project(header_id):
     from App.models.projects.BookingProject import ProjectHeader
     from App.models.Product.Suppliers import Supplier
@@ -1069,6 +1081,7 @@ def create_flight_ref_project(header_id):
     )
 
 @projects.route('/ref/create_hotel/<int:header_id>', methods=['GET', 'POST'])
+@csrf.exempt
 def create_hotel_ref(header_id):
     if request.method == 'POST':
         try:
@@ -1138,6 +1151,7 @@ def create_hotel_ref(header_id):
                          hotel_info=None)
 
 @projects.route('/ref/create_tour/<int:header_id>', methods=['GET', 'POST'])
+@csrf.exempt
 def create_tour_ref(header_id):
     if request.method == 'POST':
         try:
@@ -1217,6 +1231,7 @@ def create_tour_ref(header_id):
                          project_id=header_id)
 
 @projects.route('/ref/create_visa/<int:header_id>', methods=['GET', 'POST'])
+@csrf.exempt
 def create_visa_ref(header_id):
     if request.method == 'POST':
         try:
@@ -1322,6 +1337,7 @@ def get_visa_types_by_country(country_id):
         }), 500
 
 @projects.route('/ref/create_insurance/<int:header_id>', methods=['GET', 'POST'])
+@csrf.exempt
 def create_insurance_ref(header_id):
     if request.method == 'POST':
         try:
@@ -1389,6 +1405,7 @@ def create_insurance_ref(header_id):
                          is_create=True)
 
 @projects.route('/ref/create_transport/<int:header_id>', methods=['GET', 'POST'])
+@csrf.exempt
 def create_transport_ref(header_id):
     if request.method == 'POST':
         try:
@@ -1443,6 +1460,7 @@ def create_transport_ref(header_id):
     return render_template('projects/BookingProject/create_transport_ref.html', suppliers=suppliers)
 
 @projects.route('/ref/create_other/<int:header_id>', methods=['GET', 'POST'])
+@csrf.exempt
 def create_other_ref(header_id):
     if request.method == 'POST':
         try:
@@ -1810,6 +1828,14 @@ def quick_create_eo(ref_id):
     """一键生成EO - API接口"""
     try:
         ref = ProjectRef.query.get_or_404(ref_id)
+        
+        # 检查REF是否已经有EO
+        existing_eo = ProjectEO.query.filter_by(ref_id=ref.id).first()
+        if existing_eo:
+            return jsonify({
+                'success': False,
+                'message': f'REF {ref.ref_number} 已经存在EO编号 {existing_eo.eo_number}'
+            }), 400
         
         # 生成EO编号
         eo_number = ProjectEO.generate_eo_number()
@@ -2450,3 +2476,34 @@ def get_header_unpaid_refs(header_id):
         'total_unpaid': total_unpaid,
         'unpaid_refs': unpaid_refs
     })
+
+@projects.route('/update_ref_status', methods=['POST'])
+@csrf.exempt
+def update_ref_status():
+    """更新REF状态"""
+    try:
+        data = request.get_json()
+        ref_id = data.get('ref_id')
+        status = data.get('status')
+        
+        if not ref_id or not status:
+            return jsonify({
+                'success': False,
+                'message': '缺少必要参数'
+            }), 400
+        
+        ref = ProjectRef.query.get_or_404(ref_id)
+        ref.status = status
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': '状态更新成功'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'message': f'更新失败：{str(e)}'
+        }), 500

@@ -144,10 +144,10 @@
                                     {% if ref %}更新{% else %}提交{% endif %}
                                 </button>
                                 <a href="javascript:history.back()" class="btn btn-secondary btn-lg px-5 ms-2">返回</a>
-                                {% if ref and ref.eos and ref.eos|length > 0 %}
-                                    <span class="btn btn-outline-info btn-lg px-5 ms-2" style="cursor: default;">
-                                        <i class="fas fa-check"></i> EO: {% for eo in ref.eos %}{{ eo.eo_number }}{% if not loop.last %}, {% endif %}{% endfor %}
-                                    </span>
+                                {% if ref and ref.eos %}
+                                                                            <span class="btn btn-outline-info btn-lg px-5 ms-2" style="cursor: default;">
+                                            <i class="fas fa-check"></i> EO: {{ ref.eos.eo_number }}
+                                        </span>
                                 {% else %}
                                     <button type="button" class="btn btn-primary btn-lg px-5 ms-2" onclick="quickCreateEO({{ ref.id if ref else 'null' }})">
                                         <i class="fas fa-plus"></i> 生成EO

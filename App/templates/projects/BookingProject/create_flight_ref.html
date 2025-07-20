@@ -572,9 +572,9 @@
             <a href="{{ url_for('projects.header_detail', header_id=header_id) }}" class="order-btn order-btn-secondary" style="font-size: 16px; padding: 12px 30px; margin: 0 10px;">
                 <i class="fas fa-arrow-left"></i> 返回HID详情
             </a>
-            {% if ref is defined and ref and ref.eos and ref.eos|length > 0 %}
+            {% if ref is defined and ref and ref.eos %}
                 <span class="order-btn order-btn-info" style="cursor: default; font-size: 16px; padding: 12px 30px; margin: 0 10px;">
-                    <i class="fas fa-check"></i> EO: {% for eo in ref.eos %}{{ eo.eo_number }}{% if not loop.last %}, {% endif %}{% endfor %}
+                    <i class="fas fa-check"></i> EO: {{ ref.eos.eo_number }}
                 </span>
             {% elif ref is defined and ref %}
                 <button type="button" class="order-btn order-btn-primary" onclick="quickCreateEO({{ ref.id }})" style="font-size: 16px; padding: 12px 30px; margin: 0 10px;">

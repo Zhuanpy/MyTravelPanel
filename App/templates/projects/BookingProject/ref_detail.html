@@ -143,9 +143,7 @@
                 <th>EO编号</th>
                 <td colspan="3">
                     {% if ref.eos %}
-                        {% for eo in ref.eos %}
-                            <span class="badge bg-info me-1">{{ eo.eo_number }}</span>
-                        {% endfor %}
+                        <span class="badge bg-info">{{ ref.eos.eo_number }}</span>
                     {% else %}
                         <span class="text-muted">暂无EO编号</span>
                     {% endif %}
@@ -154,10 +152,9 @@
         </table>
     </div>
     
-    <!-- EO子明细列表 -->
+    <!-- EO子明细 -->
     <div class="detail-card">
-        <h2 class="detail-title">EO子明细列表</h2>
-        <a href="{{ url_for('projects.create_eo', ref_id=ref.id) }}" class="btn btn-success mb-2">添加EO</a>
+        <h2 class="detail-title">EO子明细</h2>
         {% if ref.eos %}
             <table class="table table-bordered">
                 <thead>
@@ -172,24 +169,23 @@
                     </tr>
                 </thead>
                 <tbody>
-                {% for eo in ref.eos %}
                     <tr>
-                        <td>{{ eo.eo_number }}</td>
-                        <td>{{ eo.name }}</td>
-                        <td>{{ eo.supplier_type }}</td>
-                        <td>{{ eo.supplier.name if eo.supplier else '' }}</td>
-                        <td>{{ "%.2f"|format(eo.amount) if eo.amount else '' }}</td>
-                        <td><span class="status-badge status-{{ eo.status }}">{{ eo.status }}</span></td>
+                        <td>{{ ref.eos.eo_number }}</td>
+                        <td>{{ ref.eos.name }}</td>
+                        <td>{{ ref.eos.supplier_type }}</td>
+                        <td>{{ ref.eos.supplier.name if ref.eos.supplier else '' }}</td>
+                        <td>{{ "%.2f"|format(ref.eos.amount) if ref.eos.amount else '' }}</td>
+                        <td><span class="status-badge status-{{ ref.eos.status }}">{{ ref.eos.status }}</span></td>
                         <td>
-                            <a href="{{ url_for('projects.edit_eo', eo_id=eo.id) }}" class="btn btn-sm btn-warning">编辑</a>
-                            <a href="{{ url_for('projects.eo_detail', eo_id=eo.id) }}" class="btn btn-sm btn-info">详情</a>
+                            <a href="{{ url_for('projects.edit_eo', eo_id=ref.eos.id) }}" class="btn btn-sm btn-warning">编辑</a>
+                            <a href="{{ url_for('projects.eo_detail', eo_id=ref.eos.id) }}" class="btn btn-sm btn-info">详情</a>
                         </td>
                     </tr>
-                {% endfor %}
                 </tbody>
             </table>
         {% else %}
             <p style="color: #718096; text-align: center; padding: 20px;">暂无EO子明细</p>
+            <a href="{{ url_for('projects.create_eo', ref_id=ref.id) }}" class="btn btn-success">添加EO</a>
         {% endif %}
     </div>
     

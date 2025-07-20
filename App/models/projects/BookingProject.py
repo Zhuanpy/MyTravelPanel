@@ -271,8 +271,8 @@ class ProjectRef(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    # 关联关系
-    eos = db.relationship('ProjectEO', back_populates='ref', cascade='all, delete-orphan')
+    # 关联关系 - 一个REF只能有一个EO
+    eos = db.relationship('ProjectEO', back_populates='ref', cascade='all, delete-orphan', uselist=False)
     ref_type = db.relationship('BusinessType', backref='refs')
     supplier = db.relationship('Supplier', backref='refs')
     items = db.relationship('RefOrderItem', backref='ref', cascade='all, delete-orphan')

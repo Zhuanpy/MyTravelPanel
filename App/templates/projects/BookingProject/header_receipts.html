@@ -2,7 +2,7 @@
 {% block title %}项目收款记录 - {{ header.hid }}{% endblock %}
 
 {% block content %}
-<div class="container-fluid">
+<div class="container">
     <div class="row">
         <div class="col-12">
             <!-- 页面头部 -->
@@ -21,10 +21,6 @@
                     <a href="{{ url_for('projects.create_header_receipt', header_id=header.id) }}" 
                        class="btn btn-success">
                         <i class="fas fa-plus"></i> 新增项目收款
-                    </a>
-                    <a href="{{ url_for('projects.header_detail', header_id=header.id) }}" 
-                       class="btn btn-secondary">
-                        <i class="fas fa-arrow-left"></i> 返回项目详情
                     </a>
                 </div>
             </div>
@@ -188,6 +184,14 @@
                     </div>
                     {% endif %}
                 </div>
+            </div>
+            
+            <!-- 底部按钮 -->
+            <div class="d-flex justify-content-end mt-4 mb-4">
+                <a href="{{ url_for('projects.header_detail', header_id=header.id) }}" 
+                   class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> 返回项目详情
+                </a>
             </div>
         </div>
     </div>

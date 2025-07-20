@@ -69,28 +69,13 @@
                         
                         <div class="row">
                             <!-- 收款单号 -->
-                            <div class="col-md-6 mb-3">
+                            <div class="col-md-3 mb-3">
                                 <label class="form-label">收款单号</label>
                                 <input type="text" class="form-control" value="{{ receipt_number }}" readonly>
                             </div>
                             
-                            <!-- 收款金额 -->
-                            <div class="col-md-6 mb-3">
-                                {{ form.amount.label(class="form-label") }}
-                                {{ form.amount(class="form-control", placeholder="请输入收款金额") }}
-                                {% if form.amount.errors %}
-                                    <div class="text-danger">
-                                        {% for error in form.amount.errors %}
-                                            <small>{{ error }}</small>
-                                        {% endfor %}
-                                    </div>
-                                {% endif %}
-                            </div>
-                        </div>
-
-                        <div class="row">
                             <!-- 货币类型 -->
-                            <div class="col-md-4 mb-3">
+                            <div class="col-md-3 mb-3">
                                 {{ form.currency.label(class="form-label") }}
                                 {{ form.currency(class="form-select") }}
                                 {% if form.currency.errors %}
@@ -102,8 +87,28 @@
                                 {% endif %}
                             </div>
                             
+                            <!-- 收款金额 -->
+                            <div class="col-md-3 mb-3">
+                                {{ form.amount.label(class="form-label") }}
+                                {{ form.amount(class="form-control", placeholder="请输入收款金额") }}
+                                {% if form.amount.errors %}
+                                    <div class="text-danger">
+                                        {% for error in form.amount.errors %}
+                                            <small>{{ error }}</small>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <!-- 占位符 -->
+                            <div class="col-md-3 mb-3">
+                                <!-- 占位符，保持布局平衡 -->
+                            </div>
+                        </div>
+
+                        <div class="row">
                             <!-- 付款方式 -->
-                            <div class="col-md-4 mb-3">
+                            <div class="col-md-2 mb-3">
                                 {{ form.payment_method.label(class="form-label") }}
                                 {{ form.payment_method(class="form-select") }}
                                 {% if form.payment_method.errors %}
@@ -115,8 +120,14 @@
                                 {% endif %}
                             </div>
                             
+                            <!-- 银行名称 -->
+                            <div class="col-md-2 mb-3">
+                                {{ form.bank_name.label(class="form-label") }}
+                                {{ form.bank_name(class="form-control", placeholder="银行名称") }}
+                            </div>
+                            
                             <!-- 收款日期 -->
-                            <div class="col-md-4 mb-3">
+                            <div class="col-md-2 mb-3">
                                 {{ form.payment_date.label(class="form-label") }}
                                 {{ form.payment_date(class="form-control", type="date") }}
                                 {% if form.payment_date.errors %}
@@ -127,11 +138,28 @@
                                     </div>
                                 {% endif %}
                             </div>
+                            
+                            <!-- 交易流水号 -->
+                            <div class="col-md-2 mb-3">
+                                {{ form.transaction_id.label(class="form-label") }}
+                                {{ form.transaction_id(class="form-control", placeholder="交易流水号") }}
+                            </div>
+                            
+                            <!-- 账号 -->
+                            <div class="col-md-2 mb-3">
+                                {{ form.account_number.label(class="form-label") }}
+                                {{ form.account_number(class="form-control", placeholder="账号") }}
+                            </div>
+                            
+                            <!-- 占位符 -->
+                            <div class="col-md-2 mb-3">
+                                <!-- 占位符，保持布局平衡 -->
+                            </div>
                         </div>
 
                         <div class="row">
                             <!-- 付款人姓名 -->
-                            <div class="col-md-4 mb-3">
+                            <div class="col-md-3 mb-3">
                                 {{ form.payer_name.label(class="form-label") }}
                                 {{ form.payer_name(class="form-control", placeholder="付款人姓名") }}
                                 {% if form.payer_name.errors %}
@@ -144,7 +172,7 @@
                             </div>
                             
                             <!-- 付款人联系方式 -->
-                            <div class="col-md-4 mb-3">
+                            <div class="col-md-3 mb-3">
                                 {{ form.payer_contact.label(class="form-label") }}
                                 {{ form.payer_contact(class="form-control", placeholder="电话/邮箱") }}
                                 {% if form.payer_contact.errors %}
@@ -157,7 +185,7 @@
                             </div>
                             
                             <!-- 付款人公司 -->
-                            <div class="col-md-4 mb-3">
+                            <div class="col-md-3 mb-3">
                                 {{ form.payer_company.label(class="form-label") }}
                                 {{ form.payer_company(class="form-control", placeholder="付款人公司") }}
                                 {% if form.payer_company.errors %}
@@ -168,25 +196,10 @@
                                     </div>
                                 {% endif %}
                             </div>
-                        </div>
-
-                        <!-- 银行信息（条件显示） -->
-                        <div id="bankInfo" style="display: none;">
-                            <div class="row">
-                                <div class="col-md-4 mb-3">
-                                    {{ form.bank_name.label(class="form-label") }}
-                                    {{ form.bank_name(class="form-control", placeholder="银行名称") }}
-                                </div>
-                                
-                                <div class="col-md-4 mb-3">
-                                    {{ form.account_number.label(class="form-label") }}
-                                    {{ form.account_number(class="form-control", placeholder="账号") }}
-                                </div>
-                                
-                                <div class="col-md-4 mb-3">
-                                    {{ form.transaction_id.label(class="form-label") }}
-                                    {{ form.transaction_id(class="form-control", placeholder="交易流水号") }}
-                                </div>
+                            
+                            <!-- 占位符 -->
+                            <div class="col-md-3 mb-3">
+                                <!-- 占位符，保持布局平衡 -->
                             </div>
                         </div>
 
@@ -220,22 +233,6 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const paymentMethodSelect = document.getElementById('payment_method');
-    const bankInfoDiv = document.getElementById('bankInfo');
-    
-    // 根据付款方式显示/隐藏银行信息
-    function toggleBankInfo() {
-        const selectedMethod = paymentMethodSelect.value;
-        if (selectedMethod === 'bank_transfer') {
-            bankInfoDiv.style.display = 'block';
-        } else {
-            bankInfoDiv.style.display = 'none';
-        }
-    }
-    
-    paymentMethodSelect.addEventListener('change', toggleBankInfo);
-    toggleBankInfo(); // 初始化显示状态
-    
     // 表单验证
     const form = document.getElementById('receiptForm');
     form.addEventListener('submit', function(e) {

@@ -21,12 +21,12 @@ class ProjectReceiptForm(FlaskForm):
     ], default='SGD', validators=[DataRequired(message='请选择货币类型')])
     
     payment_method = SelectField('付款方式', choices=[
-        ('cash', '现金'),
         ('bank_transfer', '银行转账'),
+        ('cash', '现金'),
         ('credit_card', '信用卡'),
         ('cheque', '支票'),
         ('other', '其他')
-    ], validators=[DataRequired(message='请选择付款方式')])
+    ], default='bank_transfer', validators=[DataRequired(message='请选择付款方式')])
     
     payment_date = DateField('收款日期', validators=[
         DataRequired(message='收款日期不能为空')
@@ -84,12 +84,12 @@ class ProjectLevelReceiptForm(FlaskForm):
     ], default='SGD', validators=[DataRequired(message='请选择货币类型')])
     
     payment_method = SelectField('付款方式', choices=[
-        ('cash', '现金'),
         ('bank_transfer', '银行转账'),
+        ('cash', '现金'),
         ('credit_card', '信用卡'),
         ('cheque', '支票'),
         ('other', '其他')
-    ], validators=[DataRequired(message='请选择付款方式')])
+    ], default='bank_transfer', validators=[DataRequired(message='请选择付款方式')])
     
     payment_date = DateField('收款日期', validators=[
         DataRequired(message='收款日期不能为空')

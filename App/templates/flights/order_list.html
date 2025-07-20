@@ -144,19 +144,14 @@
     }
 
     /* 根据选中值设置不同的背景色 */
-    .status-select[data-status="pending"] {
+    .status-select[data-status="draft"] {
         background-color: #fbd38d;
         color: #744210;
     }
 
-    .status-select[data-status="confirmed"] {
+    .status-select[data-status="processing"] {
         background-color: #90cdf4;
         color: #2c5282;
-    }
-
-    .status-select[data-status="ticketed"] {
-        background-color: #9ae6b4;
-        color: #22543d;
     }
 
     .status-select[data-status="completed"] {
@@ -320,7 +315,7 @@
         <div class="card-body">
             <form method="GET" action="{{ url_for('flights_booking.order_list') }}" class="row g-3">
                 <div class="col-md-2">
-                    <input type="text" class="form-control" name="order_number" placeholder="订单号" value="{{ request.args.get('order_number', '') }}">
+                                                <input type="text" class="form-control" name="ref_number" placeholder="REF编号" value="{{ request.args.get('ref_number', '') }}">
                 </div>
                 <div class="col-md-2">
                     <input type="text" class="form-control" name="contact_name" placeholder="联系人" value="{{ request.args.get('contact_name', '') }}">
@@ -334,14 +329,13 @@
                     </select>
                 </div>
                 <div class="col-md-2">
-                    <select class="form-control auto-submit" name="order_status">
+                    <select class="form-control auto-submit" name="ref_status">
                         <option value="">所有未取消订单</option>
-                        <option value="all" {% if request.args.get('order_status') == 'all' %}selected{% endif %}>显示全部订单</option>
-                        <option value="pending" {% if request.args.get('order_status') == 'pending' %}selected{% endif %}>待处理</option>
-                        <option value="confirmed" {% if request.args.get('order_status') == 'confirmed' %}selected{% endif %}>已确认</option>
-                        <option value="ticketed" {% if request.args.get('order_status') == 'ticketed' %}selected{% endif %}>已出票</option>
-                        <option value="completed" {% if request.args.get('order_status') == 'completed' %}selected{% endif %}>已完成</option>
-                        <option value="cancelled" {% if request.args.get('order_status') == 'cancelled' %}selected{% endif %}>已取消</option>
+                        <option value="all" {% if request.args.get('ref_status') == 'all' %}selected{% endif %}>显示全部订单</option>
+                        <option value="draft" {% if request.args.get('ref_status') == 'draft' %}selected{% endif %}>草稿</option>
+                        <option value="processing" {% if request.args.get('ref_status') == 'processing' %}selected{% endif %}>处理中</option>
+                        <option value="completed" {% if request.args.get('ref_status') == 'completed' %}selected{% endif %}>已完成</option>
+                        <option value="cancelled" {% if request.args.get('ref_status') == 'cancelled' %}selected{% endif %}>已取消</option>
                     </select>
                 </div>
                 <div class="col-md-2">
@@ -430,9 +424,8 @@
                                     data-departure-time="{{ order.flight_segments[0].departure_time }}"
                                     {% endif %}
                                     {% if order.order_status == 'cancelled' %}disabled{% endif %}>
-                                <option value="pending" {% if order.order_status == 'pending' %}selected{% endif %}>待处理</option>
-                                <option value="confirmed" {% if order.order_status == 'confirmed' %}selected{% endif %}>已确认</option>
-                                <option value="ticketed" {% if order.order_status == 'ticketed' %}selected{% endif %}>已出票</option>
+                                <option value="draft" {% if order.order_status == 'draft' %}selected{% endif %}>草稿</option>
+                                <option value="processing" {% if order.order_status == 'processing' %}selected{% endif %}>处理中</option>
                                 <option value="completed" {% if order.order_status == 'completed' %}selected{% endif %}>已完成</option>
                                 <option value="cancelled" {% if order.order_status == 'cancelled' %}selected{% endif %}>已取消</option>
                             </select>
@@ -459,9 +452,9 @@
                     <td>{{ order.created_date.strftime('%Y-%m-%d %H:%M') }}</td>
                     <td>
                         <div class="action-buttons">
-                            <a href="{{ url_for('flights_booking.order_detail', order_id=order.id) }}" class="btn btn-sm btn-info">详情</a>
-                            {% if order.order_status in ['pending', 'confirmed', 'ticketed'] %}
-                            <a href="{{ url_for('flights_booking.edit_order', order_id=order.id) }}" class="btn btn-sm btn-warning">编辑</a>
+                            <a href="{{ url_for('projects.ref_detail', ref_id=order.id) }}" class="btn btn-sm btn-info">详情</a>
+                            {% if order.order_status in ['draft', 'processing'] %}
+                                                          <a href="{{ url_for('projects.edit_ref', ref_id=order.id) }}" class="btn btn-sm btn-warning">编辑</a>
                             {% else %}
                             <button class="btn btn-sm btn-warning" disabled style="opacity: 0.5; cursor: not-allowed;">编辑</button>
                             {% endif %}
@@ -484,10 +477,10 @@
             <!-- 首页按钮 -->
             <li class="page-item {% if not orders.has_prev %}disabled{% endif %}">
                 <a class="page-link" href="{{ url_for('flights_booking.order_list', page=1, 
-                    order_number=request.args.get('order_number', ''), 
+                    ref_number=request.args.get('ref_number', ''), 
                     contact_name=request.args.get('contact_name', ''), 
                     supplier_name=request.args.get('supplier_name', ''), 
-                    order_status=request.args.get('order_status', ''), 
+                    ref_status=request.args.get('ref_status', ''), 
                     payment_status=request.args.get('payment_status', '')) }}">
                     &laquo;&laquo;
                 </a>
@@ -496,10 +489,10 @@
             <!-- 上一页按钮 -->
             <li class="page-item {% if not orders.has_prev %}disabled{% endif %}">
                 <a class="page-link" href="{{ url_for('flights_booking.order_list', page=orders.prev_num, 
-                    order_number=request.args.get('order_number', ''), 
+                    ref_number=request.args.get('ref_number', ''), 
                     contact_name=request.args.get('contact_name', ''), 
                     supplier_name=request.args.get('supplier_name', ''), 
-                    order_status=request.args.get('order_status', ''), 
+                    ref_status=request.args.get('ref_status', ''), 
                     payment_status=request.args.get('payment_status', '')) }}">
                     &laquo;
                 </a>
@@ -510,10 +503,10 @@
                 {% if page %}
                     <li class="page-item {% if page == orders.page %}active{% endif %}">
                         <a class="page-link" href="{{ url_for('flights_booking.order_list', page=page, 
-                            order_number=request.args.get('order_number', ''), 
+                            ref_number=request.args.get('ref_number', ''), 
                             contact_name=request.args.get('contact_name', ''), 
                             supplier_name=request.args.get('supplier_name', ''), 
-                            order_status=request.args.get('order_status', ''), 
+                            ref_status=request.args.get('ref_status', ''), 
                             payment_status=request.args.get('payment_status', '')) }}">
                             {{ page }}
                         </a>
@@ -528,10 +521,10 @@
             <!-- 下一页按钮 -->
             <li class="page-item {% if not orders.has_next %}disabled{% endif %}">
                 <a class="page-link" href="{{ url_for('flights_booking.order_list', page=orders.next_num, 
-                    order_number=request.args.get('order_number', ''), 
+                    ref_number=request.args.get('ref_number', ''), 
                     contact_name=request.args.get('contact_name', ''), 
                     supplier_name=request.args.get('supplier_name', ''), 
-                    order_status=request.args.get('order_status', ''), 
+                    ref_status=request.args.get('ref_status', ''), 
                     payment_status=request.args.get('payment_status', '')) }}">
                     &raquo;
                 </a>
@@ -540,10 +533,10 @@
             <!-- 末页按钮 -->
             <li class="page-item {% if not orders.has_next %}disabled{% endif %}">
                 <a class="page-link" href="{{ url_for('flights_booking.order_list', page=orders.pages, 
-                    order_number=request.args.get('order_number', ''), 
+                    ref_number=request.args.get('ref_number', ''), 
                     contact_name=request.args.get('contact_name', ''), 
                     supplier_name=request.args.get('supplier_name', ''), 
-                    order_status=request.args.get('order_status', ''), 
+                    ref_status=request.args.get('ref_status', ''), 
                     payment_status=request.args.get('payment_status', '')) }}">
                     &raquo;&raquo;
                 </a>
@@ -568,9 +561,8 @@
 <script>
 // 状态映射
 const STATUS_MAP = {
-    'pending': '待处理',
-    'confirmed': '已确认',
-    'ticketed': '已出票',
+    'draft': '草稿',
+    'processing': '处理中',
     'completed': '已完成',
     'cancelled': '已取消'
 };
@@ -750,10 +742,10 @@ function updateOrderStatus(selectElement, orderId) {
     }
 
     const formData = new URLSearchParams();
-    formData.append('order_status', newStatus);
+    formData.append('ref_status', newStatus);
     formData.append('csrf_token', csrfToken);
 
-    fetch(`/flights_booking/update_order_status/${orderId}`, {
+    fetch(`/projects/update_ref_status/${orderId}`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
@@ -777,7 +769,7 @@ function updateOrderStatus(selectElement, orderId) {
             const editButton = actionButtons.querySelector('.btn-warning');
             
             if (editButton) {
-                if (['pending', 'confirmed', 'ticketed'].includes(newStatus)) {
+                if (['draft', 'processing'].includes(newStatus)) {
                     editButton.disabled = false;
                     editButton.style.opacity = '';
                     editButton.style.cursor = 'pointer';
@@ -812,7 +804,7 @@ function updateSelectStyle(select) {
     select.setAttribute('data-status', status);
     
     // 移除所有可能的状态类
-    select.classList.remove('status-pending', 'status-confirmed', 'status-ticketed', 'status-completed', 'status-cancelled');
+    select.classList.remove('status-draft', 'status-processing', 'status-completed', 'status-cancelled');
     
     // 添加新的状态类
     select.classList.add(`status-${status}`);

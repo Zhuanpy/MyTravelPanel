@@ -598,29 +598,31 @@ $(document).ready(function() {
     // 自动提交筛选表单，但排除分页链接
     $('#status, #search, #company, #leader, #date_from, #date_to, #selling_min, #selling_max, #profit_min, #profit_max, #balance_min, #balance_max, #sort_by').on('change keyup', function() {
         // 清除所有延迟提交的搜索
-            clearTimeout(window.searchTimeout);
+        clearTimeout(window.searchTimeout);
         // 延迟提交表单
-            window.searchTimeout = setTimeout(function() {
-                $('form').submit();
-            }, 500);
+        window.searchTimeout = setTimeout(function() {
+            $('form').submit();
+        }, 500);
     });
     
-    // 防止分页链接被表单提交事件干扰
-    $('.pagination .page-link').on('click', function(e) {
-        e.stopPropagation();
-        e.preventDefault();
-        var href = $(this).attr('href');
-        console.log('分页链接点击:', href);
-        if (href) {
-            window.location.href = href;
-        }
-    });
-    
-    // 防止表单提交干扰分页
+    // 防止表单提交干扰分页链接
     $('form').on('submit', function(e) {
         // 如果点击的是分页链接，阻止表单提交
         if ($(document.activeElement).closest('.pagination').length) {
             e.preventDefault();
+            return false;
+        }
+    });
+    
+    // 分页链接点击事件处理 - 确保正常工作
+    $(document).on('click', '.pagination .page-link', function(e) {
+        var href = $(this).attr('href');
+        console.log('分页链接点击:', href);
+        if (href && href !== '#' && href !== 'javascript:void(0)') {
+            console.log('准备跳转到:', href);
+            // 确保事件不被其他处理程序干扰
+            e.stopImmediatePropagation();
+            window.location.href = href;
             return false;
         }
     });
@@ -632,19 +634,11 @@ $(document).ready(function() {
     );
 
     // 快速筛选按钮事件
-    $('.quick-filter').click(function() {
+    $('.quick-filter').click(function(e) {
+        e.preventDefault();
         const filter = $(this).data('filter');
         const currentUrl = new URL(window.location.href);
         const params = currentUrl.searchParams;
-
-        // 解析当前URL中的参数
-        const currentStatus = params.get('status');
-        const currentProfitMin = params.get('profit_min');
-        const currentProfitMax = params.get('profit_max');
-        const currentSellingMin = params.get('selling_min');
-        const currentSellingMax = params.get('selling_max');
-        const currentBalanceMin = params.get('balance_min');
-        const currentBalanceMax = params.get('balance_max');
 
         // 应用新的筛选参数
         if (filter.includes('status=')) {
@@ -683,7 +677,8 @@ $(document).ready(function() {
     });
 
     // 清除所有筛选按钮事件
-    $('#clear-all-filters').click(function() {
+    $('#clear-all-filters').click(function(e) {
+        e.preventDefault();
         const currentUrl = new URL(window.location.href);
         const params = currentUrl.searchParams;
 

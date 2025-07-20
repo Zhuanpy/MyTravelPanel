@@ -245,11 +245,13 @@ def cancel_order(order_id):
 
 @flights_booking.route('/orders')
 def order_list():
-    """订单列表页面"""
+    """订单列表页面 - 从新的project_flight_segments表获取数据"""
+    from App.models.projects.BookingProject import ProjectFlightSegment, ProjectRef, ProjectHeader, ProjectFlightPassenger
+    
     # 获取搜索参数
-    order_number = request.args.get('order_number', '')
+    ref_number = request.args.get('ref_number', '')
     contact_name = request.args.get('contact_name', '')
-    order_status = request.args.get('order_status', '')
+    ref_status = request.args.get('ref_status', '')
     payment_status = request.args.get('payment_status', '')
     supplier_name = request.args.get('supplier_name', '')
     departure_filter = request.args.get('departure_filter', '')
@@ -258,43 +260,124 @@ def order_list():
     # 获取所有国家信息
     countries = VisaCountries.query.all()
 
-    # 构建查询
-    query = FlightOrder.query
+    # 构建查询 - 按REF分组，获取每个REF的汇总信息
+    query = db.session.query(
+        ProjectRef,
+        ProjectHeader,
+        db.func.count(ProjectFlightPassenger.id).label('passenger_count'),
+        db.func.sum(ProjectFlightPassenger.selling_price).label('total_selling_price'),
+        db.func.sum(ProjectFlightPassenger.cost_price).label('total_cost_price'),
+        db.func.min(ProjectFlightSegment.departure_time).label('first_departure_time'),
+        db.func.max(ProjectFlightSegment.arrival_time).label('last_arrival_time')
+    ).join(
+        ProjectHeader, ProjectRef.header_id == ProjectHeader.id
+    ).outerjoin(
+        ProjectFlightPassenger, ProjectRef.id == ProjectFlightPassenger.ref_id
+    ).outerjoin(
+        ProjectFlightSegment, ProjectRef.id == ProjectFlightSegment.ref_id
+    ).filter(
+        ProjectRef.ref_type_id == 1  # 机票业务类型ID
+    ).group_by(
+        ProjectRef.id,
+        ProjectHeader.id
+    )
     
     # 处理出发日期过滤
     today = datetime.now().date()
     if departure_filter == 'today':
         # 今日出发
-        query = query.filter(FlightOrder.departure_date == today)
+        query = query.filter(db.func.date(ProjectFlightSegment.departure_time) == today)
     elif departure_filter == 'upcoming':
         # 未来3天内出发
         three_days_later = today + timedelta(days=3)
-        query = query.filter(FlightOrder.departure_date.between(today, three_days_later))
+        query = query.filter(db.func.date(ProjectFlightSegment.departure_time).between(today, three_days_later))
     
-    if order_number:
-        query = query.filter(FlightOrder.order_number.like(f'%{order_number}%'))
+    if ref_number:
+        query = query.filter(ProjectRef.ref_number.like(f'%{ref_number}%'))
     if contact_name:
-        query = query.filter(FlightOrder.contact_person.like(f'%{contact_name}%'))
+        query = query.filter(ProjectRef.contact_name.like(f'%{contact_name}%'))
     
     # 修复订单状态筛选逻辑
-    if order_status and order_status != 'all':
+    if ref_status and ref_status != 'all':
         # 用户选择了特定的订单状态
-        query = query.filter(FlightOrder.order_status == order_status)
-    elif 'order_status' not in request.args or request.args.get('order_status') == '':
-        # 如果URL中没有order_status参数或者参数为空值，应用默认过滤（排除已取消订单）
-        query = query.filter(FlightOrder.order_status != 'cancelled')
+        query = query.filter(ProjectRef.status == ref_status)
+    elif 'ref_status' not in request.args or request.args.get('ref_status') == '':
+        # 如果URL中没有ref_status参数或者参数为空值，应用默认过滤（排除已取消订单）
+        query = query.filter(ProjectRef.status != 'cancelled')
     
     if payment_status:
-        query = query.filter(FlightOrder.payment_status == payment_status)
+        query = query.filter(ProjectRef.payment_status == payment_status)
     if supplier_name:
-        query = query.filter(FlightOrder.supplier_name == supplier_name)
+        query = query.filter(ProjectRef.supplier.has(name=supplier_name))
 
     # 获取所有活跃的供应商列表供筛选使用
     suppliers = Supplier.query.filter_by(status='active').all()
 
     # 按创建时间倒序排序并分页
-    orders = query.order_by(FlightOrder.created_date.desc()).paginate(
+    results = query.order_by(ProjectRef.created_at.desc()).paginate(
         page=page, per_page=20, error_out=False)
+    
+    # 转换数据格式以兼容模板
+    orders_data = []
+    for result in results.items:
+        ref, header, passenger_count, total_selling, total_cost, first_departure_time, last_arrival_time = result
+        
+        # 获取乘客信息
+        passengers = ProjectFlightPassenger.query.filter_by(ref_id=ref.id).all()
+        
+        # 获取航段信息
+        flight_segments = ProjectFlightSegment.query.filter_by(ref_id=ref.id).order_by(ProjectFlightSegment.departure_time).all()
+        
+        # 构建行程信息
+        itinerary_parts = []
+        for segment in flight_segments:
+            itinerary_parts.append(f"{segment.departure_airport}-{segment.arrival_airport}")
+        itinerary = '/'.join(itinerary_parts) if itinerary_parts else ''
+        
+        # 构建订单数据
+        order_data = {
+            'id': ref.id,
+            'order_number': ref.ref_number,  # 使用REF编号作为订单号
+            'contact_name': ref.contact_name,
+            'contact_person': ref.contact_name,
+            'contact_phone': ref.contact_phone,
+            'supplier_name': ref.supplier.name if ref.supplier else '',
+            'passenger_name': f"{passenger_count}人" if passenger_count else "0人",
+            'departure_date': first_departure_time.date() if first_departure_time else None,
+            'departure_city': flight_segments[0].departure_airport if flight_segments else '',
+            'arrival_city': flight_segments[-1].arrival_airport if flight_segments else '',
+            'flight_number': flight_segments[0].flight_number if flight_segments else '',
+            'departure_time': first_departure_time,
+            'itinerary': itinerary,
+            'selling_price': float(total_selling) if total_selling else 0,
+            'cost_price': float(total_cost) if total_cost else 0,
+            'order_status': ref.status,
+            'payment_status': ref.payment_status,
+            'status': ref.status,
+            'created_date': ref.created_at,
+            'remarks': ref.remarks,
+            'header': header,
+            'ref': ref,
+            'passengers': passengers,
+            'flight_segments': flight_segments
+        }
+        orders_data.append(order_data)
+    
+    # 创建分页对象
+    class PaginationWrapper:
+        def __init__(self, pagination, items):
+            self.items = items
+            self.page = pagination.page
+            self.per_page = pagination.per_page
+            self.total = pagination.total
+            self.pages = pagination.pages
+            self.has_prev = pagination.has_prev
+            self.has_next = pagination.has_next
+            self.prev_num = pagination.prev_num
+            self.next_num = pagination.next_num
+            self.iter_pages = pagination.iter_pages
+    
+    orders = PaginationWrapper(results, orders_data)
     
     return render_template('flights/order_list.html', 
                          orders=orders, 

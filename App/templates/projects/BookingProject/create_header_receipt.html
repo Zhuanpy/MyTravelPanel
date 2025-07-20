@@ -12,21 +12,26 @@
                     <form method="post">
                         {{ form.hidden_tag() }}
                         <div class="row mb-4">
-                            <div class="col-md-6 mb-3">
+                            <div class="col-md-3 mb-3">
                                 <label class="form-label">收款单号</label>
                                 <input type="text" class="form-control" value="{{ receipt_number }}" readonly>
                             </div>
-                            <div class="col-md-6 mb-3">
-                                {{ form.amount.label(class="form-label") }}
-                                {{ form.amount(class="form-control", placeholder="请输入收款金额") }}
-                                {% for error in form.amount.errors %}
+                            <div class="col-md-3 mb-3">
+                                {{ form.currency.label(class="form-label") }}
+                                {{ form.currency(class="form-select") }}
+                                {% for error in form.currency.errors %}
                                     <div class="text-danger small">{{ error }}</div>
                                 {% endfor %}
                             </div>
-                        </div>
-                        <div class="row mb-4">
-                            <div class="col-md-6 mb-3">
-                                {{ form.distribution_method.label(class="form-label") }}
+                            <div class="col-md-3 mb-3">
+                                <div class="d-flex align-items-center">
+                                    {{ form.distribution_method.label(class="form-label mb-0") }}
+                                    <i class="fas fa-question-circle text-info ms-1" 
+                                       style="cursor: pointer;" 
+                                       data-bs-toggle="tooltip" 
+                                       data-bs-placement="top"
+                                       title="分配方式说明：&#10;• 自动分配：系统根据各REF未收款金额按比例自动分配&#10;• 手动指定：手动选择要分配的REF，系统按比例分配"></i>
+                                </div>
                                 {% if form.selected_refs.choices|length == 1 and form.selected_refs.choices[0][0] == 0 %}
                                     {{ form.distribution_method(class="form-select", disabled=true) }}
                                     <div class="form-text text-warning">
@@ -35,22 +40,33 @@
                                     </div>
                                 {% else %}
                                     {{ form.distribution_method(class="form-select") }}
-                                    <div class="form-text">
-                                        <strong>分配方式说明：</strong><br>
-                                        • <strong>自动分配</strong>：系统根据各REF未收款金额按比例自动分配<br>
-                                        • <strong>手动指定</strong>：手动选择要分配的REF，系统按比例分配
-                                    </div>
                                 {% endif %}
                                 {% for error in form.distribution_method.errors %}
                                     <div class="text-danger small">{{ error }}</div>
                                 {% endfor %}
                             </div>
-                            <div class="col-md-6 mb-3">
-                                {{ form.currency.label(class="form-label") }}
-                                {{ form.currency(class="form-select") }}
-                                {% for error in form.currency.errors %}
+                            <div class="col-md-3 mb-3">
+                                <!-- 占位符，保持布局平衡 -->
+                            </div>
+                        </div>
+                        <div class="row mb-4">
+                            <div class="col-md-3 mb-3">
+                                {{ form.amount.label(class="form-label") }}
+                                {{ form.amount(class="form-control", placeholder="请输入收款金额") }}
+                                {% for error in form.amount.errors %}
                                     <div class="text-danger small">{{ error }}</div>
                                 {% endfor %}
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label class="form-label">项目总未收款金额</label>
+                                <input type="text" class="form-control text-danger" value="{{ header.currency or 'SGD' }} {{ '%.2f'|format(unpaid_amount) }}" readonly>
+                                <div class="form-text">
+                                    <i class="fas fa-info-circle text-info"></i>
+                                    如果选择分配到REF，收款金额不能超过此金额
+                                </div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <!-- 占位符，保持布局平衡 -->
                             </div>
                         </div>
                         <!-- 手动分配REF选择 -->
@@ -76,49 +92,45 @@
                             </div>
                         </div>
                         <div class="row mb-4">
-                            <div class="col-md-6 mb-3">
+                            <div class="col-md-3 mb-3">
                                 {{ form.payment_method.label(class="form-label") }}
                                 {{ form.payment_method(class="form-select") }}
                                 {% for error in form.payment_method.errors %}
                                     <div class="text-danger small">{{ error }}</div>
                                 {% endfor %}
                             </div>
-                            <div class="col-md-6 mb-3">
+                            <div class="col-md-3 mb-3">
+                                {{ form.bank_name.label(class="form-label") }}
+                                {{ form.bank_name(class="form-control", placeholder="银行名称") }}
+                            </div>
+                            <div class="col-md-3 mb-3">
                                 {{ form.payment_date.label(class="form-label") }}
                                 {{ form.payment_date(class="form-control") }}
                                 {% for error in form.payment_date.errors %}
                                     <div class="text-danger small">{{ error }}</div>
                                 {% endfor %}
                             </div>
+                            <div class="col-md-3 mb-3">
+                                {{ form.transaction_id.label(class="form-label") }}
+                                {{ form.transaction_id(class="form-control", placeholder="交易流水号") }}
+                            </div>
                         </div>
                         <div class="row mb-4">
-                            <div class="col-md-6 mb-3">
+                            <div class="col-md-3 mb-3">
                                 {{ form.payer_name.label(class="form-label") }}
                                 {{ form.payer_name(class="form-control", placeholder="付款人姓名") }}
                             </div>
-                            <div class="col-md-6 mb-3">
+                            <div class="col-md-3 mb-3">
                                 {{ form.payer_contact.label(class="form-label") }}
                                 {{ form.payer_contact(class="form-control", placeholder="付款人联系方式") }}
                             </div>
-                        </div>
-                        <div class="row mb-4">
-                            <div class="col-md-6 mb-3">
+                            <div class="col-md-3 mb-3">
                                 {{ form.payer_company.label(class="form-label") }}
                                 {{ form.payer_company(class="form-control", placeholder="付款人公司") }}
                             </div>
-                            <div class="col-md-6 mb-3">
-                                {{ form.bank_name.label(class="form-label") }}
-                                {{ form.bank_name(class="form-control", placeholder="银行名称") }}
-                            </div>
-                        </div>
-                        <div class="row mb-4">
-                            <div class="col-md-6 mb-3">
+                            <div class="col-md-3 mb-3">
                                 {{ form.account_number.label(class="form-label") }}
                                 {{ form.account_number(class="form-control", placeholder="账号") }}
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                {{ form.transaction_id.label(class="form-label") }}
-                                {{ form.transaction_id(class="form-control", placeholder="交易流水号") }}
                             </div>
                         </div>
                         <div class="row mb-4">
@@ -127,16 +139,7 @@
                                 {{ form.remarks(class="form-control", rows=2, placeholder="备注") }}
                             </div>
                         </div>
-                        <div class="row mb-4">
-                            <div class="col-md-12 mb-3">
-                                <label class="form-label">项目总未收款金额</label>
-                                <input type="text" class="form-control text-danger" value="{{ header.currency or 'SGD' }} {{ '%.2f'|format(unpaid_amount) }}" readonly>
-                                <div class="form-text">
-                                    <i class="fas fa-info-circle text-info"></i>
-                                    如果选择分配到REF，收款金额不能超过此金额
-                                </div>
-                            </div>
-                        </div>
+
                         <div class="row mt-4">
                             <div class="col-12 d-flex justify-content-between">
                                 <a href="{{ url_for('projects.header_receipts', header_id=header.id) }}" class="btn btn-secondary">
@@ -160,6 +163,14 @@ document.addEventListener('DOMContentLoaded', function() {
     const amountField = document.getElementById('amount');
     const manualSection = document.getElementById('manual-distribution-section');
     const unpaidAmount = {{ unpaid_amount }};
+    
+    // 初始化Bootstrap tooltips
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl, {
+            html: true
+        });
+    });
     
     function updateAmountValidation() {
         const method = distributionMethod.value;

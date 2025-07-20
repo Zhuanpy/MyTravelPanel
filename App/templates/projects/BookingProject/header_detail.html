@@ -188,6 +188,25 @@
     .progress-bar {
         border-radius: 3px;
     }
+    
+    /* REF状态编辑样式 */
+    .status-badge {
+        transition: all 0.2s ease;
+    }
+    
+    .status-badge:hover {
+        transform: scale(1.05);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+    
+    .ref-status-select {
+        border: 1px solid #007bff;
+        border-radius: 20px;
+        padding: 0.25rem 0.5rem;
+        font-size: 0.875rem;
+        background-color: white;
+        min-width: 80px;
+    }
 
     @media (max-width: 1600px) {
         .info-grid {
@@ -413,11 +432,13 @@
                         <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ ref.name or ref.description }}">{{ ref.name or ref.description }}</td>
                         <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                             {% if ref.eos %}
-                                {% for eo in ref.eos %}
-                                    <span class="badge bg-info me-1">{{ eo.eo_number }}</span>
-                                {% endfor %}
+                                <span class="badge bg-info">{{ ref.eos.eo_number }}</span>
                             {% else %}
-                                <span class="text-muted">-</span>
+                                <button type="button" class="btn btn-sm btn-outline-success" 
+                                        onclick="quickCreateEO({{ ref.id }})" 
+                                        title="快速生成EO编号">
+                                    <i class="fas fa-plus"></i>
+                                </button>
                             {% endif %}
                         </td>
                         <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
@@ -461,13 +482,26 @@
                         </td>
                         <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ ref.supplier.name if ref.supplier else '-' }}">{{ ref.supplier.name if ref.supplier else '-' }}</td>
                         <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                            <span class="status-badge status-{{ ref.status }}">
+                            <span class="status-badge status-{{ ref.status }}" 
+                                  id="ref-status-{{ ref.id }}" 
+                                  data-ref-id="{{ ref.id }}" 
+                                  style="cursor: pointer;" 
+                                  onclick="editRefStatus({{ ref.id }})">
                                 {% if ref.status == 'draft' %}草稿
                                 {% elif ref.status == 'processing' %}处理中
                                 {% elif ref.status == 'completed' %}已完成
                                 {% else %}已取消
                                 {% endif %}
                             </span>
+                            <select class="form-select form-select-sm ref-status-select" 
+                                    id="ref-status-select-{{ ref.id }}" 
+                                    style="display: none;"
+                                    onchange="saveRefStatus({{ ref.id }})">
+                                <option value="draft" {% if ref.status == 'draft' %}selected{% endif %}>草稿</option>
+                                <option value="processing" {% if ref.status == 'processing' %}selected{% endif %}>处理中</option>
+                                <option value="completed" {% if ref.status == 'completed' %}selected{% endif %}>已完成</option>
+                                <option value="cancelled" {% if ref.status == 'cancelled' %}selected{% endif %}>已取消</option>
+                            </select>
                         </td>
                         <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                             <div class="action-buttons">
@@ -925,5 +959,102 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 });
+
+// 快速创建EO函数
+function quickCreateEO(refId) {
+    if (confirm('确定要为这个REF快速生成EO编号吗？')) {
+        fetch('/projects/eo/quick_create/' + refId, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            }
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                // 刷新页面以显示新生成的EO编号
+                location.reload();
+            } else {
+                alert(data.message || '生成EO编号失败');
+            }
+        })
+        .catch(() => {
+            alert('网络错误，生成EO编号失败');
+        });
+    }
+}
+
+// REF状态编辑函数
+function editRefStatus(refId) {
+    const statusSpan = document.getElementById('ref-status-' + refId);
+    const statusSelect = document.getElementById('ref-status-select-' + refId);
+    
+    if (statusSpan && statusSelect) {
+        statusSpan.style.display = 'none';
+        statusSelect.style.display = 'inline-block';
+        statusSelect.focus();
+        
+        // 添加ESC键监听
+        statusSelect.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                statusSpan.style.display = 'inline-block';
+                statusSelect.style.display = 'none';
+            }
+        });
+        
+        // 添加失去焦点监听
+        statusSelect.addEventListener('blur', function(e) {
+            // 延迟执行，避免与onchange冲突
+            setTimeout(() => {
+                if (statusSelect.style.display !== 'none') {
+                    statusSpan.style.display = 'inline-block';
+                    statusSelect.style.display = 'none';
+                }
+            }, 100);
+        });
+    }
+}
+
+// 保存REF状态函数
+function saveRefStatus(refId) {
+    const statusSpan = document.getElementById('ref-status-' + refId);
+    const statusSelect = document.getElementById('ref-status-select-' + refId);
+    
+    if (!statusSpan || !statusSelect) return;
+    
+    const newStatus = statusSelect.value;
+    const statusText = statusSelect.options[statusSelect.selectedIndex].text;
+    
+    fetch('/projects/update_ref_status', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: JSON.stringify({ ref_id: refId, status: newStatus })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            // 更新显示的文本和样式
+            statusSpan.textContent = statusText;
+            statusSpan.className = `status-badge status-${newStatus}`;
+            statusSpan.style.display = 'inline-block';
+            statusSelect.style.display = 'none';
+        } else {
+            alert(data.message || '保存失败');
+            // 恢复原来的显示
+            statusSpan.style.display = 'inline-block';
+            statusSelect.style.display = 'none';
+        }
+    })
+    .catch(() => {
+        alert('网络错误，保存失败');
+        // 恢复原来的显示
+        statusSpan.style.display = 'inline-block';
+        statusSelect.style.display = 'none';
+    });
+}
 </script>
 {% endblock %} 
