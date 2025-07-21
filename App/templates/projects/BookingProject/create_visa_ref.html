@@ -25,7 +25,7 @@
                                         {% for country in countries %}
                                             <option value="{{ country.country_name_CN }}" 
                                                     data-country-id="{{ country.id }}"
-                                                    {% if visa_info and visa_info.get('country') == country.country_name_CN %}selected{% endif %}>
+                                                    {% if visa_info and (visa_info.get('country') == country.country_name_CN or visa_info.get('visa_country') == country.country_name_CN) %}selected{% endif %}>
                                                 {{ country.country_name_CN }}
                                             </option>
                                         {% endfor %}
@@ -436,16 +436,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    // 页面加载时，如果有预选的国家，触发change事件
-    {% if visa_info and visa_info.get('country') %}
-    document.addEventListener('DOMContentLoaded', function() {
-        const countrySelect = document.getElementById('country');
-        if (countrySelect.value) {
-            countrySelect.dispatchEvent(new Event('change'));
-        }
-    });
-    {% endif %}
-    
     // 添加字段说明提示
     const tooltips = {
         'country': '请选择申请签证的国家',
@@ -467,6 +457,19 @@ document.addEventListener('DOMContentLoaded', function() {
             field.title = tooltips[fieldName];
         }
     });
+    
+    // 编辑模式：如果有预选的国家，触发change事件来加载签证类型
+    {% if not is_create and visa_info and (visa_info.get('country') or visa_info.get('visa_country')) %}
+    const countrySelect = document.getElementById('country');
+    if (countrySelect && countrySelect.value) {
+        const countryValue = '{{ visa_info.get("country", visa_info.get("visa_country", "")) }}';
+        console.log('编辑模式，预选国家:', countryValue);
+        // 延迟触发change事件，确保DOM完全加载
+        setTimeout(function() {
+            countrySelect.dispatchEvent(new Event('change'));
+        }, 100);
+    }
+    {% endif %}
 });
 </script>
 
