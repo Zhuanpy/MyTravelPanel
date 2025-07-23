@@ -179,28 +179,29 @@ function handleSubmit(form, event) {
         }
     })
     .then(response => {
-        if (!response.ok) {
-            return response.json().then(data => {
-                throw new Error(data.message || '请求失败');
-            });
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.indexOf('application/json') !== -1) {
+            return response.json();
+        } else {
+            return response.text().then(text => { throw new Error(text); });
         }
-        return response.json();
     })
     .then(data => {
         if (data.success) {
-            // 显示成功消息
             showSuccessMessage(data.message);
-            // 不清空表单，保持输入内容
         } else {
             showErrorMessage(data.message || '处理失败，请重试');
         }
     })
     .catch(error => {
-        console.error('Error:', error);
-        showErrorMessage(error.message || '处理出错，请重试');
+        // 这里 error.message 可能是HTML
+        if (error.message && error.message.startsWith('<!DOCTYPE')) {
+            showErrorMessage('服务器返回错误页面，请联系管理员或检查后端日志。');
+        } else {
+            showErrorMessage(error.message || '处理出错，请重试');
+        }
     })
     .finally(() => {
-        // 恢复按钮状态
         submitButton.disabled = false;
         submitButton.innerHTML = submitButton.getAttribute('data-original-text');
     });

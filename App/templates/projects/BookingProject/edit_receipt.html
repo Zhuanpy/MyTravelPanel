@@ -2,14 +2,14 @@
 {% block title %}编辑收款记录 - {{ receipt.receipt_number }}{% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <div class="row">
-        <div class="col-12">
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8 col-md-10">
             <!-- 页面头部 -->
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <div>
                     <h2 class="mb-1">
-                        <i class="fas fa-edit text-warning"></i>
+                        <i class="fas fa-edit text-primary"></i>
                         编辑收款记录
                     </h2>
                     <p class="text-muted mb-0">
@@ -18,17 +18,17 @@
                 </div>
                 <div>
                     <a href="{{ url_for('projects.receipt_detail', receipt_id=receipt.id) }}" 
-                       class="btn btn-secondary">
+                       class="btn btn-outline-secondary">
                         <i class="fas fa-arrow-left"></i> 返回详情
                     </a>
                 </div>
             </div>
 
             <!-- 收款表单 -->
-            <div class="card">
-                <div class="card-header">
+            <div class="card shadow-sm">
+                <div class="card-header bg-light">
                     <h5 class="mb-0">
-                        <i class="fas fa-edit"></i> 收款信息
+                        <i class="fas fa-edit text-primary"></i> 收款信息
                     </h5>
                 </div>
                 <div class="card-body">
@@ -44,7 +44,7 @@
                             
                             <!-- 收款金额 -->
                             <div class="col-md-6 mb-3">
-                                {{ form.amount.label(class="form-label") }}
+                                <label class="form-label">{{ form.amount.label }} <span class="text-danger">*</span></label>
                                 {{ form.amount(class="form-control", placeholder="请输入收款金额") }}
                                 {% if form.amount.errors %}
                                     <div class="text-danger">
@@ -59,7 +59,7 @@
                         <div class="row">
                             <!-- 货币类型 -->
                             <div class="col-md-4 mb-3">
-                                {{ form.currency.label(class="form-label") }}
+                                <label class="form-label">{{ form.currency.label }} <span class="text-danger">*</span></label>
                                 {{ form.currency(class="form-select") }}
                                 {% if form.currency.errors %}
                                     <div class="text-danger">
@@ -72,7 +72,7 @@
                             
                             <!-- 付款方式 -->
                             <div class="col-md-4 mb-3">
-                                {{ form.payment_method.label(class="form-label") }}
+                                <label class="form-label">{{ form.payment_method.label }} <span class="text-danger">*</span></label>
                                 {{ form.payment_method(class="form-select") }}
                                 {% if form.payment_method.errors %}
                                     <div class="text-danger">
@@ -85,7 +85,7 @@
                             
                             <!-- 收款日期 -->
                             <div class="col-md-4 mb-3">
-                                {{ form.payment_date.label(class="form-label") }}
+                                <label class="form-label">{{ form.payment_date.label }} <span class="text-danger">*</span></label>
                                 {{ form.payment_date(class="form-control", type="date") }}
                                 {% if form.payment_date.errors %}
                                     <div class="text-danger">
@@ -142,8 +142,15 @@
                         <div id="bankInfo" style="display: none;">
                             <div class="row">
                                 <div class="col-md-4 mb-3">
-                                    {{ form.bank_name.label(class="form-label") }}
+                                    <label class="form-label">{{ form.bank_name.label }} <span class="text-danger">*</span></label>
                                     {{ form.bank_name(class="form-control", placeholder="银行名称") }}
+                                    {% if form.bank_name.errors %}
+                                        <div class="text-danger">
+                                            {% for error in form.bank_name.errors %}
+                                                <small>{{ error }}</small>
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
                                 </div>
                                 
                                 <div class="col-md-4 mb-3">
@@ -172,12 +179,12 @@
                         </div>
 
                         <!-- 提交按钮 -->
-                        <div class="d-flex justify-content-end gap-2">
+                        <div class="d-flex justify-content-end gap-2 mt-4">
                             <a href="{{ url_for('projects.receipt_detail', receipt_id=receipt.id) }}" 
-                               class="btn btn-secondary">
+                               class="btn btn-outline-secondary">
                                 <i class="fas fa-times"></i> 取消
                             </a>
-                            {{ form.submit(class="btn btn-warning") }}
+                            {{ form.submit(class="btn btn-primary") }}
                         </div>
                     </form>
                 </div>

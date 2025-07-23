@@ -166,6 +166,7 @@ def get_account(account_id):
             'message': f'获取账号信息失败: {str(e)}'
         }), 500
 
+@csrf.exempt
 @account_routes.route('/api/accounts', methods=['POST'])
 def create_account():
     """创建新账号"""
@@ -218,6 +219,7 @@ def create_account():
             'message': f'创建账号失败: {str(e)}'
         }), 500
 
+@csrf.exempt
 @account_routes.route('/api/accounts/<int:account_id>', methods=['PUT'])
 def update_account(account_id):
     """更新账号信息"""
@@ -268,6 +270,7 @@ def update_account(account_id):
             'message': f'更新账号失败: {str(e)}'
         }), 500
 
+@csrf.exempt
 @account_routes.route('/api/accounts/<int:account_id>', methods=['DELETE'])
 def delete_account(account_id):
     try:
@@ -293,6 +296,7 @@ def delete_account(account_id):
             'message': f'删除账号失败: {str(e)}'
         }), 500
 
+@csrf.exempt
 @account_routes.route('/api/accounts/import', methods=['POST'])
 def import_accounts():
     """批量导入账号"""

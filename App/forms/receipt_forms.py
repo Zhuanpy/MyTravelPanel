@@ -119,9 +119,9 @@ class ProjectLevelReceiptForm(FlaskForm):
         Optional()
     ])
     
-    # 银行信息（可选）
+    # 银行信息（必填）
     bank_name = StringField('银行名称', validators=[
-        Optional()
+        DataRequired(message='银行名称不能为空')
     ])
     
     account_number = StringField('账号', validators=[

@@ -8,7 +8,7 @@ class Account(db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     platform = db.Column(db.String(100), nullable=False)
-    website_url = db.Column(db.String(500))  # 网址
+    website_url = db.Column(db.String(2000))  # 网址
     username = db.Column(db.String(100), nullable=False)
     password = db.Column(db.String(100), nullable=False)
     category = db.Column(db.String(50))

@@ -29,6 +29,7 @@ def uob_bank():
 
 
 @statement_blue.route('/open_uob_statement_folder', methods=['GET', 'POST'])
+@csrf.exempt
 def open_uob_statement_folder():
     if request.method == 'GET':
         return redirect(url_for('statement_routes.uob_bank'))
@@ -39,6 +40,7 @@ def open_uob_statement_folder():
 
 
 @statement_blue.route('/uob_bank_processing', methods=['GET', 'POST'])
+@csrf.exempt
 def uob_bank_processing():
     if request.method == 'GET':
         return redirect(url_for('statement_routes.uob_bank'))
@@ -50,6 +52,7 @@ def uob_bank_processing():
 
 
 @statement_blue.route('/uob_original_processing', methods=['GET', 'POST'])
+@csrf.exempt
 def uob_original_processing():
     if request.method == 'GET':
         return redirect(url_for('statement_routes.uob_bank'))
@@ -61,6 +64,7 @@ def uob_original_processing():
 
 
 @statement_blue.route('/latest_company_statement', methods=['GET', 'POST'])
+@csrf.exempt
 def latest_company_statement():
     if request.method == 'GET':
         return redirect(url_for('statement_routes.uob_bank'))
@@ -72,6 +76,7 @@ def latest_company_statement():
 
 
 @statement_blue.route('/latest_self_statement', methods=['GET', 'POST'])
+@csrf.exempt
 def latest_self_statement():
     if request.method == 'GET':
         return redirect(url_for('statement_routes.uob_bank'))
@@ -83,6 +88,7 @@ def latest_self_statement():
 
 
 @statement_blue.route('/statement_to_company', methods=['GET', 'POST'])
+@csrf.exempt
 def statement_to_company():
     if request.method == 'GET':
         return redirect(url_for('statement_routes.uob_bank'))
@@ -100,6 +106,7 @@ def ocbc_bank():
 
 
 @statement_blue.route('/open_ocbc_statement_folder', methods=['GET', 'POST'])
+@csrf.exempt
 def open_ocbc_statement_folder():
     if request.method == 'GET':
         return redirect(url_for('statement_routes.ocbc_bank'))
@@ -110,6 +117,7 @@ def open_ocbc_statement_folder():
 
 
 @statement_blue.route('/ocbc_bank_processing', methods=['GET', 'POST'])
+@csrf.exempt
 def ocbc_bank_processing():
     if request.method == 'GET':
         return redirect(url_for('statement_routes.ocbc_bank'))
@@ -119,6 +127,7 @@ def ocbc_bank_processing():
 
 
 @statement_blue.route('/ocbc_original_processing', methods=['GET', 'POST'])
+@csrf.exempt
 def ocbc_original_processing():
     if request.method == 'GET':
         return redirect(url_for('statement_routes.ocbc_bank'))
@@ -128,6 +137,7 @@ def ocbc_original_processing():
 
 
 @statement_blue.route('/ocbc_latest_company_statement', methods=['GET', 'POST'])
+@csrf.exempt
 def ocbc_latest_company_statement():
     if request.method == 'GET':
         return redirect(url_for('statement_routes.ocbc_bank'))
@@ -137,6 +147,7 @@ def ocbc_latest_company_statement():
 
 
 @statement_blue.route('/ocbc_latest_self_statement', methods=['GET', 'POST'])
+@csrf.exempt
 def ocbc_latest_self_statement():
     if request.method == 'GET':
         return redirect(url_for('statement_routes.ocbc_bank'))
@@ -146,6 +157,7 @@ def ocbc_latest_self_statement():
 
 
 @statement_blue.route('/ocbc_to_company', methods=['GET', 'POST'])
+@csrf.exempt
 def ocbc_to_company():
     if request.method == 'GET':
         return redirect(url_for('statement_routes.ocbc_bank'))
@@ -161,6 +173,7 @@ def cmb_bank():
 
 
 @statement_blue.route('/open_cmb_statement_folder', methods=['GET', 'POST'])
+@csrf.exempt
 def open_cmb_statement_folder():
     if request.method == 'GET':
         return redirect(url_for('statement_routes.cmb_bank'))
@@ -171,6 +184,7 @@ def open_cmb_statement_folder():
 
 
 @statement_blue.route('/cmb_bank_processing', methods=['GET', 'POST'])
+@csrf.exempt
 def cmb_bank_processing():
     if request.method == 'GET':
         return redirect(url_for('statement_routes.cmb_bank'))
@@ -180,6 +194,7 @@ def cmb_bank_processing():
 
 
 @statement_blue.route('/cmb_original_processing', methods=['GET', 'POST'])
+@csrf.exempt
 def cmb_original_processing():
     if request.method == 'GET':
         return redirect(url_for('statement_routes.cmb_bank'))
@@ -189,6 +204,7 @@ def cmb_original_processing():
 
 
 @statement_blue.route('/cmb_latest_company_statement', methods=['GET', 'POST'])
+@csrf.exempt
 def cmb_latest_company_statement():
     if request.method == 'GET':
         return redirect(url_for('statement_routes.cmb_bank'))
@@ -198,6 +214,7 @@ def cmb_latest_company_statement():
 
 
 @statement_blue.route('/cmb_latest_self_statement', methods=['GET', 'POST'])
+@csrf.exempt
 def cmb_latest_self_statement():
     if request.method == 'GET':
         return redirect(url_for('statement_routes.cmb_bank'))
@@ -207,6 +224,7 @@ def cmb_latest_self_statement():
 
 
 @statement_blue.route('/cmb_to_company', methods=['GET', 'POST'])
+@csrf.exempt
 def cmb_to_company():
     if request.method == 'GET':
         return redirect(url_for('statement_routes.cmb_bank'))
@@ -221,6 +239,7 @@ def athina_page():
 
 
 @statement_blue.route('/athina_processing', methods=['GET', 'POST'])
+@csrf.exempt
 def process_all_invoices():
     if request.headers.get('X-Requested-With') != 'XMLHttpRequest' and request.method == 'GET':
         return redirect(url_for('statement_routes.athina_page'))
@@ -232,6 +251,7 @@ def process_all_invoices():
 
 
 @statement_blue.route('/athina_processing_month', methods=['POST'])
+@csrf.exempt
 def process_month_invoice():
     folder_path = Config.BILLING_DATA_PATH / "BOOKING"
     data = request.get_json()
@@ -243,12 +263,14 @@ def process_month_invoice():
 
 
 @statement_blue.route('/open_athina_statement_folder', methods=['GET', 'POST'])
+@csrf.exempt
 def open_athina_statement_folder():
     folder_path = Config.BILLING_DATA_PATH / "BOOKING"
     os.startfile(str(folder_path))
     return redirect(url_for("statement_routes.athina_page"))
 
 @statement_blue.route('/statement/company_bill', methods=['GET', 'POST'])
+@csrf.exempt
 def company_bill():
     if request.method == 'POST':
         folder_path = Config.BILLING_DATA_PATH

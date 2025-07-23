@@ -191,7 +191,6 @@
         <p>完整进程</p>
         <div class="uob-button-group">
             <form action="{{url_for('statement_routes.uob_bank_processing')}}" method="post">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                 <button type="submit" class="uob-button">账单整理</button>
             </form>
         </div>
@@ -202,23 +201,18 @@
         <p>单项进程</p>
         <div class="uob-button-group">
             <form action="{{url_for('statement_routes.uob_original_processing')}}" method="post">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                 <button type="submit" class="uob-button">原始账单整理</button>
             </form>
             <form action="{{url_for('statement_routes.latest_company_statement')}}" method="post">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                 <button type="submit" class="uob-button">公司账单整理</button>
             </form>
             <form action="{{url_for('statement_routes.latest_self_statement')}}" method="post">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                 <button type="submit" class="uob-button">个人账单整理</button>
             </form>
             <form action="{{url_for('statement_routes.uob_original_processing')}}" method="post">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                 <button type="submit" class="uob-button">公司账单</button>
             </form>
             <form action="{{url_for('statement_routes.statement_to_company')}}" method="post">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                 <button type="submit" class="uob-button">最终公司账单</button>
             </form>
         </div>
@@ -229,7 +223,6 @@
         <p>打开项目文件</p>
         <div class="uob-button-group">
             <form action="{{url_for('statement_routes.open_uob_statement_folder')}}" method="post">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                 <button type="submit" class="uob-button folder-btn">打开文件夹</button>
             </form>
         </div>

@@ -437,6 +437,10 @@ def edit_tour_group(group_id):
             print(f"表单数据: {dict(request.form)}")
             print(f"是否是AJAX请求: {request.headers.get('X-Requested-With') == 'XMLHttpRequest'}")
             
+            # 检查出发日期和返回日期是否发生变化（在更新之前保存原始值）
+            old_departure_date = group.departure_date
+            old_return_date = group.return_date
+            
             group.title = request.form.get('title')
             # 转换日期格式
             departure_date_str = request.form.get('departure_date')
@@ -462,9 +466,41 @@ def edit_tour_group(group_id):
             group.excluded_items = request.form.get('excluded_items')
             group.important_notes = request.form.get('important_notes')
             
+            # 保存团信息
             from App import db
             db.session.commit()
             print("团信息更新成功")
+            
+            # 如果出发日期或返回日期发生变化，自动更新行程安排中的日期
+            if (old_departure_date != group.departure_date or old_return_date != group.return_date):
+                print(f"检测到日期变化，开始更新行程安排")
+                print(f"原出发日期: {old_departure_date}, 新出发日期: {group.departure_date}")
+                print(f"原返回日期: {old_return_date}, 新返回日期: {group.return_date}")
+                
+                # 获取该团的所有行程安排，按日期排序
+                itineraries = TourItinerary.query.filter_by(tour_id=group_id).order_by(TourItinerary.date.asc()).all()
+                
+                if itineraries:
+                    # 计算新的日期范围
+                    from datetime import timedelta
+                    
+                    # 更新每个行程的日期
+                    for i, itinerary in enumerate(itineraries):
+                        # 计算新日期：出发日期 + 天数差
+                        new_date = group.departure_date + timedelta(days=i)
+                        
+                        # 确保新日期不超过返回日期
+                        if new_date <= group.return_date:
+                            itinerary.date = new_date
+                            print(f"更新行程 {itinerary.day_title}: {itinerary.date} -> {new_date}")
+                        else:
+                            print(f"警告：行程 {itinerary.day_title} 的新日期 {new_date} 超过返回日期 {group.return_date}")
+                    
+                    # 保存更新后的行程安排
+                    db.session.commit()
+                    print(f"成功更新了 {len(itineraries)} 个行程安排的日期")
+                else:
+                    print("该团没有行程安排，无需更新日期")
             
             # 检查是否是AJAX请求
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':

@@ -841,34 +841,25 @@ class ProjectReceipt(db.Model):
             # 按未收款比例自动分配
             total_unpaid = sum(ref['unpaid'] for ref in unpaid_refs)
             
-            # 如果收款金额正好等于总未收款金额，优先完全覆盖每个REF
-            if abs(float(amount) - total_unpaid) < 0.01:  # 允许0.01的误差
-                for ref_info in unpaid_refs:
-                    if remaining_amount <= 0:
-                        break
-                    # 完全覆盖该REF的未收款金额
-                    allocated = min(ref_info['unpaid'], remaining_amount)
-                    if allocated > 0:
-                        distribution.append({
-                            'ref_id': ref_info['ref'].id,
-                            'amount': allocated,
-                            'method': 'auto'
-                        })
-                        remaining_amount -= allocated
-            else:
-                # 按比例分配
-                for ref_info in unpaid_refs:
-                    if remaining_amount <= 0:
-                        break
+            # 按比例分配
+            for i, ref_info in enumerate(unpaid_refs):
+                if remaining_amount <= 0:
+                    break
+                
+                if i == len(unpaid_refs) - 1:
+                    # 最后一个REF，分配剩余所有金额
+                    allocated = remaining_amount
+                else:
                     # 按比例分配，但不超过该REF的未收款金额
                     allocated = min(ref_info['unpaid'], remaining_amount * (ref_info['unpaid'] / total_unpaid))
-                    if allocated > 0:
-                        distribution.append({
-                            'ref_id': ref_info['ref'].id,
-                            'amount': allocated,
-                            'method': 'auto'
-                        })
-                        remaining_amount -= allocated
+                
+                if allocated > 0:
+                    distribution.append({
+                        'ref_id': ref_info['ref'].id,
+                        'amount': allocated,
+                        'method': 'auto'
+                    })
+                    remaining_amount -= allocated
         
         return {
             'success': True,

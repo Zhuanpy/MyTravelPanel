@@ -76,7 +76,7 @@
                             
                             <!-- 货币类型 -->
                             <div class="col-md-3 mb-3">
-                                {{ form.currency.label(class="form-label") }}
+                                <label class="form-label">{{ form.currency.label }} <span class="text-danger">*</span></label>
                                 {{ form.currency(class="form-select") }}
                                 {% if form.currency.errors %}
                                     <div class="text-danger">
@@ -89,7 +89,7 @@
                             
                             <!-- 收款金额 -->
                             <div class="col-md-3 mb-3">
-                                {{ form.amount.label(class="form-label") }}
+                                <label class="form-label">{{ form.amount.label }} <span class="text-danger">*</span></label>
                                 {{ form.amount(class="form-control", placeholder="请输入收款金额") }}
                                 {% if form.amount.errors %}
                                     <div class="text-danger">
@@ -109,7 +109,7 @@
                         <div class="row">
                             <!-- 付款方式 -->
                             <div class="col-md-2 mb-3">
-                                {{ form.payment_method.label(class="form-label") }}
+                                <label class="form-label">{{ form.payment_method.label }} <span class="text-danger">*</span></label>
                                 {{ form.payment_method(class="form-select") }}
                                 {% if form.payment_method.errors %}
                                     <div class="text-danger">
@@ -128,7 +128,7 @@
                             
                             <!-- 收款日期 -->
                             <div class="col-md-2 mb-3">
-                                {{ form.payment_date.label(class="form-label") }}
+                                <label class="form-label">{{ form.payment_date.label }} <span class="text-danger">*</span></label>
                                 {{ form.payment_date(class="form-control", type="date") }}
                                 {% if form.payment_date.errors %}
                                     <div class="text-danger">

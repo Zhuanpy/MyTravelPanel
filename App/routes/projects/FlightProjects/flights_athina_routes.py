@@ -190,7 +190,7 @@ def athina_page_handler():
                 try:
                     # 获取并验证航班信息
                     flight_number = entry.get('flightNumber', '').strip().replace(" ", "").upper()
-                    flight_date = entry.get('flightDate', '').strip()
+                    flight_date = entry.get('flightDate', '').strip().replace(" ", "").upper()
 
                     print(f"Processing flight {num}: {flight_number} on {flight_date}")  # 调试日志
 

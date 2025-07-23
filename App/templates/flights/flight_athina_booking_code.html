@@ -158,6 +158,46 @@
         box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
     }
 
+    .athina-textarea-container {
+        position: relative;
+        margin-bottom: 1rem;
+    }
+
+    .athina-copy-btn {
+        position: absolute;
+        top: 0.5rem;
+        right: 0.5rem;
+        background-color: var(--primary-color);
+        color: white;
+        border: none;
+        padding: 0.5rem 1rem;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.875rem;
+        font-weight: 500;
+        transition: background-color 0.15s ease;
+        z-index: 10;
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
+
+    .athina-copy-btn:hover {
+        background-color: var(--secondary-color);
+    }
+
+    .athina-copy-btn:active {
+        transform: translateY(1px);
+    }
+
+    .athina-copy-btn.success {
+        background-color: #059669;
+    }
+
+    .athina-copy-btn.success:hover {
+        background-color: #047857;
+    }
+
     .athina-dropdown-list {
         max-height: 200px;
         overflow-y: auto;
@@ -223,7 +263,12 @@
 
         <div class="athina-output-section">
             <h2 class="athina-subtitle">行程代码输出</h2>
-            <textarea id="itinerary" class="athina-textarea" placeholder="生成的行程代码将显示在这里..."></textarea>
+            <div class="athina-textarea-container">
+                <textarea id="itinerary" class="athina-textarea" placeholder="生成的行程代码将显示在这里..."></textarea>
+                <button id="copyBtn" class="athina-copy-btn" onclick="copyToClipboard()" title="复制到剪贴板">
+                    <i class="fas fa-copy"></i> 复制
+                </button>
+            </div>
             <div class="athina-button-container">
                 <button class="athina-button" onclick="sendData()">生成代码</button>
                 <a id="addScheduleBtn" href="{{ url_for('flights_schedule.input_flight_schedule') }}" class="athina-button" style="display: none; text-decoration: none; background-color: var(--secondary-color);">
@@ -239,6 +284,9 @@
 <script>
     // 保存输入框的值到 LocalStorage
     function saveInput(input) {
+        // 去除空格并转换为大写
+        input.value = input.value.replace(/\s/g, '').toUpperCase();
+        
         const key = input.className.split(' ')[0]; // 使用第一个类名作为键
         let history = JSON.parse(localStorage.getItem(key)) || [];
         if (input.value && !history.includes(input.value)) {
@@ -291,6 +339,11 @@
             if (savedValue) {
                 input.value = JSON.parse(savedValue).pop();
             }
+            
+            // 添加实时输入处理：去除空格并转换为大写
+            input.addEventListener('input', function() {
+                this.value = this.value.replace(/\s/g, '').toUpperCase();
+            });
         });
     });
 
@@ -315,6 +368,14 @@
             <button class="athina-delete-btn" onclick="removeInput(this)">删除</button>
         `;
         container.appendChild(inputGroup);
+        
+        // 为新添加的输入框添加实时输入处理
+        const newInputs = inputGroup.querySelectorAll('.flightDate, .flightNumber');
+        newInputs.forEach(input => {
+            input.addEventListener('input', function() {
+                this.value = this.value.replace(/\s/g, '').toUpperCase();
+            });
+        });
     }
 
     // 删除输入框组
@@ -378,6 +439,68 @@
             console.error('Error:', error);
             textarea.value = `发生错误: ${error.message}`;
         });
+    }
+
+    // 复制到剪贴板功能
+    function copyToClipboard() {
+        const textarea = document.getElementById('itinerary');
+        const copyBtn = document.getElementById('copyBtn');
+        
+        if (!textarea.value || textarea.value === '处理中...' || textarea.value.startsWith('错误:')) {
+            alert('没有可复制的内容');
+            return;
+        }
+
+        // 尝试使用现代浏览器的 Clipboard API
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(textarea.value).then(() => {
+                showCopySuccess(copyBtn);
+            }).catch(err => {
+                console.error('复制失败:', err);
+                fallbackCopyTextToClipboard(textarea.value, copyBtn);
+            });
+        } else {
+            // 降级方案：使用传统的 document.execCommand
+            fallbackCopyTextToClipboard(textarea.value, copyBtn);
+        }
+    }
+
+    // 降级复制方案
+    function fallbackCopyTextToClipboard(text, copyBtn) {
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        textArea.style.top = '-999999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        
+        try {
+            const successful = document.execCommand('copy');
+            if (successful) {
+                showCopySuccess(copyBtn);
+            } else {
+                alert('复制失败，请手动选择文本并复制');
+            }
+        } catch (err) {
+            console.error('复制失败:', err);
+            alert('复制失败，请手动选择文本并复制');
+        }
+        
+        document.body.removeChild(textArea);
+    }
+
+    // 显示复制成功状态
+    function showCopySuccess(copyBtn) {
+        const originalText = copyBtn.innerHTML;
+        copyBtn.innerHTML = '<i class="fas fa-check"></i> 已复制';
+        copyBtn.classList.add('success');
+        
+        setTimeout(() => {
+            copyBtn.innerHTML = originalText;
+            copyBtn.classList.remove('success');
+        }, 2000);
     }
 </script>
 {% endblock %}

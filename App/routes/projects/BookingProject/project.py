@@ -811,7 +811,6 @@ def edit_header(header_id):
             header.remarks = form.remarks.data
             
             db.session.commit()
-            flash('项目主表更新成功！', 'success')
             return redirect(url_for('projects.header_detail', header_id=header.id))
         except Exception as e:
             db.session.rollback()
@@ -1190,8 +1189,8 @@ def create_tour_ref(header_id):
                 leader_name=request.form.get('leader_name', ''),
                 selling_price=float(request.form.get('selling_price', 0)) if request.form.get('selling_price') else None,
                 cost_price=float(request.form.get('cost_price', 0)) if request.form.get('cost_price') else None,
-                expected_delivery_date=request.form.get('departure_date'),
-                actual_delivery_date=request.form.get('end_date'),
+                expected_delivery_date=datetime.strptime(request.form.get('departure_date'), '%Y-%m-%d').date() if request.form.get('departure_date') else None,
+                actual_delivery_date=datetime.strptime(request.form.get('end_date'), '%Y-%m-%d').date() if request.form.get('end_date') else None,
                 status=request.form.get('status') or 'draft',
                 payment_status='unpaid',
                 currency='SGD',
@@ -1270,8 +1269,8 @@ def create_visa_ref(header_id):
                 status=request.form.get('status') or 'draft',
                 payment_status='unpaid',
                 currency='SGD',
-                expected_delivery_date=request.form.get('expected_delivery_date'),
-                actual_delivery_date=request.form.get('actual_delivery_date'),
+                expected_delivery_date=datetime.strptime(request.form.get('expected_delivery_date'), '%Y-%m-%d').date() if request.form.get('expected_delivery_date') else None,
+                actual_delivery_date=datetime.strptime(request.form.get('actual_delivery_date'), '%Y-%m-%d').date() if request.form.get('actual_delivery_date') else None,
                 remarks=request.form.get('remarks', '')
             )
             
@@ -1377,8 +1376,8 @@ def create_insurance_ref(header_id):
                 leader_name=request.form.get('leader_name', ''),
                 selling_price=float(request.form.get('selling_price', 0)) if request.form.get('selling_price') else None,
                 cost_price=float(request.form.get('cost_price', 0)) if request.form.get('cost_price') else None,
-                expected_delivery_date=request.form.get('expected_delivery_date'),
-                actual_delivery_date=request.form.get('actual_delivery_date'),
+                expected_delivery_date=datetime.strptime(request.form.get('expected_delivery_date'), '%Y-%m-%d').date() if request.form.get('expected_delivery_date') else None,
+                actual_delivery_date=datetime.strptime(request.form.get('actual_delivery_date'), '%Y-%m-%d').date() if request.form.get('actual_delivery_date') else None,
                 status=request.form.get('status') or 'draft',
                 payment_status='unpaid',
                 currency='SGD',
@@ -1492,8 +1491,8 @@ def create_other_ref(header_id):
                 selling_price=float(request.form.get('selling_price', 0)) if request.form.get('selling_price') else None,
                 cost_price=float(request.form.get('cost_price', 0)) if request.form.get('cost_price') else None,
                 currency='SGD',
-                expected_delivery_date=request.form.get('expected_delivery_date'),
-                actual_delivery_date=request.form.get('actual_delivery_date'),
+                expected_delivery_date=datetime.strptime(request.form.get('expected_delivery_date'), '%Y-%m-%d').date() if request.form.get('expected_delivery_date') else None,
+                actual_delivery_date=datetime.strptime(request.form.get('actual_delivery_date'), '%Y-%m-%d').date() if request.form.get('actual_delivery_date') else None,
                 status=request.form.get('status') or 'draft',
                 payment_status='unpaid',
                 remarks=request.form.get('remarks', '')
@@ -1536,8 +1535,14 @@ def edit_other_ref(ref_id):
             ref.leader_name = request.form.get('leader_name', '')
             ref.selling_price = float(request.form.get('selling_price', 0)) if request.form.get('selling_price') else None
             ref.cost_price = float(request.form.get('cost_price', 0)) if request.form.get('cost_price') else None
-            ref.expected_delivery_date = request.form.get('expected_delivery_date')
-            ref.actual_delivery_date = request.form.get('actual_delivery_date')
+            
+            # 处理日期字段，空字符串转换为None
+            expected_date = request.form.get('expected_delivery_date')
+            ref.expected_delivery_date = datetime.strptime(expected_date, '%Y-%m-%d').date() if expected_date else None
+            
+            actual_date = request.form.get('actual_delivery_date')
+            ref.actual_delivery_date = datetime.strptime(actual_date, '%Y-%m-%d').date() if actual_date else None
+            
             ref.status = request.form.get('status') or 'draft'
             ref.remarks = request.form.get('remarks', '')
             
@@ -1583,8 +1588,14 @@ def edit_visa_ref(ref_id):
             ref.leader_name = request.form.get('leader_name', '')
             ref.selling_price = float(request.form.get('selling_price', 0)) if request.form.get('selling_price') else None
             ref.cost_price = float(request.form.get('cost_price', 0)) if request.form.get('cost_price') else None
-            ref.expected_delivery_date = request.form.get('expected_delivery_date')
-            ref.actual_delivery_date = request.form.get('actual_delivery_date')
+            
+            # 处理日期字段，空字符串转换为None
+            expected_date = request.form.get('expected_delivery_date')
+            ref.expected_delivery_date = datetime.strptime(expected_date, '%Y-%m-%d').date() if expected_date else None
+            
+            actual_date = request.form.get('actual_delivery_date')
+            ref.actual_delivery_date = datetime.strptime(actual_date, '%Y-%m-%d').date() if actual_date else None
+            
             ref.status = request.form.get('status') or 'draft'
             ref.remarks = request.form.get('remarks', '')
             
@@ -1647,8 +1658,14 @@ def edit_insurance_ref(ref_id):
             ref.leader_name = request.form.get('leader_name', '')
             ref.selling_price = float(request.form.get('selling_price', 0)) if request.form.get('selling_price') else None
             ref.cost_price = float(request.form.get('cost_price', 0)) if request.form.get('cost_price') else None
-            ref.expected_delivery_date = request.form.get('expected_delivery_date')
-            ref.actual_delivery_date = request.form.get('actual_delivery_date')
+            
+            # 处理日期字段，空字符串转换为None
+            expected_date = request.form.get('expected_delivery_date')
+            ref.expected_delivery_date = datetime.strptime(expected_date, '%Y-%m-%d').date() if expected_date else None
+            
+            actual_date = request.form.get('actual_delivery_date')
+            ref.actual_delivery_date = datetime.strptime(actual_date, '%Y-%m-%d').date() if actual_date else None
+            
             ref.status = request.form.get('status') or 'draft'
             ref.remarks = request.form.get('remarks', '')
             
@@ -1751,6 +1768,21 @@ def update_header_contact():
         return jsonify({'success': False, 'message': '项目不存在'})
     header.contact = contact
     db.session.commit()
+    return jsonify({'success': True})
+
+@projects.route('/update_header_remarks', methods=['POST'])
+@csrf.exempt
+def update_header_remarks():
+    data = request.get_json()
+    header_id = data.get('header_id')
+    remarks = data.get('remarks', '').strip()
+    if not header_id:
+        return jsonify({'success': False, 'message': '参数错误'})
+    header = ProjectHeader.query.get(header_id)
+    if not header:
+        return jsonify({'success': False, 'message': '项目不存在'})
+    header.remarks = remarks
+    db.session.commit()
     return jsonify({'success': True}) 
 
 @projects.route('/ref/edit_tour/<int:ref_id>', methods=['GET', 'POST'])
@@ -1773,8 +1805,14 @@ def edit_tour_ref(ref_id):
             ref.leader_name = request.form.get('leader_name', '')
             ref.selling_price = float(request.form.get('selling_price', 0)) if request.form.get('selling_price') else None
             ref.cost_price = float(request.form.get('cost_price', 0)) if request.form.get('cost_price') else None
-            ref.expected_delivery_date = request.form.get('departure_date')
-            ref.actual_delivery_date = request.form.get('end_date')
+            
+            # 处理日期字段，空字符串转换为None
+            departure_date = request.form.get('departure_date')
+            ref.expected_delivery_date = datetime.strptime(departure_date, '%Y-%m-%d').date() if departure_date else None
+            
+            end_date = request.form.get('end_date')
+            ref.actual_delivery_date = datetime.strptime(end_date, '%Y-%m-%d').date() if end_date else None
+            
             ref.status = request.form.get('status') or 'draft'
             ref.remarks = request.form.get('remarks', '')
             
@@ -1996,21 +2034,22 @@ def edit_receipt(receipt_id):
             db.session.flush()
             
             # 重新查询REF以获取最新的收款记录
-            ref = ProjectRef.query.get(receipt.ref_id)
-            
-            # 更新REF的付款状态
-            # 计算总收款金额（只计算已确认的收款记录）
-            total_received = sum(float(r.amount) for r in ref.receipts if r.status == 'confirmed')
-            if total_received >= ref.selling_price:
-                ref.payment_status = 'paid'
-            elif total_received > 0:
-                ref.payment_status = 'partial'
-            else:
-                ref.payment_status = 'unpaid'
+            if receipt.ref_id:
+                ref = ProjectRef.query.get(receipt.ref_id)
+                
+                # 更新REF的付款状态
+                # 计算总收款金额（只计算已确认的收款记录）
+                total_received = sum(float(r.amount) for r in ref.receipts if r.status == 'confirmed')
+                if total_received >= ref.selling_price:
+                    ref.payment_status = 'paid'
+                elif total_received > 0:
+                    ref.payment_status = 'partial'
+                else:
+                    ref.payment_status = 'unpaid'
             
             db.session.commit()
             
-            return redirect(url_for('projects.header_detail', header_id=receipt.header_id))
+            return redirect(url_for('projects.header_receipts', header_id=receipt.header_id))
             
         except Exception as e:
             db.session.rollback()
@@ -2035,25 +2074,27 @@ def delete_receipt(receipt_id):
         db.session.flush()
         
         # 重新查询REF以获取最新的收款记录
-        ref = ProjectRef.query.get(receipt.ref_id)
-        
-        # 更新REF的付款状态
-        # 计算总收款金额（只计算已确认的收款记录）
-        total_received = sum(float(r.amount) for r in ref.receipts if r.status == 'confirmed')
-        if total_received >= ref.selling_price:
-            ref.payment_status = 'paid'
-        elif total_received > 0:
-            ref.payment_status = 'partial'
-        else:
-            ref.payment_status = 'unpaid'
+        if receipt.ref_id:
+            ref = ProjectRef.query.get(receipt.ref_id)
+            
+            # 更新REF的付款状态
+            # 计算总收款金额（只计算已确认的收款记录）
+            total_received = sum(float(r.amount) for r in ref.receipts if r.status == 'confirmed')
+            if total_received >= ref.selling_price:
+                ref.payment_status = 'paid'
+            elif total_received > 0:
+                ref.payment_status = 'partial'
+            else:
+                ref.payment_status = 'unpaid'
         
         db.session.commit()
+        flash('收款记录删除成功！', 'success')
         
     except Exception as e:
         db.session.rollback()
         flash(f'删除失败：{str(e)}', 'error')
     
-    return redirect(url_for('projects.header_detail', header_id=header_id))
+    return redirect(url_for('projects.header_receipts', header_id=header_id))
 
 @projects.route('/receipt/<int:receipt_id>/status', methods=['POST'])
 @csrf.exempt
@@ -2076,17 +2117,18 @@ def update_receipt_status(receipt_id):
         db.session.flush()
         
         # 重新查询REF以获取最新的收款记录
-        ref = ProjectRef.query.get(receipt.ref_id)
-        
-        # 更新REF的付款状态
-        # 计算总收款金额（只计算已确认的收款记录）
-        total_received = sum(float(r.amount) for r in ref.receipts if r.status == 'confirmed')
-        if total_received >= ref.selling_price:
-            ref.payment_status = 'paid'
-        elif total_received > 0:
-            ref.payment_status = 'partial'
-        else:
-            ref.payment_status = 'unpaid'
+        if receipt.ref_id:
+            ref = ProjectRef.query.get(receipt.ref_id)
+            
+            # 更新REF的付款状态
+            # 计算总收款金额（只计算已确认的收款记录）
+            total_received = sum(float(r.amount) for r in ref.receipts if r.status == 'confirmed')
+            if total_received >= ref.selling_price:
+                ref.payment_status = 'paid'
+            elif total_received > 0:
+                ref.payment_status = 'partial'
+            else:
+                ref.payment_status = 'unpaid'
         
         db.session.commit()
         
@@ -2398,10 +2440,14 @@ def edit_header_receipt(header_id, receipt_id):
             db.session.rollback()
             flash(f'更新失败：{str(e)}', 'error')
     
+    # 获取项目的未付款金额
+    unpaid_amount = ProjectReceipt.get_project_unpaid_amount(header_id)
+    
     return render_template('projects/BookingProject/edit_header_receipt.html',
                          form=form,
                          header=header,
-                         receipt=receipt)
+                         receipt=receipt,
+                         unpaid_amount=unpaid_amount)
 
 @projects.route('/header/<int:header_id>/receipt/<int:receipt_id>/delete', methods=['POST'])
 @csrf.exempt

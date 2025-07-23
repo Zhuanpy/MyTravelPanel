@@ -1,12 +1,12 @@
 {% extends "base.html" %}
-{% block title %}新增项目收款 - {{ header.hid }}{% endblock %}
+{% block title %}编辑项目收款 - {{ header.hid }}{% endblock %}
 {% block content %}
 <div class="container mt-4">
     <div class="row justify-content-center">
         <div class="col-md-8">
             <div class="card shadow-sm">
-                <div class="card-header bg-success text-white">
-                    <h4 class="mb-0"><i class="fas fa-money-bill-wave"></i> 新增项目收款</h4>
+                <div class="card-header bg-warning text-white">
+                    <h4 class="mb-0"><i class="fas fa-edit"></i> 编辑项目收款</h4>
                 </div>
                 <div class="card-body">
                     <form method="post">
@@ -14,7 +14,7 @@
                         <div class="row mb-4">
                             <div class="col-md-3 mb-3">
                                 <label class="form-label">收款单号</label>
-                                <input type="text" class="form-control" value="{{ receipt_number }}" readonly>
+                                <input type="text" class="form-control" value="{{ receipt.receipt_number }}" readonly>
                             </div>
                             <div class="col-md-3 mb-3">
                                 <label class="form-label">{{ form.currency.label }} <span class="text-danger">*</span></label>
@@ -51,19 +51,19 @@
                         </div>
                         <div class="row mb-4">
                             <div class="col-md-3 mb-3">
+                                <label class="form-label">{{ form.amount.label }} <span class="text-danger">*</span></label>
+                                {{ form.amount(class="form-control", placeholder="请输入收款金额") }}
+                                {% for error in form.amount.errors %}
+                                    <div class="text-danger small">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                            <div class="col-md-3 mb-3">
                                 <label class="form-label">项目总未收款金额</label>
                                 <input type="text" class="form-control text-danger" value="{{ header.currency or 'SGD' }} {{ '%.2f'|format(unpaid_amount) }}" readonly>
                                 <div class="form-text">
                                     <i class="fas fa-info-circle text-info"></i>
                                     如果选择分配到REF，收款金额不能超过此金额
                                 </div>
-                            </div>
-                            <div class="col-md-3 mb-3">
-                                <label class="form-label">{{ form.amount.label }} <span class="text-danger">*</span></label>
-                                {{ form.amount(class="form-control", placeholder="请输入收款金额") }}
-                                {% for error in form.amount.errors %}
-                                    <div class="text-danger small">{{ error }}</div>
-                                {% endfor %}
                             </div>
                             <div class="col-md-6 mb-3">
                                 <!-- 占位符，保持布局平衡 -->
@@ -122,36 +122,47 @@
                             <div class="col-md-3 mb-3">
                                 {{ form.payer_name.label(class="form-label") }}
                                 {{ form.payer_name(class="form-control", placeholder="付款人姓名") }}
+                                {% for error in form.payer_name.errors %}
+                                    <div class="text-danger small">{{ error }}</div>
+                                {% endfor %}
                             </div>
                             <div class="col-md-3 mb-3">
                                 {{ form.payer_contact.label(class="form-label") }}
-                                {{ form.payer_contact(class="form-control", placeholder="付款人联系方式") }}
+                                {{ form.payer_contact(class="form-control", placeholder="电话/邮箱") }}
+                                {% for error in form.payer_contact.errors %}
+                                    <div class="text-danger small">{{ error }}</div>
+                                {% endfor %}
                             </div>
                             <div class="col-md-3 mb-3">
                                 {{ form.payer_company.label(class="form-label") }}
                                 {{ form.payer_company(class="form-control", placeholder="付款人公司") }}
+                                {% for error in form.payer_company.errors %}
+                                    <div class="text-danger small">{{ error }}</div>
+                                {% endfor %}
                             </div>
                             <div class="col-md-3 mb-3">
                                 {{ form.account_number.label(class="form-label") }}
                                 {{ form.account_number(class="form-control", placeholder="账号") }}
+                                {% for error in form.account_number.errors %}
+                                    <div class="text-danger small">{{ error }}</div>
+                                {% endfor %}
                             </div>
                         </div>
                         <div class="row mb-4">
                             <div class="col-md-12 mb-3">
                                 {{ form.remarks.label(class="form-label") }}
-                                {{ form.remarks(class="form-control", rows=4, placeholder="备注") }}
+                                {{ form.remarks(class="form-control", rows="3", placeholder="备注信息") }}
+                                {% for error in form.remarks.errors %}
+                                    <div class="text-danger small">{{ error }}</div>
+                                {% endfor %}
                             </div>
                         </div>
-
-                        <div class="row mt-4">
-                            <div class="col-12 d-flex justify-content-between">
-                                <a href="{{ url_for('projects.header_receipts', header_id=header.id) }}" class="btn btn-secondary">
-                                    <i class="fas fa-arrow-left"></i> 返回收款列表
-                                </a>
-                                <button type="submit" class="btn btn-success">
-                                    <i class="fas fa-save"></i> 保存收款记录
-                                </button>
-                            </div>
+                        <div class="d-flex justify-content-end gap-2">
+                            <a href="{{ url_for('projects.header_receipts', header_id=header.id) }}" 
+                               class="btn btn-secondary">
+                                <i class="fas fa-times"></i> 取消
+                            </a>
+                            {{ form.submit(class="btn btn-warning", value="更新收款记录") }}
                         </div>
                     </form>
                 </div>
@@ -162,48 +173,27 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const distributionMethod = document.getElementById('distribution_method');
-    const amountField = document.getElementById('amount');
-    const manualSection = document.getElementById('manual-distribution-section');
-    const unpaidAmount = {{ unpaid_amount }};
+    const distributionMethodSelect = document.getElementById('distribution_method');
+    const manualDistributionSection = document.getElementById('manual-distribution-section');
     
-    // 初始化Bootstrap tooltips
+    // 根据分配方式显示/隐藏手动分配部分
+    function toggleManualDistribution() {
+        const selectedMethod = distributionMethodSelect.value;
+        if (selectedMethod === 'manual') {
+            manualDistributionSection.style.display = 'block';
+        } else {
+            manualDistributionSection.style.display = 'none';
+        }
+    }
+    
+    distributionMethodSelect.addEventListener('change', toggleManualDistribution);
+    toggleManualDistribution(); // 初始化显示状态
+    
+    // 初始化工具提示
     var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
     var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-        return new bootstrap.Tooltip(tooltipTriggerEl, {
-            html: true
-        });
+        return new bootstrap.Tooltip(tooltipTriggerEl);
     });
-    
-    function updateAmountValidation() {
-        const method = distributionMethod.value;
-        const amount = parseFloat(amountField.value) || 0;
-        
-        if (method !== 'project_level' && amount > unpaidAmount) {
-            amountField.setCustomValidity(`收款金额不能超过未收款总额：{{ header.currency or 'SGD' }} ${unpaidAmount.toFixed(2)}`);
-        } else {
-            amountField.setCustomValidity('');
-        }
-    }
-    
-    function toggleManualSection() {
-        const method = distributionMethod.value;
-        if (method === 'manual') {
-            manualSection.style.display = 'block';
-        } else {
-            manualSection.style.display = 'none';
-        }
-    }
-    
-    distributionMethod.addEventListener('change', function() {
-        updateAmountValidation();
-        toggleManualSection();
-    });
-    amountField.addEventListener('input', updateAmountValidation);
-    
-    // 初始验证和显示
-    updateAmountValidation();
-    toggleManualSection();
 });
 </script>
 {% endblock %} 

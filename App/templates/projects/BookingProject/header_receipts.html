@@ -2,14 +2,14 @@
 {% block title %}项目收款记录 - {{ header.hid }}{% endblock %}
 
 {% block content %}
-<div class="container">
-    <div class="row">
-        <div class="col-12">
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-10 col-md-12">
             <!-- 页面头部 -->
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <div>
                     <h2 class="mb-1">
-                        <i class="fas fa-money-bill-wave text-success"></i>
+                        <i class="fas fa-money-bill-wave text-primary"></i>
                         项目收款记录
                     </h2>
                     <p class="text-muted mb-0">
@@ -18,18 +18,22 @@
                     </p>
                 </div>
                 <div class="d-flex gap-2">
+                    <a href="{{ url_for('projects.header_detail', header_id=header.id) }}" 
+                       class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left"></i> 返回项目详情
+                    </a>
                     <a href="{{ url_for('projects.create_header_receipt', header_id=header.id) }}" 
-                       class="btn btn-success">
+                       class="btn btn-primary">
                         <i class="fas fa-plus"></i> 新增项目收款
                     </a>
                 </div>
             </div>
 
             <!-- 财务概览卡片 -->
-            <div class="card mb-4">
-                <div class="card-header bg-primary text-white">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-light">
                     <h5 class="mb-0">
-                        <i class="fas fa-chart-pie"></i> 财务概览
+                        <i class="fas fa-chart-pie text-primary"></i> 财务概览
                     </h5>
                 </div>
                 <div class="card-body">
@@ -82,11 +86,11 @@
             </div>
 
             <!-- 收款记录 -->
-            <div class="card">
-                <div class="card-header bg-info text-white">
+            <div class="card shadow-sm">
+                <div class="card-header bg-light">
                     <h5 class="mb-0">
-                        <i class="fas fa-list"></i> 收款记录
-                        <span class="badge bg-light text-dark ms-2">{{ all_receipts|length }}</span>
+                        <i class="fas fa-list text-primary"></i> 收款记录
+                        <span class="badge bg-primary text-white ms-2">{{ all_receipts|length }}</span>
                     </h5>
                 </div>
                 <div class="card-body">
@@ -160,13 +164,17 @@
                                     </td>
                                     <td>
                                         <div class="btn-group btn-group-sm">
+                                            <a href="{{ url_for('projects.receipt_detail', receipt_id=receipt.id) }}" 
+                                               class="btn btn-outline-info" title="查看详情">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
                                             <a href="{{ url_for('projects.edit_receipt', receipt_id=receipt.id) }}" 
-                                               class="btn btn-warning">
+                                               class="btn btn-outline-warning" title="编辑">
                                                 <i class="fas fa-edit"></i>
                                             </a>
                                             {% if receipt.ref_id %}
                                             <a href="{{ url_for('projects.ref_receipts', ref_id=receipt.ref_id) }}" 
-                                               class="btn btn-info">
+                                               class="btn btn-outline-primary" title="REF收款">
                                                 <i class="fas fa-list"></i>
                                             </a>
                                             {% endif %}
@@ -186,13 +194,7 @@
                 </div>
             </div>
             
-            <!-- 底部按钮 -->
-            <div class="d-flex justify-content-end mt-4 mb-4">
-                <a href="{{ url_for('projects.header_detail', header_id=header.id) }}" 
-                   class="btn btn-secondary">
-                    <i class="fas fa-arrow-left"></i> 返回项目详情
-                </a>
-            </div>
+
         </div>
     </div>
 </div>

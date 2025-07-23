@@ -33,6 +33,8 @@ class FlightData:
         """
 
         try:
+            # 确保航班日期去除空格并转换为大写
+            flight_date = flight_date.replace(" ", "").upper()
             # 航班时刻表数据
             city = data['schedule_city'].split(" ")
             city = [item for item in city if item != ""]

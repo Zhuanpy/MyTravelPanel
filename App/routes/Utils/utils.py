@@ -5,6 +5,7 @@ import subprocess
 import os
 import traceback
 from flask import current_app
+from App.exts import csrf
 
 # 创建蓝图
 utils_process = Blueprint('utils_process', __name__)
@@ -19,6 +20,7 @@ def file_processing():
     return render_template('utils/pdf.html')
 
 
+@csrf.exempt
 @utils_process.route('/pdf_to_pdf', methods=['POST'])
 def merge_pdf_to_pdf():
     try:
@@ -49,6 +51,7 @@ def merge_pdf_to_pdf():
         return redirect(url_for('utils_process.file_processing'))
 
 
+@csrf.exempt
 @utils_process.route('/images_to_pdf', methods=['POST'])
 def merge_images_to_pdf():
     try:
@@ -79,6 +82,7 @@ def merge_images_to_pdf():
         return redirect(url_for('utils_process.file_processing'))
 
 
+@csrf.exempt
 @utils_process.route('/word_to_pdf', methods=['POST'])
 def word_to_pdf():
     try:
@@ -165,6 +169,7 @@ def word_to_pdf():
         flash(error_msg)
         return redirect(url_for('utils_process.file_processing'))
 
+@csrf.exempt
 @utils_process.route('/split_screenshot_to_pdf', methods=['POST'])
 def split_screenshot_to_pdf():
     try:

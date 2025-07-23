@@ -934,9 +934,9 @@ html body .tour-project-edit-page .modal .form-grid {
                                 <table class="itinerary-table">
                                     <thead>
                                         <tr>
+                                            <th>日期</th>
                                             <th>天数</th>
                                             <th>日期标题</th>
-                                            <th>日期</th>
                                             <th>行程内容</th>
                                             <th>操作</th>
                                         </tr>
@@ -944,9 +944,9 @@ html body .tour-project-edit-page .modal .form-grid {
                                     <tbody>
                                         {% for itinerary in group.itineraries %}
                                         <tr>
+                                            <td>{{ itinerary.date.strftime('%Y-%m-%d') }}</td>
                                             <td>第{{ loop.index }}天</td>
                                             <td>{{ itinerary.day_title }}</td>
-                                            <td>{{ itinerary.date.strftime('%Y-%m-%d') }}</td>
                                             <td>{{ itinerary.content[:100] }}{% if itinerary.content|length > 100 %}...{% endif %}</td>
                                             <td>
                                                 <div class="action-buttons">
@@ -1461,6 +1461,45 @@ function updateGroup() {
     const formData = new FormData(form);
     const groupId = document.getElementById('editGroupId').value;
     
+    // 检查日期变化
+    const departureDate = document.getElementById('editGroupDepartureDate').value;
+    const returnDate = document.getElementById('editGroupReturnDate').value;
+    
+    // 获取原始日期（从页面显示的信息中获取）
+    const groupCard = document.querySelector(`[data-group-id="${groupId}"]`);
+    let originalDepartureDate = '';
+    let originalReturnDate = '';
+    
+    if (groupCard) {
+        const departureText = groupCard.querySelector('.info-item:nth-child(1) .info-value').textContent.trim();
+        const returnText = groupCard.querySelector('.info-item:nth-child(2) .info-value').textContent.trim();
+        
+        // 转换日期格式
+        if (departureText) {
+            const parts = departureText.split('-');
+            if (parts.length === 3) {
+                originalDepartureDate = `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+            }
+        }
+        
+        if (returnText) {
+            const parts = returnText.split('-');
+            if (parts.length === 3) {
+                originalReturnDate = `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+            }
+        }
+    }
+    
+    // 检查日期是否发生变化
+    const dateChanged = (departureDate !== originalDepartureDate) || (returnDate !== originalReturnDate);
+    
+    if (dateChanged) {
+        const confirmMessage = '您修改了出发日期或返回日期，系统将自动调整行程安排中的日期。是否继续？';
+        if (!confirm(confirmMessage)) {
+            return;
+        }
+    }
+    
     // 显示加载状态
     const updateBtn = document.querySelector('#editGroupModal .btn-primary');
     const originalText = updateBtn.textContent;
@@ -1482,7 +1521,11 @@ function updateGroup() {
     })
     .then(data => {
         if (data.success) {
-            showAlert('团队信息更新成功！', 'success');
+            let message = '团队信息更新成功！';
+            if (dateChanged) {
+                message += ' 行程安排中的日期已自动调整。';
+            }
+            showAlert(message, 'success');
             setTimeout(() => {
                 location.reload();
             }, 1000);
@@ -1545,7 +1588,7 @@ function addItinerary(groupId) {
     // 获取当前团队的所有行程日期
     const groupCard = document.querySelector(`[data-group-id="${groupId}"]`);
     if (groupCard) {
-        const dateCells = groupCard.querySelectorAll('.itinerary-table tbody td:nth-child(3)');
+        const dateCells = groupCard.querySelectorAll('.itinerary-table tbody td:nth-child(1)');
         let latestDate = null;
         
         // 找到最新的日期
