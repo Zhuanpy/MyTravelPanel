@@ -344,10 +344,13 @@ function renderAccountRow(account) {
             <td>${account.country ? account.country + (account.region ? '/' + account.region : '') : ''}</td>
             <td>
                 <div class="action-buttons">
-                    <button class="btn btn-secondary btn-sm" onclick="editAccount(${account.id})">
+                    <button class="btn btn-info btn-sm" onclick="viewAccountDetail(${account.id})" title="查看详情">
+                        <i class="fas fa-eye"></i> 详情
+                    </button>
+                    <button class="btn btn-secondary btn-sm" onclick="editAccount(${account.id})" title="编辑">
                         <i class="fas fa-edit"></i> 编辑
                     </button>
-                    <button class="btn btn-danger btn-sm" onclick="deleteAccount(${account.id})">
+                    <button class="btn btn-danger btn-sm" onclick="deleteAccount(${account.id})" title="删除">
                         <i class="fas fa-trash"></i> 删除
                     </button>
                 </div>
@@ -1009,3 +1012,8 @@ document.addEventListener('DOMContentLoaded', function() {
         downloadTemplateBtn.addEventListener('click', downloadTemplate);
     }
 }); 
+
+// 查看账号详情
+function viewAccountDetail(accountId) {
+    window.location.href = `/account/accounts/${accountId}`;
+}

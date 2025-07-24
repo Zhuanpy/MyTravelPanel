@@ -18,7 +18,20 @@ logger = logging.getLogger(__name__)
 @account_routes.route('/accounts')
 def account_page():
     """账号管理页面路由"""
-    return render_template('utils/账号管理.html')
+    return render_template('utils/account_manage.html')
+
+@account_routes.route('/accounts/<int:account_id>')
+def account_detail(account_id):
+    """账号详细页面路由"""
+    try:
+        account = Account.query.get(account_id)
+        if not account:
+            return render_template('errors/404.html'), 404
+        
+        return render_template('utils/account_detail.html', account=account)
+    except Exception as e:
+        logger.error(f"Error fetching account detail: {str(e)}")
+        return render_template('errors/404.html'), 404
 
 @account_routes.route('/api/accounts/increment_click/<int:account_id>', methods=['POST'])
 @csrf.exempt

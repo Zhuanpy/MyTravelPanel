@@ -6,8 +6,8 @@
 <!-- 强制刷新脚本 -->
 <script>
     // 检查是否需要强制刷新页面以清除缓存
-    if (!localStorage.getItem('cache_version') || localStorage.getItem('cache_version') !== '20250414-8') {
-        localStorage.setItem('cache_version', '20250414-8');
+    if (!localStorage.getItem('cache_version') || localStorage.getItem('cache_version') !== '20250415-1') {
+        localStorage.setItem('cache_version', '20250415-1');
         // 如果URL中没有强制刷新参数，添加参数并刷新页面
         if (window.location.href.indexOf('force_refresh=true') === -1) {
             const separator = window.location.href.indexOf('?') !== -1 ? '&' : '?';
@@ -20,8 +20,8 @@
 <meta name="csrf-token" content="{{ csrf_token }}">
 
 <!-- 页面特定的样式 -->
-<!-- <link rel="stylesheet" href="{{ url_for('static', filename='css/account_list.css') }}?v=20250414-8">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/modal.css') }}?v=20250414-8"> -->
+<!-- <link rel="stylesheet" href="{{ url_for('static', filename='css/account_list.css') }}?v=20250415-1">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/modal.css') }}?v=20250415-1"> -->
 <style>
 /* 手动覆盖任何可能冲突的样式 */
 body {
@@ -817,6 +817,29 @@ nav.navbar {
 <!-- 添加账号表单提交处理 -->
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+        // 检查URL参数，如果有edit参数则自动打开编辑模态框
+        const urlParams = new URLSearchParams(window.location.search);
+        const editAccountId = urlParams.get('edit');
+        
+        if (editAccountId) {
+            // 等待页面加载完成后自动打开编辑模态框
+            setTimeout(() => {
+                if (typeof editAccount === 'function') {
+                    editAccount(parseInt(editAccountId));
+                } else {
+                    console.error('editAccount function not found');
+                    // 如果函数还没加载，再等待一段时间
+                    setTimeout(() => {
+                        if (typeof editAccount === 'function') {
+                            editAccount(parseInt(editAccountId));
+                        } else {
+                            console.error('editAccount function still not found after retry');
+                        }
+                    }, 2000);
+                }
+            }, 1500);
+        }
+        
         // 获取添加账号提交按钮
         const submitAddAccountBtn = document.getElementById('submitAddAccount');
         

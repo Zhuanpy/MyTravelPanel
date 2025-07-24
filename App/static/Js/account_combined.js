@@ -794,10 +794,13 @@ function renderAccountRow(account) {
     actionsCell.className = 'actions-cell';
     actionsCell.innerHTML = `
         <div class="btn-group">
-            <button class="btn btn-sm btn-primary" onclick="editAccount(${account.id})">
+            <button class="btn btn-sm btn-info" onclick="viewAccountDetail(${account.id})" title="查看详情">
+                <i class="fas fa-eye"></i>
+            </button>
+            <button class="btn btn-sm btn-primary" onclick="editAccount(${account.id})" title="编辑">
                 <i class="fas fa-edit"></i>
             </button>
-            <button class="btn btn-sm btn-danger" onclick="deleteAccount(${account.id})">
+            <button class="btn btn-sm btn-danger" onclick="deleteAccount(${account.id})" title="删除">
                 <i class="fas fa-trash"></i>
             </button>
         </div>
@@ -1385,3 +1388,8 @@ document.addEventListener('DOMContentLoaded', async function() {
         console.log('导入按钮事件已绑定');
     }
 }); 
+
+// 查看账号详情
+function viewAccountDetail(accountId) {
+    window.location.href = `/account/accounts/${accountId}`;
+}
