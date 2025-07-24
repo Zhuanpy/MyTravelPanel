@@ -112,3 +112,6 @@ htmlcov/
 nosetests.xml
 coverage.xml
 *.cover
+
+# Test and debug scripts
+scripts/
