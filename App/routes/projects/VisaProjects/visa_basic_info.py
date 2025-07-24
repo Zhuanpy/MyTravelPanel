@@ -34,6 +34,7 @@ def add_to_db(instance):
 
 """ visa singapore  identity start """
 @visa_basic.route('/manage_identities', methods=['GET', 'POST'])
+@csrf.exempt
 def manage_identities():
     """管理新加坡身份信息"""
     if request.method == 'POST':
@@ -158,6 +159,7 @@ def edit_identity(identity_id):
 """ visa  country start """
 
 @visa_basic.route('/manage_countries', methods=['GET', 'POST'])
+@csrf.exempt
 def manage_countries():
     if request.method == 'POST':
         try:
@@ -343,6 +345,7 @@ def visa_type_list():
                          pagination=pagination)
 
 @visa_basic.route('/add_visa_type', methods=['GET', 'POST'])
+@csrf.exempt
 def add_visa_type():
     if request.method == 'POST':
         try:
@@ -408,22 +411,22 @@ def add_visa_type():
             flash(f'添加失败: {str(e)}', 'error')
             return redirect(url_for('visa_basic.visa_type_list'))
 
-    # GET 请求处理 - 返回所有需要的数据
+    # GET 请求处理 - 渲染添加页面
     countries = VisaCountries.query.order_by(VisaCountries.country_name_CN).all()
     singapore_identities = VisaSingaporeIdentity.query\
         .filter(VisaSingaporeIdentity.identity_zh != 'SHARE')\
         .order_by(VisaSingaporeIdentity.identity_zh)\
         .all()
     
-    return jsonify({
-        'countries': [{'id': c.id, 'name': c.country_name_CN} for c in countries],
-        'identities': [{'id': i.id, 'name': i.identity_zh} for i in singapore_identities]
-    })
+    return render_template('visas/签证类型管理/visa_type_add.html', 
+                         countries=countries,
+                         singapore_identities=singapore_identities)
 
 class EditVisaTypeForm(FlaskForm):
     value = StringField('值', validators=[DataRequired()])
 
 @visa_basic.route('/visa/edit_visa_type/<visa_type>/<field>', methods=['GET', 'POST'])
+@csrf.exempt
 def edit_visa_type(visa_type, field):
     """编辑签证类型信息"""
     try:
@@ -597,20 +600,34 @@ def edit_visa_type(visa_type, field):
 @visa_basic.route('/visa/delete_visa_type/<visa_type>', methods=['POST'])
 @csrf.exempt
 def delete_visa_type(visa_type):
+    print(f"DEBUG: 开始删除签证类型: {visa_type}")
     try:
         # 获取签证类型记录
         visa_type_record = VisaTypes.query.filter_by(visa_type=visa_type).first_or_404()
+        print(f"DEBUG: 找到签证类型记录: ID={visa_type_record.id}")
         
         # 删除相关的文档记录
-        VisaDocuments.query.join(VisaTypes).filter(VisaTypes.visa_type == visa_type).delete()
+        deleted_docs = VisaDocuments.query.filter_by(visa_type_id=visa_type_record.id).delete()
+        print(f"DEBUG: 删除了 {deleted_docs} 个相关文档记录")
+        
+        # 删除相关的链接记录
+        from App.models.Product.Visamodels import VisaLinks
+        deleted_links = VisaLinks.query.filter_by(visa_type_id=visa_type_record.id).delete()
+        print(f"DEBUG: 删除了 {deleted_links} 个相关链接记录")
+        
+        # 清空多对多关系
+        visa_type_record.identities.clear()
+        print(f"DEBUG: 清空了身份关联")
         
         # 删除签证类型记录
         db.session.delete(visa_type_record)
         db.session.commit()
+        print(f"DEBUG: 签证类型删除成功")
         
         flash('签证类型删除成功！', 'success')
     except Exception as e:
         db.session.rollback()
+        print(f"DEBUG: 删除失败，错误: {str(e)}")
         flash(f'删除失败：{str(e)}', 'error')
     
     # 获取当前的国家筛选参数
@@ -620,6 +637,7 @@ def delete_visa_type(visa_type):
     if country_id:
         redirect_url += f'?country={country_id}'
     
+    print(f"DEBUG: 重定向到: {redirect_url}")
     return redirect(redirect_url)
 
 """ about visa type end """

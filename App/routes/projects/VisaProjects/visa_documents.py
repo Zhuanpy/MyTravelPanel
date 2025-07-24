@@ -17,6 +17,7 @@ import html
 visa_documents = Blueprint('visa_documents', __name__)
 
 @visa_documents.route('/manage_visas', methods=['GET', 'POST'])
+@csrf.exempt
 def manage_visas():
     if request.method == 'POST':
         try:
@@ -140,6 +141,7 @@ def manage_visas():
                          pagination=pagination)
 
 @visa_documents.route('/add_document', methods=['GET', 'POST'])
+@csrf.exempt
 def add_document():
     if request.method == 'GET':
         visa_type = request.args.get('visa_type', '')

@@ -133,7 +133,7 @@
         <form id="editForm" method="POST">
             <input type="hidden" id="visaType" name="visa_type">
             <input type="hidden" id="fieldType" name="field">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div id="modalContent"></div>
             <div style="text-align: right; margin-top: 20px;">
                 <button type="button" onclick="closeEditModal()" style="background-color: #6b7280; color: white; border: none; padding: 8px 16px; border-radius: 4px; margin-right: 10px; cursor: pointer;">取消</button>
@@ -150,7 +150,7 @@
         <h2 style="margin-bottom: 20px; font-size: 20px; font-weight: bold; color: #dc2626;">确认删除</h2>
         <p id="deleteConfirmText" style="margin-bottom: 20px;">确定要删除这个签证类型吗？此操作不可恢复。</p>
         <form id="deleteForm" method="POST">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div style="text-align: right;">
                 <button type="button" onclick="closeDeleteModal()" style="background-color: #6b7280; color: white; border: none; padding: 8px 16px; border-radius: 4px; margin-right: 10px; cursor: pointer;">取消</button>
                 <button type="submit" style="background-color: #dc2626; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">确认删除</button>
@@ -165,7 +165,7 @@
         <span class="close" onclick="closeAddModal()" style="position: absolute; right: 20px; top: 10px; font-size: 24px; cursor: pointer;">&times;</span>
         <h2 style="margin-bottom: 20px; font-size: 20px; font-weight: bold;">添加签证类型</h2>
         <form id="addForm" method="POST" action="{{ url_for('visa_basic.add_visa_type') }}">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div style="margin-bottom: 20px;">
                 <label style="display: block; margin-bottom: 8px; font-weight: 500;">签证类型名称：</label>
                 <input type="text" name="visa_type" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">

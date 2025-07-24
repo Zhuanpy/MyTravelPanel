@@ -72,6 +72,10 @@ def create_app():
     # 初始化插件
     init_exts(app=app)
     migrate.init_app(app, db)
+    
+    # 确保CSRF保护正确初始化
+    from .exts import csrf
+    csrf.init_app(app)
 
     # 注册错误处理器
     register_error_handlers(app)
@@ -79,7 +83,7 @@ def create_app():
     app.register_blueprint(dex)
 
     # 推荐使用环境变量来设置 SECRET_KEY，确保安全性
-    app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'a_default_secret_key')  # 替换为实际的密钥
+    app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')  # 使用配置中的默认值
 
     # 配置缓存
     app.config['CACHE_TYPE'] = 'simple'
