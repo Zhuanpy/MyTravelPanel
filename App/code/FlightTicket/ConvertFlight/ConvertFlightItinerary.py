@@ -24,9 +24,12 @@ def organize_text(texts):
         :param time_str: 时间字符串（如 1635 或 0525）
         :return: 格式化后的时间字符串（如 16:35 或 05:25）
         """
+        if not time_str or len(time_str) < 4:
+            print(f"Invalid time format: {time_str}")
+            return "00:00"
+            
         if len(time_str) == 5:
             return f'{time_str[:3]}:{time_str[-2:]}'
-
         else:
             return f'{time_str[:2]}:{time_str[-2:]}'
 
@@ -46,12 +49,23 @@ def organize_text(texts):
 
         if len(li) < 10:
             continue
+            
+        # 安全检查机场代码格式
+        airport_code = li[5]
+        if len(airport_code) < 6:
+            print(f"Invalid airport code format: {airport_code}")
+            continue
+            
         # 格式化机场代码（如 PVG - SIN）
-        li[5] = f'{li[5][:3]} - {li[5][-3:]}'
+        li[5] = f'{airport_code[:3]} - {airport_code[-3:]}'
 
-        # 格式化出发时间和到达时间
-        li[7] = format_time(li[7])
-        li[8] = format_time(li[8])
+        # 安全检查时间格式
+        try:
+            li[7] = format_time(li[7])
+            li[8] = format_time(li[8])
+        except (IndexError, ValueError) as e:
+            print(f"Error formatting time: {e}")
+            continue
 
         # 如果航班号长度小于4，填充前导零使其长度为4
         if len(li[2]) < 4:
@@ -106,34 +120,45 @@ def format_flight_info(city_language, texts: str, language='CN', luggage=None, p
 
     # 遍历处理每个航班信息
     for li in lis:
+        try:
+            if len(li) < 9:
+                print(f"Insufficient flight data: {li}")
+                continue
 
-        iti_num = li[0]
-        airline_code = li[1]
-        flight_code = li[2]
-        departure_date = li[4]
-        airport_code= li[5]
-        departure_time= li[7]
-        arrival_time = li[8]
+            iti_num = li[0]
+            airline_code = li[1]
+            flight_code = li[2]
+            departure_date = li[4]
+            airport_code = li[5]
+            departure_time = li[7]
+            arrival_time = li[8]
 
-        # 提取出发和到达机场代码
-        dep_iata = airport_code[:3]
-        arr_iata = airport_code[-3:]
+            # 提取出发和到达机场代码
+            # 机场代码现在已经是 "XXX - YYY" 格式
+            if ' - ' not in airport_code:
+                print(f"Invalid airport code format: {airport_code}")
+                continue
+                
+            dep_iata, arr_iata = airport_code.split(' - ')
 
-        dep_city_language = city_language(dep_iata)
-        arr_iata_language = city_language(arr_iata)
+            dep_city_language = city_language(dep_iata)
+            arr_iata_language = city_language(arr_iata)
 
-        # 如果是中文，则需要将日期格式进行转换
-        if language == 'CN':
-            departure_date = convert_date_format(departure_date)
+            # 如果是中文，则需要将日期格式进行转换
+            if language == 'CN':
+                departure_date = convert_date_format(departure_date)
 
-        # 格式化航班信息
-        dep_code = dep_city_language[0] if language == 'CN' else dep_city_language[1]
-        arr_code = arr_iata_language[0] if language == 'CN' else arr_iata_language[1]
+            # 格式化航班信息
+            dep_code = dep_city_language[0] if language == 'CN' else dep_city_language[1]
+            arr_code = arr_iata_language[0] if language == 'CN' else arr_iata_language[1]
 
-        itinerary_list.append(format_template(iti_num, dep_code, arr_code,
-                                              airline_code, flight_code,
-                                              departure_date, departure_time,
-                                              arrival_time, language))
+            itinerary_list.append(format_template(iti_num, dep_code, arr_code,
+                                                  airline_code, flight_code,
+                                                  departure_date, departure_time,
+                                                  arrival_time, language))
+        except (IndexError, ValueError) as e:
+            print(f"Error processing flight data: {e}")
+            continue
 
     # 拼接所有的航班信息
     itn = ''.join(itinerary_list)

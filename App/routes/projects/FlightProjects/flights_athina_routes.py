@@ -9,30 +9,36 @@ flights_athina = Blueprint('flights_athina', __name__, url_prefix='/flights_athi
 
 def init_cache(app):
     """初始化缓存"""
+    # 暂时使用简单缓存，避免Redis连接问题
     cache.init_app(app, config={
-        'CACHE_TYPE': 'redis',
-        'CACHE_REDIS_URL': 'redis://localhost:6379/0',
+        'CACHE_TYPE': 'simple',
         'CACHE_DEFAULT_TIMEOUT': 300
     })
 
 def city_language(city_name: str):
     if not city_name:  # 检查输入是否为空
+        print(f"city_language called with empty city_name")
         return "未知机场", "Unknown Airport"
 
     try:
+        print(f"city_language called with city_name: {city_name}")
         # 只查询需要的列，减少查询开销
         airport = AirportData.query.with_entities(
             AirportData.airport_name_cn, AirportData.airport_name_en
         ).filter_by(airport_IATA=city_name).first()
 
         if not airport:  # 检查查询结果是否为空
+            print(f"No airport data found for IATA code: {city_name}")
             return "未知机场", "Unknown Airport"
 
         name_cn, name_en = airport  # 解包查询结果
+        print(f"Found airport data: {name_cn}, {name_en}")
         return name_cn, name_en
     except Exception as e:
         # 打印错误日志（可选）
-        print(f"Error fetching airport data: {e}")
+        print(f"Error fetching airport data for {city_name}: {e}")
+        import traceback
+        print(f"Traceback: {traceback.format_exc()}")
         return "未知机场", "Unknown Airport"
 
 @cache.memoize(timeout=300)
@@ -78,12 +84,16 @@ def itinerary_conversion():
         try:
             print(f"Received form data: {dict(request.form)}")  # 调试信息
             
-            input_text = request.form.get('input_text', '')
+            input_text = request.form.get('input_text', '').strip()
             language = request.form.get('language', 'chinese')
-            luggage = request.form.get('luggage', '')
-            price = request.form.get('price', '')
+            luggage = request.form.get('luggage', '').strip()
+            price = request.form.get('price', '').strip()
             
             print(f"Parsed data - input_text: '{input_text}', language: '{language}', luggage: '{luggage}', price: '{price}'")  # 调试信息
+            
+            # 验证输入
+            if not input_text:
+                return jsonify({'error': '请输入航班信息'}), 400
 
             # 根据选择的语言进行文字转换
             output_text = ""
@@ -103,7 +113,19 @@ def itinerary_conversion():
             
         except Exception as e:
             print(f"Error in itinerary_conversion: {str(e)}")
-            return jsonify({'error': str(e)}), 500
+            import traceback
+            print(f"Full traceback: {traceback.format_exc()}")
+            
+            # 提供更详细的错误信息
+            error_message = f'服务器内部错误: {str(e)}'
+            if 'list index out of range' in str(e):
+                error_message = '航班信息格式不正确，请检查输入格式'
+            elif 'database' in str(e).lower():
+                error_message = '数据库连接错误，请稍后重试'
+            elif 'cache' in str(e).lower():
+                error_message = '缓存服务错误，请稍后重试'
+            
+            return jsonify({'error': error_message}), 500
 
 
 # 机票 行程转换

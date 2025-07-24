@@ -340,6 +340,9 @@
             const formData = new FormData(form);
             
             // 发送 AJAX 请求
+            console.log('Sending request to:', form.action);
+            console.log('Form data:', Object.fromEntries(formData));
+            
             fetch(form.action, {
                 method: 'POST',
                 body: formData,
@@ -348,13 +351,27 @@
                 }
             })
             .then(response => {
+                console.log('Response status:', response.status);
+                console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+                
                 if (response.redirected) {
                     window.location.href = response.url;
                     return;
                 }
                 
+                // 检查响应状态
+                if (!response.ok) {
+                    console.log('Response not ok, trying to parse error JSON...');
+                    // 如果是错误状态，尝试解析JSON错误信息
+                    return response.json().catch(() => {
+                        // 如果无法解析JSON，抛出通用错误
+                        throw new Error(`服务器错误 (${response.status}): ${response.statusText}`);
+                    });
+                }
+                
                 // 检查响应的 Content-Type
                 const contentType = response.headers.get('content-type');
+                console.log('Content-Type:', contentType);
                 if (contentType && contentType.includes('application/json')) {
                     return response.json();
                 } else {
@@ -363,8 +380,10 @@
                 }
             })
             .then(data => {
+                console.log('Received data:', data);
                 if (data) {
                     if (data.error) {
+                        console.log('Error in response:', data.error);
                         // 显示错误消息
                         alert(data.error);
                         // 如果是因为 CSRF token 过期，刷新页面
@@ -372,6 +391,7 @@
                             window.location.reload();
                         }
                     } else if (data.output_text) {
+                        console.log('Success, updating output text');
                         // 更新输出文本
                         document.getElementById('output_text').value = data.output_text;
                     }
@@ -380,11 +400,14 @@
             .catch(error => {
                 console.error('Error:', error);
                 // 显示更友好的错误消息
-                alert('提交失败：' + error.message + '\n请刷新页面后重试');
-                // 如果是 CSRF 相关错误，自动刷新页面
-                if (error.message.includes('CSRF')) {
-                    window.location.reload();
+                let errorMessage = '提交失败：' + error.message;
+                if (error.message.includes('500')) {
+                    errorMessage = '服务器内部错误，请稍后重试。如果问题持续存在，请联系管理员。';
+                } else if (error.message.includes('CSRF')) {
+                    errorMessage = '会话已过期，页面将自动刷新。';
+                    setTimeout(() => window.location.reload(), 2000);
                 }
+                alert(errorMessage);
             });
         });
 

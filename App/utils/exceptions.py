@@ -62,7 +62,12 @@ def register_error_handlers(app):
         """处理自定义异常"""
         logger.error(f"TravelPanel Exception: {error.message}")
         
-        if request.is_json:
+        # 检查是否是AJAX请求（包括FormData请求）
+        is_ajax = (request.is_json or 
+                  request.headers.get('X-Requested-With') == 'XMLHttpRequest' or
+                  request.headers.get('Content-Type', '').startswith('multipart/form-data'))
+        
+        if is_ajax:
             return jsonify(error.to_dict()), error.status_code
         else:
             return render_template('errors/error.html', 
@@ -79,7 +84,12 @@ def register_error_handlers(app):
             'field': error.field
         }
         
-        if request.is_json:
+        # 检查是否是AJAX请求（包括FormData请求）
+        is_ajax = (request.is_json or 
+                  request.headers.get('X-Requested-With') == 'XMLHttpRequest' or
+                  request.headers.get('Content-Type', '').startswith('multipart/form-data'))
+        
+        if is_ajax:
             return jsonify(response), error.status_code
         else:
             return render_template('errors/validation_error.html', 
@@ -90,8 +100,13 @@ def register_error_handlers(app):
         """处理404错误"""
         logger.warning(f"404 Error: {request.url}")
         
-        if request.is_json:
-            return jsonify({'message': 'Resource not found', 'status_code': 404}), 404
+        # 检查是否是AJAX请求（包括FormData请求）
+        is_ajax = (request.is_json or 
+                  request.headers.get('X-Requested-With') == 'XMLHttpRequest' or
+                  request.headers.get('Content-Type', '').startswith('multipart/form-data'))
+        
+        if is_ajax:
+            return jsonify({'error': 'Resource not found', 'status_code': 404}), 404
         else:
             return render_template('errors/404.html'), 404
     
@@ -100,8 +115,13 @@ def register_error_handlers(app):
         """处理500错误"""
         logger.error(f"Internal Server Error: {str(error)}")
         
-        if request.is_json:
-            return jsonify({'message': 'Internal server error', 'status_code': 500}), 500
+        # 检查是否是AJAX请求（包括FormData请求）
+        is_ajax = (request.is_json or 
+                  request.headers.get('X-Requested-With') == 'XMLHttpRequest' or
+                  request.headers.get('Content-Type', '').startswith('multipart/form-data'))
+        
+        if is_ajax:
+            return jsonify({'error': 'Internal server error', 'status_code': 500}), 500
         else:
             return render_template('errors/500.html'), 500
     
@@ -110,9 +130,14 @@ def register_error_handlers(app):
         """处理HTTP异常"""
         logger.warning(f"HTTP Exception: {error.code} - {error.description}")
         
-        if request.is_json:
+        # 检查是否是AJAX请求（包括FormData请求）
+        is_ajax = (request.is_json or 
+                  request.headers.get('X-Requested-With') == 'XMLHttpRequest' or
+                  request.headers.get('Content-Type', '').startswith('multipart/form-data'))
+        
+        if is_ajax:
             return jsonify({
-                'message': error.description,
+                'error': error.description,
                 'status_code': error.code
             }), error.code
         else:
