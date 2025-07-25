@@ -407,7 +407,7 @@ class ProjectEO(db.Model):
 
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     ref_id = db.Column(db.Integer, db.ForeignKey('project_refs.id'), nullable=False, comment='REF明细ID')
-    eo_number = db.Column(db.String(30), unique=True, nullable=False, comment='EO编号')
+    eo_number = db.Column(db.String(30), unique=True, nullable=False, comment='EO编号（格式化显示）')
     name = db.Column(db.String(100), nullable=True, comment='EO订单名称')
     supplier_type = db.Column(db.Enum('visa', 'flight', 'hotel', 'transport', 'local_operator', 'other'),
                               nullable=False, comment='供应商类型')
@@ -466,24 +466,12 @@ class ProjectEO(db.Model):
         """格式化金额显示"""
         return f"{self.currency} {float(self.amount):,.2f}"
 
-    @classmethod
-    def generate_eo_number(cls, ref_number=None):
-        """生成EO编号"""
-        # 格式: E + 2位序号, 例如: E01, E02, E03...
-        last_eo = cls.query.order_by(cls.eo_number.desc()).first()
-
-        if last_eo:
-            # 提取最后一个EO编号中的数字部分
-            try:
-                last_number = int(last_eo.eo_number[1:])  # 去掉'E'前缀，取数字部分
-                new_number = str(last_number + 1).zfill(2)
-            except ValueError:
-                # 如果解析失败，从01开始
-                new_number = '01'
-        else:
-            new_number = '01'
-
-        return f'E{new_number}'
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        # 如果没有设置eo_number，自动生成一个临时编号
+        if not self.eo_number:
+            # 生成一个临时编号，保存时会被替换
+            self.eo_number = 'TEMP'
 
 class RefOrderItem(db.Model):
     """REF订单项目表"""

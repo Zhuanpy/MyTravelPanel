@@ -1875,9 +1875,6 @@ def quick_create_eo(ref_id):
                 'message': f'REF {ref.ref_number} 已经存在EO编号 {existing_eo.eo_number}'
             }), 400
         
-        # 生成EO编号
-        eo_number = ProjectEO.generate_eo_number()
-        
         # 根据REF类型推断供应商类型
         supplier_type = 'other'
         if ref.ref_type:
@@ -1898,7 +1895,6 @@ def quick_create_eo(ref_id):
         # 创建EO
         eo = ProjectEO(
             ref_id=ref.id,
-            eo_number=eo_number,
             name=ref.name or ref.description or f"{ref.ref_type.name if ref.ref_type else 'REF'}订单",
             supplier_type=supplier_type,
             supplier_id=ref.supplier_id or 1,  # 如果没有供应商，使用默认供应商
@@ -1911,13 +1907,20 @@ def quick_create_eo(ref_id):
             status='confirmed'
         )
         
+        # 先保存获取ID
         db.session.add(eo)
+        db.session.flush()  # 获取ID但不提交
+        
+        # 使用ID生成EO编号
+        eo.eo_number = f'E{str(eo.id).zfill(3)}'
+        
+        # 提交事务
         db.session.commit()
         
         return jsonify({
             'success': True,
-            'message': f'EO {eo_number} 创建成功！',
-            'eo_number': eo_number
+            'message': f'EO {eo.eo_number} 创建成功！',
+            'eo_number': eo.eo_number
         })
         
     except Exception as e:
