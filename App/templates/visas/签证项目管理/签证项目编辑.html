@@ -165,6 +165,16 @@
         box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.15);
     }
     
+    .auto-resize {
+        overflow-y: hidden;
+        transition: height 0.2s ease;
+    }
+    
+    .auto-resize:focus {
+        border-color: #4299e1;
+        box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.15);
+    }
+    
     .visa-project-form-error {
         display: none;
         color: #c53030;
@@ -330,8 +340,8 @@
             <div class="visa-project-form-row">
                 <div class="visa-project-form-group" style="width: 100%; padding: 0 10px;">
                     <label for="remarks">备注信息</label>
-                    <textarea class="visa-project-form-control" id="remarks" name="remarks" 
-                              placeholder="添加备注信息" rows="6">{{ project.remarks or '' }}</textarea>
+                    <textarea class="visa-project-form-control auto-resize" id="remarks" name="remarks" 
+                              placeholder="添加备注信息" rows="3" style="min-height: 80px; resize: vertical;">{{ project.remarks or '' }}</textarea>
                 </div>
             </div>
 
@@ -374,6 +384,31 @@
             locale: "zh",
             dateFormat: "Y-m-d",
             allowInput: true
+        });
+        
+        // 自动调整文本框高度功能
+        function autoResizeTextarea(textarea) {
+            // 重置高度以获取正确的scrollHeight
+            textarea.style.height = 'auto';
+            // 设置新高度
+            textarea.style.height = Math.max(textarea.scrollHeight, 80) + 'px';
+        }
+        
+        // 为所有自动调整的文本框添加事件监听
+        const autoResizeTextareas = document.querySelectorAll('.auto-resize');
+        autoResizeTextareas.forEach(textarea => {
+            // 初始化时调整高度
+            autoResizeTextarea(textarea);
+            
+            // 输入时调整高度
+            textarea.addEventListener('input', function() {
+                autoResizeTextarea(this);
+            });
+            
+            // 焦点时调整高度
+            textarea.addEventListener('focus', function() {
+                autoResizeTextarea(this);
+            });
         });
         
         // 处理生成表格按钮
