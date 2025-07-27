@@ -418,3 +418,60 @@ class VisaProjectDocumentStatus(db.Model):
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
 
+
+class VisaTemplateFiles(db.Model):
+    """签证模板文件模型"""
+    __tablename__ = 'visa_template_files'
+    
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    visa_type_id = db.Column(db.Integer, db.ForeignKey('visa_types.id', ondelete='CASCADE'), nullable=False)
+    singapore_identity_id = db.Column(db.Integer, db.ForeignKey('visa_singapore_identity.id', ondelete='CASCADE'), nullable=True)  # 允许为空，表示共用模板
+    template_name = db.Column(db.String(200), nullable=False)  # 模板名称
+    template_type = db.Column(db.String(100), nullable=False)  # 模板类型：公司信、邀请信、申请表等
+    file_path = db.Column(db.String(500), nullable=False)  # 文件路径
+    file_size = db.Column(db.Integer, nullable=True)  # 文件大小（字节）
+    file_type = db.Column(db.String(50), nullable=True)  # 文件类型（扩展名）
+    description = db.Column(db.Text, nullable=True)  # 模板描述
+    is_active = db.Column(db.Boolean, default=True)  # 是否激活
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # 关系定义
+    visa_type = db.relationship('VisaTypes', backref=db.backref('template_files', lazy='dynamic'))
+    singapore_identity = db.relationship('VisaSingaporeIdentity', backref=db.backref('template_files', lazy='dynamic'))
+    
+    def __repr__(self):
+        return f'<VisaTemplateFile(id={self.id}, template_name="{self.template_name}", visa_type_id={self.visa_type_id})>'
+    
+    def to_dict(self):
+        """转换为字典格式"""
+        return {
+            'id': self.id,
+            'visa_type_id': self.visa_type_id,
+            'visa_type_name': self.visa_type.visa_type if self.visa_type else None,
+            'singapore_identity_id': self.singapore_identity_id,
+            'identity_name': self.singapore_identity.identity_zh if self.singapore_identity else '共用',
+            'template_name': self.template_name,
+            'template_type': self.template_type,
+            'file_path': self.file_path,
+            'file_size': self.file_size,
+            'file_type': self.file_type,
+            'description': self.description,
+            'is_active': self.is_active,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+        }
+    
+    @classmethod
+    def get_templates_by_visa_type(cls, visa_type_id, identity_id=None):
+        """根据签证类型和身份获取模板文件"""
+        query = cls.query.filter_by(visa_type_id=visa_type_id, is_active=True)
+        if identity_id is not None:
+            query = query.filter_by(singapore_identity_id=identity_id)
+        return query.order_by(cls.template_type, cls.template_name).all()
+    
+    @classmethod
+    def get_template_types(cls):
+        """获取所有模板类型"""
+        return db.session.query(cls.template_type).distinct().all()
+

@@ -517,16 +517,36 @@
     <!-- 主要内容区域 -->
     <div class="manager-content">
         <!-- 左侧签证类型列表 -->
-        <div class="visa-types-panel">
+        <div class="visa-types-panel" {% if selected_visa_type %}style="opacity: 0.9;"{% endif %}>
             <h3 class="visa-types-title">
-                <i class="fas fa-passport"></i> 选择签证类型
+                <i class="fas fa-passport"></i> 
+                {% if selected_visa_type %}
+                    当前签证类型
+                    <small style="font-size: 0.8rem; color: var(--color-primary); display: block; margin-top: 4px; font-weight: 500;">
+                        <i class="fas fa-lock"></i> 已锁定
+                    </small>
+                {% else %}
+                    选择签证类型
+                {% endif %}
             </h3>
             <div class="visa-type-list">
-                {% for visa_type in visa_types %}
-                    <div class="visa-type-item" data-visa-type="{{ visa_type.visa_type }}">
-                        {{ visa_type.visa_type }}
-                    </div>
-                {% endfor %}
+                {% if selected_visa_type %}
+                    <!-- 当指定了签证类型时，只显示当前选中的签证类型 -->
+                    {% for visa_type in visa_types %}
+                        {% if visa_type.visa_type == selected_visa_type %}
+                            <div class="visa-type-item active" data-visa-type="{{ visa_type.visa_type }}" style="cursor: default; background: var(--color-accent-bg); color: var(--color-text-dark); font-weight: 600; border: 2px solid var(--color-primary);">
+                                {{ visa_type.visa_type }}
+                            </div>
+                        {% endif %}
+                    {% endfor %}
+                {% else %}
+                    <!-- 没有指定签证类型时，显示所有签证类型 -->
+                    {% for visa_type in visa_types %}
+                        <div class="visa-type-item" data-visa-type="{{ visa_type.visa_type }}">
+                            {{ visa_type.visa_type }}
+                        </div>
+                    {% endfor %}
+                {% endif %}
             </div>
         </div>
 
@@ -571,6 +591,11 @@
         // 签证类型选择
         document.querySelectorAll('.visa-type-item').forEach(item => {
             item.addEventListener('click', function() {
+                // 如果指定了固定的签证类型，则不允许切换
+                const isFixedVisaType = {{ 'true' if selected_visa_type else 'false' }};
+                if (isFixedVisaType) {
+                    return;
+                }
                 const visaType = this.dataset.visaType;
                 selectVisaType(visaType);
             });

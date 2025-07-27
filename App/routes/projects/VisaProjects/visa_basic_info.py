@@ -1593,3 +1593,516 @@ def batch_update_responsible_party():
             'success': False,
             'message': f'批量更新失败: {str(e)}'
         }), 500
+
+# 签证类型管理主页面
+@visa_basic.route('/visa_type_management')
+def visa_type_management():
+    """签证类型管理主页面"""
+    try:
+        # 获取所有签证类型
+        visa_types = VisaTypes.query.order_by(VisaTypes.visa_type).all()
+        
+        # 为每个签证类型获取实际的身份选项
+        for vt in visa_types:
+            actual_identities = [identity.identity_zh for identity in vt.identities]
+            vt.actual_identities = actual_identities
+        
+        return render_template('visas/签证类型管理/visa_type_management.html',
+                             visa_types=visa_types)
+    except Exception as e:
+        flash(f'加载签证类型管理页面时出错: {str(e)}', 'error')
+        return redirect(url_for('visa_basic.visa_type_list'))
+
+
+# 模板文件管理相关路由
+@visa_basic.route('/visa_template_manager')
+def visa_template_manager():
+    """签证模板文件管理器主页面"""
+    try:
+        visa_type_param = request.args.get('visa_type')
+        # 获取所有签证类型
+        visa_types = VisaTypes.query.order_by(VisaTypes.visa_type).all()
+        # 获取所有身份（SHARE排在第一位，其他按字母顺序）
+        all_identities = VisaSingaporeIdentity.query.all()
+        
+        # 手动排序：SHARE排在第一位，其他按identity_zh排序
+        identities = []
+        share_identity = None
+        
+        for identity in all_identities:
+            if identity.identity_zh == 'SHARE':
+                share_identity = identity
+            else:
+                identities.append(identity)
+        
+        # 其他身份按字母顺序排序
+        identities.sort(key=lambda x: x.identity_zh)
+        
+        # SHARE放在第一位
+        if share_identity:
+            identities.insert(0, share_identity)
+        
+        # 将identities转换为可序列化的格式
+        identities_json = []
+        for identity in identities:
+            identities_json.append({
+                'id': identity.id,
+                'identity_zh': identity.identity_zh,
+                'identity_en': identity.identity_en
+            })
+        
+        return render_template('visas/签证类型管理/visa_template_manager.html',
+                             visa_types=visa_types,
+                             identities=identities,
+                             identities_json=identities_json,
+                             selected_visa_type=visa_type_param)
+    except Exception as e:
+        flash(f'加载签证模板管理器时出错: {str(e)}', 'error')
+        return redirect(url_for('visa_basic.visa_type_list'))
+
+
+@visa_basic.route('/api/visa_templates/get_templates', methods=['GET'])
+def get_visa_templates():
+    """获取指定签证类型的模板文件"""
+    try:
+        visa_type = request.args.get('visa_type')
+        identity_id = request.args.get('identity_id', type=int)
+        
+        if not visa_type:
+            return jsonify({'success': False, 'message': '签证类型参数缺失'})
+        
+        # 获取签证类型ID
+        visa_type_record = VisaTypes.query.filter_by(visa_type=visa_type).first()
+        if not visa_type_record:
+            return jsonify({'success': False, 'message': '签证类型不存在'})
+        
+        # 获取模板文件
+        from App.models.Product.Visamodels import VisaTemplateFiles
+        templates = VisaTemplateFiles.get_templates_by_visa_type(visa_type_record.id, identity_id)
+        
+        # 按类型分组
+        templates_by_type = {}
+        for template in templates:
+            if template.template_type not in templates_by_type:
+                templates_by_type[template.template_type] = []
+            templates_by_type[template.template_type].append(template.to_dict())
+        
+        return jsonify({
+            'success': True,
+            'templates': templates_by_type,
+            'visa_type_id': visa_type_record.id
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'获取模板文件失败: {str(e)}'})
+
+
+@visa_basic.route('/api/visa_templates/upload', methods=['POST'])
+@csrf.exempt
+def upload_visa_template():
+    """上传签证模板文件"""
+    try:
+        visa_type_id = request.form.get('visa_type_id', type=int)
+        identity_id = request.form.get('identity_id', type=int)  # 可以为None（共用模板）
+        template_name = request.form.get('template_name')
+        template_type = request.form.get('template_type')
+        description = request.form.get('description', '')
+        
+        if not all([visa_type_id, template_name, template_type]):
+            return jsonify({'success': False, 'message': '必填参数缺失'})
+        
+        # 检查文件
+        if 'template_file' not in request.files:
+            return jsonify({'success': False, 'message': '未选择文件'})
+        
+        file = request.files['template_file']
+        if file.filename == '':
+            return jsonify({'success': False, 'message': '未选择文件'})
+        
+        # 检查文件类型
+        allowed_extensions = {'pdf', 'doc', 'docx', 'xls', 'xlsx', 'txt', 'jpg', 'jpeg', 'png'}
+        file_extension = file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else ''
+        if file_extension not in allowed_extensions:
+            return jsonify({'success': False, 'message': f'不支持的文件类型: {file_extension}'})
+        
+        # 保存文件
+        from werkzeug.utils import secure_filename
+        import os
+        from pathlib import Path
+        
+        # 获取签证类型信息
+        visa_type_record = VisaTypes.query.get(visa_type_id)
+        if not visa_type_record:
+            return jsonify({'success': False, 'message': '签证类型不存在'})
+        
+        # 构建文件保存路径
+        project_root = Path(__file__).resolve().parent.parent.parent
+        template_dir = project_root / "static" / "资源" / "签证" / visa_type_record.visa_type / "模板文件"
+        template_dir.mkdir(parents=True, exist_ok=True)
+        
+        # 如果有身份，创建身份子文件夹
+        if identity_id:
+            identity_record = VisaSingaporeIdentity.query.get(identity_id)
+            if identity_record:
+                template_dir = template_dir / identity_record.identity_zh
+                template_dir.mkdir(exist_ok=True)
+        else:
+            # 共用模板
+            template_dir = template_dir / "共用模板"
+            template_dir.mkdir(exist_ok=True)
+        
+        # 生成安全的文件名
+        filename = secure_filename(file.filename)
+        # 添加时间戳避免重名
+        from datetime import datetime
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        name_without_ext = filename.rsplit('.', 1)[0]
+        ext = filename.rsplit('.', 1)[1] if '.' in filename else ''
+        safe_filename = f"{name_without_ext}_{timestamp}.{ext}"
+        
+        file_path = template_dir / safe_filename
+        file.save(str(file_path))
+        
+        # 保存到数据库
+        from App.models.Product.Visamodels import VisaTemplateFiles
+        
+        template_file = VisaTemplateFiles(
+            visa_type_id=visa_type_id,
+            singapore_identity_id=identity_id,
+            template_name=template_name,
+            template_type=template_type,
+            file_path=str(file_path.relative_to(project_root / "static")),
+            file_size=os.path.getsize(file_path),
+            file_type=file_extension,
+            description=description
+        )
+        
+        db.session.add(template_file)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': '模板文件上传成功',
+            'template': template_file.to_dict()
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'上传失败: {str(e)}'})
+
+
+@visa_basic.route('/api/visa_templates/delete/<int:template_id>', methods=['DELETE'])
+@csrf.exempt
+def delete_visa_template(template_id):
+    """删除签证模板文件"""
+    try:
+        from App.models.Product.Visamodels import VisaTemplateFiles
+        
+        template = VisaTemplateFiles.query.get(template_id)
+        if not template:
+            return jsonify({'success': False, 'message': '模板文件不存在'})
+        
+        # 删除物理文件
+        import os
+        from pathlib import Path
+        project_root = Path(__file__).resolve().parent.parent.parent
+        file_path = project_root / "static" / template.file_path
+        
+        if file_path.exists():
+            os.remove(file_path)
+        
+        # 删除数据库记录
+        db.session.delete(template)
+        db.session.commit()
+        
+        return jsonify({'success': True, 'message': '模板文件删除成功'})
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'删除失败: {str(e)}'})
+
+
+@visa_basic.route('/api/visa_templates/download/<int:template_id>')
+def download_visa_template(template_id):
+    """下载签证模板文件"""
+    try:
+        from App.models.Product.Visamodels import VisaTemplateFiles
+        
+        template = VisaTemplateFiles.query.get(template_id)
+        if not template:
+            flash('模板文件不存在', 'error')
+            return redirect(url_for('visa_basic.visa_template_manager'))
+        
+        # 构建文件路径
+        from pathlib import Path
+        project_root = Path(__file__).resolve().parent.parent.parent
+        file_path = project_root / "static" / template.file_path
+        
+        if not file_path.exists():
+            flash('文件不存在', 'error')
+            return redirect(url_for('visa_basic.visa_template_manager'))
+        
+        # 返回文件
+        from flask import send_file
+        return send_file(
+            file_path,
+            as_attachment=True,
+            download_name=f"{template.template_name}.{template.file_type}"
+        )
+        
+    except Exception as e:
+        flash(f'下载失败: {str(e)}', 'error')
+        return redirect(url_for('visa_basic.visa_template_manager'))
+
+
+@visa_basic.route('/api/visa_templates/get_template_types')
+def get_template_types():
+    """获取所有模板类型"""
+    try:
+        from App.models.Product.Visamodels import VisaTemplateFiles
+        template_types = VisaTemplateFiles.get_template_types()
+        types_list = [t[0] for t in template_types if t[0]]
+        return jsonify({'success': True, 'template_types': types_list})
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'获取模板类型失败: {str(e)}'})
+
+
+@visa_basic.route('/visa_type_detail/<visa_type>')
+def visa_type_detail(visa_type):
+    """签证类型详细页面"""
+    try:
+        # 获取签证类型信息
+        visa_type_record = VisaTypes.query.filter_by(visa_type=visa_type).first()
+        if not visa_type_record:
+            flash('签证类型不存在', 'error')
+            return redirect(url_for('visa_basic.visa_type_list'))
+        
+        # 获取身份选项
+        actual_identities = [identity.identity_zh for identity in visa_type_record.identities]
+        visa_type_record.actual_identities = actual_identities
+        
+        # 获取文档配置信息
+        from App.models.Product.Visamodels import VisaDocuments, VisaDocumentsList
+        document_data = {}
+        
+        # 获取共用资料
+        share_info = VisaDocuments.get_document_info(visa_type_record.id, None)
+        document_data['SHARE'] = share_info
+        
+        # 获取各身份的文档配置
+        for identity in visa_type_record.identities:
+            info = VisaDocuments.get_document_info(visa_type_record.id, identity.id)
+            document_data[identity.identity_zh] = info
+        
+        # 获取模板文件
+        from App.models.Product.Visamodels import VisaTemplateFiles
+        template_files = VisaTemplateFiles.get_templates_by_visa_type(visa_type_record.id)
+        template_files = [template.to_dict() for template in template_files]
+        
+        # 获取统计信息
+        # 文档统计 - 计算文档信息中的项目数量
+        total_documents = 0
+        for data in document_data.values():
+            if data and isinstance(data, dict) and 'document_info' in data:
+                # 计算文档信息中的项目数量（按行分割，排除标题行）
+                doc_lines = data['document_info'].split('\n')
+                for line in doc_lines:
+                    if line.strip().startswith('•') and not line.strip().startswith('• 暂无'):
+                        total_documents += 1
+        
+        # 模板统计
+        total_templates = len(template_files)
+        
+        # 项目统计（如果有项目相关的模型）
+        try:
+            from App.models.Product.Visamodels import VisaProject
+            total_projects = VisaProject.query.filter_by(visa_type=visa_type).count()
+        except:
+            total_projects = 0
+        
+        # 统计数据
+        document_stats = {'total_documents': total_documents}
+        template_stats = {'total_templates': total_templates}
+        project_stats = {'total_projects': total_projects}
+        
+        return render_template('visas/签证类型管理/visa_type_detail.html',
+                             visa_type=visa_type_record,
+                             document_data=document_data,
+                             template_files=template_files,
+                             document_stats=document_stats,
+                             template_stats=template_stats,
+                             project_stats=project_stats)
+                             
+    except Exception as e:
+        flash(f'加载签证类型详情时出错: {str(e)}', 'error')
+        return redirect(url_for('visa_basic.visa_type_list'))
+
+
+def format_file_size(size_bytes):
+    """格式化文件大小"""
+    if size_bytes is None:
+        return "未知"
+    
+    if size_bytes == 0:
+        return "0 Bytes"
+    
+    size_names = ["Bytes", "KB", "MB", "GB", "TB"]
+    import math
+    i = int(math.floor(math.log(size_bytes, 1024)))
+    p = math.pow(1024, i)
+    s = round(size_bytes / p, 2)
+    return f"{s} {size_names[i]}"
+
+
+# 注册模板过滤器
+@visa_basic.app_template_filter('filesizeformat')
+def filesizeformat_filter(size_bytes):
+    """模板过滤器：格式化文件大小"""
+    return format_file_size(size_bytes)
+
+
+# 套用模板相关API
+@visa_basic.route('/api/get_template_visa_types')
+def get_template_visa_types():
+    """获取可用的签证类型模板列表"""
+    try:
+        visa_types = VisaTypes.query.order_by(VisaTypes.visa_type).all()
+        visa_type_names = [vt.visa_type for vt in visa_types]
+        return jsonify({'success': True, 'visa_types': visa_type_names})
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'获取签证类型列表失败: {str(e)}'})
+
+
+@visa_basic.route('/api/get_template_preview')
+def get_template_preview():
+    """获取模板签证类型的预览信息"""
+    try:
+        visa_type = request.args.get('visa_type')
+        if not visa_type:
+            return jsonify({'success': False, 'message': '签证类型参数缺失'})
+        
+        # 获取签证类型信息
+        visa_type_record = VisaTypes.query.filter_by(visa_type=visa_type).first()
+        if not visa_type_record:
+            return jsonify({'success': False, 'message': '签证类型不存在'})
+        
+        # 获取身份信息
+        identities = [identity.identity_zh for identity in visa_type_record.identities]
+        
+        # 获取文档配置数量
+        from App.models.Product.Visamodels import VisaDocuments
+        document_count = 0
+        # 计算共用资料
+        share_info = VisaDocuments.get_document_info(visa_type_record.id, None)
+        if share_info and share_info.get('document_info'):
+            doc_lines = share_info['document_info'].split('\n')
+            for line in doc_lines:
+                if line.strip().startswith('•') and not line.strip().startswith('• 暂无'):
+                    document_count += 1
+        
+        # 计算各身份的文档
+        for identity in visa_type_record.identities:
+            info = VisaDocuments.get_document_info(visa_type_record.id, identity.id)
+            if info and info.get('document_info'):
+                doc_lines = info['document_info'].split('\n')
+                for line in doc_lines:
+                    if line.strip().startswith('•') and not line.strip().startswith('• 暂无'):
+                        document_count += 1
+        
+        # 获取模板文件数量
+        from App.models.Product.Visamodels import VisaTemplateFiles
+        template_count = VisaTemplateFiles.query.filter_by(visa_type_id=visa_type_record.id, is_active=True).count()
+        
+        return jsonify({
+            'success': True,
+            'identities': identities,
+            'document_count': document_count,
+            'template_count': template_count
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'获取模板预览失败: {str(e)}'})
+
+
+@visa_basic.route('/api/apply_template', methods=['POST'])
+@csrf.exempt
+def apply_template():
+    """套用签证类型模板"""
+    try:
+        data = request.get_json()
+        target_visa_type = data.get('target_visa_type')
+        template_visa_type = data.get('template_visa_type')
+        copy_documents = data.get('copy_documents', False)
+        copy_templates = data.get('copy_templates', False)
+        copy_identities = data.get('copy_identities', False)
+        
+        if not all([target_visa_type, template_visa_type]):
+            return jsonify({'success': False, 'message': '参数缺失'})
+        
+        # 获取目标签证类型和模板签证类型
+        target_record = VisaTypes.query.filter_by(visa_type=target_visa_type).first()
+        template_record = VisaTypes.query.filter_by(visa_type=template_visa_type).first()
+        
+        if not target_record or not template_record:
+            return jsonify({'success': False, 'message': '签证类型不存在'})
+        
+        from App.models.Product.Visamodels import VisaDocuments, VisaTemplateFiles
+        
+        # 复制身份配置
+        if copy_identities:
+            # 清除目标签证类型的现有身份关联
+            target_record.identities.clear()
+            
+            # 复制模板签证类型的身份关联
+            for identity in template_record.identities:
+                target_record.identities.append(identity)
+        
+        # 复制文档配置
+        if copy_documents:
+            # 获取模板签证类型的所有文档配置
+            template_documents = VisaDocuments.query.filter_by(visa_type_id=template_record.id).all()
+            
+            # 删除目标签证类型的现有文档配置
+            VisaDocuments.query.filter_by(visa_type_id=target_record.id).delete()
+            
+            # 复制文档配置
+            for doc in template_documents:
+                new_doc = VisaDocuments(
+                    visa_type_id=target_record.id,
+                    singapore_identity_id=doc.singapore_identity_id,
+                    additional_info=doc.additional_info
+                )
+                # 复制选中的文档关系
+                if doc.selected_documents:
+                    for selected_doc in doc.selected_documents:
+                        new_doc.selected_documents.append(selected_doc)
+                db.session.add(new_doc)
+        
+        # 复制模板文件
+        if copy_templates:
+            # 获取模板签证类型的所有模板文件
+            template_files = VisaTemplateFiles.query.filter_by(visa_type_id=template_record.id, is_active=True).all()
+            
+            # 删除目标签证类型的现有模板文件
+            VisaTemplateFiles.query.filter_by(visa_type_id=target_record.id).delete()
+            
+            # 复制模板文件记录
+            for template in template_files:
+                new_template = VisaTemplateFiles(
+                    visa_type_id=target_record.id,
+                    singapore_identity_id=template.singapore_identity_id,
+                    template_name=template.template_name,
+                    template_type=template.template_type,
+                    file_path=template.file_path,
+                    file_size=template.file_size,
+                    file_type=template.file_type,
+                    description=template.description,
+                    is_active=template.is_active
+                )
+                db.session.add(new_template)
+        
+        # 提交所有更改
+        db.session.commit()
+        
+        return jsonify({'success': True, 'message': '模板套用成功'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'套用模板失败: {str(e)}'})

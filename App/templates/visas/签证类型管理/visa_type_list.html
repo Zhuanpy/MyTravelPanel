@@ -76,6 +76,7 @@
                         {% endfor %}
                     </td>
                     <td style="padding: 12px;">
+                        <a href="{{ url_for('visa_basic.visa_type_detail', visa_type=vt.visa_type) }}" style="color: #059669; text-decoration: none; margin-right: 10px; background: none; border: none; cursor: pointer; font-weight: 500;">详细</a>
                         <button onclick="openEditModal('fee', '{{ vt.visa_type }}', '{{ vt.fee }}')" style="color: #1a56db; text-decoration: none; margin-right: 10px; background: none; border: none; cursor: pointer;">编辑费用</button>
                         <button onclick="openEditModal('processing_time', '{{ vt.visa_type }}', '{{ vt.processing_time }}')" style="color: #1a56db; text-decoration: none; margin-right: 10px; background: none; border: none; cursor: pointer;">编辑时间</button>
                         <button onclick="openEditModal('identities', '{{ vt.visa_type }}')" style="color: #1a56db; text-decoration: none; margin-right: 10px; background: none; border: none; cursor: pointer;">编辑身份</button>
