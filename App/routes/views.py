@@ -6,6 +6,10 @@ from pathlib import Path
 
 dex = Blueprint("index", __name__)
 
+@dex.route('/portal')
+def portal():
+    """统一入口门户页面"""
+    return render_template('portal.html')
 
 @dex.route('/')
 def index():

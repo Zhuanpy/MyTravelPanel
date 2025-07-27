@@ -1,0 +1,217 @@
+{% extends "staff/base.html" %}
+
+{% block title %}创建项目 - MyTravelPanel{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{{ url_for('staff.projects') }}">项目管理</a></li>
+<li class="breadcrumb-item active">创建项目</li>
+{% endblock %}
+
+{% block page_title %}创建新项目{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card form-card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-plus-circle me-2"></i>项目基本信息
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" class="needs-validation" novalidate>
+                    <!-- CSRF令牌 -->
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="project_name" class="form-label">项目名称 *</label>
+                                <input type="text" class="form-control" id="project_name" name="project_name" 
+                                       placeholder="请输入项目名称" required>
+                                <div class="invalid-feedback">
+                                    请输入项目名称
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="project_type" class="form-label">项目类型 *</label>
+                                <select class="form-select" id="project_type" name="project_type" required>
+                                    <option value="">请选择项目类型</option>
+                                    <option value="visa">签证服务</option>
+                                    <option value="tour">旅游配套</option>
+                                    <option value="flight">机票服务</option>
+                                    <option value="other">其他服务</option>
+                                </select>
+                                <div class="invalid-feedback">
+                                    请选择项目类型
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="client_name" class="form-label">客户姓名 *</label>
+                                <input type="text" class="form-control" id="client_name" name="client_name" 
+                                       placeholder="请输入客户姓名" required>
+                                <div class="invalid-feedback">
+                                    请输入客户姓名
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="client_email" class="form-label">客户邮箱</label>
+                                <input type="email" class="form-control" id="client_email" name="client_email" 
+                                       placeholder="请输入客户邮箱">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="client_phone" class="form-label">客户电话</label>
+                                <input type="tel" class="form-control" id="client_phone" name="client_phone" 
+                                       placeholder="请输入客户电话">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="priority" class="form-label">优先级</label>
+                                <select class="form-select" id="priority" name="priority">
+                                    <option value="medium">中等优先级</option>
+                                    <option value="high">高优先级</option>
+                                    <option value="low">低优先级</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="description" class="form-label">项目描述</label>
+                        <textarea class="form-control" id="description" name="description" rows="4" 
+                                  placeholder="请详细描述项目需求和要求..."></textarea>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="start_date" class="form-label">开始日期</label>
+                                <input type="date" class="form-control" id="start_date" name="start_date">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="deadline" class="form-label">截止日期</label>
+                                <input type="date" class="form-control" id="deadline" name="deadline">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <hr class="my-4">
+                    
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ url_for('staff.projects') }}" class="btn btn-outline-secondary btn-staff">
+                            <i class="fas fa-arrow-left me-2"></i>返回列表
+                        </a>
+                        <div>
+                            <button type="reset" class="btn btn-outline-warning btn-staff me-2">
+                                <i class="fas fa-undo me-2"></i>重置
+                            </button>
+                            <button type="submit" class="btn btn-staff btn-staff-primary">
+                                <i class="fas fa-plus me-2"></i>创建项目
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// 表单验证
+(function() {
+    'use strict';
+    
+    // 获取所有需要验证的表单
+    var forms = document.querySelectorAll('.needs-validation');
+    
+    // 为每个表单添加提交事件监听
+    Array.prototype.slice.call(forms).forEach(function(form) {
+        form.addEventListener('submit', function(event) {
+            if (!form.checkValidity()) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+            
+            form.classList.add('was-validated');
+        }, false);
+    });
+})();
+
+// 设置默认开始日期为今天
+document.getElementById('start_date').valueAsDate = new Date();
+
+// 项目类型变化时的处理
+document.getElementById('project_type').addEventListener('change', function() {
+    const projectType = this.value;
+    const projectName = document.getElementById('project_name');
+    
+    // 根据项目类型给出名称建议
+    if (projectType && !projectName.value) {
+        const suggestions = {
+            'visa': '签证申请项目 - ',
+            'tour': '旅游配套项目 - ',
+            'flight': '机票预订项目 - ',
+            'other': '客户服务项目 - '
+        };
+        
+        if (suggestions[projectType]) {
+            projectName.placeholder = suggestions[projectType] + '客户姓名';
+        }
+    }
+});
+
+// 客户姓名输入时自动更新项目名称
+document.getElementById('client_name').addEventListener('input', function() {
+    const clientName = this.value;
+    const projectType = document.getElementById('project_type').value;
+    const projectName = document.getElementById('project_name');
+    
+    if (clientName && projectType && !projectName.value) {
+        const typeNames = {
+            'visa': '签证申请项目',
+            'tour': '旅游配套项目',
+            'flight': '机票预订项目',
+            'other': '客户服务项目'
+        };
+        
+        if (typeNames[projectType]) {
+            projectName.value = `${typeNames[projectType]} - ${clientName}`;
+        }
+    }
+});
+
+// 截止日期不能早于开始日期
+document.getElementById('start_date').addEventListener('change', function() {
+    const startDate = this.value;
+    const deadlineInput = document.getElementById('deadline');
+    
+    if (startDate) {
+        deadlineInput.min = startDate;
+        
+        // 如果截止日期早于开始日期，自动调整
+        if (deadlineInput.value && deadlineInput.value < startDate) {
+            deadlineInput.value = startDate;
+        }
+    }
+});
+</script>
+{% endblock %} 

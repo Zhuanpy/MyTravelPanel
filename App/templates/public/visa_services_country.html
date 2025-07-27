@@ -1,0 +1,342 @@
+{% extends "public/base.html" %}
+
+{% block title %}{{ country.country_name_CN }}签证服务 - MyTravelPanel{% endblock %}
+
+{% block extra_css %}
+<style>
+.visa-type-card {
+    transition: all 0.3s ease;
+    border: 1px solid #e0e0e0;
+}
+
+.visa-type-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+    border-color: var(--primary-color);
+}
+
+.visa-type-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    color: white;
+    margin: 0 auto 1rem;
+}
+
+.visa-type-icon.business {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.visa-type-icon.tourist {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+}
+
+.visa-type-icon.student {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+}
+
+.visa-type-icon.work {
+    background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+}
+
+.visa-type-icon.transit {
+    background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+}
+
+.visa-type-icon.other {
+    background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+}
+
+.country-header {
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+    color: white;
+    padding: 60px 0;
+    margin-bottom: 0;
+}
+
+.breadcrumb {
+    background: rgba(255,255,255,0.1);
+    border-radius: 25px;
+    padding: 0.5rem 1rem;
+}
+
+.breadcrumb-item + .breadcrumb-item::before {
+    color: rgba(255,255,255,0.7);
+}
+
+.breadcrumb-item a {
+    color: rgba(255,255,255,0.9);
+    text-decoration: none;
+}
+
+.breadcrumb-item.active {
+    color: white;
+}
+
+.processing-time {
+    background: rgba(var(--success-color-rgb), 0.1);
+    color: var(--success-color);
+    padding: 0.25rem 0.5rem;
+    border-radius: 15px;
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+.visa-fee {
+    background: rgba(var(--primary-color-rgb), 0.1);
+    color: var(--primary-color);
+    padding: 0.25rem 0.5rem;
+    border-radius: 15px;
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+.visa-requirements {
+    background: #f8f9fa;
+    border-left: 4px solid var(--primary-color);
+    padding: 1rem;
+    margin: 1rem 0;
+}
+
+.back-button {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: var(--primary-color);
+    color: white;
+    border: none;
+    font-size: 20px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    z-index: 1000;
+    transition: all 0.3s ease;
+}
+
+.back-button:hover {
+    background: var(--secondary-color);
+    transform: scale(1.1);
+}
+
+@media (max-width: 768px) {
+    .country-header {
+        padding: 40px 0;
+    }
+    
+    .visa-type-card {
+        margin-bottom: 1rem;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- 国家头部 -->
+<section class="country-header">
+    <div class="container">
+        <nav aria-label="breadcrumb" class="mb-4">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item">
+                    <a href="{{ url_for('public.index') }}">
+                        <i class="fas fa-home me-1"></i>首页
+                    </a>
+                </li>
+                <li class="breadcrumb-item">
+                    <a href="{{ url_for('public.visa_services') }}">签证服务</a>
+                </li>
+                <li class="breadcrumb-item active">{{ country.country_name_CN }}</li>
+            </ol>
+        </nav>
+        
+        <div class="row align-items-center">
+            <div class="col-lg-8">
+                <h1 class="display-4 fw-bold mb-3">{{ country.country_name_CN }}签证服务</h1>
+                <p class="lead mb-0">{{ country.country_name_EN }} Visa Services</p>
+                <p class="mt-2 mb-4">为您提供专业的{{ country.country_name_CN }}签证代办服务，快速高效，成功率高</p>
+            </div>
+            <div class="col-lg-4 text-center">
+                <div class="country-stats">
+                    <div class="stat-item">
+                        <h3 class="fw-bold">{{ visa_types|length }}</h3>
+                        <p>种签证类型</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- 签证类型列表 -->
+<section class="py-5">
+    <div class="container">
+        {% if visa_types %}
+        <div class="row">
+            {% for visa_type in visa_types %}
+            <div class="col-md-6 col-lg-4 mb-4">
+                <div class="card visa-type-card h-100">
+                    <div class="card-body text-center">
+                        <!-- 签证类型图标 -->
+                        <div class="visa-type-icon {% if '商务' in visa_type.visa_type or 'business' in visa_type.visa_type.lower() %}business{% elif '旅游' in visa_type.visa_type or 'tourist' in visa_type.visa_type.lower() %}tourist{% elif '学生' in visa_type.visa_type or 'student' in visa_type.visa_type.lower() %}student{% elif '工作' in visa_type.visa_type or 'work' in visa_type.visa_type.lower() %}work{% elif '过境' in visa_type.visa_type or 'transit' in visa_type.visa_type.lower() %}transit{% else %}other{% endif %}">
+                            {% if '商务' in visa_type.visa_type or 'business' in visa_type.visa_type.lower() %}
+                                <i class="fas fa-briefcase"></i>
+                            {% elif '旅游' in visa_type.visa_type or 'tourist' in visa_type.visa_type.lower() %}
+                                <i class="fas fa-map-marked-alt"></i>
+                            {% elif '学生' in visa_type.visa_type or 'student' in visa_type.visa_type.lower() %}
+                                <i class="fas fa-graduation-cap"></i>
+                            {% elif '工作' in visa_type.visa_type or 'work' in visa_type.visa_type.lower() %}
+                                <i class="fas fa-building"></i>
+                            {% elif '过境' in visa_type.visa_type or 'transit' in visa_type.visa_type.lower() %}
+                                <i class="fas fa-plane"></i>
+                            {% else %}
+                                <i class="fas fa-passport"></i>
+                            {% endif %}
+                        </div>
+                        
+                        <h5 class="card-title mb-3">{{ visa_type.visa_type }}</h5>
+                        
+                        <!-- 签证信息 -->
+                        <div class="visa-info mb-3">
+                            {% if visa_type.processing_time %}
+                            <span class="processing-time me-2">
+                                <i class="fas fa-clock me-1"></i>{{ visa_type.processing_time }}
+                            </span>
+                            {% endif %}
+                            
+                            {% if visa_type.fee %}
+                            <span class="visa-fee">
+                                <i class="fas fa-dollar-sign me-1"></i>{{ visa_type.fee }}
+                            </span>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- 操作按钮 -->
+                        <div class="mt-auto">
+                            <a href="{{ url_for('public.visa_detail', visa_type_name=visa_type.visa_type) }}" 
+                               class="btn btn-primary btn-sm me-2">
+                                <i class="fas fa-info-circle me-1"></i>查看详情
+                            </a>
+                            <a href="{{ url_for('auth.register') }}" 
+                               class="btn btn-outline-primary btn-sm">
+                                <i class="fas fa-edit me-1"></i>立即申请
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        
+        <!-- 服务说明 -->
+        <div class="row mt-5">
+            <div class="col-lg-8 mx-auto">
+                <div class="visa-requirements">
+                    <h5 class="fw-bold mb-3">
+                        <i class="fas fa-info-circle text-primary me-2"></i>
+                        {{ country.country_name_CN }}签证服务说明
+                    </h5>
+                    <ul class="list-unstyled mb-0">
+                        <li class="mb-2">
+                            <i class="fas fa-check text-success me-2"></i>
+                            专业团队代办，成功率高达98%
+                        </li>
+                        <li class="mb-2">
+                            <i class="fas fa-check text-success me-2"></i>
+                            快速审理，最快3个工作日出签
+                        </li>
+                        <li class="mb-2">
+                            <i class="fas fa-check text-success me-2"></i>
+                            一对一服务，全程跟踪申请进度
+                        </li>
+                        <li class="mb-2">
+                            <i class="fas fa-check text-success me-2"></i>
+                            免费咨询，专业建议和材料清单
+                        </li>
+                        <li class="mb-0">
+                            <i class="fas fa-check text-success me-2"></i>
+                            不成功不收费，风险由我们承担
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        
+        {% else %}
+        <!-- 无签证类型提示 -->
+        <div class="row">
+            <div class="col-12 text-center py-5">
+                <i class="fas fa-passport" style="font-size: 4rem; color: #ccc;"></i>
+                <h4 class="mt-3 text-muted">暂无{{ country.country_name_CN }}签证服务</h4>
+                <p class="text-muted">该国家的签证服务正在准备中，请稍后再来查看</p>
+                <a href="{{ url_for('public.visa_services') }}" class="btn btn-primary mt-3">
+                    <i class="fas fa-arrow-left me-2"></i>返回签证服务
+                </a>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</section>
+
+<!-- 联系我们 -->
+<section class="py-5 bg-light">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-8 text-center">
+                <h3 class="fw-bold mb-4">需要帮助？</h3>
+                <p class="text-muted mb-4">我们的专业顾问随时为您提供{{ country.country_name_CN }}签证申请咨询服务</p>
+                <div class="d-flex justify-content-center gap-3 flex-wrap">
+                    <a href="{{ url_for('public.contact') }}" class="btn btn-primary">
+                        <i class="fas fa-phone me-2"></i>联系我们
+                    </a>
+                    <a href="{{ url_for('auth.register') }}" class="btn btn-outline-primary">
+                        <i class="fas fa-user-plus me-2"></i>注册账户
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- 返回按钮 -->
+<button onclick="window.history.back()" class="back-button" title="返回">
+    <i class="fas fa-arrow-left"></i>
+</button>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// 页面加载动画
+document.addEventListener('DOMContentLoaded', function() {
+    // 卡片动画
+    const cards = document.querySelectorAll('.visa-type-card');
+    cards.forEach((card, index) => {
+        card.style.opacity = '0';
+        card.style.transform = 'translateY(30px)';
+        
+        setTimeout(() => {
+            card.style.transition = 'all 0.5s ease';
+            card.style.opacity = '1';
+            card.style.transform = 'translateY(0)';
+        }, index * 100);
+    });
+});
+
+// 平滑滚动
+document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+    anchor.addEventListener('click', function (e) {
+        e.preventDefault();
+        const target = document.querySelector(this.getAttribute('href'));
+        if (target) {
+            target.scrollIntoView({
+                behavior: 'smooth',
+                block: 'start'
+            });
+        }
+    });
+});
+</script>
+{% endblock %} 

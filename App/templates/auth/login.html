@@ -1,0 +1,165 @@
+{% extends "auth/base.html" %}
+
+{% block title %}用户登录 - MyTravelPanel{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="auth-card">
+            <div class="auth-header">
+                <h2><i class="fas fa-sign-in-alt me-2"></i>用户登录</h2>
+                <p>欢迎回来！请登录您的账户</p>
+            </div>
+            
+            <div class="auth-body-content">
+                <form method="POST" class="auth-form" id="loginForm">
+                    <!-- CSRF令牌 -->
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    
+                    <div class="form-group">
+                        <label for="email" class="form-label">邮箱地址</label>
+                        <div class="input-group">
+                            <input type="email" class="form-control" id="email" name="email" 
+                                   placeholder="请输入邮箱地址" required>
+                            <span class="input-group-text">
+                                <i class="fas fa-envelope"></i>
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="password" class="form-label">密码</label>
+                        <div class="input-group">
+                            <input type="password" class="form-control" id="password" name="password" 
+                                   placeholder="请输入密码" required>
+                            <span class="input-group-text">
+                                <i class="fas fa-lock"></i>
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="remember" name="remember">
+                        <label class="form-check-label" for="remember">
+                            记住我
+                        </label>
+                    </div>
+                    
+                    <button type="submit" class="auth-btn auth-btn-primary">
+                        <i class="fas fa-sign-in-alt me-2"></i>登录
+                    </button>
+                    
+                    <div class="auth-loading" id="loginLoading">
+                        <div class="spinner"></div>
+                        正在登录...
+                    </div>
+                </form>
+                
+                <div class="auth-links">
+                    <p class="mb-2">
+                        <a href="#" onclick="alert('忘记密码功能即将上线')">忘记密码？</a>
+                    </p>
+                    <p class="mb-0">
+                        还没有账户？ <a href="{{ url_for('auth.register') }}">立即注册</a>
+                    </p>
+                </div>
+                
+                <!-- 社交登录 -->
+                <div class="social-login">
+                    <p class="text-center text-muted mb-3">或使用以下方式登录</p>
+                    <button type="button" class="social-btn" onclick="alert('Google登录功能即将上线')">
+                        <i class="fab fa-google text-danger"></i>
+                        使用 Google 登录
+                    </button>
+                    <button type="button" class="social-btn" onclick="alert('微信登录功能即将上线')">
+                        <i class="fab fa-weixin text-success"></i>
+                        使用 微信 登录
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// 登录表单处理
+document.getElementById('loginForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const email = document.getElementById('email').value.trim();
+    const password = document.getElementById('password').value;
+    const loading = document.getElementById('loginLoading');
+    const submitBtn = this.querySelector('button[type="submit"]');
+    
+    // 基础验证
+    if (!email || !password) {
+        alert('请填写邮箱和密码');
+        return;
+    }
+    
+    // 邮箱格式验证
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+        alert('请输入有效的邮箱地址');
+        document.getElementById('email').classList.add('shake');
+        setTimeout(() => {
+            document.getElementById('email').classList.remove('shake');
+        }, 500);
+        return;
+    }
+    
+    // 显示加载状态
+    submitBtn.style.display = 'none';
+    loading.classList.add('show');
+    
+    // 提交表单
+    setTimeout(() => {
+        this.submit();
+    }, 1000);
+});
+
+// 表单验证
+document.getElementById('email').addEventListener('blur', function() {
+    const email = this.value.trim();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    
+    if (email && !emailRegex.test(email)) {
+        this.classList.add('is-invalid');
+        if (!this.parentNode.nextElementSibling || !this.parentNode.nextElementSibling.classList.contains('invalid-feedback')) {
+            const feedback = document.createElement('div');
+            feedback.className = 'invalid-feedback';
+            feedback.textContent = '请输入有效的邮箱地址';
+            this.parentNode.parentNode.appendChild(feedback);
+        }
+    } else {
+        this.classList.remove('is-invalid');
+        const feedback = this.parentNode.parentNode.querySelector('.invalid-feedback');
+        if (feedback) {
+            feedback.remove();
+        }
+        if (email) {
+            this.classList.add('is-valid');
+        }
+    }
+});
+
+// 密码输入验证
+document.getElementById('password').addEventListener('input', function() {
+    if (this.value.length > 0) {
+        this.classList.remove('is-invalid');
+        this.classList.add('is-valid');
+    } else {
+        this.classList.remove('is-valid');
+    }
+});
+
+// 回车键提交
+document.addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        document.getElementById('loginForm').dispatchEvent(new Event('submit'));
+    }
+});
+</script>
+{% endblock %} 

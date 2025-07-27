@@ -57,6 +57,19 @@ from .routes.package_budget import package_budget
 # 导入旅游项目相关的路由
 from .routes.projects.TourProjects.tour_projects import tour_projects
 
+# 导入访客功能路由
+from .routes.public import public
+
+# 导入认证和会员功能路由
+from .routes.auth import auth
+from .routes.member import member
+
+# 导入员工功能路由
+from .routes.staff import staff
+
+# 导入管理员功能路由
+from .routes.admin import admin
+
 migrate = Migrate()
 
 def create_app():
@@ -141,6 +154,19 @@ def create_app():
 
     # 注册旅游项目相关的蓝图
     app.register_blueprint(tour_projects, url_prefix='/tour_projects')
+
+    # 注册访客功能蓝图
+    app.register_blueprint(public, url_prefix='/public')
+    
+    # 注册认证和会员功能蓝图
+    app.register_blueprint(auth, url_prefix='/auth')
+    app.register_blueprint(member, url_prefix='/member')
+    
+    # 注册员工功能蓝图
+    app.register_blueprint(staff, url_prefix='/staff')
+
+    # 注册管理员功能蓝图
+    app.register_blueprint(admin, url_prefix='/admin')
 
     app.register_blueprint(statement_blue, url_prefix='/statement')
 

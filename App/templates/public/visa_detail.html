@@ -1,0 +1,506 @@
+{% extends "public/base.html" %}
+
+{% block title %}{{ visa_type.name }} - 签证详情 - MyTravelPanel{% endblock %}
+
+{% block extra_css %}
+<style>
+.visa-detail-header {
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+    color: white;
+    padding: 60px 0;
+    margin-bottom: 0;
+}
+
+.visa-detail-card {
+    border: none;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    border-radius: 15px;
+    margin-bottom: 2rem;
+}
+
+.visa-detail-card .card-header {
+    background: var(--primary-color);
+    color: white;
+    border-bottom: none;
+    border-radius: 15px 15px 0 0;
+    padding: 1rem 1.5rem;
+}
+
+.visa-icon {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 30px;
+    margin: 0 auto 1rem;
+}
+
+.info-item {
+    background: #f8f9fa;
+    padding: 1rem;
+    border-radius: 10px;
+    margin-bottom: 1rem;
+    border-left: 4px solid var(--primary-color);
+}
+
+.info-item h6 {
+    color: var(--primary-color);
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+.document-list {
+    background: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 10px;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+.document-item {
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.document-item:last-child {
+    border-bottom: none;
+}
+
+.identity-tab {
+    background: #f8f9fa;
+    border: 1px solid #ddd;
+    border-radius: 10px 10px 0 0;
+    padding: 1rem;
+    margin-bottom: 0;
+    font-weight: 600;
+    color: var(--primary-color);
+}
+
+.requirements-section {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-radius: 15px;
+    padding: 2rem;
+    margin: 2rem 0;
+}
+
+.step-item {
+    background: white;
+    border-radius: 10px;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    border-left: 4px solid var(--success-color);
+}
+
+.step-number {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--success-color);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    margin-right: 1rem;
+    flex-shrink: 0;
+}
+
+.contact-cta {
+    background: linear-gradient(135deg, var(--success-color) 0%, #20c997 100%);
+    color: white;
+    border-radius: 15px;
+    padding: 2rem;
+    text-align: center;
+    margin: 2rem 0;
+}
+
+.breadcrumb {
+    background: rgba(255,255,255,0.1);
+    border-radius: 25px;
+    padding: 0.5rem 1rem;
+}
+
+.breadcrumb-item + .breadcrumb-item::before {
+    color: rgba(255,255,255,0.7);
+}
+
+.breadcrumb-item a {
+    color: rgba(255,255,255,0.9);
+    text-decoration: none;
+}
+
+.breadcrumb-item.active {
+    color: white;
+}
+
+.back-button {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: var(--primary-color);
+    color: white;
+    border: none;
+    font-size: 20px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    z-index: 1000;
+    transition: all 0.3s ease;
+}
+
+.back-button:hover {
+    background: var(--secondary-color);
+    transform: scale(1.1);
+}
+
+@media (max-width: 768px) {
+    .visa-detail-header {
+        padding: 40px 0;
+    }
+    
+    .requirements-section {
+        padding: 1.5rem;
+    }
+    
+    .step-item {
+        padding: 1rem;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- 签证详情头部 -->
+<section class="visa-detail-header">
+    <div class="container">
+        <nav aria-label="breadcrumb" class="mb-4">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item">
+                    <a href="{{ url_for('public.index') }}">
+                        <i class="fas fa-home me-1"></i>首页
+                    </a>
+                </li>
+                <li class="breadcrumb-item">
+                    <a href="{{ url_for('public.visa_services') }}">签证服务</a>
+                </li>
+                {% if visa_type.country %}
+                <li class="breadcrumb-item">
+                    <a href="{{ url_for('public.visa_services_by_country', country_name=visa_type.country.country_name_CN) }}">
+                        {{ visa_type.country.country_name_CN }}
+                    </a>
+                </li>
+                {% endif %}
+                <li class="breadcrumb-item active">{{ visa_type.visa_type }}</li>
+            </ol>
+        </nav>
+        
+        <div class="row align-items-center">
+            <div class="col-lg-8">
+                <div class="visa-icon">
+                    {% if '商务' in visa_type.visa_type or 'business' in visa_type.visa_type.lower() %}
+                        <i class="fas fa-briefcase"></i>
+                    {% elif '旅游' in visa_type.visa_type or 'tourist' in visa_type.visa_type.lower() %}
+                        <i class="fas fa-map-marked-alt"></i>
+                    {% elif '学生' in visa_type.visa_type or 'student' in visa_type.visa_type.lower() %}
+                        <i class="fas fa-graduation-cap"></i>
+                    {% elif '工作' in visa_type.visa_type or 'work' in visa_type.visa_type.lower() %}
+                        <i class="fas fa-building"></i>
+                    {% elif '过境' in visa_type.visa_type or 'transit' in visa_type.visa_type.lower() %}
+                        <i class="fas fa-plane"></i>
+                    {% else %}
+                        <i class="fas fa-passport"></i>
+                    {% endif %}
+                </div>
+                <h1 class="display-4 fw-bold mb-3">{{ visa_type.visa_type }}</h1>
+                {% if visa_type.description %}
+                <p class="lead mb-4">{{ visa_type.description }}</p>
+                {% endif %}
+            </div>
+            <div class="col-lg-4 text-center">
+                <div class="visa-info-quick">
+                    {% if visa_type.processing_time %}
+                    <div class="mb-3">
+                        <h5 class="fw-bold">处理时间</h5>
+                        <p class="mb-0">{{ visa_type.processing_time }}</p>
+                    </div>
+                    {% endif %}
+                    {% if visa_type.fee %}
+                    <div class="mb-3">
+                        <h5 class="fw-bold">签证费用</h5>
+                        <p class="mb-0">${{ visa_type.fee }}</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- 基本信息 -->
+<section class="py-5">
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8">
+                <!-- 签证类型详情 -->
+                <div class="visa-detail-card">
+                    <div class="card-header">
+                        <h4 class="mb-0">
+                            <i class="fas fa-info-circle me-2"></i>签证详情
+                        </h4>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            {% if visa_type.processing_time %}
+                            <div class="col-md-6">
+                                <div class="info-item">
+                                    <h6><i class="fas fa-clock me-2"></i>处理时间</h6>
+                                    <p class="mb-0">{{ visa_type.processing_time }}</p>
+                                </div>
+                            </div>
+                            {% endif %}
+                            
+                            {% if visa_type.fee %}
+                            <div class="col-md-6">
+                                <div class="info-item">
+                                    <h6><i class="fas fa-dollar-sign me-2"></i>签证费用</h6>
+                                    <p class="mb-0">${{ visa_type.fee }}</p>
+                                </div>
+                            </div>
+                            {% endif %}
+                            
+                            {% if visa_type.validity %}
+                            <div class="col-md-6">
+                                <div class="info-item">
+                                    <h6><i class="fas fa-calendar-alt me-2"></i>有效期</h6>
+                                    <p class="mb-0">{{ visa_type.validity }}</p>
+                                </div>
+                            </div>
+                            {% endif %}
+                            
+                            {% if visa_type.country %}
+                            <div class="col-md-6">
+                                <div class="info-item">
+                                    <h6><i class="fas fa-globe me-2"></i>目的地国家</h6>
+                                    <p class="mb-0">{{ visa_type.country.country_name_CN }} ({{ visa_type.country.country_name_EN }})</p>
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                        
+                        {% if visa_type.description %}
+                        <div class="mt-4">
+                            <h6><i class="fas fa-file-alt me-2"></i>详细说明</h6>
+                            <p class="text-muted">{{ visa_type.description }}</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- 所需文档 -->
+                {% if document_data %}
+                <div class="visa-detail-card">
+                    <div class="card-header">
+                        <h4 class="mb-0">
+                            <i class="fas fa-file-alt me-2"></i>所需文档
+                        </h4>
+                    </div>
+                    <div class="card-body">
+                        {% for identity_id, doc_info in document_data.items() %}
+                        {% if doc_info and doc_info.get('document_info') %}
+                        <div class="document-list">
+                            <div class="identity-tab">
+                                <i class="fas fa-user me-2"></i>身份类型：{{ identity_id }}
+                            </div>
+                            <div class="document-content p-3">
+                                <pre class="mb-0">{{ doc_info.document_info }}</pre>
+                                {% if doc_info.get('additional_info') %}
+                                <div class="mt-3">
+                                    <h6 class="text-primary">补充信息：</h6>
+                                    <pre class="mb-0 text-muted">{{ doc_info.additional_info }}</pre>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- 申请流程 -->
+                <div class="requirements-section">
+                    <h4 class="fw-bold mb-4 text-center">
+                        <i class="fas fa-list-ol me-2"></i>申请流程
+                    </h4>
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="step-item">
+                                <div class="d-flex align-items-start">
+                                    <div class="step-number">1</div>
+                                    <div>
+                                        <h6 class="fw-bold">咨询评估</h6>
+                                        <p class="mb-0 text-muted">联系我们的专业顾问，评估您的申请条件，确定最适合的签证类型</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="step-item">
+                                <div class="d-flex align-items-start">
+                                    <div class="step-number">2</div>
+                                    <div>
+                                        <h6 class="fw-bold">准备材料</h6>
+                                        <p class="mb-0 text-muted">根据我们提供的材料清单，准备完整的申请文档</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="step-item">
+                                <div class="d-flex align-items-start">
+                                    <div class="step-number">3</div>
+                                    <div>
+                                        <h6 class="fw-bold">递交申请</h6>
+                                        <p class="mb-0 text-muted">我们为您整理申请材料并递交至相关签证中心</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="step-item">
+                                <div class="d-flex align-items-start">
+                                    <div class="step-number">4</div>
+                                    <div>
+                                        <h6 class="fw-bold">跟踪进度</h6>
+                                        <p class="mb-0 text-muted">实时跟踪申请进度，及时告知您最新状态</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="step-item">
+                                <div class="d-flex align-items-start">
+                                    <div class="step-number">5</div>
+                                    <div>
+                                        <h6 class="fw-bold">签证获批</h6>
+                                        <p class="mb-0 text-muted">签证获批后，我们将第一时间通知您并安排取件</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 侧边栏 -->
+            <div class="col-lg-4">
+                <!-- 立即申请 -->
+                <div class="contact-cta">
+                    <h5 class="fw-bold mb-3">准备申请了吗？</h5>
+                    <p class="mb-4">我们的专业团队将为您提供一对一的签证申请服务</p>
+                    <div class="d-grid gap-2">
+                        <a href="{{ url_for('auth.register') }}" class="btn btn-light btn-lg">
+                            <i class="fas fa-edit me-2"></i>立即申请
+                        </a>
+                        <a href="{{ url_for('public.contact') }}" class="btn btn-outline-light">
+                            <i class="fas fa-phone me-2"></i>免费咨询
+                        </a>
+                    </div>
+                </div>
+
+                <!-- 服务保障 -->
+                <div class="visa-detail-card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-shield-alt me-2"></i>服务保障
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <ul class="list-unstyled mb-0">
+                            <li class="mb-3">
+                                <i class="fas fa-check text-success me-2"></i>
+                                <strong>98%成功率</strong><br>
+                                <small class="text-muted">专业团队，经验丰富</small>
+                            </li>
+                            <li class="mb-3">
+                                <i class="fas fa-check text-success me-2"></i>
+                                <strong>快速处理</strong><br>
+                                <small class="text-muted">最快3个工作日出签</small>
+                            </li>
+                            <li class="mb-3">
+                                <i class="fas fa-check text-success me-2"></i>
+                                <strong>全程跟踪</strong><br>
+                                <small class="text-muted">实时更新申请进度</small>
+                            </li>
+                            <li class="mb-0">
+                                <i class="fas fa-check text-success me-2"></i>
+                                <strong>不成功不收费</strong><br>
+                                <small class="text-muted">签证拒签全额退款</small>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- 相关签证 -->
+                {% if visa_type.country %}
+                <div class="visa-detail-card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-link me-2"></i>相关签证
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted mb-3">
+                            <a href="{{ url_for('public.visa_services_by_country', country_name=visa_type.country.country_name_CN) }}" 
+                               class="text-decoration-none">
+                                查看更多{{ visa_type.country.country_name_CN }}签证 <i class="fas fa-arrow-right ms-1"></i>
+                            </a>
+                        </p>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- 返回按钮 -->
+<button onclick="window.history.back()" class="back-button" title="返回">
+    <i class="fas fa-arrow-left"></i>
+</button>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// 页面加载动画
+document.addEventListener('DOMContentLoaded', function() {
+    // 卡片动画
+    const cards = document.querySelectorAll('.visa-detail-card, .contact-cta, .requirements-section');
+    cards.forEach((card, index) => {
+        card.style.opacity = '0';
+        card.style.transform = 'translateY(30px)';
+        
+        setTimeout(() => {
+            card.style.transition = 'all 0.5s ease';
+            card.style.opacity = '1';
+            card.style.transform = 'translateY(0)';
+        }, index * 200);
+    });
+});
+
+// 平滑滚动
+document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+    anchor.addEventListener('click', function (e) {
+        e.preventDefault();
+        const target = document.querySelector(this.getAttribute('href'));
+        if (target) {
+            target.scrollIntoView({
+                behavior: 'smooth',
+                block: 'start'
+            });
+        }
+    });
+});
+</script>
+{% endblock %} 

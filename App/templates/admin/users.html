@@ -1,0 +1,342 @@
+{% extends "admin/base.html" %}
+
+{% block title %}用户管理 - 管理员后台{% endblock %}
+
+{% block content %}
+<div class="admin-content">
+    <div class="container-fluid">
+        <!-- 页面标题和操作 -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2><i class="fas fa-users me-2"></i>用户管理</h2>
+            <div class="d-flex gap-2">
+                <a href="{{ url_for('admin.create_user') }}" class="btn btn-primary">
+                    <i class="fas fa-user-plus me-2"></i>创建员工/管理员
+                </a>
+                <button class="btn btn-outline-secondary" onclick="location.reload()">
+                    <i class="fas fa-sync-alt me-2"></i>刷新
+                </button>
+            </div>
+        </div>
+
+        <!-- 角色统计卡片 -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="stat-card bg-danger">
+                    <div class="stat-icon">
+                        <i class="fas fa-crown"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3 id="adminCount">{{ admin_count or 0 }}</h3>
+                        <p>管理员</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card bg-warning">
+                    <div class="stat-icon">
+                        <i class="fas fa-shield-alt"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3 id="staffCount">{{ staff_count or 0 }}</h3>
+                        <p>员工</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card bg-primary">
+                    <div class="stat-icon">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3 id="memberCount">{{ member_count or 0 }}</h3>
+                        <p>会员</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card bg-success">
+                    <div class="stat-icon">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3 id="totalCount">{{ total_count or 0 }}</h3>
+                        <p>总用户数</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 用户列表 -->
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-list me-2"></i>用户列表
+                </h5>
+                <div class="d-flex gap-2">
+                    <!-- 角色筛选 -->
+                    <select class="form-select form-select-sm" id="roleFilter" style="width: auto;">
+                        <option value="">所有角色</option>
+                        <option value="admin">管理员</option>
+                        <option value="staff">员工</option>
+                        <option value="member">会员</option>
+                    </select>
+                    <!-- 搜索框 -->
+                    <div class="input-group input-group-sm" style="width: 250px;">
+                        <input type="text" class="form-control" id="searchInput" placeholder="搜索用户...">
+                        <button class="btn btn-outline-secondary" type="button">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>用户信息</th>
+                                <th>角色</th>
+                                <th>状态</th>
+                                <th>注册时间</th>
+                                <th>最后登录</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="userTableBody">
+                            {% for user in users %}
+                            <tr>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <div class="user-avatar me-3">
+                                            {% if user.profile and user.profile.avatar %}
+                                            <img src="{{ user.profile.avatar }}" alt="头像" class="rounded-circle" width="40" height="40">
+                                            {% else %}
+                                            <div class="avatar-placeholder">
+                                                {{ (user.profile.first_name[0] if user.profile and user.profile.first_name else user.username[0]) | upper }}
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                        <div>
+                                            <div class="fw-bold">
+                                                {% if user.profile %}
+                                                {{ user.profile.get_full_name() }}
+                                                {% else %}
+                                                {{ user.username }}
+                                                {% endif %}
+                                            </div>
+                                            <div class="text-muted small">{{ user.email }}</div>
+                                            {% if user.profile and user.profile.phone %}
+                                            <div class="text-muted small">
+                                                <i class="fas fa-phone me-1"></i>{{ user.profile.phone }}
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    {% if user.role %}
+                                    <span class="badge {% if user.role.name == 'admin' %}bg-danger{% elif user.role.name == 'staff' %}bg-warning{% elif user.role.name == 'member' %}bg-primary{% else %}bg-secondary{% endif %}">
+                                        {% if user.role.name == 'admin' %}
+                                        <i class="fas fa-crown me-1"></i>管理员
+                                        {% elif user.role.name == 'staff' %}
+                                        <i class="fas fa-shield-alt me-1"></i>员工
+                                        {% elif user.role.name == 'member' %}
+                                        <i class="fas fa-user me-1"></i>会员
+                                        {% else %}
+                                        <i class="fas fa-question me-1"></i>{{ user.role.name }}
+                                        {% endif %}
+                                    </span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">未设置</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if user.is_active %}
+                                    <span class="badge bg-success">
+                                        <i class="fas fa-check me-1"></i>活跃
+                                    </span>
+                                    {% else %}
+                                    <span class="badge bg-danger">
+                                        <i class="fas fa-times me-1"></i>禁用
+                                    </span>
+                                    {% endif %}
+                                    {% if user.is_verified %}
+                                    <span class="badge bg-info ms-1">
+                                        <i class="fas fa-certificate me-1"></i>已验证
+                                    </span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if user.created_at %}
+                                    <div>{{ user.created_at.strftime('%Y-%m-%d') }}</div>
+                                    <div class="text-muted small">{{ user.created_at.strftime('%H:%M') }}</div>
+                                    {% else %}
+                                    <span class="text-muted">未知</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if user.last_login %}
+                                    <div>{{ user.last_login.strftime('%Y-%m-%d') }}</div>
+                                    <div class="text-muted small">{{ user.last_login.strftime('%H:%M') }}</div>
+                                    {% else %}
+                                    <span class="text-muted">从未登录</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="btn-group" role="group">
+                                        <a href="{{ url_for('admin.user_detail', user_id=user.id) }}" 
+                                           class="btn btn-sm btn-outline-primary" title="查看详情">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        {% if user.id != current_user.id %}
+                                        <button class="btn btn-sm btn-outline-warning" 
+                                                onclick="toggleUserStatus({{ user.id }}, {{ user.is_active | tojson }})"
+                                                title="{% if user.is_active %}禁用{% else %}启用{% endif %}用户">
+                                            <i class="fas {% if user.is_active %}fa-ban{% else %}fa-check{% endif %}"></i>
+                                        </button>
+                                        {% if user.role and user.role.name != 'admin' %}
+                                        <button class="btn btn-sm btn-outline-danger" 
+                                                onclick="deleteUser({{ user.id }}, '{{ user.email }}')"
+                                                title="删除用户">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                        {% endif %}
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- 无数据提示 -->
+        {% if not users %}
+        <div class="text-center py-5">
+            <i class="fas fa-users" style="font-size: 4rem; color: #ccc;"></i>
+            <h4 class="mt-3 text-muted">暂无用户数据</h4>
+            <p class="text-muted">开始创建您的第一个用户吧</p>
+            <a href="{{ url_for('admin.create_user') }}" class="btn btn-primary">
+                <i class="fas fa-user-plus me-2"></i>创建用户
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.user-avatar .avatar-placeholder {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--primary-color);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+}
+
+.stat-card {
+    color: white;
+    border-radius: 10px;
+    padding: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.stat-card .stat-icon {
+    font-size: 2.5rem;
+    opacity: 0.8;
+}
+
+.stat-card .stat-info h3 {
+    font-size: 2rem;
+    font-weight: bold;
+    margin: 0;
+}
+
+.stat-card .stat-info p {
+    margin: 0;
+    opacity: 0.9;
+}
+
+.table th {
+    border-top: none;
+    font-weight: 600;
+    color: var(--dark-color);
+}
+
+.btn-group .btn {
+    border-radius: 0;
+}
+
+.btn-group .btn:first-child {
+    border-top-left-radius: 0.375rem;
+    border-bottom-left-radius: 0.375rem;
+}
+
+.btn-group .btn:last-child {
+    border-top-right-radius: 0.375rem;
+    border-bottom-right-radius: 0.375rem;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// 角色筛选
+document.getElementById('roleFilter').addEventListener('change', function() {
+    const filterValue = this.value.toLowerCase();
+    const rows = document.querySelectorAll('#userTableBody tr');
+    
+    rows.forEach(row => {
+        const roleText = row.cells[1].textContent.toLowerCase();
+        if (!filterValue || roleText.includes(filterValue)) {
+            row.style.display = '';
+        } else {
+            row.style.display = 'none';
+        }
+    });
+});
+
+// 搜索功能
+document.getElementById('searchInput').addEventListener('input', function() {
+    const searchValue = this.value.toLowerCase();
+    const rows = document.querySelectorAll('#userTableBody tr');
+    
+    rows.forEach(row => {
+        const text = row.textContent.toLowerCase();
+        if (text.includes(searchValue)) {
+            row.style.display = '';
+        } else {
+            row.style.display = 'none';
+        }
+    });
+});
+
+// 切换用户状态
+function toggleUserStatus(userId, currentStatus) {
+    const action = currentStatus ? '禁用' : '启用';
+    if (confirm(`确定要${action}此用户吗？`)) {
+        // 这里可以发送AJAX请求到后端
+        console.log(`${action}用户 ${userId}`);
+        // location.reload(); // 刷新页面
+    }
+}
+
+// 删除用户
+function deleteUser(userId, userEmail) {
+    if (confirm(`确定要删除用户 ${userEmail} 吗？此操作不可撤销！`)) {
+        // 这里可以发送AJAX请求到后端
+        console.log(`删除用户 ${userId}`);
+        // location.reload(); // 刷新页面
+    }
+}
+</script>
+{% endblock %} 

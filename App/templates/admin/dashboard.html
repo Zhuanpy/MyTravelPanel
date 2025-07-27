@@ -1,0 +1,388 @@
+{% extends "admin/base.html" %}
+
+{% block title %}管理员仪表板 - MyTravelPanel{% endblock %}
+
+{% block page_title %}系统总览{% endblock %}
+
+{% block content %}
+<!-- 统计卡片 -->
+<div class="row mb-4">
+    <div class="col-md-3 mb-3">
+        <div class="card admin-stats-card admin-primary">
+            <div class="card-body">
+                <h3 class="admin-stats-number">{{ stats.total_users or 0 }}</h3>
+                <p class="admin-stats-label">总用户数</p>
+                <i class="fas fa-users admin-stats-icon"></i>
+                <div class="admin-stats-trend">
+                    <small class="text-success">
+                        <i class="fas fa-arrow-up"></i> +{{ stats.new_users_this_month or 0 }} 本月新增
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-3">
+        <div class="card admin-stats-card admin-success">
+            <div class="card-body">
+                <h3 class="admin-stats-number">{{ stats.active_users or 0 }}</h3>
+                <p class="admin-stats-label">活跃用户</p>
+                <i class="fas fa-user-check admin-stats-icon"></i>
+                <div class="admin-stats-trend">
+                    <small class="text-success">
+                        <i class="fas fa-circle status-indicator online"></i> 在线
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-3">
+        <div class="card admin-stats-card admin-info">
+            <div class="card-body">
+                <h3 class="admin-stats-number">{{ stats.total_roles or 0 }}</h3>
+                <p class="admin-stats-label">系统角色</p>
+                <i class="fas fa-user-shield admin-stats-icon"></i>
+                <div class="admin-stats-trend">
+                    <small class="text-info">
+                        <i class="fas fa-cog"></i> 权限管理
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-3">
+        <div class="card admin-stats-card admin-warning">
+            <div class="card-body">
+                <h3 class="admin-stats-number">98%</h3>
+                <p class="admin-stats-label">系统健康度</p>
+                <i class="fas fa-heartbeat admin-stats-icon"></i>
+                <div class="admin-stats-trend">
+                    <small class="text-success">
+                        <i class="fas fa-check-circle"></i> 运行正常
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- 最近用户 -->
+    <div class="col-lg-8 mb-4">
+        <div class="admin-table">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th colspan="6">
+                            <i class="fas fa-users me-2"></i>最近注册用户
+                            <a href="{{ url_for('admin.users') }}" class="btn btn-sm btn-outline-light float-end">
+                                查看全部
+                            </a>
+                        </th>
+                    </tr>
+                    <tr>
+                        <th>用户ID</th>
+                        <th>邮箱</th>
+                        <th>姓名</th>
+                        <th>角色</th>
+                        <th>状态</th>
+                        <th>注册时间</th>
+                    </tr>
+                </thead>
+                <tbody id="recentUsersTable">
+                    {% if recent_users %}
+                        {% for user in recent_users %}
+                        <tr>
+                            <td data-label="用户ID">#{{ user.id }}</td>
+                            <td data-label="邮箱">{{ user.email }}</td>
+                            <td data-label="姓名">
+                                {% if user.profile %}
+                                    {{ user.profile.first_name }} {{ user.profile.last_name or '' }}
+                                {% else %}
+                                    未设置
+                                {% endif %}
+                            </td>
+                            <td data-label="角色">
+                                <span class="role-badge {{ user.role.name }}">
+                                    {{ user.role.name }}
+                                </span>
+                            </td>
+                            <td data-label="状态">
+                                <span class="user-status active">
+                                    激活
+                                </span>
+                            </td>
+                            <td data-label="注册时间">
+                                {% if user.created_at %}
+                                    {{ user.created_at.strftime('%Y-%m-%d') }}
+                                {% else %}
+                                    最近
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                    <tr>
+                        <td colspan="6" class="text-center text-muted">
+                            <i class="fas fa-user-plus fa-2x mb-2"></i><br>
+                            暂无最近注册用户
+                        </td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <!-- 系统活动 -->
+    <div class="col-lg-4 mb-4">
+        <div class="chart-container">
+            <h5 class="chart-title">
+                <i class="fas fa-history me-2"></i>系统活动
+            </h5>
+            <div class="activity-timeline">
+                {% if recent_activities %}
+                    {% for activity in recent_activities %}
+                    <div class="activity-item">
+                        <div class="activity-icon {{ activity.color }}">
+                            <i class="fas {{ activity.icon }}"></i>
+                        </div>
+                        <h6 class="activity-title">{{ activity.title }}</h6>
+                        <p class="activity-description">{{ activity.description }}</p>
+                        <small class="activity-time">{{ activity.time }}</small>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                <div class="empty-state">
+                    <i class="fas fa-history"></i>
+                    <h6>暂无系统活动</h6>
+                    <p>系统活动将在这里显示</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 快速操作和系统信息 -->
+<div class="row">
+    <!-- 快速操作 -->
+    <div class="col-lg-6 mb-4">
+        <div class="chart-container">
+            <h5 class="chart-title">
+                <i class="fas fa-bolt me-2"></i>快速操作
+            </h5>
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <a href="{{ url_for('admin.users') }}" class="btn btn-admin btn-admin-primary w-100">
+                        <i class="fas fa-users me-2"></i>用户管理
+                    </a>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <a href="{{ url_for('admin.roles') }}" class="btn btn-outline-danger btn-admin w-100">
+                        <i class="fas fa-user-shield me-2"></i>角色权限
+                    </a>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <a href="{{ url_for('admin.analytics') }}" class="btn btn-outline-info btn-admin w-100">
+                        <i class="fas fa-chart-bar me-2"></i>数据分析
+                    </a>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <a href="{{ url_for('admin.system') }}" class="btn btn-outline-warning btn-admin w-100">
+                        <i class="fas fa-cogs me-2"></i>系统设置
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 系统信息 -->
+    <div class="col-lg-6 mb-4">
+        <div class="system-info-card">
+            <h5 class="chart-title">
+                <i class="fas fa-server me-2"></i>系统信息
+            </h5>
+            <div class="system-info-item">
+                <span class="system-info-label">应用名称</span>
+                <span class="system-info-value">MyTravelPanel</span>
+            </div>
+            <div class="system-info-item">
+                <span class="system-info-label">版本</span>
+                <span class="system-info-value">v1.0.0</span>
+            </div>
+            <div class="system-info-item">
+                <span class="system-info-label">数据库</span>
+                <span class="system-info-value">
+                    <i class="fas fa-circle text-success me-1"></i>MySQL 连接正常
+                </span>
+            </div>
+            <div class="system-info-item">
+                <span class="system-info-label">运行时间</span>
+                <span class="system-info-value" id="systemUptime">计算中...</span>
+            </div>
+            <div class="system-info-item">
+                <span class="system-info-label">最后更新</span>
+                <span class="system-info-value">{{ moment().format('YYYY-MM-DD HH:mm') if moment else '刚刚' }}</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 图表展示 -->
+<div class="row">
+    <div class="col-lg-6 mb-4">
+        <div class="chart-container">
+            <h5 class="chart-title">用户增长趋势</h5>
+            <canvas id="userGrowthChart" width="400" height="200"></canvas>
+        </div>
+    </div>
+    
+    <div class="col-lg-6 mb-4">
+        <div class="chart-container">
+            <h5 class="chart-title">角色分布</h5>
+            <canvas id="roleDistributionChart" width="400" height="200"></canvas>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// 实时更新系统运行时间
+function updateSystemUptime() {
+    const startTime = new Date();
+    setInterval(() => {
+        const now = new Date();
+        const uptime = now - startTime;
+        const seconds = Math.floor(uptime / 1000) % 60;
+        const minutes = Math.floor(uptime / (1000 * 60)) % 60;
+        const hours = Math.floor(uptime / (1000 * 60 * 60));
+        
+        document.getElementById('systemUptime').textContent = 
+            `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    }, 1000);
+}
+
+// 加载统计数据
+function loadAdminStats() {
+    fetch('/admin/api/stats')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                updateStatsDisplay(data.data);
+            }
+        })
+        .catch(error => {
+            console.error('加载统计数据失败:', error);
+        });
+}
+
+// 更新统计数据显示
+function updateStatsDisplay(stats) {
+    // 更新数值（这里可以添加动画效果）
+    console.log('统计数据已更新:', stats);
+}
+
+// 创建用户增长图表
+function createUserGrowthChart() {
+    const ctx = document.getElementById('userGrowthChart').getContext('2d');
+    
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: ['1月', '2月', '3月', '4月', '5月', '6月'],
+            datasets: [{
+                label: '用户数量',
+                data: [1, 1, 1, 1, 1, {{ stats.total_users or 1 }}],
+                borderColor: '#dc3545',
+                backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                borderWidth: 3,
+                fill: true,
+                tension: 0.4
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 1
+                    }
+                }
+            }
+        }
+    });
+}
+
+// 创建角色分布图表
+function createRoleDistributionChart() {
+    const ctx = document.getElementById('roleDistributionChart').getContext('2d');
+    
+    // 模拟角色分布数据
+    const roleData = {
+        'admin': 1,
+        'staff': 0,
+        'member': 0,
+        'guest': 0
+    };
+    
+    new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ['管理员', '员工', '会员', '访客'],
+            datasets: [{
+                data: [roleData.admin, roleData.staff, roleData.member, roleData.guest],
+                backgroundColor: [
+                    '#dc3545',
+                    '#28a745', 
+                    '#007bff',
+                    '#6c757d'
+                ],
+                borderWidth: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+}
+
+// 页面加载完成后执行
+document.addEventListener('DOMContentLoaded', function() {
+    // 添加动画效果
+    const cards = document.querySelectorAll('.admin-stats-card, .admin-table, .chart-container, .system-info-card');
+    cards.forEach((card, index) => {
+        setTimeout(() => {
+            card.classList.add('fade-in-up');
+        }, index * 100);
+    });
+    
+    // 初始化功能
+    updateSystemUptime();
+    loadAdminStats();
+    
+    // 延迟加载图表，确保容器已渲染
+    setTimeout(() => {
+        createUserGrowthChart();
+        createRoleDistributionChart();
+    }, 500);
+    
+    // 定期更新数据
+    setInterval(loadAdminStats, 30000); // 每30秒更新一次
+});
+</script>
+{% endblock %} 

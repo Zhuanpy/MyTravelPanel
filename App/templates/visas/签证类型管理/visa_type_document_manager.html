@@ -541,11 +541,11 @@
                     {% endfor %}
                 {% else %}
                     <!-- 没有指定签证类型时，显示所有签证类型 -->
-                    {% for visa_type in visa_types %}
-                        <div class="visa-type-item" data-visa-type="{{ visa_type.visa_type }}">
-                            {{ visa_type.visa_type }}
-                        </div>
-                    {% endfor %}
+                {% for visa_type in visa_types %}
+                    <div class="visa-type-item" data-visa-type="{{ visa_type.visa_type }}">
+                        {{ visa_type.visa_type }}
+                    </div>
+                {% endfor %}
                 {% endif %}
             </div>
         </div>

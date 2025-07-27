@@ -4,11 +4,13 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_caching import Cache
 from flask_wtf.csrf import CSRFProtect
+from flask_login import LoginManager
 
 db = SQLAlchemy()
 migrate = Migrate()
 cache = Cache()
 csrf = CSRFProtect()
+login_manager = LoginManager()
 
 
 def init_exts(app):
@@ -26,6 +28,18 @@ def init_exts(app):
     }
     app.config.from_mapping(cache_config)
     cache.init_app(app)
+
+    # 初始化Flask-Login
+    login_manager.init_app(app)
+    login_manager.login_view = 'auth.login'
+    login_manager.login_message = '请先登录'
+    login_manager.login_message_category = 'warning'
+
+    # 用户加载函数
+    @login_manager.user_loader
+    def load_user(user_id):
+        from App.models.auth import AuthUser
+        return AuthUser.query.get(int(user_id))
 
     # 导入模型并创建所有表
     with app.app_context():

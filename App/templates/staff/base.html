@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}员工工作台 - MyTravelPanel{% endblock %}</title>
+    
+    <!-- CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/staff.css') }}" rel="stylesheet">
+    
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <!-- 导航栏 -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-success">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="{{ url_for('public.index') }}">
+                <i class="fas fa-plane"></i> MyTravelPanel
+                <span class="badge bg-light text-success ms-2">员工版</span>
+            </a>
+            
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('staff.dashboard') }}">
+                            <i class="fas fa-tachometer-alt"></i> 工作台
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('staff.projects') }}">
+                            <i class="fas fa-project-diagram"></i> 项目管理
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('staff.quotes') }}">
+                            <i class="fas fa-file-invoice-dollar"></i> 报价管理
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('staff.files') }}">
+                            <i class="fas fa-folder"></i> 文件管理
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('staff.tasks') }}">
+                            <i class="fas fa-tasks"></i> 任务中心
+                        </a>
+                    </li>
+                </ul>
+                
+                <ul class="navbar-nav">
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-user-tie"></i> 
+                            {% if current_user.profile %}
+                                {{ current_user.profile.first_name }}
+                            {% else %}
+                                {{ current_user.email }}
+                            {% endif %}
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{{ url_for('auth.profile') }}">
+                                <i class="fas fa-user me-2"></i>个人资料
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('auth.change_password') }}">
+                                <i class="fas fa-key me-2"></i>修改密码
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('member.dashboard') }}">
+                                <i class="fas fa-user-circle me-2"></i>会员中心
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{{ url_for('auth.logout') }}">
+                                <i class="fas fa-sign-out-alt me-2"></i>退出登录
+                            </a></li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 主要内容 -->
+    <div class="container-fluid">
+        <div class="row">
+            <!-- 侧边栏 -->
+            <nav class="col-md-3 col-lg-2 d-md-block bg-light sidebar">
+                <div class="position-sticky pt-3">
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint == 'staff.dashboard' %}active{% endif %}" 
+                               href="{{ url_for('staff.dashboard') }}">
+                                <i class="fas fa-tachometer-alt me-2"></i>
+                                工作台
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if 'project' in request.endpoint %}active{% endif %}" 
+                               href="{{ url_for('staff.projects') }}">
+                                <i class="fas fa-project-diagram me-2"></i>
+                                项目管理
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if 'quote' in request.endpoint %}active{% endif %}" 
+                               href="{{ url_for('staff.quotes') }}">
+                                <i class="fas fa-file-invoice-dollar me-2"></i>
+                                报价管理
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if 'file' in request.endpoint or 'upload' in request.endpoint %}active{% endif %}" 
+                               href="{{ url_for('staff.files') }}">
+                                <i class="fas fa-folder me-2"></i>
+                                文件管理
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint == 'staff.tasks' %}active{% endif %}" 
+                               href="{{ url_for('staff.tasks') }}">
+                                <i class="fas fa-tasks me-2"></i>
+                                任务中心
+                            </a>
+                        </li>
+                    </ul>
+
+                    <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted">
+                        <span>快速操作</span>
+                    </h6>
+                    <ul class="nav flex-column mb-2">
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('staff.create_project') }}">
+                                <i class="fas fa-plus me-2"></i>
+                                新建项目
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('staff.create_quote') }}">
+                                <i class="fas fa-file-invoice me-2"></i>
+                                新建报价
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('staff.upload_file') }}">
+                                <i class="fas fa-upload me-2"></i>
+                                上传文件
+                            </a>
+                        </li>
+                    </ul>
+
+                    <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted">
+                        <span>其他功能</span>
+                    </h6>
+                    <ul class="nav flex-column mb-2">
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('member.dashboard') }}">
+                                <i class="fas fa-user-circle me-2"></i>
+                                会员中心
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('public.index') }}">
+                                <i class="fas fa-home me-2"></i>
+                                返回首页
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </nav>
+
+            <!-- 主内容区域 -->
+            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+                <!-- 面包屑导航 -->
+                <nav aria-label="breadcrumb" class="pt-3">
+                    <ol class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="{{ url_for('staff.dashboard') }}">员工工作台</a></li>
+                        {% block breadcrumb %}{% endblock %}
+                    </ol>
+                </nav>
+
+                <!-- 页面标题 -->
+                <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                    <h1 class="h2">{% block page_title %}员工工作台{% endblock %}</h1>
+                    {% block page_actions %}{% endblock %}
+                </div>
+
+                <!-- Flash消息 -->
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+
+                <!-- 页面内容 -->
+                {% block content %}{% endblock %}
+            </main>
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    {% block extra_js %}{% endblock %}
+</body>
+</html> 
