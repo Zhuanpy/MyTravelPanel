@@ -987,6 +987,53 @@
         box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.15);
     }
 
+    /* 备注控制按钮样式 */
+    .remarks-controls {
+        display: flex;
+        gap: 0.5rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .visa-project-load-remarks-btn,
+    .visa-project-clear-remarks-btn {
+        padding: 0.375rem 0.75rem;
+        border: 1px solid #e2e8f0;
+        border-radius: 0.375rem;
+        background-color: #ffffff;
+        color: #4a5568;
+        font-size: 0.875rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
+
+    .visa-project-load-remarks-btn {
+        background-color: #ebf8ff;
+        color: #3182ce;
+        border-color: #bee3f8;
+    }
+
+    .visa-project-load-remarks-btn:hover {
+        background-color: #bee3f8;
+        color: #2c5282;
+        border-color: #90cdf4;
+    }
+
+    .visa-project-clear-remarks-btn {
+        background-color: #fed7d7;
+        color: #e53e3e;
+        border-color: #feb2b2;
+    }
+
+    .visa-project-clear-remarks-btn:hover {
+        background-color: #feb2b2;
+        color: #c53030;
+        border-color: #fc8181;
+    }
+
     /* 隐藏身份提示标签 */
     .current-identity-label {
         display: none !important;
@@ -1114,6 +1161,14 @@
         <div class="visa-project-form" style="padding: 1.5rem;">
             <div class="visa-project-form-group">
                 <label for="remarks">备注信息</label>
+                <div class="remarks-controls" style="margin-bottom: 0.5rem;">
+                    <button type="button" class="visa-project-load-remarks-btn" onclick="loadAdditionalInfo()">
+                        <i class="fas fa-download"></i> 加载补充信息
+                    </button>
+                    <button type="button" class="visa-project-clear-remarks-btn" onclick="clearRemarks()">
+                        <i class="fas fa-eraser"></i> 清空备注
+                    </button>
+                </div>
                 <textarea class="visa-project-form-control" id="remarks" name="remarks" 
                           placeholder="添加备注信息" rows="5" form="visaForm"></textarea>
                 </div>
@@ -1202,6 +1257,74 @@
     setTimeout(function() {
         $('.alert').alert('close');
     }, 3000);
+
+    // 加载补充信息到备注
+    window.loadAdditionalInfo = function() {
+        const visaType = document.getElementById('visa_type').value;
+        const singaporeStatus = document.getElementById('singapore_status').value;
+        
+        if (!visaType) {
+            showToast('请先选择签证类型', 'error');
+            return;
+        }
+        
+        if (!singaporeStatus) {
+            showToast('请先选择新加坡身份', 'error');
+            return;
+        }
+        
+        // 显示加载状态
+        const loadBtn = document.querySelector('.visa-project-load-remarks-btn');
+        const originalText = loadBtn.innerHTML;
+        loadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 加载中...';
+        loadBtn.disabled = true;
+        
+        // 获取补充信息
+        fetch(`/visa/project/get_additional_info?visa_type=${encodeURIComponent(visaType)}&identity=${encodeURIComponent(singaporeStatus)}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const remarksTextarea = document.getElementById('remarks');
+                    let additionalInfo = '';
+                    
+                    // 组合补充信息
+                    if (data.share_additional_info && data.share_additional_info !== '暂无补充信息') {
+                        additionalInfo += `【共用资料补充信息】\n${data.share_additional_info}\n\n`;
+                    }
+                    
+                    if (data.identity_additional_info && data.identity_additional_info !== '暂无补充信息') {
+                        additionalInfo += `【${singaporeStatus}身份补充信息】\n${data.identity_additional_info}`;
+                    }
+                    
+                    if (additionalInfo.trim()) {
+                        remarksTextarea.value = additionalInfo.trim();
+                        showToast('补充信息已加载到备注', 'success');
+                    } else {
+                        showToast('该签证类型和身份暂无补充信息', 'error');
+                    }
+                } else {
+                    showToast(data.message || '加载补充信息失败', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('加载补充信息失败:', error);
+                showToast('加载补充信息失败，请稍后重试', 'error');
+            })
+            .finally(() => {
+                // 恢复按钮状态
+                loadBtn.innerHTML = originalText;
+                loadBtn.disabled = false;
+            });
+    };
+
+    // 清空备注信息
+    window.clearRemarks = function() {
+        if (confirm('确定要清空备注信息吗？')) {
+            document.getElementById('remarks').value = '';
+            showToast('备注信息已清空', 'success');
+        }
+    };
+
     function updateProjectName() {
         const hidOrSerial = document.getElementById('hid_or_serial').value.trim();
         const visaType = document.getElementById('visa_type').value.trim();

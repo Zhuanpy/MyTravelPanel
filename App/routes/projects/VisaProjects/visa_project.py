@@ -1844,3 +1844,190 @@ def test_visa_detail(project_id):
         print(f"DEBUG: Exception in test_visa_detail: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
+
+@visa_project.route('/get_additional_info')
+def get_additional_info():
+    """获取签证类型的补充信息"""
+    try:
+        visa_type = request.args.get('visa_type')
+        identity = request.args.get('identity')
+        
+        if not visa_type or not identity:
+            return jsonify({
+                'success': False,
+                'message': '签证类型和身份参数不能为空'
+            })
+        
+        # 获取签证类型信息
+        types_info = VisaTypes.query.filter_by(visa_type=visa_type).first()
+        if not types_info:
+            return jsonify({
+                'success': False,
+                'message': f'签证类型 "{visa_type}" 不存在'
+            })
+        
+        # 获取身份信息
+        from App.models.Product.Visamodels import VisaSingaporeIdentity, VisaDocuments
+        identity_record = VisaSingaporeIdentity.query.filter_by(identity_zh=identity).first()
+        if not identity_record:
+            return jsonify({
+                'success': False,
+                'message': f'身份 "{identity}" 不存在'
+            })
+        
+        # 获取共用资料补充信息
+        share_info = VisaDocuments.get_document_info(types_info.id, None)
+        share_additional_info = share_info.get('additional_info', '暂无补充信息') if share_info else '暂无补充信息'
+        
+        # 获取特定身份补充信息
+        identity_info = VisaDocuments.get_document_info(types_info.id, identity_record.id)
+        identity_additional_info = identity_info.get('additional_info', '暂无补充信息') if identity_info else '暂无补充信息'
+        
+        return jsonify({
+            'success': True,
+            'share_additional_info': share_additional_info,
+            'identity_additional_info': identity_additional_info
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f"获取补充信息时发生错误: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f'获取补充信息失败: {str(e)}'
+        }), 500
+
+
+@visa_project.route('/update_hid', methods=['POST'])
+@csrf.exempt
+def update_hid():
+    """更新项目的HID编号"""
+    try:
+        data = request.get_json()
+        project_id = data.get('project_id')
+        hid_number = data.get('hid_number', '').strip()
+        
+        if not project_id:
+            return jsonify({
+                'success': False,
+                'message': '缺少项目ID'
+            }), 400
+        
+        # 查找项目
+        project = VisaProject.query.get(project_id)
+        if not project:
+            return jsonify({
+                'success': False,
+                'message': '项目不存在'
+            }), 404
+        
+        # 更新HID编号
+        project.hid_or_serial = hid_number
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'HID编号更新成功'
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f"更新HID编号时发生错误: {str(e)}")
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'message': f'更新HID编号失败: {str(e)}'
+        }), 500
+
+
+@visa_project.route('/update_ref', methods=['POST'])
+@csrf.exempt
+def update_ref():
+    """更新项目的Ref编号"""
+    try:
+        data = request.get_json()
+        project_id = data.get('project_id')
+        ref_number = data.get('ref_number', '').strip()
+        
+        if not project_id:
+            return jsonify({
+                'success': False,
+                'message': '缺少项目ID'
+            }), 400
+        
+        # 查找项目
+        project = VisaProject.query.get(project_id)
+        if not project:
+            return jsonify({
+                'success': False,
+                'message': '项目不存在'
+            }), 404
+        
+        # 更新Ref编号
+        project.ref_number = ref_number
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Ref编号更新成功'
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f"更新Ref编号时发生错误: {str(e)}")
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'message': f'更新Ref编号失败: {str(e)}'
+        }), 500
+
+
+@visa_project.route('/unlink_hid_ref', methods=['POST'])
+@csrf.exempt
+def unlink_hid_ref():
+    """解除项目的HID和Ref编号关联"""
+    try:
+        data = request.get_json()
+        project_id = data.get('project_id')
+        
+        if not project_id:
+            return jsonify({
+                'success': False,
+                'message': '缺少项目ID'
+            }), 400
+        
+        # 查找项目
+        project = VisaProject.query.get(project_id)
+        if not project:
+            return jsonify({
+                'success': False,
+                'message': '项目不存在'
+            }), 404
+        
+        # 解除HID关联
+        if hasattr(project, 'header') and project.header:
+            # 这里需要根据实际的数据库模型来解除关联
+            # 假设有一个header_id字段
+            project.header_id = None
+        
+        # 解除Ref关联
+        if hasattr(project, 'ref') and project.ref:
+            # 这里需要根据实际的数据库模型来解除关联
+            # 假设有一个ref_id字段
+            project.ref_id = None
+        
+        # 清空hid_or_serial和ref_number字段
+        project.hid_or_serial = None
+        project.ref_number = None
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'HID和Ref编号关联已解除'
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f"解除HID和Ref编号关联时发生错误: {str(e)}")
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'message': f'解除关联失败: {str(e)}'
+        }), 500

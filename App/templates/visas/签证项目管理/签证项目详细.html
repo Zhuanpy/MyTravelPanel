@@ -70,7 +70,7 @@
         }
         
         .visa-detail-section-header {
-            padding: 0.4rem 1rem;
+            padding: 1rem 1.5rem;
             background-color: #f7fafc;
             border-bottom: 1px solid #e2e8f0;
             display: flex;
@@ -79,7 +79,7 @@
         }
         
         .visa-detail-section-header h2 {
-            font-size: 1.15rem;
+            font-size: 1.25rem;
             font-weight: 600;
             color: #2d3748;
             margin: 0;
@@ -87,15 +87,22 @@
 
         /* 专门为"所需文件资料"header中的按钮设置紧凑样式 */
         .visa-detail-section-header .visa-detail-actions .visa-project-btn {
-            padding: 0.25rem 0.75rem;
-            font-size: 0.8rem;
+            padding: 0.5rem 1rem;
+            font-size: 0.875rem;
             height: auto;
-            min-height: 28px;
         }
 
         .visa-detail-section-header .visa-detail-actions .visa-project-btn svg {
-            width: 14px;
-            height: 14px;
+            width: 16px;
+            height: 16px;
+        }
+        
+        /* 重置header中actions的margin */
+        .visa-detail-section-header .visa-detail-actions {
+            margin-top: 0;
+            padding: 0;
+            background-color: transparent;
+            border-radius: 0;
         }
         
         .visa-detail-content {
@@ -298,6 +305,209 @@
         }
         
         .document-text p {
+            margin: 0 0 0.5rem 0;
+            counter-increment: line-number;
+        }
+        
+        /* HID和Ref编号管理样式 */
+        .hid-ref-management {
+            padding: 1rem;
+        }
+        
+        .hid-ref-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+            margin-bottom: 1rem;
+        }
+        
+        .hid-ref-item {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        
+        .hid-ref-label {
+            font-weight: 600;
+            color: #2d3748;
+            font-size: 0.875rem;
+        }
+        
+        .hid-ref-input-group {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .hid-ref-input {
+            flex: 1;
+            padding: 0.5rem 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 0.375rem;
+            font-size: 0.875rem;
+            transition: border-color 0.2s;
+        }
+        
+        .hid-ref-input:focus {
+            outline: none;
+            border-color: #4299e1;
+            box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.1);
+        }
+        
+        .hid-ref-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            padding: 0.5rem 0.75rem;
+            background-color: #4299e1;
+            color: white;
+            border: none;
+            border-radius: 0.375rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        .hid-ref-btn:hover {
+            background-color: #3182ce;
+        }
+        
+        .hid-ref-actions {
+            display: flex;
+            gap: 0.75rem;
+            justify-content: flex-end;
+        }
+        
+        .hid-ref-action-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            padding: 0.5rem 1rem;
+            background-color: #f3f4f6;
+            color: #4b5563;
+            border: 1px solid #d1d5db;
+            border-radius: 0.375rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .hid-ref-action-btn:hover {
+            background-color: #e5e7eb;
+            color: #374151;
+        }
+        
+        @media (max-width: 768px) {
+            .hid-ref-row {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+            
+            .hid-ref-actions {
+                justify-content: stretch;
+            }
+            
+            .hid-ref-action-btn {
+                flex: 1;
+                justify-content: center;
+            }
+        }
+        
+        /* 新的HID和Ref管理样式 */
+        .hid-ref-status {
+            display: flex;
+            flex-direction: row;
+            gap: 2rem;
+            margin-bottom: 1rem;
+            align-items: center;
+        }
+        
+        .hid-ref-status-item {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 0.75rem;
+            background-color: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.375rem;
+            margin-bottom: 0;
+            flex: 1;
+        }
+        
+        .hid-ref-status-label {
+            font-weight: 600;
+            color: #2d3748;
+            min-width: 80px;
+        }
+        
+        .hid-ref-status-value {
+            flex: 1;
+            color: #1f2937;
+            font-family: monospace;
+            font-size: 0.875rem;
+        }
+        
+        .hid-ref-link {
+            color: #4299e1;
+            text-decoration: none;
+            font-size: 0.875rem;
+            padding: 0.25rem 0.5rem;
+            border: 1px solid #4299e1;
+            border-radius: 0.25rem;
+            transition: all 0.2s;
+        }
+        
+        .hid-ref-link:hover {
+            background-color: #4299e1;
+            color: white;
+        }
+        
+        .hid-ref-create {
+            text-align: center;
+            padding: 2rem;
+        }
+        
+        .hid-ref-create-info {
+            margin-bottom: 1.5rem;
+        }
+        
+        .hid-ref-create-info p {
+            color: #6b7280;
+            font-size: 0.875rem;
+            margin: 0;
+        }
+        
+        .hid-ref-create-actions {
+            display: flex;
+            justify-content: center;
+        }
+        
+        .hid-ref-create-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1.5rem;
+            background-color: #4299e1;
+            color: white;
+            border: none;
+            border-radius: 0.375rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        .hid-ref-create-btn:hover {
+            background-color: #3182ce;
+        }
+        
+        .hid-ref-temp-note {
+            color: #f59e0b;
+            font-size: 0.8rem;
+            margin: 0.5rem 0 0 0;
+            font-style: italic;
+        }
             margin: 0 0 0.25rem 0;
             position: relative;
             padding-left: 2rem;
@@ -1043,31 +1253,13 @@
             <div class="visa-detail-info-grid">
                 <div class="visa-detail-info-item">
                     <span class="visa-detail-info-label">HID或序列号</span>
-                    <span class="visa-detail-info-value">{{ project.hid_or_serial or '未设置' }}</span>
-                </div>
-                <div class="visa-detail-info-item">
-                    <span class="visa-detail-info-label">项目HID</span>
-                    <div class="visa-detail-info-value">
+                    <span class="visa-detail-info-value">
                         {% if has_header and project.header %}
-                            <span>{{ project.header.hid }}</span>
-                            <a href="{{ url_for('projects.header_detail', header_id=project.header.id) }}" class="btn btn-sm btn-info ml-2" target="_blank">查看</a>
+                            {{ project.header.hid }}
                         {% else %}
-                            <span class="text-muted">未关联</span>
-                            <button type="button" class="btn btn-sm btn-primary ml-2" onclick="createProjectLinks()" data-original-text="创建HID">创建HID</button>
+                            {{ project.hid_or_serial or '未设置' }}
                         {% endif %}
-                    </div>
-                </div>
-                <div class="visa-detail-info-item">
-                    <span class="visa-detail-info-label">REF编号</span>
-                    <div class="visa-detail-info-value">
-                        {% if has_ref and project.ref %}
-                            <span>{{ project.ref.ref_number }}</span>
-                            <a href="{{ url_for('projects.ref_detail', ref_id=project.ref.id) }}" class="btn btn-sm btn-info ml-2" target="_blank">查看</a>
-                        {% else %}
-                            <span class="text-muted">未关联</span>
-                            <button type="button" class="btn btn-sm btn-primary ml-2" onclick="createProjectLinks()" data-original-text="创建REF">创建REF</button>
-                        {% endif %}
-                    </div>
+                    </span>
                 </div>
                 {% if has_ref and project.ref and project.ref.extra_info %}
                     {% set extra_info = project.ref.extra_info|from_json %}
@@ -1133,13 +1325,6 @@
                 {% endif %}
             </div>
             
-            <div class="visa-detail-remarks">
-                <h2>备注信息</h2>
-                {{ project.remarks or '暂无备注信息' }}
-            </div>
-        </div>
-    </section>
-
     <section class="visa-detail-section">
         <div class="visa-detail-section-header">
             <h2>所需文件资料</h2>
@@ -1214,33 +1399,79 @@
 
     <section class="visa-detail-section">
         <div class="visa-detail-section-header">
-            <h2>补充信息</h2>
+            <h2>备注信息</h2>
         </div>
         <div class="visa-detail-content">
-            <div class="visa-detail-documents">
-                <div class="visa-detail-document-content">
-                    {%- if document_data and project.singapore_status in document_data -%}
-                        {%- set additional_info = document_data[project.singapore_status].additional_info -%}
-                        {%- if additional_info -%}
-                            <div class="document-text">
-                                {%- set line_number = 1 -%}
-                                {%- for line in additional_info.strip().split('\n') -%}
-                                    {%- if line.strip() -%}
-                                        <p>{{ line.strip() | safe }}</p>
-                                        {%- set line_number = line_number + 1 -%}
-                                    {%- endif -%}
-                                {%- endfor -%}
-                            </div>
-                        {%- else -%}
-                            暂无补充信息
-                        {%- endif -%}
-                    {%- else -%}
-                        暂无补充信息
-                    {%- endif -%}
-                </div>
+            <div class="visa-detail-remarks">
+                {{ project.remarks or '暂无备注信息' }}
             </div>
         </div>
     </section>
+
+    <section class="visa-detail-section">
+        <div class="visa-detail-section-header">
+            <h2>HID和Ref编号管理</h2>
+        </div>
+        <div class="visa-detail-content">
+            <div class="hid-ref-management">
+                {% if has_header and project.header and has_ref and project.ref %}
+                    <!-- 已关联HID和REF，显示管理界面 -->
+                    <div class="hid-ref-status">
+                        <div class="hid-ref-status-item">
+                            <span class="hid-ref-status-label">HID编号</span>
+                            <span class="hid-ref-status-value">{{ project.header.hid }}</span>
+                            <a href="{{ url_for('projects.header_detail', header_id=project.header.id) }}" class="hid-ref-link" target="_blank">查看详情</a>
+                        </div>
+                        <div class="hid-ref-status-item">
+                            <span class="hid-ref-status-label">Ref编号</span>
+                            <span class="hid-ref-status-value">{{ project.ref.ref_number }}</span>
+                            <a href="{{ url_for('projects.ref_detail', ref_id=project.ref.id) }}" class="hid-ref-link" target="_blank">查看详情</a>
+                        </div>
+                    </div>
+                    <div class="hid-ref-actions">
+                        <button type="button" class="hid-ref-action-btn" onclick="copyHIDRef()">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                            </svg>
+                            复制编号
+                        </button>
+                        <button type="button" class="hid-ref-action-btn" onclick="unlinkHIDRef()">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                                <polyline points="15,3 21,3 21,9"></polyline>
+                                <line x1="10" y1="14" x2="21" y2="3"></line>
+                            </svg>
+                            解除关联
+                        </button>
+                    </div>
+                {% else %}
+                    <!-- 未关联HID和REF，显示创建界面 -->
+                    <div class="hid-ref-create">
+                        <div class="hid-ref-create-info">
+                            <p>当前项目尚未关联HID和Ref编号，点击下方按钮创建新的关联。</p>
+                            {% if project.hid_or_serial %}
+                            <p class="hid-ref-temp-note">临时编号: {{ project.hid_or_serial }}</p>
+                            {% endif %}
+                        </div>
+                        <div class="hid-ref-create-actions">
+                            <button type="button" class="hid-ref-create-btn" onclick="createProjectLinks()">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                    <polyline points="14 2 14 8 20 8"></polyline>
+                                    <line x1="12" y1="18" x2="12" y2="12"></line>
+                                    <line x1="9" y1="15" x2="15" y2="15"></line>
+                                </svg>
+                                创建HID和Ref编号
+                            </button>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </section>
+
+
 
 </div>
 
@@ -1767,7 +1998,7 @@ function createProjectLinks() {
     .then(data => {
         if (data.success) {
             showMessage(data.message, 'success');
-            // 刷新页面以显示新创建的HID和REF
+            // 刷新页面以显示新创建的HID和REF，并更新基本信息中的显示
             setTimeout(() => {
                 window.location.reload();
             }, 1000);
@@ -1853,5 +2084,80 @@ document.getElementById('generateFormForm').addEventListener('submit', function(
         submitBtn.innerHTML = originalText;
     });
 });
+
+// HID和Ref编号管理函数
+function copyHIDRef() {
+    {% if has_header and project.header and has_ref and project.ref %}
+    const hidValue = '{{ project.header.hid }}';
+    const refValue = '{{ project.ref.ref_number }}';
+    
+    const copyText = `HID: ${hidValue}\nRef: ${refValue}`;
+    
+    navigator.clipboard.writeText(copyText).then(() => {
+        showMessage('编号已复制到剪贴板', 'success');
+    }).catch(() => {
+        // 降级方案
+        const textArea = document.createElement('textarea');
+        textArea.value = copyText;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        showMessage('编号已复制到剪贴板', 'success');
+    });
+    {% else %}
+    showMessage('没有可复制的编号', 'error');
+    {% endif %}
+}
+
+function unlinkHIDRef() {
+    if (!confirm('确定要解除HID和Ref编号的关联吗？这将删除关联的HID和Ref记录。')) {
+        return;
+    }
+    
+    const button = event.target;
+    const originalText = button.innerHTML;
+    button.disabled = true;
+    button.innerHTML = `
+        <svg class="animate-spin" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 2v6h-6"></path>
+            <path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path>
+            <path d="M3 22v-6h6"></path>
+            <path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path>
+        </svg>
+        处理中...
+    `;
+    
+    fetch('/visa/project/unlink_hid_ref', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify({
+            project_id: {{ project.id }}
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showMessage('关联已解除', 'success');
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+        } else {
+            throw new Error(data.message || '解除关联失败');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showMessage(error.message || '解除关联失败，请重试', 'error');
+    })
+    .finally(() => {
+        button.disabled = false;
+        button.innerHTML = originalText;
+    });
+}
 </script>
 {% endblock %} 
