@@ -1,8 +1,10 @@
-{% extends "base.html" %}
+{% extends "staff/base.html" %}
 
-{% block title %}机票行程转化{% endblock %}
+{% block title %}机票行程转化 - MyTravelPanel{% endblock %}
 
-{% block head %}
+{% block page_title %}机票行程转化{% endblock %}
+
+{% block extra_css %}
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
 <style>
@@ -328,7 +330,7 @@
 <div id="copyToast" class="copy-toast">已复制到剪贴板</div>
 {% endblock %}
 
-{% block scripts %}
+{% block extra_js %}
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         // 添加表单提交处理

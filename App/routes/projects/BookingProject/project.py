@@ -1,4 +1,5 @@
 from flask import Blueprint, render_template, request, redirect, url_for, jsonify, flash
+from flask_login import login_required, current_user
 from App.models.projects.BookingProject import db, ProjectHeader, ProjectRef, ProjectEO, ProjectFlightPassenger, ProjectFlightSegment, CustomerCompany, ProjectReceipt
 from App.exts import csrf
 from App.models.Product.Suppliers import Supplier
@@ -7,6 +8,7 @@ from App.forms.header_forms import ProjectHeaderForm
 from App.forms.ref_forms import ProjectRefForm
 from App.forms.eo_forms import ProjectEOForm
 from App.forms.receipt_forms import ProjectReceiptForm, ProjectLevelReceiptForm
+from App.utils.decorators import staff_only, admin_only
 from datetime import datetime
 from sqlalchemy import func
 import traceback  # 添加traceback模块
@@ -15,55 +17,15 @@ import json # 添加json模块
 projects = Blueprint('projects', __name__)
 
 @projects.route('/header/create', methods=['GET', 'POST'])
+@login_required
 def create_header():
-    form = ProjectHeaderForm()
-    
-    if form.validate_on_submit():
-        try:
-            hid = ProjectHeader.generate_hid()
-            
-            # 处理公司信息
-            company_id = None
-            
-            if form.company_id.data and form.company_id.data != 0:
-                company_id = form.company_id.data
-            
-            header = ProjectHeader(
-                hid=hid,
-                desc=form.desc.data,
-                company_id=company_id,
-                limit=form.limit.data,
-                contact=form.contact.data,
-                dept=form.dept.data,
-                staff_id=form.staff_id.data if form.staff_id.data else None,
-                staff_name=form.staff_name.data,
-                leader_name=form.leader_name.data,
-                currency=form.currency.data,
-                type=form.type.data,
-                source=form.source.data,
-                country=form.country.data,
-                status=form.status.data,
-                remarks=form.remarks.data
-            )
-            db.session.add(header)
-            db.session.commit()
-            flash('项目主表创建成功！', 'success')
-            return redirect(url_for('projects.header_detail', header_id=header.id))
-        except Exception as e:
-            db.session.rollback()
-            flash(f'创建失败：{str(e)}', 'error')
-    elif form.errors:
-        for field, errors in form.errors.items():
-            for error in errors:
-                flash(f'{getattr(form, field).label.text}: {error}', 'error')
-    
-    # 预填充项目编号
-    hid = ProjectHeader.generate_hid()
-    form.hid.data = hid
-    
-    return render_template('projects/BookingProject/create_header.html', form=form, hid=hid)
+    """重定向到员工项目创建页面"""
+    flash('项目创建功能已移至员工中心，正在为您跳转...', 'info')
+    return redirect(url_for('staff.create_project'))
 
 @projects.route('/header/<int:header_id>')
+@login_required
+@staff_only
 def header_detail(header_id):
     # 使用joinedload预加载refs和相关数据
     from sqlalchemy.orm import joinedload
@@ -782,6 +744,8 @@ def project_statistics():
                          supplier_type_stats=supplier_type_stats)
 
 @projects.route('/header/<int:header_id>/edit', methods=['GET', 'POST'])
+@login_required
+@staff_only
 def edit_header(header_id):
     header = ProjectHeader.query.get_or_404(header_id)
     form = ProjectHeaderForm(obj=header)
@@ -1031,6 +995,8 @@ def delete_ref(ref_id):
 
 @projects.route('/header/delete/<int:header_id>', methods=['POST'])
 @csrf.exempt
+@login_required
+@staff_only
 def delete_header(header_id):
     """删除项目主表"""
     try:
@@ -2179,6 +2145,8 @@ def ref_receipts(ref_id):
 
 # 项目级别收款管理路由
 @projects.route('/header/<int:header_id>/receipts')
+@login_required
+@staff_only
 def header_receipts(header_id):
     """查看项目的收款记录列表"""
     from App.models.projects.BookingProject import ProjectReceipt
@@ -2230,6 +2198,8 @@ def header_receipts(header_id):
                          unpaid_amount=unpaid_amount)
 
 @projects.route('/header/<int:header_id>/receipt/create', methods=['GET', 'POST'])
+@login_required
+@staff_only
 def create_header_receipt(header_id):
     """创建项目级别收款记录"""
     from App.forms.receipt_forms import ProjectLevelReceiptForm
@@ -2406,6 +2376,8 @@ def create_header_receipt(header_id):
 
 @projects.route('/header/<int:header_id>/receipt/<int:receipt_id>/edit', methods=['GET', 'POST'])
 @csrf.exempt
+@login_required
+@staff_only
 def edit_header_receipt(header_id, receipt_id):
     """编辑项目级别收款记录"""
     from App.forms.receipt_forms import ProjectLevelReceiptForm
@@ -2454,6 +2426,8 @@ def edit_header_receipt(header_id, receipt_id):
 
 @projects.route('/header/<int:header_id>/receipt/<int:receipt_id>/delete', methods=['POST'])
 @csrf.exempt
+@login_required
+@staff_only
 def delete_header_receipt(header_id, receipt_id):
     """删除项目级别收款记录"""
     from App.models.projects.BookingProject import ProjectReceipt
@@ -2490,6 +2464,8 @@ def delete_header_receipt(header_id, receipt_id):
     return redirect(url_for('projects.header_receipts', header_id=header_id))
 
 @projects.route('/api/header/<int:header_id>/unpaid_refs')
+@login_required
+@staff_only
 def get_header_unpaid_refs(header_id):
     """获取项目下各REF的未收款详情 - API接口"""
     from App.models.projects.BookingProject import ProjectReceipt

@@ -1,0 +1,554 @@
+{% extends "staff/base.html" %}
+
+{% block title %}文件上传 - MyTravelPanel{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{{ url_for('staff.files') }}">文件管理</a></li>
+<li class="breadcrumb-item active">文件上传</li>
+{% endblock %}
+
+{% block page_title %}文件上传{% endblock %}
+
+{% block extra_css %}
+<style>
+    .upload-container {
+        max-width: 800px;
+        margin: 0 auto;
+    }
+    
+    .upload-card {
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        border: none;
+        border-radius: 15px;
+        overflow: hidden;
+    }
+    
+    .upload-card .card-header {
+        background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+        color: white;
+        border-radius: 15px 15px 0 0;
+    }
+    
+    .upload-zone {
+        border: 3px dashed #dee2e6;
+        border-radius: 15px;
+        padding: 3rem 2rem;
+        text-align: center;
+        background: #f8f9fa;
+        margin-bottom: 2rem;
+        transition: all 0.3s ease;
+        cursor: pointer;
+        position: relative;
+    }
+    
+    .upload-zone:hover {
+        border-color: #007bff;
+        background: #e7f3ff;
+        transform: translateY(-2px);
+    }
+    
+    .upload-zone.dragover {
+        border-color: #007bff;
+        background: #e7f3ff;
+        border-style: solid;
+        box-shadow: 0 0 20px rgba(0, 123, 255, 0.3);
+    }
+    
+    .upload-zone.uploading {
+        pointer-events: none;
+        opacity: 0.7;
+    }
+    
+    .upload-icon {
+        font-size: 4rem;
+        color: #6c757d;
+        margin-bottom: 1.5rem;
+        transition: all 0.3s ease;
+    }
+    
+    .upload-zone:hover .upload-icon {
+        color: #007bff;
+        transform: scale(1.1);
+    }
+    
+    .file-input {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        opacity: 0;
+        cursor: pointer;
+    }
+    
+    .file-preview {
+        display: none;
+        background: white;
+        border-radius: 10px;
+        padding: 1.5rem;
+        margin-top: 1rem;
+        border: 1px solid #dee2e6;
+    }
+    
+    .preview-item {
+        display: flex;
+        align-items: center;
+        padding: 0.75rem;
+        background: #f8f9fa;
+        border-radius: 8px;
+        margin-bottom: 0.5rem;
+    }
+    
+    .file-icon {
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 8px;
+        margin-right: 1rem;
+        font-size: 1.2rem;
+        color: white;
+    }
+    
+    .file-icon.pdf { background: #dc3545; }
+    .file-icon.doc { background: #007bff; }
+    .file-icon.xls { background: #28a745; }
+    .file-icon.img { background: #17a2b8; }
+    .file-icon.other { background: #6c757d; }
+    
+    .file-info {
+        flex-grow: 1;
+    }
+    
+    .file-name {
+        font-weight: 600;
+        color: #495057;
+        margin-bottom: 0.25rem;
+    }
+    
+    .file-size {
+        font-size: 0.8rem;
+        color: #6c757d;
+    }
+    
+    .remove-file {
+        color: #dc3545;
+        cursor: pointer;
+        padding: 0.5rem;
+        border-radius: 50%;
+        transition: all 0.3s ease;
+    }
+    
+    .remove-file:hover {
+        background: rgba(220, 53, 69, 0.1);
+    }
+    
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+    
+    .form-label {
+        font-weight: 600;
+        color: #495057;
+        margin-bottom: 0.5rem;
+    }
+    
+    .form-control, .form-select {
+        border-radius: 10px;
+        border: 1px solid #ced4da;
+        padding: 0.75rem 1rem;
+        transition: all 0.3s ease;
+    }
+    
+    .form-control:focus, .form-select:focus {
+        border-color: #007bff;
+        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+    }
+    
+    .btn-staff {
+        border-radius: 10px;
+        padding: 0.75rem 2rem;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-staff-primary {
+        background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+        border: none;
+        color: white;
+    }
+    
+    .btn-staff-primary:hover {
+        background: linear-gradient(135deg, #0056b3 0%, #004494 100%);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(0, 123, 255, 0.3);
+    }
+    
+    .progress {
+        height: 8px;
+        border-radius: 4px;
+        background: #e9ecef;
+        margin-top: 1rem;
+        display: none;
+    }
+    
+    .progress-bar {
+        border-radius: 4px;
+        background: linear-gradient(90deg, #007bff, #0056b3);
+        transition: width 0.3s ease;
+    }
+    
+    .upload-tips {
+        background: #e7f3ff;
+        border: 1px solid #bee5eb;
+        border-radius: 10px;
+        padding: 1rem;
+        margin-bottom: 2rem;
+    }
+    
+    .upload-tips h6 {
+        color: #0c5460;
+        margin-bottom: 0.5rem;
+    }
+    
+    .upload-tips ul {
+        margin-bottom: 0;
+        padding-left: 1.5rem;
+    }
+    
+    .upload-tips li {
+        color: #0c5460;
+        font-size: 0.9rem;
+        margin-bottom: 0.25rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="upload-container">
+    <div class="card upload-card">
+        <div class="card-header">
+            <h5 class="mb-0">
+                <i class="fas fa-cloud-upload-alt me-2"></i>上传文件
+            </h5>
+        </div>
+        <div class="card-body">
+            <!-- 上传提示 -->
+            <div class="upload-tips">
+                <h6><i class="fas fa-info-circle me-2"></i>上传说明</h6>
+                <ul>
+                    <li>支持的文件格式：PDF、DOC、DOCX、XLS、XLSX、PNG、JPG、JPEG、GIF</li>
+                    <li>单个文件最大大小：10MB</li>
+                    <li>可以拖拽文件到上传区域，或点击选择文件</li>
+                    <li>支持同时上传多个文件</li>
+                </ul>
+            </div>
+
+            <form method="POST" enctype="multipart/form-data" class="needs-validation" novalidate>
+                <!-- CSRF令牌 -->
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                
+                <!-- 拖拽上传区域 -->
+                <div class="upload-zone" id="uploadZone">
+                    <input type="file" name="file" id="fileInput" class="file-input" multiple 
+                           accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.gif" required>
+                    <div class="upload-content">
+                        <div class="upload-icon">
+                            <i class="fas fa-cloud-upload-alt"></i>
+                        </div>
+                        <h4 class="mb-3">拖拽文件到此处上传</h4>
+                        <p class="text-muted mb-3">或者点击此区域选择文件</p>
+                        <button type="button" class="btn btn-outline-primary" onclick="document.getElementById('fileInput').click()">
+                            <i class="fas fa-folder-open me-2"></i>选择文件
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 文件预览区域 -->
+                <div class="file-preview" id="filePreview">
+                    <h6 class="mb-3">
+                        <i class="fas fa-file-alt me-2"></i>待上传文件
+                    </h6>
+                    <div id="fileList"></div>
+                </div>
+
+                <!-- 上传进度 -->
+                <div class="progress" id="uploadProgress">
+                    <div class="progress-bar" id="progressBar" style="width: 0%"></div>
+                </div>
+
+                <!-- 文件信息 -->
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="file_type" class="form-label">文件类型 *</label>
+                            <select class="form-select" id="file_type" name="file_type" required>
+                                <option value="">请选择文件类型</option>
+                                <option value="document">文档资料</option>
+                                <option value="image">图片资料</option>
+                                <option value="contract">合同协议</option>
+                                <option value="invoice">发票收据</option>
+                                <option value="passport">护照证件</option>
+                                <option value="visa">签证资料</option>
+                                <option value="itinerary">行程单</option>
+                                <option value="other">其他</option>
+                            </select>
+                            <div class="invalid-feedback">
+                                请选择文件类型
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="project_id" class="form-label">关联项目</label>
+                            <select class="form-select" id="project_id" name="project_id">
+                                <option value="">选择项目（可选）</option>
+                                <option value="1">泰国普吉岛旅游项目</option>
+                                <option value="2">美国签证申请项目</option>
+                                <option value="3">日本旅游套餐项目</option>
+                                <option value="4">欧洲自由行项目</option>
+                            </select>
+                            <small class="form-text text-muted">将文件关联到特定项目</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="description" class="form-label">文件描述</label>
+                    <textarea class="form-control" id="description" name="description" rows="3" 
+                              placeholder="请输入文件的详细描述，包括用途、内容等信息..."></textarea>
+                    <small class="form-text text-muted">详细的描述有助于后续查找和管理文件</small>
+                </div>
+
+                <!-- 操作按钮 -->
+                <div class="d-flex justify-content-between mt-4">
+                    <a href="{{ url_for('staff.files') }}" class="btn btn-outline-secondary btn-staff">
+                        <i class="fas fa-arrow-left me-2"></i>返回文件管理
+                    </a>
+                    <div>
+                        <button type="button" class="btn btn-outline-danger btn-staff me-2" onclick="clearFiles()">
+                            <i class="fas fa-trash me-2"></i>清空文件
+                        </button>
+                        <button type="submit" class="btn btn-staff btn-staff-primary" id="uploadBtn">
+                            <i class="fas fa-cloud-upload-alt me-2"></i>上传文件
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+let selectedFiles = [];
+
+// DOM元素
+const uploadZone = document.getElementById('uploadZone');
+const fileInput = document.getElementById('fileInput');
+const filePreview = document.getElementById('filePreview');
+const fileList = document.getElementById('fileList');
+const uploadProgress = document.getElementById('uploadProgress');
+const progressBar = document.getElementById('progressBar');
+const uploadBtn = document.getElementById('uploadBtn');
+
+// 拖拽事件处理
+uploadZone.addEventListener('dragover', function(e) {
+    e.preventDefault();
+    this.classList.add('dragover');
+});
+
+uploadZone.addEventListener('dragleave', function(e) {
+    e.preventDefault();
+    this.classList.remove('dragover');
+});
+
+uploadZone.addEventListener('drop', function(e) {
+    e.preventDefault();
+    this.classList.remove('dragover');
+    
+    const files = Array.from(e.dataTransfer.files);
+    handleFiles(files);
+});
+
+// 文件选择事件
+fileInput.addEventListener('change', function(e) {
+    const files = Array.from(this.files);
+    handleFiles(files);
+});
+
+// 处理选择的文件
+function handleFiles(files) {
+    files.forEach(file => {
+        if (validateFile(file)) {
+            selectedFiles.push(file);
+        }
+    });
+    
+    updateFilePreview();
+}
+
+// 文件验证
+function validateFile(file) {
+    const allowedTypes = [
+        'application/pdf',
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'application/vnd.ms-excel',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'image/png',
+        'image/jpg',
+        'image/jpeg',
+        'image/gif'
+    ];
+    
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    
+    if (!allowedTypes.includes(file.type)) {
+        alert(`文件 "${file.name}" 格式不支持`);
+        return false;
+    }
+    
+    if (file.size > maxSize) {
+        alert(`文件 "${file.name}" 大小超过10MB限制`);
+        return false;
+    }
+    
+    return true;
+}
+
+// 更新文件预览
+function updateFilePreview() {
+    if (selectedFiles.length === 0) {
+        filePreview.style.display = 'none';
+        return;
+    }
+    
+    filePreview.style.display = 'block';
+    fileList.innerHTML = '';
+    
+    selectedFiles.forEach((file, index) => {
+        const fileItem = createFilePreviewItem(file, index);
+        fileList.appendChild(fileItem);
+    });
+}
+
+// 创建文件预览项
+function createFilePreviewItem(file, index) {
+    const div = document.createElement('div');
+    div.className = 'preview-item';
+    
+    const fileIcon = getFileIcon(file.type);
+    const fileSize = formatFileSize(file.size);
+    
+    div.innerHTML = `
+        <div class="file-icon ${fileIcon.class}">
+            <i class="${fileIcon.icon}"></i>
+        </div>
+        <div class="file-info">
+            <div class="file-name">${file.name}</div>
+            <div class="file-size">${fileSize}</div>
+        </div>
+        <div class="remove-file" onclick="removeFile(${index})">
+            <i class="fas fa-times"></i>
+        </div>
+    `;
+    
+    return div;
+}
+
+// 获取文件图标
+function getFileIcon(fileType) {
+    if (fileType.includes('pdf')) {
+        return { class: 'pdf', icon: 'fas fa-file-pdf' };
+    } else if (fileType.includes('word') || fileType.includes('document')) {
+        return { class: 'doc', icon: 'fas fa-file-word' };
+    } else if (fileType.includes('excel') || fileType.includes('sheet')) {
+        return { class: 'xls', icon: 'fas fa-file-excel' };
+    } else if (fileType.includes('image')) {
+        return { class: 'img', icon: 'fas fa-file-image' };
+    } else {
+        return { class: 'other', icon: 'fas fa-file' };
+    }
+}
+
+// 格式化文件大小
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+// 移除文件
+function removeFile(index) {
+    selectedFiles.splice(index, 1);
+    updateFilePreview();
+    
+    // 清空file input
+    fileInput.value = '';
+}
+
+// 清空所有文件
+function clearFiles() {
+    selectedFiles = [];
+    fileInput.value = '';
+    updateFilePreview();
+}
+
+// 表单提交处理
+document.querySelector('form').addEventListener('submit', function(e) {
+    if (selectedFiles.length === 0) {
+        e.preventDefault();
+        alert('请选择要上传的文件');
+        return;
+    }
+    
+    // 模拟上传进度
+    uploadProgress.style.display = 'block';
+    uploadBtn.disabled = true;
+    uploadBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>上传中...';
+    
+    simulateUploadProgress();
+});
+
+// 模拟上传进度
+function simulateUploadProgress() {
+    let progress = 0;
+    const interval = setInterval(() => {
+        progress += Math.random() * 15;
+        if (progress >= 100) {
+            progress = 100;
+            clearInterval(interval);
+        }
+        
+        progressBar.style.width = progress + '%';
+        
+        if (progress === 100) {
+            setTimeout(() => {
+                // 这里应该是真实的表单提交
+                // 暂时模拟成功
+            }, 500);
+        }
+    }, 200);
+}
+
+// 表单验证
+(function() {
+    'use strict';
+    window.addEventListener('load', function() {
+        var forms = document.getElementsByClassName('needs-validation');
+        var validation = Array.prototype.filter.call(forms, function(form) {
+            form.addEventListener('submit', function(event) {
+                if (form.checkValidity() === false) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                }
+                form.classList.add('was-validated');
+            }, false);
+        });
+    }, false);
+})();
+</script>
+{% endblock %} 

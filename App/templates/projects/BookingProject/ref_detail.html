@@ -1,5 +1,9 @@
-{% extends "base.html" %}
-{% block title %}明细详情 - {{ ref.ref_number }}{% endblock %}
+{% extends "staff/base.html" %}
+
+
+
+{% block page_title %}Ref Detail{% endblock %}
+
 {% block content %}
 <style>
     .detail-container {
@@ -221,4 +225,4 @@
         </a>
     </div>
 </div>
-{% endblock %} 
+{% endblock %} \n\n{% block title %}明细详情 - {{ ref.ref_number }}{% endblock %}

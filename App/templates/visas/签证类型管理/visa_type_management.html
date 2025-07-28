@@ -1,8 +1,10 @@
-{% extends "base.html" %}
+{% extends "staff/base.html" %}
 
-{% block title %}签证类型管理{% endblock %}
+{% block title %}Visa Type Management - MyTravelPanel{% endblock %}
 
-{% block head %}
+{% block page_title %}Visa Type Management{% endblock %}
+
+{% block extra_css %}
 <!-- FontAwesome 6.5.0 -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" integrity="sha512-Avb2QiuDEEvB4bZJYdft2mNjVShBftLdPG8FJ0V7irTLQ8Uo0qcPxh4Plq7G5tGm0rU+1SPhVotteLpBERwTkw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
 
@@ -431,7 +433,7 @@
 </div>
 {% endblock %}
 
-{% block scripts %}
+{% block extra_js %}
 <script>
     // 页面加载完成后的初始化
     document.addEventListener('DOMContentLoaded', function() {

@@ -1,8 +1,12 @@
-{% extends "base.html" %}
+{% extends "staff/base.html" %}
 
-{% block title %}{{ visa_type }} 处理{% endblock %}
 
-{% block head %}
+
+{% block page_title %}创建签证项目{% endblock %}
+
+
+
+{% block extra_css %}
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 <style>
     .visa-project-container {
@@ -1182,7 +1186,7 @@
     </div>
 {% endblock %}
 
-{% block scripts %}
+{% block extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/zh.js"></script>
 <script>
@@ -1289,7 +1293,7 @@
                     
                     // 组合补充信息
                     if (data.share_additional_info && data.share_additional_info !== '暂无补充信息') {
-                        additionalInfo += `【共用资料补充信息】\n${data.share_additional_info}\n\n`;
+                        additionalInfo += `【共用资料补充信息】\n\n{% block title %}{{ visa_type }} 处理{% endblock %}\n${data.share_additional_info}\n\n`;
                     }
                     
                     if (data.identity_additional_info && data.identity_additional_info !== '暂无补充信息') {

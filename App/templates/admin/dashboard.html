@@ -195,6 +195,11 @@
                         <i class="fas fa-cogs me-2"></i>系统设置
                     </a>
                 </div>
+                <div class="col-md-6 mb-3">
+                    <a href="{{ url_for('admin.invitation_codes') }}" class="btn btn-outline-success btn-admin w-100">
+                        <i class="fas fa-key me-2"></i>邀请码管理
+                    </a>
+                </div>
             </div>
         </div>
     </div>
@@ -225,7 +230,7 @@
             </div>
             <div class="system-info-item">
                 <span class="system-info-label">最后更新</span>
-                <span class="system-info-value">{{ moment().format('YYYY-MM-DD HH:mm') if moment else '刚刚' }}</span>
+                <span class="system-info-value">{{ now.strftime('%Y-%m-%d %H:%M') if now else '刚刚' }}</span>
             </div>
         </div>
     </div>

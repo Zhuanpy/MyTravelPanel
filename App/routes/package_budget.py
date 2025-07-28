@@ -1,6 +1,8 @@
 import os
 from datetime import datetime
 from flask import Blueprint, render_template, url_for, flash, redirect, request, jsonify, current_app, Response
+from flask_login import login_required, current_user
+from App.utils.decorators import staff_only
 from sqlalchemy import or_, and_
 from sqlalchemy.exc import SQLAlchemyError
 from ..exts import db, csrf
@@ -12,6 +14,8 @@ import urllib.parse
 package_budget = Blueprint('package_budget', __name__, url_prefix='/package_budget')
 
 
+@login_required
+@staff_only
 @package_budget.route('/')
 @package_budget.route('/list')
 def list_budgets():
@@ -68,6 +72,8 @@ def list_budgets():
         return render_template('package/budget/list.html', budgets=[], pagination=None)
 
 
+@login_required
+@staff_only
 @package_budget.route('/create', methods=['GET', 'POST'])
 @csrf.exempt
 def create():
@@ -123,6 +129,8 @@ def create():
     return render_template('package/budget/create.html')
 
 
+@login_required
+@staff_only
 @package_budget.route('/<int:budget_id>')
 def detail(budget_id):
     """预算单详情页面"""
@@ -165,6 +173,8 @@ def detail(budget_id):
         return redirect(url_for('package_budget.list_budgets'))
 
 
+@login_required
+@staff_only
 @package_budget.route('/<int:budget_id>/edit', methods=['GET', 'POST'])
 @csrf.exempt
 def edit(budget_id):
@@ -220,6 +230,8 @@ def edit(budget_id):
     return redirect(url_for('package_budget.detail', budget_id=budget_id))
 
 
+@login_required
+@staff_only
 @package_budget.route('/<int:budget_id>/delete', methods=['POST'])
 @csrf.exempt
 def delete(budget_id):
@@ -248,6 +260,8 @@ def delete(budget_id):
         return jsonify({'success': False, 'error': '删除失败'}), 500
 
 
+@login_required
+@staff_only
 @package_budget.route('/<int:budget_id>/add_item', methods=['POST'])
 @csrf.exempt
 def add_item(budget_id):
@@ -343,6 +357,8 @@ def add_item(budget_id):
     return redirect(url_for('package_budget.detail', budget_id=budget_id))
 
 
+@login_required
+@staff_only
 @package_budget.route('/<int:budget_id>/item/<int:item_id>/edit', methods=['GET', 'POST'])
 @csrf.exempt
 def edit_item(budget_id, item_id):
@@ -448,6 +464,8 @@ def edit_item(budget_id, item_id):
     return render_template('package/budget/edit_item.html', budget=header, item=item)
 
 
+@login_required
+@staff_only
 @package_budget.route('/<int:budget_id>/item/<int:item_id>/delete', methods=['POST'])
 @csrf.exempt
 def delete_item(budget_id, item_id):
@@ -488,6 +506,8 @@ def delete_item(budget_id, item_id):
         return jsonify({'success': False, 'error': '删除失败'}), 500
 
 
+@login_required
+@staff_only
 @package_budget.route('/<int:budget_id>/duplicate', methods=['POST'])
 @csrf.exempt
 def duplicate(budget_id):
@@ -549,6 +569,8 @@ def duplicate(budget_id):
     return redirect(url_for('package_budget.detail', budget_id=budget_id))
 
 
+@login_required
+@staff_only
 @package_budget.route('/<int:budget_id>/export', methods=['GET'])
 def export_budget(budget_id):
     """导出预算单为JSON格式"""
@@ -601,6 +623,8 @@ def export_budget(budget_id):
         return jsonify({'error': '导出失败'}), 500
 
 
+@login_required
+@staff_only
 @package_budget.route('/import', methods=['GET', 'POST'])
 @csrf.exempt
 def import_budget():
@@ -619,6 +643,8 @@ def import_budget():
     return render_template('package/budget/import.html')
 
 
+@login_required
+@staff_only
 @package_budget.route('/templates')
 def list_templates():
     """模板列表页面"""

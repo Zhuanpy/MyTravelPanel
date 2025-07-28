@@ -1,9 +1,16 @@
 from datetime import datetime, timedelta
-from flask import request, render_template
+from flask import Blueprint, request, render_template
+from flask_login import login_required, current_user
 from App.models.Flightmodels import FlightOrder
+from App.utils.decorators import staff_only
 from sqlalchemy import and_, or_
 
+# 创建蓝图
+flight_routes = Blueprint('flight_routes', __name__, url_prefix='/flight_routes')
+
 @flight_routes.route('/order/list')
+@login_required
+@staff_only
 def order_list():
     # 获取筛选参数
     departure_filter = request.args.get('departure_filter')

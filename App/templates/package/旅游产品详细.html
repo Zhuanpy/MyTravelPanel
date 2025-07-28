@@ -1,15 +1,16 @@
-<!DOCTYPE html>
-<html lang="zh">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>旅游产品详情</title>
-    <!-- 引入外部CSS库 -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <!-- 引入公司抬头样式 -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/company_header.css') }}">
-    <style>
+{% extends "staff/base.html" %}
+
+{% block title %}旅游产品详情 - MyTravelPanel{% endblock %}
+
+{% block page_title %}旅游产品详情{% endblock %}
+
+{% block extra_css %}
+<!-- 引入外部CSS库 -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+<!-- 引入公司抬头样式 -->
+<link rel="stylesheet" href="{{ url_for('static', filename='css/company_header.css') }}">
+<style>
         /* 全局样式 */
         body {
             background-color: #f8f9fa;
@@ -331,8 +332,9 @@
             color: #721c24;
         }
     </style>
-</head>
-<body>
+{% endblock %}
+
+{% block content %}
     <!-- PDF导出模式下的公司信息头部 -->
     {% if is_pdf_export %}
     <div class="container">
@@ -438,5 +440,4 @@
     <!-- 引入JavaScript库 -->
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.min.js"></script>
-</body>
-</html>
+{% endblock %}

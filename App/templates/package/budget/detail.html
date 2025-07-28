@@ -1,5 +1,9 @@
-{% extends "base.html" %}
-{% block head %}
+{% extends "staff/base.html" %}
+
+{% block title %}预算详情 - MyTravelPanel{% endblock %}
+
+{% block page_title %}预算详情{% endblock %}
+{% block extra_css %}
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 <link href="{{ url_for('static', filename='css/package_budget.css') }}" rel="stylesheet">
 {% endblock %}

@@ -1,5 +1,7 @@
-{% extends "base.html" %}
-{% block title %}新建项目主表（HID）{% endblock %}
+{% extends "staff/base.html" %}
+{% block title %}创建项目 - MyTravelPanel{% endblock %}
+
+{% block page_title %}创建项目{% endblock %}
 {% block content %}
 <div class="container mt-4">
     <h2>新建项目主表（HID）</h2>
@@ -65,7 +67,7 @@
             <div class="col-md-3">
                 <div class="mb-3">
                     {{ form.staff_name.label(class="form-label") }} <span class="text-danger">*</span>
-                    {{ form.staff_name(class="form-control") }}
+                    {{ form.staff_name(class="form-control", readonly=true, style="background-color: #f8f9fa;") }}
                     {% if form.staff_name.errors %}
                         <div class="text-danger">
                             {% for error in form.staff_name.errors %}
@@ -73,6 +75,7 @@
                             {% endfor %}
                         </div>
                     {% endif %}
+                    <small class="form-text text-muted">自动填充当前登录用户</small>
                 </div>
             </div>
         </div>

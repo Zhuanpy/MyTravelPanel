@@ -1,5 +1,9 @@
-{% extends "base.html" %}
-{% block title %}创建收款记录 - {{ ref.ref_number }}{% endblock %}
+{% extends "staff/base.html" %}
+
+
+
+{% block page_title %}Create Receipt{% endblock %}
+
 
 {% block content %}
 <div class="container-fluid">
@@ -247,4 +251,4 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 </script>
-{% endblock %} 
+{% endblock %} \n\n{% block title %}创建收款记录 - {{ ref.ref_number }}{% endblock %}

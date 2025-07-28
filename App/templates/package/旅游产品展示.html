@@ -1,8 +1,8 @@
-{% extends "base.html" %}
+{% extends "staff/base.html" %}
 
 {% block title %}{{ city_name }}旅游产品展示{% endblock %}
 
-{% block head %}
+{% block extra_css %}
 <style>
     .product-container {
         max-width: 800px;
@@ -131,7 +131,7 @@
 </div>
 {% endblock %}
 
-{% block scripts %}
+{% block extra_js %}
 <script src="/static/Js/ff.js"></script>
 
 <script>

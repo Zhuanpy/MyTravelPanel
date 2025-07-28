@@ -1,8 +1,10 @@
-{% extends "base.html" %}
+{% extends "staff/base.html" %}
 
-{% block title %}机票服务{% endblock %}
+{% block title %}机票服务管理 - MyTravelPanel{% endblock %}
 
-{% block head %}
+{% block page_title %}机票服务管理{% endblock %}
+
+{% block extra_css %}
 <style>
     .flight-home-container {
         max-width: 1200px;
@@ -230,7 +232,7 @@
                         生成Athina系统所需的代码格式，提高机票预订效率。
                     </p>
                     <div class="flight-home-card-actions">
-                        <a href="{{url_for('flights_athina.flight_to_athina_page')}}" class="flight-home-btn flight-home-btn-primary">
+                        <a href="{{url_for('flights_athina.athina_page')}}" class="flight-home-btn flight-home-btn-primary">
                             开始使用
                         </a>
                     </div>
@@ -289,7 +291,7 @@
 </div>
 {% endblock %}
 
-{% block scripts %}
+{% block extra_js %}
 <!-- 引入ff.js文件 -->
 <script src="{{ url_for('static', filename='Js/ff.js') }}"></script>
 

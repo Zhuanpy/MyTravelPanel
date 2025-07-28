@@ -1,0 +1,707 @@
+{% extends "member/base.html" %}
+
+{% block title %}我的订单 - 会员中心 - MyTravelPanel{% endblock %}
+
+{% block extra_css %}
+<style>
+    .orders-header {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        color: white;
+        padding: 2rem 0;
+        margin-bottom: 2rem;
+        border-radius: 15px;
+    }
+    
+    .orders-header h1 {
+        font-size: 2rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }
+    
+    .orders-header .subtitle {
+        opacity: 0.9;
+        font-size: 1.1rem;
+    }
+    
+    .filter-section {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 12px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        margin-bottom: 2rem;
+    }
+    
+    .status-filter {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+        align-items: center;
+    }
+    
+    .status-btn {
+        padding: 0.5rem 1rem;
+        border: 2px solid #e9ecef;
+        background: white;
+        color: #6c757d;
+        border-radius: 25px;
+        text-decoration: none;
+        transition: all 0.3s ease;
+        font-weight: 500;
+    }
+    
+    .status-btn:hover {
+        border-color: #28a745;
+        color: #28a745;
+        text-decoration: none;
+    }
+    
+    .status-btn.active {
+        background: #28a745;
+        border-color: #28a745;
+        color: white;
+    }
+    
+    .order-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        margin-bottom: 1.5rem;
+        overflow: hidden;
+        transition: all 0.3s ease;
+    }
+    
+    .order-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    }
+    
+    .order-header {
+        background: #f8f9fa;
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid #e9ecef;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .order-number {
+        font-weight: 600;
+        color: #495057;
+        font-size: 1.1rem;
+    }
+    
+    .order-date {
+        color: #6c757d;
+        font-size: 0.9rem;
+    }
+    
+    .order-body {
+        padding: 1.5rem;
+    }
+    
+    .order-info {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+    
+    .info-item {
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .info-label {
+        font-size: 0.85rem;
+        color: #6c757d;
+        margin-bottom: 0.25rem;
+        font-weight: 500;
+    }
+    
+    .info-value {
+        font-weight: 600;
+        color: #495057;
+    }
+    
+    .order-status {
+        padding: 0.25rem 0.75rem;
+        border-radius: 15px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .status-pending {
+        background: #fff3cd;
+        color: #856404;
+        border: 1px solid #ffeaa7;
+    }
+    
+    .status-processing {
+        background: #cce5ff;
+        color: #004085;
+        border: 1px solid #99d6ff;
+    }
+    
+    .status-completed {
+        background: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+    }
+    
+    .status-cancelled {
+        background: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+    }
+    
+    .order-amount {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #28a745;
+    }
+    
+    .order-actions {
+        display: flex;
+        gap: 0.5rem;
+        justify-content: flex-end;
+        margin-top: 1rem;
+        padding-top: 1rem;
+        border-top: 1px solid #e9ecef;
+    }
+    
+    .btn-action {
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        text-decoration: none;
+        font-size: 0.9rem;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        border: none;
+        cursor: pointer;
+    }
+    
+    .btn-primary-action {
+        background: #28a745;
+        color: white;
+    }
+    
+    .btn-primary-action:hover {
+        background: #218838;
+        color: white;
+        text-decoration: none;
+    }
+    
+    .btn-secondary-action {
+        background: #6c757d;
+        color: white;
+    }
+    
+    .btn-secondary-action:hover {
+        background: #5a6268;
+        color: white;
+        text-decoration: none;
+    }
+    
+    .btn-danger-action {
+        background: #dc3545;
+        color: white;
+    }
+    
+    .btn-danger-action:hover {
+        background: #c82333;
+        color: white;
+        text-decoration: none;
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 4rem 2rem;
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+    
+    .empty-icon {
+        font-size: 4rem;
+        color: #dee2e6;
+        margin-bottom: 1rem;
+    }
+    
+    .empty-title {
+        font-size: 1.5rem;
+        color: #6c757d;
+        margin-bottom: 0.5rem;
+    }
+    
+    .empty-description {
+        color: #adb5bd;
+        margin-bottom: 2rem;
+    }
+    
+    .btn-create-order {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        color: white;
+        padding: 0.75rem 2rem;
+        border-radius: 25px;
+        text-decoration: none;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        border: none;
+        font-size: 1rem;
+    }
+    
+    .btn-create-order:hover {
+        background: linear-gradient(135deg, #20c997 0%, #17a2b8 100%);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
+        color: white;
+        text-decoration: none;
+    }
+    
+    .search-section {
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+        margin-bottom: 1rem;
+    }
+    
+    .search-input {
+        flex: 1;
+        padding: 0.5rem 1rem;
+        border: 2px solid #e9ecef;
+        border-radius: 25px;
+        font-size: 0.9rem;
+        transition: border-color 0.3s ease;
+    }
+    
+    .search-input:focus {
+        outline: none;
+        border-color: #28a745;
+    }
+    
+    .stats-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+    
+    .stats-card {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 12px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        text-align: center;
+        transition: transform 0.3s ease;
+    }
+    
+    .stats-card:hover {
+        transform: translateY(-2px);
+    }
+    
+    .stats-icon {
+        font-size: 2rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    .stats-value {
+        font-size: 1.5rem;
+        font-weight: 700;
+        margin-bottom: 0.25rem;
+    }
+    
+    .stats-label {
+        color: #6c757d;
+        font-size: 0.9rem;
+    }
+    
+    .pagination-wrapper {
+        display: flex;
+        justify-content: center;
+        margin-top: 2rem;
+    }
+    
+    @media (max-width: 768px) {
+        .orders-header {
+            padding: 1.5rem 0;
+        }
+        
+        .orders-header h1 {
+            font-size: 1.5rem;
+        }
+        
+        .filter-section {
+            padding: 1rem;
+        }
+        
+        .status-filter {
+            justify-content: center;
+        }
+        
+        .order-header {
+            flex-direction: column;
+            gap: 0.5rem;
+            text-align: center;
+        }
+        
+        .order-info {
+            grid-template-columns: 1fr;
+        }
+        
+        .order-actions {
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        
+        .stats-row {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- 页面头部 -->
+    <div class="orders-header">
+        <div class="container">
+            <div class="text-center">
+                <h1><i class="fas fa-shopping-cart me-2"></i>我的订单</h1>
+                <p class="subtitle">管理您的所有订单和服务申请</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 订单统计 -->
+    <div class="stats-row">
+        <div class="stats-card">
+            <div class="stats-icon text-primary">
+                <i class="fas fa-list"></i>
+            </div>
+            <div class="stats-value text-primary">0</div>
+            <div class="stats-label">总订单数</div>
+        </div>
+        <div class="stats-card">
+            <div class="stats-icon text-warning">
+                <i class="fas fa-clock"></i>
+            </div>
+            <div class="stats-value text-warning">0</div>
+            <div class="stats-label">待处理</div>
+        </div>
+        <div class="stats-card">
+            <div class="stats-icon text-info">
+                <i class="fas fa-spinner"></i>
+            </div>
+            <div class="stats-value text-info">0</div>
+            <div class="stats-label">处理中</div>
+        </div>
+        <div class="stats-card">
+            <div class="stats-icon text-success">
+                <i class="fas fa-check-circle"></i>
+            </div>
+            <div class="stats-value text-success">0</div>
+            <div class="stats-label">已完成</div>
+        </div>
+    </div>
+    
+    <!-- 筛选和搜索 -->
+    <div class="filter-section">
+        <div class="search-section">
+            <input type="text" class="search-input" placeholder="搜索订单号、服务类型或目的地..." id="searchInput">
+            <button class="btn btn-outline-primary" onclick="searchOrders()">
+                <i class="fas fa-search"></i> 搜索
+            </button>
+        </div>
+        
+        <div class="status-filter">
+            <span class="me-2"><strong>状态筛选：</strong></span>
+            <a href="{{ url_for('member.orders') }}" 
+               class="status-btn {% if not current_status %}active{% endif %}">
+                全部
+            </a>
+            <a href="{{ url_for('member.orders') }}?status=pending" 
+               class="status-btn {% if current_status == 'pending' %}active{% endif %}">
+                待处理
+            </a>
+            <a href="{{ url_for('member.orders') }}?status=processing" 
+               class="status-btn {% if current_status == 'processing' %}active{% endif %}">
+                处理中
+            </a>
+            <a href="{{ url_for('member.orders') }}?status=completed" 
+               class="status-btn {% if current_status == 'completed' %}active{% endif %}">
+                已完成
+            </a>
+            <a href="{{ url_for('member.orders') }}?status=cancelled" 
+               class="status-btn {% if current_status == 'cancelled' %}active{% endif %}">
+                已取消
+            </a>
+        </div>
+    </div>
+    
+    <!-- 订单列表 -->
+    {% if orders %}
+        <div class="orders-list">
+            {% for order in orders %}
+            <div class="order-card">
+                <div class="order-header">
+                    <div>
+                        <div class="order-number">订单号：{{ order.order_number }}</div>
+                        <div class="order-date">下单时间：{{ order.created_at.strftime('%Y-%m-%d %H:%M') }}</div>
+                    </div>
+                    <div>
+                        <span class="order-status status-{{ order.status }}">
+                            {% if order.status == 'pending' %}待处理
+                            {% elif order.status == 'processing' %}处理中
+                            {% elif order.status == 'completed' %}已完成
+                            {% elif order.status == 'cancelled' %}已取消
+                            {% else %}{{ order.status }}
+                            {% endif %}
+                        </span>
+                    </div>
+                </div>
+                
+                <div class="order-body">
+                    <div class="order-info">
+                        <div class="info-item">
+                            <div class="info-label">服务类型</div>
+                            <div class="info-value">{{ order.service_type or '签证服务' }}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">目的地</div>
+                            <div class="info-value">{{ order.destination or '待确认' }}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">申请人数</div>
+                            <div class="info-value">{{ order.applicant_count or '1' }} 人</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">订单金额</div>
+                            <div class="info-value order-amount">
+                                ${{ "%.2f"|format(order.total_amount or 0) }}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="order-actions">
+                        <a href="{{ url_for('member.order_detail', order_id=order.id) }}" 
+                           class="btn-action btn-primary-action">
+                            <i class="fas fa-eye me-1"></i>查看详情
+                        </a>
+                        
+                        {% if order.status == 'pending' %}
+                        <button class="btn-action btn-secondary-action" onclick="editOrder({{ order.id }})">
+                            <i class="fas fa-edit me-1"></i>修改订单
+                        </button>
+                        <button class="btn-action btn-danger-action" onclick="cancelOrder({{ order.id }})">
+                            <i class="fas fa-times me-1"></i>取消订单
+                        </button>
+                        {% elif order.status == 'completed' %}
+                        <button class="btn-action btn-secondary-action" onclick="downloadInvoice({{ order.id }})">
+                            <i class="fas fa-download me-1"></i>下载发票
+                        </button>
+                        <button class="btn-action btn-primary-action" onclick="reorderService({{ order.id }})">
+                            <i class="fas fa-redo me-1"></i>再次订购
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        
+        <!-- 分页 -->
+        {% if pagination %}
+        <div class="pagination-wrapper">
+            <nav aria-label="订单分页">
+                <ul class="pagination">
+                    {% if pagination.has_prev %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('member.orders', page=pagination.prev_num, status=current_status) }}">
+                            <i class="fas fa-chevron-left"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                    
+                    {% for page_num in pagination.iter_pages() %}
+                        {% if page_num %}
+                            {% if page_num != pagination.page %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('member.orders', page=page_num, status=current_status) }}">
+                                    {{ page_num }}
+                                </a>
+                            </li>
+                            {% else %}
+                            <li class="page-item active">
+                                <span class="page-link">{{ page_num }}</span>
+                            </li>
+                            {% endif %}
+                        {% else %}
+                        <li class="page-item disabled">
+                            <span class="page-link">…</span>
+                        </li>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if pagination.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('member.orders', page=pagination.next_num, status=current_status) }}">
+                            <i class="fas fa-chevron-right"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
+        
+    {% else %}
+        <!-- 空状态 -->
+        <div class="empty-state">
+            <div class="empty-icon">
+                <i class="fas fa-shopping-cart"></i>
+            </div>
+            <h3 class="empty-title">还没有订单</h3>
+            <p class="empty-description">
+                {% if current_status %}
+                    没有找到状态为"{{ current_status }}"的订单
+                {% else %}
+                    您还没有创建任何订单，快去选择我们的服务吧！
+                {% endif %}
+            </p>
+            <a href="{{ url_for('member.services') }}" class="btn-create-order">
+                <i class="fas fa-plus me-2"></i>浏览服务
+            </a>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// 搜索功能
+function searchOrders() {
+    const searchValue = document.getElementById('searchInput').value.trim();
+    if (searchValue) {
+        // 构建搜索URL
+        const currentUrl = new URL(window.location);
+        currentUrl.searchParams.set('search', searchValue);
+        window.location.href = currentUrl.toString();
+    }
+}
+
+// 回车搜索
+document.getElementById('searchInput').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        searchOrders();
+    }
+});
+
+// 订单操作函数
+function editOrder(orderId) {
+    // 跳转到编辑订单页面
+    window.location.href = `/member/order/${orderId}/edit`;
+}
+
+function cancelOrder(orderId) {
+    if (confirm('确定要取消这个订单吗？取消后无法恢复。')) {
+        // 发送取消请求
+        fetch(`/member/api/orders/${orderId}/cancel`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token() }}'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('订单已取消');
+                location.reload();
+            } else {
+                alert('取消失败：' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('操作失败，请稍后重试');
+        });
+    }
+}
+
+function downloadInvoice(orderId) {
+    // 下载发票
+    window.open(`/member/api/orders/${orderId}/invoice`, '_blank');
+}
+
+function reorderService(orderId) {
+    if (confirm('确定要重新订购相同的服务吗？')) {
+        // 跳转到重新订购页面
+        window.location.href = `/member/order/${orderId}/reorder`;
+    }
+}
+
+// 页面加载完成后的初始化
+document.addEventListener('DOMContentLoaded', function() {
+    // 高亮当前页面的导航项
+    const currentPath = window.location.pathname;
+    const navLinks = document.querySelectorAll('.navbar-nav .nav-link');
+    
+    navLinks.forEach(link => {
+        if (link.getAttribute('href') === currentPath) {
+            link.classList.add('active');
+        }
+    });
+    
+    // 添加卡片悬停效果
+    const orderCards = document.querySelectorAll('.order-card');
+    orderCards.forEach(card => {
+        card.addEventListener('mouseenter', function() {
+            this.style.transform = 'translateY(-4px)';
+        });
+        
+        card.addEventListener('mouseleave', function() {
+            this.style.transform = 'translateY(0)';
+        });
+    });
+    
+    // 状态按钮点击效果
+    const statusBtns = document.querySelectorAll('.status-btn');
+    statusBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+            // 移除所有active类
+            statusBtns.forEach(b => b.classList.remove('active'));
+            // 添加到当前按钮
+            this.classList.add('active');
+        });
+    });
+});
+
+// 实时更新订单状态（可选功能）
+function updateOrderStatus() {
+    // 每30秒检查一次订单状态更新
+    setInterval(() => {
+        fetch('/member/api/orders/status-update', {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.updates.length > 0) {
+                // 如果有状态更新，可以显示提示或自动刷新
+                console.log('订单状态有更新');
+            }
+        })
+        .catch(error => {
+            console.error('状态检查失败:', error);
+        });
+    }, 30000); // 30秒
+}
+
+// 如果需要实时更新，取消注释下面这行
+// updateOrderStatus();
+</script>
+{% endblock %} 

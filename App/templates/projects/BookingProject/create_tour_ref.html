@@ -1,5 +1,9 @@
-{% extends "base.html" %}
-{% block title %}{% if ref %}编辑旅游团明细{% else %}新建旅游团明细{% endif %}{% endblock %}
+{% extends "staff/base.html" %}
+
+
+
+{% block page_title %}Create Tour Ref{% endblock %}
+
 {% block content %}
 <div class="container mt-4">
     <div class="row justify-content-center">
@@ -314,4 +318,4 @@ function quickCreateEO(refId) {
     }
 }
 </script>
-{% endblock %} 
+{% endblock %} \n\n{% block title %}{% if ref %}编辑旅游团明细{% else %}新建旅游团明细{% endif %}{% endblock %}

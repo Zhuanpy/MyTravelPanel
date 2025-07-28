@@ -1,8 +1,10 @@
-{% extends "base.html" %}
+{% extends "staff/base.html" %}
 
-{% block title %}番茄工作法{% endblock %}
+{% block title %}番茄工作法 - MyTravelPanel{% endblock %}
 
-{% block head %}
+{% block page_title %}番茄工作法{% endblock %}
+
+{% block extra_css %}
 <!-- CSRF令牌 -->
 <meta name="csrf-token" content="{{ csrf_token() }}">
 <style>
@@ -160,7 +162,7 @@
 </div>
 {% endblock %}
 
-{% block scripts %}
+{% block extra_js %}
 <script>
     const taskList = document.getElementById('task-list');
     const notificationArea = document.getElementById('notification-area');

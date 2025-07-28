@@ -1,8 +1,12 @@
-{% extends "base.html" %}
+{% extends "staff/base.html" %}
 
-{% block title %}{{ visa_type }} 签证介绍{% endblock %}
 
-{% block head %}
+
+{% block page_title %}签证介绍{% endblock %}
+
+
+
+{% block extra_css %}
 <style>
     .visa-intro-container {
         max-width: 1200px;
@@ -565,7 +569,7 @@
 </div>
 {% endblock %}
 
-{% block scripts %}
+{% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     let currentDocuments = []; // 存储当前文档数据
@@ -732,7 +736,7 @@ document.addEventListener('DOMContentLoaded', function() {
             let globalLineCounter = 1;
             additionalInfo.forEach((info, index) => {
                 // 将内容按行分割，每行添加序号
-                const lines = info.content.split('\n');
+                const lines = info.content.split('\n\n{% block title %}{{ visa_type }} 签证介绍{% endblock %}\n');
                 const numberedLines = lines.map((line, lineIndex) => {
                     if (line.trim()) {
                         const lineNumber = globalLineCounter++;

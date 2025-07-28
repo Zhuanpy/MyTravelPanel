@@ -42,6 +42,7 @@ from App.routes.projects.FlightProjects.flights_home_routes import flight_home
 from App.routes.projects.FlightProjects.flights_schedule import flights_schedule
 from App.routes.projects.FlightProjects.flights_booking_routes import flights_booking
 from App.routes.projects.FlightProjects.flights_athina_routes import flights_athina
+from App.routes.projects.FlightProjects.flight_routes import flight_routes
 
 # 导入所有utils相关路由
 from App.routes.Utils.utils_company_info import company_info
@@ -144,6 +145,7 @@ def create_app():
     app.register_blueprint(flights_schedule, url_prefix='/flight_schedule')
     app.register_blueprint(flights_booking, url_prefix='/flights_booking')
     app.register_blueprint(flights_athina, url_prefix='/flights_athina')
+    app.register_blueprint(flight_routes, url_prefix='/flight_routes')
 
     app.register_blueprint(company_info, url_prefix='/company')
     app.register_blueprint(account_routes, url_prefix='/account')

@@ -1,8 +1,10 @@
-{% extends "base.html" %}
+{% extends "staff/base.html" %}
 
-{% block title %}签名生成{% endblock %}
+{% block title %}机票签名 - MyTravelPanel{% endblock %}
 
-{% block head %}
+{% block page_title %}机票签名{% endblock %}
+
+{% block extra_css %}
 <style>
     .signature-container {
         max-width: 800px;
@@ -105,7 +107,7 @@
 </div>
 {% endblock %}
 
-{% block scripts %}
+{% block extra_js %}
 <script>
     const canvas = document.getElementById('signatureCanvas');
     const ctx = canvas.getContext('2d');

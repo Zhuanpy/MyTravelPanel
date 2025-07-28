@@ -1,5 +1,9 @@
-{% extends "base.html" %}
-{% block title %}收款记录 - {{ ref.ref_number }}{% endblock %}
+{% extends "staff/base.html" %}
+
+
+
+{% block page_title %}Ref Receipts{% endblock %}
+
 
 {% block content %}
 <div class="container-fluid">
@@ -202,4 +206,4 @@ function deleteReceipt(receiptId) {
     }
 }
 </script>
-{% endblock %} 
+{% endblock %} \n\n{% block title %}收款记录 - {{ ref.ref_number }}{% endblock %}

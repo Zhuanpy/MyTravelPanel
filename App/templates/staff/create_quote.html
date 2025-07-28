@@ -1,0 +1,525 @@
+{% extends "staff/base.html" %}
+
+{% block title %}创建报价 - MyTravelPanel{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{{ url_for('staff.quotes') }}">报价管理</a></li>
+<li class="breadcrumb-item active">创建报价</li>
+{% endblock %}
+
+{% block page_title %}创建新报价{% endblock %}
+
+{% block extra_css %}
+<style>
+    .form-card {
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        border: none;
+        border-radius: 10px;
+    }
+    
+    .form-card .card-header {
+        background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+        color: white;
+        border-radius: 10px 10px 0 0;
+    }
+    
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+    
+    .form-label {
+        font-weight: 600;
+        color: #495057;
+        margin-bottom: 0.5rem;
+    }
+    
+    .form-control, .form-select {
+        border-radius: 8px;
+        border: 1px solid #ced4da;
+        padding: 0.75rem 1rem;
+        transition: all 0.3s ease;
+    }
+    
+    .form-control:focus, .form-select:focus {
+        border-color: #007bff;
+        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+    }
+    
+    .btn-staff {
+        border-radius: 8px;
+        padding: 0.75rem 2rem;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-staff-primary {
+        background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+        border: none;
+        color: white;
+    }
+    
+    .btn-staff-primary:hover {
+        background: linear-gradient(135deg, #0056b3 0%, #004494 100%);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 10px rgba(0, 123, 255, 0.3);
+    }
+    
+    .quote-preview {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 1.5rem;
+        border-left: 4px solid #007bff;
+    }
+    
+    .price-input {
+        position: relative;
+    }
+    
+    .price-input::before {
+        content: '$';
+        position: absolute;
+        left: 1rem;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #6c757d;
+        font-weight: 600;
+        z-index: 3;
+    }
+    
+    .price-input .form-control {
+        padding-left: 2.5rem;
+    }
+    
+    .service-type-card {
+        border: 2px solid #e9ecef;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 0.5rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    
+    .service-type-card:hover {
+        border-color: #007bff;
+        background: #f8f9ff;
+    }
+    
+    .service-type-card.selected {
+        border-color: #007bff;
+        background: #e7f3ff;
+    }
+    
+    .service-icon {
+        font-size: 2rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    .tour-icon { color: #28a745; }
+    .visa-icon { color: #dc3545; }
+    .flight-icon { color: #17a2b8; }
+    .hotel-icon { color: #fd7e14; }
+    .package-icon { color: #6f42c1; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-10">
+        <div class="card form-card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-file-invoice-dollar me-2"></i>报价基本信息
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" class="needs-validation" novalidate>
+                    <!-- CSRF令牌 -->
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    
+                    <!-- 基本信息 -->
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div class="form-group">
+                                <label for="quote_name" class="form-label">报价名称 *</label>
+                                <input type="text" class="form-control" id="quote_name" name="quote_name" 
+                                       placeholder="例如：3天2晚泰国普吉岛自由行报价" required>
+                                <div class="invalid-feedback">
+                                    请输入报价名称
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label for="quote_id" class="form-label">报价编号</label>
+                                <input type="text" class="form-control" id="quote_id" name="quote_id" 
+                                       placeholder="系统自动生成" readonly>
+                                <small class="form-text text-muted">系统将自动生成唯一编号</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 客户信息 -->
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="client_name" class="form-label">客户姓名 *</label>
+                                <input type="text" class="form-control" id="client_name" name="client_name" 
+                                       placeholder="请输入客户姓名" required>
+                                <div class="invalid-feedback">
+                                    请输入客户姓名
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="client_email" class="form-label">客户邮箱</label>
+                                <input type="email" class="form-control" id="client_email" name="client_email" 
+                                       placeholder="customer@example.com">
+                                <small class="form-text text-muted">用于发送报价单</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="client_phone" class="form-label">联系电话</label>
+                                <input type="tel" class="form-control" id="client_phone" name="client_phone" 
+                                       placeholder="+65 1234 5678">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="adults" class="form-label">人数</label>
+                                <div class="row g-2">
+                                    <div class="col">
+                                        <input type="number" class="form-control" id="adults" name="adults" 
+                                               placeholder="成人" min="1" value="2">
+                                        <small class="form-text text-muted">成人</small>
+                                    </div>
+                                    <div class="col">
+                                        <input type="number" class="form-control" id="children" name="children" 
+                                               placeholder="儿童" min="0" value="0">
+                                        <small class="form-text text-muted">儿童</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 服务类型 -->
+                    <div class="form-group">
+                        <label class="form-label">服务类型 *</label>
+                        <div class="row">
+                            <div class="col-md-6 col-lg-4">
+                                <div class="service-type-card" onclick="selectServiceType('tour')">
+                                    <div class="text-center">
+                                        <div class="service-icon tour-icon">
+                                            <i class="fas fa-map-marked-alt"></i>
+                                        </div>
+                                        <h6>旅游套餐</h6>
+                                        <small class="text-muted">机票+酒店+行程</small>
+                                        <input type="radio" name="service_type" value="tour" class="d-none" required>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6 col-lg-4">
+                                <div class="service-type-card" onclick="selectServiceType('visa')">
+                                    <div class="text-center">
+                                        <div class="service-icon visa-icon">
+                                            <i class="fas fa-passport"></i>
+                                        </div>
+                                        <h6>签证服务</h6>
+                                        <small class="text-muted">签证申请与代办</small>
+                                        <input type="radio" name="service_type" value="visa" class="d-none" required>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6 col-lg-4">
+                                <div class="service-type-card" onclick="selectServiceType('flight')">
+                                    <div class="text-center">
+                                        <div class="service-icon flight-icon">
+                                            <i class="fas fa-plane"></i>
+                                        </div>
+                                        <h6>机票预订</h6>
+                                        <small class="text-muted">国际国内机票</small>
+                                        <input type="radio" name="service_type" value="flight" class="d-none" required>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6 col-lg-4">
+                                <div class="service-type-card" onclick="selectServiceType('hotel')">
+                                    <div class="text-center">
+                                        <div class="service-icon hotel-icon">
+                                            <i class="fas fa-hotel"></i>
+                                        </div>
+                                        <h6>酒店预订</h6>
+                                        <small class="text-muted">全球酒店预订</small>
+                                        <input type="radio" name="service_type" value="hotel" class="d-none" required>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6 col-lg-4">
+                                <div class="service-type-card" onclick="selectServiceType('package')">
+                                    <div class="text-center">
+                                        <div class="service-icon package-icon">
+                                            <i class="fas fa-box"></i>
+                                        </div>
+                                        <h6>组合套餐</h6>
+                                        <small class="text-muted">多服务组合</small>
+                                        <input type="radio" name="service_type" value="package" class="d-none" required>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="invalid-feedback">
+                            请选择服务类型
+                        </div>
+                    </div>
+
+                    <!-- 行程信息 -->
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label for="destination" class="form-label">目的地</label>
+                                <input type="text" class="form-control" id="destination" name="destination" 
+                                       placeholder="例如：泰国普吉岛">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label for="departure_date" class="form-label">出发日期</label>
+                                <input type="date" class="form-control" id="departure_date" name="departure_date">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label for="return_date" class="form-label">返回日期</label>
+                                <input type="date" class="form-control" id="return_date" name="return_date">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 价格信息 -->
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="amount" class="form-label">报价金额 *</label>
+                                <div class="price-input">
+                                    <input type="number" class="form-control" id="amount" name="amount" 
+                                           placeholder="0.00" step="0.01" min="0" required>
+                                </div>
+                                <div class="invalid-feedback">
+                                    请输入有效的金额
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="currency" class="form-label">货币</label>
+                                <select class="form-select" id="currency" name="currency">
+                                    <option value="SGD">新加坡元 (SGD)</option>
+                                    <option value="USD">美元 (USD)</option>
+                                    <option value="CNY">人民币 (CNY)</option>
+                                    <option value="EUR">欧元 (EUR)</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="valid_until" class="form-label">报价有效期</label>
+                                <input type="date" class="form-control" id="valid_until" name="valid_until">
+                                <small class="form-text text-muted">留空则默认7天有效期</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="payment_terms" class="form-label">付款条件</label>
+                                <select class="form-select" id="payment_terms" name="payment_terms">
+                                    <option value="full_advance">全额预付</option>
+                                    <option value="deposit_50">50%定金</option>
+                                    <option value="deposit_30">30%定金</option>
+                                    <option value="installment">分期付款</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 备注 -->
+                    <div class="form-group">
+                        <label for="notes" class="form-label">备注说明</label>
+                        <textarea class="form-control" id="notes" name="notes" rows="4" 
+                                  placeholder="请输入报价的详细说明、包含项目、注意事项等..."></textarea>
+                    </div>
+
+                    <!-- 操作按钮 -->
+                    <div class="d-flex justify-content-between mt-4">
+                        <a href="{{ url_for('staff.quotes') }}" class="btn btn-outline-secondary btn-staff">
+                            <i class="fas fa-arrow-left me-2"></i>返回列表
+                        </a>
+                        <div>
+                            <button type="button" class="btn btn-outline-info btn-staff me-2" onclick="previewQuote()">
+                                <i class="fas fa-eye me-2"></i>预览报价
+                            </button>
+                            <button type="submit" class="btn btn-staff btn-staff-primary">
+                                <i class="fas fa-save me-2"></i>创建报价
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 报价预览模态框 -->
+<div class="modal fade" id="quotePreviewModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-file-invoice-dollar"></i> 报价预览
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="quote-preview" id="previewContent">
+                    <!-- 预览内容将通过JavaScript填充 -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                <button type="button" class="btn btn-primary" onclick="generatePDF()">
+                    <i class="fas fa-download"></i> 导出PDF
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// 服务类型选择
+function selectServiceType(type) {
+    // 移除所有选中状态
+    document.querySelectorAll('.service-type-card').forEach(card => {
+        card.classList.remove('selected');
+    });
+    
+    // 添加选中状态
+    event.currentTarget.classList.add('selected');
+    
+    // 设置radio值
+    document.querySelector(`input[name="service_type"][value="${type}"]`).checked = true;
+}
+
+// 表单验证
+(function() {
+    'use strict';
+    window.addEventListener('load', function() {
+        var forms = document.getElementsByClassName('needs-validation');
+        var validation = Array.prototype.filter.call(forms, function(form) {
+            form.addEventListener('submit', function(event) {
+                if (form.checkValidity() === false) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                }
+                form.classList.add('was-validated');
+            }, false);
+        });
+    }, false);
+})();
+
+// 日期验证
+document.getElementById('departure_date').addEventListener('change', function() {
+    const departureDate = new Date(this.value);
+    const returnDateInput = document.getElementById('return_date');
+    
+    if (returnDateInput.value) {
+        const returnDate = new Date(returnDateInput.value);
+        if (returnDate <= departureDate) {
+            returnDateInput.value = '';
+            alert('返回日期必须晚于出发日期');
+        }
+    }
+    
+    // 设置返回日期的最小值
+    returnDateInput.min = this.value;
+});
+
+// 自动生成报价编号
+document.getElementById('quote_name').addEventListener('input', function() {
+    const quoteName = this.value;
+    if (quoteName) {
+        const today = new Date();
+        const dateStr = today.toISOString().slice(0, 10).replace(/-/g, '');
+        const randomNum = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+        document.getElementById('quote_id').value = `QT${dateStr}${randomNum}`;
+    }
+});
+
+// 报价预览
+function previewQuote() {
+    const formData = new FormData(document.querySelector('form'));
+    const data = {};
+    for (let [key, value] of formData.entries()) {
+        data[key] = value;
+    }
+    
+    // 验证必填字段
+    if (!data.quote_name || !data.client_name || !data.service_type) {
+        alert('请填写必填字段后再预览');
+        return;
+    }
+    
+    // 生成预览内容
+    const serviceTypeNames = {
+        'tour': '旅游套餐',
+        'visa': '签证服务', 
+        'flight': '机票预订',
+        'hotel': '酒店预订',
+        'package': '组合套餐'
+    };
+    
+    const previewHTML = `
+        <h4 class="mb-3">${data.quote_name}</h4>
+        <div class="row">
+            <div class="col-md-6">
+                <p><strong>客户姓名：</strong>${data.client_name}</p>
+                <p><strong>服务类型：</strong>${serviceTypeNames[data.service_type] || data.service_type}</p>
+                <p><strong>目的地：</strong>${data.destination || '待确定'}</p>
+                <p><strong>人数：</strong>${data.adults || 0}成人 ${data.children || 0}儿童</p>
+            </div>
+            <div class="col-md-6">
+                <p><strong>出发日期：</strong>${data.departure_date || '待确定'}</p>
+                <p><strong>返回日期：</strong>${data.return_date || '待确定'}</p>
+                <p><strong>报价金额：</strong>${data.currency || 'SGD'} $${data.amount || '0'}</p>
+                <p><strong>有效期至：</strong>${data.valid_until || '待设定'}</p>
+            </div>
+        </div>
+        <div class="mt-3">
+            <h6>备注说明：</h6>
+            <p>${data.notes || '暂无备注'}</p>
+        </div>
+    `;
+    
+    document.getElementById('previewContent').innerHTML = previewHTML;
+    new bootstrap.Modal(document.getElementById('quotePreviewModal')).show();
+}
+
+// 生成PDF（模拟）
+function generatePDF() {
+    alert('PDF生成功能开发中...');
+}
+
+// 自动设置默认有效期（7天后）
+document.addEventListener('DOMContentLoaded', function() {
+    const validUntilInput = document.getElementById('valid_until');
+    const today = new Date();
+    const validUntil = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
+    validUntilInput.value = validUntil.toISOString().slice(0, 10);
+});
+</script>
+{% endblock %} 

@@ -1,6 +1,7 @@
 import os
 import subprocess
 from flask import Blueprint, render_template, request, jsonify, flash, redirect, url_for
+from flask_login import login_required, current_user
 from sqlalchemy.exc import NoResultFound
 
 from App.code.FlightTicket.ConvertFlight.read_sql_data import original_airport_code_data, original_flight_timing_data
@@ -8,6 +9,7 @@ from App.code.FlightTicket.ConvertFlight.read_sql_data import original_airport_c
 from App.models.Flightmodels import *
 from App.models.Product.Visamodels import *
 from App.forms.flight_forms import FlightScheduleForm
+from App.utils.decorators import staff_only
 
 # 创建蓝图
 flight_home = Blueprint('flight_home', __name__, url_prefix='/flight_home')
@@ -16,6 +18,8 @@ flight_home = Blueprint('flight_home', __name__, url_prefix='/flight_home')
 """ 航班信息录入"""
 
 @flight_home.route('/flight_schedule', methods=['GET', 'POST'])
+@login_required
+@staff_only
 def input_flight_schedule_info():
     form = FlightScheduleForm()
     
@@ -76,11 +80,15 @@ def input_flight_schedule_info():
 
 
 @flight_home.route('/flight_home')
+@login_required
+@staff_only
 def flight_home_page():
     """机票模块首页"""
     return render_template('flights/机票首页.html')
 
 @flight_home.route('/search_flights', methods=['GET'])
+@login_required
+@staff_only
 def search_flights():
     """
     搜索航班功能，通过航班号查询航班信息。
@@ -100,6 +108,8 @@ def search_flights():
     return render_template('flights/录入航班时刻表.html', flights=flights)
 
 @flight_home.route('/update_flight_timing', methods=['POST'])
+@login_required
+@staff_only
 def update_flight_timing_api():
     """更新航班时刻表的时间信息"""
     try:
@@ -126,6 +136,8 @@ def update_flight_timing_api():
 
 
 @flight_home.route('/flight_airport_data')
+@login_required
+@staff_only
 def flight_airport_data():
     original_data = original_airport_code_data()
     airport_list = []
@@ -160,6 +172,8 @@ def flight_airport_data():
 
 
 @flight_home.route('/flight_schedule_data')
+@login_required
+@staff_only
 def flight_schedule_data():
     schedule_list = []
 
@@ -192,6 +206,8 @@ def flight_schedule_data():
 
 
 @flight_home.route('/open_project_folder', methods=['GET', 'POST'])
+@login_required
+@staff_only
 def open_project_folder():
     # 获取目标文件夹路径
     from App.config import Config
@@ -222,6 +238,8 @@ def open_project_folder():
         return redirect(url_for('index.index'))
 
 @flight_home.route('/open_flight_project_folder', methods=['GET', 'POST'])
+@login_required
+@staff_only
 def open_flight_project_folder():
     # 获取目标文件夹路径
     from App.config import Config
@@ -252,6 +270,8 @@ def open_flight_project_folder():
         return redirect(url_for('index.index'))
 
 @flight_home.route('/open_refund_folder', methods=['GET', 'POST'])
+@login_required
+@staff_only
 def open_refund_folder():
     # 使用配置中的退票文件夹路径
     from App.config import Config
@@ -282,6 +302,8 @@ def open_refund_folder():
         return redirect(url_for('index.index'))
 
 @flight_home.route('/确认单详细')
+@login_required
+@staff_only
 def confirmation_detail():
     return render_template('flights/flight_confirmation_detail.html')
 

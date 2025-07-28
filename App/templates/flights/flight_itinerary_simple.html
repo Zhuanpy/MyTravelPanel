@@ -1,8 +1,10 @@
-{% extends "base.html" %}
+{% extends "staff/base.html" %}
 
-{% block title %}录入航班信息{% endblock %}
+{% block title %}简化行程 - MyTravelPanel{% endblock %}
 
-{% block head %}
+{% block page_title %}简化行程{% endblock %}
+
+{% block extra_css %}
 <!-- 引入Font Awesome图标库（如需） -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
 <!-- CSRF令牌 -->
@@ -243,7 +245,7 @@
 </div>
 {% endblock %}
 
-{% block scripts %}
+{% block extra_js %}
 <script>
   function addInput() {
     const container = document.getElementById('inputContainer');

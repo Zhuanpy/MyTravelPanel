@@ -1,5 +1,8 @@
-{% extends "base.html" %}
+{% extends "staff/base.html" %}
+
 {% block title %}项目详情 - {{ header.hid }}{% endblock %}
+
+{% block page_title %}项目详情{% endblock %}
 {% block content %}
 <style>
     .project-header {
@@ -781,7 +784,7 @@ setTimeout(function() {
 }, 5000);
 </script>
 {% endblock %} 
-{% block scripts %}
+{% block extra_js %}
 {{ super() }}
 <script>
 document.addEventListener('DOMContentLoaded', function() {

@@ -1,0 +1,1042 @@
+{% extends "member/base.html" %}
+
+{% block title %}我的发票 - 会员中心 - MyTravelPanel{% endblock %}
+
+{% block extra_css %}
+<style>
+    .invoices-header {
+        background: linear-gradient(135deg, #6f42c1 0%, #20c997 100%);
+        color: white;
+        padding: 2rem 0;
+        margin-bottom: 2rem;
+        border-radius: 15px;
+    }
+    
+    .invoices-header h1 {
+        font-size: 2rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }
+    
+    .invoices-header .subtitle {
+        opacity: 0.9;
+        font-size: 1.1rem;
+    }
+    
+    .filter-section {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 12px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        margin-bottom: 2rem;
+    }
+    
+    .status-filter {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+        align-items: center;
+    }
+    
+    .status-btn {
+        padding: 0.5rem 1rem;
+        border: 2px solid #e9ecef;
+        background: white;
+        color: #6c757d;
+        border-radius: 25px;
+        text-decoration: none;
+        transition: all 0.3s ease;
+        font-weight: 500;
+    }
+    
+    .status-btn:hover {
+        border-color: #6f42c1;
+        color: #6f42c1;
+        text-decoration: none;
+    }
+    
+    .status-btn.active {
+        background: #6f42c1;
+        border-color: #6f42c1;
+        color: white;
+    }
+    
+    .invoice-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        margin-bottom: 1.5rem;
+        overflow: hidden;
+        transition: all 0.3s ease;
+        border-left: 4px solid #6f42c1;
+    }
+    
+    .invoice-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    }
+    
+    .invoice-header {
+        background: #f8f9fa;
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid #e9ecef;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .invoice-number {
+        font-weight: 600;
+        color: #495057;
+        font-size: 1.1rem;
+    }
+    
+    .invoice-date {
+        color: #6c757d;
+        font-size: 0.9rem;
+    }
+    
+    .invoice-body {
+        padding: 1.5rem;
+    }
+    
+    .invoice-info {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+    
+    .info-item {
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .info-label {
+        font-size: 0.85rem;
+        color: #6c757d;
+        margin-bottom: 0.25rem;
+        font-weight: 500;
+    }
+    
+    .info-value {
+        font-weight: 600;
+        color: #495057;
+    }
+    
+    .invoice-status {
+        padding: 0.25rem 0.75rem;
+        border-radius: 15px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .status-draft {
+        background: #e2e3e5;
+        color: #495057;
+        border: 1px solid #d1d5db;
+    }
+    
+    .status-sent {
+        background: #cce5ff;
+        color: #004085;
+        border: 1px solid #99d6ff;
+    }
+    
+    .status-paid {
+        background: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+    }
+    
+    .status-overdue {
+        background: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+    }
+    
+    .status-cancelled {
+        background: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+    }
+    
+    .invoice-amount {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #6f42c1;
+    }
+    
+    .due-date {
+        font-size: 0.85rem;
+        font-weight: 500;
+    }
+    
+    .due-soon {
+        color: #ffc107;
+    }
+    
+    .overdue {
+        color: #dc3545;
+    }
+    
+    .invoice-actions {
+        display: flex;
+        gap: 0.5rem;
+        justify-content: flex-end;
+        margin-top: 1rem;
+        padding-top: 1rem;
+        border-top: 1px solid #e9ecef;
+    }
+    
+    .btn-action {
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        text-decoration: none;
+        font-size: 0.9rem;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        border: none;
+        cursor: pointer;
+    }
+    
+    .btn-primary-action {
+        background: #6f42c1;
+        color: white;
+    }
+    
+    .btn-primary-action:hover {
+        background: #5a359a;
+        color: white;
+        text-decoration: none;
+    }
+    
+    .btn-success-action {
+        background: #28a745;
+        color: white;
+    }
+    
+    .btn-success-action:hover {
+        background: #218838;
+        color: white;
+        text-decoration: none;
+    }
+    
+    .btn-secondary-action {
+        background: #6c757d;
+        color: white;
+    }
+    
+    .btn-secondary-action:hover {
+        background: #5a6268;
+        color: white;
+        text-decoration: none;
+    }
+    
+    .btn-warning-action {
+        background: #ffc107;
+        color: #212529;
+    }
+    
+    .btn-warning-action:hover {
+        background: #e0a800;
+        color: #212529;
+        text-decoration: none;
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 4rem 2rem;
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+    
+    .empty-icon {
+        font-size: 4rem;
+        color: #dee2e6;
+        margin-bottom: 1rem;
+    }
+    
+    .empty-title {
+        font-size: 1.5rem;
+        color: #6c757d;
+        margin-bottom: 0.5rem;
+    }
+    
+    .empty-description {
+        color: #adb5bd;
+        margin-bottom: 2rem;
+    }
+    
+    .btn-create-invoice {
+        background: linear-gradient(135deg, #6f42c1 0%, #20c997 100%);
+        color: white;
+        padding: 0.75rem 2rem;
+        border-radius: 25px;
+        text-decoration: none;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        border: none;
+        font-size: 1rem;
+    }
+    
+    .btn-create-invoice:hover {
+        background: linear-gradient(135deg, #20c997 0%, #17a2b8 100%);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(111, 66, 193, 0.3);
+        color: white;
+        text-decoration: none;
+    }
+    
+    .search-section {
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+        margin-bottom: 1rem;
+    }
+    
+    .search-input {
+        flex: 1;
+        padding: 0.5rem 1rem;
+        border: 2px solid #e9ecef;
+        border-radius: 25px;
+        font-size: 0.9rem;
+        transition: border-color 0.3s ease;
+    }
+    
+    .search-input:focus {
+        outline: none;
+        border-color: #6f42c1;
+    }
+    
+    .stats-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+    
+    .stats-card {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 12px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        text-align: center;
+        transition: transform 0.3s ease;
+    }
+    
+    .stats-card:hover {
+        transform: translateY(-2px);
+    }
+    
+    .stats-icon {
+        font-size: 2rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    .stats-value {
+        font-size: 1.5rem;
+        font-weight: 700;
+        margin-bottom: 0.25rem;
+    }
+    
+    .stats-label {
+        color: #6c757d;
+        font-size: 0.9rem;
+    }
+    
+    .invoice-summary {
+        background: #f8f9fa;
+        padding: 1rem;
+        border-radius: 8px;
+        margin-bottom: 1rem;
+    }
+    
+    .summary-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.25rem 0;
+        font-size: 0.9rem;
+    }
+    
+    .summary-total {
+        border-top: 1px solid #dee2e6;
+        margin-top: 0.5rem;
+        padding-top: 0.5rem;
+        font-weight: 600;
+        font-size: 1rem;
+    }
+    
+    .payment-methods {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+        margin-top: 0.5rem;
+    }
+    
+    .payment-method {
+        padding: 0.25rem 0.5rem;
+        background: #e9ecef;
+        border-radius: 15px;
+        font-size: 0.75rem;
+        color: #495057;
+    }
+    
+    .pagination-wrapper {
+        display: flex;
+        justify-content: center;
+        margin-top: 2rem;
+    }
+    
+    .quick-actions {
+        background: white;
+        padding: 1rem;
+        border-radius: 12px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        margin-bottom: 2rem;
+    }
+    
+    .quick-actions h6 {
+        margin-bottom: 1rem;
+        color: #495057;
+        font-weight: 600;
+    }
+    
+    .quick-action-btns {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+    
+    .quick-action-btn {
+        padding: 0.5rem 1rem;
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        text-decoration: none;
+        color: #495057;
+        font-size: 0.9rem;
+        transition: all 0.3s ease;
+    }
+    
+    .quick-action-btn:hover {
+        background: #6f42c1;
+        color: white;
+        text-decoration: none;
+        border-color: #6f42c1;
+    }
+    
+    @media (max-width: 768px) {
+        .invoices-header {
+            padding: 1.5rem 0;
+        }
+        
+        .invoices-header h1 {
+            font-size: 1.5rem;
+        }
+        
+        .filter-section {
+            padding: 1rem;
+        }
+        
+        .status-filter {
+            justify-content: center;
+        }
+        
+        .invoice-header {
+            flex-direction: column;
+            gap: 0.5rem;
+            text-align: center;
+        }
+        
+        .invoice-info {
+            grid-template-columns: 1fr;
+        }
+        
+        .invoice-actions {
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        
+        .stats-row {
+            grid-template-columns: repeat(2, 1fr);
+        }
+        
+        .quick-action-btns {
+            justify-content: center;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- 页面头部 -->
+    <div class="invoices-header">
+        <div class="container">
+            <div class="text-center">
+                <h1><i class="fas fa-file-invoice me-2"></i>我的发票</h1>
+                <p class="subtitle">管理您的所有发票和账单信息</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 发票统计 -->
+    <div class="stats-row">
+        <div class="stats-card">
+            <div class="stats-icon text-primary">
+                <i class="fas fa-file-invoice"></i>
+            </div>
+            <div class="stats-value text-primary">0</div>
+            <div class="stats-label">总发票数</div>
+        </div>
+        <div class="stats-card">
+            <div class="stats-icon text-secondary">
+                <i class="fas fa-edit"></i>
+            </div>
+            <div class="stats-value text-secondary">0</div>
+            <div class="stats-label">草稿</div>
+        </div>
+        <div class="stats-card">
+            <div class="stats-icon text-info">
+                <i class="fas fa-paper-plane"></i>
+            </div>
+            <div class="stats-value text-info">0</div>
+            <div class="stats-label">已发送</div>
+        </div>
+        <div class="stats-card">
+            <div class="stats-icon text-success">
+                <i class="fas fa-check-circle"></i>
+            </div>
+            <div class="stats-value text-success">0</div>
+            <div class="stats-label">已支付</div>
+        </div>
+        <div class="stats-card">
+            <div class="stats-icon text-warning">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <div class="stats-value text-warning">0</div>
+            <div class="stats-label">即将到期</div>
+        </div>
+        <div class="stats-card">
+            <div class="stats-icon text-danger">
+                <i class="fas fa-times-circle"></i>
+            </div>
+            <div class="stats-value text-danger">0</div>
+            <div class="stats-label">已逾期</div>
+        </div>
+    </div>
+    
+    <!-- 快捷操作 -->
+    <div class="quick-actions">
+        <h6><i class="fas fa-bolt me-2"></i>快捷操作</h6>
+        <div class="quick-action-btns">
+            <a href="/member/invoices?status=overdue" class="quick-action-btn">
+                <i class="fas fa-exclamation-circle me-1"></i>查看逾期发票
+            </a>
+            <a href="/member/invoices?status=paid" class="quick-action-btn">
+                <i class="fas fa-check me-1"></i>已支付发票
+            </a>
+            <a href="#" class="quick-action-btn" onclick="downloadAllInvoices()">
+                <i class="fas fa-download me-1"></i>批量下载
+            </a>
+            <a href="#" class="quick-action-btn" onclick="exportInvoiceData()">
+                <i class="fas fa-file-export me-1"></i>导出数据
+            </a>
+        </div>
+    </div>
+    
+    <!-- 筛选和搜索 -->
+    <div class="filter-section">
+        <div class="search-section">
+            <input type="text" class="search-input" placeholder="搜索发票号、金额或备注..." id="searchInput">
+            <button class="btn btn-outline-primary" onclick="searchInvoices()">
+                <i class="fas fa-search"></i> 搜索
+            </button>
+        </div>
+        
+        <div class="status-filter">
+            <span class="me-2"><strong>状态筛选：</strong></span>
+            <a href="{{ url_for('member.invoices') }}" 
+               class="status-btn {% if not current_status %}active{% endif %}">
+                全部
+            </a>
+            <a href="{{ url_for('member.invoices') }}?status=draft" 
+               class="status-btn {% if current_status == 'draft' %}active{% endif %}">
+                草稿
+            </a>
+            <a href="{{ url_for('member.invoices') }}?status=sent" 
+               class="status-btn {% if current_status == 'sent' %}active{% endif %}">
+                已发送
+            </a>
+            <a href="{{ url_for('member.invoices') }}?status=paid" 
+               class="status-btn {% if current_status == 'paid' %}active{% endif %}">
+                已支付
+            </a>
+            <a href="{{ url_for('member.invoices') }}?status=overdue" 
+               class="status-btn {% if current_status == 'overdue' %}active{% endif %}">
+                已逾期
+            </a>
+            <a href="{{ url_for('member.invoices') }}?status=cancelled" 
+               class="status-btn {% if current_status == 'cancelled' %}active{% endif %}">
+                已取消
+            </a>
+        </div>
+    </div>
+    
+    <!-- 发票列表 -->
+    {% if invoices %}
+        <div class="invoices-list">
+            {% for invoice in invoices %}
+            <div class="invoice-card">
+                <div class="invoice-header">
+                    <div>
+                        <div class="invoice-number">发票号：{{ invoice.invoice_number }}</div>
+                        <div class="invoice-date">开票时间：{{ invoice.created_at.strftime('%Y-%m-%d %H:%M') }}</div>
+                    </div>
+                    <div>
+                        <span class="invoice-status status-{{ invoice.status }}">
+                            {% if invoice.status == 'draft' %}草稿
+                            {% elif invoice.status == 'sent' %}已发送
+                            {% elif invoice.status == 'paid' %}已支付
+                            {% elif invoice.status == 'overdue' %}已逾期
+                            {% elif invoice.status == 'cancelled' %}已取消
+                            {% else %}{{ invoice.status }}
+                            {% endif %}
+                        </span>
+                    </div>
+                </div>
+                
+                <div class="invoice-body">
+                    <div class="invoice-info">
+                        <div class="info-item">
+                            <div class="info-label">开票对象</div>
+                            <div class="info-value">{{ invoice.client_name or '个人客户' }}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">服务项目</div>
+                            <div class="info-value">{{ invoice.service_description or '签证申请服务' }}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">发票金额</div>
+                            <div class="info-value invoice-amount">
+                                ${{ "%.2f"|format(invoice.total_amount or 0) }}
+                            </div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">到期日期</div>
+                            <div class="info-value {% if invoice.due_date and invoice.due_date < now %}overdue{% elif invoice.due_date and (invoice.due_date - now).days <= 7 %}due-soon{% endif %} due-date">
+                                {% if invoice.due_date %}
+                                    {{ invoice.due_date.strftime('%Y-%m-%d') }}
+                                    {% if invoice.due_date < now %}
+                                    <small class="text-danger">（已逾期 {{ (now - invoice.due_date).days }} 天）</small>
+                                    {% elif (invoice.due_date - now).days <= 7 %}
+                                    <small class="text-warning">（{{ (invoice.due_date - now).days }} 天到期）</small>
+                                    {% endif %}
+                                {% else %}
+                                    待设定
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 发票摘要 -->
+                    {% if invoice.items %}
+                    <div class="invoice-summary">
+                        <strong class="mb-2 d-block">
+                            <i class="fas fa-list me-1"></i>发票明细
+                        </strong>
+                        {% for item in invoice.items[:3] %}
+                        <div class="summary-item">
+                            <span>{{ item.description }}</span>
+                            <span>${{ "%.2f"|format(item.amount) }}</span>
+                        </div>
+                        {% endfor %}
+                        {% if invoice.items|length > 3 %}
+                        <div class="summary-item text-muted">
+                            <span>... 还有 {{ invoice.items|length - 3 }} 项</span>
+                            <span></span>
+                        </div>
+                        {% endif %}
+                        {% if invoice.tax_amount %}
+                        <div class="summary-item">
+                            <span>税费</span>
+                            <span>${{ "%.2f"|format(invoice.tax_amount) }}</span>
+                        </div>
+                        {% endif %}
+                        <div class="summary-item summary-total">
+                            <span>总计</span>
+                            <span class="invoice-amount">${{ "%.2f"|format(invoice.total_amount or 0) }}</span>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- 支付方式 -->
+                    {% if invoice.payment_methods %}
+                    <div class="mb-2">
+                        <strong class="d-block mb-1" style="font-size: 0.9rem; color: #6c757d;">支持的支付方式：</strong>
+                        <div class="payment-methods">
+                            {% for method in invoice.payment_methods %}
+                            <span class="payment-method">{{ method }}</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="invoice-actions">
+                        <a href="{{ url_for('member.invoice_detail', invoice_id=invoice.id) }}" 
+                           class="btn-action btn-primary-action">
+                            <i class="fas fa-eye me-1"></i>查看详情
+                        </a>
+                        
+                        {% if invoice.status == 'draft' %}
+                        <button class="btn-action btn-secondary-action" onclick="editInvoice({{ invoice.id }})">
+                            <i class="fas fa-edit me-1"></i>编辑发票
+                        </button>
+                        <button class="btn-action btn-primary-action" onclick="sendInvoice({{ invoice.id }})">
+                            <i class="fas fa-paper-plane me-1"></i>发送发票
+                        </button>
+                        {% elif invoice.status == 'sent' %}
+                        <button class="btn-action btn-success-action" onclick="markAsPaid({{ invoice.id }})">
+                            <i class="fas fa-check me-1"></i>标记已付
+                        </button>
+                        <button class="btn-action btn-warning-action" onclick="sendReminder({{ invoice.id }})">
+                            <i class="fas fa-bell me-1"></i>发送提醒
+                        </button>
+                        {% elif invoice.status == 'overdue' %}
+                        <button class="btn-action btn-warning-action" onclick="sendReminder({{ invoice.id }})">
+                            <i class="fas fa-exclamation-triangle me-1"></i>催款提醒
+                        </button>
+                        <button class="btn-action btn-success-action" onclick="markAsPaid({{ invoice.id }})">
+                            <i class="fas fa-check me-1"></i>标记已付
+                        </button>
+                        {% endif %}
+                        
+                        <button class="btn-action btn-secondary-action" onclick="downloadInvoice({{ invoice.id }})">
+                            <i class="fas fa-download me-1"></i>下载PDF
+                        </button>
+                        
+                        {% if invoice.status not in ['paid'] %}
+                        <button class="btn-action btn-secondary-action" onclick="duplicateInvoice({{ invoice.id }})">
+                            <i class="fas fa-copy me-1"></i>复制发票
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        
+        <!-- 分页 -->
+        {% if pagination %}
+        <div class="pagination-wrapper">
+            <nav aria-label="发票分页">
+                <ul class="pagination">
+                    {% if pagination.has_prev %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('member.invoices', page=pagination.prev_num, status=current_status) }}">
+                            <i class="fas fa-chevron-left"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                    
+                    {% for page_num in pagination.iter_pages() %}
+                        {% if page_num %}
+                            {% if page_num != pagination.page %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('member.invoices', page=page_num, status=current_status) }}">
+                                    {{ page_num }}
+                                </a>
+                            </li>
+                            {% else %}
+                            <li class="page-item active">
+                                <span class="page-link">{{ page_num }}</span>
+                            </li>
+                            {% endif %}
+                        {% else %}
+                        <li class="page-item disabled">
+                            <span class="page-link">…</span>
+                        </li>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if pagination.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('member.invoices', page=pagination.next_num, status=current_status) }}">
+                            <i class="fas fa-chevron-right"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
+        
+    {% else %}
+        <!-- 空状态 -->
+        <div class="empty-state">
+            <div class="empty-icon">
+                <i class="fas fa-file-invoice"></i>
+            </div>
+            <h3 class="empty-title">还没有发票</h3>
+            <p class="empty-description">
+                {% if current_status %}
+                    没有找到状态为"{{ current_status }}"的发票
+                {% else %}
+                    您还没有任何发票记录，完成服务订单后将自动生成发票
+                {% endif %}
+            </p>
+            <a href="{{ url_for('member.services') }}" class="btn-create-invoice">
+                <i class="fas fa-plus me-2"></i>浏览服务
+            </a>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// 搜索功能
+function searchInvoices() {
+    const searchValue = document.getElementById('searchInput').value.trim();
+    if (searchValue) {
+        const currentUrl = new URL(window.location);
+        currentUrl.searchParams.set('search', searchValue);
+        window.location.href = currentUrl.toString();
+    }
+}
+
+// 回车搜索
+document.getElementById('searchInput').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        searchInvoices();
+    }
+});
+
+// 发票操作函数
+function editInvoice(invoiceId) {
+    // 跳转到编辑发票页面
+    window.location.href = `/member/invoice/${invoiceId}/edit`;
+}
+
+function sendInvoice(invoiceId) {
+    if (confirm('确定要发送这张发票吗？发送后将无法再修改。')) {
+        fetch(`/member/api/invoices/${invoiceId}/send`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token() }}'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('发票已发送');
+                location.reload();
+            } else {
+                alert('发送失败：' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('操作失败，请稍后重试');
+        });
+    }
+}
+
+function markAsPaid(invoiceId) {
+    if (confirm('确定要标记这张发票为已支付吗？')) {
+        const paymentDate = prompt('请输入支付日期（格式：YYYY-MM-DD），留空使用今天：') || new Date().toISOString().split('T')[0];
+        const paymentMethod = prompt('请输入支付方式（可选）：') || '';
+        
+        fetch(`/member/api/invoices/${invoiceId}/mark-paid`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token() }}'
+            },
+            body: JSON.stringify({
+                payment_date: paymentDate,
+                payment_method: paymentMethod
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('发票已标记为已支付');
+                location.reload();
+            } else {
+                alert('操作失败：' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('操作失败，请稍后重试');
+        });
+    }
+}
+
+function sendReminder(invoiceId) {
+    if (confirm('确定要发送付款提醒吗？')) {
+        fetch(`/member/api/invoices/${invoiceId}/send-reminder`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token() }}'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('付款提醒已发送');
+            } else {
+                alert('发送失败：' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('操作失败，请稍后重试');
+        });
+    }
+}
+
+function downloadInvoice(invoiceId) {
+    // 下载发票PDF
+    window.open(`/member/api/invoices/${invoiceId}/download`, '_blank');
+}
+
+function duplicateInvoice(invoiceId) {
+    if (confirm('确定要复制这张发票吗？将创建一个新的草稿发票。')) {
+        fetch(`/member/api/invoices/${invoiceId}/duplicate`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token() }}'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('发票已复制，正在跳转到编辑页面...');
+                window.location.href = `/member/invoice/${data.new_invoice_id}/edit`;
+            } else {
+                alert('复制失败：' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('操作失败，请稍后重试');
+        });
+    }
+}
+
+// 批量操作
+function downloadAllInvoices() {
+    if (confirm('确定要下载所有发票吗？这可能需要一些时间。')) {
+        fetch('/member/api/invoices/download-all', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token() }}'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                window.open(data.download_url, '_blank');
+            } else {
+                alert('下载失败：' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('操作失败，请稍后重试');
+        });
+    }
+}
+
+function exportInvoiceData() {
+    if (confirm('确定要导出发票数据吗？将生成Excel文件。')) {
+        window.open('/member/api/invoices/export', '_blank');
+    }
+}
+
+// 页面加载完成后的初始化
+document.addEventListener('DOMContentLoaded', function() {
+    // 高亮当前页面的导航项
+    const currentPath = window.location.pathname;
+    const navLinks = document.querySelectorAll('.navbar-nav .nav-link');
+    
+    navLinks.forEach(link => {
+        if (link.getAttribute('href') === currentPath) {
+            link.classList.add('active');
+        }
+    });
+    
+    // 添加卡片悬停效果
+    const invoiceCards = document.querySelectorAll('.invoice-card');
+    invoiceCards.forEach(card => {
+        card.addEventListener('mouseenter', function() {
+            this.style.transform = 'translateY(-4px)';
+        });
+        
+        card.addEventListener('mouseleave', function() {
+            this.style.transform = 'translateY(0)';
+        });
+    });
+    
+    // 状态按钮点击效果
+    const statusBtns = document.querySelectorAll('.status-btn');
+    statusBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+            statusBtns.forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+        });
+    });
+    
+    // 检查逾期发票并添加视觉提示
+    const overdueCards = document.querySelectorAll('.invoice-card');
+    overdueCards.forEach(card => {
+        const statusElement = card.querySelector('.invoice-status');
+        if (statusElement && statusElement.textContent.trim() === '已逾期') {
+            card.style.borderLeftColor = '#dc3545';
+            card.style.borderLeftWidth = '6px';
+        }
+    });
+    
+    // 自动刷新逾期状态（每小时检查一次）
+    setTimeout(function() {
+        location.reload();
+    }, 3600000); // 1小时
+});
+
+// 实时更新发票状态（可选功能）
+function updateInvoiceStatus() {
+    setInterval(() => {
+        fetch('/member/api/invoices/status-update', {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.updates.length > 0) {
+                console.log('发票状态有更新');
+                // 可以选择显示通知或自动刷新页面
+            }
+        })
+        .catch(error => {
+            console.error('状态检查失败:', error);
+        });
+    }, 300000); // 5分钟
+}
+
+// 如果需要实时更新，取消注释下面这行
+// updateInvoiceStatus();
+</script>
+{% endblock %} 

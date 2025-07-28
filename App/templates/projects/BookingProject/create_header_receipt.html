@@ -1,5 +1,9 @@
-{% extends "base.html" %}
-{% block title %}新增项目收款 - {{ header.hid }}{% endblock %}
+{% extends "staff/base.html" %}
+
+
+
+{% block page_title %}Create Header Receipt{% endblock %}
+
 {% block content %}
 <div class="container mt-4">
     <div class="row justify-content-center">
@@ -206,4 +210,4 @@ document.addEventListener('DOMContentLoaded', function() {
     toggleManualSection();
 });
 </script>
-{% endblock %} 
+{% endblock %} \n\n{% block title %}新增项目收款 - {{ header.hid }}{% endblock %}

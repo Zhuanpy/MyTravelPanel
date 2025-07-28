@@ -1,6 +1,10 @@
-{% extends "base.html" %}
+{% extends "staff/base.html" %}
 
-{% block title %}旅游团REF详情 - {{ ref.ref_number }}{% endblock %}
+
+
+{% block page_title %}Tour Ref Detail{% endblock %}
+
+
 
 {% block content %}
 <div class="container mt-4">
@@ -10,4 +14,4 @@
         返回项目
     </a>
 </div>
-{% endblock %} 
+{% endblock %} \n\n{% block title %}旅游团REF详情 - {{ ref.ref_number }}{% endblock %}

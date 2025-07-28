@@ -1,8 +1,12 @@
-{% extends "base.html" %}
+{% extends "staff/base.html" %}
 
-{% block title %}{{ project.applicant_name }}{{ project.visa_type }}项目详情{% endblock %}
 
-{% block head %}
+
+{% block page_title %}签证项目详情{% endblock %}
+
+
+
+{% block extra_css %}
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <style>
         /* 建议定义CSS变量 */
@@ -1536,7 +1540,7 @@
 
 {% endblock %}
 
-{% block scripts %}
+{% block extra_js %}
 <script>
 function updateVisaStatus(newStatus) {
     const form = document.getElementById('statusForm');
@@ -2093,7 +2097,7 @@ function copyHIDRef() {
     const hidValue = '{{ project.header.hid }}';
     const refValue = '{{ project.ref.ref_number }}';
     
-    const copyText = `HID: ${hidValue}\nRef: ${refValue}`;
+    const copyText = `HID: ${hidValue}\n\n{% block title %}{{ project.applicant_name }}{{ project.visa_type }}项目详情{% endblock %}\nRef: ${refValue}`;
     
     navigator.clipboard.writeText(copyText).then(() => {
         showMessage('编号已复制到剪贴板', 'success');
