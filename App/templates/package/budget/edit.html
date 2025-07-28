@@ -15,7 +15,7 @@
     <div class="card">
         <div class="card-body">
             <form method="post" id="editBudgetForm">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token }}"/>
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                 <div class="row">
                     <!-- 基本信息 -->
                     <div class="col-md-8">

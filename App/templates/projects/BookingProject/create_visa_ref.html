@@ -11,7 +11,7 @@
                 <div class="card-body">
                     <form method="post">
                         <!-- CSRF令牌 -->
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         
                         <!-- 隐藏的名称字段，自动生成 -->
                         <input type="hidden" name="name" id="auto_name" value="{{ ref.name if ref and not is_create else '' }}">

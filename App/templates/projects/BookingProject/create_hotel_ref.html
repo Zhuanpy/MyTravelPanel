@@ -11,7 +11,7 @@
                 <div class="card-body">
                     <form method="post">
                         <!-- CSRF令牌 -->
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         
                         <!-- 基础字段 -->
                         <div class="row mb-4">

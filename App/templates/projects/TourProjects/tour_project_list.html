@@ -444,7 +444,7 @@
             {% for project in projects %}
             <tr>
                 <form method="POST" action="{{ url_for('tour_projects.update_tour_project', project_id=project.id) }}">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="current_travel_status" value="{{ travel_status }}">
                     <input type="hidden" name="current_sort_by" value="{{ sort_by }}">
                     <input type="hidden" name="current_order" value="{{ order }}">

@@ -257,7 +257,7 @@
         <div id="formAlert" class="visa-project-alert"></div>
             
         <form id="visaForm" class="visa-project-form" method="post" action="{{ url_for('visa_project.update_project_details', project_id=project.id) }}">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <!-- 隐藏字段，用于传递签证状态和排序方式 -->
             <input type="hidden" name="current_visa_status" value="all">
             <input type="hidden" name="current_sort_by" value="name">
@@ -363,7 +363,7 @@
         {% if project.visa_type in ['韩国签证', '韩国旅游签证', '韩国商务签证'] %}
         <div style="margin-top: -60px; display: flex; justify-content: flex-end; padding: 0 1.5rem 1.5rem 1.5rem;">
             <form id="generateFormForm" action="{{ url_for('visa_project.generate_form_for_project', project_id=project.id) }}" method="post">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button type="submit" class="visa-project-btn" id="generateFormBtn" style="background-color: #38a169; color: white;">
                     生成表格
                 </button>

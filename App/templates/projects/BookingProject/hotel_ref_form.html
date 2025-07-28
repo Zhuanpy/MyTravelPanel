@@ -14,7 +14,7 @@
                             {{ form.hidden_tag() }}
                         {% else %}
                             <!-- CSRF令牌 -->
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         {% endif %}
                         
                         <!-- 基础字段 -->

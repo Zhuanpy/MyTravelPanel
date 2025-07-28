@@ -414,7 +414,7 @@
     </div>
     
     <form id="orderForm" method="POST" action="{{ url_for('projects.submit_flight_ref') }}">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="header_id" value="{{ header_id }}">
         <input type="hidden" name="ref_id" value="{{ ref_id or '' }}">
         

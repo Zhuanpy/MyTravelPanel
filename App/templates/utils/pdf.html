@@ -113,7 +113,7 @@
     <!-- 图片合并表单 -->
     <h2 class="pdf-page-section">图片合并为PDF</h2>
     <form id="imageForm" class="pdf-page-form" method="post" action="{{url_for('utils_process.merge_images_to_pdf')}}" onsubmit="return handleSubmit(this, event)">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <label for="imageFolderPath" class="pdf-page-label">图片文件夹路径:</label>
         <input type="text" id="imageFolderPath" name="imageFolderPath" class="pdf-page-input">
         <button type="submit" name="submit_button" value="merge_images" class="pdf-page-button">图片合并为PDF</button>
@@ -122,7 +122,7 @@
     <!-- 多个PDF合并表单 -->
     <h2 class="pdf-page-section">多个PDF合并</h2>
     <form id="pdfForm" class="pdf-page-form" method="post" action="{{url_for('utils_process.merge_pdf_to_pdf')}}" onsubmit="return handleSubmit(this, event)">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <label for="pdfFolderPath" class="pdf-page-label">PDF文件夹路径:</label>
         <input type="text" id="pdfFolderPath" name="pdfFolderPath" class="pdf-page-input">
         <button type="submit" name="submit_button" value="merge_images" class="pdf-page-button">多个PDF合并</button>
@@ -131,7 +131,7 @@
     <!-- Word转换PDF表单 -->
     <h2 class="pdf-page-section">Word转换PDF</h2>
     <form id="wordForm" class="pdf-page-form" method="post" action="{{url_for('utils_process.word_to_pdf')}}" onsubmit="return handleSubmit(this, event)">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <label for="wordFolderPath" class="pdf-page-label">Word文件夹路径:</label>
         <input type="text" id="wordFolderPath" name="wordFolderPath" class="pdf-page-input" required>
         <button type="submit" name="submit_button" value="merge_images" class="pdf-page-button">Word转PDF</button>
@@ -140,7 +140,7 @@
     <!-- 长截图切分打印表单 -->
     <h2 class="pdf-page-section">长截图切分打印</h2>
     <form id="screenshotForm" class="pdf-page-form" method="post" action="{{url_for('utils_process.split_screenshot_to_pdf')}}" onsubmit="return handleSubmit(this, event)">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <label for="screenshotFolderPath" class="pdf-page-label">长截图文件夹路径:</label>
         <input type="text" id="screenshotFolderPath" name="screenshotFolderPath" class="pdf-page-input" required>
         <div style="margin-bottom: 15px;">

@@ -498,7 +498,7 @@ function saveProject() {
     const formData = new FormData();
     
     // 添加CSRF令牌
-    formData.append('csrf_token', '{{ csrf_token }}');
+    formData.append('csrf_token', '{{ csrf_token() }}');
     
     // 基本信息
     const hid = document.querySelector('[name="hid"]').value;
@@ -560,7 +560,7 @@ function saveProject() {
         method: 'POST',
         body: formData,
         headers: {
-            'X-CSRFToken': '{{ csrf_token }}'
+            'X-CSRFToken': '{{ csrf_token() }}'
         }
     })
     .then(response => response.json())

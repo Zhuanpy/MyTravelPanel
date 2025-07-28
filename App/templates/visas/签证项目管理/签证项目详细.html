@@ -1190,7 +1190,7 @@
             <div class="visa-detail-info-item">
                 <span class="visa-detail-info-label">签证状态</span>
                 <form id="statusForm" style="margin: 0;">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <select class="visa-detail-status-select" name="status" onchange="updateVisaStatus(this.value)">
                         <option value="待递交" {% if project.visa_status == '待递交' %}selected{% endif %}>待递交</option>
                         <option value="待出签" {% if project.visa_status == '待出签' %}selected{% endif %}>待出签</option>
@@ -1312,7 +1312,7 @@
                 <div class="visa-detail-info-item">
                     <span class="visa-detail-info-label">生成表格</span>
                     <form id="generateFormForm" action="{{ url_for('visa_project.generate_form_for_project', project_id=project.id) }}" method="post" class="visa-detail-info-value form-container">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <button type="submit" class="visa-project-btn generate-form" id="generateFormBtn">
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>

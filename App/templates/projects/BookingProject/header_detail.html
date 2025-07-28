@@ -810,7 +810,7 @@ document.addEventListener('DOMContentLoaded', function() {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRFToken': '{{ csrf_token }}'
+                'X-CSRFToken': '{{ csrf_token() }}'
             },
             body: JSON.stringify({ header_id: headerId, desc: newDesc })
         })
@@ -860,7 +860,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRFToken': '{{ csrf_token }}'
+                    'X-CSRFToken': '{{ csrf_token() }}'
                 },
                 body: JSON.stringify({ header_id: headerId, company_id: companyId })
             })
@@ -903,7 +903,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRFToken': '{{ csrf_token }}'
+                    'X-CSRFToken': '{{ csrf_token() }}'
                 },
                 body: JSON.stringify({ header_id: headerId, status: status })
             })
@@ -956,7 +956,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRFToken': '{{ csrf_token }}'
+                    'X-CSRFToken': '{{ csrf_token() }}'
                 },
                 body: JSON.stringify({ header_id: headerId, contact: newContact })
             })
@@ -1115,7 +1115,7 @@ window.submitNewRemarks = function() {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRFToken': '{{ csrf_token }}'
+                'X-CSRFToken': '{{ csrf_token() }}'
             },
             body: JSON.stringify({ 
                 header_id: {{ header.id }}, 
@@ -1155,7 +1155,7 @@ function quickCreateEO(refId) {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRFToken': '{{ csrf_token }}'
+                'X-CSRFToken': '{{ csrf_token() }}'
             }
         })
         .then(res => res.json())
@@ -1218,7 +1218,7 @@ function saveRefStatus(refId) {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-            'X-CSRFToken': '{{ csrf_token }}'
+            'X-CSRFToken': '{{ csrf_token() }}'
         },
         body: JSON.stringify({ ref_id: refId, status: newStatus })
     })
