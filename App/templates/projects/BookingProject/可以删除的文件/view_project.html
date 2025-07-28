@@ -1,8 +1,12 @@
-{% extends "base.html" %}
+{% extends "staff/base.html" %}
 
-{% block title %}查看项目 - {{ project.project_name }}{% endblock %}
 
-{% block head %}
+
+{% block page_title %}View Project{% endblock %}
+
+
+
+{% block extra_css %}
 <style>
     .project-header {
         background-color: #f8f9fa;
@@ -489,4 +493,4 @@ function editRef(refId) {
     alert('编辑REF功能正在开发中...');
 }
 </script>
-{% endblock %} 
+{% endblock %} \n\n{% block title %}查看项目 - {{ project.project_name }}{% endblock %}

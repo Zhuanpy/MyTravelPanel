@@ -1,8 +1,10 @@
-{% extends "base.html" %}
+{% extends "staff/base.html" %}
 
-{% block title %}PDF文件处理{% endblock %}
+{% block title %}PDF处理 - MyTravelPanel{% endblock %}
 
-{% block head %}
+{% block page_title %}PDF处理{% endblock %}
+
+{% block extra_css %}
 <style>
     .pdf-page-container {
         max-width: 800px;
@@ -152,7 +154,7 @@
 </div>
 {% endblock %}
 
-{% block scripts %}
+{% block extra_js %}
 <script>
 function handleSubmit(form, event) {
     event.preventDefault(); // 阻止表单默认提交

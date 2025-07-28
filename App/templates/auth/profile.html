@@ -1,0 +1,486 @@
+{% extends "auth/base.html" %}
+
+{% block title %}个人资料 - MyTravelPanel{% endblock %}
+
+{% block extra_css %}
+<style>
+    .profile-container {
+        max-width: 900px;
+        margin: 2rem auto;
+    }
+    
+    .profile-card {
+        border: none;
+        border-radius: 15px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+    }
+    
+    .profile-header {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        color: white;
+        padding: 2rem;
+        position: relative;
+    }
+    
+    .profile-header::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="25" cy="25" r="1" fill="white" opacity="0.1"/><circle cx="75" cy="75" r="1" fill="white" opacity="0.1"/><circle cx="50" cy="10" r="0.5" fill="white" opacity="0.1"/><circle cx="90" cy="50" r="0.5" fill="white" opacity="0.1"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>');
+        opacity: 0.3;
+    }
+    
+    .avatar-container {
+        position: relative;
+        display: flex;
+        align-items: center;
+        z-index: 2;
+    }
+    
+    .avatar {
+        width: 100px;
+        height: 100px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 3rem;
+        margin-right: 2rem;
+        border: 4px solid rgba(255, 255, 255, 0.3);
+    }
+    
+    .profile-info h2 {
+        margin-bottom: 0.5rem;
+        font-weight: 600;
+    }
+    
+    .profile-info p {
+        margin-bottom: 0.25rem;
+        opacity: 0.9;
+    }
+    
+    .role-badge {
+        display: inline-block;
+        padding: 0.5rem 1rem;
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 25px;
+        font-size: 0.9rem;
+        font-weight: 500;
+        margin-top: 0.5rem;
+    }
+    
+    .info-section {
+        padding: 2rem;
+    }
+    
+    .section-title {
+        font-size: 1.2rem;
+        font-weight: 600;
+        color: #495057;
+        margin-bottom: 1.5rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid #e9ecef;
+    }
+    
+    .info-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1.5rem;
+    }
+    
+    .info-item {
+        background: #f8f9fa;
+        padding: 1.25rem;
+        border-radius: 10px;
+        border-left: 4px solid #28a745;
+    }
+    
+    .info-label {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: #6c757d;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 0.5rem;
+    }
+    
+    .info-value {
+        font-size: 1rem;
+        font-weight: 500;
+        color: #495057;
+    }
+    
+    .info-value.empty {
+        color: #adb5bd;
+        font-style: italic;
+    }
+    
+    .btn-profile {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        border: none;
+        color: white;
+        padding: 0.75rem 2rem;
+        border-radius: 25px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        display: inline-block;
+    }
+    
+    .btn-profile:hover {
+        background: linear-gradient(135deg, #20c997 0%, #17a2b8 100%);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
+        color: white;
+        text-decoration: none;
+    }
+    
+    .stats-card {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        border-radius: 10px;
+        padding: 1.5rem;
+        text-align: center;
+        border: 1px solid #dee2e6;
+    }
+    
+    .stats-number {
+        font-size: 2rem;
+        font-weight: bold;
+        color: #28a745;
+        margin-bottom: 0.5rem;
+    }
+    
+    .stats-label {
+        font-size: 0.9rem;
+        color: #6c757d;
+        font-weight: 500;
+    }
+    
+    .activity-item {
+        display: flex;
+        align-items: center;
+        padding: 1rem;
+        background: #f8f9fa;
+        border-radius: 8px;
+        margin-bottom: 0.75rem;
+        border-left: 3px solid #28a745;
+    }
+    
+    .activity-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: #28a745;
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 1rem;
+        font-size: 0.9rem;
+    }
+    
+    .activity-content {
+        flex-grow: 1;
+    }
+    
+    .activity-title {
+        font-weight: 600;
+        color: #495057;
+        margin-bottom: 0.25rem;
+    }
+    
+    .activity-time {
+        font-size: 0.8rem;
+        color: #6c757d;
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 2rem;
+        color: #6c757d;
+    }
+    
+    .empty-icon {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        opacity: 0.5;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="profile-container">
+    <div class="card profile-card">
+        <!-- 个人资料头部 -->
+        <div class="profile-header">
+            <div class="avatar-container">
+                <div class="avatar">
+                    {% if user.profile and user.profile.avatar %}
+                        <img src="{{ user.profile.avatar }}" alt="头像" class="w-100 h-100 rounded-circle">
+                    {% else %}
+                        <i class="fas fa-user"></i>
+                    {% endif %}
+                </div>
+                <div class="profile-info">
+                    <h2>
+                        {% if user.profile %}
+                            {{ user.profile.get_full_name() }}
+                        {% else %}
+                            {{ user.username }}
+                        {% endif %}
+                    </h2>
+                    <p><i class="fas fa-envelope me-2"></i>{{ user.email }}</p>
+                    <p><i class="fas fa-user-tag me-2"></i>用户名：{{ user.username }}</p>
+                    <div class="role-badge">
+                        {% if user.role.name == 'admin' %}
+                            <i class="fas fa-crown me-2"></i>管理员
+                        {% elif user.role.name == 'staff' %}
+                            <i class="fas fa-user-tie me-2"></i>员工
+                        {% elif user.role.name == 'member' %}
+                            <i class="fas fa-user me-2"></i>会员
+                        {% else %}
+                            <i class="fas fa-user-circle me-2"></i>{{ user.role.name }}
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            <div class="position-absolute top-0 end-0 p-3">
+                <a href="{{ url_for('auth.edit_profile') }}" class="btn btn-light btn-sm">
+                    <i class="fas fa-edit me-2"></i>编辑资料
+                </a>
+            </div>
+        </div>
+
+        <!-- 基本信息 -->
+        <div class="info-section">
+            <h3 class="section-title">
+                <i class="fas fa-info-circle text-primary me-2"></i>基本信息
+            </h3>
+            <div class="info-grid">
+                <div class="info-item">
+                    <div class="info-label">姓名</div>
+                    <div class="info-value {{ 'empty' if not (user.profile and user.profile.first_name) }}">
+                        {% if user.profile and user.profile.first_name %}
+                            {{ user.profile.first_name }}
+                        {% else %}
+                            未设置
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">姓氏</div>
+                    <div class="info-value {{ 'empty' if not (user.profile and user.profile.last_name) }}">
+                        {% if user.profile and user.profile.last_name %}
+                            {{ user.profile.last_name }}
+                        {% else %}
+                            未设置
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">联系电话</div>
+                    <div class="info-value {{ 'empty' if not (user.profile and user.profile.phone) }}">
+                        {% if user.profile and user.profile.phone %}
+                            {{ user.profile.phone }}
+                        {% else %}
+                            未设置
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">公司</div>
+                    <div class="info-value {{ 'empty' if not (user.profile and user.profile.company) }}">
+                        {% if user.profile and user.profile.company %}
+                            {{ user.profile.company }}
+                        {% else %}
+                            未设置
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">职位</div>
+                    <div class="info-value {{ 'empty' if not (user.profile and user.profile.position) }}">
+                        {% if user.profile and user.profile.position %}
+                            {{ user.profile.position }}
+                        {% else %}
+                            未设置
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">注册时间</div>
+                    <div class="info-value">
+                        {{ user.created_at.strftime('%Y年%m月%d日') if user.created_at else '未知' }}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 账户状态 -->
+        <div class="info-section border-top">
+            <h3 class="section-title">
+                <i class="fas fa-shield-alt text-success me-2"></i>账户状态
+            </h3>
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="stats-card">
+                        <div class="stats-number">
+                            {% if user.is_active %}
+                                <i class="fas fa-check-circle text-success"></i>
+                            {% else %}
+                                <i class="fas fa-times-circle text-danger"></i>
+                            {% endif %}
+                        </div>
+                        <div class="stats-label">
+                            账户{{ '已激活' if user.is_active else '未激活' }}
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="stats-card">
+                        <div class="stats-number">
+                            {% if user.is_verified %}
+                                <i class="fas fa-certificate text-primary"></i>
+                            {% else %}
+                                <i class="fas fa-exclamation-triangle text-warning"></i>
+                            {% endif %}
+                        </div>
+                        <div class="stats-label">
+                            邮箱{{ '已验证' if user.is_verified else '未验证' }}
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="stats-card">
+                        <div class="stats-number">
+                            {% if user.last_login %}
+                                <i class="fas fa-clock text-info"></i>
+                            {% else %}
+                                <i class="fas fa-question-circle text-muted"></i>
+                            {% endif %}
+                        </div>
+                        <div class="stats-label">
+                            {% if user.last_login %}
+                                {{ user.last_login.strftime('%m-%d %H:%M') }}
+                            {% else %}
+                                首次登录
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 最近活动 -->
+        <div class="info-section border-top">
+            <h3 class="section-title">
+                <i class="fas fa-history text-info me-2"></i>最近活动
+            </h3>
+            <div class="activity-list">
+                <div class="activity-item">
+                    <div class="activity-icon">
+                        <i class="fas fa-sign-in-alt"></i>
+                    </div>
+                    <div class="activity-content">
+                        <div class="activity-title">登录系统</div>
+                        <div class="activity-time">
+                            {% if user.last_login %}
+                                {{ user.last_login.strftime('%Y年%m月%d日 %H:%M') }}
+                            {% else %}
+                                当前登录
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                <div class="activity-item">
+                    <div class="activity-icon">
+                        <i class="fas fa-user-plus"></i>
+                    </div>
+                    <div class="activity-content">
+                        <div class="activity-title">注册账户</div>
+                        <div class="activity-time">{{ user.created_at.strftime('%Y年%m月%d日 %H:%M') if user.created_at else '未知时间' }}</div>
+                    </div>
+                </div>
+                {% if user.profile and user.profile.updated_at and user.profile.updated_at != user.profile.created_at %}
+                <div class="activity-item">
+                    <div class="activity-icon">
+                        <i class="fas fa-edit"></i>
+                    </div>
+                    <div class="activity-content">
+                        <div class="activity-title">更新个人资料</div>
+                        <div class="activity-time">{{ user.profile.updated_at.strftime('%Y年%m月%d日 %H:%M') }}</div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- 操作按钮 -->
+        <div class="info-section border-top">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <a href="{{ url_for('auth.edit_profile') }}" class="btn-profile">
+                        <i class="fas fa-edit me-2"></i>编辑个人资料
+                    </a>
+                    <a href="{{ url_for('auth.change_password') }}" class="btn btn-outline-secondary ms-2">
+                        <i class="fas fa-key me-2"></i>修改密码
+                    </a>
+                </div>
+                <div>
+                    {% if user.role.name == 'admin' %}
+                        <a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline-primary">
+                            <i class="fas fa-tachometer-alt me-2"></i>管理后台
+                        </a>
+                    {% elif user.role.name == 'staff' %}
+                        <a href="{{ url_for('staff.dashboard') }}" class="btn btn-outline-primary">
+                            <i class="fas fa-briefcase me-2"></i>工作台
+                        </a>
+                    {% elif user.role.name == 'member' %}
+                        <a href="{{ url_for('member.dashboard') }}" class="btn btn-outline-primary">
+                            <i class="fas fa-user me-2"></i>会员中心
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// 添加一些交互效果
+document.addEventListener('DOMContentLoaded', function() {
+    // 为信息项添加悬停效果
+    const infoItems = document.querySelectorAll('.info-item');
+    infoItems.forEach(item => {
+        item.addEventListener('mouseenter', function() {
+            this.style.transform = 'translateY(-2px)';
+            this.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
+        });
+        
+        item.addEventListener('mouseleave', function() {
+            this.style.transform = 'translateY(0)';
+            this.style.boxShadow = 'none';
+        });
+    });
+    
+    // 为统计卡片添加动画效果
+    const statsCards = document.querySelectorAll('.stats-card');
+    statsCards.forEach(card => {
+        card.addEventListener('mouseenter', function() {
+            this.style.transform = 'scale(1.05)';
+        });
+        
+        card.addEventListener('mouseleave', function() {
+            this.style.transform = 'scale(1)';
+        });
+    });
+});
+</script>
+{% endblock %} 

@@ -1,5 +1,9 @@
-{% extends "base.html" %}
-{% block title %}项目收款记录 - {{ header.hid }}{% endblock %}
+{% extends "staff/base.html" %}
+
+
+
+{% block page_title %}Header Receipts{% endblock %}
+
 
 {% block content %}
 <div class="container mt-4">
@@ -231,4 +235,4 @@ function deleteReceipt(receiptId, receiptNumber) {
     deleteModal.show();
 }
 </script>
-{% endblock %} 
+{% endblock %} \n\n{% block title %}项目收款记录 - {{ header.hid }}{% endblock %}

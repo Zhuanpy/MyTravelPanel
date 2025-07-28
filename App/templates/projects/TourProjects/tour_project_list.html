@@ -1,8 +1,10 @@
-{% extends "base.html" %}
+{% extends "staff/base.html" %}
 
-{% block title %}旅游项目管理{% endblock %}
+{% block title %}旅游项目列表 - MyTravelPanel{% endblock %}
 
-{% block head %}
+{% block page_title %}旅游项目列表{% endblock %}
+
+{% block extra_css %}
 <style>
     /* 重置和基础样式 - 使用更具体的选择器避免与Bootstrap冲突 */
     .tour-project-list-page * {
@@ -506,7 +508,7 @@
 </div>
 {% endblock %}
 
-{% block scripts %}
+{% block extra_js %}
 <script src="/static/Js/ff.js"></script>
 
 <script>

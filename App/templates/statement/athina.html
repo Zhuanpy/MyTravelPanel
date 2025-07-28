@@ -1,8 +1,10 @@
-{% extends "base.html" %}
+{% extends "staff/base.html" %}
 
-{% block title %}Athina 账单处理{% endblock %}
+{% block title %}Athina账单 - MyTravelPanel{% endblock %}
 
-{% block head %}
+{% block page_title %}Athina账单{% endblock %}
+
+{% block extra_css %}
 <style>
     /* 全局样式 */
     .athina-container {
@@ -357,7 +359,7 @@
 </div>
 {% endblock %}
 
-{% block scripts %}
+{% block extra_js %}
 <script>
     // 计算全部订单的函数
     function processAllInvoice() {

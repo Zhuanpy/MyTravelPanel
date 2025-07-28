@@ -1,6 +1,10 @@
-{% extends "base.html" %}
+{% extends "staff/base.html" %}
 
-{% block title %}酒店REF详情 - {{ ref.ref_number }}{% endblock %}
+
+
+{% block page_title %}Hotel Ref Detail{% endblock %}
+
+
 
 {% block content %}
 <style>
@@ -233,4 +237,4 @@
         </a>
     </div>
 </div>
-{% endblock %} 
+{% endblock %} \n\n{% block title %}酒店REF详情 - {{ ref.ref_number }}{% endblock %}

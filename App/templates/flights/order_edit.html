@@ -1,8 +1,10 @@
-{% extends "base.html" %}
+{% extends "staff/base.html" %}
 
-{% block title %}编辑订单 - {{ order.order_number }}{% endblock %}
+{% block title %}编辑机票订单 - MyTravelPanel{% endblock %}
 
-{% block head %}
+{% block page_title %}编辑机票订单{% endblock %}
+
+{% block extra_css %}
 <!-- 添加 Font Awesome -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
 <!-- 添加 jQuery UI 样式 -->
@@ -616,7 +618,7 @@
 </div>
 {% endblock %}
 
-{% block scripts %}
+{% block extra_js %}
 <!-- 添加必要的JavaScript -->
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>

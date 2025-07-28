@@ -2,6 +2,8 @@ import os
 from datetime import datetime, timedelta
 from flask import Blueprint, render_template, url_for, flash, redirect, request, jsonify
 from flask import current_app as app
+from flask_login import login_required, current_user
+from App.utils.decorators import staff_only
 from sqlalchemy.exc import SQLAlchemyError
 from ..exts import db
 from ..forms.ProductForm import ProductForm
@@ -36,12 +38,16 @@ def construct_folder_path(*args) -> Path:
     return base_path.joinpath(*filtered_args)
 
 
+@login_required
+@staff_only
 @package_blue.route('/add_product_page')
 def add_product_page():
     form = ProductForm()
     return render_template('package/add_product.html', form=form)
 
 
+@login_required
+@staff_only
 @package_blue.route('/add_product', methods=['GET', 'POST'])
 def add_product():
     form = ProductForm()
@@ -62,6 +68,8 @@ def add_product():
     return render_template('package/add_product.html', form=form)
 
 
+@login_required
+@staff_only
 @package_blue.route('/our_package/<city_name>')
 def our_package(city_name):
     if not city_name:
@@ -222,6 +230,8 @@ def update_city_products(city_name):
     return redirect(url_for('package_routes.our_package', city_name=city_name))
 
 
+@login_required
+@staff_only
 @package_blue.route('/show_supplier_info/<supplier_name>', methods=['GET', 'POST'])
 def show_supplier_info(supplier_name=None):
     supplier_name = supplier_name or request.form.get('supplier_name')
@@ -231,6 +241,8 @@ def show_supplier_info(supplier_name=None):
     return render_template('package/供应商介绍.html', supplier=supplier, supplier_name=supplier_name)
 
 
+@login_required
+@staff_only
 @package_blue.route('/edit_supplier_info/<supplier_name>', methods=['GET', 'POST'])
 def edit_supplier_info(supplier_name):
     supplier = SupplierData.query.filter_by(name=supplier_name).first()
@@ -257,6 +269,8 @@ def edit_supplier_info(supplier_name):
     return render_template('package/供应商信息编辑.html', supplier=supplier)
 
 
+@login_required
+@staff_only
 @package_blue.route('/add_supplier_info/', defaults={'supplier_name': None}, methods=['GET', 'POST'])
 @package_blue.route('/add_supplier_info/<supplier_name>', methods=['GET', 'POST'])
 def add_supplier_info(supplier_name):
@@ -282,6 +296,8 @@ def add_supplier_info(supplier_name):
     return render_template('package/供应商信息添加.html', supplier_name=supplier_name)
 
 
+@login_required
+@staff_only
 @package_blue.route('/manage_cities', methods=['GET', 'POST'])
 def manage_cities():
     if request.method == 'POST':
@@ -315,6 +331,8 @@ def manage_cities():
     return render_template('package/供应商所属城市管理.html', cities=cities)
 
 
+@login_required
+@staff_only
 @package_blue.route('/edit_city/<int:city_id>', methods=['GET','POST'])
 def edit_city(city_id):
     country_name = request.form.get('country_name', '').strip()
@@ -332,6 +350,8 @@ def edit_city(city_id):
     return redirect(url_for('package_routes.manage_cities'))
 
 
+@login_required
+@staff_only
 @package_blue.route('/delete_city/<int:city_id>', methods=['POST'])
 def delete_city(city_id):
     city = ProductCity.query.get_or_404(city_id)
@@ -360,6 +380,8 @@ def index():
         cities_by_country[city.country_name].append(city)
     return render_template('index.html', cities_by_country=cities_by_country)
 
+@login_required
+@staff_only
 @package_blue.route('/all_packages')
 def all_packages():
     cities = ProductCity.query.order_by(ProductCity.display_name).all()
@@ -371,6 +393,8 @@ def all_packages():
         cities_by_country[country].append(city)
     return render_template('package/all_packages.html', cities_by_country=cities_by_country)
 
+@login_required
+@staff_only
 @package_blue.route('/package_home')
 def package_home():
     cities_by_country = {}

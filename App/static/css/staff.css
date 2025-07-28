@@ -556,3 +556,86 @@ main {
         box-shadow: 0 0 0 0 rgba(220, 53, 69, 0);
     }
 } 
+
+/* 机票管理样式 */
+.flight-dropdown-menu {
+    min-width: 250px;
+}
+
+.flight-dropdown-menu .dropdown-header {
+    font-weight: 600;
+    color: var(--primary-color);
+    border-bottom: 1px solid rgba(0,0,0,.125);
+    padding-bottom: 0.25rem;
+}
+
+.flight-dropdown-menu .dropdown-item {
+    padding: 0.5rem 1rem;
+    transition: all 0.3s ease;
+}
+
+.flight-dropdown-menu .dropdown-item:hover {
+    background-color: rgba(40, 167, 69, 0.1);
+    color: var(--primary-color);
+}
+
+.flight-dropdown-menu .dropdown-item i {
+    width: 16px;
+    text-align: center;
+}
+
+/* 侧边栏机票分组样式 */
+.sidebar .sidebar-heading {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 0.875rem 1rem 0.5rem;
+    color: #6c757d;
+    font-weight: 600;
+}
+
+.sidebar .sidebar-heading i {
+    opacity: 0.7;
+}
+
+/* 机票相关页面的高亮样式 */
+.sidebar .nav-link.active {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+.sidebar .nav-link.active i {
+    color: white;
+}
+
+/* 响应式处理 */
+@media (max-width: 768px) {
+    .flight-dropdown-menu {
+        min-width: 200px;
+    }
+}
+
+/* 机票状态指示器 */
+.flight-status-badge {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    border-radius: 0.25rem;
+    text-transform: uppercase;
+}
+
+.flight-status-badge.active {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.flight-status-badge.processing {
+    background-color: #fff3cd;
+    color: #856404;
+}
+
+.flight-status-badge.completed {
+    background-color: #d1ecf1;
+    color: #0c5460;
+} 

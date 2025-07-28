@@ -6,7 +6,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_required, current_user
 from App.utils.decorators import admin_only, require_permission
-from App.models.auth import AuthUser, Role, UserProfile
+from App.models.auth import AuthUser, Role, UserProfile, InvitationCode
 from App.utils.permissions import get_all_permissions, get_all_roles, ROLE_PERMISSIONS
 from App.exts import db
 from datetime import datetime, timedelta
@@ -39,11 +39,13 @@ def dashboard():
         return render_template('admin/dashboard.html', 
                              stats=stats,
                              recent_users=recent_users,
-                             recent_activities=recent_activities)
+                             recent_activities=recent_activities,
+                             now=datetime.now())
     except Exception as e:
         flash(f'加载仪表板失败：{str(e)}', 'error')
         return render_template('admin/dashboard.html',
-                             stats={}, recent_users=[], recent_activities=[])
+                             stats={}, recent_users=[], recent_activities=[],
+                             now=datetime.now())
 
 @admin.route('/users')
 @login_required
@@ -331,6 +333,93 @@ def create_user():
     # GET请求，显示创建用户表单
     return render_template('admin/create_user.html', roles=get_all_roles())
 
+@admin.route('/invitation-codes')
+@login_required
+@admin_only
+def invitation_codes():
+    """邀请码管理页面"""
+    page = request.args.get('page', 1, type=int)
+    per_page = 20
+    
+    codes = InvitationCode.query.order_by(InvitationCode.created_at.desc()).paginate(
+        page=page, per_page=per_page, error_out=False)
+    
+    return render_template('admin/invitation_codes.html', codes=codes, now=datetime.utcnow())
+
+@admin.route('/invitation-codes/create', methods=['GET', 'POST'])
+@login_required
+@admin_only
+def create_invitation_code():
+    """创建邀请码"""
+    if request.method == 'POST':
+        try:
+            role_name = request.form.get('role_name', '').strip()
+            expires_days = request.form.get('expires_days', type=int)
+            count = request.form.get('count', 1, type=int)
+            
+            if role_name not in ['staff', 'admin']:
+                flash('角色类型无效', 'error')
+                return render_template('admin/create_invitation_code.html')
+            
+            if count < 1 or count > 10:
+                flash('一次最多生成10个邀请码', 'error')
+                return render_template('admin/create_invitation_code.html')
+            
+            # 计算过期时间
+            expires_at = None
+            if expires_days and expires_days > 0:
+                expires_at = datetime.utcnow() + timedelta(days=expires_days)
+            
+            # 批量创建邀请码
+            created_codes = []
+            for _ in range(count):
+                code = InvitationCode(
+                    code=InvitationCode.generate_code(),
+                    role_name=role_name,
+                    created_by=current_user.id,
+                    expires_at=expires_at
+                )
+                db.session.add(code)
+                created_codes.append(code.code)
+            
+            db.session.commit()
+            
+            flash(f'成功创建 {count} 个{_get_role_display_name(role_name)}邀请码', 'success')
+            
+            # 如果只创建了一个，显示邀请码
+            if count == 1:
+                flash(f'邀请码：{created_codes[0]}', 'info')
+            
+            return redirect(url_for('admin.invitation_codes'))
+            
+        except Exception as e:
+            db.session.rollback()
+            flash(f'创建邀请码失败：{str(e)}', 'error')
+    
+    return render_template('admin/create_invitation_code.html')
+
+@admin.route('/invitation-codes/<int:code_id>/revoke', methods=['POST'])
+@login_required
+@admin_only
+def revoke_invitation_code(code_id):
+    """撤销邀请码"""
+    try:
+        code = InvitationCode.query.get_or_404(code_id)
+        
+        if code.is_used:
+            flash('邀请码已被使用，无法撤销', 'error')
+        else:
+            code.is_used = True
+            code.used_at = datetime.utcnow()
+            db.session.commit()
+            flash('邀请码已撤销', 'success')
+            
+    except Exception as e:
+        db.session.rollback()
+        flash(f'撤销邀请码失败：{str(e)}', 'error')
+    
+    return redirect(url_for('admin.invitation_codes'))
+
 # 工具函数
 def get_new_users_count():
     """获取本月新用户数量"""
@@ -401,6 +490,15 @@ def get_all_roles():
     """获取所有角色（仅用于管理员创建用户）"""
     return Role.query.filter(Role.name.in_(['staff', 'admin'])).all()
 
+def _get_role_display_name(role_name):
+    """获取角色显示名称"""
+    role_names = {
+        'member': '会员',
+        'staff': '员工',
+        'admin': '管理员'
+    }
+    return role_names.get(role_name, role_name)
+
 # API 路由
 @admin.route('/api/stats')
 @login_required
@@ -451,6 +549,48 @@ def api_toggle_user_status(user_id):
                 'message': '用户状态切换功能未实现'
             }), 400
             
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+
+@admin.route('/api/user/<int:user_id>/delete', methods=['DELETE'])
+@login_required
+@admin_only
+def api_delete_user(user_id):
+    """删除用户"""
+    try:
+        user = AuthUser.query.get_or_404(user_id)
+        
+        # 不能删除自己
+        if user.id == current_user.id:
+            return jsonify({
+                'success': False,
+                'message': '不能删除自己的账户'
+            }), 400
+        
+        # 不能删除管理员（除非当前用户是超级管理员）
+        if user.role and user.role.name == 'admin':
+            return jsonify({
+                'success': False,
+                'message': '不能删除管理员账户'
+            }), 400
+        
+        # 删除用户资料（如果存在）
+        if user.profile:
+            db.session.delete(user.profile)
+        
+        # 删除用户
+        db.session.delete(user)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': '用户已删除'
+        })
+        
     except Exception as e:
         db.session.rollback()
         return jsonify({

@@ -1,8 +1,10 @@
-{% extends "base.html" %}
+{% extends "staff/base.html" %}
 
-{% block title %}创建旅游项目{% endblock %}
+{% block title %}创建旅游项目 - MyTravelPanel{% endblock %}
 
-{% block head %}
+{% block page_title %}创建旅游项目{% endblock %}
+
+{% block extra_css %}
 <style>
     /* 重置和基础样式 - 使用更具体的选择器避免与Bootstrap冲突 */
     .tour-project-create-page * {
@@ -310,7 +312,7 @@
 </div>
 {% endblock %}
 
-{% block scripts %}
+{% block extra_js %}
 <script>
     // 显示闪现消息函数
     function showFlashMessage(message, isSuccess) {

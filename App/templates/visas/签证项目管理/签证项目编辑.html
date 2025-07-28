@@ -1,8 +1,10 @@
-{% extends "base.html" %}
+{% extends "staff/base.html" %}
 
-{% block title %}编辑签证项目{% endblock %}
+{% block title %}编辑签证项目 - MyTravelPanel{% endblock %}
 
-{% block head %}
+{% block page_title %}编辑签证项目{% endblock %}
+
+{% block extra_css %}
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 <style>
     .visa-project-container {
@@ -374,7 +376,7 @@
 </div>
 {% endblock %}
 
-{% block scripts %}
+{% block extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/zh.js"></script>
 <script>

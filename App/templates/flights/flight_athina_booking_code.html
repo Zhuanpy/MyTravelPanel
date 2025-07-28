@@ -1,8 +1,10 @@
-{% extends "base.html" %}
+{% extends "staff/base.html" %}
 
-{% block title %}ATHINA 机票订单代码生成器{% endblock %}
+{% block title %}Athina预订代码 - MyTravelPanel{% endblock %}
 
-{% block head %}
+{% block page_title %}Athina预订代码{% endblock %}
+
+{% block extra_css %}
 <!-- CSRF令牌 -->
 <meta name="csrf-token" content="{{ csrf_token() }}">
 <style>
@@ -280,7 +282,7 @@
 </div>
 {% endblock %}
 
-{% block scripts %}
+{% block extra_js %}
 <script>
     // 保存输入框的值到 LocalStorage
     function saveInput(input) {
@@ -416,10 +418,11 @@
         const textarea = document.getElementById('itinerary');
         textarea.value = '处理中...';
 
-        fetch("{{ url_for('flights_athina.athina_page_handler') }}", {
+        fetch("{{ url_for('flights_athina.athina_page') }}", {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
             },
             body: JSON.stringify(data)
         })

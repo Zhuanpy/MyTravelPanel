@@ -7,6 +7,8 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from flask_login import login_required, current_user
 from App.utils.decorators import staff_only, require_permission
 from App.models.auth import AuthUser
+from App.models.projects.BookingProject import ProjectHeader, CustomerCompany
+from App.forms.header_forms import ProjectHeaderForm
 from App.exts import db
 from datetime import datetime, timedelta
 import os
@@ -76,28 +78,61 @@ def projects():
 @login_required
 @staff_only
 def create_project():
-    """创建新项目"""
-    if request.method == 'POST':
-        try:
-            # 获取表单数据
-            project_name = request.form.get('project_name', '').strip()
-            project_type = request.form.get('project_type', '')
-            client_name = request.form.get('client_name', '').strip()
-            description = request.form.get('description', '').strip()
-            
-            # 基础验证
-            if not all([project_name, project_type, client_name]):
-                flash('请填写所有必填字段', 'error')
-                return render_template('staff/create_project.html')
-            
-            # 这里应该创建项目，暂时模拟
-            flash('项目创建成功！', 'success')
-            return redirect(url_for('staff.projects'))
-            
-        except Exception as e:
-            flash(f'创建项目失败：{str(e)}', 'error')
+    """创建新项目（HID项目）"""
+    form = ProjectHeaderForm()
     
-    return render_template('staff/create_project.html')
+    if form.validate_on_submit():
+        try:
+            hid = ProjectHeader.generate_hid()
+            
+            # 处理公司信息
+            company_id = None
+            
+            if form.company_id.data and form.company_id.data != 0:
+                company_id = form.company_id.data
+            
+            header = ProjectHeader(
+                hid=hid,
+                desc=form.desc.data,
+                company_id=company_id,
+                limit=form.limit.data,
+                contact=form.contact.data,
+                dept=form.dept.data,
+                staff_id=current_user.id if current_user.is_authenticated else None,
+                staff_name=form.staff_name.data,
+                leader_name=form.leader_name.data,
+                currency=form.currency.data,
+                type=form.type.data,
+                source=form.source.data,
+                country=form.country.data,
+                status=form.status.data,
+                remarks=form.remarks.data
+            )
+            db.session.add(header)
+            db.session.commit()
+            flash('项目主表创建成功！', 'success')
+            return redirect(url_for('staff.project_detail', project_id=header.id))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'创建失败：{str(e)}', 'error')
+    elif form.errors:
+        for field, errors in form.errors.items():
+            for error in errors:
+                flash(f'{getattr(form, field).label.text}: {error}', 'error')
+    
+    # 预填充项目编号
+    hid = ProjectHeader.generate_hid()
+    form.hid.data = hid
+    
+    # 预填充经办人姓名（当前登录用户）
+    if current_user.is_authenticated:
+        if current_user.profile and current_user.profile.get_full_name() != "未设置姓名":
+            form.staff_name.data = current_user.profile.get_full_name()
+        else:
+            # 如果用户资料未设置姓名，使用用户名
+            form.staff_name.data = current_user.username
+    
+    return render_template('staff/create_project.html', form=form, hid=hid)
 
 @staff.route('/project/<int:project_id>')
 @login_required
@@ -105,8 +140,8 @@ def create_project():
 def project_detail(project_id):
     """项目详情"""
     try:
-        # 暂时返回404，因为项目模型还未完全实现
-        return render_template('staff/404.html', message='项目详情功能开发中'), 404
+        # 重定向到原有的项目详情页面
+        return redirect(url_for('projects.header_detail', header_id=project_id))
     except Exception as e:
         flash(f'加载项目详情失败：{str(e)}', 'error')
         return render_template('staff/404.html', message='加载失败'), 500

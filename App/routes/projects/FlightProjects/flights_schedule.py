@@ -1,13 +1,17 @@
 from flask import Blueprint, render_template, request, jsonify, redirect, url_for, flash
+from flask_login import login_required, current_user
 from App.models.Flightmodels import FlightSchedule, AirportData
 from sqlalchemy.exc import IntegrityError
 from App.exts import db
+from App.utils.decorators import staff_only
 from sqlalchemy import text
 import re
 
 flights_schedule = Blueprint('flights_schedule', __name__, url_prefix='/flights_schedule')
 
 @flights_schedule.route('/input_airport_code', methods=['GET'])
+@login_required
+@staff_only
 def input_airport_code():
     """机场代码输入页面"""
     # 获取机场数据列表（加入分页）
@@ -19,6 +23,8 @@ def input_airport_code():
     return render_template('flights/录入机场代码.html', airports=airports)
 
 @flights_schedule.route('/itinerary_conversion', methods=['GET', 'POST'])
+@login_required
+@staff_only
 def itinerary_conversion():
     """行程转换功能"""
     if request.method == 'POST':
@@ -30,6 +36,8 @@ def itinerary_conversion():
     return render_template('flights/conversion.html')
 
 @flights_schedule.route('/confirmation_detail/<int:order_id>', methods=['GET'])
+@login_required
+@staff_only
 def confirmation_detail(order_id):
     """显示机票确认单详细信息"""
     # 在实际应用中，这里应该从数据库中获取确认单信息
@@ -37,16 +45,22 @@ def confirmation_detail(order_id):
     return render_template('flights/确认单详细.html', order_id=order_id)
 
 @flights_schedule.route('/confirmation_detail', methods=['GET'])
+@login_required
+@staff_only
 def confirmation_detail_default():
     """显示默认的确认单页面（无订单ID）"""
     return render_template('flights/flight_confirmation_detail.html')
 
 @flights_schedule.route('/simple_itinerary', methods=['GET'])
+@login_required
+@staff_only
 def simple_itinerary():
     """简化行程页面"""
     return render_template('flights/简化行程_日期-航班号.html')
 
 @flights_schedule.route('/simplify_itinerary', methods=['POST'])
+@login_required
+@staff_only
 def simplify_itinerary_by_flight_and_date():
     """处理简化行程表单提交"""
     try:
@@ -87,6 +101,8 @@ def process_itinerary(text):
     return '\n'.join(processed_lines)
 
 @flights_schedule.route('/input_flight_schedule', methods=['GET'])
+@login_required
+@staff_only
 def input_flight_schedule():
     """航班时刻表输入页面"""
     search_flight_number = request.args.get('search_flight_number', '')
@@ -101,6 +117,8 @@ def input_flight_schedule():
                            flights=flights)
 
 @flights_schedule.route('/input_flight_schedule_info', methods=['GET', 'POST'])
+@login_required
+@staff_only
 def input_flight_schedule_info():
     """航班时刻表输入页面"""
     if request.method == 'GET':
@@ -185,6 +203,8 @@ def input_flight_schedule_info():
             return redirect(url_for('flights_schedule.input_flight_schedule_info'))
 
 @flights_schedule.route('/get-flight-info', methods=['GET'])
+@login_required
+@staff_only
 def get_flight_info():
     """获取航班信息"""
     flight_number = request.args.get('flight_number', '').strip().upper()
@@ -244,6 +264,8 @@ def get_flight_info():
         })
 
 @flights_schedule.route('/api/flight_info/<flight_number>', methods=['GET'])
+@login_required
+@staff_only
 def get_flight_info_api(flight_number):
     """获取航班信息API接口"""
     try:
@@ -269,6 +291,8 @@ def get_flight_info_api(flight_number):
         }), 500
 
 @flights_schedule.route('/update_flight_timing', methods=['POST'])
+@login_required
+@staff_only
 def update_flight_timing():
     """更新航班时刻表的时间信息"""
     try:
@@ -294,6 +318,8 @@ def update_flight_timing():
         return jsonify({'success': False, 'error': str(e)})
 
 @flights_schedule.route('/search_flights', methods=['GET'])
+@login_required
+@staff_only
 def search_flights():
     """
     搜索航班功能，通过航班号查询航班信息。
@@ -313,6 +339,8 @@ def search_flights():
     return render_template('flights/录入航班时刻表.html', flights=flights)
 
 @flights_schedule.route('/search_airports')
+@login_required
+@staff_only
 def search_airports():
     """搜索机场信息"""
     try:
@@ -362,6 +390,8 @@ def search_airports():
 
 
 @flights_schedule.route('/update_airport', methods=['POST'])
+@login_required
+@staff_only
 def update_airport():
     """更新机场信息"""
     try:
@@ -451,6 +481,8 @@ def update_airport():
 
 
 @flights_schedule.route('/input_airport_code_info', methods=['GET', 'POST'])
+@login_required
+@staff_only
 def input_airport_code_info():
     if request.method == 'POST':
         try:
@@ -505,6 +537,8 @@ def input_airport_code_info():
     return render_template('flights/flight_airport_code_input.html')
 
 @flights_schedule.route('/delete_flight/<int:flight_id>', methods=['DELETE'])
+@login_required
+@staff_only
 def delete_flight(flight_id):
     """删除航班信息"""
     try:

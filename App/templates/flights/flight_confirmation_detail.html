@@ -1,8 +1,10 @@
-{% extends "base.html" %}
+{% extends "staff/base.html" %}
 
-{% block title %}确认单详细信息{% endblock %}
+{% block title %}机票确认详情 - MyTravelPanel{% endblock %}
 
-{% block head %}
+{% block page_title %}机票确认详情{% endblock %}
+
+{% block extra_css %}
     <style>
     .confirm-detail-container {
         width: 90%;
@@ -340,7 +342,7 @@
 <div id="notification" class="confirm-detail-notification">已复制到剪贴板</div>
 {% endblock %}
 
-{% block scripts %}
+{% block extra_js %}
     <script>
     // 显示通知的函数
     function showNotification(message, button) {

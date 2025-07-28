@@ -1,8 +1,12 @@
-{% extends "base.html" %}
+{% extends "staff/base.html" %}
 
-{% block title %}编辑项目 - {{ project.project_name }}{% endblock %}
 
-{% block head %}
+
+{% block page_title %}Edit Project{% endblock %}
+
+
+
+{% block extra_css %}
 <style>
     .project-container {
         max-width: 1200px;
@@ -129,4 +133,4 @@
         </div>
     </form>
 </div>
-{% endblock %} 
+{% endblock %} \n\n{% block title %}编辑项目 - {{ project.project_name }}{% endblock %}

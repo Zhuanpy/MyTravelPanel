@@ -1,8 +1,10 @@
-{% extends "base.html" %}
+{% extends "staff/base.html" %}
 
 {% block title %}{{ '编辑机票REF' if ref is defined and ref else '创建机票REF' }}{% endblock %}
 
-{% block head %}
+{% block page_title %}Create Flight Ref{% endblock %}
+
+{% block extra_css %}
 <!-- 添加 Font Awesome -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
 <!-- 添加 jQuery UI 样式 -->
@@ -637,7 +639,7 @@
 </div>
 {% endblock %}
 
-{% block scripts %}
+{% block extra_js %}
 <!-- 添加必要的JavaScript -->
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>

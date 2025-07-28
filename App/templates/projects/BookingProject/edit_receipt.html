@@ -1,5 +1,9 @@
-{% extends "base.html" %}
-{% block title %}编辑收款记录 - {{ receipt.receipt_number }}{% endblock %}
+{% extends "staff/base.html" %}
+
+
+
+{% block page_title %}Edit Receipt{% endblock %}
+
 
 {% block content %}
 <div class="container mt-4">
@@ -212,4 +216,4 @@ document.addEventListener('DOMContentLoaded', function() {
     toggleBankInfo(); // 初始化显示状态
 });
 </script>
-{% endblock %} 
+{% endblock %} \n\n{% block title %}编辑收款记录 - {{ receipt.receipt_number }}{% endblock %}

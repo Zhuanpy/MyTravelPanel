@@ -1,8 +1,10 @@
-{% extends "base.html" %}
+{% extends "staff/base.html" %}
 
-{% block title %}订单列表{% endblock %}
+{% block title %}机票订单列表 - MyTravelPanel{% endblock %}
 
-{% block head %}
+{% block page_title %}机票订单列表{% endblock %}
+
+{% block extra_css %}
 <style>
     /* 容器宽度调整 */
     .container {
@@ -557,7 +559,7 @@
 <!-- CSRF Token -->
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
-{% block scripts %}
+{% block extra_js %}
 <script>
 // 状态映射
 const STATUS_MAP = {
@@ -650,180 +652,4 @@ function updatePaymentSelectStyle(select) {
     select.classList.remove('status-unpaid', 'status-paid', 'status-refunded');
     
     // 添加对应状态的类
-    select.classList.add(`status-${statusValue}`);
-}
-
-document.addEventListener('DOMContentLoaded', function() {
-    // 检查所有订单的出发时间并初始化事件监听器
-    document.querySelectorAll('.status-select').forEach(select => {
-        // 保存原始状态
-        const originalStatus = select.value;
-        select.setAttribute('data-original-status', originalStatus);
-        
-        // 添加change事件监听器
-        select.addEventListener('change', function() {
-            const orderId = this.getAttribute('data-order-id');
-            updateOrderStatus(this, orderId);
-        });
-
-        // 检查所有航段的出发时间
-        const row = select.closest('tr');
-        const departureDatesCell = row.querySelector('.departure-date-cell');
-        const departureDates = Array.from(departureDatesCell.childNodes)
-            .filter(node => node.nodeType === Node.TEXT_NODE && node.textContent.trim())
-            .map(node => new Date(node.textContent.trim()));
-
-        if (departureDates.length > 0) {
-            const now = new Date();
-            const currentStatus = select.value;
-            
-            // 检查是否所有航段都已过期
-            const allSegmentsPassed = departureDates.every(date => date < now);
-            
-            if (allSegmentsPassed && currentStatus !== 'cancelled' && currentStatus !== 'completed') {
-                // 如果所有航段都已过期且订单不是取消或完成状态，则自动更新为完成状态
-                select.value = 'completed';
-                updateOrderStatus(select, select.getAttribute('data-order-id'));
-            }
-
-            // 如果所有航段都已过期，禁用选择框（除非是已取消或已完成状态）
-            if (allSegmentsPassed && currentStatus !== 'cancelled' && currentStatus !== 'completed') {
-                select.disabled = true;
-            }
-        }
-    });
-
-    // 初始化支付状态选择框样式
-    const paymentStatusSelects = document.querySelectorAll('.payment-select');
-    paymentStatusSelects.forEach(select => {
-        const displayStatus = select.value; // 中文状态
-        const statusValue = REVERSE_PAYMENT_STATUS_MAP[displayStatus]; // 转换为英文状态
-        select.setAttribute('data-original-status', statusValue);
-        updatePaymentSelectStyle(select);
-    });
-});
-
-function showToast(message, type = 'success') {
-    const container = document.querySelector('.toast-container');
-    const toast = document.createElement('div');
-    toast.className = 'toast';
-    
-    const icon = type === 'success' ? 
-        '<i class="fas fa-check-circle text-success"></i>' : 
-        '<i class="fas fa-exclamation-circle text-danger"></i>';
-    
-    toast.innerHTML = `${icon}<span>${message}</span>`;
-    container.appendChild(toast);
-    
-    // 触发重排以启动动画
-    toast.offsetHeight;
-    toast.classList.add('show');
-    
-    setTimeout(() => {
-        toast.classList.remove('show');
-        setTimeout(() => toast.remove(), 300);
-    }, 3000);
-}
-
-function updateOrderStatus(selectElement, orderId) {
-    const newStatus = selectElement.value;
-    const statusIndicator = selectElement.nextElementSibling;
-    
-    // 显示加载指示器
-    statusIndicator.style.display = 'inline-block';
-
-    // 验证状态值
-    if (!Object.keys(STATUS_MAP).includes(newStatus)) {
-        showToast('无效的状态值', 'error');
-        const originalStatus = selectElement.getAttribute('data-original-status');
-        selectElement.value = originalStatus;
-        statusIndicator.style.display = 'none';
-        return;
-    }
-
-    const formData = new URLSearchParams();
-    formData.append('ref_status', newStatus);
-    formData.append('csrf_token', csrfToken);
-
-    fetch(`/projects/update_ref_status/${orderId}`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'X-CSRFToken': csrfToken
-        },
-        body: formData.toString()
-    })
-    .then(response => response.json().catch(() => {
-        throw new Error('服务器响应格式错误');
-    }))
-    .then(data => {
-        if (data.success) {
-            // 更新选择框的状态属性
-            selectElement.setAttribute('data-status', newStatus);
-            updateSelectStyle(selectElement);
-            showToast(`订单状态已更新为：${STATUS_MAP[newStatus]}`, 'success');
-            
-            // 更新编辑按钮的显示状态
-            const row = selectElement.closest('tr');
-            const actionButtons = row.querySelector('.action-buttons');
-            const editButton = actionButtons.querySelector('.btn-warning');
-            
-            if (editButton) {
-                if (['draft', 'processing'].includes(newStatus)) {
-                    editButton.disabled = false;
-                    editButton.style.opacity = '';
-                    editButton.style.cursor = 'pointer';
-                } else {
-                    editButton.disabled = true;
-                    editButton.style.opacity = '0.5';
-                    editButton.style.cursor = 'not-allowed';
-                }
-            }
-        } else {
-            throw new Error(data.message || '订单状态更新失败');
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        showToast(error.message || '状态更新失败，请重试', 'error');
-        
-        // 回滚到原始状态
-        const originalStatus = selectElement.getAttribute('data-original-status');
-        selectElement.value = originalStatus;
-        updateSelectStyle(selectElement);
-    })
-    .finally(() => {
-        // 隐藏加载指示器
-        statusIndicator.style.display = 'none';
-    });
-}
-
-// 更新选择框样式
-function updateSelectStyle(select) {
-    const status = select.value;
-    select.setAttribute('data-status', status);
-    
-    // 移除所有可能的状态类
-    select.classList.remove('status-draft', 'status-processing', 'status-completed', 'status-cancelled');
-    
-    // 添加新的状态类
-    select.classList.add(`status-${status}`);
-}
-
-// 自动提交搜索表单
-const autoSubmitSelects = document.querySelectorAll('.auto-submit');
-autoSubmitSelects.forEach(select => {
-    select.addEventListener('change', function() {
-        // 重置页码为1，确保从第一页开始显示结果
-        const pageInput = document.querySelector('input[name="page"]');
-        if (pageInput) {
-            pageInput.value = "1";
-        }
-        
-        // 提交表单
-        this.closest('form').submit();
-    });
-});
-</script>
-{% endblock %}
-{% endblock %} 
+    select.classList.add(`

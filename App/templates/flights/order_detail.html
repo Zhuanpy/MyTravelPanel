@@ -1,8 +1,10 @@
-{% extends "base.html" %}
+{% extends "staff/base.html" %}
 
-{% block title %}订单详情 - {{ order.order_number }}{% endblock %}
+{% block title %}机票订单详情 - MyTravelPanel{% endblock %}
 
-{% block head %}
+{% block page_title %}机票订单详情{% endblock %}
+
+{% block extra_css %}
 <!-- 添加 Font Awesome -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
 <!-- 添加 Google Fonts -->
@@ -307,7 +309,7 @@ function cancelOrder() {
 </script>
 {% endblock %}
 
-{% block scripts %}
+{% block extra_js %}
 <!-- 添加必要的JavaScript -->
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 

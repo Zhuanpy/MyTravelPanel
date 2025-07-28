@@ -119,6 +119,56 @@ class UserProfile(db.Model):
             'full_name': self.get_full_name()
         }
 
+class InvitationCode(db.Model):
+    """邀请码管理模型"""
+    __tablename__ = 'invitation_codes'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    code = db.Column(db.String(50), unique=True, nullable=False, comment='邀请码')
+    role_name = db.Column(db.String(20), nullable=False, comment='角色名称 (staff/admin)')
+    created_by = db.Column(db.Integer, db.ForeignKey('auth_users.id'), nullable=False, comment='创建者ID')
+    used_by = db.Column(db.Integer, db.ForeignKey('auth_users.id'), nullable=True, comment='使用者ID')
+    is_used = db.Column(db.Boolean, default=False, comment='是否已使用')
+    expires_at = db.Column(db.DateTime, nullable=True, comment='过期时间')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, comment='创建时间')
+    used_at = db.Column(db.DateTime, nullable=True, comment='使用时间')
+    
+    # 关系
+    creator = db.relationship('AuthUser', foreign_keys=[created_by], backref='created_invitations')
+    user = db.relationship('AuthUser', foreign_keys=[used_by], backref='used_invitation')
+    
+    def __repr__(self):
+        return f'<InvitationCode {self.code}>'
+    
+    @staticmethod
+    def generate_code(length=16):
+        """生成随机邀请码"""
+        import secrets
+        import string
+        characters = string.ascii_uppercase + string.digits
+        return ''.join(secrets.choice(characters) for _ in range(length))
+    
+    def is_valid(self):
+        """检查邀请码是否有效"""
+        if self.is_used:
+            return False, "邀请码已被使用"
+        
+        if self.expires_at and self.expires_at < datetime.utcnow():
+            return False, "邀请码已过期"
+        
+        return True, "邀请码有效"
+    
+    def use_code(self, user_id):
+        """使用邀请码"""
+        if self.is_used:
+            return False, "邀请码已被使用"
+        
+        self.is_used = True
+        self.used_by = user_id
+        self.used_at = datetime.utcnow()
+        db.session.commit()
+        return True, "邀请码使用成功"
+
 # 初始化角色数据
 def init_roles():
     """初始化角色数据"""

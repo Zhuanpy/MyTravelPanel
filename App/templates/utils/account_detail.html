@@ -1,8 +1,12 @@
-{% extends "base.html" %}
+{% extends "staff/base.html" %}
+
+{% block title %}账号详情 - MyTravelPanel{% endblock %}
+
+{% block page_title %}账号详情{% endblock %}
 
 {% block title %}账号详情 - {{ account.platform }}{% endblock %}
 
-{% block head %}
+{% block extra_css %}
 <meta name="csrf-token" content="{{ csrf_token() }}">
 <style>
     .account-detail-container {

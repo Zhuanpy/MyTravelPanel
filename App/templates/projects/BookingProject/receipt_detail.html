@@ -1,5 +1,9 @@
-{% extends "base.html" %}
-{% block title %}收款记录详情 - {{ receipt.receipt_number }}{% endblock %}
+{% extends "staff/base.html" %}
+
+
+
+{% block page_title %}Receipt Detail{% endblock %}
+
 
 {% block content %}
 <div class="container mt-4">
@@ -227,4 +231,4 @@ function deleteReceipt(receiptId) {
     }
 }
 </script>
-{% endblock %} 
+{% endblock %} \n\n{% block title %}收款记录详情 - {{ receipt.receipt_number }}{% endblock %}

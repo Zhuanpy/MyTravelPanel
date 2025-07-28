@@ -1,7 +1,9 @@
 from flask import Blueprint, render_template, request, jsonify, redirect, url_for, flash
+from flask_login import login_required, current_user
 from App.models.Flightmodels import FlightOrder, Passenger, FlightSegment, FlightSchedule, AirportData
 from App.models.Product.Suppliers import Supplier
 from App.models.Product.Visamodels import VisaCountries
+from App.utils.decorators import staff_only
 from datetime import datetime, timedelta
 from App.exts import db
 import random
@@ -16,6 +18,8 @@ def generate_order_number():
     return f'TP{date_str}{random_str}'
 
 @flights_booking.route('/create_order', methods=['GET'])
+@login_required
+@staff_only
 def create_order():
     """创建订单页面"""
     # 获取所有活跃的供应商
@@ -27,6 +31,8 @@ def create_order():
                          supplier_types=supplier_types)
 
 @flights_booking.route('/submit_order', methods=['POST'])
+@login_required
+@staff_only
 def submit_order():
     """提交订单处理"""
     try:
@@ -189,12 +195,16 @@ def submit_order():
         return redirect(url_for('flights_booking.create_order'))
 
 @flights_booking.route('/order_detail/<int:order_id>')
+@login_required
+@staff_only
 def order_detail(order_id):
     """订单详情页面"""
     order = FlightOrder.query.get_or_404(order_id)
     return render_template('flights/order_detail.html', order=order)
 
 @flights_booking.route('/search_flights', methods=['POST'])
+@login_required
+@staff_only
 def search_flights():
     """搜索航班信息"""
     dep_airport = request.form.get('departure_airport')
@@ -208,6 +218,8 @@ def search_flights():
     return jsonify([flight.to_dict() for flight in flights])
 
 @flights_booking.route('/cancel_order/<int:order_id>', methods=['POST'])
+@login_required
+@staff_only
 def cancel_order(order_id):
     """取消订单"""
     try:
@@ -244,6 +256,8 @@ def cancel_order(order_id):
         })
 
 @flights_booking.route('/orders')
+@login_required
+@staff_only
 def order_list():
     """订单列表页面 - 从新的project_flight_segments表获取数据"""
     from App.models.projects.BookingProject import ProjectFlightSegment, ProjectRef, ProjectHeader, ProjectFlightPassenger
@@ -385,6 +399,8 @@ def order_list():
                          countries=countries)
 
 @flights_booking.route('/edit_order/<int:order_id>', methods=['GET', 'POST'])
+@login_required
+@staff_only
 def edit_order(order_id):
     """编辑订单"""
     order = FlightOrder.query.get_or_404(order_id)
@@ -509,6 +525,8 @@ def edit_order(order_id):
                          supplier_types=supplier_types)
 
 @flights_booking.route('/update_order_status/<int:order_id>', methods=['POST'])
+@login_required
+@staff_only
 def update_order_status(order_id):
     """更新订单状态"""
     try:
@@ -540,6 +558,8 @@ def update_order_status(order_id):
         }), 500
 
 @flights_booking.route('/update_payment_status/<int:order_id>', methods=['POST'])
+@login_required
+@staff_only
 def update_payment_status(order_id):
     """更新支付状态"""
     try:
@@ -571,6 +591,8 @@ def update_payment_status(order_id):
         }), 500
 
 @flights_booking.route('/search_airports')
+@login_required
+@staff_only
 def search_airports():
     """搜索机场"""
     query = request.args.get('q', '').strip().upper()

@@ -1,8 +1,10 @@
-{% extends "base.html" %}
+{% extends "staff/base.html" %}
 
-{% block title %}项目列表{% endblock %}
+{% block title %}项目列表 - MyTravelPanel{% endblock %}
 
-{% block head %}
+{% block page_title %}项目列表{% endblock %}
+
+{% block extra_css %}
 <style>
     .project-link {
         color: #007bff !important;
@@ -592,7 +594,7 @@
 </div>
 {% endblock %}
 
-{% block scripts %}
+{% block extra_js %}
 <script>
 $(document).ready(function() {
     // 自动提交筛选表单，但排除分页链接

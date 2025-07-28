@@ -1,8 +1,10 @@
-{% extends "base.html" %}
+{% extends "staff/base.html" %}
 
-{% block title %}航班时刻表信息{% endblock %}
+{% block title %}航班时刻表信息 - MyTravelPanel{% endblock %}
 
-{% block head %}
+{% block page_title %}航班时刻表信息{% endblock %}
+
+{% block extra_css %}
 <style>
     :root {
         --primary-color: #3498db;
@@ -534,7 +536,7 @@
 </div>
 {% endblock %}
 
-{% block scripts %}
+{% block extra_js %}
 <script>
     async function searchFlightInfo(button) {
         const row = button.closest('.flight-schedule-form-row');

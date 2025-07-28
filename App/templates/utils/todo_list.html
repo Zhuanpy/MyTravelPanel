@@ -1,8 +1,10 @@
-{% extends "base.html" %}
+{% extends "staff/base.html" %}
 
-{% block title %}待办事项管理{% endblock %}
+{% block title %}任务列表 - MyTravelPanel{% endblock %}
 
-{% block head %}
+{% block page_title %}任务列表{% endblock %}
+
+{% block extra_css %}
 <style>
     .todo-container {
         max-width: 1200px;
@@ -294,7 +296,7 @@
 </div>
 {% endblock %}
 
-{% block scripts %}
+{% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // 添加待办事项

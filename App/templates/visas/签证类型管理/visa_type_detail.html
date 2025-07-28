@@ -1,8 +1,12 @@
-{% extends "base.html" %}
+{% extends "staff/base.html" %}
 
-{% block title %}{{ visa_type.visa_type }} - 签证类型详情{% endblock %}
 
-{% block head %}
+
+{% block page_title %}Visa Type Detail{% endblock %}
+
+
+
+{% block extra_css %}
 <!-- FontAwesome 6.5.0 -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" integrity="sha512-Avb2QiuDEEvB4bZJYdft2mNjVShBftLdPG8FJ0V7irTLQ8Uo0qcPxh4Plq7G5tGm0rU+1SPhVotteLpBERwTkw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
 
@@ -932,7 +936,7 @@
 </style>
 {% endblock %}
 
-{% block scripts %}
+{% block extra_js %}
 <script>
     function showDocuments(identity) {
         // 隐藏所有文档列表
@@ -1059,7 +1063,7 @@
         }
         
         // 显示确认对话框
-        const confirmMessage = `确定要将"${templateVisaType}"的配置套用到"{{ visa_type.visa_type }}"吗？\n\n套用选项：\n${copyDocuments ? '• 文档配置\n' : ''}${copyTemplates ? '• 模板文件\n' : ''}${copyIdentities ? '• 身份配置' : ''}`;
+        const confirmMessage = `确定要将"${templateVisaType}"的配置套用到"{{ visa_type.visa_type }}"吗？\n\n{% block title %}{{ visa_type.visa_type }} - 签证类型详情{% endblock %}\n\n套用选项：\n${copyDocuments ? '• 文档配置\n' : ''}${copyTemplates ? '• 模板文件\n' : ''}${copyIdentities ? '• 身份配置' : ''}`;
         
         if (confirm(confirmMessage)) {
             // 发送套用请求

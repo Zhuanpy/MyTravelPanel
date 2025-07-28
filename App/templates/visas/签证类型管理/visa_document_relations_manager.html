@@ -1,8 +1,10 @@
-{% extends "base.html" %}
+{% extends "staff/base.html" %}
 
-{% block title %}签证文档关联关系管理{% endblock %}
+{% block title %}Visa Document Relations Manager - MyTravelPanel{% endblock %}
 
-{% block head %}
+{% block page_title %}Visa Document Relations Manager{% endblock %}
+
+{% block extra_css %}
 <style>
 .responsible-party-option:hover {
     background: #e3f2fd !important;
@@ -171,7 +173,7 @@
 
 {% endblock %}
 
-{% block scripts %}
+{% block extra_js %}
 <script>
 let allRelations = [];
 let filteredRelations = [];

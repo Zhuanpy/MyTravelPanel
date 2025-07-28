@@ -1,9 +1,11 @@
 from flask import Blueprint, render_template, request, jsonify, redirect, url_for, flash
+from flask_login import login_required, current_user
 from App.models.Flightmodels import FlightSchedule, AirportData
 from App.utils.cache import cache
 from App.code.FlightTicket.ConvertFlight.ConvertFlightItinerary import format_flight_info
 from App.code.utils.utils import FlightData as flight
 from App.exts import csrf
+from App.utils.decorators import staff_only
 
 flights_athina = Blueprint('flights_athina', __name__, url_prefix='/flights_athina')
 
@@ -49,104 +51,95 @@ def request_schedule_data(flight_number):
         flight_number = flight_number.replace(" ", "").upper()
         # 查询数据库
         schedule = FlightSchedule.query.filter_by(flight_number=flight_number).first()
-
-        if not schedule:
-            return None
-
-        # 转换为字典
-        schedule_dict = schedule.to_dict()
-        print(f"Schedule data: {schedule_dict}")  # 调试信息
-        return schedule_dict
-
+        
+        if schedule:
+            return {
+                'flight_number': schedule.flight_number,
+                'schedule_city': schedule.schedule_city,
+                'schedule_timing': schedule.schedule_timing.strftime('%H:%M') if schedule.schedule_timing else None
+            }
+        return None
     except Exception as e:
-        print(f"Error in request_schedule_data: {str(e)}")  # 调试信息
+        print(f"Error fetching schedule data for {flight_number}: {e}")
         return None
 
-
 @flights_athina.route('/athina', methods=['GET'])
-def flight_to_athina_page():
-    """ATHINA系统航班预定代码页面"""
-    return render_template('flights/flight_athina_booking_code.html')
-
-@flights_athina.route('/athina_simple', methods=['GET'])
-def athina_simple():
-    """简化版ATHINA页面"""
+@login_required
+@staff_only
+def athina():
+    """Athina页面"""
     return render_template('flights/flight_athina.html')
 
+@flights_athina.route('/athina_simple', methods=['GET'])
+@login_required
+@staff_only
+def athina_simple():
+    """简化的Athina页面"""
+    return render_template('flights/flight_athina.html')
 
 @flights_athina.route('/itinerary_conversion', methods=['GET', 'POST'])
-@csrf.exempt
+@login_required
+@staff_only
 def itinerary_conversion():
-    if request.method == 'GET':
-        return render_template('flights/flight_conversion.html', output_text="")
-
-    elif request.method == 'POST':
-        try:
-            print(f"Received form data: {dict(request.form)}")  # 调试信息
-            
-            input_text = request.form.get('input_text', '').strip()
-            language = request.form.get('language', 'chinese')
-            luggage = request.form.get('luggage', '').strip()
-            price = request.form.get('price', '').strip()
-            
-            print(f"Parsed data - input_text: '{input_text}', language: '{language}', luggage: '{luggage}', price: '{price}'")  # 调试信息
-            
-            # 验证输入
-            if not input_text:
-                return jsonify({'error': '请输入航班信息'}), 400
-
-            # 根据选择的语言进行文字转换
-            output_text = ""
-
-            if language == "chinese":
-                # 中文行程转换逻辑
-                output_text = format_flight_info(city_language, texts=input_text, luggage=luggage,
-                                               price=price)
-
-            elif language == "english":
-                # 英文行程转换逻辑
-                output_text = format_flight_info(city_language, texts=input_text, language='EN',
-                                               luggage=luggage, price=price)
-
-            print(f"Generated output_text: '{output_text}'")  # 调试信息
-            return jsonify({'output_text': output_text})
-            
-        except Exception as e:
-            print(f"Error in itinerary_conversion: {str(e)}")
-            import traceback
-            print(f"Full traceback: {traceback.format_exc()}")
-            
-            # 提供更详细的错误信息
-            error_message = f'服务器内部错误: {str(e)}'
-            if 'list index out of range' in str(e):
-                error_message = '航班信息格式不正确，请检查输入格式'
-            elif 'database' in str(e).lower():
-                error_message = '数据库连接错误，请稍后重试'
-            elif 'cache' in str(e).lower():
-                error_message = '缓存服务错误，请稍后重试'
-            
-            return jsonify({'error': error_message}), 500
-
-
-# 机票 行程转换
-@flights_athina.route('/simplify_itinerary_by_flight_and_date', methods=['GET', 'POST'])
-@csrf.exempt
-def simplify_itinerary_by_flight_and_date():
-    if request.method == 'GET':  # 加载页面
-
-        return render_template('flights/flight_itinerary_simple.html', output_text="")
-
+    """行程转换功能"""
     if request.method == 'POST':
-
         try:
+            # 获取提交的行程数据
+            input_text = request.form.get('input_text', '')
+            language = request.form.get('language', 'chinese')
+            luggage = request.form.get('luggage', '')
+            price = request.form.get('price', '')
+            
+            if not input_text.strip():
+                flash('请输入行程数据', 'error')
+                return render_template('flights/flight_conversion.html', output_text="")
+            
+            # 处理行程数据
+            try:
+                # 使用ConvertFlightItinerary模块处理数据
+                if language == "chinese":
+                    output_text = format_flight_info(city_language, texts=input_text, luggage=luggage, price=price)
+                elif language == "english":
+                    output_text = format_flight_info(city_language, texts=input_text, language='EN', luggage=luggage, price=price)
+                else:
+                    output_text = format_flight_info(city_language, texts=input_text, luggage=luggage, price=price)
+                
+                return render_template('flights/flight_conversion.html', 
+                                     input_text=input_text,
+                                     output_text=output_text,
+                                     language=language,
+                                     luggage=luggage,
+                                     price=price)
+                                     
+            except Exception as format_error:
+                flash(f'行程数据格式错误：{str(format_error)}', 'error')
+                return render_template('flights/flight_conversion.html',
+                                     input_text=input_text,
+                                     output_text="")
+                
+        except Exception as e:
+            flash(f'处理失败：{str(e)}', 'error')
+            return render_template('flights/flight_conversion.html', output_text="")
+    
+    # GET请求返回行程转换页面
+    return render_template('flights/flight_conversion.html', output_text="")
+
+@flights_athina.route('/simplify_itinerary_by_flight_and_date', methods=['GET', 'POST'])
+@login_required
+@staff_only
+def simplify_itinerary_by_flight_and_date():
+    """
+    通过航班号和日期简化行程
+    """
+    if request.method == 'POST':
+        try:
+            # 获取提交的数据
             data = request.get_json()
-            # print(data)
-            # 获取语言、行李、价格和航班信息
             language = data.get('language', '中文')
             baggage = data.get('baggage', '')
             price = data.get('price', 0)
             flights = data.get('flights', [])
-
+            
             # 简单验证
             if not flights:
                 return jsonify({'error': '没有提供航班信息。'}), 400
@@ -157,8 +150,8 @@ def simplify_itinerary_by_flight_and_date():
             if not price:
                 return jsonify({'error': '没有提供价格信息。'}), 400
 
-            # 生成行程信息（此处为示例，您可以根据实际需求进行生成）
-            input_text = f""
+            # 生成行程信息
+            input_text = ""
             start_num = 1
 
             for idx, f in enumerate(flights, start=1):
@@ -183,25 +176,27 @@ def simplify_itinerary_by_flight_and_date():
                                                language='EN',
                                                luggage=baggage,
                                                price=price)
-            # print(itinerary)
+            
             return jsonify({'itinerary': itinerary})
-
+                                 
         except Exception as e:
             return jsonify({'error': str(e)}), 500
-
+    
+    # GET请求返回页面
+    return render_template('flights/flight_itinerary_simple.html', output_text="")
 
 @flights_athina.route('/athinaPage', methods=['GET', 'POST'])
-@csrf.exempt
-def athina_page_handler():
-    if request.method == 'GET':
-        return render_template('flights/ATHINA系统航班预定代码.html')
-
+@login_required
+@staff_only
+def athina_page():
+    """
+    Athina主页面处理
+    """
     if request.method == 'POST':
         try:
             # 获取并验证请求数据
             data = request.get_json()
-            print(f"Received data: {data}")  # 调试日志
-
+            
             if not data:
                 return jsonify({'error': '未提供任何订单数据'}), 400
 
@@ -214,14 +209,11 @@ def athina_page_handler():
                     flight_number = entry.get('flightNumber', '').strip().replace(" ", "").upper()
                     flight_date = entry.get('flightDate', '').strip().replace(" ", "").upper()
 
-                    print(f"Processing flight {num}: {flight_number} on {flight_date}")  # 调试日志
-
                     if not flight_number or not flight_date:
                         return jsonify({'error': f'订单条目 {num} 缺少航班号或日期'}), 400
 
                     # 获取航班时刻表数据
                     schedule_dic = request_schedule_data(flight_number)
-                    print(f"Schedule data for {flight_number}: {schedule_dic}")  # 调试日志
 
                     if not schedule_dic:
                         return jsonify({
@@ -231,33 +223,26 @@ def athina_page_handler():
                     try:
                         # 生成预订代码
                         r = flight.athina_booking_code(num, schedule_dic, flight_date)
-                        print(f"Generated booking code: {r}")  # 调试日志
 
                         if r.startswith("An error occurred") or r.startswith("Database error"):
                             return jsonify({'error': r}), 500
                         itinerary += f"{r}\n"
                         num += 1
                     except Exception as e:
-                        print(f"Error generating booking code: {str(e)}")  # 调试日志
-                        import traceback
-                        print(f"Traceback for booking code generation: {traceback.format_exc()}")  # 打印完整的错误堆栈
                         return jsonify({
                             'error': f'生成航班 {flight_number} 的预订代码时出错：{str(e)}'
                         }), 500
 
                 except Exception as e:
-                    print(f"Error processing entry {num}: {str(e)}")  # 调试日志
-                    import traceback
-                    print(f"Traceback for entry processing: {traceback.format_exc()}")  # 打印完整的错误堆栈
                     return jsonify({
                         'error': f'处理航班信息时出错：{str(e)}'
                     }), 500
 
             return jsonify({'itinerary': itinerary})
-
+                                 
         except Exception as e:
-            print(f"Error in flight_to_athina_page: {str(e)}")  # 调试日志
-            import traceback
-            print(f"Traceback: {traceback.format_exc()}")  # 打印完整的错误堆栈
             return jsonify({'error': str(e)}), 500
+    
+    # GET请求返回页面
+    return render_template('flights/flight_athina_booking_code.html')
 

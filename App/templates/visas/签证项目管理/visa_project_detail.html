@@ -1,8 +1,12 @@
-{% extends "base.html" %}
+{% extends "staff/base.html" %}
 
-{% block title %}签证项目详情 - {{ project.project_folder_name }}{% endblock %}
 
-{% block head %}
+
+{% block page_title %}签证项目详情{% endblock %}
+
+
+
+{% block extra_css %}
 {{ super() }}
 <style>
     .visa-detail-page .container {
@@ -346,7 +350,7 @@
 </div>
 {% endblock %}
 
-{% block scripts %}
+{% block extra_js %}
 <script>
     async function deleteProject(event, element) {
         event.preventDefault();
@@ -377,4 +381,4 @@
         }
     }
 </script>
-{% endblock %} 
+{% endblock %} \n\n{% block title %}签证项目详情 - {{ project.project_folder_name }}{% endblock %}

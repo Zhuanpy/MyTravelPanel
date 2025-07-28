@@ -1,8 +1,10 @@
-{% extends "base.html" %}
+{% extends "staff/base.html" %}
 
-{% block title %}文件处理服务{% endblock %}
+{% block title %}文件处理 - MyTravelPanel{% endblock %}
 
-{% block head %}
+{% block page_title %}文件处理{% endblock %}
+
+{% block extra_css %}
 <style>
     .files-home-container {
         max-width: 1200px;
@@ -369,7 +371,7 @@
 </div>
 {% endblock %}
 
-{% block scripts %}
+{% block extra_js %}
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         // 确保所有卡片高度一致

@@ -6,7 +6,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import check_password_hash, generate_password_hash
-from App.models.auth import AuthUser, Role, UserProfile
+from App.models.auth import AuthUser, Role, UserProfile, InvitationCode
 from App.utils.decorators import guest_only, member_only
 from App.exts import db
 import re
@@ -412,9 +412,25 @@ def _handle_role_register(role_name, template_name):
         
         # 对于非会员角色，添加额外验证
         if role_name in ['staff', 'admin']:
-            invitation_code = request.form.get('invitation_code', '').strip()
-            if not invitation_code or invitation_code != f'{role_name}_invite_2025':
-                flash('邀请码无效，请联系管理员获取邀请码', 'error')
+            invitation_code_str = request.form.get('invitation_code', '').strip()
+            if not invitation_code_str:
+                flash('请输入邀请码', 'error')
+                return render_template(template_name, role_type=role_name)
+            
+            # 查找邀请码
+            invitation_code = InvitationCode.query.filter_by(
+                code=invitation_code_str,
+                role_name=role_name
+            ).first()
+            
+            if not invitation_code:
+                flash('邀请码不存在或角色不匹配，请联系管理员', 'error')
+                return render_template(template_name, role_type=role_name)
+            
+            # 验证邀请码有效性
+            is_valid, message = invitation_code.is_valid()
+            if not is_valid:
+                flash(f'邀请码无效：{message}', 'error')
                 return render_template(template_name, role_type=role_name)
         
         # 创建新用户
@@ -445,6 +461,10 @@ def _handle_role_register(role_name, template_name):
         )
         db.session.add(user_profile)
         db.session.commit()
+        
+        # 如果使用了邀请码，标记为已使用
+        if role_name in ['staff', 'admin'] and 'invitation_code' in locals():
+            invitation_code.use_code(new_user.id)
         
         flash(f'{_get_role_display_name(role_name)}注册成功！请登录', 'success')
         return redirect(url_for(f'auth.{role_name}_login'))
