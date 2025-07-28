@@ -281,7 +281,7 @@
             </a>
 
             <!-- 会员中心入口 -->
-            <a href="{{ url_for('auth.login') }}" class="portal-card member fade-in-up stagger-2">
+            <a href="{{ url_for('auth.member_login') }}" class="portal-card member fade-in-up stagger-2">
                 <div class="portal-status status-login">需要登录</div>
                 <div class="portal-icon">
                     <i class="fas fa-user-circle"></i>
@@ -299,7 +299,7 @@
             </a>
 
             <!-- 员工工作台入口 -->
-            <a href="{{ url_for('auth.login') }}" class="portal-card staff fade-in-up stagger-3">
+            <a href="{{ url_for('auth.staff_login') }}" class="portal-card staff fade-in-up stagger-3">
                 <div class="portal-status status-login">员工权限</div>
                 <div class="portal-icon">
                     <i class="fas fa-user-tie"></i>
@@ -317,7 +317,7 @@
             </a>
 
             <!-- 管理员后台入口 -->
-            <a href="{{ url_for('auth.login') }}" class="portal-card admin fade-in-up stagger-4">
+            <a href="{{ url_for('auth.admin_login') }}" class="portal-card admin fade-in-up stagger-4">
                 <div class="portal-status status-login">管理员权限</div>
                 <div class="portal-icon">
                     <i class="fas fa-user-crown"></i>

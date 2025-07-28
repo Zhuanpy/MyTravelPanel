@@ -267,4 +267,199 @@ def api_check_email():
     if existing_user:
         return jsonify({'available': False, 'message': '该邮箱已被注册'})
     
-    return jsonify({'available': True, 'message': '邮箱可用'}) 
+    return jsonify({'available': True, 'message': '邮箱可用'})
+
+# 分角色的登录和注册路由
+@auth.route('/member/login', methods=['GET', 'POST'])
+@guest_only
+def member_login():
+    """会员登录"""
+    if request.method == 'POST':
+        return _handle_role_login('member', 'auth/member_login.html')
+    
+    return render_template('auth/member_login.html', role_type='member')
+
+@auth.route('/member/register', methods=['GET', 'POST'])
+@guest_only
+def member_register():
+    """会员注册"""
+    if request.method == 'POST':
+        return _handle_role_register('member', 'auth/member_register.html')
+    
+    return render_template('auth/member_register.html', role_type='member')
+
+@auth.route('/staff/login', methods=['GET', 'POST'])
+@guest_only
+def staff_login():
+    """员工登录"""
+    if request.method == 'POST':
+        return _handle_role_login('staff', 'auth/staff_login.html')
+    
+    return render_template('auth/staff_login.html', role_type='staff')
+
+@auth.route('/staff/register', methods=['GET', 'POST'])
+@guest_only
+def staff_register():
+    """员工注册（管理员邀请）"""
+    if request.method == 'POST':
+        return _handle_role_register('staff', 'auth/staff_register.html')
+    
+    return render_template('auth/staff_register.html', role_type='staff')
+
+@auth.route('/admin/login', methods=['GET', 'POST'])
+@guest_only
+def admin_login():
+    """管理员登录"""
+    if request.method == 'POST':
+        return _handle_role_login('admin', 'auth/admin_login.html')
+    
+    return render_template('auth/admin_login.html', role_type='admin')
+
+@auth.route('/admin/register', methods=['GET', 'POST'])
+@guest_only
+def admin_register():
+    """管理员注册（超级管理员邀请）"""
+    if request.method == 'POST':
+        return _handle_role_register('admin', 'auth/admin_register.html')
+    
+    return render_template('auth/admin_register.html', role_type='admin')
+
+def _handle_role_login(role_name, template_name):
+    """处理角色登录逻辑"""
+    try:
+        email = request.form.get('email', '').strip()
+        password = request.form.get('password', '')
+        remember = bool(request.form.get('remember'))
+        
+        if not email or not password:
+            flash('请输入邮箱和密码', 'error')
+            return render_template(template_name, role_type=role_name)
+        
+        # 查找用户
+        user = AuthUser.query.filter_by(email=email).first()
+        
+        if user and user.check_password(password):
+            # 验证用户角色是否匹配
+            if user.role.name != role_name:
+                flash(f'该账号不是{_get_role_display_name(role_name)}，请使用正确的登录入口', 'error')
+                return render_template(template_name, role_type=role_name)
+            
+            # 登录成功
+            login_user(user, remember=remember)
+            
+            # 重定向到原来想访问的页面或默认页面
+            next_page = request.args.get('next')
+            if next_page:
+                return redirect(next_page)
+            
+            # 根据用户角色重定向到不同页面
+            if role_name == 'admin':
+                return redirect(url_for('admin.dashboard'))
+            elif role_name == 'staff':
+                return redirect(url_for('staff.dashboard'))
+            elif role_name == 'member':
+                return redirect(url_for('member.dashboard'))
+        else:
+            flash('邮箱或密码错误', 'error')
+            
+    except Exception as e:
+        flash(f'登录失败：{str(e)}', 'error')
+    
+    return render_template(template_name, role_type=role_name)
+
+def _handle_role_register(role_name, template_name):
+    """处理角色注册逻辑"""
+    try:
+        # 获取表单数据
+        email = request.form.get('email', '').strip()
+        password = request.form.get('password', '')
+        confirm_password = request.form.get('confirm_password', '')
+        first_name = request.form.get('first_name', '').strip()
+        last_name = request.form.get('last_name', '').strip()
+        phone = request.form.get('phone', '').strip()
+        
+        # 基础验证
+        if not all([email, password, confirm_password, first_name]):
+            flash('请填写所有必填字段', 'error')
+            return render_template(template_name, role_type=role_name)
+        
+        # 邮箱格式验证
+        email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        if not re.match(email_pattern, email):
+            flash('请输入有效的邮箱地址', 'error')
+            return render_template(template_name, role_type=role_name)
+        
+        # 密码验证
+        if password != confirm_password:
+            flash('两次输入的密码不一致', 'error')
+            return render_template(template_name, role_type=role_name)
+        
+        if len(password) < 6:
+            flash('密码长度至少6位', 'error')
+            return render_template(template_name, role_type=role_name)
+        
+        # 检查邮箱是否已存在
+        existing_user = AuthUser.query.filter_by(email=email).first()
+        if existing_user:
+            flash('该邮箱已被注册', 'error')
+            return render_template(template_name, role_type=role_name)
+        
+        # 获取角色
+        target_role = Role.query.filter_by(name=role_name).first()
+        if not target_role:
+            flash(f'系统错误：{_get_role_display_name(role_name)}角色不存在', 'error')
+            return render_template(template_name, role_type=role_name)
+        
+        # 对于非会员角色，添加额外验证
+        if role_name in ['staff', 'admin']:
+            invitation_code = request.form.get('invitation_code', '').strip()
+            if not invitation_code or invitation_code != f'{role_name}_invite_2025':
+                flash('邀请码无效，请联系管理员获取邀请码', 'error')
+                return render_template(template_name, role_type=role_name)
+        
+        # 创建新用户
+        username = email.split('@')[0]
+        base_username = username
+        counter = 1
+        while AuthUser.query.filter_by(username=username).first():
+            username = f"{base_username}{counter}"
+            counter += 1
+        
+        new_user = AuthUser(
+            username=username,
+            email=email,
+            role_id=target_role.id
+        )
+        new_user.set_password(password)
+        
+        # 保存用户到数据库
+        db.session.add(new_user)
+        db.session.commit()
+        
+        # 创建用户资料
+        user_profile = UserProfile(
+            user_id=new_user.id,
+            first_name=first_name,
+            last_name=last_name,
+            phone=phone
+        )
+        db.session.add(user_profile)
+        db.session.commit()
+        
+        flash(f'{_get_role_display_name(role_name)}注册成功！请登录', 'success')
+        return redirect(url_for(f'auth.{role_name}_login'))
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'注册失败：{str(e)}', 'error')
+        
+    return render_template(template_name, role_type=role_name)
+
+def _get_role_display_name(role_name):
+    """获取角色显示名称"""
+    role_names = {
+        'member': '会员',
+        'staff': '员工',
+        'admin': '管理员'
+    }
+    return role_names.get(role_name, role_name) 
