@@ -55,8 +55,10 @@ def request_schedule_data(flight_number):
         if schedule:
             return {
                 'flight_number': schedule.flight_number,
+                'airline_code': schedule.airline_code,
+                'airline_num': schedule.airline_num,
                 'schedule_city': schedule.schedule_city,
-                'schedule_timing': schedule.schedule_timing.strftime('%H:%M') if schedule.schedule_timing else None
+                'schedule_timing': schedule.schedule_timing
             }
         return None
     except Exception as e:
