@@ -1,7 +1,9 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
+from flask_login import login_required
 from App.exts import db, csrf
 from App.models import VisaDocuments, VisaTypes, VisaSingaporeIdentity, VisaCountries # , # IdentityDocument
 from App.models.Product.Visamodels import VisaDocumentsList
+from App.utils.decorators import staff_only
 import logging
 from urllib.parse import unquote
 import html
@@ -17,6 +19,8 @@ import html
 visa_documents = Blueprint('visa_documents', __name__)
 
 @visa_documents.route('/manage_visas', methods=['GET', 'POST'])
+@login_required
+@staff_only
 @csrf.exempt
 def manage_visas():
     if request.method == 'POST':
@@ -141,6 +145,8 @@ def manage_visas():
                          pagination=pagination)
 
 @visa_documents.route('/add_document', methods=['GET', 'POST'])
+@login_required
+@staff_only
 @csrf.exempt
 def add_document():
     if request.method == 'GET':
@@ -193,11 +199,15 @@ def add_document():
             return redirect(url_for('visa_documents.add_document', visa_type=visa_type_id))
 
 @visa_documents.route('/edit/<int:id>', methods=['GET'])
+@login_required
+@staff_only
 def edit_document(id):
     document = VisaDocuments.query.get_or_404(id)
     return render_template('visas/签证文档管理/visa_document_edit.html', document=document)
 
 @visa_documents.route('/update/<int:id>', methods=['POST'])
+@login_required
+@staff_only
 @csrf.exempt
 def update_document(id):
     document = VisaDocuments.query.get_or_404(id)
@@ -215,6 +225,8 @@ def update_document(id):
         return redirect(url_for('visa_documents.edit_document', id=id))
 
 @visa_documents.route('/delete/<int:id>', methods=['POST'])
+@login_required
+@staff_only
 @csrf.exempt
 def delete_document(id):
     document = VisaDocuments.query.get_or_404(id)
@@ -828,147 +840,7 @@ def debug_share_documents(visa_type):
     except Exception as e:
         return jsonify({'error': str(e), 'traceback': str(e.__traceback__)})
 
-# @visa_documents.route('/visa/update_visa_documents')
-# def update_visa_documents():
-#     project_root = Path(__file__).resolve().parent.parent  # 获取项目的根目录路径
-#     directory_path = project_root / "static" / "资源" / "签证"
-#     identity_path = directory_path / "Z-模板"
 #
-#     # 检查主目录是否存在
-#     if not directory_path.exists():
-#         print("目录不存在")
-#         return jsonify({"message": "签证资源目录不存在"}), 404
-#
-#     # 获取所有签证类型和身份模板文件夹名称
-#     folder_names = [f.name for f in directory_path.iterdir() if f.is_dir() and f.name != "Z-模板"]
-#     identitys = [f.name for f in identity_path.iterdir() if f.is_dir()]
-#     identitys.remove("共用资料")
-#     # 处理签证类型和身份模板数据
-#     visa_info = {}
-#
-#     for visa_type in folder_names:
-#         visa_info[visa_type] = identitys
-#         # 打印身份模板名称
-#         for singapore_identity in identitys:
-#             print(singapore_identity)
-#             existing_document = VisaDocuments.query.filter_by(visa_type=visa_type,
-#                                                               singapore_identity=singapore_identity).first()
-#
-#             # 如果记录不存在则插入
-#             if not existing_document:
-#                 document_info = "待输入"
-#                 additional_info = "待输入"
-#                 VisaDocuments.insert_data(visa_type, singapore_identity, document_info, additional_info)
-#
-#             else:
-#                 print(f"记录已存在，跳过插入：签证类型 - {visa_type}, 新加坡身份 - {singapore_identity}")
-#
-#     # 重定向到主页并输出签证类型和模板
-#     return redirect(url_for("index.index"))
-
-
-# @visa_documents.route('/visa/edit/<int:id>', methods=['GET'])
-# def edit_visa(id):
-#     document = VisaDocuments.query.get_or_404(id)
-#     return render_template('visas/visa_document_edit.html', document=document)
-
-
-# @visa_documents.route('/visa/update/<int:id>', methods=['GET', 'POST'])
-# def update_visa(id):
-#     document = VisaDocuments.query.get_or_404(id)
-#
-#     if request.method == 'POST':
-#         try:
-#             # 获取表单数据
-#             visa_type = request.form.get('visa_type')
-#             singapore_identity = request.form.get('singapore_identity')
-#             document_info = request.form.get('document_info', '')
-#             additional_info = request.form.get('additional_info', '')
-#
-#             # 数据验证
-#             if not all([visa_type, singapore_identity]):
-#                 flash("签证类型和新加坡身份为必填字段", "error")
-#                 return redirect(url_for('visa_routes.edit_visa', id=id))
-#
-#             # 检查是否已存在相同签证类型和身份的记录（排除当前记录）
-#             existing = VisaDocuments.query.filter(
-#                 VisaDocuments.visa_type == visa_type,
-#                 VisaDocuments.singapore_identity == singapore_identity,
-#                 VisaDocuments.id != id
-#             ).first()
-#
-#             if existing:
-#                 flash(f"已存在相同签证类型和身份的记录", "error")
-#                 return redirect(url_for('visa_routes.edit_visa', id=id))
-#
-#             # 更新记录
-#             document.visa_type = visa_type
-#             document.singapore_identity = singapore_identity
-#             document.document_info = document_info
-#             document.additional_info = additional_info
-#
-#             db.session.commit()
-#             flash("签证记录已更新", "success")
-#             return redirect(url_for('visa_routes.manage_visas', visa_type=visa_type))
-#
-#         except Exception as e:
-#             db.session.rollback()
-#             logging.error(f"更新签证文档时发生错误: {str(e)}")
-#             flash(f"更新失败: {str(e)}", "error")
-#             return redirect(url_for('visa_routes.edit_visa', id=id))
-#
-#     return render_template('visas/visa_document_edit.html', document=document)
-#
-#
-# @visa_documents.route('/add_document', methods=['GET', 'POST'])
-# def add_document():
-#     if request.method == 'GET':
-#         visa_type = request.args.get('visa_type', '')
-#         return render_template('visas/add_document.html', visa_type=visa_type)
-#
-#     if request.method == 'POST':
-#         try:
-#             # 获取表单数据
-#             visa_type = request.form.get('visa_type')
-#             singapore_identity = request.form.get('singapore_identity')
-#             document_info = request.form.get('document_info', '')
-#             additional_info = request.form.get('additional_info', '')
-#
-#             # 数据验证
-#             if not all([visa_type, singapore_identity]):
-#                 flash("签证类型和新加坡身份为必填字段", "error")
-#                 return redirect(url_for('visa_routes.add_document', visa_type=visa_type))
-#
-#             # 检查是否已存在相同签证类型和身份的记录
-#             existing = VisaDocuments.query.filter_by(
-#                 visa_type=visa_type,
-#                 singapore_identity=singapore_identity
-#             ).first()
-#
-#             if existing:
-#                 flash(f"已存在相同签证类型和身份的记录", "error")
-#                 return redirect(url_for('visa_routes.add_document', visa_type=visa_type))
-#
-#             # 创建新记录
-#             new_document = VisaDocuments(
-#                 visa_type=visa_type,
-#                 singapore_identity=singapore_identity,
-#                 document_info=document_info,
-#                 additional_info=additional_info
-#             )
-#
-#             db.session.add(new_document)
-#             db.session.commit()
-#             flash("签证文档已添加", "success")
-#             return redirect(url_for('visa_routes.manage_visas', visa_type=visa_type))
-#
-#         except Exception as e:
-#             db.session.rollback()
-#             logging.error(f"添加签证文档时发生错误: {str(e)}")
-#             flash(f"添加失败: {str(e)}", "error")
-#             return redirect(url_for('visa_routes.add_document', visa_type=visa_type))
-#
-#     return render_template('visas/add_document.html')
 
 
 @visa_documents.route('/fix_share_documents/<visa_type>', methods=['POST'])

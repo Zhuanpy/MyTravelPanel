@@ -251,6 +251,7 @@
         {% endwith %}
         
         <form action="{{ url_for('flights_athina.itinerary_conversion') }}" method="post" id="conversionForm">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="flight-app-itinerary-container">
                 <div class="flight-app-itinerary-column">
                     <label for="input_text" class="flight-app-label">

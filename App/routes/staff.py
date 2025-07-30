@@ -23,16 +23,58 @@ staff = Blueprint('staff', __name__, url_prefix='/staff')
 def dashboard():
     """员工仪表板"""
     try:
+        from App.models.projects.BookingProject import ProjectHeader, ProjectRef, CustomerCompany
+        from datetime import datetime, timedelta
+        
         # 获取员工统计信息
+        total_projects = ProjectHeader.query.count()
+        active_projects = ProjectHeader.query.filter_by(status='active').count()
+        completed_this_month = ProjectHeader.query.filter(
+            ProjectHeader.status == 'completed',
+            ProjectHeader.updated_at >= datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        ).count()
+        
         stats = {
-            'total_projects': 0,  # 总项目数
-            'active_projects': 0,  # 活跃项目
+            'total_projects': total_projects,
+            'active_projects': active_projects,
             'pending_quotes': 0,  # 待处理报价
-            'completed_this_month': 0,  # 本月完成项目
+            'completed_this_month': completed_this_month,
         }
         
-        # 获取最近的项目
+        # 获取最近的项目（最近10个）
+        recent_projects_query = ProjectHeader.query.order_by(ProjectHeader.created_at.desc()).limit(10)
         recent_projects = []
+        
+        for project in recent_projects_query:
+            # 计算项目财务数据
+            refs = ProjectRef.query.filter_by(header_id=project.id).all()
+            total_selling_price = sum([float(ref.selling_price or 0) for ref in refs])
+            total_cost_price = sum([float(ref.cost_price or 0) for ref in refs])
+            total_profit = total_selling_price - total_cost_price
+            
+            # 获取客户公司名称
+            client_name = '未指定客户'
+            if project.company_id and project.company:
+                client_name = project.company.company_name
+            
+            # 简化项目数据
+            project_data = {
+                'id': project.id,
+                'hid': project.hid,
+                'name': project.desc or f'项目 {project.hid}',
+                'client': client_name,
+                'leader': project.leader_name or '未指定负责人',
+                'contact': project.contact or '未指定联系人',
+                'status': project.status,
+                'type': project.type or '综合',
+                'created_at': project.created_at.strftime('%Y-%m-%d %H:%M') if project.created_at else '',
+                'updated_at': project.updated_at.strftime('%Y-%m-%d %H:%M') if project.updated_at else '',
+                'total_selling': total_selling_price,
+                'total_cost': total_cost_price,
+                'total_profit': total_profit,
+                'ref_count': len(refs)
+            }
+            recent_projects.append(project_data)
         
         # 获取待处理任务
         pending_tasks = []
@@ -292,23 +334,8 @@ def upload_file():
 @login_required
 @staff_only
 def tasks():
-    """任务管理"""
-    try:
-        # 获取任务状态筛选
-        status = request.args.get('status', '')
-        priority = request.args.get('priority', '')
-        
-        # 暂时返回空的任务列表
-        tasks = []
-        
-        return render_template('staff/tasks.html',
-                             tasks=tasks,
-                             current_status=status,
-                             current_priority=priority)
-    except Exception as e:
-        flash(f'加载任务列表失败：{str(e)}', 'error')
-        return render_template('staff/tasks.html',
-                             tasks=[], current_status='', current_priority='')
+    """任务管理 - 重定向到完整的待办事项系统"""
+    return redirect(url_for('utils_blue.render_todo_list'))
 
 # 工具函数
 def allowed_file(filename, allowed_extensions):
@@ -323,13 +350,24 @@ def allowed_file(filename, allowed_extensions):
 def api_stats():
     """获取员工统计数据"""
     try:
+        from App.models.projects.BookingProject import ProjectHeader
+        from datetime import datetime
+        
+        # 获取真实统计数据
+        total_projects = ProjectHeader.query.count()
+        active_projects = ProjectHeader.query.filter_by(status='active').count()
+        completed_this_month = ProjectHeader.query.filter(
+            ProjectHeader.status == 'completed',
+            ProjectHeader.updated_at >= datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        ).count()
+        
         stats = {
-            'total_projects': 0,
-            'active_projects': 0,
-            'pending_quotes': 0,
-            'completed_this_month': 0,
-            'files_uploaded': 0,
-            'tasks_pending': 0
+            'total_projects': total_projects,
+            'active_projects': active_projects,
+            'pending_quotes': 0,  # 待处理报价
+            'completed_this_month': completed_this_month,
+            'files_uploaded': 0,  # 文件上传统计
+            'tasks_pending': 0    # 待处理任务统计
         }
         
         return jsonify({
@@ -348,16 +386,42 @@ def api_stats():
 def api_recent_projects():
     """获取最近项目"""
     try:
-        projects = [
-            {
-                'id': 1,
-                'name': '示例项目',
-                'client': '示例客户',
-                'status': 'active',
-                'created_at': datetime.now().strftime('%Y-%m-%d %H:%M'),
-                'type': 'visa'
+        from App.models.projects.BookingProject import ProjectHeader, ProjectRef, CustomerCompany
+        
+        # 获取最近的项目（最近10个）
+        recent_projects_query = ProjectHeader.query.order_by(ProjectHeader.created_at.desc()).limit(10)
+        projects = []
+        
+        for project in recent_projects_query:
+            # 计算项目财务数据
+            refs = ProjectRef.query.filter_by(header_id=project.id).all()
+            total_selling_price = sum([float(ref.selling_price or 0) for ref in refs])
+            total_cost_price = sum([float(ref.cost_price or 0) for ref in refs])
+            total_profit = total_selling_price - total_cost_price
+            
+            # 获取客户公司名称
+            client_name = '未指定客户'
+            if project.company_id and project.company:
+                client_name = project.company.company_name
+            
+            # 简化项目数据
+            project_data = {
+                'id': project.id,
+                'hid': project.hid,
+                'name': project.desc or f'项目 {project.hid}',
+                'client': client_name,
+                'leader': project.leader_name or '未指定负责人',
+                'contact': project.contact or '未指定联系人',
+                'status': project.status,
+                'type': project.type or '综合',
+                'created_at': project.created_at.strftime('%Y-%m-%d %H:%M') if project.created_at else '',
+                'updated_at': project.updated_at.strftime('%Y-%m-%d %H:%M') if project.updated_at else '',
+                'total_selling': total_selling_price,
+                'total_cost': total_cost_price,
+                'total_profit': total_profit,
+                'ref_count': len(refs)
             }
-        ]
+            projects.append(project_data)
         
         return jsonify({
             'success': True,

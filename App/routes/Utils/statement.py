@@ -1,4 +1,5 @@
 from flask import Blueprint, render_template, jsonify, request, url_for, redirect, flash
+from flask_login import login_required
 from App.code.Statement import OriginalStatement
 from App.code.Invoice import CountHid
 from flask import current_app as app
@@ -9,6 +10,7 @@ import subprocess
 import pandas as pd
 import tempfile
 from App.exts import csrf
+from App.utils.decorators import staff_only
 from App.utils.report_utils import (
     get_report_headers_string,
     read_excel_file,
@@ -23,6 +25,8 @@ statement_blue = Blueprint('statement_routes', __name__)
 
 
 @statement_blue.route('/uob_bank')
+@login_required
+@staff_only
 def uob_bank():
     # 只渲染UOB银行账单页面，不执行任何操作
     return render_template('statement/UobBank.html')
@@ -101,6 +105,8 @@ def statement_to_company():
 
 # OCBC银行相关路由
 @statement_blue.route('/ocbc_bank')
+@login_required
+@staff_only
 def ocbc_bank():
     return render_template('statement/OcbcBank.html')
 
@@ -168,6 +174,8 @@ def ocbc_to_company():
 
 # 招商银行相关路由
 @statement_blue.route('/cmb_bank')
+@login_required
+@staff_only
 def cmb_bank():
     return render_template('statement/CmbBank.html')
 
@@ -234,6 +242,8 @@ def cmb_to_company():
 
 
 @statement_blue.route('/athina_page')
+@login_required
+@staff_only
 def athina_page():
     return render_template('statement/athina.html')
 
@@ -270,6 +280,8 @@ def open_athina_statement_folder():
     return redirect(url_for("statement_routes.athina_page"))
 
 @statement_blue.route('/statement/company_bill', methods=['GET', 'POST'])
+@login_required
+@staff_only
 @csrf.exempt
 def company_bill():
     if request.method == 'POST':

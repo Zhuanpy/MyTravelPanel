@@ -1,6 +1,8 @@
 from flask import Blueprint, request, jsonify, render_template, current_app
+from flask_login import login_required
 from App.models.Utilsmodels import Task, Todo
 from App import db
+from App.utils.decorators import staff_only
 from datetime import datetime
 import traceback
 
@@ -107,11 +109,15 @@ def visa_link():
 
 # 待办事项列表页面
 @utils_blue.route('/todo_list')
+@login_required
+@staff_only
 def render_todo_list():
     return render_template('utils/todo_list.html')
 
 # 待办事项列表API
 @utils_blue.route('/todos/list')
+@login_required
+@staff_only
 def list_todos():
     try:
         current_app.logger.info("开始获取待办事项列表")
@@ -157,6 +163,8 @@ def list_todos():
 
 # 创建待办事项
 @utils_blue.route('/todos/create', methods=['POST'])
+@login_required
+@staff_only
 def create_todo():
     try:
         data = request.get_json()
@@ -185,6 +193,8 @@ def create_todo():
 
 # 更新待办事项
 @utils_blue.route('/todos/update', methods=['POST'])
+@login_required
+@staff_only
 def update_todo():
     try:
         data = request.get_json()
@@ -233,6 +243,8 @@ def update_todo():
 
 # 删除待办事项
 @utils_blue.route('/todos/delete', methods=['POST'])
+@login_required
+@staff_only
 def delete_todo():
     try:
         data = request.get_json()
@@ -259,6 +271,8 @@ def delete_todo():
 
 # 获取单个待办事项
 @utils_blue.route('/todos/get/<int:todo_id>')
+@login_required
+@staff_only
 def get_todo(todo_id):
     try:
         todo = Todo.query.get(todo_id)
