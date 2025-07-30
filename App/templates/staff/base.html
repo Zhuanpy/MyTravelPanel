@@ -146,7 +146,7 @@
                             <li><hr class="dropdown-divider"></li>
                             <li><h6 class="dropdown-header">签证项目</h6></li>
                             <li><a class="dropdown-item" href="{{ url_for('visa_project.show_current_all_projects') }}">
-                                <i class="fas fa-passport me-2"></i>签证项目列表
+                                <i class="fas fa-passport me-2"></i>项目列表
                             </a></li>
                             <li><a class="dropdown-item" href="{{ url_for('visa_home.home') }}">
                                 <i class="fas fa-home me-2"></i>签证首页
@@ -172,6 +172,20 @@
                             <li><a class="dropdown-item" href="{{ url_for('visa_project.show_current_all_projects') }}">
                                 <i class="fas fa-list me-2"></i>签证项目列表
                             </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><h6 class="dropdown-header">签证管理</h6></li>
+                            <li><a class="dropdown-item" href="{{ url_for('visa_documents.manage_visas') }}">
+                                <i class="fas fa-file-alt me-2"></i>资料管理
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('visa_links.visa_link_page') }}">
+                                <i class="fas fa-link me-2"></i>链接管理
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('visa_basic.manage_countries') }}">
+                                <i class="fas fa-globe me-2"></i>国家管理
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('visa_basic.manage_identities') }}">
+                                <i class="fas fa-id-card me-2"></i>身份管理
+                            </a></li>
                         </ul>
                     </li>
                     <li class="nav-item dropdown">
@@ -185,8 +199,8 @@
                             <li><a class="dropdown-item" href="{{ url_for('utils_process.file_processing') }}">
                                 <i class="fas fa-file-pdf me-2"></i>PDF处理
                             </a></li>
-                            <li><a class="dropdown-item" href="/utils/todo_list">
-                                <i class="fas fa-list-check me-2"></i>任务列表
+                            <li><a class="dropdown-item" href="{{ url_for('utils_blue.render_todo_list') }}">
+                                <i class="fas fa-list-check me-2"></i>任务中心
                             </a></li>
                             <li><a class="dropdown-item" href="{{ url_for('utils_blue.render_pomodoro') }}">
                                 <i class="fas fa-clock me-2"></i>番茄工作法
@@ -200,6 +214,18 @@
                         <ul class="dropdown-menu">
                             <li><a class="dropdown-item" href="{{ url_for('statement_routes.uob_bank') }}">
                                 <i class="fas fa-university me-2"></i>UOB银行
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('statement_routes.ocbc_bank') }}">
+                                <i class="fas fa-university me-2"></i>OCBC银行
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('statement_routes.cmb_bank') }}">
+                                <i class="fas fa-university me-2"></i>招商银行
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('statement_routes.athina_page') }}">
+                                <i class="fas fa-file-invoice me-2"></i>Athina账单
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('statement_routes.company_bill') }}">
+                                <i class="fas fa-file-invoice-dollar me-2"></i>公司账单
                             </a></li>
                         </ul>
                     </li>

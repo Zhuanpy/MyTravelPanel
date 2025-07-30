@@ -1,4 +1,5 @@
 from flask import Blueprint, render_template, jsonify, request, url_for, redirect, flash
+from flask_login import login_required
 from App.code.Statement import OriginalStatement
 from App.code.Invoice import CountHid
 from flask import current_app as app
@@ -8,7 +9,9 @@ from pathlib import Path
 import subprocess
 import pandas as pd
 import tempfile
+from datetime import datetime
 from App.exts import csrf
+from App.utils.decorators import staff_only
 from App.utils.report_utils import (
     get_report_headers_string,
     read_excel_file,
@@ -23,6 +26,8 @@ statement_blue = Blueprint('statement_routes', __name__)
 
 
 @statement_blue.route('/uob_bank')
+@login_required
+@staff_only
 def uob_bank():
     # 只渲染UOB银行账单页面，不执行任何操作
     return render_template('statement/UobBank.html')
@@ -101,6 +106,8 @@ def statement_to_company():
 
 # OCBC银行相关路由
 @statement_blue.route('/ocbc_bank')
+@login_required
+@staff_only
 def ocbc_bank():
     return render_template('statement/OcbcBank.html')
 
@@ -168,6 +175,8 @@ def ocbc_to_company():
 
 # 招商银行相关路由
 @statement_blue.route('/cmb_bank')
+@login_required
+@staff_only
 def cmb_bank():
     return render_template('statement/CmbBank.html')
 
@@ -234,6 +243,8 @@ def cmb_to_company():
 
 
 @statement_blue.route('/athina_page')
+@login_required
+@staff_only
 def athina_page():
     return render_template('statement/athina.html')
 
@@ -270,13 +281,179 @@ def open_athina_statement_folder():
     return redirect(url_for("statement_routes.athina_page"))
 
 @statement_blue.route('/statement/company_bill', methods=['GET', 'POST'])
+@login_required
+@staff_only
 @csrf.exempt
 def company_bill():
+    """公司账单主页面"""
     if request.method == 'POST':
-        folder_path = Config.BILLING_DATA_PATH
+        folder_path = Config.BILLING_DATA_PATH / "Company"
         os.startfile(str(folder_path))
         flash('成功打开公司账单文件夹')
-    return redirect(url_for("index.index"))
+        return redirect(url_for("statement_routes.company_bill"))
+    
+    # GET请求，显示公司账单页面
+    companies = get_company_list()
+    return render_template('statement/CompanyBill.html', companies=companies)
+
+
+def get_company_list():
+    """获取公司列表"""
+    companies = []
+    company_folder = Config.BILLING_DATA_PATH / "Company"
+    
+    if company_folder.exists():
+        for company_dir in company_folder.iterdir():
+            if company_dir.is_dir():
+                # 统计文件数量
+                file_count = len([f for f in company_dir.iterdir() if f.is_file()])
+                
+                # 获取最后修改时间
+                try:
+                    last_modified = max([f.stat().st_mtime for f in company_dir.iterdir() if f.is_file()])
+                    last_updated = datetime.fromtimestamp(last_modified).strftime('%Y-%m-%d %H:%M')
+                except:
+                    last_updated = "未知"
+                
+                # 判断处理状态（这里可以根据实际需求调整逻辑）
+                status = "pending"  # 默认状态
+                status_text = "待处理"
+                
+                companies.append({
+                    'name': company_dir.name,
+                    'file_count': file_count,
+                    'last_updated': last_updated,
+                    'status': status,
+                    'status_text': status_text
+                })
+    
+    return companies
+
+
+@statement_blue.route('/company_bill_processing', methods=['POST'])
+@login_required
+@staff_only
+@csrf.exempt
+def company_bill_processing():
+    """批量处理公司账单"""
+    try:
+        company_folder = Config.BILLING_DATA_PATH / "Company"
+        processed_count = 0
+        
+        if company_folder.exists():
+            for company_dir in company_folder.iterdir():
+                if company_dir.is_dir():
+                    # 处理每个公司的账单文件
+                    for file_path in company_dir.iterdir():
+                        if file_path.is_file() and file_path.suffix.lower() in ['.xls', '.xlsx', '.csv']:
+                            # 这里可以添加具体的账单处理逻辑
+                            processed_count += 1
+        
+        flash(f'批量处理完成，共处理 {processed_count} 个文件')
+    except Exception as e:
+        flash(f'批量处理失败：{str(e)}', 'error')
+    
+    return redirect(url_for("statement_routes.company_bill"))
+
+
+@statement_blue.route('/company_bill_consolidate', methods=['POST'])
+@login_required
+@staff_only
+@csrf.exempt
+def company_bill_consolidate():
+    """汇总公司账单"""
+    try:
+        company_folder = Config.BILLING_DATA_PATH / "Company"
+        consolidated_count = 0
+        
+        if company_folder.exists():
+            for company_dir in company_folder.iterdir():
+                if company_dir.is_dir():
+                    # 汇总每个公司的账单
+                    company_files = [f for f in company_dir.iterdir() if f.is_file() and f.suffix.lower() in ['.xls', '.xlsx', '.csv']]
+                    if company_files:
+                        # 这里可以添加汇总逻辑
+                        consolidated_count += 1
+        
+        flash(f'汇总完成，共汇总 {consolidated_count} 个公司')
+    except Exception as e:
+        flash(f'汇总失败：{str(e)}', 'error')
+    
+    return redirect(url_for("statement_routes.company_bill"))
+
+
+@statement_blue.route('/company_bill_export', methods=['POST'])
+@login_required
+@staff_only
+@csrf.exempt
+def company_bill_export():
+    """导出公司账单报表"""
+    try:
+        # 这里可以添加导出报表的逻辑
+        flash('报表导出功能开发中...')
+    except Exception as e:
+        flash(f'导出失败：{str(e)}', 'error')
+    
+    return redirect(url_for("statement_routes.company_bill"))
+
+
+@statement_blue.route('/open_company_bill_folder', methods=['POST'])
+@login_required
+@staff_only
+@csrf.exempt
+def open_company_bill_folder():
+    """打开公司账单文件夹"""
+    try:
+        folder_path = Config.BILLING_DATA_PATH / "Company"
+        os.startfile(str(folder_path))
+        flash('成功打开公司账单文件夹')
+    except Exception as e:
+        flash(f'打开文件夹失败：{str(e)}', 'error')
+    
+    return redirect(url_for("statement_routes.company_bill"))
+
+
+@statement_blue.route('/refresh_company_list', methods=['POST'])
+@login_required
+@staff_only
+@csrf.exempt
+def refresh_company_list():
+    """刷新公司列表"""
+    try:
+        # 这里可以添加刷新逻辑，比如重新扫描文件夹
+        flash('公司列表刷新完成')
+    except Exception as e:
+        flash(f'刷新失败：{str(e)}', 'error')
+    
+    return redirect(url_for("statement_routes.company_bill"))
+
+
+@statement_blue.route('/open_company_folder', methods=['POST'])
+@login_required
+@staff_only
+@csrf.exempt
+def open_company_folder():
+    """打开特定公司的文件夹"""
+    try:
+        company_name = request.form.get('company_name')
+        if not company_name:
+            flash('公司名称不能为空', 'error')
+            return redirect(url_for("statement_routes.company_bill"))
+        
+        company_folder = Config.BILLING_DATA_PATH / "Company" / company_name
+        
+        if not company_folder.exists():
+            flash(f'公司文件夹不存在：{company_name}', 'error')
+            return redirect(url_for("statement_routes.company_bill"))
+        
+        # 打开文件夹
+        os.startfile(str(company_folder))
+        flash(f'成功打开 {company_name} 的文件夹')
+        
+    except Exception as e:
+        flash(f'打开文件夹失败：{str(e)}', 'error')
+    
+    return redirect(url_for("statement_routes.company_bill"))
 
 
 @statement_blue.route('/compare_reports', methods=['POST'])

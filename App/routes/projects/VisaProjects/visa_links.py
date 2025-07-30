@@ -1,6 +1,8 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
+from flask_login import login_required
 from App.exts import db, csrf
 from App.models import VisaLinks, VisaTypes, VisaCountries
+from App.utils.decorators import staff_only
 
 """
 签证链接管理 (visa_links.py):
@@ -12,6 +14,8 @@ from App.models import VisaLinks, VisaTypes, VisaCountries
 visa_links = Blueprint('visa_links', __name__)
 
 @visa_links.route('/')
+@login_required
+@staff_only
 def visa_link_page():
     """签证链接管理页面"""
     try:
@@ -58,6 +62,8 @@ def visa_link_page():
         return redirect(url_for('visa_home.home'))
 
 @visa_links.route('/add_visa_link', methods=['GET', 'POST'])
+@login_required
+@staff_only
 @csrf.exempt
 def add_visa_link():
     """添加签证链接"""
@@ -194,6 +200,8 @@ def add_visa_link():
     return redirect(url_for('visa_links.visa_link_page'))
 
 @visa_links.route('/edit_visa_link/<int:link_id>', methods=['GET', 'POST'])
+@login_required
+@staff_only
 @csrf.exempt
 def edit_visa_link(link_id):
     """编辑签证链接"""
@@ -272,6 +280,8 @@ def edit_visa_link(link_id):
         return redirect(url_for('visa_home.home'))
 
 @visa_links.route('/delete_visa_link/<int:link_id>')
+@login_required
+@staff_only
 def delete_visa_link(link_id):
     """删除签证链接"""
     try:

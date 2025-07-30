@@ -3,11 +3,14 @@ from flask_login import login_required, current_user
 from App.models.Flightmodels import FlightOrder, Passenger, FlightSegment, FlightSchedule, AirportData
 from App.models.Product.Suppliers import Supplier
 from App.models.Product.Visamodels import VisaCountries
+from App.models.projects.BookingProject import ProjectHeader, ProjectRef, ProjectFlightSegment, ProjectFlightPassenger
+from App.models.Product.BusinessType import BusinessType
 from App.utils.decorators import staff_only
 from datetime import datetime, timedelta
 from App.exts import db
 import random
 import string
+import json
 
 flights_booking = Blueprint('flights_booking', __name__, url_prefix='/flights_booking')
 
@@ -57,13 +60,156 @@ def submit_order():
         first_departure_airport = request.form.getlist('departure_airport[]')[0]
         last_arrival_airport = request.form.getlist('arrival_airport[]')[-1]
         
-        # 2. 创建订单主表记录
+        # 2. 自动生成HID和REF
+        print("开始生成HID和REF...")
+        
+        # 创建项目主表（HID）
+        hid = ProjectHeader.generate_hid()
+        project_header = ProjectHeader(
+            hid=hid,
+            desc=f"机票订单 - {request.form['contact_name']} - {first_departure_airport}>{last_arrival_airport}",
+            contact=request.form['contact_name'],
+            staff_id=current_user.id if current_user else None,
+            staff_name=current_user.profile.first_name if current_user and current_user.profile else '系统',
+            currency='SGD',  # 默认货币
+            type='flight',
+            status='active',
+            remarks=request.form.get('remarks', '')
+        )
+        db.session.add(project_header)
+        db.session.flush()  # 获取project_header.id
+        print(f"创建项目主表: {hid}")
+        
+        # 获取机票业务类型
+        flight_business_type = BusinessType.query.filter_by(name='机票').first()
+        if not flight_business_type:
+            # 如果不存在，创建一个默认的机票业务类型
+            flight_business_type = BusinessType(
+                name='机票',
+                description='机票订单业务',
+                is_active=True
+            )
+            db.session.add(flight_business_type)
+            db.session.flush()
+        
+        # 创建项目明细表（REF）
+        ref_number = ProjectRef.generate_ref_number()
+        
+        # 计算总价
+        selling_prices = request.form.getlist('selling_price[]')
+        cost_prices = request.form.getlist('cost_price[]')
+        total_selling_price = sum(float(price) for price in selling_prices if price)
+        total_cost_price = sum(float(price) for price in cost_prices if price)
+        
+        project_ref = ProjectRef(
+            header_id=project_header.id,
+            ref_number=ref_number,
+            name=f"机票订单 - {request.form['contact_name']}",
+            ref_type_id=flight_business_type.id,
+            description=f"{first_departure_airport} > {last_arrival_airport} 机票订单",
+            contact_name=request.form['contact_name'],
+            contact_phone=request.form.get('contact_phone', ''),
+            contact_email=request.form.get('contact_email', ''),
+            leader_name=request.form['contact_name'],
+            selling_price=total_selling_price,
+            cost_price=total_cost_price,
+            currency='SGD',
+            expected_delivery_date=first_departure_time.date(),
+            remarks=request.form.get('remarks', ''),
+            status='processing',
+            payment_status='unpaid'
+        )
+        db.session.add(project_ref)
+        db.session.flush()  # 获取project_ref.id
+        print(f"创建项目明细: {ref_number}")
+        
+        # 2.1 创建REF的航段信息
+        flight_numbers = request.form.getlist('flight_number[]')
+        cabin_codes = request.form.getlist('cabin_code[]')
+        departure_airports = request.form.getlist('departure_airport[]')
+        arrival_airports = request.form.getlist('arrival_airport[]')
+        departure_dates = request.form.getlist('departure_date[]')
+        departure_times = request.form.getlist('departure_time[]')
+        arrival_dates = request.form.getlist('arrival_date[]')
+        arrival_times = request.form.getlist('arrival_time[]')
+        
+        print(f"航段数据: {len(flight_numbers)} 个航段")
+        
+        for i in range(len(flight_numbers)):
+            if flight_numbers[i]:  # 只处理非空的航班号
+                try:
+                    # 处理出发时间
+                    if i < len(departure_dates) and departure_dates[i]:
+                        dep_date = departure_dates[i]
+                        dep_time = departure_times[i] if i < len(departure_times) and departure_times[i] else '00:00'
+                        dep_datetime = datetime.strptime(f"{dep_date} {dep_time}", '%Y-%m-%d %H:%M')
+                    else:
+                        dep_datetime = first_departure_time
+                    
+                    # 处理到达时间
+                    if i < len(arrival_dates) and arrival_dates[i]:
+                        arr_date = arrival_dates[i]
+                        arr_time = arrival_times[i] if i < len(arrival_times) and arrival_times[i] else '00:00'
+                        arr_datetime = datetime.strptime(f"{arr_date} {arr_time}", '%Y-%m-%d %H:%M')
+                    else:
+                        arr_datetime = dep_datetime + timedelta(hours=2)  # 默认2小时后到达
+                    
+                    segment = ProjectFlightSegment(
+                        ref_id=project_ref.id,
+                        flight_number=flight_numbers[i],
+                        departure_airport=departure_airports[i] if i < len(departure_airports) else '',
+                        arrival_airport=arrival_airports[i] if i < len(arrival_airports) else '',
+                        departure_time=dep_datetime,
+                        arrival_time=arr_datetime,
+                        cabin_class=cabin_codes[i] if i < len(cabin_codes) else 'Y',
+                        cabin_code=cabin_codes[i] if i < len(cabin_codes) else 'Y',
+                        status='pending'
+                    )
+                    db.session.add(segment)
+                    print(f"创建航段: {flight_numbers[i]} {departure_airports[i] if i < len(departure_airports) else ''}-{arrival_airports[i] if i < len(arrival_airports) else ''}")
+                    
+                except (ValueError, IndexError) as e:
+                    print(f"航段 {i} 处理错误: {e}")
+                    continue
+        
+        # 2.2 创建REF的乘客信息
+        passenger_names = request.form.getlist('passenger_name[]')
+        passenger_types = request.form.getlist('passenger_type[]')
+        selling_prices = request.form.getlist('selling_price[]')
+        cost_prices = request.form.getlist('cost_price[]')
+        ticket_numbers = request.form.getlist('ticket_number[]')
+        pnrs = request.form.getlist('pnr[]')
+        
+        print(f"乘客数据: {len(passenger_names)} 个乘客")
+        
+        for i in range(len(passenger_names)):
+            if passenger_names[i]:  # 只处理非空的乘客姓名
+                try:
+                    passenger = ProjectFlightPassenger(
+                        ref_id=project_ref.id,
+                        name=passenger_names[i],
+                        passenger_type=passenger_types[i] if i < len(passenger_types) and passenger_types[i] else 'adult',
+                        selling_price=float(selling_prices[i]) if i < len(selling_prices) and selling_prices[i] else None,
+                        cost_price=float(cost_prices[i]) if i < len(cost_prices) and cost_prices[i] else None,
+                        ticket_number=ticket_numbers[i] if i < len(ticket_numbers) and ticket_numbers[i] else '',
+                        pnr=pnrs[i] if i < len(pnrs) and pnrs[i] else ''
+                    )
+                    db.session.add(passenger)
+                    print(f"创建乘客: {passenger_names[i]} - 售价: {selling_prices[i] if i < len(selling_prices) else 'N/A'}")
+                    
+                except (ValueError, IndexError) as e:
+                    print(f"乘客 {i} 处理错误: {e}")
+                    continue
+        
+        # 3. 创建订单主表记录
         passenger_names = request.form.getlist('passenger_name[]')
         if not passenger_names:
             raise ValueError("未提供乘客姓名")
             
         order = FlightOrder(
             order_number=generate_order_number(),
+            project_header_id=project_header.id,  # 关联HID
+            project_ref_id=project_ref.id,        # 关联REF
             contact_name=request.form['contact_name'],
             contact_person=request.form['contact_name'],  # 使用联系人姓名作为联系人
             contact_phone=request.form.get('contact_phone', ''),  # 修改为get方法，允许为空
@@ -74,19 +220,19 @@ def submit_order():
             arrival_city=last_arrival_airport,
             flight_number=first_flight_number,
             departure_time=first_departure_time,
+            selling_price=total_selling_price,
+            cost_price=total_cost_price,
             status='pending',
             order_status='pending',
             payment_status='unpaid',
             remarks=request.form.get('remarks', '')
         )
         
-        print(f"订单基本信息: {order.order_number}")  # 调试日志
+        print(f"订单基本信息: {order.order_number}, HID: {hid}, REF: {ref_number}")  # 调试日志
         db.session.add(order)
         db.session.flush()  # 获取order.id
 
-        # 3. 处理乘客信息
-        total_selling_price = 0
-        total_cost_price = 0
+        # 4. 处理乘客信息
         
         # 获取基本乘客信息
         passenger_names = request.form.getlist('passenger_name[]')
@@ -185,7 +331,7 @@ def submit_order():
         db.session.commit()
         print("事务提交成功!")  # 调试日志
 
-        flash('订单创建成功！', 'success')
+        flash(f'订单创建成功！HID: {hid}, REF: {ref_number}', 'success')
         return redirect(url_for('flights_booking.order_detail', order_id=order.id))
 
     except Exception as e:

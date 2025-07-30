@@ -1,8 +1,10 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
+from flask_login import login_required
 from pathlib import Path
 from App.exts import db, csrf
 from App.models import VisaCountries, VisaTypes, VisaSingaporeIdentity, VisaDocuments
 from App.models.Product.Visamodels import VisaDocumentsList
+from App.utils.decorators import staff_only
 from flask_wtf import FlaskForm
 from wtforms import StringField
 from wtforms.validators import DataRequired
@@ -34,6 +36,8 @@ def add_to_db(instance):
 
 """ visa singapore  identity start """
 @visa_basic.route('/manage_identities', methods=['GET', 'POST'])
+@login_required
+@staff_only
 @csrf.exempt
 def manage_identities():
     """管理新加坡身份信息"""
@@ -65,6 +69,8 @@ def manage_identities():
     return render_template('visas/签证身份管理/manage_identities.html', identities=identities)
 
 @visa_basic.route('/delete_identity/<int:identity_id>', methods=['POST'])
+@login_required
+@staff_only
 @csrf.exempt  # 禁用CSRF保护
 def delete_identity(identity_id):
     try:
@@ -77,6 +83,8 @@ def delete_identity(identity_id):
         return jsonify({'success': False, 'message': f'删除失败：{str(e)}'})
 
 @visa_basic.route('/edit_identity/<int:identity_id>', methods=['GET', 'POST'])
+@login_required
+@staff_only
 @csrf.exempt  # 禁用CSRF保护
 def edit_identity(identity_id):
     try:
@@ -159,6 +167,8 @@ def edit_identity(identity_id):
 """ visa  country start """
 
 @visa_basic.route('/manage_countries', methods=['GET', 'POST'])
+@login_required
+@staff_only
 @csrf.exempt
 def manage_countries():
     if request.method == 'POST':
@@ -198,6 +208,8 @@ def manage_countries():
     return render_template('visas/签证国家管理/manage_countries.html', countries=countries)
 
 @visa_basic.route('/add_country', methods=['POST'])
+@login_required
+@staff_only
 @csrf.exempt
 def add_country():
     data = request.get_json()
@@ -209,6 +221,8 @@ def add_country():
     return add_to_db(country)
 
 @visa_basic.route('/delete_country/<int:country_id>', methods=['POST'])
+@login_required
+@staff_only
 @csrf.exempt  # 禁用CSRF保护
 def delete_country(country_id):
     try:
@@ -221,6 +235,8 @@ def delete_country(country_id):
         return jsonify({'success': False, 'message': f'删除失败：{str(e)}'})
 
 @visa_basic.route('/edit_country/<int:country_id>', methods=['GET', 'POST'])
+@login_required
+@staff_only
 @csrf.exempt  # 禁用CSRF保护
 def edit_country(country_id):
     try:

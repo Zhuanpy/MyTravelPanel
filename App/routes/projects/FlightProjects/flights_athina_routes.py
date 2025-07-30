@@ -93,8 +93,11 @@ def itinerary_conversion():
             price = request.form.get('price', '')
             
             if not input_text.strip():
-                flash('请输入行程数据', 'error')
-                return render_template('flights/flight_conversion.html', output_text="")
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return jsonify({'error': '请输入行程数据'}), 400
+                else:
+                    flash('请输入行程数据', 'error')
+                    return render_template('flights/flight_conversion.html', output_text="")
             
             # 处理行程数据
             try:
@@ -106,22 +109,41 @@ def itinerary_conversion():
                 else:
                     output_text = format_flight_info(city_language, texts=input_text, luggage=luggage, price=price)
                 
-                return render_template('flights/flight_conversion.html', 
-                                     input_text=input_text,
-                                     output_text=output_text,
-                                     language=language,
-                                     luggage=luggage,
-                                     price=price)
+                # 检查是否是AJAX请求
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return jsonify({
+                        'success': True,
+                        'output_text': output_text,
+                        'input_text': input_text,
+                        'language': language,
+                        'luggage': luggage,
+                        'price': price
+                    })
+                else:
+                    return render_template('flights/flight_conversion.html', 
+                                         input_text=input_text,
+                                         output_text=output_text,
+                                         language=language,
+                                         luggage=luggage,
+                                         price=price)
                                      
             except Exception as format_error:
-                flash(f'行程数据格式错误：{str(format_error)}', 'error')
-                return render_template('flights/flight_conversion.html',
-                                     input_text=input_text,
-                                     output_text="")
+                error_msg = f'行程数据格式错误：{str(format_error)}'
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return jsonify({'error': error_msg}), 400
+                else:
+                    flash(error_msg, 'error')
+                    return render_template('flights/flight_conversion.html',
+                                         input_text=input_text,
+                                         output_text="")
                 
         except Exception as e:
-            flash(f'处理失败：{str(e)}', 'error')
-            return render_template('flights/flight_conversion.html', output_text="")
+            error_msg = f'处理失败：{str(e)}'
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({'error': error_msg}), 500
+            else:
+                flash(error_msg, 'error')
+                return render_template('flights/flight_conversion.html', output_text="")
     
     # GET请求返回行程转换页面
     return render_template('flights/flight_conversion.html', output_text="")

@@ -558,6 +558,7 @@
 
 <!-- CSRF Token -->
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+{% endblock %}
 
 {% block extra_js %}
 <script>
@@ -652,4 +653,36 @@ function updatePaymentSelectStyle(select) {
     select.classList.remove('status-unpaid', 'status-paid', 'status-refunded');
     
     // 添加对应状态的类
-    select.classList.add(`
+    select.classList.add(`status-${statusValue}`);
+}
+
+// 显示Toast消息
+function showToast(message, type = 'info') {
+    const toastContainer = document.querySelector('.toast-container');
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    toast.innerHTML = `
+        <div class="toast-header">
+            <strong class="me-auto">${type === 'success' ? '成功' : type === 'error' ? '错误' : '信息'}</strong>
+            <button type="button" class="btn-close" onclick="this.parentElement.parentElement.remove()"></button>
+        </div>
+        <div class="toast-body">${message}</div>
+    `;
+    toastContainer.appendChild(toast);
+    
+    // 3秒后自动移除
+    setTimeout(() => {
+        if (toast.parentElement) {
+            toast.remove();
+        }
+    }, 3000);
+}
+
+// 页面加载完成后初始化
+document.addEventListener('DOMContentLoaded', function() {
+    // 初始化所有支付状态选择框的样式
+    document.querySelectorAll('.payment-select').forEach(select => {
+        updatePaymentSelectStyle(select);
+    });
+});
+{% endblock %}
