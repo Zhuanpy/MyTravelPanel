@@ -11,397 +11,23 @@
 <link rel="stylesheet" href="https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
 <!-- 添加 Select2 样式 -->
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<!-- 添加公共机票订单样式 -->
+<link rel="stylesheet" href="{{ url_for('static', filename='css/flight_order_common.css') }}?v=5.1&t=20250731">
 
 <style>
-    .order-container {
-        max-width: 1400px;
-        margin: 0 auto;
-        padding: 20px;
-    }
-    
-    .order-header {
-        text-align: center;
-        margin-bottom: 1.5rem;
-    }
-    
-    .order-title {
-        font-size: 1.5rem;
-        font-weight: bold;
-        color: #2d3748;
-        margin-bottom: 0.75rem;
-    }
-    
-    .order-card {
-        background-color: white;
-        border-radius: 8px;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        padding: 15px;
-        margin-bottom: 15px;
-        border: 1px solid #e2e8f0;
-    }
-    
-    .order-section-title {
-        font-size: 1.1rem;
-        font-weight: 600;
-        color: #2d3748;
-        margin-bottom: 12px;
-        padding-bottom: 6px;
-        border-bottom: 1px solid #f0f0f0;
-    }
-    
-    .order-form-group {
-        margin-bottom: 10px;
-    }
-    
-    .order-label {
-        display: block;
-        margin-bottom: 3px;
-        font-weight: 500;
-        color: #4a5568;
-        font-size: 0.9rem;
-    }
-    
-    .order-input {
-        width: 100%;
-        padding: 4px 8px;
-        border: 1px solid #e2e8f0;
-        border-radius: 4px;
-        transition: border-color 0.2s;
-        height: 32px;
-        font-size: 0.9rem;
-    }
-    
-    .order-input:focus {
-        border-color: #48BB78;
-        outline: none;
-        box-shadow: 0 0 0 2px rgba(72, 187, 120, 0.1);
-    }
-    
-    .order-select {
-        width: 100%;
-        padding: 4px 8px;
-        border: 1px solid #e2e8f0;
-        border-radius: 4px;
-        background-color: white;
-        height: 32px;
-        font-size: 0.9rem;
-    }
-    
-    .order-btn {
-        display: inline-flex;
-        align-items: center;
-        padding: 6px 12px;
-        border-radius: 4px;
-        font-weight: 500;
-        cursor: pointer;
-        transition: all 0.2s;
-        border: none;
-        gap: 4px;
-        font-size: 0.9rem;
-    }
-    
-    .order-btn:hover {
-        transform: translateY(-1px);
-    }
-    
-    .order-btn-primary {
-        background-color: #48BB78;
-        color: white;
-    }
-    
-    .order-btn-primary:hover {
-        background-color: #38A169;
-    }
-    
-    .order-btn-secondary {
-        background-color: #718096;
-        color: white;
-    }
-    
-    .order-btn-secondary:hover {
-        background-color: #4A5568;
-    }
-    
-    .order-btn-danger {
-        background-color: #E53E3E;
-        color: white;
-    }
-    
-    .order-btn-danger:hover {
-        background-color: #C53030;
-    }
-    
-    .passenger-card {
-        background-color: #f8f9fa;
-        border-radius: 6px;
-        padding: 15px 20px;
-        margin-bottom: 15px;
-        position: relative;
-    }
-    
-    .passenger-form {
-        display: flex;
-        flex-wrap: nowrap;
-        align-items: flex-end;
-        gap: 10px;
-    }
-    
-    .passenger-field {
-        margin-bottom: 0;
-    }
-    
-    .passenger-field label {
-        display: block;
-        font-size: 0.85rem;
-        margin-bottom: 4px;
-        white-space: nowrap;
-    }
-    
-    .passenger-field .required::after {
-        content: "*";
-        color: #E53E3E;
-        margin-left: 2px;
-    }
-    
-    .passenger-field-name {
-        width: 220px;
-        flex-shrink: 0;
-    }
-    
-    .passenger-field-type {
-        width: 100px;
-        flex-shrink: 0;
-    }
-    
-    .passenger-field-price {
-        width: 170px !important;
-        flex-shrink: 0;
-        min-width: 170px !important;
-    }
-    
-    .passenger-field-price input,
-    .passenger-field-price .input-with-currency input {
-        width: 100% !important;
-        box-sizing: border-box !important;
-    }
-    
-    .currency-label {
-        position: absolute;
-        left: 8px;
-        color: #4a5568;
-        font-size: 0.85rem;
-        font-weight: 500;
-        pointer-events: none;
-        z-index: 1;
-    }
-    
-    .input-with-currency input {
-        padding-left: 45px !important;
-    }
-    
-    .flight-segment {
-        background-color: #f8f9fa;
-        border-radius: 6px;
-        padding: 15px 20px;
-        margin-bottom: 15px;
-        position: relative;
-        overflow-x: auto;
-    }
-    
-    .flight-segment table {
-        width: 100%;
-        min-width: 1200px;
-        border-collapse: separate;
-        border-spacing: 8px 0;
-    }
-    
-    .flight-segment table td {
-        padding: 0;
-        vertical-align: bottom;
-    }
-    
-    .flight-segment .order-label {
-        font-size: 0.85rem;
-        margin-bottom: 2px;
-        white-space: nowrap;
-        display: block;
-    }
-    
-    .flight-segment .order-input,
-    .flight-segment .order-select {
-        width: 100%;
-        height: 30px;
-        padding: 2px 6px;
-        box-sizing: border-box;
-    }
-    
-    .flight-segment .flight-number-col {
-        width: 110px;
-    }
-    
-    .flight-segment .cabin-code-col {
-        width: 80px;
-    }
-    
-    .flight-segment .airport-col {
-        width: 170px;
-    }
-    
-    .flight-segment .date-col {
-        width: 150px;
-    }
-    
-    .flight-segment .time-col {
-        width: 120px;
-    }
-    
-    .flight-segment .select2-container {
-        width: 100% !important;
-        min-width: unset !important;
-    }
-    
-    .remove-btn {
-        position: absolute;
-        top: 8px;
-        right: 8px;
-        background: none;
-        border: none;
-        color: #E53E3E;
-        cursor: pointer;
-        padding: 4px;
-        z-index: 10;
-    }
-    
-    .required::after {
-        content: "*";
-        color: #E53E3E;
-        margin-left: 2px;
-    }
-    
-    /* 新增：调整行间距 */
-    .row {
-        margin-bottom: 8px;
-    }
-
-    /* 新增：调整文本域高度 */
-    textarea.order-input {
-        height: auto;
-        min-height: 60px;
-    }
-
-    /* 新增：调整时间和日期输入框宽度 */
-    input[type="time"].order-input,
-    input[type="date"].order-input {
-        width: 140px;
-    }
-
-    /* 新增：调整航班号和舱位代码输入框宽度 */
-    input[name="flight_number[]"].order-input,
-    input[name="cabin_code[]"].order-input {
-        width: 120px;
-    }
-
-    /* 新增：调整机场选择框宽度 */
-    .airport-select {
-        width: 120px !important;
-    }
-
-    /* 新增：调整数字输入框宽度 */
-    input[type="number"].order-input {
-        width: 100px;
-    }
-
-    /* 确保Select2初始化后也保持宽度 */
-    .select2-container--default {
-        min-width: 150px !important;
-    }
-
-    /* 移除响应式调整 */
-    @media (max-width: 1200px) {
-        .flight-segment .row {
-            flex-wrap: nowrap;
-        }
-    }
-
-    /* Select2 样式优化 */
-    .select2-container {
-        width: 100% !important;
-    }
-
-    .select2-selection {
-        height: 32px !important;
-        padding: 2px 6px !important;
-        border: 1px solid #e2e8f0 !important;
-        border-radius: 4px !important;
-        font-size: 0.9rem !important;
-    }
-
-    .select2-selection__arrow {
-        height: 30px !important;
-    }
-
-    .select2-container .select2-selection--single .select2-selection__rendered {
-        line-height: 28px !important;
-        padding-left: 8px !important;
-        padding-right: 20px !important;
-    }
-
-    /* 响应式设计改进 */
-    @media (max-width: 1400px) {
-        .order-container {
-            max-width: 100%;
-            overflow-x: auto;
-        }
-        
-        .order-card {
-            min-width: 1200px;  /* 确保在小屏幕上也能完整显示 */
-        }
-    }
-
-    /* 添加货币单位样式 */
-    .input-with-currency {
-        position: relative;
-        display: flex;
-        align-items: center;
-    }
-
-    .currency-label {
-        position: absolute;
-        left: 8px;
-        color: #4a5568;
-        font-size: 0.85rem;
-        font-weight: 500;
-        pointer-events: none;
-        z-index: 1;
-    }
-
-    .input-with-currency input {
-        padding-left: 45px;
-    }
+    /* 页面特定样式可以在这里添加 */
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="order-container">
-    <div class="order-header">
-        <h1 class="order-title">创建机票订单</h1>
-        <!-- 顶部按钮 -->
-        <div class="text-center" style="margin-bottom: 15px;">
-            <button type="submit" form="orderForm" class="order-btn order-btn-primary">
-                <i class="fas fa-save"></i> 提交订单
-            </button>
-            <a href="{{ url_for('flights_booking.order_list') }}" class="order-btn order-btn-secondary">
-                <i class="fas fa-arrow-left"></i> 返回列表
-            </a>
-        </div>
-    </div>
-    
+
     <form id="orderForm" method="POST" action="{{ url_for('flights_booking.submit_order') }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="project_header_id" value="{{ header_id }}">
         <input type="hidden" name="project_ref_id" value="{{ ref_id or '' }}">
-        <!-- 航段解析器 -->
-        <div class="order-card">
+        <!-- 航段解析器 - 隐藏，只通过模态框访问 -->
+        <div class="order-card" style="display: none;">
             <h2 class="order-section-title">航段解析</h2>
             <div class="order-form-group">
                 <label class="order-label">粘贴航段信息</label>
@@ -423,9 +49,14 @@
             <div id="flightSegmentsContainer">
                 <!-- 初始航段信息 -->
             </div>
-            <button type="button" class="order-btn order-btn-primary" onclick="addFlightSegment(null, true)">
-                <i class="fas fa-plus"></i> 添加航段
-            </button>
+            <div style="display: flex; gap: 10px; margin-top: 10px;">
+                <button type="button" class="order-btn order-btn-primary" onclick="addFlightSegment(null, true)">
+                    <i class="fas fa-plus"></i> 添加航段
+                </button>
+                <button type="button" class="order-btn order-btn-secondary" onclick="openFlightParserModal()">
+                    <i class="fas fa-magic"></i> 航段解析
+                </button>
+            </div>
         </div>
 
         <!-- 乘客信息 -->
@@ -440,13 +71,15 @@
         </div>
 
 
-        <!-- 供应商信息 -->
-        <div class="order-card">
-            <h2 class="order-section-title">供应商信息</h2>
-            <div style="overflow-x: auto;">
-                <table style="width: 100%; min-width: 700px; border-collapse: separate; border-spacing: 8px 0;">
-                    <tr>
-                        <td style="width: 200px; padding: 0; vertical-align: bottom;">
+        <!-- 信息布局容器 -->
+        <div style="display: flex; gap: 20px; align-items: flex-start;">
+            <!-- 左侧信息 -->
+            <div style="flex: 2; min-width: 0;">
+                <!-- 供应商和状态信息 -->
+                <div class="order-card">
+                    <h2 class="order-section-title">供应商和状态信息</h2>
+                    <div style="display: flex; flex-wrap: nowrap; gap: 10px; align-items: flex-end; overflow-x: auto;">
+                        <div style="width: 150px; min-width: 150px; flex-shrink: 0;">
                             <label class="order-label">供应商类型</label>
                             <select class="order-input" id="supplier_type" onchange="filterSuppliers()">
                                 <option value="">所有类型</option>
@@ -462,8 +95,8 @@
                                 </option>
                                 {% endfor %}
                             </select>
-                        </td>
-                        <td style="width: 200px; padding: 0; vertical-align: bottom;">
+                        </div>
+                        <div style="width: 200px; min-width: 200px; flex-shrink: 0;">
                             <label class="order-label">供应商名称</label>
                             <select class="order-input" name="supplier_name" id="supplier_name" required>
                                 <option value="">请选择供应商</option>
@@ -471,40 +104,60 @@
                                 <option value="{{ supplier.name }}" data-type="{{ supplier.supplier_type }}">{{ supplier.name }}</option>
                                 {% endfor %}
                             </select>
-                        </td>
-                        <td style="padding: 0; vertical-align: bottom;">
-                            <!-- 保留额外空间用于将来可能的扩展 -->
-                        </td>
-                    </tr>
-                </table>
-            </div>
-        </div>
+                        </div>
+                        <div style="width: 150px; min-width: 150px; flex-shrink: 0;">
+                            <label class="order-label">状态</label>
+                            <select class="order-input" name="status">
+                                <option value="draft">草稿</option>
+                                <option value="processing">处理中</option>
+                                <option value="completed">已完成</option>
+                                <option value="cancelled">已取消</option>
+                            </select>
+                        </div>
+                        <div style="width: 150px; min-width: 150px; flex-shrink: 0;">
+                            <label class="order-label">支付状态</label>
+                            <select class="order-input" name="payment_status">
+                                <option value="unpaid">未付款</option>
+                                <option value="partial">部分付款</option>
+                                <option value="paid">已付款</option>
+                                <option value="refunded">已退款</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
 
-        <!-- 联系人信息 -->
-        <div class="order-card">
-            <h2 class="order-section-title">联系人信息</h2>
-            <div style="display: flex; flex-wrap: nowrap; gap: 10px; align-items: flex-end; overflow-x: auto;">
-                <div style="width: 220px; min-width: 220px; flex-shrink: 0;">
-                    <label class="order-label required">联系人姓名</label>
-                    <input type="text" class="order-input" name="contact_name" style="width: 100%; box-sizing: border-box;" required>
-                </div>
-                <div style="width: 170px; min-width: 170px; flex-shrink: 0;">
-                    <label class="order-label">联系电话</label>
-                    <input type="tel" class="order-input" name="contact_phone" style="width: 100%; box-sizing: border-box;">
-                </div>
-                <div style="width: 220px; min-width: 220px; flex-shrink: 0;">
-                    <label class="order-label">电子邮箱</label>
-                    <input type="email" class="order-input" name="contact_email" style="width: 100%; box-sizing: border-box;">
+                <!-- 联系人信息 -->
+                <div class="order-card">
+                    <h2 class="order-section-title">联系人信息</h2>
+                    <div style="display: flex; flex-wrap: nowrap; gap: 10px; align-items: flex-end; overflow-x: auto;">
+                        <div style="width: 220px; min-width: 220px; flex-shrink: 0;">
+                            <label class="order-label required">联系人姓名</label>
+                            <input type="text" class="order-input" name="contact_name" style="width: 100%; box-sizing: border-box;" required>
+                        </div>
+                        <div style="width: 170px; min-width: 170px; flex-shrink: 0;">
+                            <label class="order-label">联系电话</label>
+                            <input type="tel" class="order-input" name="contact_phone" style="width: 100%; box-sizing: border-box;">
+                        </div>
+                        <div style="width: 220px; min-width: 220px; flex-shrink: 0;">
+                            <label class="order-label">电子邮箱</label>
+                            <input type="email" class="order-input" name="contact_email" style="width: 100%; box-sizing: border-box;">
+                        </div>
+                    </div>
                 </div>
             </div>
-        </div>
 
-        
-        <!-- 备注信息 -->
-        <div class="order-card">
-            <h2 class="order-section-title">备注信息</h2>
-            <div class="order-form-group">
-                <textarea class="order-input" name="remarks" rows="8" placeholder="请输入备注信息" style="min-height: 150px;"></textarea>
+            <!-- 右侧备注信息 -->
+            <div style="flex: 3; min-width: 0; max-width: 600px;">
+                <!-- 备注信息 -->
+                <div class="order-card">
+                    <h2 class="order-section-title">备注信息</h2>
+                    <div style="display: flex; gap: 20px; align-items: flex-start;">
+                        <div style="flex: 1; min-width: 0;">
+                            <label class="order-label">备注信息</label>
+                            <textarea class="order-input" name="remarks" rows="8" placeholder="请输入备注信息" style="width: 100%; box-sizing: border-box; min-height: 150px;"></textarea>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -518,6 +171,33 @@
             </a>
         </div>
     </form>
+
+    <!-- 航段解析模态框 -->
+    <div id="flightParserModal" class="modal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.4);">
+        <div class="modal-content" style="background-color: #fefefe; margin: 5% auto; padding: 20px; border: 1px solid #888; width: 80%; max-width: 800px; border-radius: 8px;">
+            <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h3 style="margin: 0; color: #2d3748;">航段解析</h3>
+                <span class="close" onclick="closeFlightParserModal()" style="color: #aaa; font-size: 28px; font-weight: bold; cursor: pointer;">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div style="margin-bottom: 15px;">
+                    <label class="order-label">粘贴航段信息</label>
+                    <textarea class="order-input" id="modalFlightParser" rows="8" placeholder="请粘贴航段信息，例如：&#10;CX 714 O 30JUN SINHKG HS1 0150 0550 O E MO 1" style="width: 100%; box-sizing: border-box; margin-bottom: 10px;"></textarea>
+                </div>
+                <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+                    <button type="button" class="order-btn order-btn-primary" onclick="parseFlightSegmentsFromModal()">
+                        <i class="fas fa-magic"></i> 解析航段
+                    </button>
+                    <button type="button" class="order-btn order-btn-secondary" onclick="clearModalParser()">
+                        <i class="fas fa-eraser"></i> 清空
+                    </button>
+                </div>
+            </div>
+            <div class="modal-footer" style="text-align: right; margin-top: 20px;">
+                <button type="button" class="order-btn order-btn-secondary" onclick="closeFlightParserModal()">关闭</button>
+            </div>
+        </div>
+    </div>
 </div>
 {% endblock %}
 
@@ -994,5 +674,47 @@ $(document).ready(function() {
     // 更新添加航段按钮的onclick属性
     $('button[onclick="addFlightSegment()"]').attr('onclick', 'addFlightSegment(null, true)');
 });
+
+// 航段解析模态框相关函数
+function openFlightParserModal() {
+    document.getElementById('flightParserModal').style.display = 'block';
+    // 聚焦到输入框
+    setTimeout(function() {
+        document.getElementById('modalFlightParser').focus();
+    }, 100);
+}
+
+function closeFlightParserModal() {
+    document.getElementById('flightParserModal').style.display = 'none';
+}
+
+function parseFlightSegmentsFromModal() {
+    const parserText = document.getElementById('modalFlightParser').value;
+    if (!parserText.trim()) {
+        alert('请先粘贴航段信息');
+        return;
+    }
+    
+    // 将模态框的文本设置到隐藏的解析器中
+    document.getElementById('flightParser').value = parserText;
+    
+    // 调用原有的解析函数
+    parseFlightSegments();
+    
+    // 关闭模态框
+    closeFlightParserModal();
+}
+
+function clearModalParser() {
+    document.getElementById('modalFlightParser').value = '';
+}
+
+// 点击模态框外部关闭
+window.onclick = function(event) {
+    const modal = document.getElementById('flightParserModal');
+    if (event.target === modal) {
+        closeFlightParserModal();
+    }
+}
 </script>
 {% endblock %} 
