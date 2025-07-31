@@ -40,6 +40,13 @@ def init_exts(app):
     def load_user(user_id):
         from App.models.auth import AuthUser
         return AuthUser.query.get(int(user_id))
+    
+    # 未授权处理器
+    @login_manager.unauthorized_handler
+    def unauthorized():
+        from flask import request, redirect, url_for, flash
+        flash('请先登录', 'warning')
+        return redirect(url_for('auth.login', next=request.url))
 
     # 导入模型并创建所有表
     with app.app_context():
