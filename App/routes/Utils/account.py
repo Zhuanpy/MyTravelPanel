@@ -1,6 +1,8 @@
 from flask import Blueprint, jsonify, request, render_template, send_file
+from flask_login import login_required, current_user
 from App.exts import db
 from App.exts import csrf
+from App.utils.decorators import staff_only
 import logging
 from sqlalchemy import case
 from datetime import datetime
@@ -16,11 +18,15 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 @account_routes.route('/accounts')
+@login_required
+@staff_only
 def account_page():
     """账号管理页面路由"""
     return render_template('utils/account_manage.html')
 
 @account_routes.route('/accounts/<int:account_id>')
+@login_required
+@staff_only
 def account_detail(account_id):
     """账号详细页面路由"""
     try:
@@ -119,6 +125,8 @@ def get_popular_accounts():
         }), 500
 
 @account_routes.route('/api/accounts', methods=['GET'])
+@login_required
+@staff_only
 def get_accounts():
     try:
         logger.info("Fetching all accounts")
@@ -285,6 +293,8 @@ def update_account(account_id):
 
 @csrf.exempt
 @account_routes.route('/api/accounts/<int:account_id>', methods=['DELETE'])
+@login_required
+@staff_only
 def delete_account(account_id):
     try:
         logger.info(f"Deleting account with id: {account_id}")

@@ -1,10 +1,14 @@
 from flask import Blueprint, render_template, request, jsonify, flash, redirect, url_for
+from flask_login import login_required, current_user
 from App.models.Product.Visamodels import VisaDocumentsList
 from App.exts import db, csrf
+from App.utils.decorators import staff_only
 
 visa_documents_list = Blueprint('visa_documents_list', __name__)
 
 @visa_documents_list.route('/list')
+@login_required
+@staff_only
 def documents_list():
     """显示文档列表页面"""
     try:
@@ -42,6 +46,8 @@ def documents_list():
         return redirect(url_for('visa_project.show_current_all_projects'))
 
 @visa_documents_list.route('/add', methods=['POST'])
+@login_required
+@staff_only
 @csrf.exempt
 def add_document():
     """添加新文档"""
