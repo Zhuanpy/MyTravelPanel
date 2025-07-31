@@ -80,6 +80,8 @@ def our_package(city_name):
 
 
 @package_blue.route('/open_company_package_folder/<country_name>/<city_name>/<company_name>', methods=['GET', 'POST'])
+@login_required
+@staff_only
 def open_company_package_folder(country_name, city_name, company_name):
     if not country_name:
         return jsonify({"error": "Country_name parameter is required"}), 400
@@ -102,6 +104,8 @@ def open_company_package_folder(country_name, city_name, company_name):
     return jsonify({"message": "Folder opened successfully"})
 
 @package_blue.route('/open_city_package_folder/<country_name>/<city_name>', methods=['GET','POST'])
+@login_required
+@staff_only
 def open_city_package_folder(country_name, city_name):
     if not country_name:
         return jsonify({"error": "Country_name parameter is required"}), 400
@@ -366,11 +370,15 @@ def create_folder(base_dir, folder_name):
 
 
 @package_blue.route('/tour_project', methods=['GET', 'POST'])
+@login_required
+@staff_only
 def handle_tour_project():
     return redirect(url_for('tour_projects.create_tour_project'))
 
 
 @package_blue.route('/')
+@login_required
+@staff_only
 def index():
     cities = ProductCity.query.order_by(ProductCity.country_name, ProductCity.display_name).all()
     cities_by_country = {}
