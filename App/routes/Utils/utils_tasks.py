@@ -10,6 +10,8 @@ import traceback
 utils_blue = Blueprint('utils_blue', __name__)
 
 @utils_blue.route('/render_pomodoro', methods=['GET'])
+@login_required
+@staff_only
 def render_pomodoro():
     return render_template('utils/番茄工作法.html')
 

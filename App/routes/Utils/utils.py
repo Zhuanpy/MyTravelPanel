@@ -1,6 +1,8 @@
 from flask import Blueprint, render_template, request, redirect, url_for, jsonify, flash
+from flask_login import login_required, current_user
 from App.code.VisaForm import MyPdfFile
 from App.code.utils.WordToPdf import WordToPDFConverter
+from App.utils.decorators import staff_only
 import subprocess
 import os
 import traceback
@@ -16,12 +18,16 @@ def is_ajax():
 
 
 @utils_process.route('/file_processing')
+@login_required
+@staff_only
 def file_processing():
     return render_template('utils/pdf.html')
 
 
 @csrf.exempt
 @utils_process.route('/pdf_to_pdf', methods=['POST'])
+@login_required
+@staff_only
 def merge_pdf_to_pdf():
     try:
         path = request.form.get('pdfFolderPath')
@@ -53,6 +59,8 @@ def merge_pdf_to_pdf():
 
 @csrf.exempt
 @utils_process.route('/images_to_pdf', methods=['POST'])
+@login_required
+@staff_only
 def merge_images_to_pdf():
     try:
         path = request.form.get('imageFolderPath')
@@ -84,6 +92,8 @@ def merge_images_to_pdf():
 
 @csrf.exempt
 @utils_process.route('/word_to_pdf', methods=['POST'])
+@login_required
+@staff_only
 def word_to_pdf():
     try:
         # 获取并验证表单数据
@@ -171,6 +181,8 @@ def word_to_pdf():
 
 @csrf.exempt
 @utils_process.route('/split_screenshot_to_pdf', methods=['POST'])
+@login_required
+@staff_only
 def split_screenshot_to_pdf():
     try:
         # 获取表单数据
@@ -239,6 +251,8 @@ def split_screenshot_to_pdf():
 
 
 @utils_process.route('/open_FuXin_pdf')
+@login_required
+@staff_only
 def open_FuXin_pdf():
     try:
         software_path = r"E:\SOFT\福昕PDF套件高级编辑器\福昕PDF套件高级编辑器 5.0.4.0920 单文件破解版.exe"
@@ -253,6 +267,8 @@ def open_FuXin_pdf():
         return redirect(url_for("index.index"))
 
 @utils_process.route('/open_Photoshop')
+@login_required
+@staff_only
 def open_Photoshop():
     try:
         software_path = r"C:\Program Files\Adobe\Adobe Photoshop CS6 (64 Bit)\Photoshop.exe"
@@ -267,6 +283,8 @@ def open_Photoshop():
         return redirect(url_for("index.index"))
 
 @utils_process.route('/open_Athina')
+@login_required
+@staff_only
 def open_Athina():
     try:
         software_path = r"C:\Program Files (x86)\Athena Bookings\Athena Bookings ver 2.0.RDP"
@@ -281,6 +299,8 @@ def open_Athina():
         return redirect(url_for("index.index"))
 
 @utils_process.route('/files_home')
+@login_required
+@staff_only
 def files_home():
     """文件处理首页路由"""
     return render_template('utils/文件处理首页.html')
