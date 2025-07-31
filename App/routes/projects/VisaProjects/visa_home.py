@@ -1,5 +1,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for
+from flask_login import login_required, current_user
 from App.models import VisaTypes
+from App.utils.decorators import staff_only
 
 """
 签证首页 (visa_home.py):
@@ -12,6 +14,8 @@ visa_home = Blueprint('visa_home', __name__)
 
 @visa_home.route('/visa_home')
 @visa_home.route('/')
+@login_required
+@staff_only
 def home():
     """签证首页路由"""
     # 获取所有签证类别

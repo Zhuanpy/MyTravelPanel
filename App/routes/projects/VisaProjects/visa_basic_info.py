@@ -659,6 +659,8 @@ def delete_visa_type(visa_type):
 """ about visa type end """
 
 @visa_basic.route('/visa_home')
+@login_required
+@staff_only
 def visa_home():
     # 获取所有签证类型
     visa_categories = VisaTypes.query.all()
