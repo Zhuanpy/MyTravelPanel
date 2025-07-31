@@ -13,6 +13,12 @@ def portal():
 
 @dex.route('/')
 def index():
+    """网站首页 - 显示门户页面"""
+    return render_template('portal.html')
+
+@dex.route('/legacy-home')
+def legacy_home():
+    """原来的首页功能 - 保留备用"""
     # 获取所有城市信息并按国家分组
     cities = ProductCity.query.order_by(ProductCity.country_name, ProductCity.display_name).all()
     cities_by_country = {}
@@ -28,8 +34,6 @@ def index():
     return render_template('index.html', 
                          cities_by_country=cities_by_country,
                          visa_categories=visa_categories)
-
-
 
 @dex.route('/open_package_folder', methods=['GET', 'POST'])
 def open_package_folder():
