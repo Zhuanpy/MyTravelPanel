@@ -4,9 +4,11 @@ import os
 from datetime import datetime
 import platform
 import subprocess
+from flask_login import login_required, current_user
 from App.exts import db, csrf
 from App.models import VisaTypes, VisaDocuments, VisaLinks, VisaProject, VisaCountries, VisaSingaporeIdentity
 from App.code.VisaForm import VisasUtils
+from App.utils.decorators import staff_only
 import json
 import traceback
 from flask import Blueprint, render_template, request, jsonify, redirect, url_for, flash
@@ -65,6 +67,8 @@ def format_date_filter(date):
     return ''
 
 @visa_project.route('/show_current_all_projects')
+@login_required
+@staff_only
 def show_current_all_projects():
     """显示所有当前项目"""
     try:
@@ -153,6 +157,8 @@ def show_current_all_projects():
 
 
 @visa_project.route('/visa_processing/<visa_type>', methods=['GET', 'POST'])
+@login_required
+@staff_only
 def visa_processing(visa_type):
     """签证处理页面路由"""
     try:
@@ -219,6 +225,8 @@ def visa_processing(visa_type):
         return redirect(url_for('visa_project.show_current_all_projects'))
 
 @visa_project.route('/delete_current_project/<int:project_id>', methods=['POST'])
+@login_required
+@staff_only
 @csrf.exempt
 def delete_current_project(project_id):
     try:
@@ -259,6 +267,8 @@ def delete_current_project(project_id):
 
 
 @visa_project.route('/update_project/<int:project_id>', methods=['GET', 'POST'])
+@login_required
+@staff_only
 @csrf.exempt
 def update_current_project(project_id):
     # 从数据库中获取该项目
@@ -769,6 +779,8 @@ def update_visa_status():
 
 
 @visa_project.route('/<visa_type>/visa_create_project', methods=['POST'])
+@login_required
+@staff_only
 @csrf.exempt
 def visa_create_project(visa_type):
     try:
