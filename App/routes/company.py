@@ -1,7 +1,9 @@
 from flask import Blueprint, render_template, request, flash, redirect, url_for, jsonify, send_file
+from flask_login import login_required, current_user
 from App.exts import db
 from App.models.projects.BookingProject import CustomerCompany
 from App.forms.company_forms import CustomerCompanyForm
+from App.utils.decorators import staff_only
 from sqlalchemy import or_
 import pandas as pd
 import io
@@ -11,6 +13,8 @@ from datetime import datetime
 company = Blueprint('company', __name__)
 
 @company.route('/')
+@login_required
+@staff_only
 def list_companies():
     """公司列表"""
     page = request.args.get('page', 1, type=int)
@@ -38,6 +42,8 @@ def list_companies():
     return render_template('company/list_companies.html', companies=companies)
 
 @company.route('/create', methods=['GET', 'POST'])
+@login_required
+@staff_only
 def create_company():
     """创建公司"""
     form = CustomerCompanyForm()
@@ -74,12 +80,16 @@ def create_company():
     return render_template('company/create_company.html', form=form)
 
 @company.route('/<int:company_id>')
+@login_required
+@staff_only
 def company_detail(company_id):
     """公司详情"""
     company = CustomerCompany.query.get_or_404(company_id)
     return render_template('company/company_detail.html', company=company)
 
 @company.route('/<int:company_id>/edit', methods=['GET', 'POST'])
+@login_required
+@staff_only
 def edit_company(company_id):
     """编辑公司"""
     company = CustomerCompany.query.get_or_404(company_id)
@@ -102,6 +112,8 @@ def edit_company(company_id):
     return render_template('company/edit_company.html', form=form, company=company)
 
 @company.route('/<int:company_id>/delete', methods=['POST'])
+@login_required
+@staff_only
 def delete_company(company_id):
     """删除公司"""
     company = CustomerCompany.query.get_or_404(company_id)
@@ -116,6 +128,8 @@ def delete_company(company_id):
     return redirect(url_for('company.list_companies'))
 
 @company.route('/api/search')
+@login_required
+@staff_only
 def api_search_companies():
     """API搜索公司（用于下拉选择）"""
     search = request.args.get('q', '')
@@ -131,12 +145,16 @@ def api_search_companies():
     } for company in companies])
 
 @company.route('/api/<int:company_id>')
+@login_required
+@staff_only
 def api_company_detail(company_id):
     """API获取公司详情"""
     company = CustomerCompany.query.get_or_404(company_id)
     return jsonify(company.to_dict())
 
 @company.route('/download-template')
+@login_required
+@staff_only
 def download_template():
     """下载Excel模板"""
     # 创建示例数据
@@ -175,6 +193,8 @@ def download_template():
     )
 
 @company.route('/import-excel', methods=['POST'])
+@login_required
+@staff_only
 def import_excel():
     """导入Excel数据"""
     try:
