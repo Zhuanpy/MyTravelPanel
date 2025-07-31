@@ -22,15 +22,7 @@
 {% block content %}
 <div class="order-container">
     <div class="order-header">
-        <!-- 顶部按钮 -->
-        <!-- <div class="text-center" style="margin-bottom: 15px;">
-            <button type="submit" form="orderForm" class="order-btn order-btn-primary">
-                <i class="fas fa-save"></i> 提交订单
-            </button>
-            <a href="{{ url_for('projects.header_detail', header_id=header_id) }}" class="order-btn order-btn-secondary">
-                <i class="fas fa-arrow-left"></i> 返回HID详情
-            </a>
-        </div> -->
+
     </div>
     
     <form id="orderForm" method="POST" action="{{ url_for('projects.submit_flight_ref') }}">

@@ -63,7 +63,7 @@ def create_company():
                 currency=form.currency.data,
                 status=form.status.data,
                 remarks=form.remarks.data,
-                created_by='admin'  # 这里可以从session获取当前用户
+                created_by=current_user.username if current_user.is_authenticated else 'system'
             )
             db.session.add(company)
             db.session.commit()

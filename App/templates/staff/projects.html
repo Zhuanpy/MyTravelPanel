@@ -217,9 +217,9 @@
                         </div>
                         <div class="project-info">
                             <div>
-                                <div class="project-title">{{ project.name or '项目名称' }}</div>
+                                <div class="project-title">{{ project.desc or '项目名称' }}</div>
                                 <div class="project-id">
-                                    <i class="fas fa-hashtag"></i> {{ project.id or 'PRJ001' }}
+                                    <i class="fas fa-hashtag"></i> {{ project.hid or project.id }}
                                 </div>
                             </div>
                         </div>
@@ -242,32 +242,29 @@
                     
                     <div class="project-details">
                         <div class="detail-item">
-                            <span class="detail-label">客户姓名</span>
-                            <span class="detail-value">{{ project.customer_name or '待分配' }}</span>
+                            <span class="detail-label">公司名称</span>
+                            <span class="detail-value">{{ project.company.company_name if project.company else '待分配' }}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">联系人</span>
+                            <span class="detail-value">{{ project.contact or '待确定' }}</span>
                         </div>
                         <div class="detail-item">
                             <span class="detail-label">创建时间</span>
                             <span class="detail-value">{{ project.created_at.strftime('%Y-%m-%d') if project.created_at else '2025-01-02' }}</span>
                         </div>
                         <div class="detail-item">
-                            <span class="detail-label">预计完成</span>
-                            <span class="detail-value">{{ project.due_date.strftime('%Y-%m-%d') if project.due_date else '待确定' }}</span>
-                        </div>
-                        <div class="detail-item">
-                            <span class="detail-label">项目预算</span>
-                            <span class="detail-value text-success">
-                                <i class="fas fa-dollar-sign"></i>
-                                {{ project.budget or '待确定' }}
-                            </span>
+                            <span class="detail-label">负责人</span>
+                            <span class="detail-value">{{ project.leader_name or '待分配' }}</span>
                         </div>
                     </div>
                     
                     <div class="card-footer bg-light">
                         <div class="btn-group w-100" role="group">
-                            <a href="#" class="btn btn-outline-primary btn-sm">
+                            <a href="{{ url_for('projects.header_detail', header_id=project.id) }}" class="btn btn-outline-primary btn-sm">
                                 <i class="fas fa-eye"></i> 查看详情
                             </a>
-                            <a href="#" class="btn btn-outline-success btn-sm">
+                            <a href="{{ url_for('projects.header_detail', header_id=project.id) }}" class="btn btn-outline-success btn-sm">
                                 <i class="fas fa-edit"></i> 编辑项目
                             </a>
                             <a href="#" class="btn btn-outline-info btn-sm">
@@ -367,24 +364,24 @@
                     <div class="row text-center">
                         <div class="col-md-3">
                             <div class="border-end">
-                                <h4 class="text-primary">{{ projects|length }}</h4>
+                                <h4 class="text-primary">{{ total_projects or 0 }}</h4>
                                 <p class="text-muted mb-0">总项目数</p>
                             </div>
                         </div>
                         <div class="col-md-3">
                             <div class="border-end">
-                                <h4 class="text-warning">0</h4>
+                                <h4 class="text-warning">{{ pending_count or 0 }}</h4>
                                 <p class="text-muted mb-0">待处理</p>
                             </div>
                         </div>
                         <div class="col-md-3">
                             <div class="border-end">
-                                <h4 class="text-success">0</h4>
+                                <h4 class="text-success">{{ active_count or 0 }}</h4>
                                 <p class="text-muted mb-0">进行中</p>
                             </div>
                         </div>
                         <div class="col-md-3">
-                            <h4 class="text-info">0</h4>
+                            <h4 class="text-info">{{ completed_count or 0 }}</h4>
                             <p class="text-muted mb-0">已完成</p>
                         </div>
                     </div>

@@ -94,27 +94,62 @@ def dashboard():
 def projects():
     """项目列表"""
     try:
+        # 获取筛选参数
+        status = request.args.get('status', '')
+        project_type = request.args.get('type', '')
+        search = request.args.get('search', '')
         page = request.args.get('page', 1, type=int)
         per_page = 10
         
-        # 获取项目状态筛选
-        status = request.args.get('status', '')
-        project_type = request.args.get('type', '')
+        # 构建查询
+        query = ProjectHeader.query
         
-        # 暂时返回空的项目列表
-        projects = []
-        pagination = None
+        # 基础筛选
+        if status:
+            query = query.filter(ProjectHeader.status == status)
+        
+        if search:
+            query = query.filter(
+                db.or_(
+                    ProjectHeader.hid.contains(search),
+                    ProjectHeader.desc.contains(search),
+                    ProjectHeader.contact.contains(search)
+                )
+            )
+        
+        # 按创建时间倒序排列
+        query = query.order_by(ProjectHeader.created_at.desc())
+        
+        # 分页
+        pagination = query.paginate(
+            page=page, 
+            per_page=per_page, 
+            error_out=False
+        )
+        projects = pagination.items
+        
+        # 计算项目统计
+        total_projects = ProjectHeader.query.count()
+        pending_count = ProjectHeader.query.filter_by(status='pending').count()
+        active_count = ProjectHeader.query.filter_by(status='active').count()
+        completed_count = ProjectHeader.query.filter_by(status='completed').count()
         
         return render_template('staff/projects.html',
                              projects=projects,
                              pagination=pagination,
                              current_status=status,
-                             current_type=project_type)
+                             current_type=project_type,
+                             total_projects=total_projects,
+                             pending_count=pending_count,
+                             active_count=active_count,
+                             completed_count=completed_count)
     except Exception as e:
         flash(f'加载项目列表失败：{str(e)}', 'error')
         return render_template('staff/projects.html',
                              projects=[], pagination=None, 
-                             current_status='', current_type='')
+                             current_status='', current_type='',
+                             total_projects=0, pending_count=0,
+                             active_count=0, completed_count=0)
 
 @staff.route('/project/create', methods=['GET', 'POST'])
 @login_required
