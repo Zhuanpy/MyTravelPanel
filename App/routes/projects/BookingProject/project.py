@@ -404,6 +404,8 @@ def transport_ref_detail(ref_id):
     return render_template('projects/BookingProject/transport_ref_detail.html', ref=ref)
 
 @projects.route('/eo/create/<int:ref_id>', methods=['GET', 'POST'])
+@login_required
+@staff_only
 def create_eo(ref_id):
     ref = ProjectRef.query.get_or_404(ref_id)
     form = ProjectEOForm()
@@ -496,6 +498,8 @@ def create_eo(ref_id):
                            form=form, ref=ref, eo_number=eo_number)
 
 @projects.route('/')
+@login_required
+@staff_only
 def list_projects():
     # 获取筛选参数
     status = request.args.get('status')
@@ -704,6 +708,8 @@ def list_projects():
     )
 
 @projects.route('/statistics')
+@login_required
+@staff_only
 def project_statistics():
     # 获取项目总数
     total_projects = ProjectHeader.query.count()
@@ -984,6 +990,8 @@ def generate_ref_number():
         }), 400 
 
 @projects.route('/ref/delete/<int:ref_id>', methods=['POST', 'GET'])
+@login_required
+@staff_only
 @csrf.exempt
 def delete_ref(ref_id):
     ref = ProjectRef.query.get_or_404(ref_id)
