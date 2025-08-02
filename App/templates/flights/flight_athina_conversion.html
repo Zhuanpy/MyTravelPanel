@@ -200,9 +200,114 @@
         flex: 1;
     }
     
+    /* 统一的textarea样式 */
+    .unified-textarea {
+        width: 100%;
+        height: 250px;
+        padding: 12px;
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        font-size: 14px;
+        resize: none;
+        display: block;
+        background-color: var(--background-color);
+        font-family: 'Consolas', 'Monaco', monospace;
+        line-height: 1.5;
+    }
+    
+    .unified-textarea:focus {
+        outline: none;
+        border-color: var(--success-color);
+        box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.1);
+    }
+    
+    /* 统一的输入框样式 */
+    .unified-input {
+        width: 100%;
+        padding: 12px;
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        font-size: 14px;
+        display: block;
+        background-color: var(--background-color);
+        transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+    
+    .unified-input:focus {
+        outline: none;
+        border-color: var(--success-color);
+        box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.1);
+    }
+    
+    /* 统一的选择框样式 */
+    .unified-select {
+        width: 100%;
+        padding: 12px;
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        font-size: 14px;
+        background-color: var(--background-color);
+        transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+    
+    .unified-select:focus {
+        outline: none;
+        border-color: var(--success-color);
+        box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.1);
+    }
+    
+    /* 统一的按钮样式 */
+    .unified-button {
+        background-color: var(--success-color);
+        color: white;
+        border: none;
+        padding: 12px 20px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 500;
+        transition: all 0.15s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        text-decoration: none;
+    }
+    
+    .unified-button:hover {
+        background-color: var(--success-hover);
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        text-decoration: none;
+        color: white;
+    }
+    
+    .unified-button:active {
+        transform: translateY(0);
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    }
+    
+    /* 危险按钮样式 */
+    .unified-button.danger {
+        background-color: var(--danger-color);
+    }
+    
+    .unified-button.danger:hover {
+        background-color: var(--danger-hover);
+    }
+    
+    /* 次要按钮样式 */
+    .unified-button.secondary {
+        background-color: var(--secondary-color);
+    }
+    
+    .unified-button.secondary:hover {
+        background-color: var(--success-hover);
+    }
+    
+    /* 保持向后兼容 */
     .flight-app-textarea {
         width: 100%;
-        height: 200px;
+        height: 250px;
         padding: 12px;
         border: 1px solid var(--border-color);
         border-radius: 8px;
@@ -424,17 +529,18 @@
         color: white;
     }
 
+    /* 保持向后兼容 */
     .athina-textarea {
         width: 100%;
-        padding: 1rem;
+        padding: 12px;
         border: 1px solid var(--border-color);
         border-radius: 8px;
         background-color: var(--background-color);
         resize: none;
-        height: 200px;
+        height: 250px;
         font-family: 'Consolas', 'Monaco', monospace;
-        font-size: 0.875rem;
-        line-height: 1.7;
+        font-size: 14px;
+        line-height: 1.5;
         white-space: pre;
     }
 
@@ -689,7 +795,7 @@
                                         <i class="fas fa-plane-departure"></i> 输入行程：
                                     </label>
                                     <div class="flight-app-input-wrapper">
-                                        <textarea id="input_text" name="input_text" class="flight-app-textarea" placeholder="请输入需要转换的行程数据...">{{ request.form.get('input_text', '') }}</textarea>
+                                        <textarea id="input_text" name="input_text" class="flight-app-textarea unified-textarea" placeholder="请输入需要转换的行程数据...">{{ request.form.get('input_text', '') }}</textarea>
                                     </div>
                                 </div>
                                 
@@ -703,17 +809,17 @@
                                     </label>
                                     <div class="flight-app-input-wrapper">
                                         <div class="flight-app-luggage-container">
-                                            <select id="luggage_select" class="flight-app-select" onchange="updateLuggageInput(this.value)">
-                                                <option value="">-- 选择常用行李 --</option>
-                                                <option value="0kg">0kg</option>
-                                                <option value="20kg">20kg</option>
-                                                <option value="23kg">23kg</option>
-                                                <option value="25kg">25kg</option>
-                                                <option value="30kg">30kg</option>
-                                                <option value="40kg">40kg</option>
-                                                <option value="46kg(23kg*2)">46kg(23kg*2)</option>
-                                            </select>
-                                            <input type="text" id="luggage" name="luggage" class="flight-app-input" value="{{ request.form.get('luggage', '') }}" placeholder="自定义行李额度">
+                                                                                         <select id="luggage_select" class="flight-app-select unified-select" onchange="updateLuggageInput(this.value)">
+                                                 <option value="">-- 选择常用行李 --</option>
+                                                 <option value="0kg">0kg</option>
+                                                 <option value="20kg">20kg</option>
+                                                 <option value="23kg">23kg</option>
+                                                 <option value="25kg">25kg</option>
+                                                 <option value="30kg">30kg</option>
+                                                 <option value="40kg">40kg</option>
+                                                 <option value="46kg(23kg*2)">46kg(23kg*2)</option>
+                                             </select>
+                                             <input type="text" id="luggage" name="luggage" class="flight-app-input unified-input" value="{{ request.form.get('luggage', '') }}" placeholder="自定义行李额度">
                                         </div>
                                     </div>
                                 </div>
@@ -723,7 +829,7 @@
                                         <i class="fas fa-tag"></i> 价格：
                                     </label>
                                     <div class="flight-app-input-wrapper">
-                                        <input type="text" id="price" name="price" class="flight-app-input" value="{{ request.form.get('price', '') }}" placeholder="请输入价格">
+                                                                                 <input type="text" id="price" name="price" class="flight-app-input unified-input" value="{{ request.form.get('price', '') }}" placeholder="请输入价格">
                                     </div>
                                 </div>
                             </div>
@@ -742,9 +848,9 @@
                                     </div>
                                     
                                     <div class="flight-app-btn-container">
-                                        <button type="submit" class="flight-app-btn">
-                                            <i class="fas fa-sync-alt"></i> 开始转换
-                                        </button>
+                                                                                 <button type="submit" class="flight-app-btn unified-button">
+                                             <i class="fas fa-sync-alt"></i> 开始转换
+                                         </button>
                                     </div>
                                 </div>
                             </div>
@@ -755,10 +861,10 @@
                                         <i class="fas fa-plane-arrival"></i> 输出行程：
                                     </label>
                                     <div class="flight-app-input-wrapper flight-app-output-container">
-                                        <button type="button" class="flight-app-copy-btn" onclick="copyOutputText()">
-                                            <i class="fas fa-copy"></i> 复制
-                                        </button>
-                                        <textarea id="output_text" name="output_text" class="flight-app-textarea" placeholder="转换后的行程将显示在这里...">{{ output_text }}</textarea>
+                                                                                 <button type="button" class="flight-app-copy-btn unified-button" onclick="copyOutputText()">
+                                             <i class="fas fa-copy"></i> 复制
+                                         </button>
+                                        <textarea id="output_text" name="output_text" class="flight-app-textarea unified-textarea" placeholder="转换后的行程将显示在这里...">{{ output_text }}</textarea>
                                     </div>
                                 </div>
                             </div>
@@ -781,19 +887,19 @@
                         <div class="athina-input-group">
                             <label>
                                 航班日期
-                                <input type="text" class="flightDate athina-input" placeholder="例如: 01JUN" 
+                                <input type="text" class="flightDate athina-input unified-input" placeholder="例如: 01JUN" 
                                        onblur="saveInput(this)" ondblclick="showDropdown(this)">
                             </label>
                             <label>
                                 航班号码
-                                <input type="text" class="flightNumber athina-input" placeholder="例如: TR 898" 
+                                <input type="text" class="flightNumber athina-input unified-input" placeholder="例如: TR 898" 
                                        onblur="saveInput(this)" ondblclick="showDropdown(this)">
                             </label>
-                            <button class="athina-delete-btn" onclick="removeInput(this)">删除</button>
+                            <button class="athina-delete-btn unified-button danger" onclick="removeInput(this)">删除</button>
                         </div>
                     </div>
                     <div class="athina-button-container">
-                        <button class="athina-button" onclick="addInput()">
+                        <button class="athina-button unified-button" onclick="addInput()">
                             <i class="fas fa-plus"></i> 添加航班
                         </button>
                     </div>
@@ -802,16 +908,16 @@
                 <div class="athina-output-section">
                     <h3 class="athina-subtitle">行程代码输出</h3>
                     <div class="athina-textarea-container">
-                        <textarea id="itinerary" class="athina-textarea" placeholder="生成的行程代码将显示在这里..."></textarea>
-                        <button id="copyBtn" class="athina-copy-btn" onclick="copyToClipboard()" title="复制到剪贴板">
+                        <textarea id="itinerary" class="athina-textarea unified-textarea" placeholder="生成的行程代码将显示在这里..."></textarea>
+                        <button id="copyBtn" class="athina-copy-btn unified-button" onclick="copyToClipboard()" title="复制到剪贴板">
                             <i class="fas fa-copy"></i> 复制
                         </button>
                     </div>
                     <div class="athina-button-container">
-                        <button class="athina-button" onclick="sendData()">
+                        <button class="athina-button unified-button" onclick="sendData()">
                             <i class="fas fa-magic"></i> 生成代码
                         </button>
-                        <a id="addScheduleBtn" href="{{ url_for('flights_schedule.input_flight_schedule') }}" class="athina-button" style="display: none; background-color: var(--secondary-color);">
+                        <a id="addScheduleBtn" href="{{ url_for('flights_schedule.input_flight_schedule') }}" class="athina-button unified-button secondary" style="display: none;">
                             <i class="fas fa-plus-circle"></i> 添加航班时刻
                         </a>
                     </div>
@@ -888,30 +994,22 @@
                         if (data.error) {
                             console.log('Error in response:', data.error);
                             
-                            // 检查是否包含"未知机场"错误
-                            if (data.error.includes('未知机场') || data.error.includes('Unknown Airport')) {
-                                // 创建错误消息容器
-                                const errorContainer = document.createElement('div');
-                                errorContainer.className = 'error-message-container';
-                                
-                                // 创建错误消息
-                                const errorMessage = document.createElement('p');
-                                errorMessage.textContent = data.error;
-                                errorContainer.appendChild(errorMessage);
-                                
-                                // 创建添加机场信息按钮
-                                const addAirportBtn = document.createElement('button');
-                                addAirportBtn.textContent = '添加机场信息';
-                                addAirportBtn.className = 'flight-app-button';
-                                addAirportBtn.style.cssText = `
-                                    background-color: #007bff;
-                                    color: white;
-                                    border: none;
-                                    padding: 8px 16px;
-                                    border-radius: 4px;
-                                    cursor: pointer;
-                                    margin-right: 10px;
-                                `;
+                                                         // 检查是否包含"未知机场"错误
+                             if (data.error.includes('未知机场') || data.error.includes('Unknown Airport')) {
+                                 // 创建错误消息容器
+                                 const errorContainer = document.createElement('div');
+                                 errorContainer.className = 'error-message-container';
+                                 
+                                 // 创建错误消息
+                                 const errorMessage = document.createElement('p');
+                                 errorMessage.textContent = data.error;
+                                 errorContainer.appendChild(errorMessage);
+                                 
+                                 // 创建添加机场信息按钮
+                                 const addAirportBtn = document.createElement('button');
+                                 addAirportBtn.textContent = '添加机场信息';
+                                 addAirportBtn.className = 'unified-button';
+                                 addAirportBtn.style.marginRight = '10px';
                                 addAirportBtn.onclick = function() {
                                     // 获取CSRF token
                                     const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
@@ -941,44 +1039,36 @@
                                 // 将错误容器插入到表单后面
                                 const form = document.getElementById('conversionForm');
                                 form.parentNode.insertBefore(errorContainer, form.nextSibling);
-                            } else {
-                                // 对于其他错误，显示普通alert
-                                alert(data.error);
-                            }
-                            
-                            // 如果是因为 CSRF token 过期，刷新页面
-                            if (data.error.includes('CSRF')) {
-                                window.location.reload();
-                            }
-                        } else if (data.output_text) {
-                            console.log('Success, updating output text');
-                            // 更新输出文本
-                            document.getElementById('output_text').value = data.output_text;
-                            
-                            // 检查输出文本中是否包含"未知机场"
-                            if (data.output_text.includes('未知机场') || data.output_text.includes('Unknown Airport')) {
-                                // 创建警告消息容器
-                                const warningContainer = document.createElement('div');
-                                warningContainer.className = 'warning-message-container';
-                                
-                                // 创建警告消息
-                                const warningMessage = document.createElement('p');
-                                warningMessage.textContent = '转换成功，但发现未知机场信息。您可以添加机场信息到数据库中。';
-                                warningContainer.appendChild(warningMessage);
-                                
-                                // 创建添加机场信息按钮
-                                const addAirportBtn = document.createElement('button');
-                                addAirportBtn.textContent = '添加机场信息';
-                                addAirportBtn.className = 'flight-app-button';
-                                addAirportBtn.style.cssText = `
-                                    background-color: #007bff;
-                                    color: white;
-                                    border: none;
-                                    padding: 8px 16px;
-                                    border-radius: 4px;
-                                    cursor: pointer;
-                                    margin-right: 10px;
-                                `;
+                                                         } else {
+                                 // 对于其他错误，显示普通alert
+                                 alert(data.error);
+                             }
+                             
+                             // 如果是因为 CSRF token 过期，刷新页面
+                             if (data.error.includes('CSRF')) {
+                                 window.location.reload();
+                             }
+                         } else if (data.output_text) {
+                             console.log('Success, updating output text');
+                             // 更新输出文本
+                             document.getElementById('output_text').value = data.output_text;
+                             
+                             // 检查输出文本中是否包含"未知机场"
+                             if (data.output_text.includes('未知机场') || data.output_text.includes('Unknown Airport')) {
+                                 // 创建警告消息容器
+                                 const warningContainer = document.createElement('div');
+                                 warningContainer.className = 'warning-message-container';
+                                 
+                                 // 创建警告消息
+                                 const warningMessage = document.createElement('p');
+                                 warningMessage.textContent = '转换成功，但发现未知机场信息。您可以添加机场信息到数据库中。';
+                                 warningContainer.appendChild(warningMessage);
+                                 
+                                 // 创建添加机场信息按钮
+                                 const addAirportBtn = document.createElement('button');
+                                 addAirportBtn.textContent = '添加机场信息';
+                                 addAirportBtn.className = 'unified-button';
+                                 addAirportBtn.style.marginRight = '10px';
                                 addAirportBtn.onclick = function() {
                                     // 获取CSRF token
                                     const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
@@ -1206,19 +1296,19 @@
         const inputGroup = document.createElement('div');
         inputGroup.className = 'athina-input-group';
         inputGroup.dataset.id = inputCounter++;
-        inputGroup.innerHTML = `
-            <label>
-                航班日期
-                <input type="text" class="flightDate athina-input" placeholder="例如: 01JUN" 
-                       onblur="saveInput(this)" ondblclick="showDropdown(this)">
-            </label>
-            <label>
-                航班号码
-                <input type="text" class="flightNumber athina-input" placeholder="例如: TR 898" 
-                       onblur="saveInput(this)" ondblclick="showDropdown(this)">
-            </label>
-            <button class="athina-delete-btn" onclick="removeInput(this)">删除</button>
-        `;
+                 inputGroup.innerHTML = `
+             <label>
+                 航班日期
+                 <input type="text" class="flightDate athina-input unified-input" placeholder="例如: 01JUN" 
+                        onblur="saveInput(this)" ondblclick="showDropdown(this)">
+             </label>
+             <label>
+                 航班号码
+                 <input type="text" class="flightNumber athina-input unified-input" placeholder="例如: TR 898" 
+                        onblur="saveInput(this)" ondblclick="showDropdown(this)">
+             </label>
+             <button class="athina-delete-btn unified-button danger" onclick="removeInput(this)">删除</button>
+         `;
         container.appendChild(inputGroup);
         
         // 为新添加的输入框添加实时输入处理
