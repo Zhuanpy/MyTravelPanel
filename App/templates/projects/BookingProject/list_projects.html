@@ -19,6 +19,32 @@
     .project-link:active {
         color: #004085 !important;
     }
+    
+    /* Project status dropdown styling */
+    .project-status-select {
+        min-width: 80px;
+        font-size: 0.875rem;
+        padding: 0.25rem 0.5rem;
+        border-radius: 0.25rem;
+        border: 1px solid #ced4da;
+        background-color: #fff;
+        transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+    }
+    
+    .project-status-select:focus {
+        border-color: #80bdff;
+        outline: 0;
+        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+    }
+    
+    .project-status-select:hover {
+        border-color: #80bdff;
+    }
+    
+    /* Toast container styling */
+    .toast-container {
+        z-index: 9999;
+    }
 </style>
 {% endblock %}
 
@@ -246,7 +272,7 @@
                                 </thead>
                                 <tbody>
                                     {% for project in projects %}
-                                    <tr>
+                                    <tr data-project-id="{{ project.id }}">
                                         <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                                             <a href="{{ url_for('projects.header_detail', header_id=project.id) }}" 
                                                class="text-decoration-none fw-bold project-link" 
@@ -283,19 +309,15 @@
                                             {% endif %}
                                         </td>
                                         <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                                            {% set status_colors = {
-                                                'draft': 'secondary',
-                                                'active': 'primary',
-                                                'completed': 'success',
-                                                'cancelled': 'danger'
-                                            } %}
-                                            <span class="badge bg-{{ status_colors.get(project.status, 'secondary') }}">
-                                                {% if project.status == 'draft' %}草稿
-                                                {% elif project.status == 'active' %}进行中
-                                                {% elif project.status == 'completed' %}已完成
-                                                {% elif project.status == 'cancelled' %}已取消
-                                                {% else %}{{ project.status }}{% endif %}
-                                            </span>
+                                            <select name="project_status" class="form-select form-select-sm project-status-select" 
+                                                    data-project-id="{{ project.id }}" 
+                                                    data-current-status="{{ project.status }}"
+                                                    onchange="updateProjectStatus(this)">
+                                                <option value="draft" {% if project.status == 'draft' %}selected{% endif %}>草稿</option>
+                                                <option value="active" {% if project.status == 'active' %}selected{% endif %}>进行中</option>
+                                                <option value="completed" {% if project.status == 'completed' %}selected{% endif %}>已完成</option>
+                                                <option value="cancelled" {% if project.status == 'cancelled' %}selected{% endif %}>已取消</option>
+                                            </select>
                                         </td>
                                         <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                                             <span class="text-success fw-bold">
@@ -314,51 +336,48 @@
                                             {% elif profit < 0 %}
                                                 <span class="text-danger fw-bold">${{ "%.2f"|format(profit) }}</span>
                                             {% else %}
-                                                <span class="text-muted">$0.00</span>
+                                                <span class="text-muted fw-bold">$0.00</span>
                                             {% endif %}
                                         </td>
                                         <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                                            {% set balance = project_stats[project.id]['balance'] %}
-                                            {% if balance > 0 %}
-                                                <span class="text-danger fw-bold">${{ "%.2f"|format(balance) }}</span>
-                                            {% elif balance == 0 %}
-                                                <span class="text-success fw-bold">${{ "%.2f"|format(balance) }}</span>
+                                            {% if project_stats[project.id] and 'balance' in project_stats[project.id] %}
+                                                {% set balance = project_stats[project.id]['balance'] %}
+                                                {% if balance > 0 %}
+                                                    <span class="text-warning fw-bold">${{ "%.2f"|format(balance) }}</span>
+                                                {% elif balance < 0 %}
+                                                    <span class="text-success fw-bold">${{ "%.2f"|format(balance) }}</span>
+                                                {% else %}
+                                                    <span class="text-muted fw-bold">$0.00</span>
+                                                {% endif %}
                                             {% else %}
-                                                <span class="text-muted fw-bold">${{ "%.2f"|format(balance) }}</span>
+                                                <span class="text-muted fw-bold">N/A</span>
                                             {% endif %}
                                         </td>
                                         <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                                            {% if project.created_at %}
-                                                {{ project.created_at.strftime('%Y-%m-%d %H:%M') }}
-                                            {% else %}
-                                                <span class="text-muted">-</span>
-                                            {% endif %}
+                                            {{ project.created_at.strftime('%Y-%m-%d %H:%M') }}
                                         </td>
                                         <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                                            {% if project.updated_at %}
-                                                {{ project.updated_at.strftime('%Y-%m-%d %H:%M') }}
-                                            {% else %}
-                                                <span class="text-muted">-</span>
-                                            {% endif %}
+                                            {{ project.updated_at.strftime('%Y-%m-%d %H:%M') }}
                                         </td>
-                                        <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                                            <div class="btn-group" role="group">
+                                        <td>
+                                            <div class="d-flex gap-2">
                                                 <a href="{{ url_for('projects.header_detail', header_id=project.id) }}" 
-                                                   class="btn btn-sm btn-outline-primary" title="查看详情">
+                                                   class="btn btn-sm btn-outline-primary" 
+                                                   title="查看详情">
                                                     <i class="fas fa-eye"></i>
                                                 </a>
                                                 <a href="{{ url_for('projects.edit_header', header_id=project.id) }}" 
-                                                   class="btn btn-sm btn-outline-warning" title="编辑">
+                                                   class="btn btn-sm btn-outline-secondary" 
+                                                   title="编辑">
                                                     <i class="fas fa-edit"></i>
                                                 </a>
-                                                <a href="{{ url_for('projects.create_ref', header_id=project.id) }}" 
-                                                   class="btn btn-sm btn-outline-success" title="添加REF">
-                                                    <i class="fas fa-plus"></i> REF
-                                                </a>
-                                                <button onclick="deleteProject({{ project.id }}, '{{ project.hid }}')" 
-                                                        class="btn btn-sm btn-outline-danger" title="删除项目">
+                                                {% if not project_stats[project.id]['has_eo'] and not project_stats[project.id]['has_receipt'] %}
+                                                <button class="btn btn-sm btn-outline-danger delete-project" 
+                                                        data-project-id="{{ project.id }}"
+                                                        title="删除">
                                                     <i class="fas fa-trash"></i>
                                                 </button>
+                                                {% endif %}
                                             </div>
                                         </td>
                                     </tr>
@@ -366,67 +385,45 @@
                                 </tbody>
                             </table>
                         </div>
-
-                        <!-- 分页 -->
-                        {% if pagination %}
-                        <nav aria-label="项目列表分页">
-                            <ul class="pagination justify-content-center">
-                                {% if pagination.has_prev %}
+                        
+                        {% if pagination and pagination.pages > 1 %}
+                        <div class="d-flex justify-content-center mt-4">
+                            <nav aria-label="Page navigation">
+                                <ul class="pagination">
+                                    {% if pagination.has_prev %}
                                     <li class="page-item">
-                                        {% set args = request.args.copy() %}
-                                        {% set _ = args.update({'page': pagination.prev_num}) %}
-                                        <a class="page-link" href="{{ url_for('projects.list_projects', **args) }}" 
-                                           title="上一页URL: {{ url_for('projects.list_projects', **args) }}">上一页</a>
+                                        <a class="page-link" href="{{ url_for('projects.list_projects', page=pagination.prev_num, **request.args|dict_except('page')) }}" aria-label="Previous">
+                                            <span aria-hidden="true">&laquo;</span>
+                                        </a>
                                     </li>
-                                {% else %}
-                                    <li class="page-item disabled">
-                                        <span class="page-link">上一页</span>
-                                    </li>
-                                {% endif %}
-                                
-                                {% for page_num in pagination.iter_pages() %}
-                                    {% if page_num %}
-                                        {% if page_num != pagination.page %}
-                                            <li class="page-item">
-                                                {% set args = request.args.copy() %}
-                                                {% set _ = args.update({'page': page_num}) %}
-                                                <a class="page-link" href="{{ url_for('projects.list_projects', **args) }}">{{ page_num }}</a>
-                                            </li>
-                                        {% else %}
-                                            <li class="page-item active">
-                                                <span class="page-link">{{ page_num }}</span>
-                                            </li>
-                                        {% endif %}
-                                    {% else %}
-                                        <li class="page-item disabled">
-                                            <span class="page-link">...</span>
-                                        </li>
                                     {% endif %}
-                                {% endfor %}
-                                
-                                {% if pagination.has_next %}
+                                    
+                                    {% for page_num in pagination.iter_pages() %}
+                                        {% if page_num %}
+                                            {% if page_num == pagination.page %}
+                                            <li class="page-item active"><a class="page-link" href="#">{{ page_num }}</a></li>
+                                            {% else %}
+                                            <li class="page-item"><a class="page-link" href="{{ url_for('projects.list_projects', page=page_num, **request.args|dict_except('page')) }}">{{ page_num }}</a></li>
+                                            {% endif %}
+                                        {% else %}
+                                            <li class="page-item disabled"><span class="page-link">...</span></li>
+                                        {% endif %}
+                                    {% endfor %}
+                                    
+                                    {% if pagination.has_next %}
                                     <li class="page-item">
-                                        {% set args = request.args.copy() %}
-                                        {% set _ = args.update({'page': pagination.next_num}) %}
-                                        <a class="page-link" href="{{ url_for('projects.list_projects', **args) }}">下一页</a>
+                                        <a class="page-link" href="{{ url_for('projects.list_projects', page=pagination.next_num, **request.args|dict_except('page')) }}" aria-label="Next">
+                                            <span aria-hidden="true">&raquo;</span>
+                                        </a>
                                     </li>
-                                {% else %}
-                                    <li class="page-item disabled">
-                                        <span class="page-link">下一页</span>
-                                    </li>
-                                {% endif %}
-                            </ul>
-                        </nav>
+                                    {% endif %}
+                                </ul>
+                            </nav>
+                        </div>
                         {% endif %}
-
                     {% else %}
-                        <div class="text-center py-5">
-                            <i class="fas fa-folder-open fa-3x text-muted mb-3"></i>
-                            <h5 class="text-muted">暂无项目</h5>
-                            <p class="text-muted">点击上方"新建项目"按钮开始创建您的第一个项目</p>
-                            <a href="{{ url_for('projects.create_header') }}" class="btn btn-primary">
-                                <i class="fas fa-plus"></i> 新建项目
-                            </a>
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle"></i> 没有找到符合条件的项目
                         </div>
                     {% endif %}
                 </div>
@@ -435,306 +432,134 @@
     </div>
 </div>
 
-<!-- 统计信息卡片 -->
-<div class="row mt-4">
-    <div class="col-md-3">
-        <div class="card bg-primary text-white">
-            <div class="card-body">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <h6 class="card-title">总项目数</h6>
-                        <h3 class="mb-0">{{ total_projects_count }}</h3>
-                    </div>
-                    <div class="align-self-center">
-                        <i class="fas fa-project-diagram fa-2x"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <div class="col-md-3">
-        <div class="card bg-success text-white">
-            <div class="card-body">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <h6 class="card-title">进行中</h6>
-                        <h3 class="mb-0">{{ active_projects_count }}</h3>
-                    </div>
-                    <div class="align-self-center">
-                        <i class="fas fa-play-circle fa-2x"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <div class="col-md-3">
-        <div class="card bg-info text-white">
-            <div class="card-body">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <h6 class="card-title">已完成</h6>
-                        <h3 class="mb-0">{{ completed_projects_count }}</h3>
-                    </div>
-                    <div class="align-self-center">
-                        <i class="fas fa-check-circle fa-2x"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <div class="col-md-3">
-        <div class="card bg-warning text-white">
-            <div class="card-body">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <h6 class="card-title">草稿</h6>
-                        <h3 class="mb-0">{{ draft_projects_count }}</h3>
-                    </div>
-                    <div class="align-self-center">
-                        <i class="fas fa-edit fa-2x"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- 财务汇总统计 -->
-<div class="row mt-4">
-    <div class="col-md-4">
-        <div class="card bg-success text-white">
-            <div class="card-body">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <h6 class="card-title">总售价</h6>
-                        <h3 class="mb-0">
-                            ${{ "%.2f"|format(total_selling_sum) }}
-                        </h3>
-                    </div>
-                    <div class="align-self-center">
-                        <i class="fas fa-dollar-sign fa-2x"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <div class="col-md-4">
-        <div class="card bg-danger text-white">
-            <div class="card-body">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <h6 class="card-title">总成本</h6>
-                        <h3 class="mb-0">
-                            ${{ "%.2f"|format(total_cost_sum) }}
-                        </h3>
-                    </div>
-                    <div class="align-self-center">
-                        <i class="fas fa-shopping-cart fa-2x"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <div class="col-md-4">
-        <div class="card bg-info text-white">
-            <div class="card-body">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <h6 class="card-title">总利润</h6>
-                        <h3 class="mb-0">
-                            ${{ "%.2f"|format(total_profit_sum) }}
-                        </h3>
-                    </div>
-                    <div class="align-self-center">
-                        <i class="fas fa-chart-line fa-2x"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-4">
-        <div class="card bg-secondary text-white">
-            <div class="card-body">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <h6 class="card-title">总Balance</h6>
-                        <h3 class="mb-0">
-                            ${{ "%.2f"|format(total_balance_sum) }}
-                        </h3>
-                    </div>
-                    <div class="align-self-center">
-                        <i class="fas fa-balance-scale fa-2x"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-4">
-        <div class="card bg-primary text-white">
-            <div class="card-body">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <h6 class="card-title">总已付款</h6>
-                        <h3 class="mb-0">
-                            ${{ "%.2f"|format(total_paid_sum) }}
-                        </h3>
-                    </div>
-                    <div class="align-self-center">
-                        <i class="fas fa-credit-card fa-2x"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-{% endblock %}
-
 {% block extra_js %}
 <script>
 $(document).ready(function() {
-    // 自动提交筛选表单，但排除分页链接
-    $('#status, #search, #company, #leader, #date_from, #date_to, #selling_min, #selling_max, #profit_min, #profit_max, #balance_min, #balance_max, #sort_by').on('change keyup', function() {
-        // 清除所有延迟提交的搜索
-        clearTimeout(window.searchTimeout);
-        // 延迟提交表单
-        window.searchTimeout = setTimeout(function() {
-            $('form').submit();
-        }, 500);
-    });
-    
-    // 防止表单提交干扰分页链接
-    $('form').on('submit', function(e) {
-        // 如果点击的是分页链接，阻止表单提交
-        if ($(document.activeElement).closest('.pagination').length) {
-            e.preventDefault();
-            return false;
-        }
-    });
-    
-    // 分页链接点击事件处理 - 确保正常工作
-    $(document).on('click', '.pagination .page-link', function(e) {
-        var href = $(this).attr('href');
-        console.log('分页链接点击:', href);
-        if (href && href !== '#' && href !== 'javascript:void(0)') {
-            console.log('准备跳转到:', href);
-            // 确保事件不被其他处理程序干扰
-            e.stopImmediatePropagation();
-            window.location.href = href;
-            return false;
-        }
-    });
-    
-    // 添加鼠标悬停效果
-    $('tbody tr').hover(
-        function() { $(this).addClass('table-active'); },
-        function() { $(this).removeClass('table-active'); }
-    );
-
-    // 快速筛选按钮事件
-    $('.quick-filter').click(function(e) {
-        e.preventDefault();
+    // Quick filter buttons
+    $('.quick-filter').click(function() {
         const filter = $(this).data('filter');
-        const currentUrl = new URL(window.location.href);
-        const params = currentUrl.searchParams;
-
-        // 应用新的筛选参数
-        if (filter.includes('status=')) {
-            params.set('status', filter.split('=')[1]);
-        }
-        if (filter.includes('profit_min=')) {
-            params.set('profit_min', filter.split('=')[1]);
-        }
-        if (filter.includes('profit_max=')) {
-            params.set('profit_max', filter.split('=')[1]);
-        }
-        if (filter.includes('selling_min=')) {
-            params.set('selling_min', filter.split('=')[1]);
-        }
-        if (filter.includes('selling_max=')) {
-            params.set('selling_max', filter.split('=')[1]);
-        }
-        if (filter.includes('balance_min=')) {
-            params.set('balance_min', filter.split('=')[1]);
-        }
-        if (filter.includes('balance_max=')) {
-            params.set('balance_max', filter.split('=')[1]);
-        }
-
-        // 移除所有其他参数，只保留筛选参数
-        params.delete('page');
-        params.delete('search');
-        params.delete('company');
-        params.delete('leader');
-        params.delete('date_from');
-        params.delete('date_to');
-        params.delete('sort_by');
-
-        // 更新URL并刷新页面
-        window.location.href = currentUrl.pathname + '?' + params.toString();
+        const [key, value] = filter.split('=');
+        window.location.href = "{{ url_for('projects.list_projects') }}?" + key + "=" + encodeURIComponent(value);
     });
-
-    // 清除所有筛选按钮事件
-    $('#clear-all-filters').click(function(e) {
-        e.preventDefault();
-        const currentUrl = new URL(window.location.href);
-        const params = currentUrl.searchParams;
-
-        // 移除所有筛选参数
-        params.delete('status');
-        params.delete('profit_min');
-        params.delete('profit_max');
-        params.delete('selling_min');
-        params.delete('selling_max');
-        params.delete('balance_min');
-        params.delete('balance_max');
-        params.delete('page');
-        params.delete('search');
-        params.delete('company');
-        params.delete('leader');
-        params.delete('date_from');
-        params.delete('date_to');
-        params.delete('sort_by');
-
-        // 更新URL并刷新页面
-        window.location.href = currentUrl.pathname + '?' + params.toString();
+    
+    // Clear all filters
+    $('#clear-all-filters').click(function() {
+        window.location.href = "{{ url_for('projects.list_projects') }}";
+    });
+    
+    // Delete project handler
+    $('.delete-project').click(function() {
+        const projectId = $(this).data('project-id');
+        if (confirm('确定要删除这个项目吗？此操作不可撤销。')) {
+            deleteProject(projectId);
+        }
     });
 });
 
-// 删除项目函数
-function deleteProject(projectId, projectHid) {
-    if (confirm(`确定要删除项目 "${projectHid}" 吗？此操作不可恢复，将同时删除所有相关的REF数据。`)) {
-        // 获取CSRF token
-        const csrfToken = document.querySelector('input[name="csrf_token"]').value;
-        
-        // 创建表单数据
-        const formData = new FormData();
-        formData.append('csrf_token', csrfToken);
-        
-        fetch(`{{ url_for('projects.delete_header', header_id=0) }}`.replace('0', projectId), {
-            method: 'POST',
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest'
-            },
-            body: formData
-        })
-        .then(response => {
-            if (response.ok) {
-                // 删除成功，刷新页面
-                window.location.reload();
+// Function to update project status via dropdown
+function updateProjectStatus(select) {
+    const projectId = select.dataset.projectId;
+    const newStatus = select.value;
+    const csrfToken = $('input[name="csrf_token"]').val();
+    
+    // Store original value for rollback
+    const originalValue = select.dataset.currentStatus;
+    
+    $.ajax({
+        url: "{{ url_for('projects.update_header_status') }}",
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({
+            project_id: projectId,
+            status: newStatus,
+            csrf_token: csrfToken
+        }),
+        success: function(response) {
+            if (response.success) {
+                // Update the data attribute
+                select.dataset.currentStatus = newStatus;
+                
+                // Show success message
+                showToast('success', '状态更新成功！');
             } else {
-                throw new Error('删除失败');
+                // Rollback to original value
+                select.value = originalValue;
+                showToast('error', '更新失败：' + response.message);
             }
-        })
-        .catch(error => {
-            console.error('删除错误:', error);
-            alert('删除失败，请稍后重试！');
-        });
+        },
+        error: function(xhr, status, error) {
+            // Rollback to original value
+            select.value = originalValue;
+            showToast('error', '更新失败：' + error);
+        }
+    });
+}
+
+// Function to show toast messages
+function showToast(type, message) {
+    // Create toast container if it doesn't exist
+    let toastContainer = document.querySelector('.toast-container');
+    if (!toastContainer) {
+        toastContainer = document.createElement('div');
+        toastContainer.className = 'toast-container position-fixed top-0 end-0 p-3';
+        toastContainer.style.zIndex = '9999';
+        document.body.appendChild(toastContainer);
     }
+    
+    // Create toast element
+    const toast = document.createElement('div');
+    toast.className = `toast align-items-center text-white bg-${type === 'success' ? 'success' : 'danger'} border-0`;
+    toast.setAttribute('role', 'alert');
+    toast.setAttribute('aria-live', 'assertive');
+    toast.setAttribute('aria-atomic', 'true');
+    
+    toast.innerHTML = `
+        <div class="d-flex">
+            <div class="toast-body">
+                ${message}
+            </div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+    `;
+    
+    // Add toast to container
+    toastContainer.appendChild(toast);
+    
+    // Show toast
+    const bsToast = new bootstrap.Toast(toast);
+    bsToast.show();
+    
+    // Remove toast after it's hidden
+    toast.addEventListener('hidden.bs.toast', function() {
+        toast.remove();
+    });
+}
+
+// Function to delete project
+function deleteProject(projectId) {
+    const csrfToken = $('input[name="csrf_token"]').val();
+    
+    $.ajax({
+        url: `/projects/header/delete/${projectId}`,
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': csrfToken,
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        success: function(response) {
+            if (response.success) {
+                // Remove the row from the table
+                $(`tr[data-project-id="${projectId}"]`).remove();
+                showToast('success', '项目删除成功！');
+            } else {
+                showToast('error', '删除失败：' + response.message);
+            }
+        },
+        error: function(xhr, status, error) {
+            showToast('error', '删除失败：' + error);
+        }
+    });
 }
 </script>
-{% endblock %} 
+{% endblock %}
+{% endblock %}
