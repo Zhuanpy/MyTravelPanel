@@ -587,6 +587,7 @@ def list_projects():
     company = request.args.get('company')
     leader = request.args.get('leader')
     contact = request.args.get('contact')
+    staff_name = request.args.get('staff_name')
     date_from = request.args.get('date_from')
     date_to = request.args.get('date_to')
     selling_min = request.args.get('selling_min')
@@ -598,6 +599,9 @@ def list_projects():
     sort_by = request.args.get('sort_by', 'created_at_desc')
     
     query = ProjectHeader.query
+
+    # 预加载客户公司关联，避免N+1查询问题
+    query = query.options(db.joinedload(ProjectHeader.company))
 
     # 基础筛选
     if status:
@@ -612,13 +616,16 @@ def list_projects():
         )
     
     if company:
-        query = query.filter(ProjectHeader.company_name.contains(company))
+        query = query.join(CustomerCompany).filter(CustomerCompany.company_name.contains(company))
     
     if leader:
         query = query.filter(ProjectHeader.leader_name.contains(leader))
     
     if contact:
         query = query.filter(ProjectHeader.contact.contains(contact))
+    
+    if staff_name:
+        query = query.filter(ProjectHeader.staff_name.contains(staff_name))
     
     if date_from:
         query = query.filter(ProjectHeader.created_at >= date_from)

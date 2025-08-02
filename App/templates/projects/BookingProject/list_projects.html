@@ -97,6 +97,11 @@
                                    placeholder="联系人姓名" value="{{ request.args.get('contact', '') }}">
                         </div>
                         <div class="col-md-2">
+                            <label for="staff_name" class="form-label">经办人姓名</label>
+                            <input type="text" class="form-control" id="staff_name" name="staff_name" 
+                                   placeholder="经办人姓名" value="{{ request.args.get('staff_name', '') }}">
+                        </div>
+                        <div class="col-md-2">
                             <label for="date_from" class="form-label">创建日期从</label>
                             <input type="date" class="form-control" id="date_from" name="date_from" 
                                    value="{{ request.args.get('date_from', '') }}">
@@ -238,6 +243,9 @@
                                     {% if request.args.get('contact') %}
                                         <span class="badge bg-info me-1">联系人: {{ request.args.get('contact') }}</span>
                                     {% endif %}
+                                    {% if request.args.get('staff_name') %}
+                                        <span class="badge bg-dark me-1">经办人: {{ request.args.get('staff_name') }}</span>
+                                    {% endif %}
                                     {% if request.args.get('selling_min') or request.args.get('selling_max') %}
                                         <span class="badge bg-success me-1">售价范围</span>
                                     {% endif %}
@@ -260,6 +268,7 @@
                                         <th style="width: 150px;">客户公司</th>
                                         <th style="width: 100px;">负责人</th>
                                         <th style="width: 100px;">联系人</th>
+                                        <th style="width: 100px;">经办人姓名</th>
                                         <th style="width: 80px;">状态</th>
                                         <th style="width: 120px;">总售价 (SGD)</th>
                                         <th style="width: 120px;">总成本 (SGD)</th>
@@ -287,9 +296,9 @@
                                                 <span class="text-muted">无描述</span>
                                             {% endif %}
                                         </td>
-                                        <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{% if project.company_name %}{{ project.company_name }}{% else %}未指定{% endif %}">
-                                            {% if project.company_name %}
-                                                {{ project.company_name }}
+                                        <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{% if project.company %}{{ project.company.company_name }}{% else %}未指定{% endif %}">
+                                            {% if project.company %}
+                                                {{ project.company.company_name }}
                                             {% else %}
                                                 <span class="text-muted">未指定</span>
                                             {% endif %}
@@ -306,6 +315,13 @@
                                                 {{ project.contact }}
                                             {% else %}
                                                 <span class="text-muted">N/A</span>
+                                            {% endif %}
+                                        </td>
+                                        <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{% if project.staff_name %}{{ project.staff_name }}{% else %}未设置{% endif %}">
+                                            {% if project.staff_name %}
+                                                {{ project.staff_name }}
+                                            {% else %}
+                                                <span class="text-muted">未设置</span>
                                             {% endif %}
                                         </td>
                                         <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">

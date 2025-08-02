@@ -2,7 +2,10 @@
 {% block title %}编辑项目 - MyTravelPanel{% endblock %}
 
 {% block page_title %}编辑项目{% endblock %}
-{% block content %}
+
+{% block extra_css %}
+<!-- 添加 Select2 样式 -->
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 <style>
     .edit-header-form-card {
         background: #fff;
@@ -72,7 +75,31 @@
     .edit-header-form .remarks-row {
         display: none !important;
     }
+    /* Select2 样式优化 */
+    .select2-container {
+        width: 100% !important;
+    }
+    .select2-selection {
+        height: 38px !important;
+        border: 1px solid #d4d4d4 !important;
+        border-radius: 5px !important;
+        background: #fafbfc !important;
+    }
+    .select2-selection__arrow {
+        height: 36px !important;
+    }
+    .select2-container .select2-selection--single .select2-selection__rendered {
+        line-height: 36px !important;
+        padding-left: 12px !important;
+    }
+    .select2-container--default .select2-selection--single:focus {
+        border-color: #409eff !important;
+        box-shadow: 0 0 0 2px rgba(64,158,255,0.08) !important;
+    }
 </style>
+{% endblock %}
+
+{% block content %}
 <div class="container mt-4">
     <h2>编辑项目主表（HID）</h2>
     
@@ -127,4 +154,30 @@
     </form>
     </div>
 </div>
+{% endblock %} 
+
+{% block extra_js %}
+<!-- 添加 Select2 JS -->
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script>
+$(document).ready(function() {
+    // 确保jQuery和Select2都已加载
+    if (typeof jQuery !== 'undefined' && typeof jQuery.fn.select2 !== 'undefined') {
+        // 初始化公司选择下拉框
+        $('#company_id').select2({
+            placeholder: '请选择公司',
+            allowClear: true,
+            width: '100%',
+            language: {
+                noResults: function() {
+                    return "没有找到匹配的公司";
+                },
+                searching: function() {
+                    return "搜索中...";
+                }
+            }
+        });
+    }
+});
+</script>
 {% endblock %} 

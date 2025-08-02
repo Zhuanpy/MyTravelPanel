@@ -71,7 +71,14 @@ def create_company():
             return redirect(url_for('company.list_companies'))
         except Exception as e:
             db.session.rollback()
-            flash(f'创建失败：{str(e)}', 'error')
+            error_msg = str(e)
+            
+            # 检查是否是重复公司名称错误
+            if "Duplicate entry" in error_msg and "company_name" in error_msg:
+                company_name = form.company_name.data
+                flash(f'创建失败：公司名称 "{company_name}" 已存在，请使用其他名称', 'error')
+            else:
+                flash(f'创建失败：{error_msg}', 'error')
     elif form.errors:
         for field, errors in form.errors.items():
             for error in errors:
