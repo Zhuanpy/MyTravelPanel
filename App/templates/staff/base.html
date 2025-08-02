@@ -73,6 +73,9 @@
                             </a></li>
                             <li><hr class="dropdown-divider"></li>
                             <li><h6 class="dropdown-header">Athina系统</h6></li>
+                                            <li><a class="dropdown-item" href="{{ url_for('flights_athina.athina_conversion') }}">
+                    <i class="fas fa-tools me-2"></i>Athina机票工具
+                </a></li>
                             <li><a class="dropdown-item" href="{{ url_for('flights_athina.itinerary_conversion') }}">
                                 <i class="fas fa-exchange-alt me-2"></i>简化TRAVELPORT
                             </a></li>
@@ -357,6 +360,13 @@
                             <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted">
                                 <span><i class="fas fa-cogs me-2"></i>Athina系统</span>
                             </h6>
+                        </li>
+                        <li class="nav-item">
+                                        <a class="nav-link {% if request.endpoint == 'flights_athina.athina_conversion' %}active{% endif %}" 
+               href="{{ url_for('flights_athina.athina_conversion') }}">
+                <i class="fas fa-tools me-2"></i>
+                Athina机票工具
+            </a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link {% if request.endpoint == 'flights_athina.itinerary_conversion' %}active{% endif %}" 

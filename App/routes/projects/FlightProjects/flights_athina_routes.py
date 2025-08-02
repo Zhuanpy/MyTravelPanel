@@ -79,6 +79,13 @@ def athina_simple():
     """简化的Athina页面"""
     return render_template('flights/flight_athina.html')
 
+@flights_athina.route('/conversion', methods=['GET'])
+@login_required
+@staff_only
+def athina_conversion():
+    """Athina机票工具整合页面"""
+    return render_template('flights/flight_athina_conversion.html', output_text="")
+
 @flights_athina.route('/itinerary_conversion', methods=['GET', 'POST'])
 @login_required
 @staff_only

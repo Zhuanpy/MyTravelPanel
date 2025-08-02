@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, jsonify, redirect, url_for, flash
+from flask import Blueprint, render_template, request, jsonify, redirect, url_for, flash, session
 from flask_login import login_required, current_user
 from App.models.Flightmodels import FlightSchedule, AirportData
 from sqlalchemy.exc import IntegrityError
@@ -484,6 +484,11 @@ def update_airport():
 @login_required
 @staff_only
 def input_airport_code_info():
+    # 处理URL中的CSRF token
+    if request.method == 'GET' and request.args.get('csrf_token'):
+        # 将URL中的CSRF token设置到session中
+        session['csrf_token'] = request.args.get('csrf_token')
+    
     if request.method == 'POST':
         try:
             iata_list = request.form.getlist('iata[]')
