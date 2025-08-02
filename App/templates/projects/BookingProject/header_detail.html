@@ -450,9 +450,9 @@
             <table class="table table-hover mb-0" style="table-layout: fixed; width: 100%;">
                 <thead>
                     <tr>
-                        <th style="width: 120px;">REF编号</th>
-                        <th style="width: 80px;">类型</th>
-                        <th style="width: 100px;">出行人</th>
+                        <th style="width: 100px;">REF编号</th>
+                        <th style="width: 60px;">类型</th>
+                        <th style="width: 150px;">出行人</th>
                         <th style="width: 200px;">名称</th>
                         <th style="width: 100px;">EO编号</th>
                         <th style="width: 100px;">售价</th>
@@ -585,9 +585,12 @@
                                     </a>
                                 {% endif %}
                                 
-                                <a href="{{ url_for('projects.delete_ref', ref_id=ref.id) }}" class="btn btn-sm btn-danger">
-                                    <i class="fas fa-trash"></i>
-                                </a>
+                                <!-- 如果已生成EO或有收款记录，则隐藏删除按钮 -->
+                                {% if not ref.eos and not ref.receipts %}
+                                    <a href="{{ url_for('projects.delete_ref', ref_id=ref.id) }}" class="btn btn-sm btn-danger">
+                                        <i class="fas fa-trash"></i>
+                                    </a>
+                                {% endif %}
                             </div>
                         </td>
                     </tr>
@@ -1113,42 +1116,30 @@ window.submitNewRemarks = function() {
         .replace(/^\s+|\s+$/g, '')  // 去除首尾空白
         .trim();
     
-    if (confirm('确定要提交这个备注吗？')) {
-        fetch('/projects/update_header_remarks', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': '{{ csrf_token() }}'
-            },
-            body: JSON.stringify({ 
-                header_id: {{ header.id }}, 
-                remarks: combinedRemarks 
-            })
+    // 直接提交，不需要二次确认
+    fetch('/projects/update_header_remarks', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify({ 
+            header_id: {{ header.id }}, 
+            remarks: combinedRemarks 
         })
-        .then(res => res.json())
-        .then(data => {
-            if (data.success) {
-                alert('备注提交成功！');
-                // 更新备注显示
-                const remarksDisplay = document.getElementById('remarks-display');
-                if (remarksDisplay) {
-                    remarksDisplay.textContent = data.remarks;
-                    // 立即清理显示
-                    cleanRemarksDisplay();
-                }
-                // 隐藏输入框
-                document.getElementById('new-remarks-input').style.display = 'none';
-                document.getElementById('add-remarks-btn').style.display = 'inline-block';
-                // 清空输入框
-                document.getElementById('new-remarks-input').value = '';
-            } else {
-                alert(data.message || '备注提交失败');
-            }
-        })
-        .catch(() => {
-            alert('网络错误，备注提交失败');
-        });
-    }
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            // 提交成功后刷新页面
+            window.location.reload();
+        } else {
+            alert(data.message || '备注提交失败');
+        }
+    })
+    .catch(() => {
+        alert('网络错误，备注提交失败');
+    });
 };
 
 // 快速创建EO函数

@@ -113,5 +113,16 @@ nosetests.xml
 coverage.xml
 *.cover
 
-# Test and debug scripts
-scripts/
+# Scripts - 忽略临时脚本文件，但保留重要的脚本
+scripts/*.tmp
+scripts/*.temp
+scripts/*.log
+scripts/__pycache__/
+scripts/*.pyc
+scripts/* --*
+scripts/* -ErrorAction*
+scripts/* --porcelain*
+scripts/* --name-only*
+scripts/ion.html*
+scripts/tatus*
+scripts/how*

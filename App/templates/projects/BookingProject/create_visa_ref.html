@@ -136,9 +136,8 @@
                         <div class="row mb-4">
                             <div class="col-md-12">
                                 <div class="form-group">
-                                    <label>申请人信息 <span class="text-danger">*</span></label>
-                                    <textarea name="applicant_info" class="form-control" rows="3" required placeholder="请输入申请人信息，如姓名、护照号、联系方式等">{{ visa_info.get('applicant_info', '') if visa_info else '' }}</textarea>
-                                    <div class="invalid-feedback">请输入申请人信息</div>
+                                    <label>申请人信息</label>
+                                    <textarea name="applicant_info" class="form-control" rows="3" placeholder="请输入申请人信息，如姓名、护照号、联系方式等">{{ visa_info.get('applicant_info', '') if visa_info else '' }}</textarea>
                                 </div>
                             </div>
                         </div>

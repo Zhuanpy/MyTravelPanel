@@ -30,19 +30,24 @@ def header_detail(header_id):
     # 使用joinedload预加载refs和相关数据
     from sqlalchemy.orm import joinedload
     
+    # 使用selectinload来优化性能，避免N+1查询问题
+    from sqlalchemy.orm import selectinload
+    
     header = ProjectHeader.query.options(
-        joinedload(ProjectHeader.refs).joinedload(ProjectRef.ref_type),
-        joinedload(ProjectHeader.refs).joinedload(ProjectRef.supplier)
+        selectinload(ProjectHeader.refs).selectinload(ProjectRef.ref_type),
+        selectinload(ProjectHeader.refs).selectinload(ProjectRef.supplier),
+        selectinload(ProjectHeader.refs).selectinload(ProjectRef.receipts),
+        selectinload(ProjectHeader.refs).selectinload(ProjectRef.eos)
     ).get_or_404(header_id)
     
-    # 获取上一个和下一个项目
+    # 获取上一个和下一个项目（优化查询）
     prev_header = ProjectHeader.query.filter(
         ProjectHeader.id < header_id
-    ).order_by(ProjectHeader.id.desc()).first()
+    ).order_by(ProjectHeader.id.desc()).limit(1).first()
     
     next_header = ProjectHeader.query.filter(
         ProjectHeader.id > header_id
-    ).order_by(ProjectHeader.id.asc()).first()
+    ).order_by(ProjectHeader.id.asc()).limit(1).first()
     
     # 获取公司信息（通过backref自动关联）
     company = header.company
@@ -163,8 +168,9 @@ def submit_flight_ref():
         if ref_id:
             ref = ProjectRef.query.get_or_404(ref_id)
             # 更新REF基本信息
-            ref.name = request.form.get('name', '机票订单')
-            ref.description = request.form.get('description', '机票订单')
+            # 生成基于航段信息的名称
+            ref.name = '机票订单'
+            ref.description = '机票订单'
             ref.supplier_id = request.form.get('supplier_id') if request.form.get('supplier_id') and request.form.get('supplier_id') != '0' else None
             ref.leader_name = request.form.get('leader_name', '')
             ref.contact_name = request.form.get('contact_name')
@@ -184,12 +190,13 @@ def submit_flight_ref():
                 flash('未找到机票业务类型，请先创建', 'error')
                 return redirect(url_for('projects.header_detail', header_id=header_id))
             
+            # 生成基于航段信息的名称
             ref = ProjectRef(
                 header_id=header.id,
                 ref_number=ref_number,
-                name=request.form.get('name', '机票订单'),
+                name='机票订单',
                 ref_type_id=flight_business_type.id,
-                description=request.form.get('description', '机票订单'),
+                description='机票订单',
                 supplier_id=request.form.get('supplier_id') if request.form.get('supplier_id') and request.form.get('supplier_id') != '0' else None,
                 leader_name=request.form.get('leader_name', ''),
                 contact_name=request.form.get('contact_name'),
@@ -262,6 +269,79 @@ def submit_flight_ref():
         departure_times = request.form.getlist('departure_time[]')
         arrival_dates = request.form.getlist('arrival_date[]')
         arrival_times = request.form.getlist('arrival_time[]')
+        
+        # 生成基于航段信息的名称
+        def generate_flight_ref_name(departure_airports, arrival_airports, departure_dates):
+            """根据航段信息生成REF名称：支持多航段"""
+            if not departure_airports or not arrival_airports or not departure_dates:
+                return '机票订单'
+            
+            # 收集所有有效的航段信息
+            valid_segments = []
+            first_dep_date = None
+            
+            for i, (dep_airport, arr_airport, dep_date) in enumerate(zip(departure_airports, arrival_airports, departure_dates)):
+                if dep_airport and arr_airport and dep_date:
+                    if first_dep_date is None:
+                        first_dep_date = dep_date
+                    valid_segments.append((dep_airport, arr_airport))
+            
+            if not valid_segments or not first_dep_date:
+                return '机票订单'
+            
+            # 格式化日期为 DDMON 格式 (例如: 12AUG)
+            try:
+                date_obj = datetime.strptime(first_dep_date, '%Y-%m-%d')
+                formatted_date = date_obj.strftime('%d%b').upper()
+            except ValueError:
+                formatted_date = first_dep_date
+            
+            # 根据航段数量和类型生成不同的名称格式
+            if len(valid_segments) == 1:
+                # 单航段：出发日期 + 出发机场-到达机场
+                dep_airport, arr_airport = valid_segments[0]
+                ref_name = f"{formatted_date} {dep_airport}-{arr_airport}"
+            
+            elif len(valid_segments) == 2:
+                # 双航段：检查是否为往返
+                dep1, arr1 = valid_segments[0]
+                dep2, arr2 = valid_segments[1]
+                
+                if dep1 == arr2 and arr1 == dep2:
+                    # 往返：出发日期 + 出发机场-到达机场-出发机场
+                    ref_name = f"{formatted_date} {dep1}-{arr1}-{dep1}"
+                else:
+                    # 非往返：出发日期 + 出发机场-到达机场-最终到达机场
+                    ref_name = f"{formatted_date} {dep1}-{arr1}-{arr2}"
+            
+            else:
+                # 多航段：构建完整的航线路径
+                route_parts = []
+                for i, (dep_airport, arr_airport) in enumerate(valid_segments):
+                    if i == 0:
+                        # 第一个航段：包含出发机场
+                        route_parts.append(f"{dep_airport}-{arr_airport}")
+                    else:
+                        # 后续航段：只包含到达机场
+                        route_parts.append(arr_airport)
+                
+                # 检查是否为往返
+                first_dep, first_arr = valid_segments[0]
+                last_dep, last_arr = valid_segments[-1]
+                
+                if first_dep == last_arr and first_arr == last_dep:
+                    # 往返：出发日期 + 完整路径
+                    ref_name = f"{formatted_date} {'-'.join(route_parts)}"
+                else:
+                    # 非往返：出发日期 + 完整路径
+                    ref_name = f"{formatted_date} {'-'.join(route_parts)}"
+            
+            return ref_name
+        
+        # 生成REF名称并更新
+        generated_name = generate_flight_ref_name(departure_airports, arrival_airports, departure_dates)
+        ref.name = generated_name
+        ref.description = generated_name
         
         # 删除现有航段
         ProjectFlightSegment.query.filter_by(ref_id=ref.id).delete()
@@ -561,7 +641,7 @@ def list_projects():
     
     projects = query.all()
     
-    # 用字典保存每个项目的财务数据
+    # 用字典保存每个项目的财务数据和EO信息
     project_stats = {}
     for project in projects:
         refs = ProjectRef.query.filter_by(header_id=project.id).all()
@@ -573,12 +653,27 @@ def list_projects():
         total_paid_amount = project.total_paid_amount
         balance = project.total_unpaid_amount  # 使用模型中的未付款金额
         
+        # 检查项目是否有EO号码
+        has_eo = False
+        for ref in refs:
+            if ref.eos:  # 如果REF有关联的EO
+                has_eo = True
+                break
+        
+        # 检查项目是否有收据号码
+        has_receipt = False
+        receipts = ProjectReceipt.query.filter_by(header_id=project.id).all()
+        if receipts:  # 如果项目有关联的收据
+            has_receipt = True
+        
         project_stats[project.id] = {
             'total_selling_price': total_selling_price,
             'total_cost_price': total_cost_price,
             'total_profit': total_profit,
             'total_paid_amount': total_paid_amount,
-            'balance': balance
+            'balance': balance,
+            'has_eo': has_eo,
+            'has_receipt': has_receipt
         }
     
     # 财务金额筛选（在内存中筛选）
@@ -651,7 +746,7 @@ def list_projects():
     
     # 创建分页对象
     class Pagination:
-        def __init__(self, page, per_page, total_count):
+        def __init__(self, page, per_page, total_count, total_pages):
             self.page = page
             self.per_page = per_page
             self.total_count = total_count
@@ -673,7 +768,7 @@ def list_projects():
                     yield num
                     last = num
     
-    pagination = Pagination(page, per_page, total_count)
+    pagination = Pagination(page, per_page, total_count, total_pages)
     
     # 更新project_stats只包含当前页的项目
     paginated_stats = {p.id: filtered_stats[p.id] for p in paginated_projects}
@@ -868,10 +963,34 @@ def edit_ref(ref_id):
                 else:
                     ref.supplier_id = form.supplier_id.data
                 
+                # 生成酒店REF名称：入住日期 + 酒店名称
+                def generate_hotel_ref_name(checkin_date, hotel_name):
+                    """根据入住日期和酒店名称生成REF名称：入住日期 + 酒店名称"""
+                    if not checkin_date or not hotel_name:
+                        return '酒店预订'
+                    
+                    # 格式化日期为 DDMON 格式 (例如: 02JUL)
+                    try:
+                        date_obj = datetime.strptime(checkin_date, '%Y-%m-%d')
+                        formatted_date = date_obj.strftime('%d%b').upper()
+                    except ValueError:
+                        formatted_date = checkin_date
+                    
+                    # 生成名称：入住日期 + 酒店名称
+                    ref_name = f"{formatted_date} {hotel_name}"
+                    return ref_name
+                
+                # 获取酒店信息
+                hotel_name = request.form.get('hotel_name', '')
+                checkin_date = request.form.get('checkin_date', '')
+                
+                # 生成REF名称
+                generated_name = generate_hotel_ref_name(checkin_date, hotel_name)
+                
                 # 更新基础字段
-                ref.name = form.name.data
+                ref.name = generated_name
                 ref.ref_type_id = form.ref_type_id.data
-                ref.description = form.description.data
+                ref.description = generated_name
                 ref.supplier_contact = form.supplier_contact.data
                 ref.supplier_phone = form.supplier_phone.data
                 ref.leader_name = form.leader_name.data
@@ -1024,13 +1143,21 @@ def delete_header(header_id):
         db.session.delete(header)
         db.session.commit()
         
-        flash('项目已成功删除', 'success')
-        return redirect(url_for('projects.list_projects'))
+        # 检查是否是AJAX请求
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': True, 'message': '项目已成功删除'})
+        else:
+            flash('项目已成功删除', 'success')
+            return redirect(url_for('projects.list_projects'))
         
     except Exception as e:
         db.session.rollback()
-        flash(f'删除失败：{str(e)}', 'error')
-        return redirect(url_for('projects.header_detail', header_id=header_id))
+        error_msg = f'删除失败：{str(e)}'
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': False, 'message': error_msg})
+        else:
+            flash(error_msg, 'error')
+            return redirect(url_for('projects.header_detail', header_id=header_id))
 
 # 业务类型ref创建路由
 @projects.route('/ref/create_flight/<int:header_id>', methods=['GET', 'POST'])
@@ -1072,13 +1199,36 @@ def create_hotel_ref(header_id):
                 db.session.add(hotel_business_type)
                 db.session.flush()
             
+            # 生成酒店REF名称：入住日期 + 酒店名称
+            def generate_hotel_ref_name(checkin_date, hotel_name):
+                """根据入住日期和酒店名称生成REF名称：入住日期 + 酒店名称"""
+                if not checkin_date or not hotel_name:
+                    return '酒店预订'
+                
+                # 格式化日期为 DDMON 格式 (例如: 02JUL)
+                try:
+                    date_obj = datetime.strptime(checkin_date, '%Y-%m-%d')
+                    formatted_date = date_obj.strftime('%d%b').upper()
+                except ValueError:
+                    formatted_date = checkin_date
+                
+                # 生成名称：入住日期 + 酒店名称
+                ref_name = f"{formatted_date} {hotel_name}"
+                return ref_name
+            
+            # 生成REF名称
+            generated_name = generate_hotel_ref_name(
+                request.form.get('checkin_date', ''), 
+                request.form.get('hotel_name', '')
+            )
+            
             # 创建酒店REF
             ref = ProjectRef(
                 header_id=header.id,
                 ref_number=ref_number,
-                name=request.form.get('name', '酒店预订'),
+                name=generated_name,
                 ref_type_id=hotel_business_type.id,
-                description=request.form.get('name', '酒店预订'),
+                description=generated_name,
                 supplier_id=request.form.get('supplier_id') if request.form.get('supplier_id') else None,
                 supplier_contact=request.form.get('supplier_contact', ''),
                 leader_name=request.form.get('leader_name', ''),
@@ -1718,16 +1868,33 @@ def update_header_company():
 @csrf.exempt
 def update_header_status():
     data = request.get_json()
-    header_id = data.get('header_id')
+    project_id = data.get('project_id')  # 从JavaScript接收project_id
     status = data.get('status')
-    if not header_id or not status:
+    csrf_token = data.get('csrf_token')
+    
+    if not project_id or not status:
         return jsonify({'success': False, 'message': '参数错误'})
-    header = ProjectHeader.query.get(header_id)
+    
+    # 验证CSRF token
+    if not csrf_token:
+        return jsonify({'success': False, 'message': 'CSRF token缺失'})
+    
+    header = ProjectHeader.query.get(project_id)
     if not header:
         return jsonify({'success': False, 'message': '项目不存在'})
-    header.status = status
-    db.session.commit()
-    return jsonify({'success': True}) 
+    
+    # 验证状态值
+    valid_statuses = ['draft', 'active', 'completed', 'cancelled']
+    if status not in valid_statuses:
+        return jsonify({'success': False, 'message': '无效的状态值'})
+    
+    try:
+        header.status = status
+        db.session.commit()
+        return jsonify({'success': True, 'message': '状态更新成功'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'更新失败：{str(e)}'}) 
 
 @projects.route('/update_header_contact', methods=['POST'])
 @csrf.exempt

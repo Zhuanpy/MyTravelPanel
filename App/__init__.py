@@ -213,6 +213,15 @@ def create_app():
             return json.loads(value)
         except (json.JSONDecodeError, TypeError):
             return {}
+    
+    @app.template_filter('dict_except')
+    def dict_except_filter(dictionary, key_to_exclude):
+        """从字典中排除指定键的过滤器"""
+        if dictionary is None:
+            return {}
+        result = dict(dictionary)
+        result.pop(key_to_exclude, None)
+        return result
 
     return app
 

@@ -39,15 +39,9 @@
                             </div>
                             <div class="col-md-6">
                                 <div class="form-group">
-                                    {{ form.name.label(class="form-label") }}
-                                    {{ form.name(class="form-control") }}
-                                    {% if form.name.errors %}
-                                        <div class="text-danger">
-                                            {% for error in form.name.errors %}
-                                                <small>{{ error }}</small>
-                                            {% endfor %}
-                                        </div>
-                                    {% endif %}
+                                    <label class="form-label">REF名称</label>
+                                    <input type="text" class="form-control" readonly style="background-color: #f8f9fa;" value="{{ form.name.data if form.name.data else '自动生成' }}">
+                                    <small class="form-text text-muted">将根据入住日期和酒店名称自动生成</small>
                                 </div>
                             </div>
                         </div>
@@ -589,6 +583,53 @@ document.addEventListener('DOMContentLoaded', function() {
             field.title = tooltips[fieldName];
         }
     });
+    
+    // 自动生成REF名称功能
+    function generateHotelRefName() {
+        const hotelNameField = document.querySelector('input[name="hotel_name"]');
+        const checkinDateField = document.querySelector('input[name="checkin_date"]');
+        const nameField = document.querySelector('input[readonly]'); // 只读的名称字段
+        
+        if (!hotelNameField || !checkinDateField || !nameField) return;
+        
+        const hotelName = hotelNameField.value.trim();
+        const checkinDate = checkinDateField.value;
+        
+        if (!hotelName || !checkinDate) {
+            nameField.value = '自动生成';
+            return;
+        }
+        
+        try {
+            // 格式化日期为 DDMON 格式 (例如: 02JUL)
+            const dateObj = new Date(checkinDate);
+            const day = dateObj.getDate().toString().padStart(2, '0');
+            const month = dateObj.toLocaleDateString('en-US', { month: 'short' }).toUpperCase();
+            const formattedDate = `${day}${month}`;
+            
+            // 生成名称：入住日期 + 酒店名称
+            const refName = `${formattedDate} ${hotelName}`;
+            nameField.value = refName;
+        } catch (error) {
+            console.error('生成REF名称时出错:', error);
+            nameField.value = '自动生成';
+        }
+    }
+    
+    // 监听酒店名称和入住日期字段的变化
+    const hotelNameField = document.querySelector('input[name="hotel_name"]');
+    const checkinDateField = document.querySelector('input[name="checkin_date"]');
+    
+    if (hotelNameField) {
+        hotelNameField.addEventListener('input', generateHotelRefName);
+    }
+    
+    if (checkinDateField) {
+        checkinDateField.addEventListener('change', generateHotelRefName);
+    }
+    
+    // 页面加载时生成一次名称
+    generateHotelRefName();
 });
 </script>
 

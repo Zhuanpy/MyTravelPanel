@@ -357,6 +357,11 @@ document.addEventListener('DOMContentLoaded', function() {
             // 创建模式：添加一个乘客和一个默认航段
             addPassenger();
             addFlightSegment(null, true);
+            
+            // 延迟初始化leader_name，确保乘客数据已加载
+            setTimeout(function() {
+                initializeLeaderNameForCreate();
+            }, 100);
         }
 
         const emailInput = document.querySelector('input[name="contact_email"]');
@@ -400,6 +405,13 @@ function loadExistingData() {
             pnr: passenger.pnr || ''
         });
     });
+    
+    // 加载完乘客数据后，自动设置第一位乘客为负责人
+    if (passengers.length > 0) {
+        setTimeout(function() {
+            updateLeaderName();
+        }, 100);
+    }
     
     // 航段数据
     const segments = window.segmentsData || [];
@@ -549,6 +561,11 @@ function addPassengerWithData(data) {
         </div>
     `;
     $('#passengersContainer').append(template);
+    
+    // 如果是第一个乘客，自动设置为负责人
+    if ($('.passenger-card').length === 1) {
+        updateLeaderName();
+    }
 }
 
 // 添加带数据的航段
@@ -870,6 +887,46 @@ $('#orderForm').on('submit', function(e) {
         alert('请至少添加一个航段');
         e.preventDefault();
         return false;
+    }
+    
+    // 将字母字段转换为大写
+    try {
+        // 转换航班号
+        $('input[name="flight_number[]"]').each(function() {
+            $(this).val($(this).val().toUpperCase());
+        });
+        
+        // 转换舱位代码
+        $('input[name="cabin_code[]"]').each(function() {
+            $(this).val($(this).val().toUpperCase());
+        });
+        
+        // 转换乘客姓名
+        $('input[name="passenger_name[]"]').each(function() {
+            $(this).val($(this).val().toUpperCase());
+        });
+        
+        // 转换电子客票号
+        $('input[name="ticket_number[]"]').each(function() {
+            $(this).val($(this).val().toUpperCase());
+        });
+        
+        // 转换PNR编码
+        $('input[name="pnr[]"]').each(function() {
+            $(this).val($(this).val().toUpperCase());
+        });
+        
+        // 转换联系人姓名
+        $('input[name="contact_name"]').val($('input[name="contact_name"]').val().toUpperCase());
+        
+        // 转换电子邮箱（保持小写）
+        // $('input[name="contact_email"]').val($('input[name="contact_email"]').val().toLowerCase());
+        
+        // 转换负责人姓名
+        $('input[name="leader_name"]').val($('input[name="leader_name"]').val().toUpperCase());
+        
+    } catch (error) {
+        console.error('转换字段为大写时出错:', error);
     }
     
     // 合并日期和时间字段
@@ -1204,6 +1261,16 @@ function initializeLeaderNameForEdit() {
     }
 }
 
+// 创建模式下初始化leader_name
+function initializeLeaderNameForCreate() {
+    // 创建模式下，自动选择第一位乘客作为负责人
+    const firstPassengerName = $('.passenger-name-input').first().val();
+    if (firstPassengerName && firstPassengerName.trim()) {
+        console.log('创建模式下使用第一位乘客姓名作为leader_name:', firstPassengerName);
+        $('#leader_name').val(firstPassengerName.trim());
+    }
+}
+
 // 监听乘客姓名的变化
 $(document).on('change', '.passenger-name-input', function() {
     updateLeaderName();
@@ -1218,6 +1285,35 @@ $(document).ready(function() {
     setTimeout(function() {
         initializeLeaderNameForEdit();
     }, 500);
+    
+    // 添加实时转换为大写的功能
+    $(document).on('input', 'input[name="flight_number[]"]', function() {
+        $(this).val($(this).val().toUpperCase());
+    });
+    
+    $(document).on('input', 'input[name="cabin_code[]"]', function() {
+        $(this).val($(this).val().toUpperCase());
+    });
+    
+    $(document).on('input', 'input[name="passenger_name[]"]', function() {
+        $(this).val($(this).val().toUpperCase());
+    });
+    
+    $(document).on('input', 'input[name="ticket_number[]"]', function() {
+        $(this).val($(this).val().toUpperCase());
+    });
+    
+    $(document).on('input', 'input[name="pnr[]"]', function() {
+        $(this).val($(this).val().toUpperCase());
+    });
+    
+    $(document).on('input', 'input[name="contact_name"]', function() {
+        $(this).val($(this).val().toUpperCase());
+    });
+    
+    $(document).on('input', 'input[name="leader_name"]', function() {
+        $(this).val($(this).val().toUpperCase());
+    });
 });
 
 // 航段解析模态框相关函数
