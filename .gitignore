@@ -23,6 +23,8 @@ var/
 # Virtual Environment
 venv/
 ENV/
+.venv/
+env/
 
 # IDE
 .idea/
@@ -50,7 +52,10 @@ config.py
 *.csv
 *.xls
 *.xlsx
+# 排除所有txt文件，但保留重要的配置文件
 *.txt
+!requirements.txt
+!INSTALLATION.md
 *.pdf
 *.doc
 *.docx

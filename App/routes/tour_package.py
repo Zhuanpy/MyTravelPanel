@@ -91,8 +91,20 @@ def open_company_package_folder(country_name, city_name, company_name):
         return jsonify({"error": "Company name parameter is required"}), 400
     path = construct_folder_path(country_name, city_name, company_name)
     app.logger.info(f"Attempting to open folder: {path}")
+    
+    # 如果文件夹不存在，则创建它
+    if not path.exists():
+        try:
+            path.mkdir(parents=True, exist_ok=True)
+            app.logger.info(f"Created folder: {path}")
+        except Exception as e:
+            error_message = f"创建文件夹失败: {e}"
+            app.logger.error(error_message)
+            return jsonify({"error": error_message}), 500
+    
     try:
         os.startfile(str(path))
+        return jsonify({"message": "Folder opened successfully"})
     except FileNotFoundError:
         error_message = "文件夹路径不存在，请检查路径是否正确。"
         app.logger.error(error_message)
@@ -101,7 +113,6 @@ def open_company_package_folder(country_name, city_name, company_name):
         error_message = f"打开文件夹时发生错误: {e}"
         app.logger.error(error_message)
         return jsonify({"error": error_message}), 500
-    return jsonify({"message": "Folder opened successfully"})
 
 @package_blue.route('/open_city_package_folder/<country_name>/<city_name>', methods=['GET','POST'])
 @login_required
@@ -113,6 +124,17 @@ def open_city_package_folder(country_name, city_name):
         return jsonify({"error": "City parameter is required"}), 400
     path = construct_folder_path(country_name, city_name)
     app.logger.info(f"Attempting to open folder: {path}")
+    
+    # 如果文件夹不存在，则创建它
+    if not path.exists():
+        try:
+            path.mkdir(parents=True, exist_ok=True)
+            app.logger.info(f"Created folder: {path}")
+        except Exception as e:
+            error_message = f"创建文件夹失败: {e}"
+            app.logger.error(error_message)
+            return jsonify({"error": error_message}), 500
+    
     try:
         os.startfile(str(path))
         return jsonify({"message": "Folder opened successfully"})

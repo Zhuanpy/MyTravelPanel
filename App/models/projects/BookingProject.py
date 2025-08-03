@@ -22,6 +22,7 @@ class CustomerCompany(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     created_by = db.Column(db.String(50), nullable=True, comment='创建人')
+    legal_person = db.Column(db.String(100))
     
     # 关联项目
     projects = db.relationship('ProjectHeader', backref='company', lazy='dynamic')

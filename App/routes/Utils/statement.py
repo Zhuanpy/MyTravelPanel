@@ -39,8 +39,22 @@ def open_uob_statement_folder():
     if request.method == 'GET':
         return redirect(url_for('statement_routes.uob_bank'))
     folder_path = Config.BILLING_DATA_PATH / "ZHANG ZHUAN UOB MASTER"
-    subprocess.run(['explorer', str(folder_path)], shell=True)
-    flash('成功打开UOB账单文件夹')
+    
+    # 如果文件夹不存在，则创建它
+    if not folder_path.exists():
+        try:
+            folder_path.mkdir(parents=True, exist_ok=True)
+            flash('UOB文件夹不存在，已自动创建', 'info')
+        except Exception as e:
+            flash(f'创建文件夹失败：{str(e)}', 'error')
+            return redirect(url_for('statement_routes.uob_bank'))
+    
+    try:
+        subprocess.run(['explorer', str(folder_path)], shell=True)
+        flash('成功打开UOB账单文件夹', 'success')
+    except Exception as e:
+        flash(f'打开文件夹失败：{str(e)}', 'error')
+    
     return redirect(url_for('statement_routes.uob_bank'))
 
 
@@ -118,8 +132,22 @@ def open_ocbc_statement_folder():
     if request.method == 'GET':
         return redirect(url_for('statement_routes.ocbc_bank'))
     folder_path = Config.BILLING_DATA_PATH / "OCBC"
-    subprocess.run(['explorer', str(folder_path)], shell=True)
-    flash('成功打开OCBC账单文件夹')
+    
+    # 如果文件夹不存在，则创建它
+    if not folder_path.exists():
+        try:
+            folder_path.mkdir(parents=True, exist_ok=True)
+            flash('OCBC文件夹不存在，已自动创建', 'info')
+        except Exception as e:
+            flash(f'创建文件夹失败：{str(e)}', 'error')
+            return redirect(url_for('statement_routes.ocbc_bank'))
+    
+    try:
+        subprocess.run(['explorer', str(folder_path)], shell=True)
+        flash('成功打开OCBC账单文件夹', 'success')
+    except Exception as e:
+        flash(f'打开文件夹失败：{str(e)}', 'error')
+    
     return redirect(url_for('statement_routes.ocbc_bank'))
 
 
@@ -187,8 +215,22 @@ def open_cmb_statement_folder():
     if request.method == 'GET':
         return redirect(url_for('statement_routes.cmb_bank'))
     folder_path = Config.BILLING_DATA_PATH / "CMB"
-    subprocess.run(['explorer', str(folder_path)], shell=True)
-    flash('成功打开招商银行账单文件夹')
+    
+    # 如果文件夹不存在，则创建它
+    if not folder_path.exists():
+        try:
+            folder_path.mkdir(parents=True, exist_ok=True)
+            flash('CMB文件夹不存在，已自动创建', 'info')
+        except Exception as e:
+            flash(f'创建文件夹失败：{str(e)}', 'error')
+            return redirect(url_for('statement_routes.cmb_bank'))
+    
+    try:
+        subprocess.run(['explorer', str(folder_path)], shell=True)
+        flash('成功打开招商银行账单文件夹', 'success')
+    except Exception as e:
+        flash(f'打开文件夹失败：{str(e)}', 'error')
+    
     return redirect(url_for('statement_routes.cmb_bank'))
 
 
@@ -277,7 +319,22 @@ def process_month_invoice():
 @csrf.exempt
 def open_athina_statement_folder():
     folder_path = Config.BILLING_DATA_PATH / "BOOKING"
-    os.startfile(str(folder_path))
+    
+    # 如果文件夹不存在，则创建它
+    if not folder_path.exists():
+        try:
+            folder_path.mkdir(parents=True, exist_ok=True)
+            flash('文件夹不存在，已自动创建', 'info')
+        except Exception as e:
+            flash(f'创建文件夹失败：{str(e)}', 'error')
+            return redirect(url_for("statement_routes.athina_page"))
+    
+    try:
+        os.startfile(str(folder_path))
+        flash('成功打开BOOKING文件夹', 'success')
+    except Exception as e:
+        flash(f'打开文件夹失败：{str(e)}', 'error')
+    
     return redirect(url_for("statement_routes.athina_page"))
 
 @statement_blue.route('/statement/company_bill', methods=['GET', 'POST'])
@@ -288,8 +345,22 @@ def company_bill():
     """公司账单主页面"""
     if request.method == 'POST':
         folder_path = Config.BILLING_DATA_PATH / "Company"
-        os.startfile(str(folder_path))
-        flash('成功打开公司账单文件夹')
+        
+        # 如果文件夹不存在，则创建它
+        if not folder_path.exists():
+            try:
+                folder_path.mkdir(parents=True, exist_ok=True)
+                flash('Company文件夹不存在，已自动创建', 'info')
+            except Exception as e:
+                flash(f'创建文件夹失败：{str(e)}', 'error')
+                return redirect(url_for("statement_routes.company_bill"))
+        
+        try:
+            os.startfile(str(folder_path))
+            flash('成功打开公司账单文件夹', 'success')
+        except Exception as e:
+            flash(f'打开文件夹失败：{str(e)}', 'error')
+        
         return redirect(url_for("statement_routes.company_bill"))
     
     # GET请求，显示公司账单页面
@@ -405,8 +476,18 @@ def open_company_bill_folder():
     """打开公司账单文件夹"""
     try:
         folder_path = Config.BILLING_DATA_PATH / "Company"
+        
+        # 如果文件夹不存在，则创建它
+        if not folder_path.exists():
+            try:
+                folder_path.mkdir(parents=True, exist_ok=True)
+                flash('Company文件夹不存在，已自动创建', 'info')
+            except Exception as e:
+                flash(f'创建文件夹失败：{str(e)}', 'error')
+                return redirect(url_for("statement_routes.company_bill"))
+        
         os.startfile(str(folder_path))
-        flash('成功打开公司账单文件夹')
+        flash('成功打开公司账单文件夹', 'success')
     except Exception as e:
         flash(f'打开文件夹失败：{str(e)}', 'error')
     

@@ -74,7 +74,6 @@ class Supplier(db.Model):
 
 
 
-
 class SupplierService(db.Model):
     """供应商服务表"""
     __tablename__ = 'supplier_services'
