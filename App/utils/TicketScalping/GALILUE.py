@@ -2,9 +2,9 @@ import sys
 import time
 import pandas as pd
 from pykeyboard import PyKeyboard
-from utils_scalping import sent_email, key_inform, confirm_booking
-from utils_scalping import flight_dic
-from utils_scalping import MouseKeyBoard as mkb
+from scripts.utils_scalping import sent_email, key_inform, confirm_booking
+from scripts.utils_scalping import flight_dic
+from scripts.utils_scalping import MouseKeyBoard as mkb
 
 pd.set_option('display.width', 5000)
 pd.set_option('display.max_columns', None)

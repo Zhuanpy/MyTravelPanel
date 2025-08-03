@@ -848,7 +848,7 @@ def debug_share_documents(visa_type):
 def fix_share_documents_route(visa_type):
     """修复指定签证类型的SHARE文档问题"""
     try:
-        from ..utils.visa_debug import fix_share_documents
+        from App.utils.visa_debug import fix_share_documents
 
         # 执行修复
         success = fix_share_documents(visa_type)
@@ -876,7 +876,7 @@ def fix_share_documents_route(visa_type):
 def debug_visa_documents_route(visa_type):
     """调试指定签证类型的文档数据"""
     try:
-        from ..utils.visa_debug import debug_visa_documents
+        from App.utils.visa_debug import debug_visa_documents
 
         # 执行调试
         success = debug_visa_documents(visa_type)
@@ -897,7 +897,7 @@ def debug_visa_documents_route(visa_type):
 def check_all_share_records():
     """检查所有签证类型的SHARE记录状态"""
     try:
-        from ..utils.visa_debug import check_all_visa_types
+        from App.utils.visa_debug import check_all_visa_types
 
         missing_types = check_all_visa_types()
 

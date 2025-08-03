@@ -7,7 +7,7 @@ import subprocess
 from flask_login import login_required, current_user
 from App.exts import db, csrf
 from App.models import VisaTypes, VisaDocuments, VisaLinks, VisaProject, VisaCountries, VisaSingaporeIdentity
-from App.code.VisaForm import VisasUtils
+from App.utils.VisaForm import VisasUtils
 from App.utils.decorators import staff_only
 import json
 import traceback

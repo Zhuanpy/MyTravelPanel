@@ -4,18 +4,62 @@ from flask import Blueprint, render_template, request, jsonify, flash, redirect,
 from flask_login import login_required, current_user
 from sqlalchemy.exc import NoResultFound
 
-from App.code.FlightTicket.ConvertFlight.read_sql_data import original_airport_code_data, original_flight_timing_data
+# from App.utils.ConvertFlight.read_sql_data import original_airport_code_data, original_flight_timing_data
 
 from App.models.Flightmodels import *
 from App.models.Product.Visamodels import *
 from App.forms.flight_forms import FlightScheduleForm
 from App.utils.decorators import staff_only
 
+
+""" 航班信息录入"""
+# === 直接补充如下两个函数 ===
+import pandas as pd
+from sqlalchemy import create_engine
+from App.config import Config
+
+
+def convert_date_format(date_str):
+    if not date_str:
+        return ''
+    try:
+        day, month, year = date_str.split('/')
+        months = {
+            '01': 'JAN', '02': 'FEB', '03': 'MAR', '04': 'APR',
+            '05': 'MAY', '06': 'JUN', '07': 'JUL', '08': 'AUG',
+            '09': 'SEP', '10': 'OCT', '11': 'NOV', '12': 'DEC'
+        }
+        return f"{day}{months[month]}{year}"
+    except:
+        return ''
+
+
+def original_airport_code_data():
+    engine = create_engine(Config.SQLALCHEMY_DATABASE_URI)
+    query = "SELECT airport_IATA AS 机场三字码, city_name AS 城市名, airport_name_cn AS 机场名称, airport_name_en AS 英文名称 FROM airport_data"
+    df = pd.read_sql(query, engine)
+    return df
+
+def original_flight_timing_data():
+    engine = create_engine(Config.SQLALCHEMY_DATABASE_URI)
+    query = '''
+        SELECT 
+            flight_number AS 航班ID,
+            airline_code AS 航司,
+            airline_num AS 航班号,
+            schedule_city AS 起始城市,
+            schedule_timing AS 起始时间
+        FROM flight_schedule
+    '''
+    df = pd.read_sql(query, engine)
+    return df
+
+
+
 # 创建蓝图
 flight_home = Blueprint('flight_home', __name__, url_prefix='/flight_home')
 
 
-""" 航班信息录入"""
 
 @flight_home.route('/flight_schedule', methods=['GET', 'POST'])
 @login_required

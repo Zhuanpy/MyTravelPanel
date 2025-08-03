@@ -592,6 +592,7 @@ def edit_visa_type(visa_type, field):
             print(f"DEBUG: 当前身份: {current_identities}")  # 调试信息
             
             field_name = '新加坡身份'
+            form = EditVisaTypeForm()
             return render_template('visas/签证类型管理/edit_visa_type.html',
                                visa_type=visa_type,
                                field=field,
@@ -602,6 +603,7 @@ def edit_visa_type(visa_type, field):
         else:
             current_value = visa_type_record.fee if field == 'fee' else visa_type_record.processing_time
             field_name = '费用说明' if field == 'fee' else '处理时间'
+            form = EditVisaTypeForm()
             return render_template('visas/签证类型管理/edit_visa_type.html',
                                visa_type=visa_type,
                                field=field,

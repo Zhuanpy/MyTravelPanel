@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, jsonify, flash
 from flask_login import login_required, current_user
-from App.code.VisaForm import MyPdfFile
-from App.code.utils.WordToPdf import WordToPDFConverter
+from App.utils.VisaForm import MyPdfFile
+from App.utils.WordToPdf import WordToPDFConverter
 from App.utils.decorators import staff_only
 import subprocess
 import os
@@ -225,7 +225,7 @@ def split_screenshot_to_pdf():
             return redirect(url_for('utils_process.file_processing'))
 
         # 处理长截图切分
-        from App.code.utils.screenshot_splitter import ScreenshotSplitter
+        from App.utils.screenshot_splitter import ScreenshotSplitter
         splitter = ScreenshotSplitter(folder_path, margin_size)
         result = splitter.process_screenshots()
 

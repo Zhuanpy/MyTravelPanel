@@ -2,8 +2,8 @@ from flask import Blueprint, render_template, request, jsonify, redirect, url_fo
 from flask_login import login_required, current_user
 from App.models.Flightmodels import FlightSchedule, AirportData
 from App.utils.cache import cache
-from App.code.FlightTicket.ConvertFlight.ConvertFlightItinerary import format_flight_info
-from App.code.utils.utils import FlightData as flight
+from App.utils.ConvertFlightItinerary import format_flight_info
+from App.utils.utils import FlightData as flight
 from App.exts import csrf
 from App.utils.decorators import staff_only
 

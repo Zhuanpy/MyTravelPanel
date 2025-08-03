@@ -234,7 +234,7 @@ def get_flight_info():
             })
         else:
             # 如果数据库中没有找到，尝试从其他来源获取信息
-            from App.code.utils.flightradar24 import get_flight_info as get_flight_data
+            from App.utils.flightradar24 import get_flight_info as get_flight_data
             flight_info = get_flight_data(flight_number)
             
             if flight_info:
@@ -270,7 +270,7 @@ def get_flight_info_api(flight_number):
     """获取航班信息API接口"""
     try:
         # 使用flightradar24模块获取航班信息
-        from App.code.utils.flightradar24 import get_flight_info
+        from App.utils.flightradar24 import get_flight_info
         flight_info = get_flight_info(flight_number)
 
         if flight_info:

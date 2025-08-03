@@ -1,7 +1,7 @@
 from ..exts import db
 from datetime import datetime
 from sqlalchemy import DECIMAL
-from ..code.utils.cache import cached
+from App.utils.cache import cached
 # 导入项目相关模型
 from .projects.BookingProject import ProjectHeader, ProjectRef
 
