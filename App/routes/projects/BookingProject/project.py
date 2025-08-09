@@ -598,17 +598,22 @@ def list_projects():
     balance_max = request.args.get('balance_max')
     sort_by = request.args.get('sort_by', 'created_at_desc')
     
-    query = ProjectHeader.query
+    # 基础查询（用于计数与分页）
+    base_query = ProjectHeader.query
 
-    # 预加载客户公司关联，避免N+1查询问题
-    query = query.options(db.joinedload(ProjectHeader.company))
+    # 预加载关联，最大限度避免 N+1
+    base_query = base_query.options(
+        db.joinedload(ProjectHeader.company),
+        db.joinedload(ProjectHeader.refs).joinedload(ProjectRef.eos),
+        db.joinedload(ProjectHeader.receipts)
+    )
 
     # 基础筛选
     if status:
-        query = query.filter(ProjectHeader.status == status)
+        base_query = base_query.filter(ProjectHeader.status == status)
     
     if search:
-        query = query.filter(
+        base_query = base_query.filter(
             db.or_(
                 ProjectHeader.hid.contains(search),
                 ProjectHeader.desc.contains(search)
@@ -616,63 +621,111 @@ def list_projects():
         )
     
     if company:
-        query = query.join(CustomerCompany).filter(CustomerCompany.company_name.contains(company))
+        base_query = base_query.join(CustomerCompany).filter(CustomerCompany.company_name.contains(company))
     
     if leader:
-        query = query.filter(ProjectHeader.leader_name.contains(leader))
+        base_query = base_query.filter(ProjectHeader.leader_name.contains(leader))
     
     if contact:
-        query = query.filter(ProjectHeader.contact.contains(contact))
+        base_query = base_query.filter(ProjectHeader.contact.contains(contact))
     
     if staff_name:
-        query = query.filter(ProjectHeader.staff_name.contains(staff_name))
+        base_query = base_query.filter(ProjectHeader.staff_name.contains(staff_name))
     
     if date_from:
-        query = query.filter(ProjectHeader.created_at >= date_from)
+        base_query = base_query.filter(ProjectHeader.created_at >= date_from)
     
     if date_to:
-        query = query.filter(ProjectHeader.created_at <= date_to + ' 23:59:59')
+        base_query = base_query.filter(ProjectHeader.created_at <= date_to + ' 23:59:59')
     
-    # 排序
+    # 组装金额聚合子查询，用于金额类筛选（避免全量加载后内存筛选）
+    refs_agg = db.session.query(
+        ProjectRef.header_id.label('hid'),
+        db.func.coalesce(db.func.sum(ProjectRef.selling_price), 0.0).label('selling_sum'),
+        db.func.coalesce(db.func.sum(ProjectRef.cost_price), 0.0).label('cost_sum')
+    ).group_by(ProjectRef.header_id).subquery()
+
+    receipts_agg = db.session.query(
+        ProjectReceipt.header_id.label('hid'),
+        db.func.coalesce(db.func.sum(ProjectReceipt.amount), 0.0).label('received_sum')
+    ).filter(ProjectReceipt.status == 'confirmed').group_by(ProjectReceipt.header_id).subquery()
+
+    # 连接聚合，便于根据聚合列进行筛选
+    base_query = base_query.outerjoin(refs_agg, refs_agg.c.hid == ProjectHeader.id)
+    base_query = base_query.outerjoin(receipts_agg, receipts_agg.c.hid == ProjectHeader.id)
+
+    # 金额区间筛选（基于聚合列）
+    selling_expr = refs_agg.c.selling_sum
+    profit_expr = refs_agg.c.selling_sum - refs_agg.c.cost_sum
+    balance_expr = refs_agg.c.selling_sum - db.func.coalesce(receipts_agg.c.received_sum, 0.0)
+
+    if selling_min:
+        try:
+            base_query = base_query.filter(selling_expr >= float(selling_min))
+        except ValueError:
+            pass
+    if selling_max:
+        try:
+            base_query = base_query.filter(selling_expr <= float(selling_max))
+        except ValueError:
+            pass
+    if profit_min:
+        try:
+            base_query = base_query.filter(profit_expr >= float(profit_min))
+        except ValueError:
+            pass
+    if profit_max:
+        try:
+            base_query = base_query.filter(profit_expr <= float(profit_max))
+        except ValueError:
+            pass
+    if balance_min:
+        try:
+            base_query = base_query.filter(balance_expr >= float(balance_min))
+        except ValueError:
+            pass
+    if balance_max:
+        try:
+            base_query = base_query.filter(balance_expr <= float(balance_max))
+        except ValueError:
+            pass
+
+    # 排序（仅对时间字段在数据库层排序；金额类排序暂不下推）
     if sort_by == 'created_at_desc':
-        query = query.order_by(ProjectHeader.created_at.desc())
+        base_query = base_query.order_by(ProjectHeader.created_at.desc())
     elif sort_by == 'created_at_asc':
-        query = query.order_by(ProjectHeader.created_at.asc())
+        base_query = base_query.order_by(ProjectHeader.created_at.asc())
     elif sort_by == 'updated_at_desc':
-        query = query.order_by(ProjectHeader.updated_at.desc())
+        base_query = base_query.order_by(ProjectHeader.updated_at.desc())
     elif sort_by == 'updated_at_asc':
-        query = query.order_by(ProjectHeader.updated_at.asc())
+        base_query = base_query.order_by(ProjectHeader.updated_at.asc())
     else:
         # 默认按创建时间倒序
-        query = query.order_by(ProjectHeader.created_at.desc())
+        base_query = base_query.order_by(ProjectHeader.created_at.desc())
+
+    # 数据库层分页
+    page = request.args.get('page', 1, type=int)
+    per_page = 30
+    pagination = base_query.paginate(page=page, per_page=per_page, error_out=False)
+    projects = pagination.items
     
-    projects = query.all()
-    
-    # 用字典保存每个项目的财务数据和EO信息
+    # 用字典保存每个项目的财务数据和EO信息（全部基于已预加载的关系，避免额外查询）
     project_stats = {}
     for project in projects:
-        refs = ProjectRef.query.filter_by(header_id=project.id).all()
-        total_selling_price = sum([float(ref.selling_price or 0) for ref in refs])
-        total_cost_price = sum([float(ref.cost_price or 0) for ref in refs])
+        refs = project.refs or []
+        receipts = project.receipts or []
+
+        total_selling_price = sum(float(ref.selling_price or 0) for ref in refs)
+        total_cost_price = sum(float(ref.cost_price or 0) for ref in refs)
         total_profit = total_selling_price - total_cost_price
-        
-        # 使用模型中的正确方法计算已付款金额
-        total_paid_amount = project.total_paid_amount
-        balance = project.total_unpaid_amount  # 使用模型中的未付款金额
-        
-        # 检查项目是否有EO号码
-        has_eo = False
-        for ref in refs:
-            if ref.eos:  # 如果REF有关联的EO
-                has_eo = True
-                break
-        
-        # 检查项目是否有收据号码
-        has_receipt = False
-        receipts = ProjectReceipt.query.filter_by(header_id=project.id).all()
-        if receipts:  # 如果项目有关联的收据
-            has_receipt = True
-        
+
+        # 项目层面总已收款：取该项目下所有已确认收款之和
+        total_paid_amount = sum(float(r.amount or 0) for r in receipts if getattr(r, 'status', None) == 'confirmed')
+        balance = total_selling_price - total_paid_amount
+
+        has_eo = any(getattr(ref, 'eos', None) is not None for ref in refs)
+        has_receipt = len(receipts) > 0
+
         project_stats[project.id] = {
             'total_selling_price': total_selling_price,
             'total_cost_price': total_cost_price,
@@ -683,115 +736,24 @@ def list_projects():
             'has_receipt': has_receipt
         }
     
-    # 财务金额筛选（在内存中筛选）
-    filtered_projects = []
-    for project in projects:
-        stats = project_stats[project.id]
-        
-        # 总售价范围筛选
-        if selling_min and stats['total_selling_price'] < float(selling_min):
-            continue
-        if selling_max and stats['total_selling_price'] > float(selling_max):
-            continue
-        
-        # 总利润范围筛选
-        if profit_min and stats['total_profit'] < float(profit_min):
-            continue
-        if profit_max and stats['total_profit'] > float(profit_max):
-            continue
-        
-        # Balance范围筛选
-        if balance_min and stats['balance'] < float(balance_min):
-            continue
-        if balance_max and stats['balance'] > float(balance_max):
-            continue
-        
-        filtered_projects.append(project)
-    
-    # 按财务数据排序（在内存中排序）
-    if sort_by in ['selling_price_desc', 'selling_price_asc', 'profit_desc', 'profit_asc', 'balance_desc', 'balance_asc']:
-        reverse = sort_by.endswith('_desc')
-        if 'selling_price' in sort_by:
-            filtered_projects.sort(
-                key=lambda p: project_stats[p.id]['total_selling_price'],
-                reverse=reverse
-            )
-        elif 'profit' in sort_by:
-            filtered_projects.sort(
-                key=lambda p: project_stats[p.id]['total_profit'],
-                reverse=reverse
-            )
-        elif 'balance' in sort_by:
-            filtered_projects.sort(
-                key=lambda p: project_stats[p.id]['balance'],
-                reverse=reverse
-            )
-    
-    # 更新project_stats只包含筛选后的项目
-    filtered_stats = {p.id: project_stats[p.id] for p in filtered_projects}
-    
-    # 分页处理
-    page = request.args.get('page', 1, type=int)
-    per_page = 30  # 每页显示30条数据
-    
-    # 计算总页数
-    total_count = len(filtered_projects)
-    total_pages = max(1, (total_count + per_page - 1) // per_page)  # 确保至少有1页
-    
-    # 确保页码在有效范围内
-    if page < 1:
-        page = 1
-    elif page > total_pages:
-        page = total_pages
-    
-    # 计算当前页的数据范围
-    start_index = (page - 1) * per_page
-    end_index = start_index + per_page
-    
-    # 获取当前页的数据
-    paginated_projects = filtered_projects[start_index:end_index]
-    
-    # 创建分页对象
-    class Pagination:
-        def __init__(self, page, per_page, total_count, total_pages):
-            self.page = page
-            self.per_page = per_page
-            self.total_count = total_count
-            self.pages = total_pages
-            self.has_prev = page > 1
-            self.has_next = page < total_pages
-            self.prev_num = page - 1 if page > 1 else None
-            self.next_num = page + 1 if page < total_pages else None
-            
-        def iter_pages(self, left_edge=2, left_current=2, right_current=3, right_edge=2):
-            """生成分页页码列表，支持省略号"""
-            last = 0
-            for num in range(1, self.pages + 1):
-                if num <= left_edge or \
-                   (num > self.page - left_current - 1 and num < self.page + right_current) or \
-                   num > self.pages - right_edge:
-                    if last + 1 != num:
-                        yield None  # 省略号
-                    yield num
-                    last = num
-    
-    pagination = Pagination(page, per_page, total_count, total_pages)
-    
-    # 更新project_stats只包含当前页的项目
-    paginated_stats = {p.id: filtered_stats[p.id] for p in paginated_projects}
+    # 当前页统计
+    paginated_projects = projects
+    paginated_stats = {p.id: project_stats[p.id] for p in paginated_projects}
     
     # 计算总体统计信息（基于筛选后的所有数据）
-    total_projects_count = len(filtered_projects)
-    active_projects_count = len([p for p in filtered_projects if p.status == 'active'])
-    completed_projects_count = len([p for p in filtered_projects if p.status == 'completed'])
-    draft_projects_count = len([p for p in filtered_projects if p.status == 'draft'])
+    # 计数（基于过滤后的查询，不包含金额类内存筛选）
+    total_projects_count = pagination.total
+    active_projects_count = base_query.filter(ProjectHeader.status == 'active').count()
+    completed_projects_count = base_query.filter(ProjectHeader.status == 'completed').count()
+    draft_projects_count = base_query.filter(ProjectHeader.status == 'draft').count()
     
     # 计算总体财务统计
-    total_selling_sum = sum(stats['total_selling_price'] for stats in filtered_stats.values())
-    total_cost_sum = sum(stats['total_cost_price'] for stats in filtered_stats.values())
-    total_profit_sum = sum(stats['total_profit'] for stats in filtered_stats.values())
-    total_balance_sum = sum(stats['balance'] for stats in filtered_stats.values())
-    total_paid_sum = sum(stats['total_paid_amount'] for stats in filtered_stats.values())
+    # 金额汇总（当前页）
+    total_selling_sum = sum(stats['total_selling_price'] for stats in paginated_stats.values())
+    total_cost_sum = sum(stats['total_cost_price'] for stats in paginated_stats.values())
+    total_profit_sum = sum(stats['total_profit'] for stats in paginated_stats.values())
+    total_balance_sum = sum(stats['balance'] for stats in paginated_stats.values())
+    total_paid_sum = sum(stats['total_paid_amount'] for stats in paginated_stats.values())
     
     return render_template(
         'projects/BookingProject/list_projects.html',

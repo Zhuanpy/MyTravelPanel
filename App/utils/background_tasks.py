@@ -1,3 +1,22 @@
+"""
+待办事项提醒系统
+
+配置说明：
+- CHECK_INTERVAL: 桌面通知检查间隔（默认6小时）
+- EMAIL_INTERVAL: 邮件通知检查间隔（默认12小时）
+- EMAIL_THRESHOLD: 邮件提醒的时间阈值（默认24小时）
+
+环境变量设置示例：
+TODO_CHECK_INTERVAL=21600      # 6小时 = 6 * 60 * 60秒
+TODO_EMAIL_INTERVAL=43200      # 12小时 = 12 * 60 * 60秒
+TODO_EMAIL_THRESHOLD=24        # 24小时内的待办事项
+
+优化特性：
+1. 智能检查：连续3次无待办事项后，自动延长检查间隔到24小时
+2. 静默模式：减少不必要的日志输出
+3. 防重复：确保通知不会过于频繁
+"""
+
 from datetime import datetime, timedelta
 import threading
 from plyer import notification
@@ -16,15 +35,23 @@ class TodoReminder:
         # 从配置中获取设置
         self.config = app.config['TODO_NOTIFICATION']
         self.enabled = self.config['ENABLED']
-        self.check_interval = 7200  # 每2小时检查一次
-        self.notification_interval = 7200  # 每2小时通知一次
-        self.email_interval = 7200  # 每2小时发送一次邮件
-        self.email_threshold = 24  # 24小时内的待办事项
+        
+        # 优化检查间隔：从2小时改为6小时
+        self.check_interval = self.config.get('CHECK_INTERVAL', 6 * 60 * 60)  # 默认6小时检查一次
+        self.notification_interval = self.config.get('CHECK_INTERVAL', 6 * 60 * 60)  # 每6小时通知一次
+        
+        # 邮件检查间隔：从2小时改为12小时
+        self.email_interval = self.config.get('EMAIL_INTERVAL', 12 * 60 * 60)  # 默认12小时发送一次邮件
+        self.email_threshold = self.config.get('EMAIL_THRESHOLD', 24)  # 24小时内的待办事项
         self.desktop_notification = self.config['DESKTOP_NOTIFICATION']
         
         # 记录上次通知的时间
         self.last_notification_times = {}
         self.last_email_time = None
+        
+        # 添加静默模式：如果连续多次没有待办事项，减少检查频率
+        self.consecutive_empty_checks = 0
+        self.max_consecutive_empty_checks = 3  # 连续3次没有待办事项后，延长检查间隔
 
     def get_upcoming_todos(self, hours_threshold=None):
         try:
@@ -56,7 +83,7 @@ class TodoReminder:
         now = datetime.now()
         last_time = self.last_notification_times.get(todo_id)
         
-        # 确保两小时内不重复通知
+        # 确保6小时内不重复通知
         if last_time and (now - last_time).total_seconds() < self.notification_interval:
             return
             
@@ -84,8 +111,16 @@ class TodoReminder:
 
     def send_email_notification(self, todos):
         if not todos:
-            print("没有需要提醒的待办事项")
+            # 减少日志输出频率
+            if self.consecutive_empty_checks < 3:
+                print("没有需要提醒的待办事项")
+            elif self.consecutive_empty_checks % 5 == 0:  # 每5次输出一次日志
+                print(f"连续{self.consecutive_empty_checks}次检查没有待办事项")
+            self.consecutive_empty_checks += 1
             return
+            
+        # 重置连续空检查计数
+        self.consecutive_empty_checks = 0
             
         # 检查是否需要发送邮件（避免重复）
         now = datetime.now()
@@ -130,7 +165,10 @@ class TodoReminder:
     def check_todos_email(self):
         while self.running:
             try:
-                print(f"开始检查需要发送邮件的待办事项，当前时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+                # 减少日志输出频率
+                if self.consecutive_empty_checks < 3:
+                    print(f"开始检查需要发送邮件的待办事项，当前时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+                
                 with self.app.app_context():
                     # 获取指定时间内的待办事项
                     todos = self.get_upcoming_todos(hours_threshold=self.email_threshold)
@@ -140,9 +178,17 @@ class TodoReminder:
             except Exception as e:
                 print(f"检查待办事项(邮件)时出错: {str(e)}")
             
-            # 使用配置的时间间隔
-            print(f"等待 {self.email_interval} 秒后进行下一次检查")
-            time.sleep(self.email_interval)
+            # 根据连续空检查次数调整等待时间
+            if self.consecutive_empty_checks >= self.max_consecutive_empty_checks:
+                # 如果连续多次没有待办事项，延长检查间隔
+                adjusted_interval = self.email_interval * 2  # 延长到24小时
+                print(f"连续{self.consecutive_empty_checks}次检查无待办事项，延长检查间隔到{adjusted_interval//3600}小时")
+                time.sleep(adjusted_interval)
+            else:
+                # 使用配置的时间间隔
+                if self.consecutive_empty_checks < 3:
+                    print(f"等待 {self.email_interval//3600} 小时后进行下一次检查")
+                time.sleep(self.email_interval)
 
     def check_todos(self):
         while self.running:

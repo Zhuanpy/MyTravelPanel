@@ -145,15 +145,19 @@ def create_tour_project():
             flash('创建旅游项目失败，请稍后重试', 'error')
             return redirect(url_for('tour_projects.create_tour_project'))
 
-    return render_template('projects/TourProjects/tour_project_create.html', csrf_token=generate_csrf())
+    # 不要传入与模板全局函数同名的 csrf_token，避免覆盖导致 'str' object is not callable
+    return render_template('projects/TourProjects/tour_project_create.html')
 
 @tour_projects.route('/manage', methods=['GET'])
 def manage_tour_projects():
     """管理旅游项目页面"""
     # 获取表单参数（如果没有则使用默认值）
     travel_status = request.args.get('travel_status', '处理中')  # 默认显示"处理中"状态
-    sort_by = request.args.get('sort_by', 'name')
-    order = request.args.get('order', 'asc')
+    # 默认按创建时间倒序排列（最新在前）
+    sort_by = request.args.get('sort_by', 'created_date')
+    order = request.args.get('order', 'desc')
+    page = request.args.get('page', 1, type=int)
+    per_page = 15
 
     # 构建查询条件
     query = TourProject.query
@@ -171,7 +175,8 @@ def manage_tour_projects():
     elif sort_by == 'created_date':
         column = TourProject.created_at
     else:
-        column = TourProject.project_name  # 默认按名称排序
+        # 默认按创建时间排序
+        column = TourProject.created_at
 
     # 排序顺序
     if order == 'asc':
@@ -179,11 +184,13 @@ def manage_tour_projects():
     elif order == 'desc':
         query = query.order_by(column.desc())
 
-    # 获取所有符合条件的项目
-    tour_projects = query.all()
+    # 分页获取符合条件的项目
+    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+    tour_projects = pagination.items
 
     return render_template('projects/TourProjects/tour_project_list.html',
                          projects=tour_projects,
+                         pagination=pagination,
                          travel_status=travel_status, 
                          sort_by=sort_by, 
                          order=order)
@@ -224,14 +231,16 @@ def update_tour_project(project_id):
 
     # 获取筛选参数
     current_status = request.form.get('current_travel_status', 'all')
-    current_sort_by = request.form.get('current_sort_by', 'name')
-    current_order = request.form.get('current_order', 'asc')
+    current_sort_by = request.form.get('current_sort_by', 'created_date')
+    current_order = request.form.get('current_order', 'desc')
+    current_page = request.form.get('current_page', 1, type=int)
 
     # 返回更新后的页面，并保持当前筛选状态
     return redirect(url_for('tour_projects.manage_tour_projects',
                           travel_status=current_status,
                           sort_by=current_sort_by,
-                          order=current_order))
+                          order=current_order,
+                          page=current_page))
 
 @tour_projects.route('/delete/<int:project_id>', methods=['POST'])
 @csrf.exempt
@@ -763,10 +772,18 @@ def edit_tour_project(project_id):
         # 使用数据库排序，按date字段升序排列
         itineraries = TourItinerary.query.filter_by(tour_id=group.id).order_by(TourItinerary.date.asc()).all()
         group.itineraries = itineraries
+
+    # 配套价格预算：获取最近的预算单用于页面快速查看
+    try:
+        from App.models.Product.PackageBudget import BudgetHeader
+        recent_budgets = BudgetHeader.query.order_by(BudgetHeader.created_at.desc()).limit(10).all()
+    except Exception:
+        recent_budgets = []
     
     return render_template('projects/TourProjects/tour_project_edit.html',
                          project=project, 
-                         groups=groups)
+                         groups=groups,
+                         recent_budgets=recent_budgets)
 
 @tour_projects.route('/detail/<int:project_id>', methods=['GET'])
 def project_details(project_id):

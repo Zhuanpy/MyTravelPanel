@@ -97,7 +97,7 @@
     .tour-table td {
         padding: 16px 12px;
         border: 1px solid #e9ecef;
-        text-align: center;
+        text-align: left;
         vertical-align: middle;
         min-width: 80px;
     }
@@ -196,7 +196,7 @@
     .tour-table th:nth-child(1), .tour-table td:nth-child(1) { width: 80px; }  /* 项目ID */
     .tour-table th:nth-child(2), .tour-table td:nth-child(2) { width: 100px; } /* 创建时间 */
     .tour-table th:nth-child(3), .tour-table td:nth-child(3) { width: 120px; } /* 项目HID */
-    .tour-table th:nth-child(4), .tour-table td:nth-child(4) { width: 150px; } /* 项目名称 */
+    .tour-table th:nth-child(4), .tour-table td:nth-child(4) { width: 300px; } /* 项目名称 */
     .tour-table th:nth-child(5), .tour-table td:nth-child(5) { width: 100px; } /* 项目状态 */
     .tour-table th:nth-child(6), .tour-table td:nth-child(6) { width: 100px; } /* 联系人 */
     .tour-table th:nth-child(7), .tour-table td:nth-child(7) { width: 120px; } /* 联系方式 */
@@ -393,7 +393,7 @@
     <h1 class="tour-title">现有旅游项目管理</h1>
 
     <!-- 筛选和排序选项表单 -->
-    <div class="tour-sort-options">
+    <div class="tour-sort-options" style="justify-content: space-between;">
         <form method="GET" action="{{ url_for('tour_projects.manage_tour_projects') }}" style="display: flex; align-items: center; gap: 15px; margin: 0;">
             <div class="tour-sort-item">
                 <label for="travel_status">旅游项目状态：</label>
@@ -420,6 +420,11 @@
             </select>
             </div>
         </form>
+        <div>
+            <a href="{{ url_for('tour_projects.create_tour_project') }}" class="btn btn-success">
+                <i class="fas fa-plus-circle me-1"></i> 创建项目
+            </a>
+        </div>
     </div>
 
     <!-- 项目列表 -->
@@ -450,13 +455,14 @@
                     <input type="hidden" name="current_travel_status" value="{{ travel_status }}">
                     <input type="hidden" name="current_sort_by" value="{{ sort_by }}">
                     <input type="hidden" name="current_order" value="{{ order }}">
+                    <input type="hidden" name="current_page" value="{{ pagination.page if pagination else 1 }}">
                     <input type="hidden" name="folder_name" value="{{ project.folder_name }}">
                     <td>{{ project.id }}</td>
                     <td>{{ project.created_at.strftime('%Y-%m-%d') }}</td>
                     <td><input type="text" name="project_hid" value="{{ project.project_hid or 'N/A'}}" class="tour-input-field"></td>
                     <td class="project-name-cell">{{ project.project_name }}</td>
                     <td>
-                        <select name="project_status" class="tour-select-field">
+                        <select name="project_status" class="tour-select-field" onchange="this.form.submit()">
                             <option value="处理中" {% if project.project_status == '处理中' %}selected{% endif %}>处理中</option>
                             <option value="待出行" {% if project.project_status == '待出行' %}selected{% endif %}>待出行</option>
                             <option value="已完成" {% if project.project_status == '已完成' %}selected{% endif %}>已完成</option>
@@ -494,6 +500,31 @@
             {% endfor %}
         </tbody>
     </table>
+    {% if pagination and pagination.pages > 1 %}
+    <div class="d-flex justify-content-center mt-3">
+        <nav aria-label="Pagination">
+            <ul class="pagination">
+                {% if pagination.has_prev %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('tour_projects.manage_tour_projects', travel_status=travel_status, sort_by=sort_by, order=order, page=pagination.prev_num) }}" aria-label="Previous">
+                        <span aria-hidden="true">&laquo;</span>
+                    </a>
+                </li>
+                {% endif %}
+                {% for p in range(1, pagination.pages + 1) %}
+                <li class="page-item {% if p == pagination.page %}active{% endif %}"><a class="page-link" href="{{ url_for('tour_projects.manage_tour_projects', travel_status=travel_status, sort_by=sort_by, order=order, page=p) }}">{{ p }}</a></li>
+                {% endfor %}
+                {% if pagination.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('tour_projects.manage_tour_projects', travel_status=travel_status, sort_by=sort_by, order=order, page=pagination.next_num) }}" aria-label="Next">
+                        <span aria-hidden="true">&raquo;</span>
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
     {% else %}
     <div class="tour-empty-state">
         <i class="fas fa-folder-open"></i>

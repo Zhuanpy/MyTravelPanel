@@ -1,8 +1,8 @@
-{% extends 'base.html' %}
+{% extends 'staff/base.html' %}
 
 {% block title %}编辑旅游项目 - {{ project.project_name }}{% endblock %}
 
-{% block head %}
+{% block extra_css %}
 <style>
 /* 强制覆盖Bootstrap样式 - 最高优先级 */
 body {
@@ -344,10 +344,22 @@ html .tour-project-edit-page .edit-project-container {
 .tour-project-edit-page .itinerary-table td {
     padding: 16px 12px !important;
     border: 1px solid #e9ecef !important;
-    text-align: center !important;
+    text-align: left !important;
     vertical-align: middle !important;
     min-width: 80px !important;
 }
+
+/* 行程表列宽：放大“行程内容”，缩小“操作” */
+.tour-project-edit-page .itinerary-table th:nth-child(1),
+.tour-project-edit-page .itinerary-table td:nth-child(1) { width: 140px !important; }
+.tour-project-edit-page .itinerary-table th:nth-child(2),
+.tour-project-edit-page .itinerary-table td:nth-child(2) { width: 90px !important; }
+.tour-project-edit-page .itinerary-table th:nth-child(3),
+.tour-project-edit-page .itinerary-table td:nth-child(3) { width: 180px !important; }
+.tour-project-edit-page .itinerary-table th:nth-child(4),
+.tour-project-edit-page .itinerary-table td:nth-child(4) { width: 60% !important; }
+.tour-project-edit-page .itinerary-table th:nth-child(5),
+.tour-project-edit-page .itinerary-table td:nth-child(5) { width: 120px !important; }
 
 .tour-project-edit-page .itinerary-table th {
     background: linear-gradient(135deg, #4CAF50, #45a049) !important;
@@ -375,6 +387,12 @@ html .tour-project-edit-page .edit-project-container {
     display: flex !important;
     gap: 8px !important;
     flex-wrap: wrap !important;
+}
+
+/* 操作列按钮统一宽度 */
+.tour-project-edit-page .itinerary-table .action-buttons .btn {
+    width: 100px !important;
+    text-align: center !important;
 }
 
 /* 空状态 - 与tour_project_list保持一致 */
@@ -870,6 +888,48 @@ html body .tour-project-edit-page .modal .form-grid {
             </div>
         </div>
 
+        {% if recent_budgets %}
+        <div class="section-card">
+            <div class="section-header">
+                <h2 class="section-title">最近的配套价格预算</h2>
+                <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('package_budget.list_budgets') }}" target="_blank">查看全部</a>
+            </div>
+            <div class="section-content">
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>套餐名称</th>
+                                <th>人数</th>
+                                <th>币种</th>
+                                <th>总价</th>
+                                <th>创建时间</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for b in recent_budgets %}
+                            <tr>
+                                <td>{{ b.id }}</td>
+                                <td>{{ b.package_name }}</td>
+                                <td>{{ b.adult_count }}A{% if b.child_count and b.child_count>0 %}+{{ b.child_count }}C{% endif %}</td>
+                                <td>{{ b.currency }}</td>
+                                <td>{{ '%.2f'|format(b.total_price) }}</td>
+                                <td>{{ b.created_at.strftime('%Y-%m-%d %H:%M') if b.created_at else '-' }}</td>
+                                <td>
+                                    <a class="btn btn-sm btn-outline-primary" href="{{ url_for('package_budget.detail', budget_id=b.id) }}" target="_blank">详情</a>
+                                    <a class="btn btn-sm btn-outline-warning" href="{{ url_for('package_budget.edit', budget_id=b.id) }}" target="_blank">编辑</a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
         <!-- 团队管理 -->
         <div class="section-card">
             <div class="section-header">
@@ -929,7 +989,12 @@ html body .tour-project-edit-page .modal .form-grid {
 
                             <!-- 行程列表 -->
                             {% if group.itineraries %}
-                            <h4>行程安排</h4>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h4 class="mb-0">行程安排</h4>
+                                <a class="btn btn-lg btn-success" href="{{ url_for('package_budget.create', package_name=project.project_name, adult_count=groups[0].pax if groups and groups[0].pax else '', child_count=0, currency='SGD') }}" target="_blank" title="为此行程新建价格预算">
+                                    <i class="fas fa-calculator me-1"></i> 配套价格预算
+                                </a>
+                            </div>
                             <div class="table-responsive">
                                 <table class="itinerary-table">
                                     <thead>
@@ -1004,7 +1069,7 @@ html body .tour-project-edit-page .modal .form-grid {
 </div>
 
 <!-- 创建团队模态框 -->
-<div id="createGroupModal" class="modal" style="display: none; position: fixed; z-index: 1050; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.6); backdrop-filter: blur(2px); overflow: hidden;">
+<div id="createGroupModal" class="modal" data-backdrop-close="false" style="display: none; position: fixed; z-index: 1050; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.6); backdrop-filter: blur(2px); overflow: hidden;">
     <div class="modal-content" style="background-color: white; margin: 5% auto; padding: 0; border-radius: 12px; width: 95%; max-width: 900px; max-height: 85vh; overflow-y: auto; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3); position: relative; transform: none;">
         <div class="modal-header">
             <h3 class="modal-title">创建新团队</h3>
@@ -1093,7 +1158,7 @@ html body .tour-project-edit-page .modal .form-grid {
 </div>
 
 <!-- 编辑团队模态框 -->
-<div id="editGroupModal" class="modal" style="display: none; position: fixed; z-index: 1050; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.6); backdrop-filter: blur(2px); overflow: hidden;">
+<div id="editGroupModal" class="modal" data-backdrop-close="false" style="display: none; position: fixed; z-index: 1050; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.6); backdrop-filter: blur(2px); overflow: hidden;">
     <div class="modal-content" style="background-color: white; margin: 5% auto; padding: 0; border-radius: 12px; width: 95%; max-width: 900px; max-height: 85vh; overflow-y: auto; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3); position: relative; transform: none;">
         <div class="modal-header">
             <h3 class="modal-title">编辑团队信息</h3>
@@ -1183,7 +1248,7 @@ html body .tour-project-edit-page .modal .form-grid {
 </div>
 
 <!-- 添加行程模态框 -->
-<div id="addItineraryModal" class="modal" style="display: none; position: fixed; z-index: 1050; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.6); backdrop-filter: blur(2px); overflow: hidden;">
+<div id="addItineraryModal" class="modal" data-backdrop-close="false" style="display: none; position: fixed; z-index: 1050; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.6); backdrop-filter: blur(2px); overflow: hidden;">
     <div class="modal-content" style="background-color: white; margin: 5% auto; padding: 0; border-radius: 12px; width: 95%; max-width: 700px; max-height: 85vh; overflow-y: auto; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3); position: relative; transform: none;">
         <div class="modal-header">
             <h3 class="modal-title">添加行程</h3>
@@ -1217,7 +1282,7 @@ html body .tour-project-edit-page .modal .form-grid {
 </div>
 
 <!-- 编辑行程模态框 -->
-<div id="editItineraryModal" class="modal" style="display: none; position: fixed; z-index: 1050; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.6); backdrop-filter: blur(2px); overflow: hidden;">
+<div id="editItineraryModal" class="modal" data-backdrop-close="false" style="display: none; position: fixed; z-index: 1050; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.6); backdrop-filter: blur(2px); overflow: hidden;">
     <div class="modal-content" style="background-color: white; margin: 5% auto; padding: 0; border-radius: 12px; width: 95%; max-width: 700px; max-height: 85vh; overflow-y: auto; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3); position: relative; transform: none;">
         <div class="modal-header">
             <h3 class="modal-title">编辑行程</h3>
@@ -1251,7 +1316,7 @@ html body .tour-project-edit-page .modal .form-grid {
 </div>
 {% endblock %}
 
-{% block scripts %}
+{% block extra_js %}
 <script>
 // 显示提示信息
 function showAlert(message, type = 'info') {
@@ -1312,6 +1377,11 @@ function closeModal(modalId) {
 // 点击模态框外部关闭
 window.onclick = function(event) {
     if (event.target.classList.contains('modal')) {
+        // 如果标记不允许背景点击关闭，则忽略
+        const allowBackdropClose = event.target.getAttribute('data-backdrop-close');
+        if (allowBackdropClose === 'false') {
+            return;
+        }
         event.target.style.display = 'none';
     }
 }

@@ -220,8 +220,8 @@
                                 <div>
                                     <i class="fas fa-info-circle"></i>
                                     显示 <strong>{{ projects|length }}</strong> 个项目
-                                    {% if pagination and pagination.total_count > pagination.per_page %}
-                                        <span class="text-muted">(第 {{ pagination.page }} 页，共 {{ pagination.total_count }} 个项目)</span>
+                                    {% if pagination and pagination.total > pagination.per_page %}
+                                        <span class="text-muted">(第 {{ pagination.page }} 页，共 {{ pagination.total }} 个项目)</span>
                                     {% endif %}
                                     {% if request.args %}
                                         <span class="text-muted">(已应用筛选条件)</span>
@@ -450,70 +450,71 @@
 
 {% block extra_js %}
 <script>
-$(document).ready(function() {
+document.addEventListener('DOMContentLoaded', function () {
     // Quick filter buttons
-    $('.quick-filter').click(function() {
-        const filter = $(this).data('filter');
-        const [key, value] = filter.split('=');
-        window.location.href = "{{ url_for('projects.list_projects') }}?" + key + "=" + encodeURIComponent(value);
+    document.querySelectorAll('.quick-filter').forEach(function(btn){
+        btn.addEventListener('click', function(){
+            const filter = this.dataset.filter || '';
+            const [key, value] = filter.split('=');
+            if (key && value !== undefined) {
+                window.location.href = "{{ url_for('projects.list_projects') }}?" + key + "=" + encodeURIComponent(value);
+            }
+        });
     });
-    
+
     // Clear all filters
-    $('#clear-all-filters').click(function() {
-        window.location.href = "{{ url_for('projects.list_projects') }}";
-    });
-    
+    const clearBtn = document.getElementById('clear-all-filters');
+    if (clearBtn) {
+        clearBtn.addEventListener('click', function(){
+            window.location.href = "{{ url_for('projects.list_projects') }}";
+        });
+    }
+
     // Delete project handler
-    $('.delete-project').click(function() {
-        const projectId = $(this).data('project-id');
-        if (confirm('确定要删除这个项目吗？此操作不可撤销。')) {
-            deleteProject(projectId);
-        }
+    document.querySelectorAll('.delete-project').forEach(function(btn){
+        btn.addEventListener('click', function(){
+            const projectId = this.dataset.projectId;
+            if (projectId && confirm('确定要删除这个项目吗？此操作不可撤销。')) {
+                deleteProject(projectId);
+            }
+        });
     });
 });
 
-// Function to update project status via dropdown
+// Function to update project status via dropdown (vanilla fetch)
 function updateProjectStatus(select) {
     const projectId = select.dataset.projectId;
     const newStatus = select.value;
-    const csrfToken = $('input[name="csrf_token"]').val();
-    
-    // Store original value for rollback
+    const csrfTokenEl = document.querySelector('input[name="csrf_token"]');
+    const csrfToken = csrfTokenEl ? csrfTokenEl.value : '';
+
     const originalValue = select.dataset.currentStatus;
-    
-    $.ajax({
-        url: "{{ url_for('projects.update_header_status') }}",
+
+    fetch("{{ url_for('projects.update_header_status') }}", {
         method: 'POST',
-        contentType: 'application/json',
-        data: JSON.stringify({
-            project_id: projectId,
-            status: newStatus,
-            csrf_token: csrfToken
-        }),
-        success: function(response) {
-            if (response.success) {
-                // Update the data attribute
-                select.dataset.currentStatus = newStatus;
-                
-                // Show success message
-                showToast('success', '状态更新成功！');
-            } else {
-                // Rollback to original value
-                select.value = originalValue;
-                showToast('error', '更新失败：' + response.message);
-            }
+        headers: {
+            'Content-Type': 'application/json'
         },
-        error: function(xhr, status, error) {
-            // Rollback to original value
+        body: JSON.stringify({ project_id: projectId, status: newStatus, csrf_token: csrfToken })
+    })
+    .then(res => res.json())
+    .then(response => {
+        if (response.success) {
+            select.dataset.currentStatus = newStatus;
+            showToast('success', '状态更新成功！');
+        } else {
             select.value = originalValue;
-            showToast('error', '更新失败：' + error);
+            showToast('error', '更新失败：' + response.message);
         }
+    })
+    .catch(err => {
+        select.value = originalValue;
+        showToast('error', '更新失败：' + err);
     });
 }
 
-// Function to show toast messages
+// Toast (bootstrap 5)
 function showToast(type, message) {
-    // Create toast container if it doesn't exist
     let toastContainer = document.querySelector('.toast-container');
     if (!toastContainer) {
         toastContainer = document.createElement('div');
@@ -521,59 +522,45 @@ function showToast(type, message) {
         toastContainer.style.zIndex = '9999';
         document.body.appendChild(toastContainer);
     }
-    
-    // Create toast element
+
     const toast = document.createElement('div');
     toast.className = `toast align-items-center text-white bg-${type === 'success' ? 'success' : 'danger'} border-0`;
     toast.setAttribute('role', 'alert');
     toast.setAttribute('aria-live', 'assertive');
     toast.setAttribute('aria-atomic', 'true');
-    
     toast.innerHTML = `
         <div class="d-flex">
-            <div class="toast-body">
-                ${message}
-            </div>
+            <div class="toast-body">${message}</div>
             <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
-        </div>
-    `;
-    
-    // Add toast to container
+        </div>`;
+
     toastContainer.appendChild(toast);
-    
-    // Show toast
     const bsToast = new bootstrap.Toast(toast);
     bsToast.show();
-    
-    // Remove toast after it's hidden
-    toast.addEventListener('hidden.bs.toast', function() {
-        toast.remove();
-    });
+    toast.addEventListener('hidden.bs.toast', function(){ toast.remove(); });
 }
 
-// Function to delete project
+// Delete project (vanilla fetch)
 function deleteProject(projectId) {
-    const csrfToken = $('input[name="csrf_token"]').val();
-    
-    $.ajax({
-        url: `/projects/header/delete/${projectId}`,
+    const csrfTokenEl = document.querySelector('input[name="csrf_token"]');
+    const csrfToken = csrfTokenEl ? csrfTokenEl.value : '';
+
+    fetch(`/projects/header/delete/${projectId}`, {
         method: 'POST',
         headers: {
             'X-CSRFToken': csrfToken,
             'X-Requested-With': 'XMLHttpRequest'
-        },
-        success: function(response) {
-            if (response.success) {
-                // Remove the row from the table
-                $(`tr[data-project-id="${projectId}"]`).remove();
-                showToast('success', '项目删除成功！');
-            } else {
-                showToast('error', '删除失败：' + response.message);
-            }
-        },
-        error: function(xhr, status, error) {
-            showToast('error', '删除失败：' + error);
         }
+    }).then(res => res.json()).then(response => {
+        if (response.success) {
+            const row = document.querySelector(`tr[data-project-id="${projectId}"]`);
+            if (row) row.remove();
+            showToast('success', '项目删除成功！');
+        } else {
+            showToast('error', '删除失败：' + (response.message || ''));
+        }
+    }).catch(err => {
+        showToast('error', '删除失败：' + err);
     });
 }
 </script>

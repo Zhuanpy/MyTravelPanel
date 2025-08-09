@@ -178,6 +178,15 @@ def create_app():
     app.config['SEND_FILE_MAX_AGE_DEFAULT'] = timedelta(days=1)
     app.config['STATIC_FOLDER'] = 'static'
 
+    # 兼容浏览器直接请求 /favicon.ico（有些浏览器会忽略 <link rel="icon">）
+    @app.route('/favicon.ico')
+    def favicon():
+        return send_from_directory(
+            app.static_folder,
+            'favicon.ico',
+            mimetype='image/x-icon'
+        )
+
     # 添加对 .well-known 目录的支持
     @app.route('/.well-known/appspecific/<path:filename>')
     def well_known(filename):

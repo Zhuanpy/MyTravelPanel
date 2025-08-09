@@ -1813,7 +1813,8 @@ function deleteDocument(documentId, documentName) {
 }
 
 // 表单提交处理
-document.getElementById('addDocumentForm').addEventListener('submit', function(e) {
+const addFormEl = document.getElementById('addDocumentForm');
+if (addFormEl) addFormEl.addEventListener('submit', function(e) {
     e.preventDefault();
     
     const formData = {
@@ -1848,7 +1849,8 @@ document.getElementById('addDocumentForm').addEventListener('submit', function(e
     });
 });
 
-document.getElementById('editNotesForm').addEventListener('submit', function(e) {
+const editFormEl = document.getElementById('editNotesForm');
+if (editFormEl) editFormEl.addEventListener('submit', function(e) {
     e.preventDefault();
     
     const documentId = document.getElementById('editDocumentId').value;
@@ -2028,7 +2030,7 @@ function createProjectLinks() {
 
 // 自动补全资料名称
 const docNameInput = document.getElementById('documentName');
-docNameInput.addEventListener('input', function() {
+if (docNameInput) docNameInput.addEventListener('input', function() {
     const val = this.value;
     fetch(`/visa/project/get_documents_list?q=${encodeURIComponent(val)}`)
         .then(res => res.json())
@@ -2044,7 +2046,8 @@ docNameInput.addEventListener('input', function() {
 });
 
 // 生成表格表单提交处理
-document.getElementById('generateFormForm').addEventListener('submit', function(e) {
+const genFormEl = document.getElementById('generateFormForm');
+if (genFormEl) genFormEl.addEventListener('submit', function(e) {
     e.preventDefault();
     
     const form = this;

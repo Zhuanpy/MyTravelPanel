@@ -13,6 +13,8 @@ class Config:
     DB_USER = os.getenv('DB_USER', 'your_db_user')
     DB_PASSWORD = os.getenv('DB_PASSWORD', 'your_db_password')  # 生产环境必须使用环境变量
     DB_HOST = os.getenv('DB_HOST', 'localhost')
+    # 新增：可单独指定端口（若 DB_HOST 已含端口，将优先生效）
+    DB_PORT = int(os.getenv('DB_PORT', '3306'))
     DB_NAME = os.getenv('DB_NAME', 'your_database_name')
     DB_NAME_DATA = os.getenv('DB_NAME_DATA', 'your_data_database_name')
 
@@ -53,9 +55,10 @@ class Config:
             if missing_vars:
                 raise ValueError(f"Missing required environment variables for production: {', '.join(missing_vars)}")
 
-    # 构建数据库 URI
-    SQLALCHEMY_DATABASE_URI = f'mysql+pymysql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}/{DB_NAME}'
-    SQLALCHEMY_DATABASE_URI_DATA = f'mysql+pymysql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}/{DB_NAME_DATA}'
+    # 构建数据库 URI（兼容 DB_HOST 已包含端口；否则使用 DB_PORT）
+    _HOST_WITH_PORT = DB_HOST if (':' in str(DB_HOST)) else f"{DB_HOST}:{DB_PORT}"
+    SQLALCHEMY_DATABASE_URI = f'mysql+pymysql://{DB_USER}:{DB_PASSWORD}@{_HOST_WITH_PORT}/{DB_NAME}'
+    SQLALCHEMY_DATABASE_URI_DATA = f'mysql+pymysql://{DB_USER}:{DB_PASSWORD}@{_HOST_WITH_PORT}/{DB_NAME_DATA}'
 
     # SQLAlchemy 配置
     SQLALCHEMY_TRACK_MODIFICATIONS = False
@@ -101,8 +104,8 @@ class Config:
     # 待办事项通知配置
     TODO_NOTIFICATION = {
         'ENABLED': os.getenv('TODO_NOTIFICATION_ENABLED', 'True').lower() in ('true', '1', 't'),
-        'CHECK_INTERVAL': int(os.getenv('TODO_CHECK_INTERVAL', 60 * 60)),  # 默认1小时
-        'EMAIL_INTERVAL': int(os.getenv('TODO_EMAIL_INTERVAL', 2 * 60 * 60)),  # 默认2小时
+        'CHECK_INTERVAL': int(os.getenv('TODO_CHECK_INTERVAL', 6 * 60 * 60)),  # 默认6小时
+        'EMAIL_INTERVAL': int(os.getenv('TODO_EMAIL_INTERVAL', 12 * 60 * 60)),  # 默认12小时
         'EMAIL_THRESHOLD': int(os.getenv('TODO_EMAIL_THRESHOLD', 24)),  # 默认24小时
         'DESKTOP_NOTIFICATION': os.getenv('TODO_DESKTOP_NOTIFICATION', 'True').lower() in ('true', '1', 't'),
     }

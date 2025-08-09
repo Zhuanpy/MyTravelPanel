@@ -7,6 +7,7 @@ from sqlalchemy import or_, and_
 from sqlalchemy.exc import SQLAlchemyError
 from ..exts import db, csrf
 from ..models.Product.PackageBudget import BudgetHeader, BudgetItem
+from ..models.Product.BusinessType import BusinessType
 import urllib.parse
 
 
@@ -126,6 +127,19 @@ def create():
             current_app.logger.error(f"Error in create budget: {e}")
             flash('创建预算单时发生错误', 'error')
     
+    # GET: 支持通过查询参数预填（来自旅游项目编辑页）
+    if request.method == 'GET':
+        prefill = {
+            'package_name': request.args.get('package_name', ''),
+            'adult_count': request.args.get('adult_count', ''),
+            'child_count': request.args.get('child_count', '0'),
+            'currency': request.args.get('currency', ''),
+            'status': request.args.get('status', ''),
+            'is_template': request.args.get('is_template', ''),
+            'remarks': request.args.get('remarks', ''),
+        }
+        return render_template('package/budget/create.html', form=prefill)
+
     return render_template('package/budget/create.html')
 
 
@@ -136,6 +150,8 @@ def detail(budget_id):
     """预算单详情页面"""
     try:
         budget = BudgetHeader.query.get_or_404(budget_id)
+        # 获取业务类型作为“类别”选项
+        business_types = BusinessType.query.filter_by(is_active=True).order_by(BusinessType.sort_order.asc(), BusinessType.id.asc()).all()
         
         # 计算分类统计
         category_totals = {}
@@ -165,7 +181,8 @@ def detail(budget_id):
                              budget=budget,
                              category_totals=category_totals,
                              adult_total=adult_total,
-                             child_total=child_total)
+                             child_total=child_total,
+                             business_types=business_types)
     
     except Exception as e:
         current_app.logger.error(f"Error in budget detail: {e}")

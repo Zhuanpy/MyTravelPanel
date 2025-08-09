@@ -1,6 +1,6 @@
-{% extends 'base.html' %}
+{% extends 'staff/base.html' %}
 {% block title %}项目详细 - {{ project.project_name }}{% endblock %}
-{% block head %}
+{% block extra_css %}
 <style>
 /* 重置和基础样式 - 使用更具体的选择器避免与Bootstrap冲突 */
 .tour-project-detail-page * {

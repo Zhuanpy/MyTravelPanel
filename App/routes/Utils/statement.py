@@ -3,6 +3,7 @@ from flask_login import login_required
 from App.utils.Statement import OriginalStatement
 from App.utils.Invoice import CountHid
 import os
+import logging
 from App.config import Config
 import subprocess
 import pandas as pd
@@ -18,6 +19,9 @@ from App.utils.report_utils import (
     add_comparison_column
 )
 from App.config import safe_json
+
+# 配置日志
+logger = logging.getLogger(__name__)
 
 # 创建蓝图
 statement_blue = Blueprint('statement_routes', __name__)
@@ -292,25 +296,56 @@ def athina_page():
 @statement_blue.route('/athina_processing', methods=['GET', 'POST'])
 @csrf.exempt
 def process_all_invoices():
-    if request.headers.get('X-Requested-With') != 'XMLHttpRequest' and request.method == 'GET':
-        return redirect(url_for('statement_routes.athina_page'))
-    folder_path = Config.BILLING_DATA_PATH / "BOOKING"
-    count = CountHid(str(folder_path))
-    profits, pre_sum = count.find_no_inv_booking()
-    r = f'全部未结算总额：SGD {int(profits)};'
-    return jsonify({'result': r})
+    try:
+        folder_path = Config.BILLING_DATA_PATH / "BOOKING"
+        
+        # 检查文件夹是否存在
+        if not folder_path.exists():
+            return jsonify({'error': f'账单文件夹不存在: {folder_path}'}), 404
+        
+        count = CountHid(str(folder_path))
+        profits, pre_sum = count.find_no_inv_booking()
+        
+        r = f'全部未结算总额：SGD {int(profits)};'
+        return jsonify({'result': r})
+        
+    except Exception as e:
+        logger.error(f"处理全部订单失败: {e}")
+        return jsonify({'error': f'处理失败: {str(e)}'}), 500
 
 
 @statement_blue.route('/athina_processing_month', methods=['POST'])
 @csrf.exempt
 def process_month_invoice():
-    folder_path = Config.BILLING_DATA_PATH / "BOOKING"
-    data = request.get_json()
-    month = data.get('month')
-    count = CountHid(str(folder_path))
-    profits, pre_sum = count.find_no_inv_booking(pre_month=month)
-    results = f'截至{month[:4]}年{month[-2:]}月的未结算总额: SGD {int(pre_sum)}'
-    return jsonify({'result': results})
+    try:
+        folder_path = Config.BILLING_DATA_PATH / "BOOKING"
+        
+        # 检查文件夹是否存在
+        if not folder_path.exists():
+            return jsonify({'error': f'账单文件夹不存在: {folder_path}'}), 404
+        
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': '未提供月份数据'}), 400
+        
+        month = data.get('month')
+        if not month:
+            return jsonify({'error': '月份参数不能为空'}), 400
+        
+        # 验证月份格式
+        import re
+        if not re.match(r'^\d{4}-\d{2}$', month):
+            return jsonify({'error': '月份格式错误，请使用YYYY-MM格式'}), 400
+        
+        count = CountHid(str(folder_path))
+        profits, pre_sum = count.find_no_inv_booking(pre_month=month)
+        
+        results = f'截至{month[:4]}年{month[-2:]}月的未结算总额: SGD {int(pre_sum)}'
+        return jsonify({'result': results})
+        
+    except Exception as e:
+        logger.error(f"处理指定月份订单失败: {e}")
+        return jsonify({'error': f'处理失败: {str(e)}'}), 500
 
 
 @statement_blue.route('/open_athina_statement_folder', methods=['GET', 'POST'])
