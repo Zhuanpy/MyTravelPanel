@@ -44,6 +44,12 @@ class AuthUser(db.Model, UserMixin):
     last_login = db.Column(db.DateTime)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
+    # 登录失败锁定相关字段
+    login_attempts = db.Column(db.Integer, default=0, comment='登录失败次数')
+    is_locked = db.Column(db.Boolean, default=False, comment='账户是否被锁定')
+    locked_at = db.Column(db.DateTime, nullable=True, comment='账户锁定时间')
+    unlock_at = db.Column(db.DateTime, nullable=True, comment='账户解锁时间')
+    
     # 关系
     profile = db.relationship('UserProfile', backref='user', uselist=False, cascade='all, delete-orphan')
     
@@ -64,6 +70,64 @@ class AuthUser(db.Model, UserMixin):
             return False
         return permission in self.role.permissions
     
+    def is_account_locked(self):
+        """检查账户是否被锁定"""
+        if not self.is_locked:
+            return False
+        
+        # 如果设置了自动解锁时间且已过期，则自动解锁
+        if self.unlock_at and self.unlock_at < datetime.utcnow():
+            self.unlock_account()
+            return False
+        
+        return True
+    
+    def record_login_failure(self):
+        """记录登录失败"""
+        self.login_attempts += 1
+        
+        # 如果失败次数达到5次，锁定账户
+        if self.login_attempts >= 5:
+            self.lock_account()
+        
+        db.session.commit()
+    
+    def record_login_success(self):
+        """记录登录成功，重置失败计数"""
+        self.login_attempts = 0
+        self.is_locked = False
+        self.locked_at = None
+        self.unlock_at = None
+        self.last_login = datetime.utcnow()
+        db.session.commit()
+    
+    def lock_account(self, lock_duration_hours=24):
+        """锁定账户"""
+        from datetime import timedelta
+        self.is_locked = True
+        self.locked_at = datetime.utcnow()
+        self.unlock_at = datetime.utcnow() + timedelta(hours=lock_duration_hours)
+        db.session.commit()
+    
+    def unlock_account(self):
+        """解锁账户"""
+        self.is_locked = False
+        self.locked_at = None
+        self.unlock_at = None
+        self.login_attempts = 0
+        db.session.commit()
+    
+    def get_remaining_lock_time(self):
+        """获取剩余锁定时间（分钟）"""
+        if not self.is_locked or not self.unlock_at:
+            return 0
+        
+        remaining = self.unlock_at - datetime.utcnow()
+        if remaining.total_seconds() <= 0:
+            return 0
+        
+        return int(remaining.total_seconds() / 60)
+    
     def to_dict(self):
         return {
             'id': self.id,
@@ -73,7 +137,11 @@ class AuthUser(db.Model, UserMixin):
             'is_active': self.is_active,
             'is_verified': self.is_verified,
             'created_at': self.created_at.isoformat() if self.created_at else None,
-            'last_login': self.last_login.isoformat() if self.last_login else None
+            'last_login': self.last_login.isoformat() if self.last_login else None,
+            'is_locked': self.is_locked,
+            'login_attempts': self.login_attempts,
+            'locked_at': self.locked_at.isoformat() if self.locked_at else None,
+            'unlock_at': self.unlock_at.isoformat() if self.unlock_at else None
         }
 
 class UserProfile(db.Model):

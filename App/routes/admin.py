@@ -635,3 +635,56 @@ def api_system_info():
             'success': False,
             'message': str(e)
         }), 500 
+
+@admin.route('/users/locked')
+@admin_only
+def locked_users():
+    """查看被锁定的用户列表"""
+    try:
+        from App.models.auth import AuthUser
+        
+        # 获取所有被锁定的用户
+        locked_users = AuthUser.query.filter_by(is_locked=True).all()
+        
+        return render_template('admin/locked_users.html', users=locked_users)
+    except Exception as e:
+        flash(f'获取锁定用户列表失败：{str(e)}', 'error')
+        return redirect(url_for('admin.dashboard'))
+
+@admin.route('/users/<int:user_id>/unlock', methods=['POST'])
+@admin_only
+def unlock_user(user_id):
+    """解锁被锁定的用户"""
+    try:
+        from App.models.auth import AuthUser
+        
+        user = AuthUser.query.get_or_404(user_id)
+        
+        if not user.is_locked:
+            flash('该用户账户未被锁定', 'info')
+        else:
+            user.unlock_account()
+            flash(f'用户 {user.username} 的账户已成功解锁', 'success')
+        
+        return redirect(url_for('admin.locked_users'))
+    except Exception as e:
+        flash(f'解锁用户失败：{str(e)}', 'error')
+        return redirect(url_for('admin.locked_users'))
+
+@admin.route('/users/<int:user_id>/reset-attempts', methods=['POST'])
+@admin_only
+def reset_user_attempts(user_id):
+    """重置用户的登录失败次数"""
+    try:
+        from App.models.auth import AuthUser
+        
+        user = AuthUser.query.get_or_404(user_id)
+        
+        user.login_attempts = 0
+        db.session.commit()
+        
+        flash(f'用户 {user.username} 的登录失败次数已重置', 'success')
+        return redirect(url_for('admin.locked_users'))
+    except Exception as e:
+        flash(f'重置失败次数失败：{str(e)}', 'error')
+        return redirect(url_for('admin.locked_users')) 

@@ -117,8 +117,27 @@ def login():
             # 查找用户
             user = AuthUser.query.filter_by(email=email).first()
             
-            if user and user.check_password(password):
-                # 登录成功
+            if not user:
+                flash('邮箱或密码错误', 'error')
+                return render_template('auth/login.html')
+            
+            # 检查账户是否被锁定
+            if user.is_account_locked():
+                remaining_minutes = user.get_remaining_lock_time()
+                if remaining_minutes > 0:
+                    flash(f'账户已被锁定，请{remaining_minutes}分钟后再试', 'error')
+                else:
+                    flash('账户已被锁定，请联系管理员解锁', 'error')
+                return render_template('auth/login.html')
+            
+            # 检查账户是否被禁用
+            if not user.is_active:
+                flash('账户已被禁用，请联系管理员', 'error')
+                return render_template('auth/login.html')
+            
+            if user.check_password(password):
+                # 登录成功，记录成功登录并重置失败计数
+                user.record_login_success()
                 login_user(user, remember=remember)
                 
                 # 重定向到原来想访问的页面或默认页面
@@ -141,7 +160,15 @@ def login():
                     flash('登录成功，但用户角色未知', 'warning')
                     return redirect(url_for('public.index'))
             else:
-                flash('邮箱或密码错误', 'error')
+                # 登录失败，记录失败次数
+                user.record_login_failure()
+                
+                # 根据失败次数显示不同的提示信息
+                if user.login_attempts >= 5:
+                    flash('登录失败次数过多，账户已被锁定24小时', 'error')
+                else:
+                    remaining_attempts = 5 - user.login_attempts
+                    flash(f'邮箱或密码错误，还剩{remaining_attempts}次尝试机会', 'error')
                 
         except Exception as e:
             flash(f'登录失败：{str(e)}', 'error')
@@ -338,13 +365,33 @@ def _handle_role_login(role_name, template_name):
         # 查找用户
         user = AuthUser.query.filter_by(email=email).first()
         
-        if user and user.check_password(password):
+        if not user:
+            flash('邮箱或密码错误', 'error')
+            return render_template(template_name, role_type=role_name)
+        
+        # 检查账户是否被锁定
+        if user.is_account_locked():
+            remaining_minutes = user.get_remaining_lock_time()
+            if remaining_minutes > 0:
+                flash(f'账户已被锁定，请{remaining_minutes}分钟后再试', 'error')
+            else:
+                flash('账户已被锁定，请联系管理员解锁', 'error')
+            return render_template(template_name, role_type=role_name)
+        
+        # 检查账户是否被禁用
+        if not user.is_active:
+            flash('账户已被禁用，请联系管理员', 'error')
+            return render_template(template_name, role_type=role_name)
+        
+        # 验证密码
+        if user.check_password(password):
             # 验证用户角色是否匹配
             if user.role.name != role_name:
                 flash(f'该账号不是{_get_role_display_name(role_name)}，请使用正确的登录入口', 'error')
                 return render_template(template_name, role_type=role_name)
             
-            # 登录成功
+            # 登录成功，记录成功登录并重置失败计数
+            user.record_login_success()
             login_user(user, remember=remember)
             
             # 重定向到原来想访问的页面或默认页面
@@ -360,7 +407,15 @@ def _handle_role_login(role_name, template_name):
             elif role_name == 'member':
                 return redirect(url_for('member.dashboard'))
         else:
-            flash('邮箱或密码错误', 'error')
+            # 登录失败，记录失败次数
+            user.record_login_failure()
+            
+            # 根据失败次数显示不同的提示信息
+            if user.login_attempts >= 5:
+                flash('登录失败次数过多，账户已被锁定24小时', 'error')
+            else:
+                remaining_attempts = 5 - user.login_attempts
+                flash(f'邮箱或密码错误，还剩{remaining_attempts}次尝试机会', 'error')
             
     except Exception as e:
         flash(f'登录失败：{str(e)}', 'error')

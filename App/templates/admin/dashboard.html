@@ -181,6 +181,11 @@
                     </a>
                 </div>
                 <div class="col-md-6 mb-3">
+                    <a href="{{ url_for('admin.locked_users') }}" class="btn btn-admin btn-admin-warning w-100">
+                        <i class="fas fa-lock me-2"></i>锁定用户管理
+                    </a>
+                </div>
+                <div class="col-md-6 mb-3">
                     <a href="{{ url_for('admin.roles') }}" class="btn btn-outline-danger btn-admin w-100">
                         <i class="fas fa-user-shield me-2"></i>角色权限
                     </a>

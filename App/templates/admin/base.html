@@ -108,6 +108,13 @@
                             </a>
                         </li>
                         <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint == 'admin.locked_users' %}active{% endif %}" 
+                               href="{{ url_for('admin.locked_users') }}">
+                                <i class="fas fa-lock me-2"></i>
+                                锁定用户管理
+                            </a>
+                        </li>
+                        <li class="nav-item">
                             <a class="nav-link {% if 'role' in request.endpoint %}active{% endif %}" 
                                href="{{ url_for('admin.roles') }}">
                                 <i class="fas fa-user-shield me-2"></i>
