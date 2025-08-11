@@ -325,7 +325,17 @@ def import_accounts():
     """批量导入账号"""
     try:
         logger.info("Starting account import")
+        
+        # 检查用户是否已登录
+        if not current_user.is_authenticated:
+            logger.warning("User not authenticated")
+            return jsonify({
+                'success': False,
+                'message': '用户未登录'
+            }), 401
+        
         if 'file' not in request.files:
+            logger.warning("No file in request")
             return jsonify({
                 'success': False,
                 'message': '未找到上传的文件'
@@ -333,12 +343,14 @@ def import_accounts():
 
         file = request.files['file']
         if file.filename == '':
+            logger.warning("Empty filename")
             return jsonify({
                 'success': False,
                 'message': '未选择文件'
             }), 400
 
         if not file.filename.endswith(('.xlsx', '.xls')):
+            logger.warning(f"Invalid file type: {file.filename}")
             return jsonify({
                 'success': False,
                 'message': '只支持 Excel 文件 (.xlsx, .xls)'
@@ -346,8 +358,9 @@ def import_accounts():
 
         # 读取 Excel 文件
         try:
-            df = pd.read_excel(file)
+            df = pd.read_excel(file, engine='openpyxl')
             logger.info(f"Successfully read Excel file with {len(df)} rows")
+            logger.info(f"Columns found: {list(df.columns)}")
         except Exception as e:
             logger.error(f"Excel file parsing failed: {str(e)}")
             return jsonify({
@@ -359,22 +372,32 @@ def import_accounts():
         required_fields = ['platform', 'category', 'username', 'password']
         missing_fields = [field for field in required_fields if field not in df.columns]
         if missing_fields:
+            logger.warning(f"Missing required fields: {missing_fields}")
             return jsonify({
                 'success': False,
                 'message': f'Excel 文件缺少必填字段: {", ".join(missing_fields)}'
             }), 400
 
-        # 数据预处理和验证
+        # 数据预处理和验证 - 处理nan值
         df = df.fillna('')  # 将NaN值替换为空字符串
+        logger.info("Data preprocessing completed")
         
         # 验证数据不为空
+        validation_errors = []
         for field in required_fields:
             empty_rows = df[df[field].astype(str).str.strip() == ''].index.tolist()
             if empty_rows:
-                return jsonify({
-                    'success': False,
-                    'message': f'必填字段 "{field}" 在第 {[i+2 for i in empty_rows]} 行为空'
-                }), 400
+                error_msg = f'必填字段 "{field}" 在第 {[i+2 for i in empty_rows]} 行为空'
+                validation_errors.append(error_msg)
+                logger.warning(f"Empty values found in field '{field}' at rows: {empty_rows}")
+        
+        # 如果有验证错误，返回所有错误信息
+        if validation_errors:
+            return jsonify({
+                'success': False,
+                'message': '数据验证失败，请检查以下问题：',
+                'validation_errors': validation_errors
+            }), 400
 
         # 导入账号
         imported_count = 0
@@ -382,39 +405,54 @@ def import_accounts():
         
         for index, row in df.iterrows():
             try:
-                # 数据清理
+                # 数据清理 - 确保没有nan值
                 platform = str(row['platform']).strip()
                 category = str(row['category']).strip()
                 username = str(row['username']).strip()
                 password = str(row['password']).strip()
                 
+                logger.info(f"Processing row {index + 2}: platform={platform}, username={username}")
+                
                 # 验证数据长度
                 if len(platform) > 100:
-                    errors.append(f'第 {index + 2} 行: 平台名称过长（最大100字符）')
+                    error_msg = f'第 {index + 2} 行: 平台名称过长（最大100字符）'
+                    errors.append(error_msg)
+                    logger.warning(error_msg)
                     continue
                 if len(username) > 100:
-                    errors.append(f'第 {index + 2} 行: 用户名过长（最大100字符）')
+                    error_msg = f'第 {index + 2} 行: 用户名过长（最大100字符）'
+                    errors.append(error_msg)
+                    logger.warning(error_msg)
                     continue
-                if len(password) > 255:
-                    errors.append(f'第 {index + 2} 行: 密码过长（最大255字符）')
+                if len(password) > 100:  # Account模型中的password字段限制是100
+                    error_msg = f'第 {index + 2} 行: 密码过长（最大100字符）'
+                    errors.append(error_msg)
+                    logger.warning(error_msg)
                     continue
                 
-                # 创建新账号
+                # 安全地处理可选字段，确保没有nan值
+                def safe_str(value):
+                    """安全地转换值为字符串，处理nan值"""
+                    if pd.isna(value) or value == '' or value is None:
+                        return None
+                    return str(value).strip()
+                
+                # 创建新账号 - 注意这里不需要user_id，因为Account模型没有这个字段
                 new_account = Account(
                     platform=platform,
-                    website_url=str(row.get('website_url', '')).strip() if pd.notna(row.get('website_url')) else None,
+                    website_url=safe_str(row.get('website_url')),
                     category=category,
-                    owner=str(row.get('owner', '')).strip() if pd.notna(row.get('owner')) else None,
+                    owner=safe_str(row.get('owner')),
                     username=username,
                     password=password,
-                    country=str(row.get('country', '')).strip() if pd.notna(row.get('country')) else None,
-                    region=str(row.get('region', '')).strip() if pd.notna(row.get('region')) else None,
-                    description=str(row.get('description', '')).strip() if pd.notna(row.get('description')) else None,
-                    notes=str(row.get('notes', '')).strip() if pd.notna(row.get('notes')) else None
+                    country=safe_str(row.get('country')),
+                    region=safe_str(row.get('region')),
+                    description=safe_str(row.get('description')),
+                    notes=safe_str(row.get('notes'))
                 )
                 db.session.add(new_account)
                 imported_count += 1
-                logger.info(f"Added account: {username} for platform: {platform}")
+                logger.info(f"Successfully added account: {username} for platform: {platform}")
                 
             except Exception as e:
                 error_msg = f'第 {index + 2} 行导入失败: {str(e)}'
@@ -423,8 +461,16 @@ def import_accounts():
 
         # 提交所有更改
         if imported_count > 0:
-            db.session.commit()
-            logger.info(f"Successfully imported {imported_count} accounts")
+            try:
+                db.session.commit()
+                logger.info(f"Successfully imported {imported_count} accounts")
+            except Exception as e:
+                logger.error(f"Database commit failed: {str(e)}")
+                db.session.rollback()
+                return jsonify({
+                    'success': False,
+                    'message': f'数据库提交失败: {str(e)}'
+                }), 500
         else:
             logger.warning("No accounts were imported")
             return jsonify({
@@ -450,7 +496,7 @@ def import_accounts():
 def download_template():
     """下载账号导入模板"""
     try:
-        # 创建一个示例数据
+        # 创建一个示例数据 - 确保字段与Account模型匹配
         data = {
             'platform': ['示例平台'],
             'website_url': ['https://example.com'],
@@ -467,7 +513,7 @@ def download_template():
         # 创建DataFrame
         df = pd.DataFrame(data)
         
-        # 创建Excel文件 - 使用openpyxl引擎替代xlsxwriter
+        # 创建Excel文件 - 使用openpyxl引擎
         output = BytesIO()
         with pd.ExcelWriter(output, engine='openpyxl') as writer:
             df.to_excel(writer, index=False, sheet_name='账号导入模板')
@@ -478,14 +524,14 @@ def download_template():
             # 设置列宽
             column_widths = [15, 25, 15, 15, 15, 15, 15, 15, 20, 20]
             for idx, width in enumerate(column_widths):
-                if idx < len(worksheet.column_dimensions):
-                    col_letter = chr(65 + idx)  # A, B, C, D...
-                    worksheet.column_dimensions[col_letter].width = width
+                col_letter = chr(65 + idx)  # A, B, C, D...
+                worksheet.column_dimensions[col_letter].width = width
             
             # 添加说明 - 使用openpyxl的方式
-            worksheet['A12'] = '必填字段：平台/网址、分类、用户名、密码'
+            worksheet['A12'] = '必填字段：平台、分类、用户名、密码'
             worksheet['A13'] = '可选字段：网站链接、所有者、国家、地区、描述、备注'
             worksheet['A14'] = '注意：第一行必须是字段名称，请勿修改'
+            worksheet['A15'] = '密码长度限制：最大100个字符'
         
         # 将指针移到开始位置
         output.seek(0)

@@ -76,6 +76,12 @@ function showAlert(message, isSuccess = true) {
     alertDiv.style.top = '20px';
     alertDiv.style.right = '20px';
     alertDiv.style.zIndex = '9999';
+    alertDiv.style.maxWidth = '500px';
+    alertDiv.style.whiteSpace = 'pre-line'; // 支持换行符
+    
+    // 如果是错误信息，增加显示时间
+    const autoHideTime = isSuccess ? 3000 : 8000;
+    
     alertDiv.innerHTML = `
         ${message}
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
@@ -83,10 +89,10 @@ function showAlert(message, isSuccess = true) {
     
     document.body.appendChild(alertDiv);
     
-    // 3秒后自动消失
+    // 自动消失
     setTimeout(() => {
         alertDiv.remove();
-    }, 3000);
+    }, autoHideTime);
 }
 
 // ------------------- FILTERS.JS -------------------
@@ -1322,7 +1328,17 @@ async function submitImport() {
         });
         
         if (!response.ok) {
-            throw new Error(`HTTP错误: ${response.status}`);
+            const errorData = await response.json();
+            if (response.status === 400 && errorData.validation_errors) {
+                // 显示验证错误详情
+                let errorMessage = errorData.message + '\n\n';
+                errorData.validation_errors.forEach(error => {
+                    errorMessage += '• ' + error + '\n';
+                });
+                throw new Error(errorMessage);
+            } else {
+                throw new Error(`HTTP错误: ${response.status}`);
+            }
         }
         
         const result = await response.json();

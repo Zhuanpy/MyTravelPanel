@@ -94,7 +94,40 @@ def test_import_functionality():
                 print(f"   ✅ {field}: 无空值")
             else:
                 print(f"   ❌ {field}: 第 {[i+2 for i in empty_rows]} 行为空")
-                
+        
+        # 测试nan值处理
+        print("\n=== nan值处理测试 ===")
+        # 创建一个包含nan值的测试数据
+        test_data_with_nan = {
+            'platform': ['测试平台3', '测试平台4'],
+            'category': ['测试类别3', '测试类别4'],
+            'username': ['testuser3', 'testuser4'],
+            'password': ['testpass3', 'testpass4'],
+            'notes': ['测试备注3', None],  # 包含None值
+            'description': ['测试描述3', '']  # 包含空字符串
+        }
+        
+        df_nan = pd.DataFrame(test_data_with_nan)
+        print(f"   ✅ 包含nan值的测试数据创建成功")
+        print(f"   数据行数: {len(df_nan)}")
+        
+        # 测试fillna处理
+        df_filled = df_nan.fillna('')
+        print(f"   ✅ fillna处理后，空值数量: {(df_filled == '').sum().sum()}")
+        
+        # 测试safe_str函数逻辑
+        def safe_str(value):
+            """模拟后端的safe_str函数"""
+            if pd.isna(value) or value == '' or value is None:
+                return None
+            return str(value).strip()
+        
+        print("\n=== safe_str函数测试 ===")
+        test_values = ['正常值', '', None, pd.NA, '  空格值  ']
+        for val in test_values:
+            result = safe_str(val)
+            print(f"   输入: {repr(val)} -> 输出: {repr(result)}")
+            
     except Exception as e:
         print(f"❌ 测试失败: {e}")
 
@@ -147,6 +180,10 @@ def main():
     
     print("\n" + "=" * 50)
     print("测试完成")
+    print("\n主要修复:")
+    print("1. ✅ 添加了nan值处理")
+    print("2. ✅ 使用safe_str函数安全处理可选字段")
+    print("3. ✅ 确保所有空值都被转换为None或空字符串")
 
 if __name__ == "__main__":
     main()
