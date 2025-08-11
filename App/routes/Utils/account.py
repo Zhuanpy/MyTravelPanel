@@ -347,7 +347,9 @@ def import_accounts():
         # 读取 Excel 文件
         try:
             df = pd.read_excel(file)
+            logger.info(f"Successfully read Excel file with {len(df)} rows")
         except Exception as e:
+            logger.error(f"Excel file parsing failed: {str(e)}")
             return jsonify({
                 'success': False,
                 'message': f'Excel 文件解析失败: {str(e)}'
@@ -362,36 +364,77 @@ def import_accounts():
                 'message': f'Excel 文件缺少必填字段: {", ".join(missing_fields)}'
             }), 400
 
+        # 数据预处理和验证
+        df = df.fillna('')  # 将NaN值替换为空字符串
+        
+        # 验证数据不为空
+        for field in required_fields:
+            empty_rows = df[df[field].astype(str).str.strip() == ''].index.tolist()
+            if empty_rows:
+                return jsonify({
+                    'success': False,
+                    'message': f'必填字段 "{field}" 在第 {[i+2 for i in empty_rows]} 行为空'
+                }), 400
+
         # 导入账号
         imported_count = 0
         errors = []
         
         for index, row in df.iterrows():
             try:
+                # 数据清理
+                platform = str(row['platform']).strip()
+                category = str(row['category']).strip()
+                username = str(row['username']).strip()
+                password = str(row['password']).strip()
+                
+                # 验证数据长度
+                if len(platform) > 100:
+                    errors.append(f'第 {index + 2} 行: 平台名称过长（最大100字符）')
+                    continue
+                if len(username) > 100:
+                    errors.append(f'第 {index + 2} 行: 用户名过长（最大100字符）')
+                    continue
+                if len(password) > 255:
+                    errors.append(f'第 {index + 2} 行: 密码过长（最大255字符）')
+                    continue
+                
                 # 创建新账号
                 new_account = Account(
-                    platform=row['platform'],
-                    website_url=row.get('website_url'),
-                    category=row['category'],
-                    owner=row.get('owner'),
-                    username=row['username'],
-                    password=row['password'],
-                    country=row.get('country'),
-                    region=row.get('region'),
-                    description=row.get('description'),
-                    notes=row.get('notes')
+                    platform=platform,
+                    website_url=str(row.get('website_url', '')).strip() if pd.notna(row.get('website_url')) else None,
+                    category=category,
+                    owner=str(row.get('owner', '')).strip() if pd.notna(row.get('owner')) else None,
+                    username=username,
+                    password=password,
+                    country=str(row.get('country', '')).strip() if pd.notna(row.get('country')) else None,
+                    region=str(row.get('region', '')).strip() if pd.notna(row.get('region')) else None,
+                    description=str(row.get('description', '')).strip() if pd.notna(row.get('description')) else None,
+                    notes=str(row.get('notes', '')).strip() if pd.notna(row.get('notes')) else None
                 )
                 db.session.add(new_account)
                 imported_count += 1
+                logger.info(f"Added account: {username} for platform: {platform}")
+                
             except Exception as e:
-                errors.append(f'第 {index + 2} 行导入失败: {str(e)}')
+                error_msg = f'第 {index + 2} 行导入失败: {str(e)}'
+                errors.append(error_msg)
+                logger.error(error_msg)
 
         # 提交所有更改
-        db.session.commit()
+        if imported_count > 0:
+            db.session.commit()
+            logger.info(f"Successfully imported {imported_count} accounts")
+        else:
+            logger.warning("No accounts were imported")
+            return jsonify({
+                'success': False,
+                'message': '没有成功导入任何账号，请检查数据格式'
+            }), 400
 
         return jsonify({
             'success': True,
-            'message': '导入完成',
+            'message': f'导入完成，成功导入 {imported_count} 个账号',
             'imported_count': imported_count,
             'errors': errors
         })
@@ -424,27 +467,25 @@ def download_template():
         # 创建DataFrame
         df = pd.DataFrame(data)
         
-        # 创建Excel文件
+        # 创建Excel文件 - 使用openpyxl引擎替代xlsxwriter
         output = BytesIO()
-        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
             df.to_excel(writer, index=False, sheet_name='账号导入模板')
             
-            # 获取workbook和worksheet对象
-            workbook = writer.book
+            # 获取worksheet对象
             worksheet = writer.sheets['账号导入模板']
             
             # 设置列宽
-            for idx, col in enumerate(df.columns):
-                max_length = max(
-                    df[col].astype(str).apply(len).max(),
-                    len(col)
-                )
-                worksheet.set_column(idx, idx, max_length + 2)
+            column_widths = [15, 25, 15, 15, 15, 15, 15, 15, 20, 20]
+            for idx, width in enumerate(column_widths):
+                if idx < len(worksheet.column_dimensions):
+                    col_letter = chr(65 + idx)  # A, B, C, D...
+                    worksheet.column_dimensions[col_letter].width = width
             
-            # 添加说明
-            worksheet.write('A12', '必填字段：平台/网址、分类、用户名、密码')
-            worksheet.write('A13', '可选字段：网站链接、所有者、国家、地区、描述、备注')
-            worksheet.write('A14', '注意：第一行必须是字段名称，请勿修改')
+            # 添加说明 - 使用openpyxl的方式
+            worksheet['A12'] = '必填字段：平台/网址、分类、用户名、密码'
+            worksheet['A13'] = '可选字段：网站链接、所有者、国家、地区、描述、备注'
+            worksheet['A14'] = '注意：第一行必须是字段名称，请勿修改'
         
         # 将指针移到开始位置
         output.seek(0)
