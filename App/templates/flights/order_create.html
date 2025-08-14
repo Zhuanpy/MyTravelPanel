@@ -98,10 +98,10 @@
                         </div>
                         <div style="width: 200px; min-width: 200px; flex-shrink: 0;">
                             <label class="order-label">供应商名称</label>
-                            <select class="order-input" name="supplier_name" id="supplier_name" required>
+                            <select class="order-input" name="supplier_id" id="supplier_name" required>
                                 <option value="">请选择供应商</option>
                                 {% for supplier in suppliers %}
-                                <option value="{{ supplier.name }}" data-type="{{ supplier.supplier_type }}">{{ supplier.name }}</option>
+                                <option value="{{ supplier.supplier_id }}" data-type="{{ supplier.supplier_type }}">{{ supplier.name }}</option>
                                 {% endfor %}
                             </select>
                         </div>
@@ -411,7 +411,7 @@ function addPassenger() {
                     <label class="required">售价</label>
                     <div style="position: relative; display: flex; align-items: center;">
                         <span style="position: absolute; left: 8px; color: #4a5568; font-size: 0.85rem; font-weight: 500; pointer-events: none; z-index: 1;">SGD</span>
-                        <input type="number" step="0.01" class="order-input" name="selling_price[]" required style="padding-left: 45px; width: 100%; box-sizing: border-box;">
+                        <input type="number" step="0.01" class="order-input" name="selling_price[]" value="0" required style="padding-left: 45px; width: 100%; box-sizing: border-box;">
                     </div>
                 </div>
                 

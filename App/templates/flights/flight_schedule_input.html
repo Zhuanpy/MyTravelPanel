@@ -389,8 +389,8 @@
         padding: 30px;
         border: none;
         border-radius: 12px;
-        width: 90%;
-        max-width: 900px;
+        width: 95%;
+        max-width: 1200px;
         max-height: 85vh;
         overflow-y: auto;
         box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
@@ -615,10 +615,10 @@
                 <input type="hidden" name="search_schedule_city" value="{{ search_schedule_city }}">
                 <div id="flightInputsContainer">
                     <div class="flight-schedule-form-row">
-                        <div class="flight-schedule-form-group">
+                        <div class="flight-schedule-form-group" style="flex: 2;">
                             <label for="flightNumber" class="flight-schedule-label">航班号:</label>
-                            <div class="flight-schedule-input-group">
-                                <input type="text" id="flightNumber" name="flight_number[]" placeholder="例如: TR100" class="flight-schedule-input" onchange="updateAirlineInfo(this)">
+                            <div class="flight-schedule-input-group" style="gap: 10px;">
+                                <input type="text" id="flightNumber" name="flight_number[]" placeholder="例如: TR100" class="flight-schedule-input" style="min-width: 280px;" onchange="updateAirlineInfo(this)">
                                 <button type="button" class="flight-schedule-btn-info" onclick="searchFlightInfo(this)">
                                     <i class="fas fa-search"></i> 搜索
                                 </button>

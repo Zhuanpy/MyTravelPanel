@@ -290,6 +290,9 @@
     <!-- 操作按钮 -->
     <div class="text-center mb-4">
         <a href="{{ url_for('flights_booking.order_list') }}" class="btn btn-secondary">返回订单列表</a>
+        {% if order.project_header %}
+        <a href="{{ url_for('projects.header_detail', header_id=order.project_header.id) }}" class="btn btn-primary" target="_blank">查看HID详情</a>
+        {% endif %}
         {% if order.order_status == 'pending' %}
         <button class="btn btn-danger" onclick="cancelOrder()">取消订单</button>
         {% endif %}
@@ -298,7 +301,7 @@
     <!-- Status Update Form -->
     <form id="statusUpdateForm" method="POST" action="{{ url_for('flights_booking.update_order_status', order_id=order.id) }}" style="display: inline;">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <select name="status" class="order-select" style="width: auto; display: inline-block; margin-right: 10px;">
+        <select name="order_status" class="order-select" style="width: auto; display: inline-block; margin-right: 10px;">
             <option value="pending" {% if order.status == 'pending' %}selected{% endif %}>待处理</option>
             <option value="confirmed" {% if order.status == 'confirmed' %}selected{% endif %}>已确认</option>
             <option value="issued" {% if order.status == 'issued' %}selected{% endif %}>已出票</option>

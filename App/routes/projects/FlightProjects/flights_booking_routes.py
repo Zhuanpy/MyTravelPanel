@@ -92,6 +92,11 @@ def submit_order():
             db.session.add(flight_business_type)
             db.session.flush()
         
+        # 读取前端供应商/状态字段
+        selected_supplier_id = request.form.get('supplier_id')
+        selected_status = request.form.get('status') or 'processing'
+        selected_payment_status = request.form.get('payment_status') or 'unpaid'
+
         # 创建项目明细表（REF）
         ref_number = ProjectRef.generate_ref_number()
         
@@ -101,23 +106,77 @@ def submit_order():
         total_selling_price = sum(float(price) for price in selling_prices if price)
         total_cost_price = sum(float(price) for price in cost_prices if price)
         
+        # 生成机票REF名称：参考项目模块的生成规则（出发日期DDMON + 航线路径）
+        def generate_flight_ref_name(departure_airports, arrival_airports, departure_times):
+            try:
+                first_dep_time_str = departure_times[0] if departure_times else None
+                if first_dep_time_str:
+                    try:
+                        first_dep_dt = datetime.strptime(first_dep_time_str, '%Y-%m-%dT%H:%M')
+                    except ValueError:
+                        first_dep_dt = datetime.strptime(first_dep_time_str, '%Y-%m-%d %H:%M')
+                    formatted_date = first_dep_dt.strftime('%d%b').upper()
+                else:
+                    formatted_date = datetime.now().strftime('%d%b').upper()
+            except Exception:
+                formatted_date = datetime.now().strftime('%d%b').upper()
+
+            # 构建有效航段
+            valid_segments = []
+            for dep, arr in zip(departure_airports, arrival_airports):
+                if dep and arr:
+                    valid_segments.append((dep, arr))
+
+            if not valid_segments:
+                return f"{formatted_date} 机票订单"
+
+            if len(valid_segments) == 1:
+                dep_airport, arr_airport = valid_segments[0]
+                return f"{formatted_date} {dep_airport}-{arr_airport}"
+
+            if len(valid_segments) == 2:
+                dep1, arr1 = valid_segments[0]
+                dep2, arr2 = valid_segments[1]
+                if dep1 == arr2 and arr1 == dep2:
+                    return f"{formatted_date} {dep1}-{arr1}-{dep1}"
+                return f"{formatted_date} {dep1}-{arr1}-{arr2}"
+
+            route_parts = []
+            for i, (dep_airport, arr_airport) in enumerate(valid_segments):
+                if i == 0:
+                    route_parts.append(f"{dep_airport}-{arr_airport}")
+                else:
+                    route_parts.append(arr_airport)
+            return f"{formatted_date} {'-'.join(route_parts)}"
+
+        # 取第一个乘客作为出行人(leader_name)
+        passenger_names_for_leader = request.form.getlist('passenger_name[]')
+        first_passenger_name_for_leader = passenger_names_for_leader[0] if passenger_names_for_leader else request.form['contact_name']
+
+        # 生成REF名称
+        dep_airports_list = request.form.getlist('departure_airport[]')
+        arr_airports_list = request.form.getlist('arrival_airport[]')
+        dep_times_list = request.form.getlist('departure_time[]')
+        generated_ref_name = generate_flight_ref_name(dep_airports_list, arr_airports_list, dep_times_list)
+
         project_ref = ProjectRef(
             header_id=project_header.id,
             ref_number=ref_number,
-            name=f"机票订单 - {request.form['contact_name']}",
+            name=generated_ref_name,
             ref_type_id=flight_business_type.id,
             description=f"{first_departure_airport} > {last_arrival_airport} 机票订单",
+            supplier_id=int(selected_supplier_id) if selected_supplier_id else None,
             contact_name=request.form['contact_name'],
             contact_phone=request.form.get('contact_phone', ''),
             contact_email=request.form.get('contact_email', ''),
-            leader_name=request.form['contact_name'],
+            leader_name=first_passenger_name_for_leader,
             selling_price=total_selling_price,
             cost_price=total_cost_price,
             currency='SGD',
             expected_delivery_date=first_departure_time.date(),
             remarks=request.form.get('remarks', ''),
-            status='processing',
-            payment_status='unpaid'
+            status=selected_status,
+            payment_status=selected_payment_status
         )
         db.session.add(project_ref)
         db.session.flush()  # 获取project_ref.id
@@ -206,6 +265,15 @@ def submit_order():
         if not passenger_names:
             raise ValueError("未提供乘客姓名")
             
+        # 解析供应商名称（用于订单主表冗余存储显示）
+        supplier_name_value = None
+        if selected_supplier_id:
+            try:
+                supplier_obj = Supplier.query.get(int(selected_supplier_id))
+                supplier_name_value = supplier_obj.name if supplier_obj else None
+            except Exception:
+                supplier_name_value = None
+
         order = FlightOrder(
             order_number=generate_order_number(),
             project_header_id=project_header.id,  # 关联HID
@@ -213,7 +281,7 @@ def submit_order():
             contact_name=request.form['contact_name'],
             contact_person=request.form['contact_name'],  # 使用联系人姓名作为联系人
             contact_phone=request.form.get('contact_phone', ''),  # 修改为get方法，允许为空
-            supplier_name=request.form['supplier_name'],  # Added supplier name
+            supplier_name=supplier_name_value or '',
             passenger_name=passenger_names[0],  # 确保使用第一个乘客姓名
             departure_date=first_departure_time.date(),
             departure_city=first_departure_airport,
@@ -224,7 +292,7 @@ def submit_order():
             cost_price=total_cost_price,
             status='pending',
             order_status='pending',
-            payment_status='unpaid',
+            payment_status=selected_payment_status,
             remarks=request.form.get('remarks', '')
         )
         

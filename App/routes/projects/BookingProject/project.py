@@ -95,7 +95,7 @@ def create_ref(header_id):
             )
             db.session.add(ref)
             db.session.commit()
-            flash('REF明细创建成功！', 'success')
+            # 移除成功提示，直接跳转，避免页面停顿跳动
             return redirect(url_for('projects.header_detail', header_id=header.id))
         except Exception as e:
             db.session.rollback()
@@ -391,7 +391,7 @@ def submit_flight_ref():
                 continue
         
         db.session.commit()
-        flash('机票REF保存成功！', 'success')
+        # 移除成功提示，直接返回，避免页面停顿与跳动
         return redirect(url_for('projects.header_detail', header_id=header_id))
         
     except Exception as e:
@@ -1094,10 +1094,18 @@ def delete_ref(ref_id):
 @login_required
 @staff_only
 def delete_header(header_id):
-    """删除项目主表"""
+    """删除项目主表（幂等设计：不存在也视为删除成功）"""
     try:
-        header = ProjectHeader.query.get_or_404(header_id)
-        
+        header = ProjectHeader.query.get(header_id)
+
+        if not header:
+            # 已被删除或不存在，按成功返回，避免前端出现404提示
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({'success': True, 'message': '项目不存在或已删除'})
+            else:
+                flash('项目不存在或已删除', 'success')
+                return redirect(url_for('projects.list_projects'))
+
         # 删除所有相关的EO（通过REF关联）
         refs = ProjectRef.query.filter_by(header_id=header_id).all()
         for ref in refs:
@@ -1107,18 +1115,18 @@ def delete_header(header_id):
                 db.session.delete(eo)
             # 删除REF
             db.session.delete(ref)
-        
+
         # 删除项目主表
         db.session.delete(header)
         db.session.commit()
-        
+
         # 检查是否是AJAX请求
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             return jsonify({'success': True, 'message': '项目已成功删除'})
         else:
             flash('项目已成功删除', 'success')
             return redirect(url_for('projects.list_projects'))
-        
+
     except Exception as e:
         db.session.rollback()
         error_msg = f'删除失败：{str(e)}'
@@ -1226,7 +1234,7 @@ def create_hotel_ref(header_id):
             db.session.add(ref)
             db.session.commit()
             
-            flash('酒店明细创建成功！', 'success')
+            # 移除成功提示，直接跳转
             return redirect(url_for('projects.header_detail', header_id=header_id))
             
         except Exception as e:
@@ -1296,9 +1304,7 @@ def create_tour_ref(header_id):
             
             # 检查是否是AJAX请求
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                return jsonify({'success': True, 'message': '旅游团明细创建成功！'})
-            else:
-                flash('旅游团明细创建成功！', 'success')
+                return jsonify({'success': True})
             return redirect(url_for('projects.header_detail', header_id=header_id))
             
         except Exception as e:
@@ -1378,7 +1384,7 @@ def create_visa_ref(header_id):
             db.session.add(ref)
             db.session.commit()
             
-            flash('签证明细创建成功！', 'success')
+            # 移除成功提示，直接跳转
             return redirect(url_for('projects.header_detail', header_id=header_id))
             
         except Exception as e:
@@ -1481,7 +1487,7 @@ def create_insurance_ref(header_id):
             db.session.add(ref)
             db.session.commit()
             
-            flash('保险明细创建成功！', 'success')
+            # 移除成功提示，直接跳转
             return redirect(url_for('projects.header_detail', header_id=header_id))
             
         except Exception as e:
@@ -1538,7 +1544,7 @@ def create_transport_ref(header_id):
             db.session.add(ref)
             db.session.commit()
             
-            flash('交通明细创建成功！', 'success')
+            # 移除成功提示，直接跳转
             return redirect(url_for('projects.header_detail', header_id=header_id))
             
         except Exception as e:
@@ -1594,7 +1600,7 @@ def create_other_ref(header_id):
             db.session.add(ref)
             db.session.commit()
             
-            flash('其他明细创建成功！', 'success')
+            # 移除成功提示，直接跳转
             return redirect(url_for('projects.header_detail', header_id=header_id))
             
         except Exception as e:
