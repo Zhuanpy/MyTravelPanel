@@ -214,12 +214,19 @@ def open_project_folder():
     from App.config import Config
     path_ = Config.FLIGHT_RESOURCES_PATH
 
-    # 检查路径是否有效
+    # 检查路径是否有效，如果不存在则创建
     if not os.path.exists(path_):
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return jsonify({'success': False, 'message': '目标路径不存在：无法打开文件夹。'}), 404
-        flash("目标路径不存在：无法打开文件夹。", category="error")
-        return redirect(url_for('index.index'))
+        try:
+            os.makedirs(path_, exist_ok=True)
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({'success': True, 'message': '资源文件夹不存在，已自动创建并打开'})
+            flash("资源文件夹不存在，已自动创建。", category="info")
+        except Exception as e:
+            error_message = f"无法创建资源文件夹，错误信息: {str(e)}"
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({'success': False, 'message': error_message}), 500
+            flash(error_message, category="error")
+            return redirect(url_for('index.index'))
 
     # 尝试打开文件夹
     try:
@@ -246,12 +253,19 @@ def open_flight_project_folder():
     from App.config import Config
     path_ = Config.FLIGHT_PROJECTS_PATH
 
-    # 检查路径是否有效
+    # 检查路径是否有效，如果不存在则创建
     if not os.path.exists(path_):
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return jsonify({'success': False, 'message': '项目文件夹路径不存在：无法打开文件夹。'}), 404
-        flash("项目文件夹路径不存在：无法打开文件夹。", category="error")
-        return redirect(url_for('index.index'))
+        try:
+            os.makedirs(path_, exist_ok=True)
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({'success': True, 'message': '项目文件夹不存在，已自动创建并打开'})
+            flash("项目文件夹不存在，已自动创建。", category="info")
+        except Exception as e:
+            error_message = f"无法创建项目文件夹，错误信息: {str(e)}"
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({'success': False, 'message': error_message}), 500
+            flash(error_message, category="error")
+            return redirect(url_for('index.index'))
 
     # 尝试打开文件夹
     try:
@@ -278,12 +292,19 @@ def open_refund_folder():
     from App.config import Config
     folder_path = Config.FLIGHT_REFUND_PATH
 
-    # 检查路径是否存在
+    # 检查路径是否存在，如果不存在则创建
     if not os.path.exists(folder_path):
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return jsonify({'success': False, 'message': '退票文件夹路径不存在'}), 404
-        flash("退票文件夹路径不存在：无法打开文件夹。", category="error")
-        return redirect(url_for('index.index'))
+        try:
+            os.makedirs(folder_path, exist_ok=True)
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({'success': True, 'message': '退票文件夹不存在，已自动创建并打开'})
+            flash("退票文件夹不存在，已自动创建。", category="info")
+        except Exception as e:
+            error_message = f"无法创建退票文件夹，错误信息: {str(e)}"
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({'success': False, 'message': error_message}), 500
+            flash(error_message, category="error")
+            return redirect(url_for('index.index'))
 
     # 尝试打开文件夹
     try:
