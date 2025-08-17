@@ -98,6 +98,48 @@
     .action-buttons {
         display: flex;
         gap: 0.5rem;
+    }
+    
+    .ref-number-link {
+        color: #007bff;
+        text-decoration: none;
+        transition: all 0.2s ease;
+        border-radius: 4px;
+        padding: 2px 4px;
+    }
+    
+    .ref-number-link:hover {
+        color: #0056b3;
+        background-color: #f8f9fa;
+        text-decoration: none;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    
+    .ref-number-link:active {
+        transform: translateY(0);
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    }
+    
+    .eo-number-link {
+        text-decoration: none;
+        transition: all 0.2s ease;
+        border-radius: 4px;
+        display: inline-block;
+    }
+    
+    .eo-number-link:hover {
+        text-decoration: none;
+        transform: scale(1.05);
+        box-shadow: 0 2px 8px rgba(0, 123, 255, 0.3);
+    }
+    
+    .eo-number-link:active {
+        transform: scale(1.02);
+        box-shadow: 0 1px 4px rgba(0, 123, 255, 0.2);
+    }
+    
+    .action-buttons {
         flex-wrap: wrap;
     }
     
@@ -467,13 +509,51 @@
                 <tbody>
                 {% for ref in header.refs %}
                     <tr>
-                        <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"><strong>{{ ref.ref_number }}</strong></td>
+                        <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                            {% if ref.ref_type and ref.ref_type.name == '机票' %}
+                                <a href="{{ url_for('projects.edit_flight_ref', ref_id=ref.id) }}" class="ref-number-link" title="点击编辑机票REF">
+                                    <strong>{{ ref.ref_number }}</strong>
+                                </a>
+                            {% elif ref.ref_type and ref.ref_type.name == '其他' %}
+                                <a href="{{ url_for('projects.edit_other_ref', ref_id=ref.id) }}" class="ref-number-link" title="点击编辑其他REF">
+                                    <strong>{{ ref.ref_number }}</strong>
+                                </a>
+                            {% elif ref.ref_type and ref.ref_type.name == '签证' %}
+                                <a href="{{ url_for('projects.edit_visa_ref', ref_id=ref.id) }}" class="ref-number-link" title="点击编辑签证REF">
+                                    <strong>{{ ref.ref_number }}</strong>
+                                </a>
+                            {% elif ref.ref_type and ref.ref_type.name == '保险' %}
+                                <a href="{{ url_for('projects.edit_insurance_ref', ref_id=ref.id) }}" class="ref-number-link" title="点击编辑保险REF">
+                                    <strong>{{ ref.ref_number }}</strong>
+                                </a>
+                            {% elif ref.ref_type and ref.ref_type.name == '旅游团' %}
+                                <a href="{{ url_for('projects.edit_tour_ref', ref_id=ref.id) }}" class="ref-number-link" title="点击编辑旅游团REF">
+                                    <strong>{{ ref.ref_number }}</strong>
+                                </a>
+                            {% elif ref.ref_type and ref.ref_type.name == '酒店' %}
+                                <a href="{{ url_for('projects.edit_ref', ref_id=ref.id) }}" class="ref-number-link" title="点击编辑酒店REF">
+                                    <strong>{{ ref.ref_number }}</strong>
+                                </a>
+                            {% elif ref.ref_type and ref.ref_type.name == '交通' %}
+                                <a href="{{ url_for('projects.edit_ref', ref_id=ref.id) }}" class="ref-number-link" title="点击编辑交通REF">
+                                    <strong>{{ ref.ref_number }}</strong>
+                                </a>
+                            {% else %}
+                                <a href="{{ url_for('projects.edit_ref', ref_id=ref.id) }}" class="ref-number-link" title="点击编辑REF">
+                                    <strong>{{ ref.ref_number }}</strong>
+                                </a>
+                            {% endif %}
+                        </td>
                         <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ ref.ref_type.name if ref.ref_type else '未分类' }}</td>
                         <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ ref.leader_name or '-' }}">{{ ref.leader_name or '-' }}</td>
                         <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ ref.name or ref.description }}">{{ ref.name or ref.description }}</td>
                         <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                             {% if ref.eos %}
-                                <span class="badge bg-info">{{ ref.eos.eo_number }}</span>
+                                <a href="{{ url_for('projects.eo_detail', eo_id=ref.eos.id) }}" 
+                                   class="eo-number-link" 
+                                   title="点击查看EO详情">
+                                    <span class="badge bg-info">{{ ref.eos.eo_number }}</span>
+                                </a>
                             {% else %}
                                 <button type="button" class="btn btn-sm btn-outline-success" 
                                         onclick="quickCreateEO({{ ref.id }})" 
@@ -483,29 +563,30 @@
                             {% endif %}
                         </td>
                         <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                            {% if ref.selling_price %}
+                            {% if ref.selling_price is not none %}
                                 <span class="text-success">{{ ref.currency }} {{ "%.2f"|format(ref.selling_price) }}</span>
                             {% else %}
-                                -
+                                <span class="text-muted">{{ ref.currency }} 0.00</span>
                             {% endif %}
                         </td>
                         <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                            {% if ref.cost_price %}
+                            {% if ref.cost_price is not none %}
                                 <span class="text-info">{{ ref.currency }} {{ "%.2f"|format(ref.cost_price) }}</span>
                             {% else %}
-                                -
+                                <span class="text-muted">{{ ref.currency }} 0.00</span>
                             {% endif %}
                         </td>
                         <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                             {% if ref.ref_profit is defined %}
                                 <span class="{% if ref.ref_profit >= 0 %}text-success{% else %}text-danger{% endif %}">
                                     {{ ref.currency }} {{ "%.2f"|format(ref.ref_profit) }}
-                                    {% if ref.ref_profit_margin > 0 %}
-                                        <small class="text-muted">({{ "%.1f"|format(ref.ref_profit_margin) }}%)</small>
-                                    {% endif %}
                                 </span>
                             {% else %}
-                                <span class="text-muted">-</span>
+                                <!-- 手动计算利润：售价 - 成本 -->
+                                {% set calculated_profit = (ref.selling_price or 0) - (ref.cost_price or 0) %}
+                                <span class="{% if calculated_profit >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                    {{ ref.currency }} {{ "%.2f"|format(calculated_profit) }}
+                                </span>
                             {% endif %}
                         </td>
                         <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
@@ -547,47 +628,33 @@
                         <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                             <div class="action-buttons">
                                 {% if ref.ref_type and ref.ref_type.name == '机票' %}
-                                    <a href="{{ url_for('projects.flight_ref_detail', ref_id=ref.id) }}" class="btn btn-sm btn-info">
+                                    <a href="{{ url_for('projects.flight_ref_detail', ref_id=ref.id) }}" class="btn btn-sm btn-info" title="查看详情">
                                         <i class="fas fa-eye"></i>
-                                    </a>
-                                    <a href="{{ url_for('projects.edit_flight_ref', ref_id=ref.id) }}" class="btn btn-sm btn-warning">
-                                        <i class="fas fa-edit"></i>
                                     </a>
                                 {% elif ref.ref_type and ref.ref_type.name == '其他' %}
-                                    <a href="{{ url_for('projects.ref_detail', ref_id=ref.id) }}" class="btn btn-sm btn-info">
+                                    <a href="{{ url_for('projects.ref_detail', ref_id=ref.id) }}" class="btn btn-sm btn-info" title="查看详情">
                                         <i class="fas fa-eye"></i>
-                                    </a>
-                                    <a href="{{ url_for('projects.edit_other_ref', ref_id=ref.id) }}" class="btn btn-sm btn-warning">
-                                        <i class="fas fa-edit"></i>
                                     </a>
                                 {% elif ref.ref_type and ref.ref_type.name == '签证' %}
-                                    <a href="{{ url_for('projects.ref_detail', ref_id=ref.id) }}" class="btn btn-sm btn-info">
+                                    <a href="{{ url_for('projects.ref_detail', ref_id=ref.id) }}" class="btn btn-sm btn-info" title="查看详情">
                                         <i class="fas fa-eye"></i>
-                                    </a>
-                                    <a href="{{ url_for('projects.edit_visa_ref', ref_id=ref.id) }}" class="btn btn-sm btn-warning">
-                                        <i class="fas fa-edit"></i>
                                     </a>
                                 {% else %}
-                                    <a href="{{ url_for('projects.ref_detail', ref_id=ref.id) }}" class="btn btn-sm btn-info">
+                                    <a href="{{ url_for('projects.ref_detail', ref_id=ref.id) }}" class="btn btn-sm btn-info" title="查看详情">
                                         <i class="fas fa-eye"></i>
-                                    </a>
-                                    <a href="{{ url_for('projects.edit_ref', ref_id=ref.id) }}" class="btn btn-sm btn-warning">
-                                        <i class="fas fa-edit"></i>
                                     </a>
                                 {% endif %}
                                 
-
-                                
                                 <!-- 查看收款记录按钮 -->
                                 {% if ref.receipts %}
-                                    <a href="{{ url_for('projects.ref_receipts', ref_id=ref.id) }}" class="btn btn-sm btn-info">
+                                    <a href="{{ url_for('projects.ref_receipts', ref_id=ref.id) }}" class="btn btn-sm btn-info" title="查看收款记录">
                                         <i class="fas fa-list"></i>
                                     </a>
                                 {% endif %}
                                 
                                 <!-- 如果已生成EO或有收款记录，则隐藏删除按钮 -->
                                 {% if not ref.eos and not ref.receipts %}
-                                    <a href="{{ url_for('projects.delete_ref', ref_id=ref.id) }}" class="btn btn-sm btn-danger">
+                                    <a href="{{ url_for('projects.delete_ref', ref_id=ref.id) }}" class="btn btn-sm btn-danger" title="删除REF">
                                         <i class="fas fa-trash"></i>
                                     </a>
                                 {% endif %}

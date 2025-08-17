@@ -338,18 +338,19 @@ class ProjectRef(db.Model):
     @property
     def ref_profit(self):
         """计算REF利润（售价-成本）"""
-        if self.selling_price and self.cost_price:
-            return float(self.selling_price) - float(self.cost_price)
-        elif self.selling_price:
-            return float(self.selling_price)
-        else:
-            return 0
+        selling_price = float(self.selling_price) if self.selling_price is not None else 0
+        cost_price = float(self.cost_price) if self.cost_price is not None else 0
+        return selling_price - cost_price
 
     @property
     def ref_profit_margin(self):
         """计算REF利润率"""
-        if self.selling_price and self.selling_price > 0:
-            return (self.ref_profit / float(self.selling_price)) * 100
+        selling_price = float(self.selling_price) if self.selling_price is not None else 0
+        if selling_price > 0:
+            return (self.ref_profit / selling_price) * 100
+        elif selling_price == 0 and self.cost_price and self.cost_price > 0:
+            # 当售价为0但有成本时，返回负无穷大表示亏损
+            return float('-inf')
         return 0
 
     @property
