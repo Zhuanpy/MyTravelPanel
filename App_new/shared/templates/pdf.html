@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF文件处理</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/pdf_processing.css') }}">
+</head>
+<body>
+    <div id="successMessage" class="success-message"></div>
+    <div class="container">
+        <h1>PDF文件处理</h1>
+
+        <!-- 图片合并表单 -->
+        <h2>图片合并为PDF</h2>
+        <form id="imageForm" method="post" action="{{url_for('files_process.merge_images_to_pdf')}}" onsubmit="return handleSubmit(this, event)">
+            <label for="imageFolderPath">图片文件夹路径:</label>
+            <input type="text" id="imageFolderPath" name="imageFolderPath">
+            <button type="submit" name="submit_button" value="merge_images">图片合并为PDF</button>
+        </form>
+
+        <!-- 多个PDF合并表单 -->
+        <h2>多个PDF合并</h2>
+        <form id="pdfForm" method="post" action="{{url_for('files_process.merge_pdf_to_pdf')}}" onsubmit="return handleSubmit(this, event)">
+            <label for="pdfFolderPath">PDF文件夹路径:</label>
+            <input type="text" id="pdfFolderPath" name="pdfFolderPath">
+            <button type="submit" name="submit_button" value="merge_images">多个PDF合并</button>
+        </form>
+
+        <!-- Word转换PDF表单 -->
+        <h2>Word转换PDF</h2>
+        <form id="wordForm" method="post" action="{{url_for('files_process.word_to_pdf')}}" onsubmit="return handleSubmit(this, event)">
+            <label for="worldFolderPath">Word文件夹路径:</label>
+            <input type="text" id="worldFolderPath" name="worldFolderPath">
+            <button type="submit" name="submit_button" value="merge_images">Word转PDF</button>
+        </form>
+    </div>
+
+    <script>
+    function handleSubmit(form, event) {
+        event.preventDefault(); // 阻止表单默认提交
+        const formData = new FormData(form);
+        
+        // 禁用提交按钮，防止重复提交
+        const submitButton = form.querySelector('button[type="submit"]');
+        submitButton.disabled = true;
+        
+        fetch(form.action, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                showSuccessMessage(data.message);
+            } else {
+                alert(data.message || '处理失败，请重试');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('处理出错，请重试');
+        })
+        .finally(() => {
+            // 重新启用提交按钮
+            submitButton.disabled = false;
+        });
+
+        return false;
+    }
+
+    function showSuccessMessage(message) {
+        const messageElement = document.getElementById('successMessage');
+        messageElement.textContent = message;
+        messageElement.classList.add('show');
+        
+        // 3秒后隐藏消息
+        setTimeout(() => {
+            messageElement.classList.remove('show');
+            setTimeout(() => {
+                messageElement.style.display = 'none';
+            }, 300); // 等待淡出动画完成
+        }, 3000);
+    }
+    </script>
+</body>
+</html>

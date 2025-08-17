@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}{% endblock %}</title>
+    <!-- 基础样式 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <!-- 自定义样式 -->
+    <style>
+        .navbar {
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%) !important;
+            padding: 1rem 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .navbar-brand {
+            color: #ffffff !important;
+            font-size: 1.5rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .navbar-brand i {
+            font-size: 1.8rem;
+            color: #4CAF50;
+        }
+        
+        .nav-link {
+            color: rgba(255,255,255,0.9) !important;
+            font-weight: 500;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            transition: all 0.3s ease;
+            margin: 0 0.25rem;
+        }
+        
+        .nav-link:hover {
+            color: #ffffff !important;
+            background-color: rgba(255,255,255,0.1);
+            transform: translateY(-1px);
+        }
+        
+        .nav-link.active {
+            color: #ffffff !important;
+            background-color: rgba(255,255,255,0.2);
+        }
+        
+        .navbar-toggler {
+            border-color: rgba(255,255,255,0.5);
+        }
+        
+        .navbar-toggler-icon {
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba(255, 255, 255, 0.75)' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
+        }
+        
+        .navbar-toggler:focus {
+            box-shadow: none;
+            border-color: rgba(255,255,255,0.8);
+        }
+        
+        /* 添加分隔符和间距样式 */
+        .nav-divider {
+            width: 1px;
+            height: 24px;
+            background-color: rgba(255,255,255,0.3);
+            margin: 0 0.5rem;
+        }
+        
+        /* 调整下拉菜单样式 */
+        .dropdown-menu {
+            border: none;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            border-radius: 8px;
+            padding: 0.5rem 0;
+        }
+        
+        .dropdown-item {
+            padding: 0.5rem 1.25rem;
+            transition: all 0.2s ease;
+        }
+        
+        .dropdown-item:hover {
+            background-color: #f0f4f8;
+        }
+        
+        /* 让导航条更宽 */
+        .navbar > .container {
+            max-width: 95%;
+        }
+        
+        /* 更好地分布导航项 */
+        .navbar-nav {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            align-items: center;
+        }
+    </style>
+    {% block head %}{% endblock %}
+</head>
+<body>
+    <!-- 导航栏 -->
+    <nav class="navbar navbar-expand-lg">
+        <div class="container">
+            <a class="navbar-brand" href="/">
+                <i class="fas fa-shield-alt"></i>
+                管理系统
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/">
+                            <i class="fas fa-home"></i> 首页
+                        </a>
+                    </li>
+                    
+                    <div class="nav-divider d-none d-lg-block"></div>
+                    
+                    <!-- 签证下拉菜单 -->
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="visaDropdown" role="button" 
+                           data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-passport"></i> 签证
+                        </a>
+                        <ul class="dropdown-menu" aria-labelledby="visaDropdown">
+                            <li><a class="dropdown-item" href="{{ url_for('visa_routes.visa_home') }}">签证首页</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('visa_routes.show_current_all_projects') }}">签证项目管理</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('visa_routes.manage_visas') }}">签证资料管理</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('visa_routes.visa_link_page') }}">签证链接管理</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('visa_routes.manage_countries') }}">国家管理</a></li>
+                        </ul>
+                    </li>
+                    
+                    <div class="nav-divider d-none d-lg-block"></div>
+                    
+                    <!-- 机票下拉菜单 -->
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="flightDropdown" role="button" 
+                           data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-plane"></i> 机票
+                        </a>
+                        <ul class="dropdown-menu" aria-labelledby="flightDropdown">
+                            <li><a class="dropdown-item" href="{{ url_for('flight_blue.flight_home') }}">机票首页</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('flight_blue.itinerary_conversion') }}">简化行程</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('flight_blue.input_flight_schedule_info') }}">航班时刻表</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('flight_blue.input_airport_code_info') }}">机场代码</a></li>
+                        </ul>
+                    </li>
+                    
+                    <div class="nav-divider d-none d-lg-block"></div>
+                    
+                    <!-- 配套下拉菜单 -->
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="packageDropdown" role="button" 
+                           data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-box"></i> 配套
+                        </a>
+                        <ul class="dropdown-menu" aria-labelledby="packageDropdown">
+                            <li><a class="dropdown-item" href="/packages/list">配套列表</a></li>
+                            <li><a class="dropdown-item" href="/packages/create">创建配套</a></li>
+                        </ul>
+                    </li>
+                    
+                    <div class="nav-divider d-none d-lg-block"></div>
+                    
+                    <!-- 文件处理下拉菜单 -->
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="documentDropdown" role="button" 
+                           data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-file-alt"></i> 文件处理
+                        </a>
+                        <ul class="dropdown-menu" aria-labelledby="documentDropdown">
+                            <li><a class="dropdown-item" href="/documents/upload">上传文件</a></li>
+                            <li><a class="dropdown-item" href="/documents/merge">合并文件</a></li>
+                        </ul>
+                    </li>
+                    
+                    <div class="nav-divider d-none d-lg-block"></div>
+                    
+                    <!-- 账单处理下拉菜单 -->
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="billingDropdown" role="button" 
+                           data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-file-invoice-dollar"></i> 账单处理
+                        </a>
+                        <ul class="dropdown-menu" aria-labelledby="billingDropdown">
+                            <li><a class="dropdown-item" href="/billings/create">创建账单</a></li>
+                            <li><a class="dropdown-item" href="/billings/list">账单列表</a></li>
+                        </ul>
+                    </li>
+                    
+                    <div class="nav-divider d-none d-lg-block"></div>
+                    
+                    <li class="nav-item">
+                        <a class="nav-link" href="/accounts">
+                            <i class="fas fa-users"></i> 账号管理
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 主要内容 -->
+    <main class="py-4">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- 基础脚本 -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <!-- 自定义脚本 -->
+    {% block scripts %}{% endblock %}
+</body>
+</html> 

@@ -1,0 +1,206 @@
+"""
+权限检查装饰器
+"""
+from functools import wraps
+from flask import abort, redirect, url_for, flash
+from flask_login import current_user, login_required
+from App.utils.permissions import has_permission, has_role
+
+def require_permission(permission):
+    """
+    要求特定权限的装饰器
+    
+    Args:
+        permission: 权限名称
+    
+    Returns:
+        decorator: 装饰器函数
+    """
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            if not current_user.is_authenticated:
+                flash('请先登录', 'warning')
+                return redirect(url_for('auth.login'))
+            
+            if not has_permission(current_user, permission):
+                flash('您没有权限访问此页面', 'error')
+                abort(403)
+            
+            return f(*args, **kwargs)
+        return decorated_function
+    return decorator
+
+def require_role(role_name):
+    """
+    要求特定角色的装饰器
+    
+    Args:
+        role_name: 角色名称
+    
+    Returns:
+        decorator: 装饰器函数
+    """
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            if not current_user.is_authenticated:
+                flash('请先登录', 'warning')
+                return redirect(url_for('auth.login'))
+            
+            if not has_role(current_user, role_name):
+                flash('您没有权限访问此页面', 'error')
+                abort(403)
+            
+            return f(*args, **kwargs)
+        return decorated_function
+    return decorator
+
+def require_any_role(*role_names):
+    """
+    要求任意一个角色的装饰器
+    
+    Args:
+        *role_names: 角色名称列表
+    
+    Returns:
+        decorator: 装饰器函数
+    """
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            if not current_user.is_authenticated:
+                flash('请先登录', 'warning')
+                return redirect(url_for('auth.login'))
+            
+            # 检查用户是否有任意一个指定角色
+            user_has_role = False
+            for role_name in role_names:
+                if has_role(current_user, role_name):
+                    user_has_role = True
+                    break
+            
+            if not user_has_role:
+                flash('您没有权限访问此页面', 'error')
+                abort(403)
+            
+            return f(*args, **kwargs)
+        return decorated_function
+    return decorator
+
+def require_any_permission(*permissions):
+    """
+    要求任意一个权限的装饰器
+    
+    Args:
+        *permissions: 权限名称列表
+    
+    Returns:
+        decorator: 装饰器函数
+    """
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            if not current_user.is_authenticated:
+                flash('请先登录', 'warning')
+                return redirect(url_for('auth.login'))
+            
+            # 检查用户是否有任意一个指定权限
+            user_has_permission = False
+            for permission in permissions:
+                if has_permission(current_user, permission):
+                    user_has_permission = True
+                    break
+            
+            if not user_has_permission:
+                flash('您没有权限访问此页面', 'error')
+                abort(403)
+            
+            return f(*args, **kwargs)
+        return decorated_function
+    return decorator
+
+def guest_only(f):
+    """
+    仅访客可访问的装饰器
+    
+    Args:
+        f: 视图函数
+    
+    Returns:
+        decorated_function: 装饰后的函数
+    """
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        # 允许所有用户访问，包括已登录用户
+        return f(*args, **kwargs)
+    return decorated_function
+
+def admin_only(f):
+    """
+    仅管理员可访问的装饰器
+    
+    Args:
+        f: 视图函数
+    
+    Returns:
+        decorated_function: 装饰后的函数
+    """
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not current_user.is_authenticated:
+            flash('请先登录', 'warning')
+            return redirect(url_for('auth.login'))
+        
+        if not has_role(current_user, 'admin'):
+            flash('仅管理员可访问此页面', 'error')
+            abort(403)
+        
+        return f(*args, **kwargs)
+    return decorated_function
+
+def staff_only(f):
+    """
+    仅员工可访问的装饰器
+    
+    Args:
+        f: 视图函数
+    
+    Returns:
+        decorated_function: 装饰后的函数
+    """
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not current_user.is_authenticated:
+            flash('请先登录', 'warning')
+            return redirect(url_for('auth.login'))
+        
+        if not has_role(current_user, 'staff') and not has_role(current_user, 'admin'):
+            flash('仅员工可访问此页面', 'error')
+            abort(403)
+        
+        return f(*args, **kwargs)
+    return decorated_function
+
+def member_only(f):
+    """
+    仅会员可访问的装饰器
+    
+    Args:
+        f: 视图函数
+    
+    Returns:
+        decorated_function: 装饰后的函数
+    """
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not current_user.is_authenticated:
+            flash('请先登录', 'warning')
+            return redirect(url_for('auth.login'))
+        
+        if not has_role(current_user, 'member') and not has_role(current_user, 'staff') and not has_role(current_user, 'admin'):
+            flash('仅会员可访问此页面', 'error')
+            abort(403)
+        
+        return f(*args, **kwargs)
+    return decorated_function
