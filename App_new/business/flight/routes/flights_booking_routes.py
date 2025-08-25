@@ -31,7 +31,7 @@ def create_order():
     suppliers = Supplier.query.filter_by(status='active').all()
     # 从模型中获取供应商类型列表
     supplier_types = Supplier.get_supplier_types()
-    return render_template('flights/order_create.html', 
+    return render_template('business/flight/order_create.html', 
                          suppliers=suppliers,
                          supplier_types=supplier_types)
 
@@ -401,14 +401,27 @@ def submit_order():
         db.session.commit()
         print("事务提交成功!")  # 调试日志
 
-        flash(f'订单创建成功！HID: {hid}, REF: {ref_number}', 'success')
         return redirect(url_for('flights_booking.order_detail', order_id=order.id))
 
     except Exception as e:
         db.session.rollback()
         print(f"订单创建失败: {str(e)}")  # 调试日志
+        # 回填用户已填写的数据，避免选择项丢失
+        try:
+            suppliers = Supplier.query.filter_by(status='active').all()
+            supplier_types = Supplier.get_supplier_types()
+        except Exception:
+            suppliers = []
+            supplier_types = []
+        # 将表单数据传回页面用于回显
+        form_data = request.form.to_dict(flat=False)
         flash(f'订单创建失败：{str(e)}', 'error')
-        return redirect(url_for('flights_booking.create_order'))
+        return render_template(
+            'business/flight/order_create.html',
+            suppliers=suppliers,
+            supplier_types=supplier_types,
+            form_data=form_data
+        )
 
 @flights_booking.route('/order_detail/<int:order_id>')
 @login_required
@@ -416,7 +429,7 @@ def submit_order():
 def order_detail(order_id):
     """订单详情页面"""
     order = FlightOrder.query.get_or_404(order_id)
-    return render_template('flights/order_detail.html', order=order)
+    return render_template('business/flight/order_detail.html', order=order)
 
 @flights_booking.route('/search_flights', methods=['POST'])
 @login_required
@@ -611,7 +624,7 @@ def order_list():
     
     orders = PaginationWrapper(results, orders_data)
     
-    return render_template('flights/order_list.html', 
+    return render_template('business/flight/order_list.html', 
                          orders=orders, 
                          suppliers=suppliers,
                          countries=countries)
@@ -736,7 +749,7 @@ def edit_order(order_id):
     airports = AirportData.query.all()
     suppliers = Supplier.query.filter_by(status='active').all()
     supplier_types = dict(Supplier.get_supplier_type_choices())  # 获取供应商类型选项
-    return render_template('flights/order_edit.html', 
+    return render_template('business/flight/order_edit.html', 
                          order=order, 
                          airports=airports, 
                          suppliers=suppliers,

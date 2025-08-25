@@ -225,7 +225,7 @@ def edit_profile():
             
             db.session.commit()
             flash('资料更新成功', 'success')
-            return redirect(url_for('auth.profile'))
+            return redirect(url_for('auth_profile.profile'))
             
         except Exception as e:
             db.session.rollback()
@@ -267,7 +267,7 @@ def change_password():
             db.session.commit()
             
             flash('密码修改成功', 'success')
-            return redirect(url_for('auth.profile'))
+            return redirect(url_for('auth_profile.profile'))
             
         except Exception as e:
             db.session.rollback()

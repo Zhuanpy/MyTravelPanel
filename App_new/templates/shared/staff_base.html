@@ -198,7 +198,7 @@
                             <li><a class="dropdown-item" href="{{ url_for('utils_process.file_processing') }}">
                                 <i class="fas fa-file-pdf me-2"></i>PDF处理
                             </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('utils_blue.render_todo_list') }}">
+                            <li><a class="dropdown-item" href="{{ url_for('staff.tasks') }}">
                                 <i class="fas fa-list-check me-2"></i>任务中心
                             </a></li>
                             <li><a class="dropdown-item" href="{{ url_for('utils_blue.render_pomodoro') }}">
@@ -265,7 +265,7 @@
                                 <i class="fas fa-user-circle me-2"></i>会员中心
                             </a></li>
                             <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="{{ url_for('auth.logout') }}">
+                            <li><a class="dropdown-item" href="{{ url_for('auth_profile.logout') }}">
                                 <i class="fas fa-sign-out-alt me-2"></i>退出登录
                             </a></li>
                         </ul>

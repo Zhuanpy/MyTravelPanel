@@ -52,8 +52,8 @@ class ProjectRef(db.Model):
 
     # 关联关系 - 一个REF只能有一个EO
     eos = db.relationship('ProjectEO', back_populates='ref', cascade='all, delete-orphan', uselist=False)
-    # ref_type = db.relationship('BusinessType', backref='refs')  # 暂时注释掉，避免循环导入
-    # supplier = db.relationship('Supplier', backref='refs')  # 暂时注释掉，避免循环导入
+    ref_type = db.relationship('BusinessType', backref='refs')
+    supplier = db.relationship('Supplier', backref='refs')
     items = db.relationship('RefOrderItem', backref='ref', cascade='all, delete-orphan')
 
     # 机票相关关联关系

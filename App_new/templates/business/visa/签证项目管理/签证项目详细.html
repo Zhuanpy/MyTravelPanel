@@ -1426,12 +1426,12 @@
                         <div class="hid-ref-status-item">
                             <span class="hid-ref-status-label">HID编号</span>
                             <span class="hid-ref-status-value">{{ project.header.hid }}</span>
-                            <a href="{{ url_for('projects.header_detail', header_id=project.header.id) }}" class="hid-ref-link" target="_blank">查看详情</a>
+                            <a href="{{ url_for('business_projects.detail.project_detail', project_id=project.header.id) }}" class="hid-ref-link" target="_blank">查看详情</a>
                         </div>
                         <div class="hid-ref-status-item">
                             <span class="hid-ref-status-label">Ref编号</span>
                             <span class="hid-ref-status-value">{{ project.ref.ref_number }}</span>
-                            <a href="{{ url_for('projects.ref_detail', ref_id=project.ref.id) }}" class="hid-ref-link" target="_blank">查看详情</a>
+                            <a href="{{ url_for('business_projects.project_ref.ref_detail', ref_id=project.ref.id) }}" class="hid-ref-link" target="_blank">查看详情</a>
                         </div>
                     </div>
                     <div class="hid-ref-actions">

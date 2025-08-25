@@ -1,3 +1,5 @@
+{% extends "base.html" %}
+{% block content %}
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -59,7 +61,7 @@
                             {% endif %}
                         </a>
                         <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="{{ url_for('auth.profile') }}">
+                            <li><a class="dropdown-item" href="{{ url_for('auth_profile.profile') }}">
                                 <i class="fas fa-user me-2"></i>个人资料
                             </a></li>
                             <li><a class="dropdown-item" href="{{ url_for('auth.change_password') }}">
@@ -128,8 +130,8 @@
                     </h6>
                     <ul class="nav flex-column mb-2">
                         <li class="nav-item">
-                            <a class="nav-link {% if request.endpoint == 'auth.profile' %}active{% endif %}" 
-                               href="{{ url_for('auth.profile') }}">
+                            <a class="nav-link {% if request.endpoint == 'auth_profile.profile' %}active{% endif %}" 
+                               href="{{ url_for('auth_profile.profile') }}">
                                 <i class="fas fa-user me-2"></i>
                                 个人资料
                             </a>
@@ -193,3 +195,4 @@
     {% block extra_js %}{% endblock %}
 </body>
 </html> 
+{% endblock %} 

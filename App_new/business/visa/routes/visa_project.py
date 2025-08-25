@@ -66,6 +66,18 @@ def format_date_filter(date):
         return date.strftime('%Y-%m-%d')
     return ''
 
+# 提供 JSON 解析过滤器，供模板中使用 value|from_json
+@visa_project.app_template_filter('from_json')
+def from_json_filter(value):
+    try:
+        if value is None or value == '':
+            return {}
+        if isinstance(value, dict):
+            return value
+        return json.loads(value)
+    except Exception:
+        return {}
+
 @visa_project.route('/show_current_all_projects')
 @login_required
 @staff_only
@@ -183,8 +195,7 @@ def visa_processing(visa_type):
         if not links and types_info.country_id:
             links = VisaLinks.query.filter_by(visa_countries_id=types_info.country_id).order_by(VisaLinks.name.asc()).all()
 
-        # 获取所有身份
-        from App.models.Product.Visamodels import VisaSingaporeIdentity, VisaDocuments
+        # 获取所有身份（使用新架构模型）
         identities = VisaSingaporeIdentity.query.order_by(VisaSingaporeIdentity.identity_zh).all()
         document_data = {}
         for identity in identities:
@@ -195,7 +206,7 @@ def visa_processing(visa_type):
         document_data['SHARE'] = share_info
 
         # 获取项目列表
-        from App.config import Config
+        from App_new.config import Config
         project_path = Config.VISA_PROJECTS_PATH
         
         # 添加错误处理，如果目录不存在则创建空列表
@@ -236,7 +247,7 @@ def delete_current_project(project_id):
         visa_type = project.visa_type
 
         # 构建项目文件夹路径
-        from App.config import Config
+        from App_new.config import Config
         base_folder = Config.VISA_RESOURCES_PATH
         project_folder = base_folder / project_folder_name
         
@@ -380,7 +391,7 @@ def generate_form_for_project(project_id):
         # 生成表格的逻辑
         project_name = f"{project.visa_type}_{project.hid_or_serial}_{project.applicant_name}"
         visa_folder = f"{project_name}_{project.singapore_status}"
-        from App.config import Config
+        from App_new.config import Config
         static_path = Config.PROJECT_ROOT / "App" / "static"
         
         # 检查项目文件夹是否存在
@@ -406,7 +417,7 @@ def generate_form_for_project(project_id):
             }), 400
         
         # 检查韩国签证资源文件是否存在
-        from App.config import Config
+        from App_new.config import Config
         source_path = Config.PROJECT_ROOT / "资源" / "签证" / "韩国签证" / "source"
         
         current_app.logger.info(f"检查韩国签证资源路径: {source_path}")
@@ -442,7 +453,7 @@ def generate_form_for_project(project_id):
         # 根据签证类型调用相应的表格生成函数
         if '韩国' in project.visa_type:
             # 调用韩国签证表格生成函数
-            from App.code.VisaForm import VisasUtils
+            from App_new.utils.VisaForm import VisasUtils
             VisasUtils.korea_visa_fill_form(visa_folder=visa_folder, static_path=str(static_path))
         else:
             return jsonify({
@@ -551,7 +562,7 @@ def visa_detail(project_name=None, project_id=None):
             }
         
         # 获取项目的资料准备状态
-        from App.models.Product.Visamodels import VisaProjectDocumentStatus
+        from App_new.business.visa.models.Visamodels import VisaProjectDocumentStatus
         project_document_statuses = VisaProjectDocumentStatus.query.filter_by(
             project_id=project.id
         ).all()
@@ -596,7 +607,7 @@ def create_project_links(project_id):
     try:
         from App_new.business.projects.models.project import ProjectHeader
         from App_new.business.projects.models.ref import ProjectRef
-        from App.models.Product.BusinessType import BusinessType
+        from App_new.shared.models.business_types import BusinessType
         
         # 获取签证项目
         project = VisaProject.query.get_or_404(project_id)
@@ -821,7 +832,7 @@ def visa_create_project(visa_type):
         if submit_button == 'generate_form':
             try:
                 visa_folder = f"{project_name}_{singapore_status}"
-                from App.config import Config
+                from App_new.config import Config
                 static_path = Config.PROJECT_ROOT / "App" / "static"
                 VisasUtils.korea_visa_fill_form(visa_folder=visa_folder, static_path=str(static_path))
 
@@ -858,7 +869,7 @@ def visa_create_project(visa_type):
 
         """ 创建项目思路 """
         "a 创建项目文件夹"
-        from App.config import Config
+        from App_new.config import Config
         visa_folder = Config.VISA_PROJECTS_PATH  # 签证项目文件夹
         project_file_name = f"{project_name}_{singapore_status}"
         project_folder = visa_folder / project_file_name
@@ -905,7 +916,7 @@ def visa_create_project(visa_type):
         
         # 保存资料状态数据
         if document_statuses:
-            from App.models.Product.Visamodels import VisaProjectDocumentStatus
+            from App_new.business.visa.models.Visamodels import VisaProjectDocumentStatus
             print(f"DEBUG: Saving {len(document_statuses)} document statuses")
             for status_data in document_statuses:
                 is_ready = status_data['is_ready']
@@ -1092,7 +1103,7 @@ def open_folder():
         print(f"DEBUG: folder_type={folder_type}, project_folder='{project_folder}', visa_type='{visa_type}'")
 
         # 获取项目根目录
-        from App.config import Config
+        from App_new.config import Config
 
         # 根据文件夹类型构建路径
         if folder_type == 'project' and project_folder and visa_type:
@@ -1170,7 +1181,7 @@ def delete_project(project_id):
         project = VisaProject.query.get_or_404(project_id)
         
         # 删除项目文件夹
-        from App.config import Config
+        from App_new.config import Config
         project_folder = Config.VISA_PROJECTS_PATH / project.project_folder_name
         if project_folder.exists():
             shutil.rmtree(project_folder)
@@ -1211,7 +1222,7 @@ def save_document_status():
         project = VisaProject.query.get_or_404(project_id)
         
         # 删除现有的资料状态记录
-        from App.models.Product.Visamodels import VisaProjectDocumentStatus
+        from App_new.business.visa.models.Visamodels import VisaProjectDocumentStatus
         VisaProjectDocumentStatus.query.filter_by(project_id=project_id).delete()
         
         # 创建新的资料状态记录
@@ -1245,7 +1256,7 @@ def save_document_status():
 def get_document_status(project_id):
     """获取项目资料准备状态"""
     try:
-        from App.models.Product.Visamodels import VisaProjectDocumentStatus
+        from App_new.business.visa.models.Visamodels import VisaProjectDocumentStatus
         
         # 获取项目的资料准备状态
         statuses = VisaProjectDocumentStatus.query.filter_by(project_id=project_id).all()
@@ -1270,7 +1281,7 @@ def get_document_status(project_id):
 def get_project_documents(visa_type, identity):
     """获取指定签证类型和身份的所需资料列表（包含共用资料+特定身份资料）"""
     try:
-        from App.models.Product.Visamodels import VisaDocuments, VisaTypes, VisaSingaporeIdentity
+        from App_new.business.visa.models.Visamodels import VisaDocuments, VisaTypes, VisaSingaporeIdentity
         
         # URL解码
         from urllib.parse import unquote
@@ -1415,7 +1426,7 @@ def get_project_documents(visa_type, identity):
 def test_japan_visa_data():
     """测试日本签证PR身份数据"""
     try:
-        from App.models.Product.Visamodels import VisaDocuments, VisaTypes, VisaSingaporeIdentity
+        from App_new.business.visa.models.Visamodels import VisaDocuments, VisaTypes, VisaSingaporeIdentity
         
         # 获取日本签证类型
         visa_type = VisaTypes.query.filter_by(visa_type='日本签证').first()
@@ -1478,7 +1489,7 @@ def test_japan_visa_data():
 def check_share_documents(visa_type):
     """检查SHARE记录的关联文档"""
     try:
-        from App.models.Product.Visamodels import VisaDocuments, VisaTypes, VisaDocumentsList
+        from App_new.business.visa.models.Visamodels import VisaDocuments, VisaTypes, VisaDocumentsList
         from sqlalchemy import text
         
         # 获取签证类型
@@ -1527,7 +1538,7 @@ def check_share_documents(visa_type):
 def add_share_documents(visa_type):
     """为SHARE记录添加常用文档"""
     try:
-        from App.models.Product.Visamodels import VisaDocuments, VisaTypes, VisaDocumentsList
+        from App_new.business.visa.models.Visamodels import VisaDocuments, VisaTypes, VisaDocumentsList
         
         # 获取签证类型
         visa_type_record = VisaTypes.query.filter_by(visa_type=visa_type).first()
@@ -1595,7 +1606,7 @@ def add_share_documents(visa_type):
 def update_document_status():
     """更新资料准备状态"""
     try:
-        from App.models.Product.Visamodels import VisaProjectDocumentStatus
+        from App_new.business.visa.models.Visamodels import VisaProjectDocumentStatus
         
         data = request.get_json()
         document_status_id = data.get('document_status_id')
@@ -1643,7 +1654,7 @@ def update_document_status():
 def sync_project_documents(project_id):
     """同步项目资料清单（从模板获取并创建项目状态记录）"""
     try:
-        from App.models.Product.Visamodels import VisaProjectDocumentStatus, VisaTypes, VisaSingaporeIdentity
+        from App_new.business.visa.models.Visamodels import VisaProjectDocumentStatus, VisaTypes, VisaSingaporeIdentity
         
         # 获取项目信息
         project = VisaProject.query.get_or_404(project_id)
@@ -1731,7 +1742,7 @@ def sync_project_documents(project_id):
 def add_custom_document(project_id):
     """为项目添加自定义资料"""
     try:
-        from App.models.Product.Visamodels import VisaProjectDocumentStatus
+        from App_new.business.visa.models.Visamodels import VisaProjectDocumentStatus
         
         data = request.get_json()
         document_name = data.get('document_name')
@@ -1788,7 +1799,7 @@ def add_custom_document(project_id):
 def delete_document_status(document_status_id):
     """删除资料状态记录"""
     try:
-        from App.models.Product.Visamodels import VisaProjectDocumentStatus
+        from App_new.business.visa.models.Visamodels import VisaProjectDocumentStatus
         
         document_status = VisaProjectDocumentStatus.query.get_or_404(document_status_id)
         document_name = document_status.document_name
@@ -1812,7 +1823,7 @@ def delete_document_status(document_status_id):
 
 @visa_project.route('/get_documents_list', methods=['GET'])
 def get_documents_list():
-    from App.models.Product.Visamodels import VisaDocumentsList
+    from App_new.business.visa.models.Visamodels import VisaDocumentsList
     query = request.args.get('q', '').strip()
     q = VisaDocumentsList.query
     if query:
@@ -1880,7 +1891,7 @@ def get_additional_info():
             })
         
         # 获取身份信息
-        from App.models.Product.Visamodels import VisaSingaporeIdentity, VisaDocuments
+        from App_new.business.visa.models.Visamodels import VisaSingaporeIdentity, VisaDocuments
         identity_record = VisaSingaporeIdentity.query.filter_by(identity_zh=identity).first()
         if not identity_record:
             return jsonify({

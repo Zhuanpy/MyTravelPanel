@@ -7,7 +7,7 @@ from App_new.utils.decorators import staff_only
 from sqlalchemy import text
 import re
 
-flights_schedule = Blueprint('flights_schedule', __name__, url_prefix='/flights_schedule')
+flights_schedule = Blueprint('flights_schedule', __name__)
 
 @flights_schedule.route('/input_airport_code', methods=['GET'])
 @login_required
@@ -20,7 +20,7 @@ def input_airport_code():
     airports = AirportData.query.order_by(AirportData.airport_IATA).paginate(
         page=page, per_page=per_page, error_out=False)
     
-    return render_template('flights/录入机场代码.html', airports=airports)
+    return render_template('business/flight/flight_airport_code_input.html', airports=airports)
 
 @flights_schedule.route('/itinerary_conversion', methods=['GET', 'POST'])
 @login_required
@@ -33,7 +33,7 @@ def itinerary_conversion():
         return jsonify({'success': True, 'message': '行程转换处理成功'})
     
     # GET请求返回行程转换页面
-    return render_template('flights/conversion.html')
+    return render_template('business/flight/flight_conversion.html')
 
 @flights_schedule.route('/confirmation_detail/<int:order_id>', methods=['GET'])
 @login_required
@@ -42,21 +42,21 @@ def confirmation_detail(order_id):
     """显示机票确认单详细信息"""
     # 在实际应用中，这里应该从数据库中获取确认单信息
     # 目前只是返回一个带有订单ID的模板
-    return render_template('flights/确认单详细.html', order_id=order_id)
+    return render_template('business/flight/flight_confirmation_detail.html', order_id=order_id)
 
 @flights_schedule.route('/confirmation_detail', methods=['GET'])
 @login_required
 @staff_only
 def confirmation_detail_default():
     """显示默认的确认单页面（无订单ID）"""
-    return render_template('flights/flight_confirmation_detail.html')
+    return render_template('business/flight/flight_confirmation_detail.html')
 
 @flights_schedule.route('/simple_itinerary', methods=['GET'])
 @login_required
 @staff_only
 def simple_itinerary():
     """简化行程页面"""
-    return render_template('flights/简化行程_日期-航班号.html')
+    return render_template('business/flight/flight_itinerary_simple.html')
 
 @flights_schedule.route('/simplify_itinerary', methods=['POST'])
 @login_required
@@ -76,7 +76,7 @@ def simplify_itinerary_by_flight_and_date():
         simplified_text = process_itinerary(itinerary_text)
         
         # 返回结果到模板
-        return render_template('flights/简化行程_日期-航班号.html', 
+        return render_template('business/flight/flight_itinerary_simple.html', 
                                original_text=itinerary_text,
                                simplified_text=simplified_text)
         
@@ -112,7 +112,7 @@ def input_flight_schedule():
     flights = FlightSchedule.query.order_by(FlightSchedule.id.desc()).paginate(
         page=page, per_page=per_page, error_out=False)
     
-    return render_template('flights/flight_schedule_input.html',
+    return render_template('business/flight/flight_schedule_input.html',
                            search_flight_number=search_flight_number,
                            flights=flights)
 
@@ -136,7 +136,7 @@ def input_flight_schedule_info():
         flights = query.order_by(FlightSchedule.id.desc()).paginate(
             page=page, per_page=per_page, error_out=False)
         
-        return render_template('flights/flight_schedule_input.html',
+        return render_template('business/flight/flight_schedule_input.html',
                            search_flight_number=search_flight_number,
                            flights=flights)
     
@@ -329,14 +329,14 @@ def search_flights():
     # 如果没有输入搜索关键词，返回所有航班信息
     if not search_flight_number:
         flights = FlightSchedule.query.paginate(page=request.args.get('page', 1, type=int), per_page=10)
-        return render_template('flights/录入航班时刻表.html', flights=flights)
+        return render_template('business/flight/flight_schedule_input.html', flights=flights)
 
     # 搜索数据库，匹配航班号（支持部分匹配）
     flights = FlightSchedule.query.filter(FlightSchedule.flight_number.like(f"%{search_flight_number}%")) \
         .paginate(page=request.args.get('page', 1, type=int), per_page=10)
 
     # 渲染模板，显示搜索结果
-    return render_template('flights/录入航班时刻表.html', flights=flights)
+    return render_template('business/flight/flight_schedule_input.html', flights=flights)
 
 @flights_schedule.route('/search_airports')
 @login_required
@@ -500,20 +500,20 @@ def input_airport_code_info():
             for iata, city, name_cn, name_en in zip(iata_list, city_list, airport_name_cn_list, airport_name_en_list):
                 if not iata or not city or not name_cn or not name_en:
                     flash('所有字段都是必填项。', 'error')
-                    return render_template('flights/录入机场代码.html')
+                    return render_template('business/flight/flight_airport_code_input.html')
 
                 if len(iata) != 3:
                     flash(f'IATA 代码 "{iata}" 必须是3个字符。', 'error')
-                    return render_template('flights/录入机场代码.html')
+                    return render_template('business/flight/flight_airport_code_input.html')
 
                 if not iata.isalpha() or not iata.isupper():
                     flash(f'IATA 代码 "{iata}" 必须是3位大写字母。', 'error')
-                    return render_template('flights/录入机场代码.html')
+                    return render_template('business/flight/flight_airport_code_input.html')
 
                 existing_airport = AirportData.query.filter_by(airport_IATA=iata.upper()).first()
                 if existing_airport:
                     flash(f'IATA 代码 "{iata}" 已存在。', 'error')
-                    return render_template('flights/录入机场代码.html')
+                    return render_template('business/flight/flight_airport_code_input.html')
 
             # 批量创建机场数据
             airports_to_add = []
@@ -536,10 +536,10 @@ def input_airport_code_info():
         except Exception as e:
             db.session.rollback()
             flash(f'保存数据时出错：{str(e)}', 'error')
-            return render_template('flights/录入机场代码.html')
+            return render_template('business/flight/flight_airport_code_input.html')
 
     # GET 请求时渲染页面
-    return render_template('flights/flight_airport_code_input.html')
+    return render_template('business/flight/flight_airport_code_input.html')
 
 @flights_schedule.route('/delete_flight/<int:flight_id>', methods=['DELETE'])
 @login_required

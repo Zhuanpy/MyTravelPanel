@@ -1,4 +1,4 @@
-{% extends "auth/base.html" %}
+{% extends "base.html" %}
 
 {% block title %}编辑个人资料 - MyTravelPanel{% endblock %}
 
@@ -387,7 +387,7 @@
                 <!-- 操作按钮 -->
                 <div class="d-flex justify-content-between align-items-center mt-4">
                     <div>
-                        <a href="{{ url_for('auth.profile') }}" class="btn-cancel">
+                        <a href="{{ url_for('auth_profile.profile') }}" class="btn-cancel">
                             <i class="fas fa-arrow-left me-2"></i>返回资料页
                         </a>
                     </div>

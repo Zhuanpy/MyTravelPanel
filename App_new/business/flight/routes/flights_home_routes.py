@@ -2,6 +2,7 @@ import os
 import subprocess
 from flask import Blueprint, render_template, request, jsonify, flash, redirect, url_for
 from flask_login import login_required, current_user
+from App_new.exts import db
 from sqlalchemy.exc import NoResultFound
 
 # from App.utils.ConvertFlight.read_sql_data import original_airport_code_data, original_flight_timing_data
@@ -36,11 +37,11 @@ def input_flight_schedule_info():
             # 验证数据
             if not all([flight_numbers, schedule_cities, schedule_timings]):
                 flash('请填写所有必要的字段', 'error')
-                return render_template('flights/录入航班时刻表.html', form=form, flights=flights)
+                return render_template('business/flight/flight_schedule_input.html', form=form, flights=flights)
             
             if len(flight_numbers) != len(schedule_cities) or len(flight_numbers) != len(schedule_timings):
                 flash('数据格式错误', 'error')
-                return render_template('flights/录入航班时刻表.html', form=form, flights=flights)
+                return render_template('business/flight/flight_schedule_input.html', form=form, flights=flights)
             
             # 处理每个航班信息
             for flight_number, schedule_city, schedule_timing in zip(flight_numbers, schedule_cities, schedule_timings):
@@ -68,14 +69,14 @@ def input_flight_schedule_info():
             
             db.session.commit()
             flash('航班信息保存成功！', 'success')
-            return redirect(url_for('flight_blue.input_flight_schedule_info'))
+            return redirect(url_for('flight_home.input_flight_schedule_info'))
             
         except Exception as e:
             db.session.rollback()
             flash(f'保存失败：{str(e)}', 'error')
-            return render_template('flights/录入航班时刻表.html', form=form, flights=flights)
+            return render_template('business/flight/flight_schedule_input.html', form=form, flights=flights)
     
-    return render_template('flights/录入航班时刻表.html', form=form, flights=flights)
+    return render_template('business/flight/flight_schedule_input.html', form=form, flights=flights)
 
 
 @flight_home.route('/flight_home')
@@ -83,7 +84,7 @@ def input_flight_schedule_info():
 @staff_only
 def flight_home_page():
     """机票模块首页"""
-    return render_template('flights/机票首页.html')
+    return render_template('business/flight/机票首页.html')
 
 @flight_home.route('/search_flights', methods=['GET'])
 @login_required
@@ -97,14 +98,14 @@ def search_flights():
     # 如果没有输入搜索关键词，返回所有航班信息
     if not search_flight_number:
         flights = FlightSchedule.query.paginate(page=request.args.get('page', 1, type=int), per_page=10)
-        return render_template('flights/录入航班时刻表.html', flights=flights)
+        return render_template('business/flight/flight_schedule_input.html', flights=flights)
 
     # 搜索数据库，匹配航班号（支持部分匹配）
     flights = FlightSchedule.query.filter(FlightSchedule.flight_number.like(f"%{search_flight_number}%")) \
         .paginate(page=request.args.get('page', 1, type=int), per_page=10)
 
     # 渲染模板，显示搜索结果
-    return render_template('flights/录入航班时刻表.html', flights=flights)
+    return render_template('business/flight/flight_schedule_input.html', flights=flights)
 
 @flight_home.route('/update_flight_timing', methods=['POST'])
 @login_required
@@ -325,7 +326,7 @@ def open_refund_folder():
 @login_required
 @staff_only
 def confirmation_detail():
-    return render_template('flights/flight_confirmation_detail.html')
+    return render_template('business/flight/flight_confirmation_detail.html')
 
 def convert_date_format(date_str):
     if not date_str:

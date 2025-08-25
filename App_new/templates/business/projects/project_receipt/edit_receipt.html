@@ -21,7 +21,7 @@
                     </p>
                 </div>
                 <div>
-                    <a href="{{ url_for('projects.receipt_detail', receipt_id=receipt.id) }}" 
+                    <a href="{{ url_for('business_projects.project_receipt.receipt_detail', receipt_id=receipt.id) }}" 
                        class="btn btn-outline-secondary">
                         <i class="fas fa-arrow-left"></i> 返回详情
                     </a>
@@ -49,7 +49,7 @@
                             <!-- 收款金额 -->
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">{{ form.amount.label }} <span class="text-danger">*</span></label>
-                                {{ form.amount(class="form-control", placeholder="请输入收款金�?) }}
+                                {{ form.amount(class="form-control", placeholder="请输入收款金额") }}
                                 {% if form.amount.errors %}
                                     <div class="text-danger">
                                         {% for error in form.amount.errors %}
@@ -102,10 +102,10 @@
                         </div>
 
                         <div class="row">
-                            <!-- 付款人姓�?-->
+                            <!-- 付款人姓名 -->
                             <div class="col-md-4 mb-3">
                                 {{ form.payer_name.label(class="form-label") }}
-                                {{ form.payer_name(class="form-control", placeholder="付款人姓�?) }}
+                                {{ form.payer_name(class="form-control", placeholder="付款人姓名") }}
                                 {% if form.payer_name.errors %}
                                     <div class="text-danger">
                                         {% for error in form.payer_name.errors %}
@@ -115,7 +115,7 @@
                                 {% endif %}
                             </div>
                             
-                            <!-- 付款人联系方�?-->
+                            <!-- 付款人联系方式 -->
                             <div class="col-md-4 mb-3">
                                 {{ form.payer_contact.label(class="form-label") }}
                                 {{ form.payer_contact(class="form-control", placeholder="电话/邮箱") }}
@@ -128,10 +128,10 @@
                                 {% endif %}
                             </div>
                             
-                            <!-- 付款人公�?-->
+                            <!-- 付款人公司 -->
                             <div class="col-md-4 mb-3">
                                 {{ form.payer_company.label(class="form-label") }}
-                                {{ form.payer_company(class="form-control", placeholder="付款人公�?) }}
+                                {{ form.payer_company(class="form-control", placeholder="付款人公司") }}
                                 {% if form.payer_company.errors %}
                                     <div class="text-danger">
                                         {% for error in form.payer_company.errors %}
@@ -164,7 +164,7 @@
                                 
                                 <div class="col-md-4 mb-3">
                                     {{ form.transaction_id.label(class="form-label") }}
-                                    {{ form.transaction_id(class="form-control", placeholder="交易流水�?) }}
+                                    {{ form.transaction_id(class="form-control", placeholder="交易流水号") }}
                                 </div>
                             </div>
                         </div>
@@ -184,7 +184,7 @@
 
                         <!-- 提交按钮 -->
                         <div class="d-flex justify-content-end gap-2 mt-4">
-                            <a href="{{ url_for('projects.receipt_detail', receipt_id=receipt.id) }}" 
+                            <a href="{{ url_for('business_projects.project_receipt.receipt_detail', receipt_id=receipt.id) }}" 
                                class="btn btn-outline-secondary">
                                 <i class="fas fa-times"></i> 取消
                             </a>
@@ -213,7 +213,9 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     paymentMethodSelect.addEventListener('change', toggleBankInfo);
-    toggleBankInfo(); // 初始化显示状�?
+    toggleBankInfo(); // 初始化显示状态
 });
 </script>
-{% endblock %} \n\n{% block title %}编辑收款记录 - {{ receipt.receipt_number }}{% endblock %}
+{% endblock %}
+
+{% block title %}编辑收款记录 - {{ receipt.receipt_number }}{% endblock %}

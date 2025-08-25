@@ -1,7 +1,8 @@
 from flask import Blueprint, render_template, request, jsonify, redirect, url_for, flash
 from flask_login import login_required, current_user
 from ..models.models import FlightSchedule, AirportData
-from App_new.utils.cache import cache
+# 使用轻量 simple_cache 避免未初始化的 Cache.app 错误
+from App_new.utils.cache import simple_cache
 from App_new.utils.ConvertFlightItinerary import format_flight_info
 from App_new.utils.utils import FlightData as flight
 from App_new.exts import csrf
@@ -43,23 +44,30 @@ def city_language(city_name: str):
         print(f"Traceback: {traceback.format_exc()}")
         return "未知机场", "Unknown Airport"
 
-@cache.memoize(timeout=300)
 def request_schedule_data(flight_number):
     """获取航班时刻表数据"""
     try:
         # 标准化航班号
         flight_number = flight_number.replace(" ", "").upper()
         # 查询数据库
+        # 简单缓存键
+        cache_key = f"schedule:{flight_number}"
+        cached = simple_cache.get(cache_key)
+        if cached is not None:
+            return cached
+
         schedule = FlightSchedule.query.filter_by(flight_number=flight_number).first()
         
         if schedule:
-            return {
+            result = {
                 'flight_number': schedule.flight_number,
                 'airline_code': schedule.airline_code,
                 'airline_num': schedule.airline_num,
                 'schedule_city': schedule.schedule_city,
                 'schedule_timing': schedule.schedule_timing
             }
+            simple_cache.set(cache_key, result, expire_minutes=5)
+            return result
         return None
     except Exception as e:
         print(f"Error fetching schedule data for {flight_number}: {e}")
@@ -70,21 +78,21 @@ def request_schedule_data(flight_number):
 @staff_only
 def athina():
     """Athina页面"""
-    return render_template('flights/flight_athina.html')
+    return render_template('business/flight/flight_athina.html')
 
 @flights_athina.route('/athina_simple', methods=['GET'])
 @login_required
 @staff_only
 def athina_simple():
     """简化的Athina页面"""
-    return render_template('flights/flight_athina.html')
+    return render_template('business/flight/flight_athina.html')
 
 @flights_athina.route('/conversion', methods=['GET'])
 @login_required
 @staff_only
 def athina_conversion():
     """Athina机票工具整合页面"""
-    return render_template('flights/flight_athina_conversion.html', output_text="")
+    return render_template('business/flight/flight_athina_conversion.html', output_text="")
 
 @flights_athina.route('/itinerary_conversion', methods=['GET', 'POST'])
 @login_required
@@ -104,7 +112,7 @@ def itinerary_conversion():
                     return jsonify({'error': '请输入行程数据'}), 400
                 else:
                     flash('请输入行程数据', 'error')
-                    return render_template('flights/flight_conversion.html', output_text="")
+                    return render_template('business/flight/flight_conversion.html', output_text="")
             
             # 处理行程数据
             try:
@@ -214,9 +222,10 @@ def simplify_itinerary_by_flight_and_date():
             return jsonify({'error': str(e)}), 500
     
     # GET请求返回页面
-    return render_template('flights/flight_itinerary_simple.html', output_text="")
+    return render_template('business/flight/flight_itinerary_simple.html', output_text="")
 
 @flights_athina.route('/athinaPage', methods=['GET', 'POST'])
+@csrf.exempt
 @login_required
 @staff_only
 def athina_page():
@@ -275,5 +284,5 @@ def athina_page():
             return jsonify({'error': str(e)}), 500
     
     # GET请求返回页面
-    return render_template('flights/flight_athina_booking_code.html')
+    return render_template('business/flight/flight_athina_booking_code.html')
 

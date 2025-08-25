@@ -22,7 +22,7 @@
                     </p>
                 </div>
                 <div>
-                    <a href="{{ url_for('projects.header_detail', header_id=ref.header_id) }}" 
+                    <a href="{{ url_for('business_projects.detail.project_detail', project_id=ref.header_id) }}" 
                        class="btn btn-secondary">
                         <i class="fas fa-arrow-left"></i> 返回项目详情
                     </a>
@@ -42,7 +42,7 @@
                             <strong>REF编号:</strong> {{ ref.ref_number }}
                         </div>
                         <div class="col-md-3">
-                            <strong>类型:</strong> {{ ref.ref_type.name if ref.ref_type else '未分�? }}
+                            <strong>类型:</strong> {{ ref.ref_type.name if ref.ref_type else '未分类' }}
                         </div>
                         <div class="col-md-3">
                             <strong>售价:</strong> 
@@ -51,7 +51,7 @@
                             </span>
                         </div>
                         <div class="col-md-3">
-                            <strong>未付�?</strong> 
+                            <strong>未付款:</strong> 
                             <span class="text-danger">
                                 {{ ref.currency }} {{ "%.2f"|format(unpaid_amount) }}
                             </span>
@@ -94,7 +94,7 @@
                             <!-- 收款金额 -->
                             <div class="col-md-3 mb-3">
                                 <label class="form-label">{{ form.amount.label }} <span class="text-danger">*</span></label>
-                                {{ form.amount(class="form-control", placeholder="请输入收款金�?) }}
+                                {{ form.amount(class="form-control", placeholder="请输入收款金额") }}
                                 {% if form.amount.errors %}
                                     <div class="text-danger">
                                         {% for error in form.amount.errors %}
@@ -104,7 +104,7 @@
                                 {% endif %}
                             </div>
                             
-                            <!-- 占位�?-->
+                            <!-- 占位 -->
                             <div class="col-md-3 mb-3">
                                 <!-- 占位符，保持布局平衡 -->
                             </div>
@@ -143,10 +143,10 @@
                                 {% endif %}
                             </div>
                             
-                            <!-- 交易流水�?-->
+                            <!-- 交易流水号 -->
                             <div class="col-md-2 mb-3">
                                 {{ form.transaction_id.label(class="form-label") }}
-                                {{ form.transaction_id(class="form-control", placeholder="交易流水�?) }}
+                                {{ form.transaction_id(class="form-control", placeholder="交易流水号") }}
                             </div>
                             
                             <!-- 账号 -->
@@ -155,17 +155,17 @@
                                 {{ form.account_number(class="form-control", placeholder="账号") }}
                             </div>
                             
-                            <!-- 占位�?-->
+                            <!-- 占位 -->
                             <div class="col-md-2 mb-3">
                                 <!-- 占位符，保持布局平衡 -->
                             </div>
                         </div>
 
                         <div class="row">
-                            <!-- 付款人姓�?-->
+                            <!-- 付款人姓名 -->
                             <div class="col-md-3 mb-3">
                                 {{ form.payer_name.label(class="form-label") }}
-                                {{ form.payer_name(class="form-control", placeholder="付款人姓�?) }}
+                                {{ form.payer_name(class="form-control", placeholder="付款人姓名") }}
                                 {% if form.payer_name.errors %}
                                     <div class="text-danger">
                                         {% for error in form.payer_name.errors %}
@@ -175,7 +175,7 @@
                                 {% endif %}
                             </div>
                             
-                            <!-- 付款人联系方�?-->
+                            <!-- 付款人联系方式 -->
                             <div class="col-md-3 mb-3">
                                 {{ form.payer_contact.label(class="form-label") }}
                                 {{ form.payer_contact(class="form-control", placeholder="电话/邮箱") }}
@@ -188,10 +188,10 @@
                                 {% endif %}
                             </div>
                             
-                            <!-- 付款人公�?-->
+                            <!-- 付款人公司 -->
                             <div class="col-md-3 mb-3">
                                 {{ form.payer_company.label(class="form-label") }}
-                                {{ form.payer_company(class="form-control", placeholder="付款人公�?) }}
+                                {{ form.payer_company(class="form-control", placeholder="付款人公司") }}
                                 {% if form.payer_company.errors %}
                                     <div class="text-danger">
                                         {% for error in form.payer_company.errors %}
@@ -201,7 +201,7 @@
                                 {% endif %}
                             </div>
                             
-                            <!-- 占位�?-->
+                            <!-- 占位 -->
                             <div class="col-md-3 mb-3">
                                 <!-- 占位符，保持布局平衡 -->
                             </div>
@@ -222,7 +222,7 @@
 
                         <!-- 提交按钮 -->
                         <div class="d-flex justify-content-end gap-2">
-                            <a href="{{ url_for('projects.header_detail', header_id=ref.header_id) }}" 
+                            <a href="{{ url_for('business_projects.detail.project_detail', project_id=ref.header_id) }}" 
                                class="btn btn-secondary">
                                 <i class="fas fa-times"></i> 取消
                             </a>
@@ -245,7 +245,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         if (amount > unpaidAmount) {
             e.preventDefault();
-            alert(`收款金额不能超过未付款金�?${unpaidAmount.toFixed(2)}`);
+            alert(`收款金额不能超过未付款金额 ${unpaidAmount.toFixed(2)}`);
             return false;
         }
     });

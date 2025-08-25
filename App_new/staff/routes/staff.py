@@ -533,7 +533,7 @@ def tasks():
         end = start + per_page
         tasks_page = filtered_tasks[start:end]
         
-        return render_template('staff_tasks.html',
+        return render_template('staff/tasks.html',
                              tasks=tasks_page,
                              current_page=page,
                              total_pages=(total + per_page - 1) // per_page,
@@ -543,7 +543,7 @@ def tasks():
                              search=search)
     except Exception as e:
         flash(f'加载任务列表失败：{str(e)}', 'error')
-        return render_template('staff_tasks.html',
+        return render_template('staff/tasks.html',
                              tasks=[],
                              current_page=1,
                              total_pages=1,

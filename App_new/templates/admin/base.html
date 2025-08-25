@@ -1,3 +1,5 @@
+{% extends "base.html" %}
+{% block content %}
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -66,7 +68,7 @@
                             {% endif %}
                         </a>
                         <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="{{ url_for('auth.profile') }}">
+                            <li><a class="dropdown-item" href="{{ url_for('auth_profile.profile') }}">
                                 <i class="fas fa-user me-2"></i>个人资料
                             </a></li>
                             <li><a class="dropdown-item" href="{{ url_for('staff.dashboard') }}">
@@ -223,3 +225,4 @@
     {% block extra_js %}{% endblock %}
 </body>
 </html> 
+{% endblock %} 

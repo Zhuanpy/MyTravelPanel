@@ -34,13 +34,13 @@
                                        style="cursor: pointer;" 
                                        data-bs-toggle="tooltip" 
                                        data-bs-placement="top"
-                                       title="分配方式说明�?#10;�?自动分配：系统根据各REF未收款金额按比例自动分配&#10;�?手动指定：手动选择要分配的REF，系统按比例分配"></i>
+                                       title="分配方式说明:\n• 自动分配：系统根据各REF未收款金额按比例自动分配\n• 手动指定：手动选择要分配的REF，系统按比例分配"></i>
                                 </div>
                                 {% if form.selected_refs.choices|length == 1 and form.selected_refs.choices[0][0] == 0 %}
                                     {{ form.distribution_method(class="form-select", disabled=true) }}
                                     <div class="form-text text-warning">
                                         <i class="fas fa-exclamation-triangle"></i>
-                                        当前项目没有未付款的REF，无法进行分�?
+                                        当前项目没有未付款的REF，无法进行分配
                                     </div>
                                 {% else %}
                                     {{ form.distribution_method(class="form-select") }}
@@ -56,7 +56,7 @@
                         <div class="row mb-4">
                             <div class="col-md-3 mb-3">
                                 <label class="form-label">{{ form.amount.label }} <span class="text-danger">*</span></label>
-                                {{ form.amount(class="form-control", placeholder="请输入收款金�?) }}
+                                {{ form.amount(class="form-control", placeholder="请输入收款金额") }}
                                 {% for error in form.amount.errors %}
                                     <div class="text-danger small">{{ error }}</div>
                                 {% endfor %}
@@ -119,13 +119,13 @@
                             </div>
                             <div class="col-md-3 mb-3">
                                 {{ form.transaction_id.label(class="form-label") }}
-                                {{ form.transaction_id(class="form-control", placeholder="交易流水�?) }}
+                                {{ form.transaction_id(class="form-control", placeholder="交易流水号") }}
                             </div>
                         </div>
                         <div class="row mb-4">
                             <div class="col-md-3 mb-3">
                                 {{ form.payer_name.label(class="form-label") }}
-                                {{ form.payer_name(class="form-control", placeholder="付款人姓�?) }}
+                                {{ form.payer_name(class="form-control", placeholder="付款人姓名") }}
                                 {% for error in form.payer_name.errors %}
                                     <div class="text-danger small">{{ error }}</div>
                                 {% endfor %}
@@ -139,7 +139,7 @@
                             </div>
                             <div class="col-md-3 mb-3">
                                 {{ form.payer_company.label(class="form-label") }}
-                                {{ form.payer_company(class="form-control", placeholder="付款人公�?) }}
+                                {{ form.payer_company(class="form-control", placeholder="付款人公司") }}
                                 {% for error in form.payer_company.errors %}
                                     <div class="text-danger small">{{ error }}</div>
                                 {% endfor %}
@@ -162,7 +162,7 @@
                             </div>
                         </div>
                         <div class="d-flex justify-content-end gap-2">
-                            <a href="{{ url_for('projects.header_receipts', header_id=header.id) }}" 
+                            <a href="{{ url_for('business_projects.project_receipt.header_receipts', header_id=header.id) }}" 
                                class="btn btn-secondary">
                                 <i class="fas fa-times"></i> 取消
                             </a>
@@ -191,9 +191,9 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     distributionMethodSelect.addEventListener('change', toggleManualDistribution);
-    toggleManualDistribution(); // 初始化显示状�?
+    toggleManualDistribution(); // 初始化显示状态
     
-    // 初始化工具提�?
+    // 初始化工具提示
     var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
     var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
         return new bootstrap.Tooltip(tooltipTriggerEl);

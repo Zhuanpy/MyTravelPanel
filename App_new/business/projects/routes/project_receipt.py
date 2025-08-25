@@ -123,7 +123,7 @@ def edit_receipt(receipt_id):
             
             db.session.commit()
             
-            return redirect(url_for('project_receipt.header_receipts', header_id=receipt.header_id))
+            return redirect(url_for('business_projects.project_receipt.header_receipts', header_id=receipt.header_id))
             
         except Exception as e:
             db.session.rollback()
@@ -166,7 +166,7 @@ def delete_receipt(receipt_id):
         db.session.rollback()
         flash(f'删除失败：{str(e)}', 'error')
     
-    return redirect(url_for('project_receipt.header_receipts', header_id=header_id))
+    return redirect(url_for('business_projects.project_receipt.header_receipts', header_id=header_id))
 
 @project_receipt.route('/<int:receipt_id>/status', methods=['POST'])
 @csrf.exempt
@@ -449,7 +449,7 @@ def create_header_receipt(header_id):
             
             db.session.commit()
             
-            return redirect(url_for('project_receipt.header_receipts', header_id=header.id))
+            return redirect(url_for('business_projects.project_receipt.header_receipts', header_id=header.id))
             
         except Exception as e:
             db.session.rollback()
@@ -496,7 +496,7 @@ def edit_header_receipt(header_id, receipt_id):
             
             db.session.commit()
             
-            return redirect(url_for('project_receipt.header_receipts', header_id=header.id))
+            return redirect(url_for('business_projects.project_receipt.header_receipts', header_id=header.id))
             
         except Exception as e:
             db.session.rollback()
@@ -546,7 +546,7 @@ def delete_header_receipt(header_id, receipt_id):
         db.session.rollback()
         flash(f'删除失败：{str(e)}', 'error')
     
-    return redirect(url_for('project_receipt.header_receipts', header_id=header_id))
+    return redirect(url_for('business_projects.project_receipt.header_receipts', header_id=header_id))
 
 @project_receipt.route('/api/header/<int:header_id>/unpaid_refs')
 @login_required
