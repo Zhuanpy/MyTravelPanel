@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>结果</title>
+    <style>
+        /* 基本样式 */
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #eef2f7;
+            text-align: center;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        /* 容器样式 */
+        .container {
+            max-width: 600px;
+            width: 90%;
+            background-color: #ffffff;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        /* 标题样式 */
+        h1 {
+            font-size: 24px;
+            color: #2a6fb4;
+            margin-bottom: 20px;
+        }
+
+        /* 描述文本样式 */
+        p {
+            font-size: 16px;
+            color: #555;
+            margin-bottom: 15px;
+            line-height: 1.6;
+        }
+
+        /* 文件路径高亮 */
+        .highlight {
+            font-weight: bold;
+            color: #2a6fb4;
+        }
+
+        /* 页脚 */
+        footer {
+            margin-top: 20px;
+            font-size: 14px;
+            color: #999;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>生成的 PDF 文件</h1>
+        <p>生成的 PDF 文件保存在当前目录下的：<span class="highlight">{{ folder_path }}</span></p>
+        <p>处理的图片文件夹路径：<span class="highlight">{{ folder_path }}</span></p>
+        <footer>&copy; 2024 文件处理系统</footer>
+    </div>
+</body>
+</html>

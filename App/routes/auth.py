@@ -6,7 +6,11 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import check_password_hash, generate_password_hash
+<<<<<<< HEAD
 from App.models.auth import AuthUser, Role, UserProfile, InvitationCode
+=======
+from App.models.auth import AuthUser, Role, UserProfile
+>>>>>>> bd966aaedee4af8f33a9a77e876576b0717d910d
 from App.utils.decorators import guest_only, member_only
 from App.exts import db
 import re
@@ -101,7 +105,10 @@ def register():
     return render_template('auth/register.html')
 
 @auth.route('/login', methods=['GET', 'POST'])
+<<<<<<< HEAD
 @guest_only
+=======
+>>>>>>> bd966aaedee4af8f33a9a77e876576b0717d910d
 def login():
     """用户登录"""
     if request.method == 'POST':
@@ -110,12 +117,18 @@ def login():
             password = request.form.get('password', '')
             remember = bool(request.form.get('remember'))
             
+<<<<<<< HEAD
+=======
+            print(f"DEBUG: 收到登录请求 - email: {email}, password: {password}")
+            
+>>>>>>> bd966aaedee4af8f33a9a77e876576b0717d910d
             if not email or not password:
                 flash('请输入邮箱和密码', 'error')
                 return render_template('auth/login.html')
             
             # 查找用户
             user = AuthUser.query.filter_by(email=email).first()
+<<<<<<< HEAD
             
             if not user:
                 flash('邮箱或密码错误', 'error')
@@ -171,10 +184,179 @@ def login():
                     flash(f'邮箱或密码错误，还剩{remaining_attempts}次尝试机会', 'error')
                 
         except Exception as e:
+=======
+            print(f"DEBUG: 用户查找结果 - 存在: {user is not None}")
+            
+            if user:
+                print(f"DEBUG: 用户信息 - ID: {user.id}, 用户名: {user.username}, 角色ID: {user.role_id}")
+                print(f"DEBUG: 角色信息 - 名称: {user.role.name if user.role else 'None'}")
+                print(f"DEBUG: 密码哈希: {user.password_hash}")
+                
+                # 检查密码
+                password_check = user.check_password(password)
+                print(f"DEBUG: 密码验证结果: {password_check}")
+                
+                if password_check:
+                    # 登录成功
+                    login_user(user, remember=remember)
+                    
+                    # 重定向到原来想访问的页面或默认页面
+                    next_page = request.args.get('next')
+                    if next_page:
+                        return redirect(next_page)
+                    
+                    # 根据用户角色重定向到不同页面
+                    print(f"DEBUG: 用户 {user.username} 角色: {user.role.name}")
+                    print(f"DEBUG: 用户ID: {user.id}, 角色ID: {user.role_id}")
+                    print(f"DEBUG: 角色对象: {user.role}")
+                    
+                    if user.role.name == 'admin':
+                        # 管理员跳转到管理员后台
+                        print("DEBUG: 重定向到 admin.dashboard")
+                        return redirect(url_for('admin.dashboard'))
+                    elif user.role.name == 'staff':
+                        # 员工跳转到员工工作台
+                        print("DEBUG: 重定向到 staff.dashboard")
+                        return redirect(url_for('staff.dashboard'))
+                    elif user.role.name == 'member':
+                        # 会员跳转到会员中心
+                        print("DEBUG: 重定向到 member.dashboard")
+                        return redirect(url_for('member.dashboard'))
+                    else:
+                        # 其他情况跳转到公开页面
+                        print(f"DEBUG: 未知角色 {user.role.name}，重定向到 public.index")
+                        flash('登录成功，但用户角色未知', 'warning')
+                        return redirect(url_for('public.index'))
+                else:
+                    print(f"DEBUG: 密码验证失败")
+                    flash('邮箱或密码错误', 'error')
+            else:
+                print(f"DEBUG: 用户不存在")
+                flash('邮箱或密码错误', 'error')
+                
+        except Exception as e:
+            print(f"DEBUG: 登录异常: {str(e)}")
+>>>>>>> bd966aaedee4af8f33a9a77e876576b0717d910d
             flash(f'登录失败：{str(e)}', 'error')
     
     return render_template('auth/login.html')
 
+<<<<<<< HEAD
+=======
+@auth.route('/login-simple', methods=['GET', 'POST'])
+def login_simple():
+    """简化的用户登录页面（用于测试）"""
+    if request.method == 'POST':
+        try:
+            email = request.form.get('email', '').strip()
+            password = request.form.get('password', '')
+            remember = bool(request.form.get('remember'))
+            
+            print(f"DEBUG SIMPLE: 收到登录请求")
+            print(f"DEBUG SIMPLE: email={email}")
+            print(f"DEBUG SIMPLE: password={password}")
+            
+            if not email or not password:
+                flash('请输入邮箱和密码', 'error')
+                return render_template('auth/login_simple.html')
+            
+            # 查找用户
+            user = AuthUser.query.filter_by(email=email).first()
+            print(f"DEBUG SIMPLE: 用户是否存在: {user is not None}")
+            
+            if user:
+                print(f"DEBUG SIMPLE: 用户ID: {user.id}")
+                print(f"DEBUG SIMPLE: 用户名: {user.username}")
+                print(f"DEBUG SIMPLE: 角色ID: {user.role_id}")
+                print(f"DEBUG SIMPLE: 角色名称: {user.role.name if user.role else 'None'}")
+                print(f"DEBUG SIMPLE: 密码哈希: {user.password_hash[:50]}...")
+                
+                # 检查密码
+                password_check = user.check_password(password)
+                print(f"DEBUG SIMPLE: 密码验证结果: {password_check}")
+                
+                if password_check:
+                    # 登录成功
+                    login_user(user, remember=remember)
+                    print(f"DEBUG SIMPLE: 登录成功，用户角色: {user.role.name}")
+                    
+                    # 根据用户角色重定向
+                    if user.role.name == 'admin':
+                        return redirect(url_for('admin.dashboard'))
+                    elif user.role.name == 'staff':
+                        return redirect(url_for('staff.dashboard'))
+                    elif user.role.name == 'member':
+                        return redirect(url_for('member.dashboard'))
+                    else:
+                        return redirect(url_for('public.index'))
+                else:
+                    flash('密码错误', 'error')
+            else:
+                flash('用户不存在', 'error')
+                
+        except Exception as e:
+            print(f"DEBUG SIMPLE: 登录异常: {str(e)}")
+            flash(f'登录失败：{str(e)}', 'error')
+    
+    return render_template('auth/login_simple.html')
+
+@auth.route('/login-debug', methods=['GET', 'POST'])
+def login_debug():
+    """调试登录页面（无CSRF，无JavaScript）"""
+    if request.method == 'POST':
+        try:
+            email = request.form.get('email', '').strip()
+            password = request.form.get('password', '')
+            
+            print(f"DEBUG DEBUG: 收到登录请求")
+            print(f"DEBUG DEBUG: email={email}")
+            print(f"DEBUG DEBUG: password={password}")
+            print(f"DEBUG DEBUG: 表单数据: {request.form}")
+            
+            if not email or not password:
+                return f"错误: 邮箱或密码为空<br>邮箱: {email}<br>密码: {password}"
+            
+            # 查找用户
+            user = AuthUser.query.filter_by(email=email).first()
+            print(f"DEBUG DEBUG: 用户是否存在: {user is not None}")
+            
+            if user:
+                print(f"DEBUG DEBUG: 用户ID: {user.id}")
+                print(f"DEBUG DEBUG: 用户名: {user.username}")
+                print(f"DEBUG DEBUG: 角色ID: {user.role_id}")
+                print(f"DEBUG DEBUG: 角色名称: {user.role.name if user.role else 'None'}")
+                print(f"DEBUG DEBUG: 密码哈希: {user.password_hash}")
+                
+                # 检查密码
+                password_check = user.check_password(password)
+                print(f"DEBUG DEBUG: 密码验证结果: {password_check}")
+                
+                if password_check:
+                    # 登录成功
+                    login_user(user)
+                    print(f"DEBUG DEBUG: 登录成功，用户角色: {user.role.name}")
+                    
+                    # 根据用户角色重定向
+                    if user.role.name == 'admin':
+                        return redirect(url_for('admin.dashboard'))
+                    elif user.role.name == 'staff':
+                        return redirect(url_for('staff.dashboard'))
+                    elif user.role.name == 'member':
+                        return redirect(url_for('member.dashboard'))
+                    else:
+                        return redirect(url_for('public.index'))
+                else:
+                    return f"密码错误<br>用户: {user.username}<br>密码哈希: {user.password_hash}"
+            else:
+                return f"用户不存在<br>邮箱: {email}"
+                
+        except Exception as e:
+            print(f"DEBUG DEBUG: 登录异常: {str(e)}")
+            return f"登录异常: {str(e)}"
+    
+    return render_template('auth/login_debug.html')
+
+>>>>>>> bd966aaedee4af8f33a9a77e876576b0717d910d
 @auth.route('/logout')
 @login_required
 def logout():
@@ -294,6 +476,7 @@ def api_check_email():
     if existing_user:
         return jsonify({'available': False, 'message': '该邮箱已被注册'})
     
+<<<<<<< HEAD
     return jsonify({'available': True, 'message': '邮箱可用'})
 
 # 分角色的登录和注册路由
@@ -538,3 +721,6 @@ def _get_role_display_name(role_name):
         'admin': '管理员'
     }
     return role_names.get(role_name, role_name) 
+=======
+    return jsonify({'available': True, 'message': '邮箱可用'}) 
+>>>>>>> bd966aaedee4af8f33a9a77e876576b0717d910d

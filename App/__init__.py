@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from flask import Flask, send_from_directory
 import os
 from flask_migrate import Migrate
@@ -106,21 +107,7 @@ def create_app():
     # 初始化缓存
     cache.init_app(app)
 
-    # 暂时禁用 Flask-Login，避免认证重定向问题
-    # login_manager = LoginManager()
-    # login_manager.init_app(app)
-    # login_manager.login_view = 'dex.index'  # 设置登录视图为首页，避免302重定向
-
-    # @login_manager.user_loader
-    # def load_user(user_id):
-    #     # todo 完成 User 相关内容
-    #     return User.query.get(int(user_id))
-    
-    # # 临时禁用认证要求，避免302重定向问题
-    # @login_manager.unauthorized_handler
-    # def unauthorized():
-    #     # 对于未认证的用户，直接重定向到首页而不是登录页面
-    #     return redirect(url_for('dex.index'))
+    # Flask-Login已在exts.py中初始化，这里不需要重复初始化
 
     # 注册蓝图
     app.register_blueprint(utils_blue, url_prefix='/utils')

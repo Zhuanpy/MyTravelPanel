@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, request, jsonify, redirect, url_for, flash
-from ....exts import db, csrf
-from ..models.TourProject import TourGroup, TourItinerary, TourProject
-from ..models.Packagemodels import CompanyInfo
+from App_new.exts import db, csrf
+from App_new.business.tour.models.TourProject import TourGroup, TourItinerary, TourProject
+from App_new.business.tour.models.Packagemodels import CompanyInfo
 from datetime import datetime
 import os
 import sys
@@ -432,7 +432,7 @@ def view_tour_itinerary(group_id):
 @tour_projects.route('/groups/<int:group_id>/edit', methods=['GET', 'POST'])
 @csrf.exempt
 def edit_tour_group(group_id):
-    from ..models.TourProject import TourGroup, TourItinerary
+    from App_new.business.tour.models.TourProject import TourGroup, TourItinerary
     from flask import request, redirect, url_for, flash, jsonify
     from datetime import datetime
     
@@ -774,7 +774,7 @@ def edit_tour_project(project_id):
 
     # 配套价格预算：获取最近的预算单用于页面快速查看
     try:
-        from ..models.PackageBudget import BudgetHeader
+        from App_new.business.tour.models.PackageBudget import BudgetHeader
         recent_budgets = BudgetHeader.query.order_by(BudgetHeader.created_at.desc()).limit(10).all()
     except Exception:
         recent_budgets = []
@@ -805,7 +805,7 @@ def project_details(project_id):
 @tour_projects.route('/itinerary/create/<int:group_id>', methods=['GET', 'POST'])
 @csrf.exempt
 def create_itinerary(group_id):
-    from ..models.TourProject import TourItinerary, TourGroup
+    from App_new.business.tour.models.TourProject import TourItinerary, TourGroup
     from flask import request, redirect, url_for, render_template, flash, jsonify
     from flask_wtf.csrf import CSRFError
     

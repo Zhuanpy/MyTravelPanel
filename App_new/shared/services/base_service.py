@@ -4,7 +4,7 @@
 from typing import Dict, Any, Optional, List
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from flask import current_app
-from ..exts import db
+from App_new.exts import db
 from ..utils.exceptions import ValidationError, BusinessLogicError, ResourceNotFoundError
 
 

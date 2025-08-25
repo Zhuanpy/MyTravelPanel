@@ -2,7 +2,7 @@
 签证文档调试工具
 """
 from App.models.Product.Visamodels import VisaDocuments, VisaTypes, VisaDocumentsList
-from ..exts import db
+from App_new.exts import db
 
 
 def debug_visa_documents(visa_type_name):

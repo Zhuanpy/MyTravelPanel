@@ -176,14 +176,19 @@
             <a href="#" id="openProjectFolder" class="flight-home-link">
                 <i class="fas fa-project-diagram"></i> 项目文件夹
             </a>
+<<<<<<< HEAD
             <a href="{{ url_for('flights_booking.create_order') }}" class="flight-home-link">
                 <i class="fas fa-plus"></i> 创建订单
             </a>
             <a href="{{ url_for('flights_booking.order_list') }}" class="flight-home-link">
                 <i class="fas fa-list"></i> 订单列表
+=======
+            <a href="{{ url_for('flight_blue.add_flight_order') }}" class="flight-home-link">
+                <i class="fas fa-plus"></i> 创建机票订单
+>>>>>>> bd966aaedee4af8f33a9a77e876576b0717d910d
             </a>
-            <a href="#" class="flight-home-link">
-                <i class="fas fa-tasks"></i> 项目管理
+            <a href="{{ url_for('flight_blue.flight_orders') }}" class="flight-home-link">
+                <i class="fas fa-tasks"></i> 机票订单管理
             </a>
         </div>
     </div>

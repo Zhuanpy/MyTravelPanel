@@ -1,7 +1,7 @@
 from ..models.models import FlightSchedule
 from sqlalchemy.exc import IntegrityError
 from flask import current_app as app
-from ..exts import db
+from App_new.exts import db
 
 class FlightService:
     @staticmethod

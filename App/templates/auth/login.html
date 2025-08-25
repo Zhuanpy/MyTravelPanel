@@ -84,6 +84,7 @@
 
 {% block extra_js %}
 <script>
+<<<<<<< HEAD
 // 登录表单处理
 document.getElementById('loginForm').addEventListener('submit', function(e) {
     e.preventDefault();
@@ -92,10 +93,23 @@ document.getElementById('loginForm').addEventListener('submit', function(e) {
     const password = document.getElementById('password').value;
     const loading = document.getElementById('loginLoading');
     const submitBtn = this.querySelector('button[type="submit"]');
+=======
+// 登录表单处理 - 临时禁用JavaScript验证，直接提交
+document.getElementById('loginForm').addEventListener('submit', function(e) {
+    // 临时注释掉preventDefault，让表单正常提交
+    // e.preventDefault();
+    
+    const email = document.getElementById('email').value.trim();
+    const password = document.getElementById('password').value;
+>>>>>>> bd966aaedee4af8f33a9a77e876576b0717d910d
     
     // 基础验证
     if (!email || !password) {
         alert('请填写邮箱和密码');
+<<<<<<< HEAD
+=======
+        e.preventDefault();
+>>>>>>> bd966aaedee4af8f33a9a77e876576b0717d910d
         return;
     }
     
@@ -103,6 +117,7 @@ document.getElementById('loginForm').addEventListener('submit', function(e) {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
         alert('请输入有效的邮箱地址');
+<<<<<<< HEAD
         document.getElementById('email').classList.add('shake');
         setTimeout(() => {
             document.getElementById('email').classList.remove('shake');
@@ -118,6 +133,14 @@ document.getElementById('loginForm').addEventListener('submit', function(e) {
     setTimeout(() => {
         this.submit();
     }, 1000);
+=======
+        e.preventDefault();
+        return;
+    }
+    
+    // 直接提交，不延迟
+    console.log('提交登录表单:', {email, password});
+>>>>>>> bd966aaedee4af8f33a9a77e876576b0717d910d
 });
 
 // 表单验证

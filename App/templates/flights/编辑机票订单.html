@@ -1,0 +1,409 @@
+{% extends "base.html" %}
+
+{% block title %}编辑机票订单{% endblock %}
+
+{% block head %}
+<style>
+    .form-container {
+        padding: 20px;
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+    
+    .form-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+    
+    .form-title {
+        font-size: 24px;
+        margin: 0;
+    }
+    
+    .form-card {
+        background-color: #fff;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        padding: 24px;
+        margin-bottom: 20px;
+    }
+    
+    .form-section-title {
+        font-size: 18px;
+        color: #334155;
+        margin-bottom: 16px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid #e2e8f0;
+    }
+    
+    .form-row {
+        display: flex;
+        flex-wrap: wrap;
+        margin: 0 -10px;
+    }
+    
+    .form-col {
+        padding: 0 10px;
+        margin-bottom: 16px;
+    }
+    
+    .form-col-full {
+        flex: 0 0 100%;
+        max-width: 100%;
+    }
+    
+    .form-col-half {
+        flex: 0 0 50%;
+        max-width: 50%;
+    }
+    
+    .form-col-third {
+        flex: 0 0 33.333333%;
+        max-width: 33.333333%;
+    }
+    
+    @media (max-width: 768px) {
+        .form-col-half, .form-col-third {
+            flex: 0 0 100%;
+            max-width: 100%;
+        }
+    }
+    
+    .form-group label {
+        font-weight: 500;
+        margin-bottom: 8px;
+    }
+    
+    .form-text {
+        color: #64748b;
+        font-size: 0.875rem;
+        margin-top: 4px;
+    }
+    
+    .required-label::after {
+        content: "*";
+        color: #e11d48;
+        margin-left: 2px;
+    }
+    
+    .form-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        margin-top: 20px;
+    }
+    
+    .order-number-display {
+        font-size: 1rem;
+        color: #6b7280;
+        margin-left: 0.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="form-container">
+    <div class="form-header">
+        <h1 class="form-title">
+            编辑机票订单
+            <span class="order-number-display">#{{ order.order_number }}</span>
+        </h1>
+        <div>
+            <a href="{{ url_for('flight_blue.view_flight_order', order_id=order.id) }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> 返回详情
+            </a>
+        </div>
+    </div>
+    
+    <form method="POST" action="{{ url_for('flight_blue.edit_flight_order', order_id=order.id) }}">
+        <!-- 基本信息 -->
+        <div class="form-card">
+            <h2 class="form-section-title">基本信息</h2>
+            <div class="form-row">
+                <div class="form-col form-col-third">
+                    <div class="form-group">
+                        <label for="hid_number" class="form-label">HID号码</label>
+                        <input type="text" class="form-control" id="hid_number" name="hid_number" value="{{ order.hid_number or '' }}">
+                    </div>
+                </div>
+                <div class="form-col form-col-third">
+                    <div class="form-group">
+                        <label for="passenger_name" class="form-label required-label">乘机人</label>
+                        <input type="text" class="form-control" id="passenger_name" name="passenger_name" value="{{ order.passenger_name }}" required>
+                    </div>
+                </div>
+                <div class="form-col form-col-third">
+                    <div class="form-group">
+                        <label for="contact_person" class="form-label">联系人</label>
+                        <input type="text" class="form-control" id="contact_person" name="contact_person" value="{{ order.contact_person or '' }}">
+                    </div>
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-col form-col-third">
+                    <div class="form-group">
+                        <label for="contact_phone" class="form-label">联系电话</label>
+                        <input type="text" class="form-control" id="contact_phone" name="contact_phone" value="{{ order.contact_phone or '' }}">
+                    </div>
+                </div>
+                <div class="form-col form-col-third">
+                    <div class="form-group">
+                        <label for="client_type" class="form-label">客户类型</label>
+                        <select class="form-control" id="client_type" name="client_type">
+                            <option value="个人" {% if order.client_type == '个人' %}selected{% endif %}>个人</option>
+                            <option value="企业" {% if order.client_type == '企业' %}selected{% endif %}>企业</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-col form-col-third">
+                    <div class="form-group">
+                        <label for="operator" class="form-label">操作人员</label>
+                        <input type="text" class="form-control" id="operator" name="operator" value="{{ order.operator or '' }}">
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 行程信息 -->
+        <div class="form-card">
+            <h2 class="form-section-title">行程信息</h2>
+            <div class="form-row">
+                <div class="form-col form-col-third">
+                    <div class="form-group">
+                        <label for="departure_date" class="form-label required-label">起飞日期</label>
+                        <input type="date" class="form-control" id="departure_date" name="departure_date" value="{{ order.departure_date.strftime('%Y-%m-%d') if order.departure_date else '' }}" required>
+                    </div>
+                </div>
+                <div class="form-col form-col-third">
+                    <div class="form-group">
+                        <label for="departure_time" class="form-label">起飞时间</label>
+                        <input type="time" class="form-control" id="departure_time" name="departure_time" value="{{ order.departure_time.strftime('%H:%M') if order.departure_time else '' }}">
+                    </div>
+                </div>
+                <div class="form-col form-col-third">
+                    <div class="form-group">
+                        <label for="departure_city" class="form-label">出发城市</label>
+                        <input type="text" class="form-control" id="departure_city" name="departure_city" value="{{ order.departure_city or '' }}">
+                    </div>
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-col form-col-third">
+                    <div class="form-group">
+                        <label for="arrival_date" class="form-label">到达日期</label>
+                        <input type="date" class="form-control" id="arrival_date" name="arrival_date" value="{{ order.arrival_time.strftime('%Y-%m-%d') if order.arrival_time else '' }}">
+                    </div>
+                </div>
+                <div class="form-col form-col-third">
+                    <div class="form-group">
+                        <label for="arrival_time" class="form-label">到达时间</label>
+                        <input type="time" class="form-control" id="arrival_time" name="arrival_time" value="{{ order.arrival_time.strftime('%H:%M') if order.arrival_time else '' }}">
+                    </div>
+                </div>
+                <div class="form-col form-col-third">
+                    <div class="form-group">
+                        <label for="arrival_city" class="form-label">到达城市</label>
+                        <input type="text" class="form-control" id="arrival_city" name="arrival_city" value="{{ order.arrival_city or '' }}">
+                    </div>
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-col form-col-third">
+                    <div class="form-group">
+                        <label for="airline" class="form-label">航空公司</label>
+                        <input type="text" class="form-control" id="airline" name="airline" value="{{ order.airline or '' }}">
+                    </div>
+                </div>
+                <div class="form-col form-col-third">
+                    <div class="form-group">
+                        <label for="flight_number" class="form-label">航班号</label>
+                        <input type="text" class="form-control" id="flight_number" name="flight_number" value="{{ order.flight_number or '' }}">
+                    </div>
+                </div>
+                <div class="form-col form-col-third">
+                    <div class="form-group">
+                        <label for="cabin_class" class="form-label">舱位等级</label>
+                        <select class="form-control" id="cabin_class" name="cabin_class">
+                            <option value="" {% if not order.cabin_class %}selected{% endif %}>请选择</option>
+                            <option value="经济舱" {% if order.cabin_class == '经济舱' %}selected{% endif %}>经济舱</option>
+                            <option value="商务舱" {% if order.cabin_class == '商务舱' %}selected{% endif %}>商务舱</option>
+                            <option value="头等舱" {% if order.cabin_class == '头等舱' %}selected{% endif %}>头等舱</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-col form-col-third">
+                    <div class="form-group">
+                        <div class="form-check mt-4">
+                            <input class="form-check-input" type="checkbox" id="is_transit" name="is_transit" {% if order.is_transit %}checked{% endif %}>
+                            <label class="form-check-label" for="is_transit">
+                                是否中转
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-col form-col-two-thirds">
+                    <div class="form-group">
+                        <label for="transit_info" class="form-label">中转信息</label>
+                        <input type="text" class="form-control" id="transit_info" name="transit_info" value="{{ order.transit_info or '' }}">
+                    </div>
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-col form-col-full">
+                    <div class="form-group">
+                        <label for="itinerary" class="form-label">行程详情</label>
+                        <textarea class="form-control" id="itinerary" name="itinerary" rows="4">{{ order.itinerary or '' }}</textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 票务信息 -->
+        <div class="form-card">
+            <h2 class="form-section-title">票务信息</h2>
+            <div class="form-row">
+                <div class="form-col form-col-third">
+                    <div class="form-group">
+                        <label for="order_status" class="form-label">订单状态</label>
+                        <select class="form-control" id="order_status" name="order_status">
+                            <option value="待出票" {% if order.order_status == '待出票' %}selected{% endif %}>待出票</option>
+                            <option value="已出票" {% if order.order_status == '已出票' %}selected{% endif %}>已出票</option>
+                            <option value="已取消" {% if order.order_status == '已取消' %}selected{% endif %}>已取消</option>
+                            <option value="已完成" {% if order.order_status == '已完成' %}selected{% endif %}>已完成</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-col form-col-third">
+                    <div class="form-group">
+                        <label for="payment_status" class="form-label">支付状态</label>
+                        <select class="form-control" id="payment_status" name="payment_status">
+                            <option value="待支付" {% if order.payment_status == '待支付' %}selected{% endif %}>待支付</option>
+                            <option value="已支付" {% if order.payment_status == '已支付' %}selected{% endif %}>已支付</option>
+                            <option value="已退款" {% if order.payment_status == '已退款' %}selected{% endif %}>已退款</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-col form-col-third">
+                    <div class="form-group">
+                        <label for="payment_method" class="form-label">支付方式</label>
+                        <select class="form-control" id="payment_method" name="payment_method">
+                            <option value="" {% if not order.payment_method %}selected{% endif %}>请选择</option>
+                            <option value="微信" {% if order.payment_method == '微信' %}selected{% endif %}>微信</option>
+                            <option value="支付宝" {% if order.payment_method == '支付宝' %}selected{% endif %}>支付宝</option>
+                            <option value="银行转账" {% if order.payment_method == '银行转账' %}selected{% endif %}>银行转账</option>
+                            <option value="现金" {% if order.payment_method == '现金' %}selected{% endif %}>现金</option>
+                            <option value="信用卡" {% if order.payment_method == '信用卡' %}selected{% endif %}>信用卡</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-col form-col-third">
+                    <div class="form-group">
+                        <label for="total_price" class="form-label">票价总额</label>
+                        <input type="number" step="0.01" class="form-control" id="total_price" name="total_price" value="{{ order.total_price or '' }}">
+                    </div>
+                </div>
+                <div class="form-col form-col-third">
+                    <div class="form-group">
+                        <label for="tax_fee" class="form-label">税费</label>
+                        <input type="number" step="0.01" class="form-control" id="tax_fee" name="tax_fee" value="{{ order.tax_fee or '' }}">
+                    </div>
+                </div>
+                <div class="form-col form-col-third">
+                    <div class="form-group">
+                        <label for="actual_payment" class="form-label">实付金额</label>
+                        <input type="number" step="0.01" class="form-control" id="actual_payment" name="actual_payment" value="{{ order.actual_payment or '' }}">
+                    </div>
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-col form-col-third">
+                    <div class="form-group">
+                        <label for="baggage_allowance" class="form-label">行李额度</label>
+                        <input type="text" class="form-control" id="baggage_allowance" name="baggage_allowance" value="{{ order.baggage_allowance or '' }}">
+                    </div>
+                </div>
+                <div class="form-col form-col-third">
+                    <div class="form-group">
+                        <label for="pnr_code" class="form-label">PNR号码</label>
+                        <input type="text" class="form-control" id="pnr_code" name="pnr_code" value="{{ order.pnr_code or '' }}">
+                    </div>
+                </div>
+                <div class="form-col form-col-third">
+                    <div class="form-group">
+                        <label for="e_ticket_number" class="form-label">电子客票号</label>
+                        <input type="text" class="form-control" id="e_ticket_number" name="e_ticket_number" value="{{ order.e_ticket_number or '' }}">
+                    </div>
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-col form-col-full">
+                    <div class="form-group">
+                        <label for="refund_change_policy" class="form-label">退改签政策</label>
+                        <textarea class="form-control" id="refund_change_policy" name="refund_change_policy" rows="3">{{ order.refund_change_policy or '' }}</textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 备注信息 -->
+        <div class="form-card">
+            <h2 class="form-section-title">备注信息</h2>
+            <div class="form-row">
+                <div class="form-col form-col-full">
+                    <div class="form-group">
+                        <label for="remarks" class="form-label">备注</label>
+                        <textarea class="form-control" id="remarks" name="remarks" rows="3">{{ order.remarks or '' }}</textarea>
+                    </div>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-col form-col-full">
+                    <div class="form-group">
+                        <label for="after_sales_record" class="form-label">售后记录</label>
+                        <textarea class="form-control" id="after_sales_record" name="after_sales_record" rows="3">{{ order.after_sales_record or '' }}</textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="form-actions">
+            <a href="{{ url_for('flight_blue.view_flight_order', order_id=order.id) }}" class="btn btn-secondary">取消</a>
+            <button type="submit" class="btn btn-primary">保存更改</button>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // 自动计算实付金额
+    document.addEventListener('DOMContentLoaded', function() {
+        const totalPriceInput = document.getElementById('total_price');
+        const taxFeeInput = document.getElementById('tax_fee');
+        const actualPaymentInput = document.getElementById('actual_payment');
+        
+        function calculateTotal() {
+            const totalPrice = parseFloat(totalPriceInput.value) || 0;
+            const taxFee = parseFloat(taxFeeInput.value) || 0;
+            actualPaymentInput.value = (totalPrice + taxFee).toFixed(2);
+        }
+        
+        totalPriceInput.addEventListener('input', calculateTotal);
+        taxFeeInput.addEventListener('input', calculateTotal);
+    });
+</script>
+{% endblock %} 

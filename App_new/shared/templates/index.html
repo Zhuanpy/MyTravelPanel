@@ -1,0 +1,394 @@
+{% extends "base.html" %}
+
+{% block title %}工作管理系统{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/index.css') }}">
+<style>
+    .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 2rem 1rem;
+    }
+
+    .page-header {
+        text-align: center;
+        margin-bottom: 2rem;
+    }
+
+    .page-header h1 {
+        font-size: 2.5rem;
+        color: #2a5298;
+        font-weight: 700;
+        margin-bottom: 1rem;
+    }
+
+    .section-card {
+        background: #ffffff;
+        border-radius: 12px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        margin-bottom: 2rem;
+        overflow: hidden;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .section-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    .section-header {
+        padding: 1.5rem;
+        background: rgba(255, 255, 255, 0.9);
+    }
+
+    .section-header h3 {
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: #2a5298;
+        margin: 0;
+    }
+
+    .link-group {
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    }
+
+    .text-link {
+        display: inline-block;
+        padding: 0.5rem 1rem;
+        margin: 0.25rem;
+        color: #4a5568;
+        text-decoration: none;
+        border-radius: 6px;
+        transition: all 0.3s ease;
+    }
+
+    .text-link:hover {
+        background-color: rgba(42, 82, 152, 0.1);
+        color: #2a5298;
+    }
+
+    .button-group {
+        padding: 1.5rem;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+
+    .btn {
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
+        font-weight: 500;
+        text-decoration: none;
+        transition: all 0.3s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .btn i {
+        font-size: 1.1rem;
+    }
+
+    .btn-blue {
+        background-color: #2a5298;
+        color: white;
+    }
+
+    .btn-green {
+        background-color: #48BB78;
+        color: white;
+    }
+
+    .btn-purple {
+        background-color: #9F7AEA;
+        color: white;
+    }
+
+    .btn-yellow {
+        background-color: #ECC94B;
+        color: #2D3748;
+    }
+
+    .btn-red {
+        background-color: #F56565;
+        color: white;
+    }
+
+    .btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .section-footer {
+        padding: 1rem 1.5rem;
+        text-align: right;
+        border-top: 1px solid rgba(0, 0, 0, 0.1);
+    }
+
+    .more-button {
+        color: #2a5298;
+        text-decoration: none;
+        font-weight: 500;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        transition: all 0.3s ease;
+    }
+
+    .more-button:hover {
+        color: #1e3c72;
+        transform: translateX(5px);
+    }
+
+    .countries-container {
+        padding: 1rem 1.5rem;
+    }
+
+    .country-section {
+        margin-bottom: 1.5rem;
+    }
+
+    .country-title {
+        font-size: 1.25rem;
+        color: #2a5298;
+        margin-bottom: 1rem;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .country-title::before {
+        content: '\f107';
+        font-family: 'Font Awesome 5 Free';
+        font-weight: 900;
+        transition: transform 0.3s ease;
+    }
+
+    .country-section.collapsed .country-title::before {
+        transform: rotate(-90deg);
+    }
+
+    .country-section.collapsed .button-group {
+        display: none;
+    }
+
+    @media (max-width: 768px) {
+        .container {
+            padding: 1rem;
+        }
+
+        .page-header h1 {
+            font-size: 2rem;
+        }
+
+        .button-group {
+            padding: 1rem;
+        }
+
+        .btn {
+            padding: 0.5rem 1rem;
+            font-size: 0.9rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <header class="page-header">
+        <h1>工作管理系统</h1>
+    </header>
+
+    <!-- 签证区域 -->
+    <section class="section-card" style="border-top: 4px solid #2a5298">
+        <div class="section-header">
+            <h3><i class="fas fa-passport"></i> 签证管理</h3>
+        </div>
+        <div class="link-group">
+            <a href="{{ url_for('visa_routes.visa_home') }}" class="text-link"><i class="fas fa-home"></i> 签证首页</a>
+            <a href="{{ url_for('visa_routes.open_visa_folder') }}" class="text-link"><i class="fas fa-folder"></i> 资源文件夹</a>
+            <a href="{{ url_for('visa_routes.add_visa_type') }}" class="text-link"><i class="fas fa-plus"></i> 添加签证信息</a>
+            <a href="{{ url_for('visa_routes.manage_visas') }}" class="text-link"><i class="fas fa-database"></i> 管理签证数据库</a>
+            <a href="{{ url_for('visa_routes.show_current_all_projects') }}" class="text-link"><i class="fas fa-project-diagram"></i> 项目管理</a>
+
+        </div>
+        <div class="button-group">
+            {% for visa in visa_categories %}
+                <a href="{{ url_for('visa_routes.visa_processing', country=visa.visa_type_name) }}"
+                   class="btn btn-blue">
+                   <i class="fas fa-globe"></i> {{ visa.visa_type_name }}
+                </a>
+            {% endfor %}
+        </div>
+        <div class="section-footer">
+            <a href="{{ url_for('visa_routes.visa_home') }}" class="more-button">
+                查看全部 <i class="fas fa-arrow-right"></i>
+            </a>
+        </div>
+    </section>
+
+    <!-- 机票区域 -->
+    <section class="section-card" style="border-top: 4px solid #48BB78">
+        <div class="section-header">
+            <h3><i class="fas fa-plane"></i> 机票管理</h3>
+        </div>
+        <div class="link-group">
+            <a href="{{ url_for('flight_blue.flight_home') }}" class="text-link"><i class="fas fa-home"></i> 机票首页</a>
+            <a href="#" id="openFlightProjectFolder" class="text-link"><i class="fas fa-folder"></i> 资源文件夹</a>
+            <a href="#" id="openRefundFolder" class="text-link"><i class="fas fa-undo"></i> 退票文件夹</a>
+            <a href="#" class="text-link"><i class="fas fa-project-diagram"></i> 项目文件夹</a>
+            <a href="#" class="text-link"><i class="fas fa-plus"></i> 创建项目</a>
+            <a href="#" class="text-link"><i class="fas fa-tasks"></i> 项目管理</a>
+        </div>
+        <div class="button-group">
+            <a href="{{url_for('flight_blue.itinerary_conversion')}}" class="btn btn-green"><i class="fas fa-exchange-alt"></i> 简化TRAVELPORT</a>
+            <a href="{{url_for('flight_blue.simplify_itinerary_by_flight_and_date')}}" class="btn btn-green"><i class="fas fa-calendar-alt"></i> 简化行程</a>
+            <a href="{{url_for('flight_blue.flight_to_athina_page')}}" class="btn btn-green"><i class="fas fa-file-code"></i> Athina代码</a>
+            <a href="{{url_for('flight_blue.input_flight_schedule_info')}}" class="btn btn-green"><i class="fas fa-clock"></i> 航班时刻表</a>
+            <a href="{{url_for('flight_blue.input_airport_code_info')}}" class="btn btn-green"><i class="fas fa-map-marker-alt"></i> 机场代码</a>
+            <a href="{{url_for('flight_blue.confirmation_detail')}}" class="btn btn-green"><i class="fas fa-file-alt"></i> 机票文件</a>
+        </div>
+        <div class="section-footer">
+            <a href="{{ url_for('flight_blue.flight_home') }}" class="more-button">
+                查看全部 <i class="fas fa-arrow-right"></i>
+            </a>
+        </div>
+    </section>
+
+    <!-- 配套区域 -->
+    <section class="section-card" style="border-top: 4px solid #9F7AEA">
+        <div class="section-header">
+            <h3><i class="fas fa-hotel"></i> 配套管理</h3>
+        </div>
+        <div class="link-group">
+            <a href="#" id="openPackageFolder" class="text-link"><i class="fas fa-folder"></i> 资源文件夹</a>
+            <a href="{{url_for('package_routes.manage_cities')}}" class="text-link"><i class="fas fa-city"></i> 城市资源</a>
+            <a href="{{url_for('supplier.suppliers')}}" class="text-link"><i class="fas fa-truck"></i> 供应商管理</a>
+            <a href="{{url_for('product_details.tour_product_details')}}" class="text-link"><i class="fas fa-images"></i> 产品展示</a>
+            <a href="#" id="openProjectFolder" class="text-link"><i class="fas fa-project-diagram"></i> 项目文件夹</a>
+            <a href="{{url_for('package_routes.handle_tour_project')}}" class="text-link"><i class="fas fa-plus"></i> 创建项目</a>
+            <a href="{{ url_for('package_routes.show_all_tour_project') }}" class="text-link"><i class="fas fa-tasks"></i> 项目管理</a>
+        </div>
+        <div class="section-content">
+            <div class="countries-container">
+                {% for country, cities in cities_by_country.items() %}
+                <div class="country-section collapsed" id="country-{{ loop.index }}">
+                    <h4 class="country-title" onclick="toggleSection(this.parentElement)">
+                        <i class="fas fa-globe-asia"></i> {{ country }}
+                    </h4>
+                    <div class="button-group">
+                        {% for city in cities %}
+                        <a href="{{ url_for('package_routes.our_package', city_name=city.city_name) }}" 
+                           class="btn btn-purple">
+                           <i class="fas fa-city"></i> {{ city.display_name }}配套
+                        </a>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            <div class="section-footer">
+                <a href="{{ url_for('package_routes.all_packages') }}" class="more-button">
+                    更多 <i class="fas fa-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- 文件处理区域 -->
+    <section class="section-card" style="border-top: 4px solid #ECC94B">
+        <div class="section-header">
+            <h3><i class="fas fa-file-alt"></i> 文件处理</h3>
+        </div>
+        <div class="button-group">
+            <a href="{{url_for('files_process.file_processing')}}" class="btn btn-yellow"><i class="fas fa-file-pdf"></i> PDF处理</a>
+            <a href="{{url_for('files_process.open_FuXin_pdf')}}" class="btn btn-yellow"><i class="fas fa-tools"></i> PDF工具</a>
+            <a href="{{url_for('files_process.open_Photoshop')}}" class="btn btn-yellow"><i class="fas fa-image"></i> Photoshop</a>
+            <a href="{{url_for('files_process.open_Athina')}}" class="btn btn-yellow"><i class="fas fa-code"></i> Athina</a>
+            <a href="{{url_for('account_routes.account_page')}}" class="btn btn-yellow"><i class="fas fa-users"></i> 账号管理</a>
+            <a href="{{url_for('utils_blue.render_pomodoro')}}" class="btn btn-yellow"><i class="fas fa-clock"></i> 番茄工作法</a>
+
+            <a href="{{url_for('company_info.company_header')}}" class="btn btn-yellow"><i class="fas fa-building"></i> 公司抬头</a>
+        </div>
+        <div class="section-footer">
+            <a href="{{url_for('files_process.file_processing')}}" class="more-button">
+                更多 <i class="fas fa-arrow-right"></i>
+            </a>
+        </div>
+    </section>
+
+    <!-- 账单处理 -->
+    <section class="section-card" style="border-top: 4px solid #F56565">
+        <div class="section-header">
+            <h3><i class="fas fa-file-invoice-dollar"></i> 账单处理</h3>
+        </div>
+        <div class="link-group">
+            <a href="#" id="OpenBillProject" class="text-link"><i class="fas fa-folder"></i> 项目文件夹</a>
+        </div>
+        <div class="button-group">
+            <a href="{{url_for('statement_routes.uob_bank_processing')}}" class="btn btn-red"><i class="fas fa-university"></i> UOB 银行账单</a>
+            <a href="{{url_for('statement_routes.athina_page')}}" class="btn btn-red"><i class="fas fa-file-invoice"></i> Athina 账单</a>
+            <a href="{{url_for('statement_routes.company_bill')}}" class="btn btn-red"><i class="fas fa-file-invoice-dollar"></i> 公司账单</a>
+        </div>
+        <div class="section-footer">
+            <a href="{{url_for('statement_routes.uob_bank_processing')}}" class="more-button">
+                更多 <i class="fas fa-arrow-right"></i>
+            </a>
+        </div>
+    </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/Js/ff.js"></script>
+<script>
+    // 文件夹操作事件处理
+    const folderHandlers = {
+        'openPackageFolder': ['{{ url_for("index.open_package_folder") }}', '资源文件夹已打开'],
+        'openProjectFolder': ['{{ url_for("index.open_package_project_folder") }}', '项目文件夹已打开'],
+        'openFlightProjectFolder': ['{{ url_for("flight_blue.open_project_folder") }}', '航班项目文件夹已打开'],
+        'openRefundFolder': ['{{ url_for("flight_blue.open_refund_folder") }}', '退票文件夹已打开'],
+        'OpenBillProject': ['{{ url_for("index.open_bill_project_folder") }}', '账单文件夹已打开']
+    };
+
+    Object.entries(folderHandlers).forEach(([id, [url, message]]) => {
+        const element = document.getElementById(id);
+        if (element) {
+            element.addEventListener('click', (event) => {
+                event.preventDefault();
+                sendPostRequest(url, message);
+            });
+        }
+    });
+
+    function checkOverflow() {
+        const sections = document.querySelectorAll('.section-card');
+        
+        sections.forEach(section => {
+            const buttonGroup = section.querySelector('.button-group');
+            const contentHeight = buttonGroup.scrollHeight;
+            const maxHeight = 400 - 180; // 最大高度减去头部和链接组的高度
+            
+            if (contentHeight > maxHeight) {
+                section.classList.add('content-overflow');
+                buttonGroup.classList.add('overflow');
+            } else {
+                section.classList.remove('content-overflow');
+                buttonGroup.classList.remove('overflow');
+            }
+        });
+    }
+
+    function toggleSection(section) {
+        section.classList.toggle('collapsed');
+        checkOverflow();
+    }
+
+    // 页面加载和窗口大小改变时检查溢出
+    window.addEventListener('load', checkOverflow);
+    window.addEventListener('resize', checkOverflow);
+</script>
+{% endblock %}

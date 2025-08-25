@@ -1,4 +1,4 @@
-from .Flightmodels import AirportData, FlightSchedule
+from .Flightmodels import AirportData, FlightSchedule, FlightOrder
 from .Accountsmodels import SupplierData, TourProductData, SystemAccountData
 from App.models.Product.Packagemodels import Product, ProductCity, TourProduct
 from App.models.Product.Visamodels import VisaCountries, VisaTypes, VisaDocuments, VisaDocumentsList, VisaLinks, VisaProject, VisaSingaporeIdentity

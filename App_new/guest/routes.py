@@ -6,7 +6,7 @@
 
 from flask import Blueprint, render_template, request, jsonify, current_app
 from ..utils.decorators import guest_only
-from ..exts import cache
+from App_new.exts import cache
 import logging
 
 # 创建访客蓝图，指定模板文件夹

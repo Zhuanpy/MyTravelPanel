@@ -132,6 +132,7 @@ def guest_only(f):
     """
     @wraps(f)
     def decorated_function(*args, **kwargs):
+<<<<<<< HEAD
         if current_user.is_authenticated:
             flash('您已登录，无法访问此页面', 'info')
             # 根据用户角色重定向到相应的仪表板
@@ -144,6 +145,9 @@ def guest_only(f):
             else:
                 return redirect(url_for('public.index'))
         
+=======
+        # 允许所有用户访问，包括已登录用户
+>>>>>>> bd966aaedee4af8f33a9a77e876576b0717d910d
         return f(*args, **kwargs)
     return decorated_function
 

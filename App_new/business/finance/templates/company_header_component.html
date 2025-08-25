@@ -1,0 +1,22 @@
+<!-- 公司抬头组件 -->
+<div class="company-header">
+    <!-- 左侧logo区域 -->
+    <div class="company-logo">
+        <img src="{{ url_for('static', filename='images/logo.png') }}" alt="{{ company.company_name if company else 'LEGEND TRAVEL PTE LTD' }}">
+    </div>
+    <!-- 右侧信息区域 -->
+    <div class="company-info">
+        <h1>{{ company.company_name if company else 'LEGEND TRAVEL PTE LTD' }}</h1>
+        {% if company and company.address %}
+            <p>Add: {{ company.address }}</p>
+            {% if company.address_line2 %}
+                <p style="margin-left: 30px;">{{ company.address_line2 }}</p>
+            {% endif %}
+        {% else %}
+            <p>Add: 1 PARK ROAD 02-K74</p>
+            <p style="margin-left: 30px;">PEOPLE'S PARK COMPLEX SINGAPORE 059108</p>
+        {% endif %}
+        <p>Tel: {{ company.phone if company else '+65 64389986' }}</p>
+        <p>Email: {{ company.email if company else 'legendtravel.director@gmail.com' }}</p>
+    </div>
+</div> 
