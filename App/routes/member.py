@@ -33,13 +33,13 @@ def dashboard():
         # 获取最近的报价（暂时模拟数据）
         recent_quotes = []
         
-        return render_template('member/dashboard.html', 
+        return render_template('member/member_dashboard.html',
                              stats=stats,
                              recent_orders=recent_orders,
                              recent_quotes=recent_quotes)
     except Exception as e:
         flash(f'加载仪表板失败：{str(e)}', 'error')
-        return render_template('member/dashboard.html',
+        return render_template('member/member_dashboard.html',
                              stats={}, recent_orders=[], recent_quotes=[])
 
 @member.route('/orders')

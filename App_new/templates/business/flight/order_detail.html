@@ -1,0 +1,368 @@
+{% extends "shared/staff_base.html" %}
+
+{% block title %}机票订单详情 - MyTravelPanel{% endblock %}
+
+{% block page_title %}机票订单详情{% endblock %}
+
+{% block extra_css %}
+<!-- 添加 Font Awesome -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+<!-- 添加 Google Fonts -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+    body {
+        background-color: #f8f9fa;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        color: #2d3748;
+    }
+
+    .container {
+        max-width: 1200px;
+        margin: 2rem auto;
+        padding: 0 20px;
+    }
+
+    .info-section {
+        margin-bottom: 2rem;
+    }
+
+    .info-card {
+        background: #fff;
+        border-radius: 12px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04), 
+                    0 8px 16px rgba(0, 0, 0, 0.02);
+        border: none;
+        margin-bottom: 1rem;
+        padding: 1.5rem;
+        transition: all 0.3s ease;
+    }
+
+    .info-card:hover {
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.06), 
+                    0 12px 24px rgba(0, 0, 0, 0.04);
+        transform: translateY(-2px);
+    }
+
+    .status-badge {
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        font-weight: 500;
+        font-size: 0.9rem;
+    }
+
+    .status-pending {
+        background-color: #fbd38d;
+        color: #744210;
+    }
+
+    .status-confirmed {
+        background-color: #90cdf4;
+        color: #2c5282;
+    }
+
+    .status-ticketed {
+        background-color: #9ae6b4;
+        color: #22543d;
+    }
+
+    .status-completed {
+        background-color: #4299e1;
+        color: #ffffff;
+    }
+
+    .status-cancelled {
+        background-color: #718096;
+        color: #ffffff;
+    }
+
+    h4 {
+        color: #1a202c;
+        font-weight: 600;
+        font-size: 1.1rem;
+        margin-bottom: 1rem;
+    }
+
+    .btn {
+        padding: 0.625rem 1.25rem;
+        border-radius: 8px;
+        font-weight: 500;
+        transition: all 0.2s ease;
+    }
+
+    .btn-secondary {
+        background-color: #718096;
+        border-color: #718096;
+    }
+
+    .btn-danger {
+        background-color: #e53e3e;
+        border-color: #e53e3e;
+    }
+
+    .btn:hover {
+        transform: translateY(-1px);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <!-- 标题和状态 -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2>订单详情 - {{ order.order_number }}</h2>
+            <!-- HID和REF信息 -->
+            <div class="mt-2">
+                <span class="badge bg-primary me-2">
+                    <i class="fas fa-hashtag"></i> HID: {{ order.project_header_hid or '未分配' }}
+                </span>
+                <span class="badge bg-success">
+                    <i class="fas fa-tag"></i> REF: {{ order.project_ref_ref_number or '未分配' }}
+                </span>
+            </div>
+        </div>
+        <span class="status-badge status-{{ order.order_status }}">
+            {% if order.order_status == 'pending' %}
+                待处理
+            {% elif order.order_status == 'confirmed' %}
+                已确认
+            {% elif order.order_status == 'ticketed' %}
+                已出票
+            {% elif order.order_status == 'completed' %}
+                已完成
+            {% elif order.order_status == 'cancelled' %}
+                已取消
+            {% else %}
+                {{ order.order_status }}
+            {% endif %}
+        </span>
+    </div>
+
+    <!-- 航段信息 -->
+    <div class="info-section">
+        <h4>航段信息</h4>
+        {% for segment in order.flight_segments %}
+        <div class="info-card">
+            <div class="row">
+                <div class="col-md-4">
+                    <strong>航班号：</strong>
+                    <span>{{ segment.flight_number }}</span>
+                </div>
+                <div class="col-md-4">
+                    <strong>出发机场：</strong>
+                    <span>{{ segment.departure_airport }}</span>
+                </div>
+                <div class="col-md-4">
+                    <strong>到达机场：</strong>
+                    <span>{{ segment.arrival_airport }}</span>
+                </div>
+            </div>
+            <div class="row mt-3">
+                <div class="col-md-3">
+                    <strong>出发时间：</strong>
+                    <span>{{ segment.departure_time.strftime('%Y-%m-%d %H:%M') }}</span>
+                </div>
+                <div class="col-md-3">
+                    <strong>到达时间：</strong>
+                    <span>{{ segment.arrival_time.strftime('%Y-%m-%d %H:%M') }}</span>
+                </div>
+                <div class="col-md-3">
+                    <strong>舱位等级：</strong>
+                    <span>{{ segment.cabin_class }}</span>
+                </div>
+                <div class="col-md-3">
+                    <strong>舱位代码：</strong>
+                    <span>{{ segment.cabin_code }}</span>
+                </div>
+            </div>
+            {% if segment.pnr or segment.ticket_number %}
+            <div class="row mt-2">
+                <div class="col-md-6">
+                    <strong>PNR：</strong>
+                    <span>{{ segment.pnr or '未生成' }}</span>
+                </div>
+                <div class="col-md-6">
+                    <strong>电子客票号：</strong>
+                    <span>{{ segment.ticket_number or '未出票' }}</span>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- 乘客信息 -->
+    <div class="info-section">
+        <h4>乘客信息</h4>
+        {% for passenger in order.passengers %}
+        <div class="info-card">
+            <div class="row">
+                <div class="col-md-3">
+                    <strong>姓名：</strong>
+                    <span>{{ passenger.name }}</span>
+                </div>
+                <div class="col-md-3">
+                    <strong>乘客类型：</strong>
+                    <span>
+                        {% if passenger.passenger_type == 'adult' %}成人
+                        {% elif passenger.passenger_type == 'child' %}儿童
+                        {% elif passenger.passenger_type == 'infant' %}婴儿
+                        {% endif %}
+                    </span>
+                </div>
+                <div class="col-md-3">
+                    <strong>售价：</strong>
+                    <span>SGD {{ "%.2f"|format(passenger.selling_price) }}</span>
+                </div>
+                <div class="col-md-3">
+                    <strong>成本：</strong>
+                    <span>SGD {{ "%.2f"|format(passenger.cost_price) }}</span>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- 支付信息 -->
+    <div class="info-section">
+        <h4>支付信息</h4>
+        <div class="info-card">
+            <div class="row">
+                <div class="col-md-6">
+                    <strong>供应商类型：</strong>
+                    <span>{{ order.supplier_type }}</span>
+                </div>
+                <div class="col-md-6">
+                    <strong>供应商：</strong>
+                    <span>{{ order.supplier_name }}</span>
+                </div>
+            </div>
+            <div class="row mt-3">
+                <div class="col-md-6">
+                    <strong>总售价：</strong>
+                    <span>SGD {{ "%.2f"|format(order.selling_price) }}</span>
+                </div>
+                <div class="col-md-6">
+                    <strong>总成本：</strong>
+                    <span>SGD {{ "%.2f"|format(order.cost_price) }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 联系人信息 -->
+    <div class="info-section">
+        <h4>联系人信息</h4>
+        <div class="info-card">
+            <div class="row">
+                <div class="col-md-6">
+                    <strong>联系人：</strong>
+                    <span>{{ order.contact_person }}</span>
+                </div>
+                <div class="col-md-6">
+                    <strong>联系电话：</strong>
+                    <span>{{ order.contact_phone }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 备注信息 -->
+    <div class="info-section">
+        <h4>备注信息</h4>
+        <div class="info-card">
+            {% if order.remarks %}
+            <div class="row">
+                <div class="col-12">
+                    <span>{{ order.remarks }}</span>
+                </div>
+            </div>
+            {% else %}
+            <div class="row">
+                <div class="col-12">
+                    <span class="text-muted">暂无备注信息</span>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- 操作按钮 -->
+    <div class="text-center mb-4">
+        <a href="{{ url_for('flights_booking.order_list') }}" class="btn btn-secondary">返回订单列表</a>
+        {% if order.project_header %}
+        <a href="{{ url_for('business_projects.detail.project_detail', project_id=order.project_header.id) }}" class="btn btn-primary" target="_blank">查看HID详情</a>
+        {% endif %}
+        {% if order.order_status == 'pending' %}
+        <button class="btn btn-danger" onclick="cancelOrder()">取消订单</button>
+        {% endif %}
+    </div>
+
+    <!-- Status Update Form -->
+    <form id="statusUpdateForm" method="POST" action="{{ url_for('flights_booking.update_order_status', order_id=order.id) }}" style="display: inline;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <select name="order_status" class="order-select" style="width: auto; display: inline-block; margin-right: 10px;">
+            <option value="pending" {% if order.status == 'pending' %}selected{% endif %}>待处理</option>
+            <option value="confirmed" {% if order.status == 'confirmed' %}selected{% endif %}>已确认</option>
+            <option value="issued" {% if order.status == 'issued' %}selected{% endif %}>已出票</option>
+            <option value="completed" {% if order.status == 'completed' %}selected{% endif %}>已完成</option>
+            <option value="cancelled" {% if order.status == 'cancelled' %}selected{% endif %}>已取消</option>
+        </select>
+        <button type="submit" class="order-btn order-btn-primary">
+            <i class="fas fa-save"></i> 更新状态
+        </button>
+    </form>
+</div>
+
+<script>
+function cancelOrder() {
+    if (confirm('确定要取消此订单吗？')) {
+        // 实现取消订单的逻辑
+    }
+}
+</script>
+{% endblock %}
+
+{% block extra_js %}
+<!-- 添加必要的JavaScript -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+<script>
+// AJAX status update function with CSRF token
+function updateOrderStatus(orderId, newStatus) {
+    // Get CSRF token from the page
+    const csrfToken = $('input[name="csrf_token"]').val();
+    
+    $.ajax({
+        url: `/flights_booking/update_order_status/${orderId}`,
+        type: 'POST',
+        data: {
+            'status': newStatus,
+            'csrf_token': csrfToken
+        },
+        success: function(response) {
+            // Handle success
+            alert('订单状态已更新');
+            // Reload page to show updated status
+            location.reload();
+        },
+        error: function(xhr) {
+            // Handle error
+            alert('更新状态失败: ' + xhr.responseText);
+        }
+    });
+}
+
+// If you have status update buttons elsewhere on the page,
+// you can attach this event handler
+$(document).ready(function() {
+    // Example usage for any status update links
+    $('.status-update-link').on('click', function(e) {
+        e.preventDefault();
+        const orderId = $(this).data('order-id');
+        const newStatus = $(this).data('status');
+        updateOrderStatus(orderId, newStatus);
+    });
+});
+</script>
+{% endblock %} 

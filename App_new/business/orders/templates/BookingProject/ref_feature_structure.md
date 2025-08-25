@@ -1,0 +1,44 @@
+# Ref 业务类型创建功能 - 项目结构图
+
+本结构图展示了 ref 创建流程、页面、后端、数据库及主要文件夹组织结构，便于整体把控和后续开发。
+
+```mermaid
+graph TD
+    A[选择业务类型页面<br/>select_ref_type.html] -->|选择类型| B1[机票创建表单<br/>create_flight_ref.html]
+    A -->|选择类型| B2[酒店创建表单<br/>create_hotel_ref.html]
+    A -->|选择类型| B3[旅游团创建表单<br/>create_tour_ref.html]
+    A -->|选择类型| B4[签证创建表单<br/>create_visa_ref.html]
+    A -->|选择类型| B5[保险创建表单<br/>create_insurance_ref.html]
+    A -->|选择类型| B6[交通创建表单<br/>create_transport_ref.html]
+    A -->|选择类型| B7[其他创建表单<br/>create_other_ref.html]
+    B1 --> C[后端视图函数<br/>BookingProject/ref.py]
+    B2 --> C
+    B3 --> C
+    B4 --> C
+    B5 --> C
+    B6 --> C
+    B7 --> C
+    C --> D[数据库 models]
+    C --> E[跳转到 ref 详情页<br/>ref_detail.html]
+    E --> F[EO 子明细管理]
+    subgraph 文件夹结构
+        G1[App/templates/projects/BookingProject/]
+        G2[App/routes/projects/BookingProject/]
+        G3[App/models/]
+    end
+    A -.-> G1
+    B1 -.-> G1
+    B2 -.-> G1
+    B3 -.-> G1
+    B4 -.-> G1
+    B5 -.-> G1
+    B6 -.-> G1
+    B7 -.-> G1
+    C -.-> G2
+    D -.-> G3
+    E -.-> G1
+    F -.-> G1
+    F -.-> G2
+```
+
+> 可用支持 Mermaid 的编辑器或平台直接渲染上方结构图。 

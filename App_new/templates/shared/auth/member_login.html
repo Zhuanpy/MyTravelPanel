@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>会员登录 - MyTravelPanel</title>
+    
+    <!-- CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .login-container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+            max-width: 900px;
+            width: 100%;
+        }
+
+        .login-left {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 3rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            text-align: center;
+        }
+
+        .login-right {
+            padding: 3rem;
+        }
+
+        .brand-logo {
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin-bottom: 1rem;
+        }
+
+        .form-control {
+            border-radius: 10px;
+            padding: 12px 20px;
+            border: 2px solid #e9ecef;
+            transition: all 0.3s ease;
+        }
+
+        .form-control:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+        }
+
+        .btn-login {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            border-radius: 10px;
+            padding: 12px 30px;
+            font-weight: 600;
+            color: white;
+            transition: all 0.3s ease;
+        }
+
+        .btn-login:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+            color: white;
+        }
+
+        .divider {
+            text-align: center;
+            margin: 1.5rem 0;
+            position: relative;
+        }
+
+        .divider::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: #e9ecef;
+        }
+
+        .divider span {
+            background: white;
+            padding: 0 1rem;
+            color: #6c757d;
+        }
+
+        .social-login {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .social-btn {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            background: white;
+            color: #495057;
+            text-decoration: none;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .social-btn:hover {
+            border-color: #667eea;
+            color: #667eea;
+            text-decoration: none;
+        }
+
+        .alert {
+            border-radius: 10px;
+            border: none;
+        }
+
+        @media (max-width: 768px) {
+            .login-left {
+                display: none;
+            }
+            
+            .login-container {
+                margin: 1rem;
+            }
+            
+            .login-right {
+                padding: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-12">
+                <div class="login-container row g-0">
+                    <!-- 左侧品牌区域 -->
+                    <div class="col-md-5 login-left">
+                        <div>
+                            <div class="brand-logo">
+                                <i class="fas fa-plane me-2"></i>MyTravelPanel
+                            </div>
+                            <h3 class="mb-3">欢迎回来！</h3>
+                            <p class="mb-4">登录您的会员账户，享受专属的旅游服务体验</p>
+                            <div class="feature-list text-start">
+                                <div class="mb-2">
+                                    <i class="fas fa-check-circle me-2"></i>专属会员优惠
+                                </div>
+                                <div class="mb-2">
+                                    <i class="fas fa-check-circle me-2"></i>订单跟踪服务
+                                </div>
+                                <div class="mb-2">
+                                    <i class="fas fa-check-circle me-2"></i>一对一客服支持
+                                </div>
+                                <div class="mb-2">
+                                    <i class="fas fa-check-circle me-2"></i>快速签证办理
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 右侧登录表单 -->
+                    <div class="col-md-7 login-right">
+                        <div class="text-center mb-4">
+                            <h2 class="fw-bold">会员登录</h2>
+                            <p class="text-muted">请输入您的登录凭据</p>
+                        </div>
+
+                        <!-- Flash消息 -->
+                        {% with messages = get_flashed_messages(with_categories=true) %}
+                            {% if messages %}
+                                {% for category, message in messages %}
+                                    <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
+                                        {{ message }}
+                                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                                    </div>
+                                {% endfor %}
+                            {% endif %}
+                        {% endwith %}
+
+                        <form method="POST" action="{{ url_for('auth.member_login') }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                            <div class="mb-3">
+                                <label for="email" class="form-label">
+                                    <i class="fas fa-envelope me-1"></i>邮箱地址
+                                </label>
+                                <input type="email" class="form-control" id="email" name="email" 
+                                       placeholder="请输入您的邮箱地址" required>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="password" class="form-label">
+                                    <i class="fas fa-lock me-1"></i>密码
+                                </label>
+                                <input type="password" class="form-control" id="password" name="password" 
+                                       placeholder="请输入您的密码" required>
+                            </div>
+                            
+                            <div class="mb-3 d-flex justify-content-between align-items-center">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="remember" name="remember">
+                                    <label class="form-check-label" for="remember">
+                                        记住我
+                                    </label>
+                                </div>
+                                <a href="#" class="text-decoration-none">忘记密码？</a>
+                            </div>
+                            
+                            <div class="d-grid mb-3">
+                                <button type="submit" class="btn btn-login">
+                                    <i class="fas fa-sign-in-alt me-2"></i>登录
+                                </button>
+                            </div>
+                        </form>
+
+                        <div class="divider">
+                            <span>或者</span>
+                        </div>
+
+                        <div class="social-login mb-4">
+                            <a href="#" class="social-btn">
+                                <i class="fab fa-google me-2"></i>Google
+                            </a>
+                            <a href="#" class="social-btn">
+                                <i class="fab fa-wechat me-2"></i>微信
+                            </a>
+                        </div>
+
+                        <div class="text-center">
+                            <p class="text-muted">
+                                还没有账户？ 
+                                <a href="{{ url_for('auth.member_register') }}" class="text-decoration-none fw-bold">
+                                    立即注册
+                                </a>
+                            </p>
+                            <p class="text-muted">
+                                <a href="{{ url_for('guest.index') }}" class="text-decoration-none">
+                                    <i class="fas fa-arrow-left me-1"></i>返回首页
+                                </a>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        // 表单验证
+        document.querySelector('form').addEventListener('submit', function(e) {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            
+            if (!email || !password) {
+                e.preventDefault();
+                alert('请填写所有必填字段');
+                return;
+            }
+            
+            // 邮箱格式验证
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(email)) {
+                e.preventDefault();
+                alert('请输入有效的邮箱地址');
+                return;
+            }
+        });
+        
+        // 自动隐藏alert
+        setTimeout(function() {
+            const alerts = document.querySelectorAll('.alert');
+            alerts.forEach(function(alert) {
+                const bsAlert = new bootstrap.Alert(alert);
+                bsAlert.close();
+            });
+        }, 5000);
+    </script>
+</body>
+</html>

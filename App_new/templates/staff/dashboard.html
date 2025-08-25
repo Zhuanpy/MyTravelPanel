@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% block title %}员工工作台 - MyTravelPanel{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+	<div class="col-md-3 mb-3">
+		<div class="card">
+			<div class="card-body">
+				<h3>{{ stats.total_projects or 0 }}</h3>
+				<p class="text-muted mb-0">总项目数</p>
+			</div>
+		</div>
+	</div>
+	<div class="col-md-3 mb-3">
+		<div class="card">
+			<div class="card-body">
+				<h3>{{ stats.active_projects or 0 }}</h3>
+				<p class="text-muted mb-0">活跃项目</p>
+			</div>
+		</div>
+	</div>
+	<div class="col-md-3 mb-3">
+		<div class="card">
+			<div class="card-body">
+				<h3>{{ stats.pending_quotes or 0 }}</h3>
+				<p class="text-muted mb-0">待处理报价</p>
+			</div>
+		</div>
+	</div>
+	<div class="col-md-3 mb-3">
+		<div class="card">
+			<div class="card-body">
+				<h3>{{ stats.completed_this_month or 0 }}</h3>
+				<p class="text-muted mb-0">本月完成</p>
+			</div>
+		</div>
+	</div>
+</div>
+
+<div class="card">
+	<div class="card-header">
+		<i class="fas fa-project-diagram me-2"></i>最近项目
+	</div>
+	<div class="card-body">
+		{% if recent_projects %}
+		<table class="table table-hover">
+			<thead>
+				<tr>
+					<th>项目名称</th>
+					<th>客户</th>
+					<th>类型</th>
+					<th>状态</th>
+					<th>创建时间</th>
+					<th>操作</th>
+				</tr>
+			</thead>
+			<tbody>
+				{% for p in recent_projects %}
+				<tr>
+					<td>{{ p.name }}</td>
+					<td>{{ p.client }}</td>
+					<td>{{ p.type }}</td>
+					<td>{{ p.status }}</td>
+					<td>{{ p.created_at }}</td>
+					<td><a href="{{ url_for('staff.project_detail', project_id=p.id) }}" class="btn btn-sm btn-outline-success">查看</a></td>
+				</tr>
+				{% endfor %}
+			</tbody>
+		</table>
+		{% else %}
+		<p class="text-muted mb-0">暂无项目</p>
+		{% endif %}
+	</div>
+</div>
+{% endblock %}
+
+
+

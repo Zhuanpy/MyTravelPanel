@@ -1,0 +1,462 @@
+{% extends "shared/staff_base.html" %}
+
+{% block title %}机票行程转化 - MyTravelPanel{% endblock %}
+
+{% block page_title %}机票行程转化{% endblock %}
+
+{% block extra_css %}
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+<style>
+    /* 使用唯一的前缀避免冲突 */
+    .flight-app {
+        width: 100%;
+        margin: 0 auto;
+        padding: 0;
+    }
+    
+    /* 主容器 */
+    .flight-app-container {
+        width: 100%;
+        max-width: 1000px;
+        margin: 0 auto;
+        padding: 20px;
+        background-color: #fff;
+        box-shadow: 0 0 10px rgba(0,0,0,0.05);
+    }
+    
+    /* 标题 */
+    .flight-app-title {
+        font-size: 28px;
+        font-weight: bold;
+        margin-bottom: 25px;
+        color: #333;
+        text-align: center;
+    }
+    
+    /* 表单样式 */
+    .flight-app-form-row {
+        display: block;
+        margin-bottom: 20px;
+    }
+    
+    /* 新增样式：左右排布行程容器 */
+    .flight-app-itinerary-container {
+        display: flex;
+        gap: 20px;
+        margin-bottom: 20px;
+    }
+    
+    /* 左右行程列 */
+    .flight-app-itinerary-column {
+        flex: 1;
+        width: 50%;
+    }
+    
+    .flight-app-label {
+        display: flex;
+        align-items: center;
+        font-size: 14px;
+        font-weight: normal;
+        margin-bottom: 8px;
+    }
+    
+    .flight-app-label i {
+        margin-right: 5px;
+    }
+    
+    .flight-app-input-wrapper {
+        flex: 1;
+    }
+    
+    /* 输入框样式 */
+    .flight-app-textarea {
+        width: 100%;
+        height: 200px;
+        padding: 8px;
+        border: 1px solid #ccc;
+        border-radius: 0;
+        font-size: 14px;
+        resize: none;
+        display: block;
+    }
+    
+    .flight-app-input {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #ccc;
+        border-radius: 0;
+        font-size: 14px;
+        display: block;
+    }
+    
+    /* 底部按钮行 */
+    .flight-app-bottom-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 20px;
+    }
+    
+    .flight-app-radio-group {
+        display: flex;
+        align-items: center;
+        margin: 0;
+    }
+    
+    .flight-app-btn-container {
+        text-align: right;
+    }
+    
+    .flight-app-btn {
+        background-color: #f0f0f0;
+        border: 1px solid #ccc;
+        padding: 6px 15px;
+        border-radius: 0;
+        cursor: pointer;
+        font-size: 14px;
+    }
+
+    /* 响应式设计 */
+    @media (max-width: 600px) {
+        .flight-app-form-row {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        .flight-app-label {
+            width: 100%;
+            margin-bottom: 5px;
+        }
+        .flight-app-bottom-row {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        .flight-app-btn-container {
+            margin-top: 15px;
+            text-align: left;
+            width: 100%;
+        }
+        /* 响应式：小屏幕上恢复为上下排列 */
+        .flight-app-itinerary-container {
+            flex-direction: column;
+        }
+        .flight-app-itinerary-column {
+            width: 100%;
+        }
+    }
+
+    /* 行李和价格输入行 */
+    .flight-app-luggage-price-row {
+        display: flex;
+        justify-content: space-between;
+        gap: 20px;
+        margin-bottom: 15px;
+    }
+    
+    .flight-app-luggage-price-item {
+        flex: 1;
+        max-width: 48%;
+    }
+    
+    .flight-app-luggage-price-item .flight-app-label {
+        width: auto;
+        margin-right: 10px;
+        margin-bottom: 8px;
+    }
+
+    /* 行李选择容器 */
+    .flight-app-luggage-container {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+    }
+    
+    /* 下拉选择框样式 */
+    .flight-app-select {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #ccc;
+        border-radius: 0;
+        font-size: 14px;
+        background-color: #f8f9fa;
+    }
+    
+    .flight-app-select:focus {
+        outline: none;
+        border-color: #4299e1;
+    }
+
+    /* 输出框容器样式 */
+    .flight-app-output-container {
+        position: relative;
+        height: 100%;
+    }
+    
+    /* 复制按钮样式 */
+    .flight-app-copy-btn {
+        position: absolute;
+        top: 0;
+        right: 0;
+        background-color: #f8f9fa;
+        border: 1px solid #ccc;
+        border-top: none;
+        border-right: none;
+        padding: 4px 8px;
+        font-size: 12px;
+        cursor: pointer;
+        z-index: 10;
+    }
+    
+    .flight-app-copy-btn:hover {
+        background-color: #e9ecef;
+    }
+
+    /* 添加提示框样式 */
+    .copy-toast {
+        position: fixed;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        background-color: rgba(0, 0, 0, 0.8);
+        color: white;
+        padding: 12px 24px;
+        border-radius: 4px;
+        font-size: 14px;
+        z-index: 1000;
+        opacity: 0;
+        transition: all 0.3s ease;
+        pointer-events: none;  /* 防止提示框影响用户点击 */
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    }
+
+    .copy-toast.show {
+        opacity: 1;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="flight-app">
+    <div class="flight-app-container">
+        <h1 class="flight-app-title">机票行程转化</h1>
+        
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}" role="alert">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        
+        <form action="{{ url_for('flights_athina.itinerary_conversion') }}" method="post" id="conversionForm">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="flight-app-itinerary-container">
+                <div class="flight-app-itinerary-column">
+                    <label for="input_text" class="flight-app-label">
+                        <i class="fas fa-plane-departure"></i> 输入行程：
+                    </label>
+                    <div class="flight-app-input-wrapper">
+                        <textarea id="input_text" name="input_text" class="flight-app-textarea">{{ request.form.get('input_text', '') }}</textarea>
+                    </div>
+                </div>
+                
+                <div class="flight-app-itinerary-column">
+                    <label for="output_text" class="flight-app-label">
+                        <i class="fas fa-plane-arrival"></i> 输出行程：
+                    </label>
+                    <div class="flight-app-input-wrapper flight-app-output-container">
+                        <button type="button" class="flight-app-copy-btn" onclick="copyOutputText()">
+                            <i class="fas fa-copy"></i> 复制
+                        </button>
+                        <textarea id="output_text" name="output_text" class="flight-app-textarea">{{ output_text }}</textarea>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="flight-app-luggage-price-row">
+                <div class="flight-app-luggage-price-item">
+                    <label for="luggage" class="flight-app-label">
+                        <i class="fas fa-suitcase"></i> 行李：
+                    </label>
+                    <div class="flight-app-input-wrapper">
+                        <div class="flight-app-luggage-container">
+                            <select id="luggage_select" class="flight-app-select" onchange="updateLuggageInput(this.value)">
+                                <option value="">-- 选择常用行李 --</option>
+                                <option value="0kg">0kg</option>
+                                <option value="20kg">20kg</option>
+                                <option value="23kg">23kg</option>
+                                <option value="25kg">25kg</option>
+                                <option value="30kg">30kg</option>
+                                <option value="40kg">40kg</option>
+                                <option value="46kg(23kg*2)">46kg(23kg*2)</option>
+                            </select>
+                            <input type="text" id="luggage" name="luggage" class="flight-app-input" value="{{ request.form.get('luggage', '') }}" placeholder="自定义行李额度">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="flight-app-luggage-price-item">
+                    <label for="price" class="flight-app-label">
+                        <i class="fas fa-tag"></i> 价格：
+                    </label>
+                    <div class="flight-app-input-wrapper">
+                        <input type="text" id="price" name="price" class="flight-app-input" value="{{ request.form.get('price', '') }}">
+                    </div>
+                </div>
+            </div>
+            
+            <div class="flight-app-bottom-row">
+                <div class="flight-app-radio-group">
+                    <div class="flight-app-radio-item">
+                        <input type="radio" id="chinese" name="language" value="chinese" {% if not request.form.get('language') or request.form.get('language') == 'chinese' %}checked{% endif %}>
+                        <label for="chinese">中文行程</label>
+                    </div>
+                    <div class="flight-app-radio-item">
+                        <input type="radio" id="english" name="language" value="english" {% if request.form.get('language') == 'english' %}checked{% endif %}>
+                        <label for="english">English itinerary</label>
+                    </div>
+                </div>
+                
+                <div class="flight-app-btn-container">
+                    <input type="submit" value="开始转换" class="flight-app-btn">
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- 添加提示框元素 -->
+<div id="copyToast" class="copy-toast">已复制到剪贴板</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // 添加表单提交处理
+        const form = document.getElementById('conversionForm');
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            // 获取表单数据
+            const formData = new FormData(form);
+            
+            // 发送 AJAX 请求
+            console.log('Sending request to:', form.action);
+            console.log('Form data:', Object.fromEntries(formData));
+            
+            fetch(form.action, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => {
+                console.log('Response status:', response.status);
+                console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+                
+                if (response.redirected) {
+                    window.location.href = response.url;
+                    return;
+                }
+                
+                // 检查响应状态
+                if (!response.ok) {
+                    console.log('Response not ok, trying to parse error JSON...');
+                    // 如果是错误状态，尝试解析JSON错误信息
+                    return response.json().catch(() => {
+                        // 如果无法解析JSON，抛出通用错误
+                        throw new Error(`服务器错误 (${response.status}): ${response.statusText}`);
+                    });
+                }
+                
+                // 检查响应的 Content-Type
+                const contentType = response.headers.get('content-type');
+                console.log('Content-Type:', contentType);
+                if (contentType && contentType.includes('application/json')) {
+                    return response.json();
+                } else {
+                    // 如果不是 JSON，返回错误信息
+                    throw new Error('服务器返回了非预期的响应格式');
+                }
+            })
+            .then(data => {
+                console.log('Received data:', data);
+                if (data) {
+                    if (data.error) {
+                        console.log('Error in response:', data.error);
+                        // 显示错误消息
+                        alert(data.error);
+                        // 如果是因为 CSRF token 过期，刷新页面
+                        if (data.error.includes('CSRF')) {
+                            window.location.reload();
+                        }
+                    } else if (data.output_text) {
+                        console.log('Success, updating output text');
+                        // 更新输出文本
+                        document.getElementById('output_text').value = data.output_text;
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                // 显示更友好的错误消息
+                let errorMessage = '提交失败：' + error.message;
+                if (error.message.includes('500')) {
+                    errorMessage = '服务器内部错误，请稍后重试。如果问题持续存在，请联系管理员。';
+                } else if (error.message.includes('CSRF')) {
+                    errorMessage = '会话已过期，页面将自动刷新。';
+                    setTimeout(() => window.location.reload(), 2000);
+                }
+                alert(errorMessage);
+            });
+        });
+
+        var outputTextarea = document.getElementById('output_text');
+        if(outputTextarea) {
+            outputTextarea.addEventListener('focus', function() {
+                this.select();
+            });
+        }
+        
+        // 初始化行李选择下拉框的值
+        var luggageInput = document.getElementById('luggage');
+        var luggageSelect = document.getElementById('luggage_select');
+        
+        if(luggageInput && luggageSelect) {
+            // 如果输入框有值，尝试在下拉框中匹配
+            var luggageValue = luggageInput.value.trim();
+            if(luggageValue) {
+                for(var i = 0; i < luggageSelect.options.length; i++) {
+                    if(luggageSelect.options[i].value === luggageValue) {
+                        luggageSelect.selectedIndex = i;
+                        break;
+                    }
+                }
+            }
+        }
+    });
+    
+    function updateLuggageInput(value) {
+        document.getElementById('luggage').value = value;
+    }
+    
+    function copyOutputText() {
+        var outputTextarea = document.getElementById('output_text');
+        var toast = document.getElementById('copyToast');
+        
+        outputTextarea.select();
+        document.execCommand('copy');
+        
+        // 显示提示框
+        toast.classList.add('show');
+        
+        // 500毫秒后隐藏提示框
+        setTimeout(() => {
+            toast.classList.remove('show');
+        }, 500);
+    }
+</script>
+{% endblock %}

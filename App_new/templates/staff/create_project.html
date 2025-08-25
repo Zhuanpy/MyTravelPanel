@@ -1,0 +1,257 @@
+{% extends "base.html" %}
+
+{% block title %}创建项目 - MyTravelPanel{% endblock %}
+
+{% block page_title %}创建新项目{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{{ url_for('business_projects.list.list_projects') }}">项目管理</a></li>
+<li class="breadcrumb-item active">创建项目</li>
+{% endblock %}
+
+{% block page_actions %}
+<a href="{{ url_for('business_projects.list.list_projects') }}" class="btn btn-outline-secondary">
+    <i class="fas fa-arrow-left me-1"></i>返回列表
+</a>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-plus-circle me-2"></i>项目信息
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" id="createProjectForm">
+                    <div class="row">
+                        <!-- 项目基本信息 -->
+                        <div class="col-md-6 mb-3">
+                            <label for="name" class="form-label">项目名称 <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="name" name="name" required
+                                   placeholder="请输入项目名称">
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="type" class="form-label">项目类型 <span class="text-danger">*</span></label>
+                            <select class="form-select" id="type" name="type" required>
+                                <option value="">请选择项目类型</option>
+                                <option value="visa">签证服务</option>
+                                <option value="tour">旅游配套</option>
+                                <option value="flight">机票服务</option>
+                                <option value="business">商务考察</option>
+                                <option value="other">其他服务</option>
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="client" class="form-label">客户名称 <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="client" name="client" required
+                                   placeholder="请输入客户名称">
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="budget" class="form-label">预算金额</label>
+                            <div class="input-group">
+                                <span class="input-group-text">¥</span>
+                                <input type="number" class="form-control" id="budget" name="budget" 
+                                       step="0.01" min="0" placeholder="0.00">
+                            </div>
+                        </div>
+                        
+                        <div class="col-12 mb-3">
+                            <label for="description" class="form-label">项目描述</label>
+                            <textarea class="form-control" id="description" name="description" rows="4"
+                                      placeholder="请详细描述项目内容、目标和要求..."></textarea>
+                        </div>
+                    </div>
+                    
+                    <hr>
+                    
+                    <div class="row">
+                        <!-- 客户联系信息 -->
+                        <div class="col-md-6 mb-3">
+                            <label for="contact" class="form-label">联系人 <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="contact" name="contact" required
+                                   placeholder="请输入联系人姓名">
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="contact_phone" class="form-label">联系电话</label>
+                            <input type="tel" class="form-control" id="contact_phone" name="contact_phone"
+                                   placeholder="请输入联系电话">
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="contact_email" class="form-label">联系邮箱</label>
+                            <input type="email" class="form-control" id="contact_email" name="contact_email"
+                                   placeholder="请输入联系邮箱">
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="expected_start" class="form-label">预计开始时间</label>
+                            <input type="date" class="form-control" id="expected_start" name="expected_start">
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="expected_end" class="form-label">预计结束时间</label>
+                            <input type="date" class="form-control" id="expected_end" name="expected_end">
+                        </div>
+                    </div>
+                    
+                    <hr>
+                    
+                    <div class="row">
+                        <!-- 项目设置 -->
+                        <div class="col-md-6 mb-3">
+                            <label for="priority" class="form-label">优先级</label>
+                            <select class="form-select" id="priority" name="priority">
+                                <option value="low">低优先级</option>
+                                <option value="medium" selected>中优先级</option>
+                                <option value="high">高优先级</option>
+                                <option value="urgent">紧急</option>
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="status" class="form-label">初始状态</label>
+                            <select class="form-select" id="status" name="status">
+                                <option value="pending" selected>待开始</option>
+                                <option value="active">进行中</option>
+                                <option value="planning">规划中</option>
+                            </select>
+                        </div>
+                        
+                        <div class="col-12 mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="notify_client" name="notify_client">
+                                <label class="form-check-label" for="notify_client">
+                                    创建完成后通知客户
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <button type="button" class="btn btn-outline-secondary me-md-2" onclick="resetForm()">
+                            <i class="fas fa-undo me-1"></i>重置
+                        </button>
+                        <button type="submit" class="btn btn-success">
+                            <i class="fas fa-save me-1"></i>创建项目
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <!-- 帮助信息 -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-question-circle me-2"></i>创建项目说明
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6 class="text-primary">必填字段</h6>
+                        <ul class="small text-muted">
+                            <li>项目名称：简洁明了地描述项目内容</li>
+                            <li>项目类型：选择合适的业务分类</li>
+                            <li>客户名称：填写客户公司或个人名称</li>
+                            <li>联系人：项目的主要联系人</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <h6 class="text-success">建议填写</h6>
+                        <ul class="small text-muted">
+                            <li>项目描述：详细说明项目需求和目标</li>
+                            <li>预算金额：预估项目总成本</li>
+                            <li>时间安排：预计开始和结束时间</li>
+                            <li>联系方式：便于后续沟通</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// 表单验证
+document.getElementById('createProjectForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    // 基础验证
+    const name = document.getElementById('name').value.trim();
+    const type = document.getElementById('type').value;
+    const client = document.getElementById('client').value.trim();
+    const contact = document.getElementById('contact').value.trim();
+    
+    if (!name) {
+        alert('请输入项目名称');
+        document.getElementById('name').focus();
+        return;
+    }
+    
+    if (!type) {
+        alert('请选择项目类型');
+        document.getElementById('type').focus();
+        return;
+    }
+    
+    if (!client) {
+        alert('请输入客户名称');
+        document.getElementById('client').focus();
+        return;
+    }
+    
+    if (!contact) {
+        alert('请输入联系人');
+        document.getElementById('contact').focus();
+        return;
+    }
+    
+    // 验证通过，提交表单
+    this.submit();
+});
+
+// 重置表单
+function resetForm() {
+    if (confirm('确定要重置表单吗？所有已填写的内容将丢失。')) {
+        document.getElementById('createProjectForm').reset();
+        // 重置日期字段
+        document.getElementById('expected_start').value = '';
+        document.getElementById('expected_end').value = '';
+    }
+}
+
+// 自动设置结束时间（开始时间后30天）
+document.getElementById('expected_start').addEventListener('change', function() {
+    const startDate = this.value;
+    if (startDate) {
+        const endDate = new Date(startDate);
+        endDate.setDate(endDate.getDate() + 30);
+        document.getElementById('expected_end').value = endDate.toISOString().split('T')[0];
+    }
+});
+
+// 页面加载完成后的初始化
+document.addEventListener('DOMContentLoaded', function() {
+    // 设置默认日期为今天
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('expected_start').value = today;
+    
+    // 自动设置结束日期
+    const endDate = new Date();
+    endDate.setDate(endDate.getDate() + 30);
+    document.getElementById('expected_end').value = endDate.toISOString().split('T')[0];
+    
+    console.log('创建项目页面加载完成');
+});
+</script>
+{% endblock %} 

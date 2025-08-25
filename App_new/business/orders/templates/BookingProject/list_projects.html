@@ -1,0 +1,568 @@
+{% extends "staff_base.html" %}
+
+{% block title %}项目列表 - MyTravelPanel{% endblock %}
+
+{% block page_title %}项目列表{% endblock %}
+
+{% block extra_css %}
+<style>
+    .project-link {
+        color: #007bff !important;
+        transition: color 0.2s ease;
+    }
+    
+    .project-link:hover {
+        color: #0056b3 !important;
+        text-decoration: underline !important;
+    }
+    
+    .project-link:active {
+        color: #004085 !important;
+    }
+    
+    /* Project status dropdown styling */
+    .project-status-select {
+        min-width: 80px;
+        font-size: 0.875rem;
+        padding: 0.25rem 0.5rem;
+        border-radius: 0.25rem;
+        border: 1px solid #ced4da;
+        background-color: #fff;
+        transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+    }
+    
+    .project-status-select:focus {
+        border-color: #80bdff;
+        outline: 0;
+        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+    }
+    
+    .project-status-select:hover {
+        border-color: #80bdff;
+    }
+    
+    /* Toast container styling */
+    .toast-container {
+        z-index: 9999;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>项目列表</h2>
+                <div>
+                    <a href="{{ url_for('projects.create_header') }}" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> 新建项目
+                    </a>
+                </div>
+            </div>
+
+            <!-- 筛选器 -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <form method="get" class="row g-3">
+                        <!-- 第一行筛选器 -->
+                        <div class="col-md-2">
+                            <label for="status" class="form-label">状态筛选</label>
+                            <select class="form-select" id="status" name="status">
+                                <option value="">全部状态</option>
+                                <option value="draft" {% if request.args.get('status') == 'draft' %}selected{% endif %}>草稿</option>
+                                <option value="active" {% if request.args.get('status') == 'active' %}selected{% endif %}>进行中</option>
+                                <option value="completed" {% if request.args.get('status') == 'completed' %}selected{% endif %}>已完成</option>
+                                <option value="cancelled" {% if request.args.get('status') == 'cancelled' %}selected{% endif %}>已取消</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label for="search" class="form-label">关键词搜索</label>
+                            <input type="text" class="form-control" id="search" name="search" 
+                                   placeholder="项目编号或描述" value="{{ request.args.get('search', '') }}">
+                        </div>
+                        <div class="col-md-2">
+                            <label for="company" class="form-label">客户公司</label>
+                            <input type="text" class="form-control" id="company" name="company" 
+                                   placeholder="公司名称" value="{{ request.args.get('company', '') }}">
+                        </div>
+                        <div class="col-md-2">
+                            <label for="leader" class="form-label">负责人</label>
+                            <input type="text" class="form-control" id="leader" name="leader" 
+                                   placeholder="负责人姓名" value="{{ request.args.get('leader', '') }}">
+                        </div>
+                        <div class="col-md-2">
+                            <label for="contact" class="form-label">联系人</label>
+                            <input type="text" class="form-control" id="contact" name="contact" 
+                                   placeholder="联系人姓名" value="{{ request.args.get('contact', '') }}">
+                        </div>
+                        <div class="col-md-2">
+                            <label for="staff_name" class="form-label">经办人姓名</label>
+                            <input type="text" class="form-control" id="staff_name" name="staff_name" 
+                                   placeholder="经办人姓名" value="{{ request.args.get('staff_name', '') }}">
+                        </div>
+                        <div class="col-md-2">
+                            <label for="date_from" class="form-label">创建日期从</label>
+                            <input type="date" class="form-control" id="date_from" name="date_from" 
+                                   value="{{ request.args.get('date_from', '') }}">
+                        </div>
+                        <div class="col-md-2">
+                            <label for="date_to" class="form-label">创建日期至</label>
+                            <input type="date" class="form-control" id="date_to" name="date_to" 
+                                   value="{{ request.args.get('date_to', '') }}">
+                        </div>
+                        
+                        <!-- 第二行筛选器 -->
+                        <div class="col-md-2">
+                            <label for="selling_min" class="form-label">总售价最小值</label>
+                            <input type="number" step="0.01" class="form-control" id="selling_min" name="selling_min" 
+                                   placeholder="0.00" value="{{ request.args.get('selling_min', '') }}">
+                        </div>
+                        <div class="col-md-2">
+                            <label for="selling_max" class="form-label">总售价最大值</label>
+                            <input type="number" step="0.01" class="form-control" id="selling_max" name="selling_max" 
+                                   placeholder="999999.99" value="{{ request.args.get('selling_max', '') }}">
+                        </div>
+                        <div class="col-md-2">
+                            <label for="profit_min" class="form-label">总利润最小值</label>
+                            <input type="number" step="0.01" class="form-control" id="profit_min" name="profit_min" 
+                                   placeholder="-999999.99" value="{{ request.args.get('profit_min', '') }}">
+                        </div>
+                        <div class="col-md-2">
+                            <label for="profit_max" class="form-label">总利润最大值</label>
+                            <input type="number" step="0.01" class="form-control" id="profit_max" name="profit_max" 
+                                   placeholder="999999.99" value="{{ request.args.get('profit_max', '') }}">
+                        </div>
+                        <div class="col-md-2">
+                            <label for="balance_min" class="form-label">Balance最小值</label>
+                            <input type="number" step="0.01" class="form-control" id="balance_min" name="balance_min" 
+                                   placeholder="-999999.99" value="{{ request.args.get('balance_min', '') }}">
+                        </div>
+                        <div class="col-md-2">
+                            <label for="balance_max" class="form-label">Balance最大值</label>
+                            <input type="number" step="0.01" class="form-control" id="balance_max" name="balance_max" 
+                                   placeholder="999999.99" value="{{ request.args.get('balance_max', '') }}">
+                        </div>
+                        <div class="col-md-2">
+                            <label for="sort_by" class="form-label">排序方式</label>
+                            <select class="form-select" id="sort_by" name="sort_by">
+                                <option value="created_at_desc" {% if request.args.get('sort_by') == 'created_at_desc' %}selected{% endif %}>创建时间(最新)</option>
+                                <option value="created_at_asc" {% if request.args.get('sort_by') == 'created_at_asc' %}selected{% endif %}>创建时间(最早)</option>
+                                <option value="updated_at_desc" {% if request.args.get('sort_by') == 'updated_at_desc' %}selected{% endif %}>更新时间(最新)</option>
+                                <option value="selling_price_desc" {% if request.args.get('sort_by') == 'selling_price_desc' %}selected{% endif %}>总售价(高到低)</option>
+                                <option value="selling_price_asc" {% if request.args.get('sort_by') == 'selling_price_asc' %}selected{% endif %}>总售价(低到高)</option>
+                                <option value="profit_desc" {% if request.args.get('sort_by') == 'profit_desc' %}selected{% endif %}>总利润(高到低)</option>
+                                <option value="profit_asc" {% if request.args.get('sort_by') == 'profit_asc' %}selected{% endif %}>总利润(低到高)</option>
+                                <option value="balance_desc" {% if request.args.get('sort_by') == 'balance_desc' %}selected{% endif %}>Balance(高到低)</option>
+                                <option value="balance_asc" {% if request.args.get('sort_by') == 'balance_asc' %}selected{% endif %}>Balance(低到高)</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">&nbsp;</label>
+                            <div class="d-flex gap-2">
+                                <button type="submit" class="btn btn-outline-primary flex-fill">
+                                    <i class="fas fa-search"></i> 筛选
+                                </button>
+                                <a href="{{ url_for('projects.list_projects') }}" class="btn btn-outline-secondary">
+                                    <i class="fas fa-undo"></i> 重置
+                                </a>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- 快速筛选按钮 -->
+            <div class="card mb-3">
+                <div class="card-body">
+                    <div class="d-flex flex-wrap gap-2">
+                        <button type="button" class="btn btn-outline-primary btn-sm quick-filter" data-filter="status=active">
+                            <i class="fas fa-play-circle"></i> 进行中项目
+                        </button>
+                        <button type="button" class="btn btn-outline-success btn-sm quick-filter" data-filter="status=completed">
+                            <i class="fas fa-check-circle"></i> 已完成项目
+                        </button>
+                        <button type="button" class="btn btn-outline-warning btn-sm quick-filter" data-filter="status=draft">
+                            <i class="fas fa-edit"></i> 草稿项目
+                        </button>
+                        <button type="button" class="btn btn-outline-info btn-sm quick-filter" data-filter="profit_min=0">
+                            <i class="fas fa-plus-circle"></i> 盈利项目
+                        </button>
+                        <button type="button" class="btn btn-outline-danger btn-sm quick-filter" data-filter="profit_max=-1">
+                            <i class="fas fa-minus-circle"></i> 亏损项目
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm quick-filter" data-filter="selling_min=1000">
+                            <i class="fas fa-dollar-sign"></i> 大额项目(>1000)
+                        </button>
+                        <button type="button" class="btn btn-outline-warning btn-sm quick-filter" data-filter="balance_min=1">
+                            <i class="fas fa-exclamation-triangle"></i> 未付款项目
+                        </button>
+                        <button type="button" class="btn btn-outline-success btn-sm quick-filter" data-filter="balance_max=0">
+                            <i class="fas fa-check-double"></i> 已付款项目
+                        </button>
+                        <button type="button" class="btn btn-outline-dark btn-sm" id="clear-all-filters">
+                            <i class="fas fa-times"></i> 清除所有筛选
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- CSRF Token for delete operations -->
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <!-- 项目列表 -->
+            <div class="card">
+                <div class="card-body">
+                    {% if projects %}
+                        <!-- 筛选结果统计 -->
+                        <div class="alert alert-info mb-3">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <i class="fas fa-info-circle"></i>
+                                    显示 <strong>{{ projects|length }}</strong> 个项目
+                                    {% if pagination and pagination.total > pagination.per_page %}
+                                        <span class="text-muted">(第 {{ pagination.page }} 页，共 {{ pagination.total }} 个项目)</span>
+                                    {% endif %}
+                                    {% if request.args %}
+                                        <span class="text-muted">(已应用筛选条件)</span>
+                                    {% endif %}
+                                </div>
+                                <div class="text-muted small">
+                                    {% if request.args.get('status') %}
+                                        <span class="badge bg-primary me-1">状态: {{ request.args.get('status') }}</span>
+                                    {% endif %}
+                                    {% if request.args.get('search') %}
+                                        <span class="badge bg-info me-1">搜索: {{ request.args.get('search') }}</span>
+                                    {% endif %}
+                                    {% if request.args.get('company') %}
+                                        <span class="badge bg-secondary me-1">公司: {{ request.args.get('company') }}</span>
+                                    {% endif %}
+                                    {% if request.args.get('leader') %}
+                                        <span class="badge bg-warning me-1">负责人: {{ request.args.get('leader') }}</span>
+                                    {% endif %}
+                                    {% if request.args.get('contact') %}
+                                        <span class="badge bg-info me-1">联系人: {{ request.args.get('contact') }}</span>
+                                    {% endif %}
+                                    {% if request.args.get('staff_name') %}
+                                        <span class="badge bg-dark me-1">经办人: {{ request.args.get('staff_name') }}</span>
+                                    {% endif %}
+                                    {% if request.args.get('selling_min') or request.args.get('selling_max') %}
+                                        <span class="badge bg-success me-1">售价范围</span>
+                                    {% endif %}
+                                    {% if request.args.get('profit_min') or request.args.get('profit_max') %}
+                                        <span class="badge bg-danger me-1">利润范围</span>
+                                    {% endif %}
+                                    {% if request.args.get('balance_min') or request.args.get('balance_max') %}
+                                        <span class="badge bg-warning me-1">Balance范围</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="table-responsive">
+                            <table class="table table-hover" style="table-layout: fixed; width: 100%;">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th style="width: 120px;">项目编号</th>
+                                        <th style="width: 200px;">项目描述</th>
+                                        <th style="width: 150px;">客户公司</th>
+                                        <th style="width: 100px;">负责人</th>
+                                        <th style="width: 100px;">联系人</th>
+                                        <th style="width: 100px;">经办人姓名</th>
+                                        <th style="width: 80px;">状态</th>
+                                        <th style="width: 120px;">总售价 (SGD)</th>
+                                        <th style="width: 120px;">总成本 (SGD)</th>
+                                        <th style="width: 120px;">总利润 (SGD)</th>
+                                        <th style="width: 120px;">Balance (SGD)</th>
+                                        <th style="width: 140px;">创建时间</th>
+                                        <th style="width: 140px;">最后更新</th>
+                                        <th style="width: 200px;">操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for project in projects %}
+                                    <tr data-project-id="{{ project.id }}">
+                                        <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                            <a href="{{ url_for('projects.header_detail', header_id=project.id) }}" 
+                                               class="text-decoration-none fw-bold project-link" 
+                                               title="点击查看项目详情">
+                                                {{ project.hid }}
+                                            </a>
+                                        </td>
+                                        <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{% if project.desc %}{{ project.desc }}{% else %}无描述{% endif %}">
+                                            {% if project.desc %}
+                                                {{ project.desc }}
+                                            {% else %}
+                                                <span class="text-muted">无描述</span>
+                                            {% endif %}
+                                        </td>
+                                        <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{% if project.company %}{{ project.company.company_name }}{% else %}未指定{% endif %}">
+                                            {% if project.company %}
+                                                {{ project.company.company_name }}
+                                            {% else %}
+                                                <span class="text-muted">未指定</span>
+                                            {% endif %}
+                                        </td>
+                                        <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{% if project.leader_name %}{{ project.leader_name }}{% else %}未设置{% endif %}">
+                                            {% if project.leader_name %}
+                                                {{ project.leader_name }}
+                                            {% else %}
+                                                <span class="text-muted">未设置</span>
+                                            {% endif %}
+                                        </td>
+                                        <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{% if project.contact %}{{ project.contact }}{% else %}N/A{% endif %}">
+                                            {% if project.contact %}
+                                                {{ project.contact }}
+                                            {% else %}
+                                                <span class="text-muted">N/A</span>
+                                            {% endif %}
+                                        </td>
+                                        <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{% if project.staff_name %}{{ project.staff_name }}{% else %}未设置{% endif %}">
+                                            {% if project.staff_name %}
+                                                {{ project.staff_name }}
+                                            {% else %}
+                                                <span class="text-muted">未设置</span>
+                                            {% endif %}
+                                        </td>
+                                        <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                            <select name="project_status" class="form-select form-select-sm project-status-select" 
+                                                    data-project-id="{{ project.id }}" 
+                                                    data-current-status="{{ project.status }}"
+                                                    onchange="updateProjectStatus(this)">
+                                                <option value="draft" {% if project.status == 'draft' %}selected{% endif %}>草稿</option>
+                                                <option value="active" {% if project.status == 'active' %}selected{% endif %}>进行中</option>
+                                                <option value="completed" {% if project.status == 'completed' %}selected{% endif %}>已完成</option>
+                                                <option value="cancelled" {% if project.status == 'cancelled' %}selected{% endif %}>已取消</option>
+                                            </select>
+                                        </td>
+                                        <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                            <span class="text-success fw-bold">
+                                                ${{ "%.2f"|format(project_stats[project.id]['total_selling_price']) }}
+                                            </span>
+                                        </td>
+                                        <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                            <span class="text-danger fw-bold">
+                                                ${{ "%.2f"|format(project_stats[project.id]['total_cost_price']) }}
+                                            </span>
+                                        </td>
+                                        <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                            {% set profit = project_stats[project.id]['total_profit'] %}
+                                            {% if profit > 0 %}
+                                                <span class="text-success fw-bold">${{ "%.2f"|format(profit) }}</span>
+                                            {% elif profit < 0 %}
+                                                <span class="text-danger fw-bold">${{ "%.2f"|format(profit) }}</span>
+                                            {% else %}
+                                                <span class="text-muted fw-bold">$0.00</span>
+                                            {% endif %}
+                                        </td>
+                                        <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                            {% if project_stats[project.id] and 'balance' in project_stats[project.id] %}
+                                                {% set balance = project_stats[project.id]['balance'] %}
+                                                {% if balance > 0 %}
+                                                    <span class="text-warning fw-bold">${{ "%.2f"|format(balance) }}</span>
+                                                {% elif balance < 0 %}
+                                                    <span class="text-success fw-bold">${{ "%.2f"|format(balance) }}</span>
+                                                {% else %}
+                                                    <span class="text-muted fw-bold">$0.00</span>
+                                                {% endif %}
+                                            {% else %}
+                                                <span class="text-muted fw-bold">N/A</span>
+                                            {% endif %}
+                                        </td>
+                                        <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                            {{ project.created_at.strftime('%Y-%m-%d %H:%M') }}
+                                        </td>
+                                        <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                            {{ project.updated_at.strftime('%Y-%m-%d %H:%M') }}
+                                        </td>
+                                        <td>
+                                            <div class="d-flex gap-2">
+                                                <a href="{{ url_for('projects.header_detail', header_id=project.id) }}" 
+                                                   class="btn btn-sm btn-outline-primary" 
+                                                   title="查看详情">
+                                                    <i class="fas fa-eye"></i>
+                                                </a>
+                                                <a href="{{ url_for('projects.edit_header', header_id=project.id) }}" 
+                                                   class="btn btn-sm btn-outline-secondary" 
+                                                   title="编辑">
+                                                    <i class="fas fa-edit"></i>
+                                                </a>
+                                                {% if not project_stats[project.id]['has_eo'] and not project_stats[project.id]['has_receipt'] %}
+                                                <button class="btn btn-sm btn-outline-danger delete-project" 
+                                                        data-project-id="{{ project.id }}"
+                                                        title="删除">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                                {% endif %}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        {% if pagination and pagination.pages > 1 %}
+                        <div class="d-flex justify-content-center mt-4">
+                            <nav aria-label="Page navigation">
+                                <ul class="pagination">
+                                    {% if pagination.has_prev %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="{{ url_for('projects.list_projects', page=pagination.prev_num, **request.args|dict_except('page')) }}" aria-label="Previous">
+                                            <span aria-hidden="true">&laquo;</span>
+                                        </a>
+                                    </li>
+                                    {% endif %}
+                                    
+                                    {% for page_num in pagination.iter_pages() %}
+                                        {% if page_num %}
+                                            {% if page_num == pagination.page %}
+                                            <li class="page-item active"><a class="page-link" href="#">{{ page_num }}</a></li>
+                                            {% else %}
+                                            <li class="page-item"><a class="page-link" href="{{ url_for('projects.list_projects', page=page_num, **request.args|dict_except('page')) }}">{{ page_num }}</a></li>
+                                            {% endif %}
+                                        {% else %}
+                                            <li class="page-item disabled"><span class="page-link">...</span></li>
+                                        {% endif %}
+                                    {% endfor %}
+                                    
+                                    {% if pagination.has_next %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="{{ url_for('projects.list_projects', page=pagination.next_num, **request.args|dict_except('page')) }}" aria-label="Next">
+                                            <span aria-hidden="true">&raquo;</span>
+                                        </a>
+                                    </li>
+                                    {% endif %}
+                                </ul>
+                            </nav>
+                        </div>
+                        {% endif %}
+                    {% else %}
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle"></i> 没有找到符合条件的项目
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    // Quick filter buttons
+    document.querySelectorAll('.quick-filter').forEach(function(btn){
+        btn.addEventListener('click', function(){
+            const filter = this.dataset.filter || '';
+            const [key, value] = filter.split('=');
+            if (key && value !== undefined) {
+                window.location.href = "{{ url_for('projects.list_projects') }}?" + key + "=" + encodeURIComponent(value);
+            }
+        });
+    });
+
+    // Clear all filters
+    const clearBtn = document.getElementById('clear-all-filters');
+    if (clearBtn) {
+        clearBtn.addEventListener('click', function(){
+            window.location.href = "{{ url_for('projects.list_projects') }}";
+        });
+    }
+
+    // Delete project handler
+    document.querySelectorAll('.delete-project').forEach(function(btn){
+        btn.addEventListener('click', function(){
+            const projectId = this.dataset.projectId;
+            if (projectId && confirm('确定要删除这个项目吗？此操作不可撤销。')) {
+                deleteProject(projectId);
+            }
+        });
+    });
+});
+
+// Function to update project status via dropdown (vanilla fetch)
+function updateProjectStatus(select) {
+    const projectId = select.dataset.projectId;
+    const newStatus = select.value;
+    const csrfTokenEl = document.querySelector('input[name="csrf_token"]');
+    const csrfToken = csrfTokenEl ? csrfTokenEl.value : '';
+
+    const originalValue = select.dataset.currentStatus;
+
+    fetch("{{ url_for('projects.update_header_status') }}", {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ project_id: projectId, status: newStatus, csrf_token: csrfToken })
+    })
+    .then(res => res.json())
+    .then(response => {
+        if (response.success) {
+            select.dataset.currentStatus = newStatus;
+            showToast('success', '状态更新成功！');
+        } else {
+            select.value = originalValue;
+            showToast('error', '更新失败：' + response.message);
+        }
+    })
+    .catch(err => {
+        select.value = originalValue;
+        showToast('error', '更新失败：' + err);
+    });
+}
+
+// Toast (bootstrap 5)
+function showToast(type, message) {
+    let toastContainer = document.querySelector('.toast-container');
+    if (!toastContainer) {
+        toastContainer = document.createElement('div');
+        toastContainer.className = 'toast-container position-fixed top-0 end-0 p-3';
+        toastContainer.style.zIndex = '9999';
+        document.body.appendChild(toastContainer);
+    }
+
+    const toast = document.createElement('div');
+    toast.className = `toast align-items-center text-white bg-${type === 'success' ? 'success' : 'danger'} border-0`;
+    toast.setAttribute('role', 'alert');
+    toast.setAttribute('aria-live', 'assertive');
+    toast.setAttribute('aria-atomic', 'true');
+    toast.innerHTML = `
+        <div class="d-flex">
+            <div class="toast-body">${message}</div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>`;
+
+    toastContainer.appendChild(toast);
+    const bsToast = new bootstrap.Toast(toast);
+    bsToast.show();
+    toast.addEventListener('hidden.bs.toast', function(){ toast.remove(); });
+}
+
+// Delete project (vanilla fetch)
+function deleteProject(projectId) {
+    const csrfTokenEl = document.querySelector('input[name="csrf_token"]');
+    const csrfToken = csrfTokenEl ? csrfTokenEl.value : '';
+
+    fetch(`/projects/header/delete/${projectId}`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': csrfToken,
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    }).then(res => res.json()).then(response => {
+        if (response.success) {
+            const row = document.querySelector(`tr[data-project-id="${projectId}"]`);
+            if (row) row.remove();
+            showToast('success', '项目删除成功！');
+        } else {
+            showToast('error', '删除失败：' + (response.message || ''));
+        }
+    }).catch(err => {
+        showToast('error', '删除失败：' + err);
+    });
+}
+</script>
+{% endblock %}
+{% endblock %}

@@ -1,0 +1,20 @@
+{% extends "shared/staff_base.html" %}
+{% block title %}Select Ref Type - MyTravelPanel{% endblock %}
+
+{% block page_title %}Select Ref Type{% endblock %}
+{% block content %}
+<div class="container mt-4">
+    <h2>请选择要创建的业务类型</h2>
+    <form method="get" action="{{ url_for('business_projects.project_ref.create_ref') }}">
+        <div class="row">
+            {% for type in ref_types %}
+            <div class="col-md-3 mb-3">
+                <button type="submit" name="ref_type" value="{{ type.value }}" class="btn btn-primary btn-block">
+                    {{ type.label }}
+                </button>
+            </div>
+            {% endfor %}
+        </div>
+    </form>
+</div>
+{% endblock %} 

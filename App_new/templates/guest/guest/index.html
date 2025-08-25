@@ -1,0 +1,218 @@
+{% extends "guest/base.html" %}
+
+{% block title %}MyTravelPanel - 专业旅游服务平台{% endblock %}
+
+{% block content %}
+<!-- 英雄区域 -->
+<section class="hero-section text-center">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <h1 class="fade-in-up display-4 fw-bold mb-4">专业的旅游服务平台</h1>
+                <p class="fade-in-up lead mb-4">为您提供签证办理、旅游配套等全方位服务，让您的旅行更加轻松愉快</p>
+                <div class="fade-in-up">
+                    <a href="{{ url_for('guest.visa_services') }}" class="btn btn-light btn-lg me-3 mb-3">
+                        <i class="fas fa-passport"></i> 签证服务
+                    </a>
+                    <a href="{{ url_for('guest.tour_packages') }}" class="btn btn-outline-light btn-lg mb-3">
+                        <i class="fas fa-map-marked-alt"></i> 旅游配套
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- 特色服务 -->
+<section class="py-5">
+    <div class="container">
+        <div class="row text-center mb-5">
+            <div class="col-12">
+                <h2 class="fw-bold mb-3">我们的特色服务</h2>
+                <p class="text-muted lead">专业团队，优质服务，让您的旅行无忧</p>
+            </div>
+        </div>
+        
+        <div class="row g-4">
+            <div class="col-md-6 col-lg-3">
+                <div class="feature-card fade-in-up stagger-1">
+                    <i class="fas fa-passport"></i>
+                    <h4>签证办理</h4>
+                    <p class="text-muted">专业签证代办服务，覆盖全球多个国家，快速高效，成功率高。</p>
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-3">
+                <div class="feature-card fade-in-up stagger-2">
+                    <i class="fas fa-plane"></i>
+                    <h4>旅游配套</h4>
+                    <p class="text-muted">精心设计的旅游路线，包含机票、酒店、景点门票等一站式服务。</p>
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-3">
+                <div class="feature-card fade-in-up stagger-3">
+                    <i class="fas fa-headset"></i>
+                    <h4>专业咨询</h4>
+                    <p class="text-muted">资深旅游顾问提供一对一咨询服务，为您量身定制旅行方案。</p>
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-3">
+                <div class="feature-card fade-in-up stagger-4">
+                    <i class="fas fa-shield-alt"></i>
+                    <h4>安全保障</h4>
+                    <p class="text-muted">完善的保险体系和应急处理机制，确保您的旅行安全无忧。</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- 热门目的地 -->
+<section class="py-5 bg-light">
+    <div class="container">
+        <div class="row text-center mb-5">
+            <div class="col-12">
+                <h2 class="fw-bold mb-3">热门旅游目的地</h2>
+                <p class="text-muted lead">探索世界各地的精彩之旅</p>
+            </div>
+        </div>
+        
+        <div class="row g-4">
+            <div class="col-md-4">
+                <div class="service-card">
+                    <div class="position-relative">
+                        <div style="height: 200px; background: linear-gradient(45deg, #FF6B6B, #4ECDC4); display: flex; align-items: center; justify-content: center;">
+                            <i class="fas fa-city text-white" style="font-size: 4rem;"></i>
+                        </div>
+                        <div class="position-absolute top-0 end-0 m-3">
+                            <span class="badge bg-warning text-dark">热门</span>
+                        </div>
+                    </div>
+                    <div class="service-card-body">
+                        <h5 class="card-title">新马泰三国游</h5>
+                        <p class="card-text text-muted">体验东南亚三国的独特魅力，现代都市与传统文化的完美融合。</p>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="text-primary fw-bold">SGD 1,280起</span>
+                            <small class="text-muted">7天6夜</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="service-card">
+                    <div class="position-relative">
+                        <div style="height: 200px; background: linear-gradient(45deg, #74b9ff, #0984e3); display: flex; align-items: center; justify-content: center;">
+                            <i class="fas fa-umbrella-beach text-white" style="font-size: 4rem;"></i>
+                        </div>
+                    </div>
+                    <div class="service-card-body">
+                        <h5 class="card-title">巴厘岛度假</h5>
+                        <p class="card-text text-muted">享受热带海岛的浪漫风情，蓝天碧海，椰林沙滩。</p>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="text-primary fw-bold">SGD 980起</span>
+                            <small class="text-muted">5天4夜</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="service-card">
+                    <div class="position-relative">
+                        <div style="height: 200px; background: linear-gradient(45deg, #fd79a8, #e84393); display: flex; align-items: center; justify-content: center;">
+                            <i class="fas fa-mountain text-white" style="font-size: 4rem;"></i>
+                        </div>
+                    </div>
+                    <div class="service-card-body">
+                        <h5 class="card-title">日本樱花季</h5>
+                        <p class="card-text text-muted">春季赏樱之旅，感受日本传统文化与现代科技的魅力。</p>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="text-primary fw-bold">SGD 1,680起</span>
+                            <small class="text-muted">6天5夜</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- 服务优势 -->
+<section class="py-5">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-lg-6">
+                <h2 class="fw-bold mb-4">为什么选择我们？</h2>
+                <div class="row g-4">
+                    <div class="col-12">
+                        <div class="d-flex">
+                            <div class="flex-shrink-0">
+                                <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
+                                    <i class="fas fa-star"></i>
+                                </div>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <h5>专业服务</h5>
+                                <p class="text-muted mb-0">10年行业经验，专业团队为您提供贴心服务</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <div class="d-flex">
+                            <div class="flex-shrink-0">
+                                <div class="rounded-circle bg-success text-white d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
+                                    <i class="fas fa-clock"></i>
+                                </div>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <h5>快速办理</h5>
+                                <p class="text-muted mb-0">签证办理快速高效，节省您的宝贵时间</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <div class="d-flex">
+                            <div class="flex-shrink-0">
+                                <div class="rounded-circle bg-warning text-white d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
+                                    <i class="fas fa-percentage"></i>
+                                </div>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <h5>高成功率</h5>
+                                <p class="text-muted mb-0">签证申请成功率达95%以上，值得信赖</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="text-center">
+                    <div class="bg-primary rounded-3 p-5 text-white">
+                        <i class="fas fa-users" style="font-size: 4rem; margin-bottom: 2rem;"></i>
+                        <h3>10,000+</h3>
+                        <p class="mb-0">满意客户</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- 联系我们 CTA -->
+<section class="py-5 bg-primary text-white">
+    <div class="container text-center">
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <h2 class="fw-bold mb-3">准备开始您的旅程了吗？</h2>
+                <p class="lead mb-4">联系我们的专业顾问，获取个性化的旅行建议和报价</p>
+                <div>
+                    <a href="{{ url_for('guest.contact') }}" class="btn btn-light btn-lg me-3">
+                        <i class="fas fa-phone"></i> 立即咨询
+                    </a>
+                    <a href="{{ url_for('guest.visa_services') }}" class="btn btn-outline-light btn-lg">
+                        <i class="fas fa-passport"></i> 查看服务
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

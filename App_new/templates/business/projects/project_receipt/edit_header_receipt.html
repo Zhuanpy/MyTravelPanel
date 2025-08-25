@@ -1,0 +1,203 @@
+{% extends "shared/staff_base.html" %}
+
+
+
+{% block page_title %}Edit Header Receipt{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-warning text-white">
+                    <h4 class="mb-0"><i class="fas fa-edit"></i> 编辑项目收款</h4>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {{ form.hidden_tag() }}
+                        <div class="row mb-4">
+                            <div class="col-md-3 mb-3">
+                                <label class="form-label">收款单号</label>
+                                <input type="text" class="form-control" value="{{ receipt.receipt_number }}" readonly>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label class="form-label">{{ form.currency.label }} <span class="text-danger">*</span></label>
+                                {{ form.currency(class="form-select") }}
+                                {% for error in form.currency.errors %}
+                                    <div class="text-danger small">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <div class="d-flex align-items-center">
+                                    {{ form.distribution_method.label(class="form-label mb-0") }}
+                                    <i class="fas fa-question-circle text-info ms-1" 
+                                       style="cursor: pointer;" 
+                                       data-bs-toggle="tooltip" 
+                                       data-bs-placement="top"
+                                       title="分配方式说明�?#10;�?自动分配：系统根据各REF未收款金额按比例自动分配&#10;�?手动指定：手动选择要分配的REF，系统按比例分配"></i>
+                                </div>
+                                {% if form.selected_refs.choices|length == 1 and form.selected_refs.choices[0][0] == 0 %}
+                                    {{ form.distribution_method(class="form-select", disabled=true) }}
+                                    <div class="form-text text-warning">
+                                        <i class="fas fa-exclamation-triangle"></i>
+                                        当前项目没有未付款的REF，无法进行分�?
+                                    </div>
+                                {% else %}
+                                    {{ form.distribution_method(class="form-select") }}
+                                {% endif %}
+                                {% for error in form.distribution_method.errors %}
+                                    <div class="text-danger small">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <!-- 占位符，保持布局平衡 -->
+                            </div>
+                        </div>
+                        <div class="row mb-4">
+                            <div class="col-md-3 mb-3">
+                                <label class="form-label">{{ form.amount.label }} <span class="text-danger">*</span></label>
+                                {{ form.amount(class="form-control", placeholder="请输入收款金�?) }}
+                                {% for error in form.amount.errors %}
+                                    <div class="text-danger small">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label class="form-label">项目总未收款金额</label>
+                                <input type="text" class="form-control text-danger" value="{{ header.currency or 'SGD' }} {{ '%.2f'|format(unpaid_amount) }}" readonly>
+                                <div class="form-text">
+                                    <i class="fas fa-info-circle text-info"></i>
+                                    如果选择分配到REF，收款金额不能超过此金额
+                                </div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <!-- 占位符，保持布局平衡 -->
+                            </div>
+                        </div>
+                        <!-- 手动分配REF选择 -->
+                        <div class="row mb-4" id="manual-distribution-section" style="display: none;">
+                            <div class="col-md-12 mb-3">
+                                {{ form.selected_refs.label(class="form-label") }}
+                                {% if form.selected_refs.choices|length == 1 and form.selected_refs.choices[0][0] == 0 %}
+                                    {{ form.selected_refs(class="form-select", size="5", disabled=true) }}
+                                    <div class="form-text text-warning">
+                                        <i class="fas fa-exclamation-triangle"></i>
+                                        当前项目没有未付款的REF可供选择
+                                    </div>
+                                {% else %}
+                                    {{ form.selected_refs(class="form-select", size="5") }}
+                                    <div class="form-text">
+                                        <i class="fas fa-info-circle text-info"></i>
+                                        选择要分配收款的REF（可多选）
+                                    </div>
+                                {% endif %}
+                                {% for error in form.selected_refs.errors %}
+                                    <div class="text-danger small">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        <div class="row mb-4">
+                            <div class="col-md-3 mb-3">
+                                <label class="form-label">{{ form.payment_method.label }} <span class="text-danger">*</span></label>
+                                {{ form.payment_method(class="form-select") }}
+                                {% for error in form.payment_method.errors %}
+                                    <div class="text-danger small">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label class="form-label">{{ form.bank_name.label }} <span class="text-danger">*</span></label>
+                                {{ form.bank_name(class="form-control", placeholder="银行名称") }}
+                                {% for error in form.bank_name.errors %}
+                                    <div class="text-danger small">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label class="form-label">{{ form.payment_date.label }} <span class="text-danger">*</span></label>
+                                {{ form.payment_date(class="form-control") }}
+                                {% for error in form.payment_date.errors %}
+                                    <div class="text-danger small">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                {{ form.transaction_id.label(class="form-label") }}
+                                {{ form.transaction_id(class="form-control", placeholder="交易流水�?) }}
+                            </div>
+                        </div>
+                        <div class="row mb-4">
+                            <div class="col-md-3 mb-3">
+                                {{ form.payer_name.label(class="form-label") }}
+                                {{ form.payer_name(class="form-control", placeholder="付款人姓�?) }}
+                                {% for error in form.payer_name.errors %}
+                                    <div class="text-danger small">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                {{ form.payer_contact.label(class="form-label") }}
+                                {{ form.payer_contact(class="form-control", placeholder="电话/邮箱") }}
+                                {% for error in form.payer_contact.errors %}
+                                    <div class="text-danger small">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                {{ form.payer_company.label(class="form-label") }}
+                                {{ form.payer_company(class="form-control", placeholder="付款人公�?) }}
+                                {% for error in form.payer_company.errors %}
+                                    <div class="text-danger small">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                {{ form.account_number.label(class="form-label") }}
+                                {{ form.account_number(class="form-control", placeholder="账号") }}
+                                {% for error in form.account_number.errors %}
+                                    <div class="text-danger small">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        <div class="row mb-4">
+                            <div class="col-md-12 mb-3">
+                                {{ form.remarks.label(class="form-label") }}
+                                {{ form.remarks(class="form-control", rows="3", placeholder="备注信息") }}
+                                {% for error in form.remarks.errors %}
+                                    <div class="text-danger small">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        <div class="d-flex justify-content-end gap-2">
+                            <a href="{{ url_for('projects.header_receipts', header_id=header.id) }}" 
+                               class="btn btn-secondary">
+                                <i class="fas fa-times"></i> 取消
+                            </a>
+                            {{ form.submit(class="btn btn-warning", value="更新收款记录") }}
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const distributionMethodSelect = document.getElementById('distribution_method');
+    const manualDistributionSection = document.getElementById('manual-distribution-section');
+    
+    // 根据分配方式显示/隐藏手动分配部分
+    function toggleManualDistribution() {
+        const selectedMethod = distributionMethodSelect.value;
+        if (selectedMethod === 'manual') {
+            manualDistributionSection.style.display = 'block';
+        } else {
+            manualDistributionSection.style.display = 'none';
+        }
+    }
+    
+    distributionMethodSelect.addEventListener('change', toggleManualDistribution);
+    toggleManualDistribution(); // 初始化显示状�?
+    
+    // 初始化工具提�?
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+});
+</script>
+{% endblock %} \n\n{% block title %}编辑项目收款 - {{ header.hid }}{% endblock %}

@@ -1,0 +1,301 @@
+{% extends "base.html" %}
+
+{% block title %}报价管理 - MyTravelPanel{% endblock %}
+
+{% block page_title %}报价管理{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item active">报价管理</li>
+{% endblock %}
+
+{% block page_actions %}
+<div class="btn-group" role="group">
+    <a href="{{ url_for('staff.create_quote') }}" class="btn btn-success">
+        <i class="fas fa-plus me-1"></i>新建报价
+    </a>
+    <button type="button" class="btn btn-outline-secondary dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown">
+        <span class="visually-hidden">Toggle Dropdown</span>
+    </button>
+    <ul class="dropdown-menu">
+        <li><a class="dropdown-item" href="#"><i class="fas fa-download me-2"></i>导出报价</a></li>
+        <li><a class="dropdown-item" href="#"><i class="fas fa-upload me-2"></i>批量导入</a></li>
+        <li><hr class="dropdown-divider"></li>
+        <li><a class="dropdown-item" href="#"><i class="fas fa-cog me-2"></i>报价设置</a></li>
+    </ul>
+</div>
+{% endblock %}
+
+{% block content %}
+<!-- 筛选和搜索 -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="GET" class="row g-3">
+            <div class="col-md-3">
+                <label for="search" class="form-label">搜索</label>
+                <input type="text" class="form-control" id="search" name="search" 
+                       value="{{ search }}" placeholder="客户名称或项目名称">
+            </div>
+            <div class="col-md-2">
+                <label for="status" class="form-label">状态</label>
+                <select class="form-select" id="status" name="status">
+                    <option value="">全部状态</option>
+                    <option value="pending" {% if status == 'pending' %}selected{% endif %}>待审核</option>
+                    <option value="approved" {% if status == 'approved' %}selected{% endif %}>已批准</option>
+                    <option value="rejected" {% if status == 'rejected' %}selected{% endif %}>已拒绝</option>
+                    <option value="expired" {% if status == 'expired' %}selected{% endif %}>已过期</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">&nbsp;</label>
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-search me-1"></i>搜索
+                    </button>
+                    <a href="{{ url_for('staff.quotes') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-undo me-1"></i>重置
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- 报价统计 -->
+<div class="row mb-4">
+    <div class="col-md-3 mb-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h5 class="card-title text-primary">{{ total }}</h5>
+                <p class="card-text">总报价数</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h5 class="card-title text-warning">{{ quotes|selectattr('status', 'equalto', 'pending')|list|length }}</h5>
+                <p class="card-text">待审核</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h5 class="card-title text-success">{{ quotes|selectattr('status', 'equalto', 'approved')|list|length }}</h5>
+                <p class="card-text">已批准</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h5 class="card-title text-info">{{ quotes|selectattr('status', 'equalto', 'expired')|list|length }}</h5>
+                <p class="card-text">已过期</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 报价列表 -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">
+            <i class="fas fa-list me-2"></i>报价列表
+            <span class="badge bg-secondary ms-2">{{ total }}</span>
+        </h5>
+    </div>
+    <div class="card-body p-0">
+        {% if quotes %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>报价编号</th>
+                        <th>客户信息</th>
+                        <th>项目名称</th>
+                        <th>状态</th>
+                        <th>金额</th>
+                        <th>创建时间</th>
+                        <th>有效期</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for quote in quotes %}
+                    <tr>
+                        <td>
+                            <span class="badge bg-light text-dark">{{ quote.quote_no }}</span>
+                        </td>
+                        <td>
+                            <div class="client-info">
+                                <div class="fw-bold">{{ quote.client }}</div>
+                                <small class="text-muted">客户</small>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="project-info">
+                                <div class="fw-bold">{{ quote.project_name }}</div>
+                                <small class="text-muted">项目</small>
+                            </div>
+                        </td>
+                        <td>
+                            {% if quote.status == 'pending' %}
+                                <span class="badge bg-warning">待审核</span>
+                            {% elif quote.status == 'approved' %}
+                                <span class="badge bg-success">已批准</span>
+                            {% elif quote.status == 'rejected' %}
+                                <span class="badge bg-danger">已拒绝</span>
+                            {% elif quote.status == 'expired' %}
+                                <span class="badge bg-secondary">已过期</span>
+                            {% else %}
+                                <span class="badge bg-secondary">{{ quote.status }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="amount-info">
+                                <div class="fw-bold text-success">¥{{ "%.2f"|format(quote.total_amount) }}</div>
+                                <small class="text-muted">总金额</small>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="date-info">
+                                <div>{{ quote.created_at.strftime('%Y-%m-%d') }}</div>
+                                <small class="text-muted">{{ quote.created_at.strftime('%H:%M') }}</small>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="validity-info">
+                                <div>{{ quote.valid_until.strftime('%Y-%m-%d') }}</div>
+                                <small class="text-muted">
+                                    {% set days_left = (quote.valid_until - now).days %}
+                                    {% if days_left > 0 %}
+                                        剩余 {{ days_left }} 天
+                                    {% elif days_left == 0 %}
+                                        今天到期
+                                    {% else %}
+                                        已过期 {{ abs(days_left) }} 天
+                                    {% endif %}
+                                </small>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="btn-group" role="group">
+                                <a href="#" class="btn btn-sm btn-outline-primary" onclick="viewQuote({{ quote.id }})">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                <a href="#" class="btn btn-sm btn-outline-success" onclick="editQuote({{ quote.id }})">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <button type="button" class="btn btn-sm btn-outline-danger" 
+                                        onclick="deleteQuote({{ quote.id }})">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- 分页 -->
+        {% if total_pages > 1 %}
+        <div class="card-footer">
+            <nav aria-label="报价分页">
+                <ul class="pagination justify-content-center mb-0">
+                    {% if current_page > 1 %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('staff.quotes', page=current_page-1, status=status, search=search) }}">
+                            <i class="fas fa-chevron-left"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                    
+                    {% for page_num in range(1, total_pages + 1) %}
+                        {% if page_num == current_page %}
+                        <li class="page-item active">
+                            <span class="page-link">{{ page_num }}</span>
+                        </li>
+                        {% elif page_num <= 3 or page_num > total_pages - 2 or (page_num >= current_page - 1 and page_num <= current_page + 1) %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('staff.quotes', page=page_num, status=status, search=search) }}">
+                                {{ page_num }}
+                            </a>
+                        </li>
+                        {% elif page_num == 4 and current_page > 6 %}
+                        <li class="page-item disabled">
+                            <span class="page-link">...</span>
+                        </li>
+                        {% elif page_num == total_pages - 3 and current_page < total_pages - 5 %}
+                        <li class="page-item disabled">
+                            <span class="page-link">...</span>
+                        </li>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if current_page < total_pages %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('staff.quotes', page=current_page+1, status=status, search=search) }}">
+                            <i class="fas fa-chevron-right"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
+        
+        {% else %}
+        <div class="text-center py-5">
+            <div class="empty-state">
+                <i class="fas fa-file-invoice-dollar fa-3x text-muted mb-3"></i>
+                <h4>暂无报价</h4>
+                <p class="text-muted">您还没有创建任何报价，快去创建第一个报价吧！</p>
+                <a href="{{ url_for('staff.create_quote') }}" class="btn btn-success">
+                    <i class="fas fa-plus me-1"></i>创建报价
+                </a>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// 查看报价
+function viewQuote(quoteId) {
+    // 这里应该跳转到报价详情页面
+    console.log('查看报价:', quoteId);
+    alert('查看报价功能开发中...');
+}
+
+// 编辑报价
+function editQuote(quoteId) {
+    // 这里应该跳转到报价编辑页面
+    console.log('编辑报价:', quoteId);
+    alert('编辑报价功能开发中...');
+}
+
+// 删除报价确认
+function deleteQuote(quoteId) {
+    if (confirm('确定要删除这个报价吗？此操作不可恢复。')) {
+        // 这里应该发送删除请求到后端
+        console.log('删除报价:', quoteId);
+        alert('删除功能开发中...');
+    }
+}
+
+// 自动提交筛选表单
+document.addEventListener('DOMContentLoaded', function() {
+    const statusSelect = document.getElementById('status');
+    
+    statusSelect.addEventListener('change', function() {
+        this.form.submit();
+    });
+    
+    // 设置当前时间用于计算有效期
+    window.now = new Date('{{ now.isoformat() if now else "" }}');
+});
+</script>
+{% endblock %} 

@@ -1,0 +1,147 @@
+{% extends "guest/base.html" %}
+
+{% block title %}{{ visa_type.name }} - MyTravelPanel{% endblock %}
+
+{% block content %}
+<!-- 页面标题区域 -->
+<section class="hero-section text-center" style="padding: 60px 0;">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <nav aria-label="breadcrumb" class="mb-4">
+                    <ol class="breadcrumb justify-content-center bg-transparent">
+                        <li class="breadcrumb-item">
+                            <a href="{{ url_for('guest.index') }}" class="text-white-50">首页</a>
+                        </li>
+                        <li class="breadcrumb-item">
+                            <a href="{{ url_for('guest.visa_services') }}" class="text-white-50">签证服务</a>
+                        </li>
+                        <li class="breadcrumb-item active text-white" aria-current="page">{{ visa_type.name }}</li>
+                    </ol>
+                </nav>
+                <h1 class="display-4 fw-bold mb-3">{{ visa_type.name }}</h1>
+                <p class="lead">{{ visa_type.description }}</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- 签证详情内容 -->
+<section class="py-5">
+    <div class="container">
+        <div class="row">
+            <!-- 主要信息 -->
+            <div class="col-lg-8">
+                <div class="service-card mb-4">
+                    <div class="service-card-body">
+                        <h3 class="mb-4">
+                            <i class="fas fa-info-circle text-primary me-2"></i>签证信息
+                        </h3>
+                        
+                        <!-- 基本信息 -->
+                        <div class="row mb-4">
+                            <div class="col-md-4 text-center mb-3">
+                                <div class="border-end">
+                                    <i class="fas fa-clock text-primary mb-2 d-block"></i>
+                                    <small class="text-muted d-block">办理时间</small>
+                                    <strong>{{ visa_type.processing_time }}</strong>
+                                </div>
+                            </div>
+                            <div class="col-md-4 text-center mb-3">
+                                <div class="border-end">
+                                    <i class="fas fa-calendar text-success mb-2 d-block"></i>
+                                    <small class="text-muted d-block">有效期</small>
+                                    <strong>{{ visa_type.validity }}</strong>
+                                </div>
+                            </div>
+                            <div class="col-md-4 text-center mb-3">
+                                <i class="fas fa-dollar-sign text-warning mb-2 d-block"></i>
+                                <small class="text-muted d-block">服务费</small>
+                                <strong class="text-primary">{{ visa_type.price }}</strong>
+                            </div>
+                        </div>
+                        
+                        <!-- 所需文件 -->
+                        <div class="mb-4">
+                            <h5 class="text-primary mb-3">
+                                <i class="fas fa-file-alt me-2"></i>所需文件清单
+                            </h5>
+                            <div class="row">
+                                {% for document in visa_type.required_documents %}
+                                <div class="col-md-6 mb-2">
+                                    <div class="d-flex align-items-center">
+                                        <i class="fas fa-check text-success me-2"></i>
+                                        <span>{{ document }}</span>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        
+                        <!-- 注意事项 -->
+                        {% if visa_type.notes %}
+                        <div class="mb-4">
+                            <h5 class="text-warning mb-3">
+                                <i class="fas fa-exclamation-triangle me-2"></i>注意事项
+                            </h5>
+                            <ul class="list-unstyled">
+                                {% for note in visa_type.notes %}
+                                <li class="mb-2">
+                                    <i class="fas fa-info-circle text-info me-2"></i>{{ note }}
+                                </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 侧边栏 -->
+            <div class="col-lg-4">
+                <!-- 快速咨询 -->
+                <div class="service-card mb-4">
+                    <div class="service-card-body text-center">
+                        <div class="bg-primary text-white rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
+                            <i class="fas fa-headset fa-2x"></i>
+                        </div>
+                        <h5 class="mb-3">需要帮助？</h5>
+                        <p class="text-muted mb-4">我们的专业顾问随时为您提供签证申请咨询服务</p>
+                        <div class="d-grid gap-2">
+                            <a href="{{ url_for('guest.contact') }}" class="btn btn-custom">
+                                <i class="fas fa-phone me-2"></i>立即咨询
+                            </a>
+                            <a href="{{ url_for('guest.visa_services') }}" class="btn btn-outline-custom">
+                                <i class="fas fa-arrow-left me-2"></i>返回签证服务
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 服务优势 -->
+                <div class="service-card">
+                    <div class="service-card-body">
+                        <h5 class="mb-3">
+                            <i class="fas fa-star text-warning me-2"></i>服务优势
+                        </h5>
+                        <ul class="list-unstyled">
+                            <li class="mb-2">
+                                <i class="fas fa-check text-success me-2"></i>专业团队，经验丰富
+                            </li>
+                            <li class="mb-2">
+                                <i class="fas fa-check text-success me-2"></i>高成功率，快速办理
+                            </li>
+                            <li class="mb-2">
+                                <i class="fas fa-check text-success me-2"></i>一对一客户服务
+                            </li>
+                            <li class="mb-2">
+                                <i class="fas fa-check text-success me-2"></i>全程跟踪，及时反馈
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

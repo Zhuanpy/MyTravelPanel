@@ -1,0 +1,200 @@
+{% extends "staff_base.html" %}
+
+{% block title %}创建预算 - MyTravelPanel{% endblock %}
+
+{% block page_title %}创建预算{% endblock %}
+{% block content %}
+<div class="container">
+    <div class="row mb-3">
+        <div class="col-md-8">
+            <h2><i class="fas fa-plus-circle"></i> 新建配套价格预算单</h2>
+        </div>
+        <div class="col-md-4 text-end">
+            <a href="{{ url_for('package_budget.list_budgets') }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> 返回列表
+            </a>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <form method="post" id="budgetForm">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <div class="row">
+                    <!-- 基本信息 -->
+                    <div class="col-md-8">
+                        <h5 class="card-title mb-3"><i class="fas fa-info-circle"></i> 基本信息</h5>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="package_name" class="form-label">套餐名称 <span class="text-danger">*</span></label>
+                                <input type="text" id="package_name" name="package_name" class="form-control" required 
+                                       placeholder="请输入套餐名称" value="{{ form.package_name if form else '' }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="currency" class="form-label">币种</label>
+                                <select id="currency" name="currency" class="form-control">
+                                    <option value="SGD" {{ 'selected' if (form and form.currency == 'SGD') or not form }}>SGD (新加坡元)</option>
+                                    <option value="USD" {{ 'selected' if form and form.currency == 'USD' }}>USD (美元)</option>
+                                    <option value="CNY" {{ 'selected' if form and form.currency == 'CNY' }}>CNY (人民币)</option>
+                                    <option value="EUR" {{ 'selected' if form and form.currency == 'EUR' }}>EUR (欧元)</option>
+                                    <option value="JPY" {{ 'selected' if form and form.currency == 'JPY' }}>JPY (日元)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="adult_count" class="form-label">成人数量 <span class="text-danger">*</span></label>
+                                <input type="number" id="adult_count" name="adult_count" class="form-control" required 
+                                       min="1" max="100" placeholder="成人数量" value="{{ form.adult_count if form else '' }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="child_count" class="form-label">儿童数量</label>
+                                <input type="number" id="child_count" name="child_count" class="form-control" 
+                                       min="0" max="100" placeholder="儿童数量" value="{{ form.child_count if form else '0' }}">
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="status" class="form-label">状态</label>
+                                <select id="status" name="status" class="form-control">
+                                    <option value="draft" {{ 'selected' if (form and form.status == 'draft') or not form }}>草稿</option>
+                                    <option value="active" {{ 'selected' if form and form.status == 'active' }}>激活</option>
+                                    <option value="archived" {{ 'selected' if form and form.status == 'archived' }}>归档</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="is_template" class="form-label">类型</label>
+                                <div class="form-check mt-2">
+                                    <input type="checkbox" id="is_template" name="is_template" class="form-check-input" value="1"
+                                           {{ 'checked' if form and form.is_template else '' }}>
+                                    <label class="form-check-label" for="is_template">
+                                        设为模板
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="remarks" class="form-label">备注</label>
+                            <textarea id="remarks" name="remarks" class="form-control" rows="3" 
+                                      placeholder="请输入备注信息">{{ form.remarks if form else '' }}</textarea>
+                        </div>
+                    </div>
+
+                    <!-- 预览信息 -->
+                    <div class="col-md-4">
+                        <h5 class="card-title mb-3"><i class="fas fa-eye"></i> 预览信息</h5>
+                        <div class="card bg-light">
+                            <div class="card-body">
+                                <div class="mb-2">
+                                    <strong>套餐名称：</strong>
+                                    <span id="preview_name">-</span>
+                                </div>
+                                <div class="mb-2">
+                                    <strong>人数配置：</strong>
+                                    <span id="preview_count">-</span>
+                                </div>
+                                <div class="mb-2">
+                                    <strong>币种：</strong>
+                                    <span id="preview_currency">-</span>
+                                </div>
+                                <div class="mb-2">
+                                    <strong>状态：</strong>
+                                    <span id="preview_status">-</span>
+                                </div>
+                                <div class="mb-2">
+                                    <strong>类型：</strong>
+                                    <span id="preview_type">-</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <hr>
+
+                <!-- 操作按钮 -->
+                <div class="row">
+                    <div class="col-md-12 text-center">
+                        <button type="submit" class="btn btn-primary btn-lg me-2">
+                            <i class="fas fa-save"></i> 保存预算单
+                        </button>
+                        <a href="{{ url_for('package_budget.list_budgets') }}" class="btn btn-secondary btn-lg">
+                            <i class="fas fa-times"></i> 取消
+                        </a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+// 实时预览功能
+document.addEventListener('DOMContentLoaded', function() {
+    const packageName = document.getElementById('package_name');
+    const adultCount = document.getElementById('adult_count');
+    const childCount = document.getElementById('child_count');
+    const currency = document.getElementById('currency');
+    const status = document.getElementById('status');
+    const isTemplate = document.getElementById('is_template');
+
+    function updatePreview() {
+        // 更新套餐名称预览
+        document.getElementById('preview_name').textContent = packageName.value || '-';
+        
+        // 更新人数配置预览
+        const adult = adultCount.value || 0;
+        const child = childCount.value || 0;
+        let countText = `${adult}成人`;
+        if (child > 0) {
+            countText += `, ${child}儿童`;
+        }
+        document.getElementById('preview_count').textContent = countText;
+        
+        // 更新币种预览
+        const currencyText = currency.options[currency.selectedIndex].text;
+        document.getElementById('preview_currency').textContent = currencyText;
+        
+        // 更新状态预览
+        const statusText = status.options[status.selectedIndex].text;
+        document.getElementById('preview_status').textContent = statusText;
+        
+        // 更新类型预览
+        document.getElementById('preview_type').textContent = isTemplate.checked ? '模板' : '普通预算';
+    }
+
+    // 绑定事件监听器
+    packageName.addEventListener('input', updatePreview);
+    adultCount.addEventListener('input', updatePreview);
+    childCount.addEventListener('input', updatePreview);
+    currency.addEventListener('change', updatePreview);
+    status.addEventListener('change', updatePreview);
+    isTemplate.addEventListener('change', updatePreview);
+
+    // 初始化预览
+    updatePreview();
+});
+
+// 表单验证
+document.getElementById('budgetForm').addEventListener('submit', function(e) {
+    const packageName = document.getElementById('package_name').value.trim();
+    const adultCount = parseInt(document.getElementById('adult_count').value);
+    
+    if (!packageName) {
+        e.preventDefault();
+        alert('请输入套餐名称');
+        return false;
+    }
+    
+    if (!adultCount || adultCount < 1) {
+        e.preventDefault();
+        alert('成人数量必须大于0');
+        return false;
+    }
+});
+</script>
+{% endblock %}

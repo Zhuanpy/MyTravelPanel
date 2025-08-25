@@ -36,14 +36,14 @@ def dashboard():
         # 获取系统活动
         recent_activities = get_recent_activities()
         
-        return render_template('admin/dashboard.html', 
+        return render_template('admin/admin_dashboard.html',
                              stats=stats,
                              recent_users=recent_users,
                              recent_activities=recent_activities,
                              now=datetime.now())
     except Exception as e:
         flash(f'加载仪表板失败：{str(e)}', 'error')
-        return render_template('admin/dashboard.html',
+        return render_template('admin/admin_dashboard.html',
                              stats={}, recent_users=[], recent_activities=[],
                              now=datetime.now())
 

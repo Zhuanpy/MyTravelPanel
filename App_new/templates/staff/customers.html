@@ -1,0 +1,301 @@
+{% extends "base.html" %}
+
+{% block title %}客户管理 - MyTravelPanel{% endblock %}
+
+{% block page_title %}客户管理{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item active">客户管理</li>
+{% endblock %}
+
+{% block page_actions %}
+<div class="btn-group" role="group">
+    <button type="button" class="btn btn-success" onclick="createCustomer()">
+        <i class="fas fa-plus me-1"></i>新建客户
+    </button>
+    <button type="button" class="btn btn-outline-secondary dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown">
+        <span class="visually-hidden">Toggle Dropdown</span>
+    </button>
+    <ul class="dropdown-menu">
+        <li><a class="dropdown-item" href="#" onclick="importCustomers()"><i class="fas fa-upload me-2"></i>批量导入</a></li>
+        <li><a class="dropdown-item" href="#" onclick="exportCustomers()"><i class="fas fa-download me-2"></i>导出客户</a></li>
+        <li><hr class="dropdown-divider"></li>
+        <li><a class="dropdown-item" href="#" onclick="customerSettings()"><i class="fas fa-cog me-2"></i>客户设置</a></li>
+    </ul>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- 筛选器 -->
+    <div class="col-12 mb-4">
+        <div class="card">
+            <div class="card-body">
+                <form method="GET" class="row g-3">
+                    <div class="col-md-3">
+                        <label for="status" class="form-label">状态</label>
+                        <select class="form-select" id="status" name="status">
+                            <option value="">全部状态</option>
+                            <option value="active" {% if status == 'active' %}selected{% endif %}>活跃</option>
+                            <option value="inactive" {% if status == 'inactive' %}selected{% endif %}>非活跃</option>
+                            <option value="pending" {% if status == 'pending' %}selected{% endif %}>待审核</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="industry" class="form-label">行业</label>
+                        <select class="form-select" id="industry" name="industry">
+                            <option value="">全部行业</option>
+                            <option value="travel" {% if industry == 'travel' %}selected{% endif %}>旅游业</option>
+                            <option value="business" {% if industry == 'business' %}selected{% endif %}>商务</option>
+                            <option value="education" {% if industry == 'education' %}selected{% endif %}>教育</option>
+                            <option value="other" {% if industry == 'other' %}selected{% endif %}>其他</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="search" class="form-label">搜索</label>
+                        <input type="text" class="form-control" id="search" name="search" 
+                               value="{{ search }}" placeholder="搜索公司名称、联系人、公司代码...">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">&nbsp;</label>
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-search me-1"></i>搜索
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- 客户统计 -->
+    <div class="col-12 mb-4">
+        <div class="row">
+            <div class="col-md-3">
+                <div class="card bg-primary text-white">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h4 class="mb-0">{{ total }}</h4>
+                                <p class="mb-0">总客户数</p>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="fas fa-building fa-2x"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-success text-white">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h4 class="mb-0">{{ customers | selectattr('status', 'equalto', 'active') | list | length }}</h4>
+                                <p class="mb-0">活跃客户</p>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="fas fa-check-circle fa-2x"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-warning text-white">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h4 class="mb-0">{{ customers | selectattr('status', 'equalto', 'pending') | list | length }}</h4>
+                                <p class="mb-0">待审核</p>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="fas fa-clock fa-2x"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-info text-white">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h4 class="mb-0">{{ customers | selectattr('status', 'equalto', 'inactive') | list | length }}</h4>
+                                <p class="mb-0">非活跃</p>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="fas fa-pause-circle fa-2x"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 客户列表 -->
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">客户列表</h5>
+            </div>
+            <div class="card-body">
+                {% if customers %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>公司信息</th>
+                                <th>联系人</th>
+                                <th>行业</th>
+                                <th>状态</th>
+                                <th>信用额度</th>
+                                <th>创建时间</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for customer in customers %}
+                            <tr>
+                                <td>
+                                    <div>
+                                        <strong>{{ customer.company_name }}</strong>
+                                        <br>
+                                        <small class="text-muted">代码: {{ customer.company_code }}</small>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div>
+                                        <strong>{{ customer.contact_person }}</strong>
+                                        <br>
+                                        <small class="text-muted">{{ customer.contact_phone }}</small>
+                                        <br>
+                                        <small class="text-muted">{{ customer.contact_email }}</small>
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="badge bg-outline-primary">{{ customer.industry }}</span>
+                                </td>
+                                <td>
+                                    {% if customer.status == 'active' %}
+                                        <span class="badge bg-success">活跃</span>
+                                    {% elif customer.status == 'pending' %}
+                                        <span class="badge bg-warning">待审核</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">非活跃</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="text-{% if customer.credit_limit > 100000 %}success{% elif customer.credit_limit > 50000 %}warning{% else %}danger{% endif %}">
+                                        ¥{{ "%.2f"|format(customer.credit_limit) }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <small class="text-muted">{{ customer.created_at.strftime('%Y-%m-%d') }}</small>
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        <button type="button" class="btn btn-outline-primary" 
+                                                onclick="viewCustomer({{ customer.id }})">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-outline-warning" 
+                                                onclick="editCustomer({{ customer.id }})">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-outline-info" 
+                                                onclick="viewProjects({{ customer.id }})">
+                                            <i class="fas fa-project-diagram"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- 分页 -->
+                {% if total_pages > 1 %}
+                <nav aria-label="客户分页">
+                    <ul class="pagination justify-content-center">
+                        {% if current_page > 1 %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('staff.customers', page=current_page-1, status=status, industry=industry, search=search) }}">
+                                <i class="fas fa-chevron-left"></i>
+                            </a>
+                        </li>
+                        {% endif %}
+                        
+                        {% for page_num in range(1, total_pages + 1) %}
+                        <li class="page-item {% if page_num == current_page %}active{% endif %}">
+                            <a class="page-link" href="{{ url_for('staff.customers', page=page_num, status=status, industry=industry, search=search) }}">
+                                {{ page_num }}
+                            </a>
+                        </li>
+                        {% endfor %}
+                        
+                        {% if current_page < total_pages %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('staff.customers', page=current_page+1, status=status, industry=industry, search=search) }}">
+                                <i class="fas fa-chevron-right"></i>
+                            </a>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+                {% endif %}
+                {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-building fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">暂无客户</h5>
+                    <p class="text-muted">当前没有符合条件的客户</p>
+                    <button type="button" class="btn btn-primary" onclick="createCustomer()">
+                        <i class="fas fa-plus me-1"></i>创建第一个客户
+                    </button>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function createCustomer() {
+    alert('创建客户功能开发中...');
+}
+
+function viewCustomer(customerId) {
+    alert(`查看客户 ${customerId} 功能开发中...`);
+}
+
+function editCustomer(customerId) {
+    alert(`编辑客户 ${customerId} 功能开发中...`);
+}
+
+function viewProjects(customerId) {
+    alert(`查看客户 ${customerId} 的项目功能开发中...`);
+}
+
+function importCustomers() {
+    alert('批量导入客户功能开发中...');
+}
+
+function exportCustomers() {
+    alert('导出客户功能开发中...');
+}
+
+function customerSettings() {
+    alert('客户设置功能开发中...');
+}
+
+// 自动刷新客户状态
+setInterval(function() {
+    // 这里可以添加自动刷新逻辑
+}, 60000); // 1分钟刷新一次
+</script>
+{% endblock %}

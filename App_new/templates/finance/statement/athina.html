@@ -1,0 +1,803 @@
+{% extends "staff_base.html" %}
+
+{% block title %}Athina账单 - MyTravelPanel{% endblock %}
+
+{% block page_title %}Athina账单{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* 全局样式 */
+    .athina-container {
+        max-width: 1000px;
+        margin: 20px auto;
+        padding: 20px;
+        background-color: #ffffff;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+
+    /* 两列布局容器 */
+    .athina-sections-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 15px;
+        width: 100%;
+        margin-top: 15px;
+    }
+
+    .athina-header {
+        width: 100%;
+        margin-bottom: 20px;
+        text-align: center;
+        position: relative;
+    }
+
+    .athina-header h1 {
+        color: #2E7D32;
+        font-size: 24px;
+        margin-bottom: 8px;
+        position: relative;
+        display: inline-block;
+    }
+
+    .athina-header h1:after {
+        content: '';
+        position: absolute;
+        bottom: -6px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 60px;
+        height: 2px;
+        background-color: #4CAF50;
+        border-radius: 2px;
+    }
+
+    .athina-section {
+        width: 100%;
+        margin-bottom: 0;
+        padding: 15px;
+        background-color: #f8f9fa;
+        border-radius: 6px;
+        transition: all 0.3s ease;
+        border: 1px solid #e9ecef;
+    }
+
+    .athina-section:hover {
+        box-shadow: 0 3px 8px rgba(0, 0, 0, 0.08);
+        transform: translateY(-1px);
+    }
+
+    /* 按钮样式 */
+    .athina-btn {
+        background-color: #2E7D32;
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        border-radius: 4px;
+        transition: all 0.3s ease;
+        margin: 5px 0 10px;
+        width: 100%;
+        max-width: 200px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .athina-btn:hover {
+        background-color: #1B5E20;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+        transform: translateY(-1px);
+    }
+
+    /* 表单样式 */
+    .athina-form {
+        margin: 10px 0;
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        align-items: center;
+        width: 100%;
+        max-width: 200px;
+    }
+
+    .athina-form label {
+        margin-right: 8px;
+        font-weight: 500;
+        color: #424242;
+        font-size: 13px;
+    }
+
+    .athina-input {
+        padding: 6px 10px;
+        font-size: 13px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        margin: 5px 0;
+        width: 100%;
+        transition: all 0.3s ease;
+        background-color: #fff;
+    }
+
+    .athina-input:focus {
+        border-color: #4CAF50;
+        background-color: #ffffff;
+        box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.15);
+        outline: none;
+    }
+
+    /* 结果显示区域 */
+    .result-display {
+        background-color: #fff;
+        border: 1px solid #e0e0e0;
+        padding: 12px;
+        width: 100%;
+        border-radius: 4px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        margin: 8px 0;
+        text-align: center;
+        min-height: 60px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.3s ease;
+        font-size: 13px;
+    }
+
+    #result-display-all {
+        background-color: #EEFFEF;
+        border-left: 3px solid #4CAF50;
+    }
+
+    #result-display-month {
+        background-color: #F5F9FE;
+        border-left: 3px solid #2196F3;
+    }
+
+    #result-display-compare {
+        background-color: #FFF3E0;
+        border-left: 3px solid #FF9800;
+    }
+
+    /* 文件输入框样式 */
+    input[type="file"] {
+        padding: 4px 8px;
+        font-size: 12px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        margin: 3px 0;
+        width: 100%;
+        transition: all 0.3s ease;
+        background-color: #fff;
+    }
+
+    input[type="file"]:focus {
+        border-color: #FF9800;
+        background-color: #ffffff;
+        box-shadow: 0 0 0 2px rgba(255, 152, 0, 0.15);
+        outline: none;
+    }
+
+    /* 下拉选择框样式 */
+    select.athina-input {
+        padding: 6px 10px;
+        font-size: 13px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        margin: 5px 0;
+        width: 100%;
+        transition: all 0.3s ease;
+        background-color: #fff;
+        cursor: pointer;
+    }
+
+    select.athina-input:focus {
+        border-color: #FF9800;
+        background-color: #ffffff;
+        box-shadow: 0 0 0 2px rgba(255, 152, 0, 0.15);
+        outline: none;
+    }
+
+    /* 自定义表头区域样式 */
+    #custom-header-section {
+        background-color: #f8f9fa;
+        padding: 10px;
+        border-radius: 4px;
+        border-left: 2px solid #FF9800;
+    }
+
+    /* 链接样式 */
+    .athina-link {
+        color: #2E7D32;
+        text-decoration: none;
+        font-size: 14px;
+        margin-top: 15px;
+        padding: 6px 12px;
+        border: 1px solid #4CAF50;
+        border-radius: 4px;
+        transition: all 0.3s ease;
+        display: inline-flex;
+        align-items: center;
+    }
+
+    .athina-link:before {
+        content: '📁';
+        margin-right: 6px;
+    }
+
+    .athina-link:hover {
+        background-color: #4CAF50;
+        color: white;
+        text-decoration: none;
+    }
+
+    /* 辅助元素 */
+    .section-title {
+        font-size: 15px;
+        margin-bottom: 10px;
+        color: #424242;
+        font-weight: 600;
+    }
+
+    /* 操作说明样式 */
+    .operation-instructions {
+        background-color: #e3f2fd;
+        padding: 8px;
+        border-radius: 4px;
+        margin-bottom: 10px;
+        border-left: 3px solid #2196F3;
+        font-size: 12px;
+    }
+
+    .operation-instructions h5 {
+        margin: 0 0 5px 0;
+        color: #1976D2;
+        font-size: 13px;
+    }
+
+    .operation-instructions p {
+        margin: 2px 0;
+        color: #424242;
+        font-size: 11px;
+        line-height: 1.3;
+    }
+
+    /* 响应式布局 */
+    @media (max-width: 768px) {
+        .athina-container {
+            padding: 15px 10px;
+            margin: 15px auto;
+        }
+
+        .athina-header h1 {
+            font-size: 20px;
+        }
+
+        .athina-sections-grid {
+            grid-template-columns: 1fr;
+            gap: 10px;
+        }
+
+        .athina-section {
+            padding: 12px;
+        }
+
+        .athina-btn {
+            padding: 8px 14px;
+            font-size: 13px;
+        }
+
+        .result-display {
+            padding: 10px;
+            font-size: 12px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container athina-container">
+    <div class="athina-header">
+        <h1>Athina 账单处理</h1>
+    </div>
+
+    <div class="athina-sections-grid">
+        <div class="athina-section">
+            <div class="section-title">全部订单计算</div>
+            <!-- 处理全部订单按钮 -->
+            <button class="athina-btn" onclick="processAllInvoice()">计算全部订单</button>
+
+            <!-- 用于显示全部订单的处理结果 -->
+            <div id="result-display-all" class="result-display">
+                {{ results if results else '点击上方按钮计算全部订单' }}
+            </div>
+        </div>
+
+        <div class="athina-section">
+            <div class="section-title">指定月份计算</div>
+            <!-- 处理选择月份订单按钮 -->
+            <button class="athina-btn" onclick="processMonthInvoice()">计算选择月份</button>
+            
+            <!-- 输入月份表单 -->
+            <form id="month-form" class="athina-form">
+                <label for="month-input">输入月份:</label>
+                <input type="text" id="month-input" class="athina-input" placeholder="如：2024-08" required />
+            </form>
+
+            <!-- 用于显示选择月份订单的处理结果 -->
+            <div id="result-display-month" class="result-display">
+                {{ results_month if results_month else '请输入月份并点击按钮进行计算' }}
+            </div>
+        </div>
+
+        <div class="athina-section">
+            <div class="section-title">报表利润对比</div>
+            <!-- 报表对比按钮 -->
+            <button class="athina-btn" onclick="compareReports()">对比报表利润</button>
+            
+            <!-- 报表选择表单 -->
+            <form id="report-form" class="athina-form">
+                <div style="width: 100%; margin-bottom: 10px;">
+                    <label for="report-a-input">报表A (旧报表):</label>
+                    <input type="file" id="report-a-input" class="athina-input" accept=".xlsx,.xls,.csv" required />
+                </div>
+                <div style="width: 100%; margin-bottom: 10px;">
+                    <label for="report-b-input">报表B (新报表):</label>
+                    <input type="file" id="report-b-input" class="athina-input" accept=".xlsx,.xls,.csv" required />
+                </div>
+            </form>
+
+            <!-- 用于显示报表对比结果 -->
+            <div id="result-display-compare" class="result-display">
+                {{ results_compare if results_compare else '请选择两个报表文件，系统将自动使用您的表头设置并对比profit列数据' }}
+            </div>
+        </div>
+
+        <div class="athina-section">
+            <div class="section-title">批量报表对比</div>
+            
+            <!-- 操作说明 -->
+            <div class="operation-instructions">
+                <h5>📋 操作说明：</h5>
+                <p>
+                    1. 点击"选择文件"按钮，手动选择文件夹中的所有Excel/CSV报表文件<br>
+                    2. 支持多选：按住Ctrl键选择多个文件，或按住Shift键选择连续文件<br>
+                    3. 系统会自动过滤出.xlsx、.xls、.csv格式的文件<br>
+                    4. 按文件名自动匹配对应的报表进行对比
+                </p>
+            </div>
+            
+            <!-- 批量对比按钮 -->
+            <button class="athina-btn" onclick="batchCompareReports()">批量对比报表</button>
+            
+            <!-- 批量对比表单 -->
+            <form id="batch-report-form" class="athina-form">
+                <div style="width: 100%; margin-bottom: 10px;">
+                    <label for="folder-a-input">文件夹A (旧报表文件夹):</label>
+                    <input type="file" id="folder-a-input" class="athina-input" multiple accept=".xlsx,.xls,.csv" required />
+                    <small style="color: #666; font-size: 11px;">请选择文件夹A中的所有报表文件</small>
+                </div>
+                <div style="width: 100%; margin-bottom: 10px;">
+                    <label for="folder-b-input">文件夹B (新报表文件夹):</label>
+                    <input type="file" id="folder-b-input" class="athina-input" multiple accept=".xlsx,.xls,.csv" required />
+                    <small style="color: #666; font-size: 11px;">请选择文件夹B中的所有报表文件</small>
+                </div>
+            </form>
+
+            <!-- 用于显示批量对比结果 -->
+            <div id="result-display-batch" class="result-display">
+                {{ results_batch if results_batch else '请选择两个文件夹，系统将自动对比按年月命名的报表文件' }}
+            </div>
+        </div>
+    </div>
+    
+    <!-- 打开项目文件夹链接 -->
+    <div style="margin-top: 20px; text-align: center;">
+        <a href="#" onclick="alert(\'银行账单功能开发中...\'); return false;" class="athina-link">打开项目文件夹</a>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // 计算全部订单的函数
+    function processAllInvoice() {
+        // 显示加载状态
+        document.getElementById("result-display-all").innerText = "处理中，请稍候...";
+        
+        fetch('/statement/athina_processing', {
+            method: 'GET',
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.error) {
+                document.getElementById("result-display-all").innerText = "错误: " + data.error;
+            } else {
+                // 将全部订单的结果显示在 result-display-all 中
+                document.getElementById("result-display-all").innerText = data.result;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            document.getElementById("result-display-all").innerText = "账单处理失败: " + error.message;
+        });
+    }
+
+    // 计算选择月份订单的函数
+    function processMonthInvoice() {
+        // 获取用户输入的月份
+        const month = document.getElementById('month-input').value;
+
+        // 验证月份格式是否为 YYYY-MM
+        const monthRegex = /^\d{4}-(0[1-9]|1[0-2])$/;
+        if (!monthRegex.test(month)) {
+            alert('请输入正确的月份格式，例如：2024-08');
+            return;
+        }
+
+        // 显示加载状态
+        document.getElementById("result-display-month").innerText = "处理中，请稍候...";
+
+        fetch('/statement/athina_processing_month', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ month: month })  // 将月份作为请求的 body 数据发送
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.error) {
+                document.getElementById("result-display-month").innerText = "错误: " + data.error;
+            } else {
+                // 将选择月份订单的结果显示在 result-display-month 中
+                document.getElementById("result-display-month").innerText = data.result;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            document.getElementById("result-display-month").innerText = "账单处理失败: " + error.message;
+        });
+    }
+
+    // 报表对比函数
+    function compareReports() {
+        // 获取用户选择的文件
+        const reportA = document.getElementById('report-a-input').files[0];
+        const reportB = document.getElementById('report-b-input').files[0];
+        
+        // 自动使用profit列和您的表头设置
+        const profitColumn = 'profit';
+        // 表头将从后端获取，这里先设为空
+        const defaultHeaders = '';
+
+        // 验证输入
+        if (!reportA || !reportB) {
+            alert('请选择两个报表文件');
+            return;
+        }
+
+        // 移除自定义表头的验证，因为现在有默认值
+
+        // 显示加载状态
+        document.getElementById("result-display-compare").innerText = "正在对比报表，请稍候...";
+
+        // 创建FormData对象来发送文件
+        const formData = new FormData();
+        formData.append('report_a', reportA);
+        formData.append('report_b', reportB);
+        formData.append('profit_column', profitColumn);
+        formData.append('header_setting', 'custom'); // 强制使用自定义表头
+        formData.append('custom_headers', defaultHeaders);
+
+        fetch('/statement/compare_reports', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('Response data:', data); // 调试日志
+            if (data.success) {
+                // 格式化显示对比结果
+                let resultHtml = '<div style="text-align: left; max-height: 400px; overflow-y: auto;">';
+                resultHtml += '<h4 style="color: #FF9800; margin-bottom: 10px;">报表对比结果</h4>';
+                
+                if (data.differences && data.differences.length > 0) {
+                    resultHtml += '<p><strong>发现 ' + data.differences.length + ' 个不同的数据项：</strong></p>';
+                    resultHtml += '<table style="width: 100%; border-collapse: collapse; margin-top: 10px;">';
+                    resultHtml += '<tr style="background-color: #f5f5f5;">';
+                    resultHtml += '<th style="border: 1px solid #ddd; padding: 8px; text-align: center;">项目</th>';
+                    resultHtml += '<th style="border: 1px solid #ddd; padding: 8px; text-align: center;">报表A值</th>';
+                    resultHtml += '<th style="border: 1px solid #ddd; padding: 8px; text-align: center;">报表B值</th>';
+                    resultHtml += '<th style="border: 1px solid #ddd; padding: 8px; text-align: center;">差异</th>';
+                    resultHtml += '</tr>';
+                    
+                    data.differences.forEach(diff => {
+                        resultHtml += '<tr>';
+                        resultHtml += '<td style="border: 1px solid #ddd; padding: 8px;">' + diff.item + '</td>';
+                        resultHtml += '<td style="border: 1px solid #ddd; padding: 8px; text-align: right;">' + diff.value_a + '</td>';
+                        resultHtml += '<td style="border: 1px solid #ddd; padding: 8px; text-align: right;">' + diff.value_b + '</td>';
+                        resultHtml += '<td style="border: 1px solid #ddd; padding: 8px; text-align: right; color: ' + (diff.difference > 0 ? 'green' : 'red') + ';">' + (diff.difference > 0 ? '+' : '') + diff.difference + '</td>';
+                        resultHtml += '</tr>';
+                    });
+                    resultHtml += '</table>';
+                } else {
+                    resultHtml += '<p style="color: green;"><strong>✅ 两个报表的利润数据完全一致！</strong></p>';
+                }
+                
+                if (data.summary) {
+                    resultHtml += '<div style="margin-top: 15px; padding: 10px; background-color: #f0f8ff; border-radius: 5px;">';
+                    resultHtml += '<h5 style="margin: 0 0 5px 0;">统计摘要：</h5>';
+                    resultHtml += '<p style="margin: 2px 0;">报表A总项目数：' + data.summary.total_a + '</p>';
+                    resultHtml += '<p style="margin: 2px 0;">报表B总项目数：' + data.summary.total_b + '</p>';
+                    resultHtml += '<p style="margin: 2px 0;">相同项目数：' + data.summary.matched + '</p>';
+                    resultHtml += '<p style="margin: 2px 0;">不同项目数：' + data.summary.differences + '</p>';
+                    resultHtml += '</div>';
+                    
+                    // 添加处理信息
+                    if (data.processed_info) {
+                        resultHtml += '<div style="margin-top: 10px; padding: 10px; background-color: #fff3cd; border-radius: 5px;">';
+                        resultHtml += '<h5 style="margin: 0 0 5px 0; color: #856404;">数据处理信息：</h5>';
+                        resultHtml += '<p style="margin: 2px 0; color: #856404;">报表A总行数：' + data.processed_info.total_rows_a + '，有效利润数据：' + data.processed_info.valid_profit_a + '，跳过：' + data.processed_info.skipped_a + '</p>';
+                        resultHtml += '<p style="margin: 2px 0; color: #856404;">报表B总行数：' + data.processed_info.total_rows_b + '，有效利润数据：' + data.processed_info.valid_profit_b + '，跳过：' + data.processed_info.skipped_b + '</p>';
+                        if (data.processed_info.skipped_a > 0 || data.processed_info.skipped_b > 0) {
+                            resultHtml += '<p style="margin: 2px 0; color: #856404; font-style: italic;">注意：跳过的行包含非数字的利润值（如文本、空值等）</p>';
+                        }
+                        resultHtml += '</div>';
+                    }
+                    
+                    // 添加下载按钮
+                    resultHtml += '<div style="margin-top: 15px; text-align: center;">';
+                    resultHtml += '<p style="margin-bottom: 10px; color: #666;"><strong>📊 已为两个报表添加"数据一致性"列，可下载查看详细结果：</strong></p>';
+                    resultHtml += '<button onclick="downloadReport(\'A\')" style="background-color: #4CAF50; color: white; border: none; padding: 10px 20px; margin: 5px; border-radius: 5px; cursor: pointer;">下载报表A（带对比结果）</button>';
+                    resultHtml += '<button onclick="downloadReport(\'B\')" style="background-color: #2196F3; color: white; border: none; padding: 10px 20px; margin: 5px; border-radius: 5px; cursor: pointer;">下载报表B（带对比结果）</button>';
+                    resultHtml += '</div>';
+                }
+                
+                resultHtml += '</div>';
+                document.getElementById("result-display-compare").innerHTML = resultHtml;
+            } else {
+                document.getElementById("result-display-compare").innerText = "对比失败：" + (data.error || "未知错误");
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            document.getElementById("result-display-compare").innerText = "报表对比失败：" + error.message;
+        });
+    }
+
+    // 下载报表文件函数
+    function downloadReport(reportType) {
+        const url = `/statement/download_report/${reportType}`;
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = '';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+
+    // 批量对比报表函数
+    function batchCompareReports() {
+        // 获取用户选择的文件夹
+        const folderA = document.getElementById('folder-a-input').files;
+        const folderB = document.getElementById('folder-b-input').files;
+        
+        // 验证输入
+        if (!folderA || folderA.length === 0) {
+            alert('请选择文件夹A');
+            return;
+        }
+        
+        if (!folderB || folderB.length === 0) {
+            alert('请选择文件夹B');
+            return;
+        }
+
+        // 显示加载状态
+        document.getElementById("result-display-batch").innerText = "正在批量对比报表，请稍候...";
+
+        // 创建FormData对象来发送文件
+        const formData = new FormData();
+        
+        // 添加文件夹A的文件
+        for (let i = 0; i < folderA.length; i++) {
+            formData.append('folder_a_files', folderA[i]);
+        }
+        
+        // 添加文件夹B的文件
+        for (let i = 0; i < folderB.length; i++) {
+            formData.append('folder_b_files', folderB[i]);
+        }
+
+        fetch('/statement/batch_compare_reports', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('Batch response data:', data); // 调试日志
+            if (data.success) {
+                // 格式化显示批量对比结果
+                let resultHtml = '<div style="text-align: left; max-height: 400px; overflow-y: auto;">';
+                resultHtml += '<h4 style="color: #9C27B0; margin-bottom: 10px;">批量报表对比结果</h4>';
+                
+                if (data.summary) {
+                    resultHtml += '<div style="margin-top: 15px; padding: 10px; background-color: #f0f8ff; border-radius: 5px;">';
+                    resultHtml += '<h5 style="margin: 0 0 5px 0;">批量对比摘要：</h5>';
+                    resultHtml += '<p style="margin: 2px 0;">文件夹A报表数量：' + data.summary.total_files_a + '</p>';
+                    resultHtml += '<p style="margin: 2px 0;">文件夹B报表数量：' + data.summary.total_files_b + '</p>';
+                    resultHtml += '<p style="margin: 2px 0;">成功对比的报表对：' + data.summary.matched_pairs + '</p>';
+                    resultHtml += '<p style="margin: 2px 0;">发现差异的报表对：' + data.summary.different_pairs + '</p>';
+                    resultHtml += '<p style="margin: 2px 0;">A中有B中无的HID数量：' + data.summary.missing_in_b + '</p>';
+                    resultHtml += '</div>';
+                }
+                
+                if (data.differences && data.differences.length > 0) {
+                    resultHtml += '<div style="margin-top: 15px;">';
+                    resultHtml += '<h5 style="color: #FF5722; margin-bottom: 10px;">发现差异的报表：</h5>';
+                    resultHtml += '<table style="width: 100%; border-collapse: collapse; margin-top: 10px;">';
+                    resultHtml += '<tr style="background-color: #f5f5f5;">';
+                    resultHtml += '<th style="border: 1px solid #ddd; padding: 8px; text-align: center;">报表名称</th>';
+                    resultHtml += '<th style="border: 1px solid #ddd; padding: 8px; text-align: center;">差异数量</th>';
+                    resultHtml += '<th style="border: 1px solid #ddd; padding: 8px; text-align: center;">状态</th>';
+                    resultHtml += '</tr>';
+                    
+                    data.differences.forEach(diff => {
+                        resultHtml += '<tr>';
+                        resultHtml += '<td style="border: 1px solid #ddd; padding: 8px;">' + diff.report_name + '</td>';
+                        resultHtml += '<td style="border: 1px solid #ddd; padding: 8px; text-align: center;">' + diff.difference_count + '</td>';
+                        resultHtml += '<td style="border: 1px solid #ddd; padding: 8px; text-align: center; color: #FF5722;">有差异</td>';
+                        resultHtml += '</tr>';
+                    });
+                    resultHtml += '</table>';
+                    resultHtml += '</div>';
+                }
+                
+                // 添加详细差异信息显示（新格式）
+                if (data.detailed_differences && data.detailed_differences.length > 0) {
+                    resultHtml += '<div style="margin-top: 15px;">';
+                    resultHtml += '<h5 style="color: #E91E63; margin-bottom: 10px;">详细差异信息：</h5>';
+                    resultHtml += '<div style="max-height: 300px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; background-color: #fafafa;">';
+                    resultHtml += '<table style="width: 100%; border-collapse: collapse; font-size: 12px;">';
+                    resultHtml += '<tr style="background-color: #f0f0f0;">';
+                    resultHtml += '<th style="border: 1px solid #ddd; padding: 6px; text-align: center;">报表A</th>';
+                    resultHtml += '<th style="border: 1px solid #ddd; padding: 6px; text-align: center;">报表B</th>';
+                    resultHtml += '<th style="border: 1px solid #ddd; padding: 6px; text-align: center;">HID</th>';
+                    resultHtml += '<th style="border: 1px solid #ddd; padding: 6px; text-align: center;">A利润</th>';
+                    resultHtml += '<th style="border: 1px solid #ddd; padding: 6px; text-align: center;">B利润</th>';
+                    resultHtml += '<th style="border: 1px solid #ddd; padding: 6px; text-align: center;">备注</th>';
+                    resultHtml += '</tr>';
+                    
+                    data.detailed_differences.forEach(detail => {
+                        let rowColor = '';
+                        if (detail.备注 === '利润不一致') {
+                            rowColor = 'background-color: #fff3cd;';
+                        } else if (detail.备注 === 'A有B无') {
+                            rowColor = 'background-color: #f8d7da;';
+                        } else if (detail.备注 === 'B有A无') {
+                            rowColor = 'background-color: #d1ecf1;';
+                        }
+                        
+                        resultHtml += '<tr style="' + rowColor + '">';
+                        resultHtml += '<td style="border: 1px solid #ddd; padding: 6px; font-size: 11px;">' + (detail.报表A || '') + '</td>';
+                        resultHtml += '<td style="border: 1px solid #ddd; padding: 6px; font-size: 11px;">' + (detail.报表B || '') + '</td>';
+                        resultHtml += '<td style="border: 1px solid #ddd; padding: 6px; font-weight: bold;">' + detail.HID + '</td>';
+                        resultHtml += '<td style="border: 1px solid #ddd; padding: 6px; text-align: right;">' + (detail.A利润 || '') + '</td>';
+                        resultHtml += '<td style="border: 1px solid #ddd; padding: 6px; text-align: right;">' + (detail.B利润 || '') + '</td>';
+                        resultHtml += '<td style="border: 1px solid #ddd; padding: 6px; text-align: center; font-weight: bold; color: #d63384;">' + detail.备注 + '</td>';
+                        resultHtml += '</tr>';
+                    });
+                    resultHtml += '</table>';
+                    resultHtml += '</div>';
+                    resultHtml += '</div>';
+                }
+                
+                // 添加详细差异信息显示（新格式）
+                if (data.differences && data.differences.length > 0) {
+                    resultHtml += '<div style="margin-top: 15px;">';
+                    resultHtml += '<h5 style="color: #E91E63; margin-bottom: 10px;">详细差异信息：</h5>';
+                    resultHtml += '<div style="max-height: 400px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; background-color: #fafafa;">';
+                    resultHtml += '<table style="width: 100%; border-collapse: collapse; font-size: 12px;">';
+                    resultHtml += '<tr style="background-color: #f0f0f0;">';
+                    resultHtml += '<th style="border: 1px solid #ddd; padding: 6px; text-align: center;">Order ID</th>';
+                    resultHtml += '<th style="border: 1px solid #ddd; padding: 6px; text-align: center;">所属文件A</th>';
+                    resultHtml += '<th style="border: 1px solid #ddd; padding: 6px; text-align: center;">所属文件B</th>';
+                    resultHtml += '<th style="border: 1px solid #ddd; padding: 6px; text-align: center;">A利润</th>';
+                    resultHtml += '<th style="border: 1px solid #ddd; padding: 6px; text-align: center;">B利润</th>';
+                    resultHtml += '<th style="border: 1px solid #ddd; padding: 6px; text-align: center;">差异说明</th>';
+                    resultHtml += '</tr>';
+                    
+                    data.differences.forEach(detail => {
+                        let rowColor = '';
+                        if (detail.差异说明 && detail.差异说明.includes('利润为')) {
+                            rowColor = 'background-color: #fff3cd;';
+                        } else if (detail.差异说明 && detail.差异说明.includes('报表A含有')) {
+                            rowColor = 'background-color: #f8d7da;';
+                        } else if (detail.差异说明 && detail.差异说明.includes('报表B含有')) {
+                            rowColor = 'background-color: #d1ecf1;';
+                        }
+                        
+                        resultHtml += '<tr style="' + rowColor + '">';
+                        resultHtml += '<td style="border: 1px solid #ddd; padding: 6px; font-weight: bold;">' + detail.order_id + '</td>';
+                        resultHtml += '<td style="border: 1px solid #ddd; padding: 6px; font-size: 11px;">' + (detail.所属文件A || '') + '</td>';
+                        resultHtml += '<td style="border: 1px solid #ddd; padding: 6px; font-size: 11px;">' + (detail.所属文件B || '') + '</td>';
+                        resultHtml += '<td style="border: 1px solid #ddd; padding: 6px; text-align: right;">' + (detail.A利润 || '') + '</td>';
+                        resultHtml += '<td style="border: 1px solid #ddd; padding: 6px; text-align: right;">' + (detail.B利润 || '') + '</td>';
+                        resultHtml += '<td style="border: 1px solid #ddd; padding: 6px; text-align: left; font-size: 11px; color: #d63384;">' + detail.差异说明 + '</td>';
+                        resultHtml += '</tr>';
+                    });
+                    resultHtml += '</table>';
+                    resultHtml += '</div>';
+                    resultHtml += '</div>';
+                }
+                
+                if (data.missing_hids && data.missing_hids.length > 0) {
+                    resultHtml += '<div style="margin-top: 15px;">';
+                    resultHtml += '<h5 style="color: #FF9800; margin-bottom: 10px;">A中有B中无的HID：</h5>';
+                    resultHtml += '<div style="max-height: 200px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; background-color: #fff3e0;">';
+                    data.missing_hids.forEach(hid => {
+                        resultHtml += '<span style="display: inline-block; margin: 2px 5px; padding: 2px 6px; background-color: #ffcc80; border-radius: 3px;">' + hid + '</span>';
+                    });
+                    resultHtml += '</div>';
+                    resultHtml += '</div>';
+                }
+                
+                // 添加下载按钮
+                if (data.summary && data.summary.total_files_a > 0) {
+                    resultHtml += '<div style="margin-top: 15px; text-align: center;">';
+                    resultHtml += '<p style="margin-bottom: 10px; color: #666;"><strong>📊 批量对比汇总报告已生成，可下载查看详细结果：</strong></p>';
+                    resultHtml += '<button onclick="downloadBatchReport()" style="background-color: #9C27B0; color: white; border: none; padding: 10px 20px; margin: 5px; border-radius: 5px; cursor: pointer;">下载批量对比汇总报告</button>';
+                    resultHtml += '</div>';
+                }
+                
+                resultHtml += '</div>';
+                document.getElementById("result-display-batch").innerHTML = resultHtml;
+            } else {
+                document.getElementById("result-display-batch").innerText = "批量对比失败：" + (data.error || "未知错误");
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            document.getElementById("result-display-batch").innerText = "批量报表对比失败：" + error.message;
+        });
+    }
+
+    // 下载批量对比报告函数
+    function downloadBatchReport() {
+        const url = `/statement/download_batch_report`;
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = '';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+</script>
+{% endblock %}

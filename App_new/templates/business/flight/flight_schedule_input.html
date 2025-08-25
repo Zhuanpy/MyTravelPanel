@@ -1,0 +1,1248 @@
+{% extends "shared/staff_base.html" %}
+
+{% block title %}航班时刻表信息 - MyTravelPanel{% endblock %}
+
+{% block page_title %}航班时刻表信息{% endblock %}
+
+{% block extra_css %}
+<style>
+    :root {
+        --primary-color: #3498db;
+        --primary-hover: #2980b9;
+        --secondary-color: #2ecc71;
+        --secondary-hover: #27ae60;
+        --danger-color: #e74c3c;
+        --danger-hover: #c0392b;
+        --light-gray: #f8f9fa;
+        --medium-gray: #e9ecef;
+        --dark-gray: #6c757d;
+        --border-color: #dee2e6;
+        --text-color: #343a40;
+        --box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    
+    .flight-schedule-container {
+        max-width: 1000px;
+        margin: 2rem auto;
+        padding: 0 20px;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        color: var(--text-color);
+    }
+    
+    .flight-schedule-title {
+        text-align: center;
+        color: var(--text-color);
+        font-size: 28px;
+        font-weight: 600;
+        margin-bottom: 30px;
+        position: relative;
+        padding-bottom: 12px;
+    }
+    
+    .flight-schedule-title:after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 60px;
+        height: 3px;
+        background-color: var(--primary-color);
+    }
+    
+    .flight-schedule-subtitle {
+        text-align: left;
+        color: var(--text-color);
+        font-size: 20px;
+        font-weight: 500;
+        margin-bottom: 20px;
+        padding-left: 5px;
+        border-left: 4px solid var(--primary-color);
+    }
+    
+    .flight-schedule-card {
+        background: #fff;
+        padding: 25px;
+        border-radius: 10px;
+        box-shadow: var(--box-shadow);
+        margin-bottom: 30px;
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    
+    .flight-schedule-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+    }
+    
+    .flight-schedule-label {
+        display: block;
+        font-size: 14px;
+        font-weight: 500;
+        margin-bottom: 6px;
+        color: var(--text-color);
+    }
+    
+    .flight-schedule-form-row {
+        display: flex;
+        gap: 15px;
+        margin-bottom: 20px;
+        position: relative;
+        padding-right: 50px; /* 为删除按钮预留空间 */
+        align-items: flex-start;
+    }
+    
+    .flight-schedule-form-group {
+        flex: 1;
+    }
+    
+    .flight-schedule-input {
+        width: 100%;
+        padding: 10px 12px;
+        font-size: 15px;
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
+        transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    
+    .flight-schedule-input:focus {
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
+        outline: none;
+        background-color: #fff; /* 确保背景为白色，增强可见性 */
+    }
+    
+    .flight-schedule-input:read-only {
+        background-color: var(--light-gray);
+    }
+    
+    .flight-schedule-btn {
+        cursor: pointer;
+        padding: 10px 16px;
+        font-size: 15px;
+        font-weight: 500;
+        border: none;
+        border-radius: 6px;
+        color: #fff;
+        transition: background-color 0.2s, transform 0.1s;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+    }
+    
+    .flight-schedule-btn:active {
+        transform: translateY(1px);
+    }
+    
+    .flight-schedule-btn-primary {
+        background-color: var(--primary-color);
+    }
+    
+    .flight-schedule-btn-primary:hover {
+        background-color: var(--primary-hover);
+    }
+    
+    .flight-schedule-btn-danger {
+        background-color: var(--danger-color);
+    }
+    
+    .flight-schedule-btn-danger:hover {
+        background-color: var(--danger-hover);
+    }
+    
+    .flight-schedule-btn-success {
+        background-color: var(--secondary-color);
+    }
+    
+    .flight-schedule-btn-success:hover {
+        background-color: var(--secondary-hover);
+    }
+    
+    .flight-schedule-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        margin-top: 15px;
+        overflow: hidden;
+        border-radius: 8px;
+        border: 1px solid var(--border-color);
+    }
+    
+    .flight-schedule-table th,
+    .flight-schedule-table td {
+        border: 1px solid var(--border-color);
+        padding: 12px 15px;
+        text-align: center;
+        vertical-align: middle;
+    }
+    
+    .flight-schedule-table th {
+        background-color: var(--light-gray);
+        font-weight: 600;
+        color: var(--text-color);
+        position: sticky;
+        top: 0;
+        box-shadow: 0 1px 0 var(--border-color);
+    }
+    
+    .flight-schedule-table tr:nth-child(even) {
+        background-color: var(--light-gray);
+    }
+    
+    .flight-schedule-table tr:hover {
+        background-color: var(--medium-gray);
+    }
+    
+    .flight-schedule-pagination {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin-top: 20px;
+        gap: 8px;
+    }
+    
+    .flight-schedule-pagination a {
+        padding: 8px 12px;
+        background-color: var(--light-gray);
+        color: var(--text-color);
+        text-decoration: none;
+        border-radius: 4px;
+        transition: all 0.3s ease;
+    }
+    
+    .flight-schedule-pagination a:hover {
+        background-color: var(--primary-color);
+        color: white;
+    }
+    
+    .flight-schedule-pagination a.active {
+        background-color: var(--primary-color);
+        color: white;
+    }
+    
+    .flight-schedule-pagination a.disabled {
+        background-color: var(--medium-gray);
+        color: var(--dark-gray);
+        cursor: not-allowed;
+        pointer-events: none;
+    }
+    
+    .flight-schedule-pagination span {
+        padding: 8px 12px;
+        color: var(--dark-gray);
+    }
+    
+    .flight-schedule-pagination-info {
+        margin-left: 16px;
+        font-weight: 500;
+    }
+    
+    .flight-schedule-remove-btn {
+        position: absolute;
+        right: 0;
+        top: 50%;
+        transform: translateY(-50%);
+        background-color: var(--danger-color);
+        color: white;
+        border: none;
+        border-radius: 6px;
+        padding: 8px 12px;
+        cursor: pointer;
+        font-size: 14px;
+        min-width: 45px;
+        transition: background-color 0.2s;
+    }
+    
+    .flight-schedule-remove-btn:hover {
+        background-color: var(--danger-hover);
+    }
+    
+    .flight-schedule-add-btn {
+        margin: 5px 0 20px;
+    }
+    
+    .flight-schedule-buttons-container {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 20px;
+    }
+    
+    .flight-schedule-buttons-container .flight-schedule-btn {
+        min-width: 120px;
+    }
+    
+    .flight-schedule-input-group {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        width: 100%;
+    }
+    
+    .flight-schedule-input-group .flight-schedule-input {
+        flex: 1;
+        border-radius: 6px 0 0 6px;
+        border-right: none;
+    }
+    
+    .flight-schedule-btn-info {
+        background-color: var(--primary-color);
+        color: white;
+        border: none;
+        padding: 10px 14px;
+        border-radius: 0 6px 6px 0;
+        height: 100%;
+        min-height: 41px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        transition: background-color 0.2s;
+        margin: 0;
+        white-space: nowrap;
+    }
+    
+    .flight-schedule-btn-info:hover {
+        background-color: var(--primary-hover);
+    }
+    
+    .flight-schedule-btn-info:disabled {
+        background-color: var(--dark-gray);
+        cursor: not-allowed;
+        opacity: 0.7;
+    }
+    
+    /* 添加响应式设计 */
+    @media (max-width: 768px) {
+        .flight-schedule-form-row {
+            flex-direction: column;
+            padding-right: 0;
+            gap: 15px;
+        }
+        
+        .flight-schedule-remove-btn {
+            position: static;
+            transform: none;
+            margin-top: 5px;
+            width: 100%;
+        }
+        
+        .flight-schedule-table th, 
+        .flight-schedule-table td {
+            padding: 10px 8px;
+            font-size: 14px;
+        }
+    }
+    
+    /* 手动输入提示样式 */
+    .flight-schedule-input-hint {
+        font-size: 12px;
+        color: #666;
+        margin-top: 4px;
+        display: block;
+    }
+
+    .modal {
+        display: none;
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0,0,0,0.5);
+    }
+
+    .modal-content {
+        background-color: white;
+        margin: 15% auto;
+        padding: 20px;
+        border-radius: 8px;
+        width: 80%;
+        max-width: 500px;
+    }
+
+    .modal-buttons {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        margin-top: 20px;
+    }
+
+    /* 航班录入弹窗样式 */
+    .flight-input-modal {
+        display: none;
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.5);
+        backdrop-filter: blur(2px);
+    }
+
+    .flight-input-modal-content {
+        background-color: white;
+        margin: 2% auto;
+        padding: 30px;
+        border: none;
+        border-radius: 12px;
+        width: 95%;
+        max-width: 1200px;
+        max-height: 85vh;
+        overflow-y: auto;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        animation: modalSlideIn 0.3s ease-out;
+    }
+
+    @keyframes modalSlideIn {
+        from {
+            opacity: 0;
+            transform: translateY(-50px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 25px;
+        padding-bottom: 15px;
+        border-bottom: 2px solid var(--border-color);
+    }
+
+    .modal-title {
+        font-size: 24px;
+        font-weight: 600;
+        color: var(--primary-color);
+        margin: 0;
+    }
+
+    .modal-close {
+        background: none;
+        border: none;
+        font-size: 28px;
+        font-weight: bold;
+        color: #aaa;
+        cursor: pointer;
+        padding: 0;
+        width: 30px;
+        height: 30px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        transition: all 0.2s ease;
+    }
+
+    .modal-close:hover {
+        color: #000;
+        background-color: #f5f5f5;
+    }
+
+    .add-flight-btn {
+        background: linear-gradient(135deg, var(--secondary-color), var(--secondary-hover));
+        color: white;
+        border: none;
+        padding: 12px 20px;
+        border-radius: 8px;
+        font-size: 16px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        box-shadow: 0 4px 12px rgba(46, 204, 113, 0.3);
+    }
+
+    .add-flight-btn:hover {
+        background: linear-gradient(135deg, var(--secondary-hover), var(--secondary-color));
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(46, 204, 113, 0.4);
+    }
+
+    /* 通知消息样式 */
+    .alert {
+        padding: 15px 20px;
+        border-radius: 8px;
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+        animation: slideInRight 0.3s ease-out;
+    }
+
+    .alert-success {
+        background-color: #d4edda;
+        border: 1px solid #c3e6cb;
+        color: #155724;
+    }
+
+    .alert-danger {
+        background-color: #f8d7da;
+        border: 1px solid #f5c6cb;  
+        color: #721c24;
+    }
+
+    .alert-info {
+        background-color: #d1ecf1;
+        border: 1px solid #bee5eb;
+        color: #0c5460;
+    }
+
+    @keyframes slideInRight {
+        from {
+            opacity: 0;
+            transform: translateX(100px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+
+    /* 筛选标签样式 */
+    .filter-tag {
+        display: inline-block;
+        background-color: #e3f2fd;
+        color: #1976d2;
+        padding: 4px 8px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: 500;
+        margin-right: 8px;
+        border: 1px solid #bbdefb;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="flight-schedule-container">
+    <h1 class="flight-schedule-title">航班时刻表信息</h1>
+
+    <!-- 操作区域 -->
+    <div class="flight-schedule-card">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px;">
+            <h2 class="flight-schedule-subtitle" style="margin: 0;">搜索和筛选航班</h2>
+            <button type="button" class="add-flight-btn" onclick="openFlightModal()">
+                <i class="fas fa-plus"></i> 添加航班信息
+            </button>
+        </div>
+        
+        <form id="searchForm" method="GET" action="{{ url_for('flights_schedule.input_flight_schedule_info') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            
+            <!-- 搜索字段行1 -->
+            <div class="flight-schedule-form-row" style="padding-right: 0; margin-bottom: 15px;">
+                <div class="flight-schedule-form-group">
+                    <label class="flight-schedule-label">航班号:</label>
+                    <input type="text" name="search_flight_number" placeholder="如: 9C6907" 
+                           value="{{ search_flight_number }}" class="flight-schedule-input">
+                </div>
+                <div class="flight-schedule-form-group">
+                    <label class="flight-schedule-label">航司代码:</label>
+                    <input type="text" name="search_airline_code" placeholder="如: 9C" 
+                           value="{{ search_airline_code }}" class="flight-schedule-input">
+                </div>
+                <div class="flight-schedule-form-group">
+                    <label class="flight-schedule-label">航班编号:</label>
+                    <input type="text" name="search_airline_num" placeholder="如: 6907" 
+                           value="{{ search_airline_num }}" class="flight-schedule-input">
+                </div>
+                <div class="flight-schedule-form-group">
+                    <label class="flight-schedule-label">起始地点:</label>
+                    <input type="text" name="search_schedule_city" placeholder="如: SHE HFE" 
+                           value="{{ search_schedule_city }}" class="flight-schedule-input">
+                </div>
+            </div>
+            
+            <!-- 搜索按钮行 -->
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <button type="submit" class="flight-schedule-btn flight-schedule-btn-primary">
+                    <i class="fas fa-search"></i> 搜索
+                </button>
+                <button type="button" class="flight-schedule-btn" onclick="clearSearchForm()" 
+                        style="background-color: #6c757d;">
+                    <i class="fas fa-eraser"></i> 清空
+                </button>
+                <span style="color: #666; font-size: 14px;">支持模糊搜索，多条件同时生效</span>
+            </div>
+        </form>
+    </div>
+
+    <!-- 搜索状态提示 -->
+    {% if search_flight_number or search_airline_code or search_airline_num or search_schedule_city %}
+    <div class="flight-schedule-card" style="padding: 15px;">
+        <div class="alert alert-info" style="margin: 0;">
+            <i class="fas fa-filter"></i> 
+            <strong>当前筛选条件：</strong>
+            {% if search_flight_number %}<span class="filter-tag">航班号: {{ search_flight_number }}</span>{% endif %}
+            {% if search_airline_code %}<span class="filter-tag">航司代码: {{ search_airline_code }}</span>{% endif %}
+            {% if search_airline_num %}<span class="filter-tag">航班编号: {{ search_airline_num }}</span>{% endif %}
+            {% if search_schedule_city %}<span class="filter-tag">起始地点: {{ search_schedule_city }}</span>{% endif %}
+            <a href="{{ url_for('flights_schedule.input_flight_schedule_info') }}" class="btn btn-sm btn-outline-secondary ml-2" style="margin-left: 15px; padding: 4px 8px; font-size: 12px; text-decoration: none; color: #6c757d; border: 1px solid #6c757d; border-radius: 4px;">
+                <i class="fas fa-times"></i> 清除所有筛选
+            </a>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- 航班录入弹窗 -->
+    <div id="flightInputModal" class="flight-input-modal">
+        <div class="flight-input-modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">
+                    <i class="fas fa-plane"></i> 添加航班信息
+                </h2>
+                <button class="modal-close" onclick="closeFlightModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <form id="flightForm" method="POST" action="{{ url_for('flights_schedule.input_flight_schedule_info') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="search_flight_number" value="{{ search_flight_number }}">
+                <input type="hidden" name="search_airline_code" value="{{ search_airline_code }}">
+                <input type="hidden" name="search_airline_num" value="{{ search_airline_num }}">
+                <input type="hidden" name="search_schedule_city" value="{{ search_schedule_city }}">
+                <div id="flightInputsContainer">
+                    <div class="flight-schedule-form-row">
+                        <div class="flight-schedule-form-group" style="flex: 2;">
+                            <label for="flightNumber" class="flight-schedule-label">航班号:</label>
+                            <div class="flight-schedule-input-group" style="gap: 10px;">
+                                <input type="text" id="flightNumber" name="flight_number[]" placeholder="例如: TR100" class="flight-schedule-input" style="min-width: 280px;" onchange="updateAirlineInfo(this)">
+                                <button type="button" class="flight-schedule-btn-info" onclick="searchFlightInfo(this)">
+                                    <i class="fas fa-search"></i> 搜索
+                                </button>
+                            </div>
+                        </div>
+                        <div class="flight-schedule-form-group">
+                            <label for="airlineCode" class="flight-schedule-label">航司代码:</label>
+                            <input type="text" id="airlineCode" name="airline_code[]" class="flight-schedule-input" readonly>
+                        </div>
+                        <div class="flight-schedule-form-group">
+                            <label for="airlineNum" class="flight-schedule-label">航班编号:</label>
+                            <input type="text" id="airlineNum" name="airline_num[]" class="flight-schedule-input" readonly>
+                        </div>
+                        <div class="flight-schedule-form-group">
+                            <label for="scheduleCity" class="flight-schedule-label">起始地点:</label>
+                            <input type="text" id="scheduleCity" name="schedule_city[]" placeholder="例如: SIN CAN" class="flight-schedule-input">
+                            <span class="flight-schedule-input-hint">可搜索或手动输入，格式：出发地 目的地</span>
+                        </div>
+                        <div class="flight-schedule-form-group">
+                            <label for="scheduleTiming" class="flight-schedule-label">起始时间:</label>
+                            <input type="text" id="scheduleTiming" name="schedule_timing[]" placeholder="例如: 0515 0925" class="flight-schedule-input">
+                            <span class="flight-schedule-input-hint">可搜索或手动输入，格式：出发时间 到达时间</span>
+                        </div>
+                        <button type="button" class="flight-schedule-remove-btn" onclick="removeFlightInput(this)">删除</button>
+                    </div>
+                </div>
+                <div class="flight-schedule-buttons-container">
+                    <button type="button" class="flight-schedule-btn flight-schedule-btn-primary flight-schedule-add-btn" onclick="addFlightInput()">
+                        <i class="fas fa-plus"></i> 增加航班
+                    </button>
+                    <button type="button" class="flight-schedule-btn" onclick="closeFlightModal()" style="background-color: #6c757d;">
+                        <i class="fas fa-times"></i> 取消
+                    </button>
+                    <button type="submit" class="flight-schedule-btn flight-schedule-btn-success">
+                        <i class="fas fa-save"></i> 提交
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+
+
+    <!-- 航班时刻表 -->
+    <div class="flight-schedule-card">
+        <h2 class="flight-schedule-subtitle">航班时刻表</h2>
+        <table class="flight-schedule-table">
+            <thead>
+                <tr>
+                    <th>航班号</th>
+                    <th>航司代码</th>
+                    <th>航班编号</th>
+                    <th>起始地点</th>
+                    <th>起始时间</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for flight in flights.items %}
+                <tr>
+                    <td>{{ flight.flight_number }}</td>
+                    <td>{{ flight.airline_code }}</td>
+                    <td>{{ flight.airline_num }}</td>
+                    <td>{{ flight.schedule_city }}</td>
+                    <td>
+                        <input type="text" value="{{ flight.schedule_timing }}" class="flight-schedule-input edit-timing" data-flight-id="{{ flight.id }}" style="margin-bottom: 0;">
+                    </td>
+                    <td>
+                        <button class="flight-schedule-btn flight-schedule-btn-success save-button" data-flight-id="{{ flight.id }}" style="margin-right: 5px;">保存</button>
+                        <button class="flight-schedule-btn flight-schedule-btn-danger delete-button" data-flight-id="{{ flight.id }}">删除</button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <!-- 确认删除的模态框 -->
+        <div id="deleteConfirmModal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <h3>确认删除</h3>
+                <p>确定要删除这条航班信息吗？此操作不可恢复。</p>
+                <div class="modal-buttons">
+                    <button id="confirmDelete" class="flight-schedule-btn flight-schedule-btn-danger">确认删除</button>
+                    <button id="cancelDelete" class="flight-schedule-btn">取消</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 分页导航 -->
+        <div class="flight-schedule-pagination">
+            {% if flights.pages > 1 %}
+                <!-- 首页 -->
+                <a href="{{ url_for('flights_schedule.input_flight_schedule_info', page=1, 
+                        search_flight_number=search_flight_number,
+                        search_airline_code=search_airline_code,
+                        search_airline_num=search_airline_num,
+                        search_schedule_city=search_schedule_city) }}"
+                   class="{% if not flights.has_prev %}disabled{% endif %}">首页</a>
+                
+                <!-- 上一页 -->
+                {% if flights.has_prev %}
+                    <a href="{{ url_for('flights_schedule.input_flight_schedule_info', page=flights.prev_num,
+                            search_flight_number=search_flight_number,
+                            search_airline_code=search_airline_code,
+                            search_airline_num=search_airline_num,
+                            search_schedule_city=search_schedule_city) }}">上一页</a>
+                {% endif %}
+                
+                <!-- 页码 -->
+                {% for page_num in flights.iter_pages(left_edge=2, right_edge=2, left_current=2, right_current=2) %}
+                    {% if page_num %}
+                        <a href="{{ url_for('flights_schedule.input_flight_schedule_info', page=page_num,
+                                search_flight_number=search_flight_number,
+                                search_airline_code=search_airline_code,
+                                search_airline_num=search_airline_num,
+                                search_schedule_city=search_schedule_city) }}"
+                           class="{% if page_num == flights.page %}active{% endif %}">{{ page_num }}</a>
+                    {% else %}
+                        <span>...</span>
+                    {% endif %}
+                {% endfor %}
+                
+                <!-- 下一页 -->
+                {% if flights.has_next %}
+                    <a href="{{ url_for('flights_schedule.input_flight_schedule_info', page=flights.next_num,
+                            search_flight_number=search_flight_number,
+                            search_airline_code=search_airline_code,
+                            search_airline_num=search_airline_num,
+                            search_schedule_city=search_schedule_city) }}">下一页</a>
+                {% endif %}
+                
+                <!-- 末页 -->
+                <a href="{{ url_for('flights_schedule.input_flight_schedule_info', page=flights.pages,
+                        search_flight_number=search_flight_number,
+                        search_airline_code=search_airline_code,
+                        search_airline_num=search_airline_num,
+                        search_schedule_city=search_schedule_city) }}"
+                   class="{% if not flights.has_next %}disabled{% endif %}">末页</a>
+                
+                <span class="flight-schedule-pagination-info">第 {{ flights.page }} 页，共 {{ flights.pages }} 页</span>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // 测试函数已移除，功能已稳定
+    
+    // 页面加载时验证功能
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('航班时刻表页面加载完成');
+        
+        // 验证关键函数是否存在
+        const functions = ['searchFlightInfo', 'openFlightModal', 'closeFlightModal', 'addFlightInput'];
+        functions.forEach(funcName => {
+            console.log(`${funcName}函数:`, typeof window[funcName] === 'function' ? '✅ 可用' : '❌ 缺失');
+        });
+    });
+
+    // 模态框控制函数
+    function openFlightModal() {
+        const modal = document.getElementById('flightInputModal');
+        modal.style.display = 'block';
+        document.body.style.overflow = 'hidden'; // 防止背景滚动
+        
+        // 清空表单内容
+        resetFlightForm();
+        
+        console.log('DEBUG: 打开航班录入弹窗');
+    }
+
+    function closeFlightModal() {
+        const modal = document.getElementById('flightInputModal');
+        modal.style.display = 'none';
+        document.body.style.overflow = 'auto'; // 恢复背景滚动
+        
+        console.log('DEBUG: 关闭航班录入弹窗');
+    }
+
+    // 重置表单内容
+    function resetFlightForm() {
+        const container = document.getElementById('flightInputsContainer');
+        
+        // 清空所有现有的航班输入行
+        container.innerHTML = '';
+        
+        // 添加一个新的空白航班输入行
+        addFlightInput();
+        
+        console.log('DEBUG: 重置航班录入表单');
+    }
+
+    // 点击背景关闭弹窗
+    window.onclick = function(event) {
+        const modal = document.getElementById('flightInputModal');
+        if (event.target === modal) {
+            closeFlightModal();
+        }
+    }
+
+    // ESC键关闭弹窗
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape') {
+            const modal = document.getElementById('flightInputModal');
+            if (modal.style.display === 'block') {
+                closeFlightModal();
+            }
+        }
+    });
+
+    // 处理表单提交
+    document.getElementById('flightForm').addEventListener('submit', function(e) {
+        e.preventDefault(); // 阻止默认表单提交
+        
+        const form = this;
+        const formData = new FormData(form);
+        const submitBtn = form.querySelector('button[type="submit"]');
+        
+        // 显示提交中状态
+        const originalBtnText = submitBtn.innerHTML;
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 提交中...';
+        
+        console.log('DEBUG: 开始提交航班信息表单');
+        
+        // 使用AJAX提交表单
+        fetch(form.action, {
+            method: 'POST',
+            body: formData,
+            credentials: 'include'
+        })
+        .then(response => {
+            console.log('DEBUG: 表单提交响应状态:', response.status);
+            return response.text(); // 获取HTML响应
+        })
+        .then(html => {
+            console.log('DEBUG: 表单提交成功');
+            
+            // 关闭弹窗
+            closeFlightModal();
+            
+            // 显示成功提示
+            showSuccessMessage('航班信息提交成功！');
+            
+            // 延迟刷新页面以显示新添加的数据
+            setTimeout(() => {
+                window.location.reload();
+            }, 1500);
+        })
+        .catch(error => {
+            console.error('DEBUG: 表单提交失败:', error);
+            
+            // 显示错误提示
+            showErrorMessage('提交失败：' + error.message);
+        })
+        .finally(() => {
+            // 恢复按钮状态
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalBtnText;
+        });
+    });
+
+    // 显示成功消息
+    function showSuccessMessage(message) {
+        const alertHtml = `
+            <div class="alert alert-success" style="position: fixed; top: 20px; right: 20px; z-index: 9999; min-width: 300px;">
+                <i class="fas fa-check-circle"></i> ${message}
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', alertHtml);
+        
+        // 3秒后自动消失
+        setTimeout(() => {
+            const alert = document.querySelector('.alert-success');
+            if (alert) {
+                alert.remove();
+            }
+        }, 3000);
+    }
+
+    // 显示错误消息
+    function showErrorMessage(message) {
+        const alertHtml = `
+            <div class="alert alert-danger" style="position: fixed; top: 20px; right: 20px; z-index: 9999; min-width: 300px;">
+                <i class="fas fa-exclamation-circle"></i> ${message}
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', alertHtml);
+        
+        // 5秒后自动消失
+        setTimeout(() => {
+            const alert = document.querySelector('.alert-danger');
+            if (alert) {
+                alert.remove();
+            }
+        }, 5000);
+    }
+
+    async function searchFlightInfo(button) {
+        console.log('DEBUG: searchFlightInfo函数被调用');
+        
+        // 在函数开头声明变量
+        let row, flightNumberInput, scheduleCityInput, scheduleTimingInput, airlineCodeInput, airlineNumInput, flightNumber;
+        
+        try {
+            row = button.closest('.flight-schedule-form-row');
+            console.log('DEBUG: 按钮元素:', button);
+            console.log('DEBUG: 找到行元素:', row);
+            
+            if (!row) {
+                throw new Error('找不到父级行元素(.flight-schedule-form-row)');
+            }
+            
+            flightNumberInput = row.querySelector('input[name="flight_number[]"]');
+            scheduleCityInput = row.querySelector('input[name="schedule_city[]"]');
+            scheduleTimingInput = row.querySelector('input[name="schedule_timing[]"]');
+            airlineCodeInput = row.querySelector('input[name="airline_code[]"]');
+            airlineNumInput = row.querySelector('input[name="airline_num[]"]');
+            
+            console.log('DEBUG: 找到输入框元素:', {
+                flightNumber: flightNumberInput,
+                scheduleCity: scheduleCityInput,
+                scheduleTiming: scheduleTimingInput,
+                airlineCode: airlineCodeInput,
+                airlineNum: airlineNumInput
+            });
+            
+            if (!flightNumberInput) {
+                throw new Error('找不到航班号输入框(input[name="flight_number[]"])');
+            }
+            
+            flightNumber = flightNumberInput.value.trim();
+            console.log('DEBUG: 航班号原始值:', `"${flightNumberInput.value}"`);
+            console.log('DEBUG: 航班号处理后值:', `"${flightNumber}"`);
+            console.log('DEBUG: 航班号长度:', flightNumber.length);
+            
+            if (!flightNumber) {
+                alert('请输入航班号');
+                return;
+            }
+        } catch (error) {
+            console.error('DEBUG: 初始化阶段出错:', error);
+            alert('搜索功能初始化失败，请查看控制台错误信息');
+            return;
+        }
+
+        // 自动分割航班号
+        if (flightNumber.length >= 2) {
+            airlineCodeInput.value = flightNumber.substring(0, 2);
+            airlineNumInput.value = flightNumber.substring(2);
+        }
+
+        try {
+            // 显示加载状态
+            console.log('DEBUG: 开始搜索航班信息');
+            button.disabled = true;
+            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 搜索中...';
+
+            // 调用后端API获取航班信息
+            const url = `/flight_schedule/get-flight-info?flight_number=${flightNumber}`;
+            console.log('DEBUG: 请求URL:', url);
+            
+            const response = await fetch(url, {
+                method: 'GET',
+                credentials: 'include',  // 包含cookies，确保session认证有效
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            console.log('DEBUG: 收到响应:', response.status, response.statusText);
+            
+            // 检查响应是否为JSON格式
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                throw new Error('需要登录后才能使用搜索功能');
+            }
+            
+            const data = await response.json();
+
+            if (data.success) {
+                // 填充表单
+                scheduleCityInput.value = data.data.schedule_city || '';
+                scheduleTimingInput.value = data.data.schedule_timing || '';
+                alert("航班信息已自动填充，您可以根据需要修改！");
+            } else {
+                // 显示未找到提示
+                alert('未找到航班信息，请检查航班号是否正确');
+                // 清空相关输入框
+                scheduleCityInput.value = '';
+                scheduleTimingInput.value = '';
+            }
+        } catch (error) {
+            console.error('DEBUG: 获取航班信息失败:', error);
+            if (error.message.includes('Unexpected token') || error.message.includes('需要登录')) {
+                alert('请先登录后再使用搜索功能');
+            } else {
+                alert('获取航班信息失败：' + error.message);
+            }
+        } finally {
+            // 恢复按钮状态
+            button.disabled = false;
+            button.innerHTML = '<i class="fas fa-search"></i> 搜索';
+        }
+    }
+
+    function addFlightInput() {
+        const container = document.getElementById('flightInputsContainer');
+        const newRow = document.createElement('div');
+        newRow.className = 'flight-schedule-form-row';
+        newRow.innerHTML = `
+            <div class="flight-schedule-form-group">
+                <label class="flight-schedule-label">航班号:</label>
+                <div class="flight-schedule-input-group">
+                    <input type="text" name="flight_number[]" placeholder="例如: TR100" class="flight-schedule-input" onchange="updateAirlineInfo(this)">
+                    <button type="button" class="flight-schedule-btn-info" onclick="searchFlightInfo(this)">
+                        <i class="fas fa-search"></i> 搜索
+                    </button>
+                </div>
+            </div>
+            <div class="flight-schedule-form-group">
+                <label class="flight-schedule-label">航司代码:</label>
+                <input type="text" name="airline_code[]" class="flight-schedule-input" readonly>
+            </div>
+            <div class="flight-schedule-form-group">
+                <label class="flight-schedule-label">航班编号:</label>
+                <input type="text" name="airline_num[]" class="flight-schedule-input" readonly>
+            </div>
+            <div class="flight-schedule-form-group">
+                <label class="flight-schedule-label">起始地点:</label>
+                <input type="text" name="schedule_city[]" placeholder="例如: SIN CAN" class="flight-schedule-input">
+                <span class="flight-schedule-input-hint">可搜索或手动输入，格式：出发地 目的地</span>
+            </div>
+            <div class="flight-schedule-form-group">
+                <label class="flight-schedule-label">起始时间:</label>
+                <input type="text" name="schedule_timing[]" placeholder="例如: 0515 0925" class="flight-schedule-input">
+                <span class="flight-schedule-input-hint">可搜索或手动输入，格式：出发时间 到达时间</span>
+            </div>
+            <button type="button" class="flight-schedule-remove-btn" onclick="removeFlightInput(this)">删除</button>
+        `;
+        container.appendChild(newRow);
+    }
+
+    function removeFlightInput(button) {
+        const row = button.closest('.flight-schedule-form-row');
+        if (document.querySelectorAll('.flight-schedule-form-row').length > 1) {
+            row.remove();
+        } else {
+            alert('至少保留一行输入！');
+        }
+    }
+
+    function updateAirlineInfo(input) {
+        const flightNumber = input.value.trim().toUpperCase();
+        const row = input.closest('.flight-schedule-form-row');
+        const airlineCodeInput = row.querySelector('[name="airline_code[]"]');
+        const airlineNumInput = row.querySelector('[name="airline_num[]"]');
+        
+        if (flightNumber) {
+            // 提取航司代码（前两个字符）和航班编号（剩余数字）
+            const airlineCode = flightNumber.substring(0, 2);
+            const airlineNum = flightNumber.substring(2);
+            
+            airlineCodeInput.value = airlineCode;
+            airlineNumInput.value = airlineNum;
+        } else {
+            airlineCodeInput.value = '';
+            airlineNumInput.value = '';
+        }
+    }
+
+    // 为所有航班号输入框添加事件监听器
+    document.addEventListener('DOMContentLoaded', function() {
+        const flightInputs = document.querySelectorAll('[name="flight_number[]"]');
+        flightInputs.forEach(input => {
+            input.addEventListener('input', function() {
+                updateAirlineInfo(this);
+            });
+        });
+    });
+
+    document.addEventListener("DOMContentLoaded", function () {
+        document.querySelectorAll(".save-button").forEach(button => {
+            button.addEventListener("click", function () {
+                let flightId = this.getAttribute("data-flight-id");
+                let inputField = document.querySelector(`input[data-flight-id='${flightId}']`);
+                let newTiming = inputField.value;
+    
+                fetch("{{ url_for('flights_schedule.update_flight_timing') }}", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-CSRFToken": "{{ csrf_token() }}"
+                    },
+                    body: JSON.stringify({
+                        flight_id: flightId,
+                        schedule_timing: newTiming
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert("更新成功！");
+                    } else {
+                        alert("更新失败：" + data.error);
+                    }
+                })
+                .catch(error => {
+                    console.error("Error:", error);
+                    alert("请求失败，请检查网络连接！");
+                });
+            });
+        });
+    });
+
+    // 清空搜索表单函数
+    function clearSearchForm() {
+        const form = document.getElementById('searchForm');
+        const inputs = form.querySelectorAll('input[type="text"]');
+        inputs.forEach(input => {
+            input.value = '';
+        });
+        
+        // 直接跳转到无搜索条件的页面
+        window.location.href = "{{ url_for('flights_schedule.input_flight_schedule_info') }}";
+    }
+
+    document.getElementById('searchForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        // 获取所有搜索字段的值
+        const searchParams = {
+            search_flight_number: this.querySelector('[name="search_flight_number"]').value.trim(),
+            search_airline_code: this.querySelector('[name="search_airline_code"]').value.trim(),
+            search_airline_num: this.querySelector('[name="search_airline_num"]').value.trim(),
+            search_schedule_city: this.querySelector('[name="search_schedule_city"]').value.trim()
+        };
+        
+        console.log('DEBUG: 多字段搜索参数:', searchParams);
+        
+        // 构建搜索URL
+        const currentUrl = new URL(window.location);
+        
+        // 清除所有现有的搜索参数
+        currentUrl.searchParams.delete('search_flight_number');
+        currentUrl.searchParams.delete('search_airline_code');
+        currentUrl.searchParams.delete('search_airline_num');
+        currentUrl.searchParams.delete('search_schedule_city');
+        currentUrl.searchParams.delete('page'); // 重置到第一页
+        
+        // 添加非空的搜索参数
+        Object.entries(searchParams).forEach(([key, value]) => {
+            if (value) {
+                currentUrl.searchParams.set(key, value);
+            }
+        });
+        
+        console.log('DEBUG: 重新加载页面，URL:', currentUrl.toString());
+        
+        // 重新加载页面
+        window.location.href = currentUrl.toString();
+    });
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const modal = document.getElementById('deleteConfirmModal');
+        const confirmDeleteBtn = document.getElementById('confirmDelete');
+        const cancelDeleteBtn = document.getElementById('cancelDelete');
+        let flightIdToDelete = null;
+
+        // 为所有删除按钮添加点击事件
+        document.querySelectorAll('.delete-button').forEach(button => {
+            button.addEventListener('click', function() {
+                flightIdToDelete = this.getAttribute('data-flight-id');
+                modal.style.display = 'block';
+            });
+        });
+
+        // 取消删除
+        cancelDeleteBtn.addEventListener('click', function() {
+            modal.style.display = 'none';
+            flightIdToDelete = null;
+        });
+
+        // 点击模态框外部关闭
+        window.addEventListener('click', function(event) {
+            if (event.target == modal) {
+                modal.style.display = 'none';
+                flightIdToDelete = null;
+            }
+        });
+
+        // 确认删除
+        confirmDeleteBtn.addEventListener('click', async function() {
+            if (!flightIdToDelete) return;
+
+            try {
+                                        const response = await fetch(`/flight_schedule/delete_flight/${flightIdToDelete}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token() }}'
+                    }
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    // 删除成功，移除对应的表格行
+                    const row = document.querySelector(`button[data-flight-id="${flightIdToDelete}"]`).closest('tr');
+                    row.remove();
+                    alert('删除成功！');
+                } else {
+                    alert('删除失败：' + data.message);
+                }
+            } catch (error) {
+                console.error('删除出错:', error);
+                alert('删除失败，请稍后重试');
+            } finally {
+                modal.style.display = 'none';
+                flightIdToDelete = null;
+            }
+        });
+    });
+</script>
+{% endblock %}

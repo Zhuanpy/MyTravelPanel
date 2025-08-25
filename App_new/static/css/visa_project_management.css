@@ -1,0 +1,274 @@
+/* 变量定义 */
+:root {
+    --primary-color: #4CAF50;
+    --secondary-color: #007BFF;
+    --danger-color: #dc3545;
+    --text-color: #333;
+    --border-color: #ddd;
+    --bg-color: #f4f4f9;
+    --white: #fff;
+    --shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    --transition: all 0.3s ease;
+}
+
+/* 通用样式 */
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    line-height: 1.6;
+}
+
+.container {
+    max-width: 1500px;
+    margin: 20px auto;
+    padding: 20px;
+    background: var(--white);
+    box-shadow: var(--shadow);
+    border-radius: 8px;
+}
+
+/* 标题和导航样式 */
+h1, h2 {
+    color: var(--primary-color);
+    text-align: center;
+    margin-bottom: 1.5rem;
+}
+
+.home-link {
+    display: block;
+    text-align: left;
+    margin-bottom: 20px;
+    font-size: 16px;
+}
+
+.home-link a {
+    text-decoration: none;
+    color: var(--secondary-color);
+    transition: var(--transition);
+}
+
+.home-link a:hover {
+    color: var(--primary-color);
+}
+
+/* 排序选择样式 */
+.sort-options {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    margin-bottom: 20px;
+    padding: 15px;
+    background-color: var(--white);
+    border-radius: 8px;
+    box-shadow: var(--shadow);
+}
+
+.sort-options label {
+    margin-right: 15px;
+    font-weight: 600;
+    color: var(--text-color);
+}
+
+.sort-options select {
+    padding: 8px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background-color: var(--white);
+    color: var(--text-color);
+    transition: var(--transition);
+}
+
+.sort-options select:focus {
+    border-color: var(--secondary-color);
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+/* 表格样式 */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 20px 0;
+    background: var(--white);
+    box-shadow: var(--shadow);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+th, td {
+    padding: 12px 15px;
+    text-align: left;
+    border: 1px solid var(--border-color);
+}
+
+th {
+    background-color: var(--primary-color);
+    color: var(--white);
+    font-weight: 600;
+}
+
+tr:nth-child(even) {
+    background-color: rgba(0, 0, 0, 0.02);
+}
+
+tr:hover {
+    background-color: rgba(76, 175, 80, 0.05);
+}
+
+/* 链接和按钮样式 */
+.action-link, .delete-link, .open-link {
+    display: inline-block;
+    padding: 6px 12px;
+    text-decoration: none;
+    border-radius: 4px;
+    transition: var(--transition);
+    font-weight: 500;
+}
+
+.action-link {
+    background-color: var(--secondary-color);
+    color: var(--white);
+}
+
+.delete-link {
+    background-color: var(--danger-color);
+    color: var(--white);
+}
+
+.open-link {
+    background-color: var(--primary-color);
+    color: var(--white);
+}
+
+.action-link:hover, .delete-link:hover, .open-link:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow);
+    color: var(--white);
+    text-decoration: none;
+}
+
+/* 输入框样式 */
+.input-field, .select-field {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    transition: var(--transition);
+}
+
+.input-field:focus, .select-field:focus {
+    border-color: var(--secondary-color);
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+/* 签证链接区域样式 */
+.visa-links-section {
+    margin-top: 40px;
+    padding: 20px;
+    background-color: var(--white);
+    border-radius: 8px;
+    box-shadow: var(--shadow);
+}
+
+.visa-links-title {
+    color: var(--primary-color);
+    text-align: left;
+    margin-bottom: 20px;
+    font-size: 1.5rem;
+    font-weight: 600;
+    padding-left: 20px;
+}
+
+.button-group {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 12px;
+    padding: 0 20px;
+}
+
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 16px;
+    text-decoration: none;
+    border-radius: 6px;
+    font-weight: 500;
+    transition: var(--transition);
+    font-size: 0.9rem;
+    min-width: 120px;
+    text-align: center;
+    height: calc(0.9rem * 2 * 1.6);  /* 字体大小 * 2 * 行高 */
+    line-height: 1;
+}
+
+.btn-blue {
+    background-color: var(--secondary-color);
+    color: var(--white);
+    border: none;
+}
+
+.btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.btn-blue:hover {
+    background-color: #0056b3;
+    color: var(--white);
+}
+
+/* 响应式设计 */
+@media (max-width: 1600px) {
+    .button-group {
+        grid-template-columns: repeat(6, 1fr);
+    }
+}
+
+@media (max-width: 1200px) {
+    .button-group {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+    .container {
+        padding: 15px;
+        margin: 10px;
+    }
+
+    .sort-options {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+    }
+
+    .button-group {
+        grid-template-columns: repeat(2, 1fr);
+        padding: 0 10px;
+    }
+
+    .btn {
+        width: 100%;
+        min-width: unset;
+    }
+
+    table {
+        display: block;
+        overflow-x: auto;
+    }
+
+    th, td {
+        padding: 8px 10px;
+    }
+}
+
+@media (max-width: 480px) {
+    .button-group {
+        grid-template-columns: 1fr;
+    }
+} 

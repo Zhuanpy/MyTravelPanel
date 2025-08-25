@@ -1,0 +1,183 @@
+{% extends "staff_base.html" %}
+{% block title %}编辑项目 - MyTravelPanel{% endblock %}
+
+{% block page_title %}编辑项目{% endblock %}
+
+{% block extra_css %}
+<!-- 添加 Select2 样式 -->
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<style>
+    .edit-header-form-card {
+        background: #fff;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        padding: 24px 24px 12px 24px;
+        margin-bottom: 24px;
+    }
+    .edit-header-form .row {
+        display: flex;
+        flex-wrap: wrap;
+        margin-bottom: 0.5rem;
+    }
+    .edit-header-form .edit-col {
+        flex: 1 0 22%;
+        min-width: 220px;
+        max-width: 25%;
+        padding-right: 12px;
+        padding-left: 0;
+        margin-bottom: 0.5rem;
+    }
+    .edit-header-form .mb-3 {
+        margin-bottom: 0.5rem !important;
+    }
+    .edit-header-form label {
+        font-size: 1rem;
+        font-weight: 600;
+        margin-bottom: 2px;
+        color: #333;
+    }
+    .edit-header-form .form-control, .edit-header-form .form-select {
+        font-size: 1rem;
+        padding: 6px 12px;
+        height: 38px;
+        border-radius: 5px;
+        border: 1px solid #d4d4d4;
+        background: #fafbfc;
+    }
+    .edit-header-form .form-control:focus, .edit-header-form .form-select:focus {
+        border-color: #409eff;
+        box-shadow: 0 0 0 2px rgba(64,158,255,0.08);
+        background: #fff;
+    }
+    .edit-header-form .text-danger {
+        font-size: 0.95rem;
+        margin-top: 2px;
+    }
+    @media (max-width: 1200px) {
+        .edit-header-form .edit-col {
+            min-width: 100%;
+            max-width: 100%;
+            padding-right: 0;
+        }
+    }
+    .edit-header-form .remarks-row {
+        width: 100%;
+        margin-top: 8px;
+    }
+    .edit-header-form .form-control.remarks-textarea {
+        min-height: 80px;
+        height: 100px;
+        resize: vertical;
+        width: 100%;
+        font-size: 1rem;
+    }
+    /* 隐藏备注编辑区域 */
+    .edit-header-form .remarks-row {
+        display: none !important;
+    }
+    /* Select2 样式优化 */
+    .select2-container {
+        width: 100% !important;
+    }
+    .select2-selection {
+        height: 38px !important;
+        border: 1px solid #d4d4d4 !important;
+        border-radius: 5px !important;
+        background: #fafbfc !important;
+    }
+    .select2-selection__arrow {
+        height: 36px !important;
+    }
+    .select2-container .select2-selection--single .select2-selection__rendered {
+        line-height: 36px !important;
+        padding-left: 12px !important;
+    }
+    .select2-container--default .select2-selection--single:focus {
+        border-color: #409eff !important;
+        box-shadow: 0 0 0 2px rgba(64,158,255,0.08) !important;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>编辑项目主表（HID）</h2>
+    
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+    
+    <div class="edit-header-form-card">
+    <form method="post" action="{{ url_for('projects.edit_header', header_id=header.id) }}" class="edit-header-form">
+        {{ form.hidden_tag() }}
+        <div class="row">
+            <div class="edit-col">{{ form.hid.label(class="form-label") }}{{ form.hid(class="form-control", readonly=true) }}</div>
+            <div class="edit-col">{{ form.desc.label(class="form-label") }}{{ form.desc(class="form-control") }}</div>
+            <div class="edit-col">{{ form.staff_name.label(class="form-label") }}{{ form.staff_name(class="form-control") }}</div>
+            <div class="edit-col">{{ form.leader_name.label(class="form-label") }}{{ form.leader_name(class="form-control") }}</div>
+        </div>
+        <div class="row">
+            <div class="edit-col">{{ form.currency.label(class="form-label") }}{{ form.currency(class="form-select") }}</div>
+            <div class="edit-col">{{ form.status.label(class="form-label") }}{{ form.status(class="form-select") }}</div>
+            <div class="edit-col">{{ form.contact.label(class="form-label") }}{{ form.contact(class="form-control") }}</div>
+            <div class="edit-col">{{ form.dept.label(class="form-label") }}{{ form.dept(class="form-control") }}</div>
+        </div>
+        <div class="row">
+            <div class="edit-col">{{ form.limit.label(class="form-label") }}{{ form.limit(class="form-control") }}</div>
+            <div class="edit-col">{{ form.country.label(class="form-label") }}{{ form.country(class="form-control") }}</div>
+            <div class="edit-col">{{ form.type.label(class="form-label") }}{{ form.type(class="form-control") }}</div>
+            <div class="edit-col">{{ form.source.label(class="form-label") }}{{ form.source(class="form-control") }}</div>
+        </div>
+        <div class="row">
+            <div class="edit-col" style="flex: 1 0 100%; max-width: 100%;">
+                {{ form.company_id.label(class="form-label") }}
+                {{ form.company_id(class="form-select") }}
+            </div>
+        </div>
+        <div class="row remarks-row">
+            <div class="edit-col" style="flex: 1 0 100%; max-width: 100%;">
+                {{ form.remarks.label(class="form-label") }}
+                {{ form.remarks(class="form-control remarks-textarea", rows=4) }}
+            </div>
+        </div>
+        <div class="d-flex gap-2">
+            {{ form.submit(class="btn btn-primary", value="更新项目") }}
+            <a href="{{ url_for('projects.header_detail', header_id=header.id) }}" class="btn btn-secondary">取消</a>
+        </div>
+    </form>
+    </div>
+</div>
+{% endblock %} 
+
+{% block extra_js %}
+<!-- 添加 Select2 JS -->
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script>
+$(document).ready(function() {
+    // 确保jQuery和Select2都已加载
+    if (typeof jQuery !== 'undefined' && typeof jQuery.fn.select2 !== 'undefined') {
+        // 初始化公司选择下拉框
+        $('#company_id').select2({
+            placeholder: '请选择公司',
+            allowClear: true,
+            width: '100%',
+            language: {
+                noResults: function() {
+                    return "没有找到匹配的公司";
+                },
+                searching: function() {
+                    return "搜索中...";
+                }
+            }
+        });
+    }
+});
+</script>
+{% endblock %} 

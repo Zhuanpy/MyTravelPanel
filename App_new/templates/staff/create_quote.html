@@ -1,0 +1,459 @@
+{% extends "base.html" %}
+
+{% block title %}创建报价 - MyTravelPanel{% endblock %}
+
+{% block page_title %}创建新报价{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{{ url_for('staff.quotes') }}">报价管理</a></li>
+<li class="breadcrumb-item active">创建报价</li>
+{% endblock %}
+
+{% block page_actions %}
+<a href="{{ url_for('staff.quotes') }}" class="btn btn-outline-secondary">
+    <i class="fas fa-arrow-left me-1"></i>返回列表
+</a>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-10">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-file-invoice-dollar me-2"></i>报价信息
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" id="createQuoteForm">
+                    <div class="row">
+                        <!-- 基本信息 -->
+                        <div class="col-md-6 mb-3">
+                            <label for="client" class="form-label">客户名称 <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="client" name="client" required
+                                   placeholder="请输入客户名称">
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="project_name" class="form-label">项目名称 <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="project_name" name="project_name" required
+                                   placeholder="请输入项目名称">
+                        </div>
+                        
+                        <div class="col-12 mb-3">
+                            <label for="description" class="form-label">项目描述</label>
+                            <textarea class="form-control" id="description" name="description" rows="3"
+                                      placeholder="请详细描述项目内容、服务范围和要求..."></textarea>
+                        </div>
+                    </div>
+                    
+                    <hr>
+                    
+                    <!-- 报价明细 -->
+                    <div class="row mb-3">
+                        <div class="col-12">
+                            <h6 class="mb-3">
+                                <i class="fas fa-list me-2"></i>报价明细
+                            </h6>
+                            <div id="quoteItems">
+                                <div class="quote-item row g-2 mb-2">
+                                    <div class="col-md-4">
+                                        <input type="text" class="form-control" name="items[]" 
+                                               placeholder="服务项目名称" required>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <input type="number" class="form-control" name="quantities[]" 
+                                               placeholder="数量" min="1" value="1" required>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <input type="number" class="form-control" name="unit_prices[]" 
+                                               placeholder="单价" step="0.01" min="0" required>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <input type="text" class="form-control item-total" 
+                                               placeholder="小计" readonly>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <button type="button" class="btn btn-outline-danger btn-sm remove-item">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="text-center mt-3">
+                                <button type="button" class="btn btn-outline-success" id="addItem">
+                                    <i class="fas fa-plus me-1"></i>添加项目
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <hr>
+                    
+                    <!-- 报价汇总 -->
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="valid_days" class="form-label">有效期（天）</label>
+                                <input type="number" class="form-control" id="valid_days" name="valid_days" 
+                                       value="30" min="1" max="365">
+                                <small class="form-text text-muted">报价的有效期，从创建日期开始计算</small>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="payment_terms" class="form-label">付款条件</label>
+                                <select class="form-select" id="payment_terms" name="payment_terms">
+                                    <option value="immediate">立即付款</option>
+                                    <option value="net30" selected>30天付款</option>
+                                    <option value="net60">60天付款</option>
+                                    <option value="net90">90天付款</option>
+                                    <option value="custom">自定义</option>
+                                </select>
+                            </div>
+                            
+                            <div class="mb-3" id="customPaymentTerms" style="display: none;">
+                                <label for="custom_payment_text" class="form-label">自定义付款条件</label>
+                                <textarea class="form-control" id="custom_payment_text" name="custom_payment_text" 
+                                          rows="2" placeholder="请输入自定义付款条件..."></textarea>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0">报价汇总</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row mb-2">
+                                        <div class="col-6">小计：</div>
+                                        <div class="col-6 text-end">
+                                            <span id="subtotal">¥0.00</span>
+                                        </div>
+                                    </div>
+                                    <div class="row mb-2">
+                                        <div class="col-6">税费：</div>
+                                        <div class="col-6 text-end">
+                                            <span id="tax">¥0.00</span>
+                                        </div>
+                                    </div>
+                                    <div class="row mb-2">
+                                        <div class="col-6">折扣：</div>
+                                        <div class="col-6 text-end">
+                                            <span id="discount">¥0.00</span>
+                                        </div>
+                                    </div>
+                                    <hr>
+                                    <div class="row">
+                                        <div class="col-6 fw-bold">总计：</div>
+                                        <div class="col-6 text-end fw-bold">
+                                            <span id="total" class="text-success">¥0.00</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <hr>
+                    
+                    <!-- 其他设置 -->
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="currency" class="form-label">货币</label>
+                            <select class="form-select" id="currency" name="currency">
+                                <option value="CNY" selected>人民币 (CNY)</option>
+                                <option value="USD">美元 (USD)</option>
+                                <option value="EUR">欧元 (EUR)</option>
+                                <option value="SGD">新加坡元 (SGD)</option>
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="tax_rate" class="form-label">税率 (%)</label>
+                            <input type="number" class="form-control" id="tax_rate" name="tax_rate" 
+                                   value="0" min="0" max="100" step="0.01">
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="discount_rate" class="form-label">折扣率 (%)</label>
+                            <input type="number" class="form-control" id="discount_rate" name="discount_rate" 
+                                   value="0" min="0" max="100" step="0.01">
+                        </div>
+                        
+                        <div class="col-12 mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="include_tax" name="include_tax" checked>
+                                <label class="form-check-label" for="include_tax">
+                                    报价包含税费
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="col-12 mb-3">
+                            <label for="notes" class="form-label">备注说明</label>
+                            <textarea class="form-control" id="notes" name="notes" rows="3"
+                                      placeholder="其他需要说明的事项..."></textarea>
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <button type="button" class="btn btn-outline-secondary me-md-2" onclick="resetForm()">
+                            <i class="fas fa-undo me-1"></i>重置
+                        </button>
+                        <button type="submit" class="btn btn-success">
+                            <i class="fas fa-save me-1"></i>创建报价
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <!-- 帮助信息 -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-question-circle me-2"></i>创建报价说明
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6 class="text-primary">必填字段</h6>
+                        <ul class="small text-muted">
+                            <li>客户名称：填写客户公司或个人名称</li>
+                            <li>项目名称：简洁明了地描述项目内容</li>
+                            <li>报价明细：至少包含一个服务项目</li>
+                            <li>数量和单价：确保数据准确</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <h6 class="text-success">建议填写</h6>
+                        <ul class="small text-muted">
+                            <li>项目描述：详细说明服务范围和要求</li>
+                            <li>有效期：合理设置报价有效期</li>
+                            <li>付款条件：明确付款方式和时间</li>
+                            <li>备注说明：其他重要信息</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// 全局变量
+let itemCount = 1;
+
+// 添加报价项目
+document.getElementById('addItem').addEventListener('click', function() {
+    itemCount++;
+    const newItem = document.createElement('div');
+    newItem.className = 'quote-item row g-2 mb-2';
+    newItem.innerHTML = `
+        <div class="col-md-4">
+            <input type="text" class="form-control" name="items[]" 
+                   placeholder="服务项目名称" required>
+        </div>
+        <div class="col-md-2">
+            <input type="number" class="form-control" name="quantities[]" 
+                   placeholder="数量" min="1" value="1" required>
+        </div>
+        <div class="col-md-2">
+            <input type="number" class="form-control" name="unit_prices[]" 
+                   placeholder="单价" step="0.01" min="0" required>
+        </div>
+        <div class="col-md-2">
+            <input type="text" class="form-control item-total" 
+                   placeholder="小计" readonly>
+        </div>
+        <div class="col-md-2">
+            <button type="button" class="btn btn-outline-danger btn-sm remove-item">
+                <i class="fas fa-trash"></i>
+            </button>
+        </div>
+    `;
+    
+    document.getElementById('quoteItems').appendChild(newItem);
+    bindItemEvents(newItem);
+});
+
+// 绑定项目事件
+function bindItemEvents(item) {
+    const quantityInput = item.querySelector('input[name="quantities[]"]');
+    const priceInput = item.querySelector('input[name="unit_prices[]"]');
+    const totalInput = item.querySelector('.item-total');
+    const removeBtn = item.querySelector('.remove-item');
+    
+    // 计算小计
+    function calculateSubtotal() {
+        const quantity = parseFloat(quantityInput.value) || 0;
+        const price = parseFloat(priceInput.value) || 0;
+        const subtotal = quantity * price;
+        totalInput.value = `¥${subtotal.toFixed(2)}`;
+        updateTotals();
+    }
+    
+    quantityInput.addEventListener('input', calculateSubtotal);
+    priceInput.addEventListener('input', calculateSubtotal);
+    
+    // 删除项目
+    removeBtn.addEventListener('click', function() {
+        if (document.querySelectorAll('.quote-item').length > 1) {
+            item.remove();
+            updateTotals();
+            itemCount--;
+        }
+    });
+}
+
+// 更新总计
+function updateTotals() {
+    let subtotal = 0;
+    
+    // 计算小计总和
+    document.querySelectorAll('.item-total').forEach(input => {
+        const value = input.value.replace('¥', '');
+        subtotal += parseFloat(value) || 0;
+    });
+    
+    // 计算税费
+    const taxRate = parseFloat(document.getElementById('tax_rate').value) || 0;
+    const tax = subtotal * (taxRate / 100);
+    
+    // 计算折扣
+    const discountRate = parseFloat(document.getElementById('discount_rate').value) || 0;
+    const discount = subtotal * (discountRate / 100);
+    
+    // 计算总计
+    const total = subtotal + tax - discount;
+    
+    // 更新显示
+    document.getElementById('subtotal').textContent = `¥${subtotal.toFixed(2)}`;
+    document.getElementById('tax').textContent = `¥${tax.toFixed(2)}`;
+    document.getElementById('discount').textContent = `¥${discount.toFixed(2)}`;
+    document.getElementById('total').textContent = `¥${total.toFixed(2)}`;
+}
+
+// 付款条件变化处理
+document.getElementById('payment_terms').addEventListener('change', function() {
+    const customDiv = document.getElementById('customPaymentTerms');
+    if (this.value === 'custom') {
+        customDiv.style.display = 'block';
+    } else {
+        customDiv.style.display = 'none';
+    }
+});
+
+// 税率和折扣率变化处理
+document.getElementById('tax_rate').addEventListener('input', updateTotals);
+document.getElementById('discount_rate').addEventListener('input', updateTotals);
+
+// 表单验证
+document.getElementById('createQuoteForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    // 基础验证
+    const client = document.getElementById('client').value.trim();
+    const projectName = document.getElementById('project_name').value.trim();
+    
+    if (!client) {
+        alert('请输入客户名称');
+        document.getElementById('client').focus();
+        return;
+    }
+    
+    if (!projectName) {
+        alert('请输入项目名称');
+        document.getElementById('project_name').focus();
+        return;
+    }
+    
+    // 验证报价明细
+    const items = document.querySelectorAll('input[name="items[]"]');
+    const quantities = document.querySelectorAll('input[name="quantities[]"]');
+    const prices = document.querySelectorAll('input[name="unit_prices[]"]');
+    
+    for (let i = 0; i < items.length; i++) {
+        if (!items[i].value.trim()) {
+            alert('请填写所有服务项目名称');
+            items[i].focus();
+            return;
+        }
+        
+        if (!quantities[i].value || parseFloat(quantities[i].value) <= 0) {
+            alert('请填写有效的数量');
+            quantities[i].focus();
+            return;
+        }
+        
+        if (!prices[i].value || parseFloat(prices[i].value) < 0) {
+            alert('请填写有效的单价');
+            prices[i].focus();
+            return;
+        }
+    }
+    
+    // 验证通过，提交表单
+    this.submit();
+});
+
+// 重置表单
+function resetForm() {
+    if (confirm('确定要重置表单吗？所有已填写的内容将丢失。')) {
+        document.getElementById('createQuoteForm').reset();
+        
+        // 重置报价明细
+        const quoteItems = document.getElementById('quoteItems');
+        quoteItems.innerHTML = `
+            <div class="quote-item row g-2 mb-2">
+                <div class="col-md-4">
+                    <input type="text" class="form-control" name="items[]" 
+                           placeholder="服务项目名称" required>
+                </div>
+                <div class="col-md-2">
+                    <input type="number" class="form-control" name="quantities[]" 
+                           placeholder="数量" min="1" value="1" required>
+                </div>
+                <div class="col-md-2">
+                    <input type="number" class="form-control" name="unit_prices[]" 
+                           placeholder="单价" step="0.01" min="0" required>
+                </div>
+                <div class="col-md-2">
+                    <input type="text" class="form-control item-total" 
+                           placeholder="小计" readonly>
+                </div>
+                <div class="col-md-2">
+                    <button type="button" class="btn btn-outline-danger btn-sm remove-item">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        // 重新绑定事件
+        bindItemEvents(quoteItems.querySelector('.quote-item'));
+        
+        // 重置总计
+        updateTotals();
+        
+        // 重置项目计数
+        itemCount = 1;
+    }
+}
+
+// 页面加载完成后的初始化
+document.addEventListener('DOMContentLoaded', function() {
+    // 绑定第一个项目的事件
+    bindItemEvents(document.querySelector('.quote-item'));
+    
+    // 初始化总计
+    updateTotals();
+    
+    console.log('创建报价页面加载完成');
+});
+</script>
+{% endblock %} 

@@ -1,0 +1,115 @@
+{% extends "shared/staff_base.html" %}
+
+{% block title %}编辑REF - {{ ref.ref_number }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="page-title-box">
+                <div class="page-title-right">
+                    <ol class="breadcrumb m-0">
+                        <li class="breadcrumb-item"><a href="{{ url_for('business_projects.list.list_projects') }}">项目管理</a></li>
+                        <li class="breadcrumb-item"><a href="{{ url_for('business_projects.detail.project_detail', project_id=project.id) }}">{{ project.hid }}</a></li>
+                        <li class="breadcrumb-item"><a href="{{ url_for('projects.ref_detail', ref_id=ref.id) }}">{{ ref.ref_number }}</a></li>
+                        <li class="breadcrumb-item active">编辑REF</li>
+                    </ol>
+                </div>
+                <h4 class="page-title">编辑REF</h4>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="header-title">编辑REF信息</h4>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="ref_number">REF编号</label>
+                                    <input type="text" class="form-control" id="ref_number" name="ref_number" 
+                                           value="{{ ref.ref_number }}" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="contact_name">联系人</label>
+                                    <input type="text" class="form-control" id="contact_name" name="contact_name" 
+                                           value="{{ ref.contact_name }}" required>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="status">状态</label>
+                                    <select class="form-control" id="status" name="status" required>
+                                        <option value="active" {{ 'selected' if ref.status == 'active' }}>活跃</option>
+                                        <option value="pending" {{ 'selected' if ref.status == 'pending' }}>待处理</option>
+                                        <option value="completed" {{ 'selected' if ref.status == 'completed' }}>已完成</option>
+                                        <option value="cancelled" {{ 'selected' if ref.status == 'cancelled' }}>已取消</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="payment_status">付款状态</label>
+                                    <select class="form-control" id="payment_status" name="payment_status" required>
+                                        <option value="pending" {{ 'selected' if ref.payment_status == 'pending' }}>待付款</option>
+                                        <option value="partial" {{ 'selected' if ref.payment_status == 'partial' }}>部分付款</option>
+                                        <option value="paid" {{ 'selected' if ref.payment_status == 'paid' }}>已付款</option>
+                                        <option value="overdue" {{ 'selected' if ref.payment_status == 'overdue' }}>逾期</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="total_amount">总金额</label>
+                                    <input type="number" step="0.01" class="form-control" id="total_amount" name="total_amount" 
+                                           value="{{ ref.total_amount or 0 }}" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="total_cost">总成本</label>
+                                    <input type="number" step="0.01" class="form-control" id="total_cost" name="total_cost" 
+                                           value="{{ ref.total_cost or 0 }}" required>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-12">
+                                <div class="form-group">
+                                    <label for="remarks">备注</label>
+                                    <textarea class="form-control" id="remarks" name="remarks" rows="3">{{ ref.remarks or '' }}</textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row mt-3">
+                            <div class="col-12">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="mdi mdi-content-save"></i> 保存更改
+                                </button>
+                                <a href="{{ url_for('projects.ref_detail', ref_id=ref.id) }}" class="btn btn-secondary">
+                                    <i class="mdi mdi-arrow-left"></i> 取消
+                                </a>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

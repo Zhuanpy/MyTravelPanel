@@ -1,0 +1,351 @@
+{% extends "shared/staff_base.html" %}
+
+{% block title %}项目管理 - 项目列表{% endblock %}
+
+{% block page_title %}项目管理{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- 页面标题 -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h1 class="h3 mb-0">
+                    <i class="fas fa-project-diagram text-primary"></i>
+                    项目管理
+                </h1>
+                <div class="d-flex gap-2">
+                    <a href="{{ url_for('business_projects.project_create.create_header') }}" class="btn btn-primary">
+                         <i class="fas fa-plus"></i> 新建项目
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 筛选器 -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">
+                <i class="fas fa-filter"></i> 筛选条件
+            </h6>
+        </div>
+        <div class="card-body">
+            <form method="GET" action="{{ url_for('business_projects.list.list_projects') }}" id="filterForm">
+                <div class="row">
+                    <div class="col-md-2 mb-3">
+                        <label for="search" class="form-label">搜索关键词</label>
+                        <input type="text" class="form-control filter-input" id="search" name="search" 
+                               value="{{ filters.search }}" placeholder="项目编号、描述、联系人...">
+                    </div>
+                    <div class="col-md-2 mb-3">
+                        <label for="status" class="form-label">项目状态</label>
+                        <select class="form-select filter-input" id="status" name="status">
+                            <option value="">所有状态</option>
+                            <option value="draft" {{ 'selected' if filters.status == 'draft' }}>草稿</option>
+                            <option value="active" {{ 'selected' if filters.status == 'active' }}>进行中</option>
+                            <option value="completed" {{ 'selected' if filters.status == 'completed' }}>已完成</option>
+                            <option value="cancelled" {{ 'selected' if filters.status == 'cancelled' }}>已取消</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2 mb-3">
+                        <label for="company" class="form-label">客户公司</label>
+                        <input type="text" class="form-control filter-input" id="company" name="company" 
+                               value="{{ filters.company }}" placeholder="公司名称...">
+                    </div>
+                    <div class="col-md-2 mb-3">
+                        <label for="leader" class="form-label">项目负责人</label>
+                        <input type="text" class="form-control filter-input" id="leader" name="leader" 
+                               value="{{ filters.leader }}" placeholder="负责人姓名...">
+                    </div>
+                    <div class="col-md-2 mb-3">
+                        <label for="contact" class="form-label">联系人</label>
+                        <input type="text" class="form-control filter-input" id="contact" name="contact" 
+                               value="{{ filters.contact }}" placeholder="联系人姓名...">
+                    </div>
+                    <div class="col-md-2 mb-3 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-search"></i> 筛选
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 项目列表 -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">
+                <i class="fas fa-list"></i> 项目列表
+                <span class="badge bg-primary ms-2" id="projectCount">
+                    {{ projects|length if projects else 0 }}
+                </span>
+            </h6>
+        </div>
+        <div class="card-body">
+            {% if projects %}
+            <div class="table-responsive">
+                <table class="table table-bordered" id="projectsTable" width="100%" cellspacing="0">
+                    <thead>
+                        <tr>
+                            <th>项目编号</th>
+                            <th>项目描述</th>
+                            <th>客户公司</th>
+                            <th>联系人</th>
+                            <th>负责人</th>
+                            <th>类型</th>
+                            <th>状态</th>
+                            <th>销售金额</th>
+                            <th>成本</th>
+                            <th>利润</th>
+                            <th>已收款</th>
+                            <th>未付款</th>
+                            <th>创建时间</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for project in projects %}
+                        <tr data-project-id="{{ project.id }}">
+                            <td>
+                                <a href="{{ url_for('business_projects.detail.project_detail', project_id=project.id) }}" 
+                                   class="text-primary fw-bold">
+                                    {{ project.hid }}
+                                </a>
+                            </td>
+                            <td>{{ project.desc or '无描述' }}</td>
+                            <td>
+                                {% if project.company %}
+                                    <span class="badge bg-info">{{ project.company.company_name }}</span>
+                                {% else %}
+                                    <span class="text-muted">未指定</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ project.contact or '未指定' }}</td>
+                            <td>{{ project.leader_name or '未指定' }}</td>
+                            <td>
+                                <span class="badge bg-secondary">{{ project.type or '综合' }}</span>
+                            </td>
+                            <td>
+                                {% set status_colors = {
+                                    'draft': 'bg-warning',
+                                    'active': 'bg-success',
+                                    'completed': 'bg-info',
+                                    'cancelled': 'bg-danger'
+                                } %}
+                                <span class="badge {{ status_colors.get(project.status, 'bg-secondary') }}">
+                                    {{ {
+                                        'draft': '草稿',
+                                        'active': '进行中',
+                                        'completed': '已完成',
+                                        'cancelled': '已取消'
+                                    }.get(project.status, project.status) }}
+                                </span>
+                            </td>
+                            <td>
+                                {% set stats = project_stats.get(project.id, {}) %}
+                                <span class="fw-bold text-success">
+                                    S${{ "%.2f"|format(stats.total_selling_price or 0) }}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="fw-bold text-secondary">
+                                    S${{ "%.2f"|format(stats.total_cost_price or 0) }}
+                                </span>
+                            </td>
+                            <td>
+                                {% set profit = stats.total_profit or 0 %}
+                                <span class="fw-bold {{ 'text-success' if profit > 0 else 'text-danger' if profit < 0 else 'text-muted' }}">
+                                    S${{ "%.2f"|format(profit) }}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="fw-bold text-primary">
+                                    S${{ "%.2f"|format(stats.total_received or 0) }}
+                                </span>
+                            </td>
+                            <td>
+                                {% set balance = (stats.total_selling_price or 0) - (stats.total_received or 0) %}
+                                <span class="fw-bold {{ 'text-danger' if balance > 0 else 'text-success' if balance < 0 else 'text-muted' }}">
+                                    S${{ "%.2f"|format(balance) }}
+                                </span>
+                            </td>
+                            <td>
+                                <small class="text-muted">
+                                    {{ project.created_at.strftime('%Y-%m-%d') if project.created_at else '未知' }}
+                                </small>
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm" role="group">
+                                    {% set stats = project_stats.get(project.id, {}) %}
+                                    
+                                    {% if not stats.has_eo and not stats.has_receipt %}
+                                    <button type="button" class="btn btn-outline-danger delete-project" 
+                                            data-project-id="{{ project.id }}"
+                                            data-project-hid="{{ project.hid }}"
+                                            title="删除">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                <h5 class="text-muted">暂无项目数据</h5>
+                <p class="text-muted">请创建新项目或调整筛选条件</p>
+                <a href="{{ url_for('business_projects.project_create.create_header') }}" class="btn btn-primary">
+                     <i class="fas fa-plus"></i> 创建第一个项目
+                 </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- 统计卡片 -->
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-primary shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                                总项目数
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="totalProjects">
+                                {{ total_stats.total_projects or 0 }}
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-calendar fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-success shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                进行中项目
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="activeProjects">
+                                {{ total_stats.active_projects or 0 }}
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-play-circle fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-info shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                                本月完成
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="completedThisMonth">
+                                {{ total_stats.completed_this_month or 0 }}
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-check-circle fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-warning shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                                待处理报价
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="pendingQuotes">
+                                {{ total_stats.draft_projects or 0 }}
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-clock fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// 全局函数定义
+window.deleteProject = function(projectId) {
+    console.log('deleteProject called with ID:', projectId);
+    const csrfTokenEl = document.querySelector('input[name="csrf_token"]');
+    const csrfToken = csrfTokenEl ? csrfTokenEl.value : '';
+
+    const deleteUrl = `/projects/header/${projectId}/delete`;
+    console.log('删除URL:', deleteUrl);
+
+    fetch(deleteUrl, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': csrfToken,
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    }).then(res => res.json()).then(response => {
+        if (response.success) {
+            const row = document.querySelector(`tr[data-project-id="${projectId}"]`);
+            if (row) row.remove();
+            alert('项目删除成功！');
+        } else {
+            alert('删除失败：' + (response.message || ''));
+        }
+    }).catch(err => {
+        alert('删除失败：' + err);
+    });
+};
+
+// 页面加载完成后初始化
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM loaded, binding events...');
+    
+    // 绑定删除按钮事件
+    const deleteButtons = document.querySelectorAll('.delete-project');
+    console.log('找到删除按钮数量:', deleteButtons.length);
+    
+    deleteButtons.forEach(function(btn, index){
+        console.log(`绑定删除按钮 ${index + 1}:`, btn.dataset.projectId, btn);
+        btn.addEventListener('click', function(e){
+            console.log('删除按钮被点击', e);
+            const projectId = this.dataset.projectId;
+            console.log('Delete button clicked for project:', projectId);
+            if (projectId && confirm('确定要删除这个项目吗？此操作不可撤销！')) {
+                console.log('调用 deleteProject 函数...');
+                window.deleteProject(projectId);
+            }
+        });
+        console.log(`删除按钮 ${index + 1} 事件绑定完成`);
+    });
+    
+    console.log('Event binding completed');
+});
+</script>
+{% endblock %}

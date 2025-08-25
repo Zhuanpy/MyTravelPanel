@@ -1,0 +1,286 @@
+{% extends "guest/base.html" %}
+
+{% block title %}联系我们 - MyTravelPanel{% endblock %}
+
+{% block content %}
+<!-- 页面标题区域 -->
+<section class="hero-section text-center" style="padding: 80px 0;">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <h1 class="display-4 fw-bold mb-4">联系我们</h1>
+                <p class="lead mb-4">我们随时为您提供专业的旅游咨询服务</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- 联系方式 -->
+<section class="py-5">
+    <div class="container">
+        <div class="row g-4 mb-5">
+            <div class="col-lg-4 col-md-6">
+                <div class="feature-card text-center">
+                    <i class="fas fa-map-marker-alt text-primary" style="font-size: 3rem; margin-bottom: 1rem;"></i>
+                    <h5>办公地址</h5>
+                    <p class="text-muted">{{ contact.address }}</p>
+                </div>
+            </div>
+            <div class="col-lg-4 col-md-6">
+                <div class="feature-card text-center">
+                    <i class="fas fa-phone text-success" style="font-size: 3rem; margin-bottom: 1rem;"></i>
+                    <h5>联系电话</h5>
+                    <p class="text-muted">
+                        <a href="tel:{{ contact.phone }}" class="text-decoration-none">{{ contact.phone }}</a>
+                    </p>
+                </div>
+            </div>
+            <div class="col-lg-4 col-md-6">
+                <div class="feature-card text-center">
+                    <i class="fas fa-envelope text-warning" style="font-size: 3rem; margin-bottom: 1rem;"></i>
+                    <h5>电子邮箱</h5>
+                    <p class="text-muted">
+                        <a href="mailto:{{ contact.email }}" class="text-decoration-none">{{ contact.email }}</a>
+                    </p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row">
+            <!-- 联系表单 -->
+            <div class="col-lg-8">
+                <div class="bg-white rounded-3 p-4 shadow-sm">
+                    <h3 class="mb-4">
+                        <i class="fas fa-paper-plane text-primary me-2"></i>发送消息
+                    </h3>
+                    <form>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label for="name" class="form-label">姓名 *</label>
+                                <input type="text" class="form-control" id="name" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="phone" class="form-label">联系电话 *</label>
+                                <input type="tel" class="form-control" id="phone" required>
+                            </div>
+                            <div class="col-12">
+                                <label for="email" class="form-label">电子邮箱 *</label>
+                                <input type="email" class="form-control" id="email" required>
+                            </div>
+                            <div class="col-12">
+                                <label for="service" class="form-label">咨询服务</label>
+                                <select class="form-select" id="service">
+                                    <option selected>请选择您感兴趣的服务</option>
+                                    <option value="visa">签证办理</option>
+                                    <option value="tour">旅游配套</option>
+                                    <option value="flight">机票预订</option>
+                                    <option value="hotel">酒店预订</option>
+                                    <option value="other">其他服务</option>
+                                </select>
+                            </div>
+                            <div class="col-12">
+                                <label for="message" class="form-label">留言内容 *</label>
+                                <textarea class="form-control" id="message" rows="5" placeholder="请详细描述您的需求..." required></textarea>
+                            </div>
+                            <div class="col-12">
+                                <button type="submit" class="btn btn-custom btn-lg">
+                                    <i class="fas fa-paper-plane me-1"></i>发送消息
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- 联系信息详情 -->
+            <div class="col-lg-4">
+                <div class="bg-primary text-white rounded-3 p-4 mb-4">
+                    <h5 class="mb-3">
+                        <i class="fas fa-info-circle me-2"></i>联系信息
+                    </h5>
+                    <div class="mb-3">
+                        <i class="fas fa-map-marker-alt me-2"></i>
+                        <strong>地址：</strong><br>
+                        <span class="ms-3">{{ contact.address }}</span>
+                    </div>
+                    <div class="mb-3">
+                        <i class="fas fa-phone me-2"></i>
+                        <strong>电话：</strong><br>
+                        <span class="ms-3">{{ contact.phone }}</span>
+                    </div>
+                    <div class="mb-3">
+                        <i class="fas fa-envelope me-2"></i>
+                        <strong>邮箱：</strong><br>
+                        <span class="ms-3">{{ contact.email }}</span>
+                    </div>
+                    <div class="mb-3">
+                        <i class="fab fa-weixin me-2"></i>
+                        <strong>微信：</strong><br>
+                        <span class="ms-3">{{ contact.wechat }}</span>
+                    </div>
+                </div>
+                
+                <div class="bg-light rounded-3 p-4 mb-4">
+                    <h5 class="mb-3">
+                        <i class="fas fa-clock text-primary me-2"></i>营业时间
+                    </h5>
+                    <p class="mb-2">{{ contact.business_hours }}</p>
+                    <p class="mb-0 text-muted">周六周日：预约服务</p>
+                </div>
+                
+                <div class="bg-success text-white rounded-3 p-4">
+                    <h5 class="mb-3">
+                        <i class="fas fa-language me-2"></i>服务语言
+                    </h5>
+                    <div class="d-flex flex-wrap gap-2">
+                        {% for language in contact.languages %}
+                        <span class="badge bg-light text-dark">{{ language }}</span>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- 常见问题 -->
+<section class="py-5 bg-light">
+    <div class="container">
+        <div class="row text-center mb-5">
+            <div class="col-12">
+                <h2 class="fw-bold mb-3">常见问题</h2>
+                <p class="text-muted lead">这些问题可能对您有帮助</p>
+            </div>
+        </div>
+        
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <div class="accordion" id="faqAccordion">
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="faq1">
+                            <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapse1">
+                                签证办理需要多长时间？
+                            </button>
+                        </h2>
+                        <div id="collapse1" class="accordion-collapse collapse show" data-bs-parent="#faqAccordion">
+                            <div class="accordion-body">
+                                签证办理时间因国家和签证类型而异，一般在3-15个工作日。我们会根据您的具体情况提供准确的时间预估。
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="faq2">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse2">
+                                旅游配套是否包含保险？
+                            </button>
+                        </h2>
+                        <div id="collapse2" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+                            <div class="accordion-body">
+                                我们的旅游配套包含基础的旅行保险。如需更全面的保障，我们也可以为您推荐适合的保险产品。
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="faq3">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse3">
+                                可以定制专属的旅行方案吗？
+                            </button>
+                        </h2>
+                        <div id="collapse3" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+                            <div class="accordion-body">
+                                当然可以！我们的专业旅游顾问会根据您的需求、预算和时间安排，为您量身定制专属的旅行方案。
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="faq4">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse4">
+                                如何保证签证申请的成功率？
+                            </button>
+                        </h2>
+                        <div id="collapse4" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+                            <div class="accordion-body">
+                                我们拥有专业的签证团队，熟悉各国签证政策。在申请前会仔细审核您的材料，并提供专业指导，确保申请成功率。
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- 地图区域 -->
+<section class="py-5">
+    <div class="container">
+        <div class="row text-center mb-5">
+            <div class="col-12">
+                <h2 class="fw-bold mb-3">找到我们</h2>
+                <p class="text-muted lead">欢迎到访我们的办公室</p>
+            </div>
+        </div>
+        
+        <div class="row justify-content-center">
+            <div class="col-lg-10">
+                <!-- 地图占位符 -->
+                <div class="bg-light rounded-3 d-flex align-items-center justify-content-center" style="height: 400px;">
+                    <div class="text-center">
+                        <i class="fas fa-map-marked-alt text-muted" style="font-size: 4rem;"></i>
+                        <h5 class="text-muted mt-3">地图位置</h5>
+                        <p class="text-muted">{{ contact.address }}</p>
+                        <a href="https://maps.google.com" target="_blank" class="btn btn-outline-primary">
+                            <i class="fas fa-external-link-alt me-1"></i>在Google地图中查看
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- 快速联系 -->
+<section class="py-5 bg-primary text-white">
+    <div class="container text-center">
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <h2 class="fw-bold mb-3">立即联系我们</h2>
+                <p class="lead mb-4">我们的专业顾问团队随时为您提供咨询和服务</p>
+                <div class="row g-3 justify-content-center">
+                    <div class="col-md-4">
+                        <a href="tel:{{ contact.phone }}" class="btn btn-light btn-lg w-100">
+                            <i class="fas fa-phone me-1"></i>电话咨询
+                        </a>
+                    </div>
+                    <div class="col-md-4">
+                        <a href="mailto:{{ contact.email }}" class="btn btn-outline-light btn-lg w-100">
+                            <i class="fas fa-envelope me-1"></i>邮件咨询
+                        </a>
+                    </div>
+                    <div class="col-md-4">
+                        <a href="#" class="btn btn-success btn-lg w-100">
+                            <i class="fab fa-whatsapp me-1"></i>WhatsApp
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// 表单提交处理
+document.querySelector('form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    // 这里可以添加表单提交的逻辑
+    // 例如使用AJAX发送数据到服务器
+    
+    alert('感谢您的留言！我们会尽快与您联系。');
+});
+</script>
+{% endblock %}

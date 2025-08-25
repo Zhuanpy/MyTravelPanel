@@ -1,0 +1,220 @@
+{% extends "staff_base.html" %}
+
+{% block title %}项目管理 - MyTravelPanel{% endblock %}
+
+{% block page_title %}项目管理{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item active">项目管理</li>
+{% endblock %}
+
+{% block page_actions %}
+<div class="btn-group" role="group">
+         <a href="{{ url_for('business_projects.project_create.create_header') }}" class="btn btn-success">
+        <i class="fas fa-plus me-1"></i>新建项目
+    </a>
+    <button type="button" class="btn btn-outline-secondary dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown">
+        <span class="visually-hidden">Toggle Dropdown</span>
+    </button>
+    <ul class="dropdown-menu">
+        <li><a class="dropdown-item" href="#"><i class="fas fa-download me-2"></i>导出项目</a></li>
+        <li><a class="dropdown-item" href="#"><i class="fas fa-upload me-2"></i>批量导入</a></li>
+    </ul>
+</div>
+{% endblock %}
+
+{% block content %}
+<!-- 筛选和搜索 -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="GET" class="row g-3">
+            <div class="col-md-3">
+                <label for="search" class="form-label">搜索</label>
+                <input type="text" class="form-control" id="search" name="search" 
+                       value="{{ search }}" placeholder="项目名称或客户">
+            </div>
+            <div class="col-md-2">
+                <label for="type" class="form-label">项目类型</label>
+                <select class="form-select" id="type" name="type">
+                    <option value="">全部类型</option>
+                    <option value="visa" {% if project_type == 'visa' %}selected{% endif %}>签证服务</option>
+                    <option value="tour" {% if project_type == 'tour' %}selected{% endif %}>旅游配套</option>
+                    <option value="flight" {% if project_type == 'flight' %}selected{% endif %}>机票服务</option>
+                    <option value="business" {% if project_type == 'business' %}selected{% endif %}>商务考察</option>
+                    <option value="other" {% if project_type == 'other' %}selected{% endif %}>其他服务</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label for="status" class="form-label">状态</label>
+                <select class="form-select" id="status" name="status">
+                    <option value="">全部状态</option>
+                    <option value="active" {% if status == 'active' %}selected{% endif %}>进行中</option>
+                    <option value="pending" {% if status == 'pending' %}selected{% endif %}>待开始</option>
+                    <option value="completed" {% if status == 'completed' %}selected{% endif %}>已完成</option>
+                    <option value="cancelled" {% if status == 'cancelled' %}selected{% endif %}>已取消</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">&nbsp;</label>
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-search me-1"></i>搜索
+                    </button>
+                    <a href="{{ url_for('business_projects.list.list_projects') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-undo me-1"></i>重置
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- 项目统计 -->
+<div class="row mb-4">
+    <div class="col-md-3 mb-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h5 class="card-title text-primary">{{ total }}</h5>
+                <p class="card-text">总项目数</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h5 class="card-title text-success">{{ projects|selectattr('status', 'equalto', 'active')|list|length }}</h5>
+                <p class="card-text">进行中</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h5 class="card-title text-warning">{{ projects|selectattr('status', 'equalto', 'pending')|list|length }}</h5>
+                <p class="card-text">待开始</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h5 class="card-title text-info">{{ projects|selectattr('status', 'equalto', 'completed')|list|length }}</h5>
+                <p class="card-text">已完成</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 项目列表 -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">
+            <i class="fas fa-list me-2"></i>项目列表
+            <span class="badge bg-secondary ms-2">{{ total }}</span>
+        </h5>
+    </div>
+    <div class="card-body">
+        {% if projects %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>项目编号</th>
+                        <th>项目名称</th>
+                        <th>客户</th>
+                        <th>类型</th>
+                        <th>状态</th>
+                        <th>总金额</th>
+                        <th>创建时间</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for project in projects %}
+                    <tr>
+                        <td>{{ project.hid }}</td>
+                        <td>{{ project.name }}</td>
+                        <td>{{ project.client }}</td>
+                        <td>
+                            <span class="badge bg-info">{{ project.type }}</span>
+                        </td>
+                        <td>
+                            {% if project.status == 'active' %}
+                                <span class="badge bg-success">进行中</span>
+                            {% elif project.status == 'pending' %}
+                                <span class="badge bg-warning">待开始</span>
+                            {% elif project.status == 'completed' %}
+                                <span class="badge bg-secondary">已完成</span>
+                            {% elif project.status == 'cancelled' %}
+                                <span class="badge bg-danger">已取消</span>
+                            {% else %}
+                                <span class="badge bg-light text-dark">{{ project.status }}</span>
+                            {% endif %}
+                        </td>
+                        <td>¥{{ "%.2f"|format(project.total_selling) }}</td>
+                        <td>{{ project.created_at.strftime('%Y-%m-%d') if project.created_at else '' }}</td>
+                        <td>
+                            <div class="btn-group" role="group">
+                                <a href="{{ url_for('staff.project_detail', project_id=project.id) }}" 
+                                   class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-eye me-1"></i>查看
+                                </a>
+                                <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle dropdown-toggle-split" 
+                                        data-bs-toggle="dropdown">
+                                    <span class="visually-hidden">Toggle Dropdown</span>
+                                </button>
+                                <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" href="#"><i class="fas fa-edit me-2"></i>编辑</a></li>
+                                    <li><a class="dropdown-item" href="#"><i class="fas fa-copy me-2"></i>复制</a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><a class="dropdown-item text-danger" href="#"><i class="fas fa-trash me-2"></i>删除</a></li>
+                                </ul>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- 分页 -->
+        {% if total_pages > 1 %}
+        <nav aria-label="项目分页" class="mt-4">
+            <ul class="pagination justify-content-center">
+                <li class="page-item {% if current_page == 1 %}disabled{% endif %}">
+                    <a class="page-link" href="{{ url_for('business_projects.list.list_projects', page=current_page-1, status=status, type=project_type, search=search) if current_page > 1 else '#' }}">
+                        上一页
+                    </a>
+                </li>
+                
+                {% for page_num in range(1, total_pages + 1) %}
+                <li class="page-item {% if page_num == current_page %}active{% endif %}">
+                    <a class="page-link" href="{{ url_for('business_projects.list.list_projects', page=page_num, status=status, type=project_type, search=search) }}">
+                        {{ page_num }}
+                    </a>
+                </li>
+                {% endfor %}
+                
+                <li class="page-item {% if current_page == total_pages %}disabled{% endif %}">
+                    <a class="page-link" href="{{ url_for('business_projects.list.list_projects', page=current_page+1, status=status, type=project_type, search=search) if current_page < total_pages else '#' }}">
+                        下一页
+                    </a>
+                </li>
+            </ul>
+        </nav>
+        {% endif %}
+        
+        {% else %}
+        <div class="text-center py-5">
+            <i class="fas fa-project-diagram fa-3x text-gray-300 mb-3"></i>
+            <h4 class="text-gray-500">暂无项目</h4>
+            <p class="text-gray-400">您还没有任何项目，快去创建第一个项目吧！</p>
+            <a href="{{ url_for('business_projects.project_create.create_header') }}" class="btn btn-success">
+                <i class="fas fa-plus me-1"></i>创建项目
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+

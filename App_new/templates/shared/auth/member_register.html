@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>会员注册 - MyTravelPanel</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --accent-color: #e74c3c;
+            --success-color: #27ae60;
+            --warning-color: #f39c12;
+            --light-bg: #ecf0f1;
+            --dark-text: #2c3e50;
+            --member-color: #16a085;
+        }
+
+        body {
+            background: linear-gradient(135deg, var(--member-color) 0%, var(--secondary-color) 100%);
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .auth-container {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem 1rem;
+        }
+
+        .auth-card {
+            background: white;
+            border-radius: 20px;
+            padding: 3rem 2.5rem;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 450px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .auth-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 5px;
+            background: linear-gradient(90deg, var(--member-color), var(--secondary-color));
+        }
+
+        .auth-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .auth-icon {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, var(--member-color), var(--secondary-color));
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1.5rem;
+            box-shadow: 0 10px 30px rgba(22, 160, 133, 0.3);
+        }
+
+        .auth-icon i {
+            font-size: 2rem;
+            color: white;
+        }
+
+        .auth-title {
+            color: var(--dark-text);
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .auth-subtitle {
+            color: #7f8c8d;
+            font-size: 0.95rem;
+            margin-bottom: 0;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-label {
+            color: var(--dark-text);
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            display: block;
+        }
+
+        .form-control {
+            border: 2px solid #e9ecef;
+            border-radius: 12px;
+            padding: 0.75rem 1rem;
+            font-size: 0.95rem;
+            transition: all 0.3s ease;
+            background-color: #f8f9fa;
+        }
+
+        .form-control:focus {
+            border-color: var(--member-color);
+            box-shadow: 0 0 0 0.2rem rgba(22, 160, 133, 0.25);
+            background-color: white;
+        }
+
+        .btn-member {
+            background: linear-gradient(135deg, var(--member-color), var(--secondary-color));
+            border: none;
+            color: white;
+            padding: 0.8rem 2rem;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 1rem;
+            width: 100%;
+            transition: all 0.3s ease;
+            margin-top: 1rem;
+        }
+
+        .btn-member:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(22, 160, 133, 0.3);
+            color: white;
+        }
+
+        .divider {
+            text-align: center;
+            margin: 2rem 0;
+            position: relative;
+        }
+
+        .divider::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: #e9ecef;
+        }
+
+        .divider span {
+            background: white;
+            padding: 0 1rem;
+            color: #7f8c8d;
+            font-size: 0.9rem;
+        }
+
+        .auth-links {
+            text-align: center;
+        }
+
+        .auth-links a {
+            color: var(--member-color);
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .auth-links a:hover {
+            color: var(--secondary-color);
+            text-decoration: none;
+        }
+
+        .back-link {
+            position: absolute;
+            top: 2rem;
+            left: 2rem;
+            color: white;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            z-index: 10;
+        }
+
+        .back-link:hover {
+            color: #ecf0f1;
+            text-decoration: none;
+            transform: translateX(-5px);
+        }
+
+        .alert {
+            border-radius: 12px;
+            border: none;
+            margin-bottom: 1.5rem;
+            font-weight: 500;
+        }
+
+        .alert-success {
+            background-color: rgba(39, 174, 96, 0.1);
+            color: var(--success-color);
+        }
+
+        .alert-danger {
+            background-color: rgba(231, 76, 60, 0.1);
+            color: var(--accent-color);
+        }
+
+        .form-text {
+            font-size: 0.8rem;
+            color: #6c757d;
+            margin-top: 0.25rem;
+        }
+
+        /* 响应式设计 */
+        @media (max-width: 576px) {
+            .auth-card {
+                padding: 2rem 1.5rem;
+                margin: 0 1rem;
+            }
+            
+            .back-link {
+                top: 1rem;
+                left: 1rem;
+            }
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .fade-in-up {
+            animation: fadeInUp 0.6s ease-out;
+        }
+    </style>
+</head>
+<body>
+    <a href="{{ url_for('auth.member_login') }}" class="back-link">
+        <i class="fas fa-arrow-left me-2"></i>返回登录
+    </a>
+
+    <div class="auth-container">
+        <div class="auth-card fade-in-up">
+            <div class="auth-header">
+                <div class="auth-icon">
+                    <i class="fas fa-user-plus"></i>
+                </div>
+                <h1 class="auth-title">会员注册</h1>
+                <p class="auth-subtitle">加入我们，享受专属旅游服务</p>
+            </div>
+
+            <!-- 显示消息 -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ 'success' if category == 'success' else 'danger' }}" role="alert">
+                            <i class="fas fa-{{ 'check-circle' if category == 'success' else 'exclamation-triangle' }} me-2"></i>
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            <form method="POST" class="auth-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                
+                <div class="form-group">
+                    <label for="username" class="form-label">
+                        <i class="fas fa-user me-2"></i>用户名 *
+                    </label>
+                    <input type="text" class="form-control" id="username" name="username" 
+                           placeholder="请输入用户名（至少3位）" required>
+                    <div class="form-text">用户名将作为您的登录标识</div>
+                </div>
+
+                <div class="form-group">
+                    <label for="email" class="form-label">
+                        <i class="fas fa-envelope me-2"></i>邮箱地址 *
+                    </label>
+                    <input type="email" class="form-control" id="email" name="email" 
+                           placeholder="请输入您的邮箱地址" required>
+                    <div class="form-text">用于接收重要通知和找回密码</div>
+                </div>
+
+                <div class="form-group">
+                    <label for="password" class="form-label">
+                        <i class="fas fa-lock me-2"></i>密码 *
+                    </label>
+                    <input type="password" class="form-control" id="password" name="password" 
+                           placeholder="请输入密码（至少6位）" required>
+                    <div class="form-text">密码长度至少6位，建议包含字母和数字</div>
+                </div>
+
+                <div class="form-group">
+                    <label for="confirm_password" class="form-label">
+                        <i class="fas fa-lock me-2"></i>确认密码 *
+                    </label>
+                    <input type="password" class="form-control" id="confirm_password" name="confirm_password" 
+                           placeholder="请再次输入密码" required>
+                    <div class="form-text">请确保两次输入的密码一致</div>
+                </div>
+
+                <button type="submit" class="btn btn-member">
+                    <i class="fas fa-user-plus me-2"></i>注册成为会员
+                </button>
+            </form>
+
+            <div class="divider">
+                <span>已经有账号？</span>
+            </div>
+
+            <div class="auth-links">
+                <a href="{{ url_for('auth.member_login') }}">
+                    <i class="fas fa-sign-in-alt me-2"></i>立即登录
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        // 密码确认验证
+        document.getElementById('confirm_password').addEventListener('input', function() {
+            const password = document.getElementById('password').value;
+            const confirmPassword = this.value;
+            
+            if (confirmPassword && password !== confirmPassword) {
+                this.setCustomValidity('密码不一致');
+            } else {
+                this.setCustomValidity('');
+            }
+        });
+        
+        // 用户名验证
+        document.getElementById('username').addEventListener('input', function() {
+            const username = this.value;
+            
+            if (username && username.length < 3) {
+                this.setCustomValidity('用户名至少3位');
+            } else {
+                this.setCustomValidity('');
+            }
+        });
+    </script>
+</body>
+</html>

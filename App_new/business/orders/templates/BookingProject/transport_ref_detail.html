@@ -1,0 +1,17 @@
+{% extends "staff_base.html" %}
+
+
+
+{% block page_title %}Transport Ref Detail{% endblock %}
+
+
+
+{% block content %}
+<div class="container mt-4">
+    <h2>交通REF详情</h2>
+    <p>交通REF详细信息页面 - 待完善</p>
+    <a href="{{ url_for('projects.header_detail', header_id=ref.header_id) }}" class="btn btn-secondary">
+        返回项目
+    </a>
+</div>
+{% endblock %} \n\n{% block title %}交通REF详情 - {{ ref.ref_number }}{% endblock %}

@@ -1,0 +1,158 @@
+{% extends "admin/base.html" %}
+
+{% block title %}被锁定的用户 - 管理后台{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i class="fas fa-lock me-2"></i>被锁定的用户账户
+                    </h3>
+                    <div class="card-tools">
+                        <a href="{{ url_for('admin.dashboard') }}" class="btn btn-secondary btn-sm">
+                            <i class="fas fa-arrow-left me-1"></i>返回仪表板
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    {% if users %}
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>用户名</th>
+                                        <th>邮箱</th>
+                                        <th>角色</th>
+                                        <th>登录失败次数</th>
+                                        <th>锁定时间</th>
+                                        <th>预计解锁时间</th>
+                                        <th>剩余锁定时间</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for user in users %}
+                                    <tr>
+                                        <td>{{ user.id }}</td>
+                                        <td>
+                                            <strong>{{ user.username }}</strong>
+                                            {% if user.profile %}
+                                                <br><small class="text-muted">{{ user.profile.get_full_name() }}</small>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ user.email }}</td>
+                                        <td>
+                                            <span class="badge badge-{{ 'danger' if user.role.name == 'admin' else 'primary' if user.role.name == 'staff' else 'info' }}">
+                                                {{ user.role.name }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span class="badge badge-warning">{{ user.login_attempts }}/5</span>
+                                        </td>
+                                        <td>
+                                            {% if user.locked_at %}
+                                                {{ user.locked_at.strftime('%Y-%m-%d %H:%M:%S') }}
+                                            {% else %}
+                                                -
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if user.unlock_at %}
+                                                {{ user.unlock_at.strftime('%Y-%m-%d %H:%M:%S') }}
+                                            {% else %}
+                                                -
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% set remaining = user.get_remaining_lock_time() %}
+                                            {% if remaining > 0 %}
+                                                <span class="badge badge-danger">{{ remaining }}分钟</span>
+                                            {% else %}
+                                                <span class="badge badge-success">可解锁</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <div class="btn-group" role="group">
+                                                {% if user.get_remaining_lock_time() <= 0 %}
+                                                    <form method="POST" action="{{ url_for('admin.unlock_user', user_id=user.id) }}" style="display: inline;">
+                                                        <button type="submit" class="btn btn-success btn-sm" 
+                                                                onclick="return confirm('确定要解锁用户 {{ user.username }} 的账户吗？')">
+                                                            <i class="fas fa-unlock me-1"></i>解锁
+                                                        </button>
+                                                    </form>
+                                                {% else %}
+                                                    <button class="btn btn-secondary btn-sm" disabled>
+                                                        <i class="fas fa-clock me-1"></i>等待中
+                                                    </button>
+                                                {% endif %}
+                                                
+                                                <form method="POST" action="{{ url_for('admin.reset_user_attempts', user_id=user.id) }}" style="display: inline;">
+                                                    <button type="submit" class="btn btn-warning btn-sm" 
+                                                            onclick="return confirm('确定要重置用户 {{ user.username }} 的登录失败次数吗？')">
+                                                        <i class="fas fa-redo me-1"></i>重置次数
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <div class="alert alert-info mt-3">
+                            <i class="fas fa-info-circle me-2"></i>
+                            <strong>说明：</strong>
+                            <ul class="mb-0 mt-2">
+                                <li>用户登录失败5次后，账户会自动锁定24小时</li>
+                                <li>锁定时间到期后，账户会自动解锁</li>
+                                <li>管理员可以手动解锁账户或重置登录失败次数</li>
+                                <li>建议在解锁前与用户确认是否遇到了技术问题</li>
+                            </ul>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="fas fa-check-circle text-success" style="font-size: 4rem;"></i>
+                            <h4 class="mt-3 text-success">没有账户被锁定</h4>
+                            <p class="text-muted">所有用户账户状态正常</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// 自动刷新页面以更新剩余锁定时间
+setInterval(function() {
+    // 每5分钟刷新一次页面
+    location.reload();
+}, 5 * 60 * 1000);
+
+// 页面加载完成后显示提示
+document.addEventListener('DOMContentLoaded', function() {
+    // 检查是否有可解锁的用户
+    const unlockButtons = document.querySelectorAll('.btn-success');
+    if (unlockButtons.length > 0) {
+        // 显示提示
+        const alert = document.createElement('div');
+        alert.className = 'alert alert-warning alert-dismissible fade show';
+        alert.innerHTML = `
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            <strong>注意：</strong>有 ${unlockButtons.length} 个用户账户可以解锁了
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        
+        const cardBody = document.querySelector('.card-body');
+        cardBody.insertBefore(alert, cardBody.firstChild);
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,343 @@
+{% extends "member/base.html" %}
+
+{% block title %}会员仪表板 - MyTravelPanel{% endblock %}
+
+{% block page_title %}欢迎回来，{% if current_user.profile %}{{ current_user.profile.first_name }}{% else %}{{ current_user.email }}{% endif %}{% endblock %}
+
+{% block content %}
+<!-- 统计卡片 -->
+<div class="row mb-4">
+    <div class="col-md-3 mb-3">
+        <div class="card stats-card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h3 class="stats-number stats-primary">{{ stats.total_orders or 0 }}</h3>
+                        <p class="stats-label">总订单数</p>
+                    </div>
+                    <div class="stats-icon stats-primary">
+                        <i class="fas fa-shopping-cart"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-3">
+        <div class="card stats-card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h3 class="stats-number stats-warning">{{ stats.pending_orders or 0 }}</h3>
+                        <p class="stats-label">待处理订单</p>
+                    </div>
+                    <div class="stats-icon stats-warning">
+                        <i class="fas fa-clock"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-3">
+        <div class="card stats-card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h3 class="stats-number stats-success">{{ stats.completed_orders or 0 }}</h3>
+                        <p class="stats-label">已完成订单</p>
+                    </div>
+                    <div class="stats-icon stats-success">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-3">
+        <div class="card stats-card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h3 class="stats-number stats-info">SGD {{ stats.total_amount or 0 }}</h3>
+                        <p class="stats-label">总消费金额</p>
+                    </div>
+                    <div class="stats-icon stats-info">
+                        <i class="fas fa-dollar-sign"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- 最近订单 -->
+    <div class="col-lg-8 mb-4">
+        <div class="card chart-card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-shopping-cart me-2"></i>最近订单
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if recent_orders %}
+                <div class="order-table">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>订单号</th>
+                                <th>服务类型</th>
+                                <th>金额</th>
+                                <th>状态</th>
+                                <th>日期</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for order in recent_orders %}
+                            <tr>
+                                <td data-label="订单号">#{{ order.id }}</td>
+                                <td data-label="服务类型">{{ order.service_type }}</td>
+                                <td data-label="金额">SGD {{ order.amount }}</td>
+                                <td data-label="状态">
+                                    <span class="status-badge status-{{ order.status }}">
+                                        {{ order.status_text }}
+                                    </span>
+                                </td>
+                                <td data-label="日期">{{ order.created_at.strftime('%Y-%m-%d') }}</td>
+                                <td data-label="操作">
+                                    <a href="{{ url_for('member.order_detail', order_id=order.id) }}" 
+                                       class="btn btn-sm btn-outline-primary btn-action">
+                                        查看
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="text-center mt-3">
+                    <a href="{{ url_for('member.orders') }}" class="btn btn-primary btn-action">
+                        查看全部订单 <i class="fas fa-arrow-right ms-1"></i>
+                    </a>
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <i class="fas fa-shopping-cart"></i>
+                    <h4>暂无订单</h4>
+                    <p>您还没有任何订单，快去服务中心看看吧！</p>
+                    <a href="{{ url_for('member.services') }}" class="btn btn-primary btn-action">
+                        浏览服务 <i class="fas fa-arrow-right ms-1"></i>
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- 最近活动 -->
+    <div class="col-lg-4 mb-4">
+        <div class="card chart-card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-history me-2"></i>最近活动
+                </h5>
+            </div>
+            <div class="card-body p-0">
+                <div id="recentActivity">
+                    <div class="activity-item d-flex align-items-center">
+                        <div class="activity-icon info">
+                            <i class="fas fa-user-plus"></i>
+                        </div>
+                        <div class="activity-content">
+                            <h6 class="activity-title">欢迎加入MyTravelPanel</h6>
+                            <p class="activity-description">您的账户已激活，可以开始使用我们的服务</p>
+                        </div>
+                        <div class="activity-time">
+                            刚刚
+                        </div>
+                    </div>
+                </div>
+                <div class="text-center p-3">
+                    <a href="{{ url_for('member.notifications') }}" class="btn btn-sm btn-outline-primary btn-action">
+                        查看全部通知
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 快速操作 -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-bolt me-2"></i>快速操作
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <div class="service-card">
+                            <div class="card-body text-center">
+                                <div class="service-icon visa mx-auto">
+                                    <i class="fas fa-passport"></i>
+                                </div>
+                                <h5 class="card-title">签证服务</h5>
+                                <p class="card-text text-muted">申请各国签证，专业快速</p>
+                                <a href="{{ url_for('member.services') }}" class="btn btn-primary btn-action">
+                                    立即申请
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-4 mb-3">
+                        <div class="service-card">
+                            <div class="card-body text-center">
+                                <div class="service-icon tour mx-auto">
+                                    <i class="fas fa-map-marked-alt"></i>
+                                </div>
+                                <h5 class="card-title">旅游配套</h5>
+                                <p class="card-text text-muted">精心设计的旅游路线</p>
+                                <a href="{{ url_for('guest.tour_packages') }}" class="btn btn-success btn-action">
+                                    查看配套
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-4 mb-3">
+                        <div class="service-card">
+                            <div class="card-body text-center">
+                                <div class="service-icon flight mx-auto">
+                                    <i class="fas fa-plane"></i>
+                                </div>
+                                <h5 class="card-title">客服支持</h5>
+                                <p class="card-text text-muted">24小时专业客服服务</p>
+                                <a href="{{ url_for('guest.contact') }}" class="btn btn-info btn-action">
+                                    联系客服
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// 加载统计数据
+function loadDashboardStats() {
+    fetch('/member/api/stats')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // 更新统计数据
+                updateStatsDisplay(data.data);
+            }
+        })
+        .catch(error => {
+            console.error('加载统计数据失败:', error);
+        });
+}
+
+// 更新统计数据显示
+function updateStatsDisplay(stats) {
+    const elements = {
+        total_orders: document.querySelector('.stats-primary'),
+        pending_orders: document.querySelector('.stats-warning'),
+        completed_orders: document.querySelector('.stats-success'),
+        total_amount: document.querySelector('.stats-info')
+    };
+    
+    if (elements.total_orders) {
+        elements.total_orders.textContent = stats.total_orders || 0;
+    }
+    if (elements.pending_orders) {
+        elements.pending_orders.textContent = stats.pending_orders || 0;
+    }
+    if (elements.completed_orders) {
+        elements.completed_orders.textContent = stats.completed_orders || 0;
+    }
+    if (elements.total_amount) {
+        elements.total_amount.textContent = `SGD ${stats.total_amount || 0}`;
+    }
+}
+
+// 加载最近活动
+function loadRecentActivity() {
+    fetch('/member/api/recent-activity')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.data.length > 0) {
+                updateActivityDisplay(data.data);
+            }
+        })
+        .catch(error => {
+            console.error('加载活动数据失败:', error);
+        });
+}
+
+// 更新活动显示
+function updateActivityDisplay(activities) {
+    const container = document.getElementById('recentActivity');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    
+    activities.forEach(activity => {
+        const activityElement = document.createElement('div');
+        activityElement.className = 'activity-item d-flex align-items-center';
+        activityElement.innerHTML = `
+            <div class="activity-icon ${activity.status}">
+                <i class="fas fa-${getActivityIcon(activity.type)}"></i>
+            </div>
+            <div class="activity-content">
+                <h6 class="activity-title">${activity.title}</h6>
+                <p class="activity-description">${activity.description}</p>
+            </div>
+            <div class="activity-time">
+                ${activity.date}
+            </div>
+        `;
+        container.appendChild(activityElement);
+    });
+}
+
+// 获取活动图标
+function getActivityIcon(type) {
+    const icons = {
+        order: 'shopping-cart',
+        quote: 'file-invoice-dollar',
+        payment: 'credit-card',
+        service: 'concierge-bell',
+        notification: 'bell',
+        profile: 'user'
+    };
+    return icons[type] || 'info-circle';
+}
+
+// 页面加载完成后执行
+document.addEventListener('DOMContentLoaded', function() {
+    // 添加动画效果
+    const cards = document.querySelectorAll('.stats-card, .chart-card, .service-card');
+    cards.forEach((card, index) => {
+        setTimeout(() => {
+            card.classList.add('fade-in-up');
+        }, index * 100);
+    });
+    
+    // 加载数据
+    loadDashboardStats();
+    loadRecentActivity();
+});
+</script>
+{% endblock %} 

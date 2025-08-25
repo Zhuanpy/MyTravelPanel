@@ -1,0 +1,462 @@
+{% extends "base.html" %}
+
+{% block title %}上传文件 - MyTravelPanel{% endblock %}
+
+{% block page_title %}上传文件{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{{ url_for('staff.files') }}">文件管理</a></li>
+<li class="breadcrumb-item active">上传文件</li>
+{% endblock %}
+
+{% block page_actions %}
+<a href="{{ url_for('staff.files') }}" class="btn btn-outline-secondary">
+    <i class="fas fa-arrow-left me-1"></i>返回列表
+</a>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-cloud-upload-alt me-2"></i>文件上传
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" id="uploadForm" enctype="multipart/form-data">
+                    <!-- 文件选择区域 -->
+                    <div class="upload-zone mb-4" id="uploadZone">
+                        <div class="text-center">
+                            <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
+                            <h5>拖拽文件到此处或点击选择文件</h5>
+                            <p class="text-muted">支持多种文件格式，最大文件大小：10MB</p>
+                            <input type="file" id="fileInput" name="file" multiple style="display: none;" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.zip,.rar">
+                            <button type="button" class="btn btn-outline-primary" onclick="document.getElementById('fileInput').click()">
+                                <i class="fas fa-folder-open me-1"></i>选择文件
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- 文件预览 -->
+                    <div id="filePreview" class="mb-4" style="display: none;">
+                        <h6>已选择的文件：</h6>
+                        <div id="fileList" class="list-group"></div>
+                    </div>
+                    
+                    <!-- 文件信息表单 -->
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="filename" class="form-label">文件名 <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="filename" name="filename" required
+                                   placeholder="请输入文件名">
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="category" class="form-label">文件分类</label>
+                            <select class="form-select" id="category" name="category">
+                                <option value="">请选择分类</option>
+                                <option value="visa">签证资料</option>
+                                <option value="tour">旅游资料</option>
+                                <option value="flight">机票资料</option>
+                                <option value="contract">合同文件</option>
+                                <option value="invoice">发票收据</option>
+                                <option value="other">其他文件</option>
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="project" class="form-label">关联项目</label>
+                            <select class="form-select" id="project" name="project">
+                                <option value="">请选择项目</option>
+                                <option value="PRJ240001">PRJ240001 - 新加坡商务团队签证</option>
+                                <option value="PRJ240002">PRJ240002 - 泰国旅游团队套餐</option>
+                                <option value="PRJ240003">PRJ240003 - 马来西亚商务考察团</option>
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="tags" class="form-label">标签</label>
+                            <input type="text" class="form-control" id="tags" name="tags"
+                                   placeholder="用逗号分隔多个标签">
+                            <small class="form-text text-muted">例如：重要,合同,客户资料</small>
+                        </div>
+                        
+                        <div class="col-12 mb-3">
+                            <label for="description" class="form-label">文件描述</label>
+                            <textarea class="form-control" id="description" name="description" rows="3"
+                                      placeholder="请描述文件内容、用途等信息..."></textarea>
+                        </div>
+                    </div>
+                    
+                    <!-- 上传设置 -->
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="access_level" class="form-label">访问权限</label>
+                            <select class="form-select" id="access_level" name="access_level">
+                                <option value="public" selected>公开</option>
+                                <option value="staff">仅员工</option>
+                                <option value="admin">仅管理员</option>
+                                <option value="private">私有</option>
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="expiry_date" class="form-label">过期时间</label>
+                            <input type="date" class="form-control" id="expiry_date" name="expiry_date">
+                            <small class="form-text text-muted">留空表示永不过期</small>
+                        </div>
+                        
+                        <div class="col-12 mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="notify_team" name="notify_team">
+                                <label class="form-check-label" for="notify_team">
+                                    上传完成后通知团队成员
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <button type="button" class="btn btn-outline-secondary me-md-2" onclick="resetForm()">
+                            <i class="fas fa-undo me-1"></i>重置
+                        </button>
+                        <button type="submit" class="btn btn-success" id="uploadBtn" disabled>
+                            <i class="fas fa-upload me-1"></i>上传文件
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <!-- 帮助信息 -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-question-circle me-2"></i>上传说明
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6 class="text-primary">支持的文件格式</h6>
+                        <ul class="small text-muted">
+                            <li><strong>文档：</strong>PDF, DOC, DOCX</li>
+                            <li><strong>表格：</strong>XLS, XLSX</li>
+                            <li><strong>图片：</strong>JPG, JPEG, PNG, GIF</li>
+                            <li><strong>压缩：</strong>ZIP, RAR</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <h6 class="text-success">上传建议</h6>
+                        <ul class="small text-muted">
+                            <li>文件大小不超过10MB</li>
+                            <li>使用有意义的文件名</li>
+                            <li>选择合适的文件分类</li>
+                            <li>添加相关标签便于搜索</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.upload-zone {
+    border: 2px dashed #dee2e6;
+    border-radius: 10px;
+    padding: 3rem 2rem;
+    text-align: center;
+    background: #f8f9fa;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.upload-zone:hover {
+    border-color: #007bff;
+    background: #e7f3ff;
+}
+
+.upload-zone.dragover {
+    border-color: #007bff;
+    background: #e7f3ff;
+    transform: scale(1.02);
+}
+
+.file-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    margin-bottom: 0.5rem;
+    background: #fff;
+}
+
+.file-info {
+    display: flex;
+    align-items: center;
+}
+
+.file-icon {
+    margin-right: 0.75rem;
+    font-size: 1.5rem;
+}
+
+.file-details h6 {
+    margin-bottom: 0.25rem;
+}
+
+.file-size {
+    color: #6c757d;
+    font-size: 0.875rem;
+}
+
+.file-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.progress-bar {
+    height: 4px;
+    background: #e9ecef;
+    border-radius: 2px;
+    overflow: hidden;
+    margin-top: 0.5rem;
+}
+
+.progress-fill {
+    height: 100%;
+    background: #007bff;
+    width: 0%;
+    transition: width 0.3s ease;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// 全局变量
+let selectedFiles = [];
+
+// 拖拽上传功能
+const uploadZone = document.getElementById('uploadZone');
+const fileInput = document.getElementById('fileInput');
+const uploadBtn = document.getElementById('uploadBtn');
+
+// 拖拽事件
+uploadZone.addEventListener('dragover', function(e) {
+    e.preventDefault();
+    this.classList.add('dragover');
+});
+
+uploadZone.addEventListener('dragleave', function(e) {
+    e.preventDefault();
+    this.classList.remove('dragover');
+});
+
+uploadZone.addEventListener('drop', function(e) {
+    e.preventDefault();
+    this.classList.remove('dragover');
+    
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+        handleFileSelection(files);
+    }
+});
+
+// 点击选择文件
+uploadZone.addEventListener('click', function() {
+    fileInput.click();
+});
+
+// 文件选择处理
+fileInput.addEventListener('change', function(e) {
+    if (this.files.length > 0) {
+        handleFileSelection(this.files);
+    }
+});
+
+// 处理文件选择
+function handleFileSelection(files) {
+    selectedFiles = Array.from(files);
+    displayFilePreview();
+    updateUploadButton();
+}
+
+// 显示文件预览
+function displayFilePreview() {
+    const preview = document.getElementById('filePreview');
+    const fileList = document.getElementById('fileList');
+    
+    if (selectedFiles.length === 0) {
+        preview.style.display = 'none';
+        return;
+    }
+    
+    preview.style.display = 'block';
+    fileList.innerHTML = '';
+    
+    selectedFiles.forEach((file, index) => {
+        const fileItem = document.createElement('div');
+        fileItem.className = 'file-item';
+        
+        const fileIcon = getFileIcon(file.type);
+        const fileSize = formatFileSize(file.size);
+        
+        fileItem.innerHTML = `
+            <div class="file-info">
+                <div class="file-icon">${fileIcon}</div>
+                <div>
+                    <h6 class="mb-0">${file.name}</h6>
+                    <div class="file-size">${fileSize}</div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progress-${index}"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="file-actions">
+                <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeFile(${index})">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        `;
+        
+        fileList.appendChild(fileItem);
+    });
+    
+    // 自动填充文件名
+    if (selectedFiles.length === 1) {
+        const filename = selectedFiles[0].name.split('.')[0];
+        document.getElementById('filename').value = filename;
+    }
+}
+
+// 获取文件图标
+function getFileIcon(mimeType) {
+    if (mimeType.includes('pdf')) {
+        return '<i class="fas fa-file-pdf text-danger"></i>';
+    } else if (mimeType.includes('word') || mimeType.includes('document')) {
+        return '<i class="fas fa-file-word text-primary"></i>';
+    } else if (mimeType.includes('excel') || mimeType.includes('spreadsheet')) {
+        return '<i class="fas fa-file-excel text-success"></i>';
+    } else if (mimeType.includes('image')) {
+        return '<i class="fas fa-file-image text-info"></i>';
+    } else if (mimeType.includes('zip') || mimeType.includes('rar')) {
+        return '<i class="fas fa-file-archive text-warning"></i>';
+    } else {
+        return '<i class="fas fa-file text-secondary"></i>';
+    }
+}
+
+// 格式化文件大小
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+// 移除文件
+function removeFile(index) {
+    selectedFiles.splice(index, 1);
+    displayFilePreview();
+    updateUploadButton();
+    
+    if (selectedFiles.length === 0) {
+        document.getElementById('filename').value = '';
+    }
+}
+
+// 更新上传按钮状态
+function updateUploadButton() {
+    uploadBtn.disabled = selectedFiles.length === 0;
+}
+
+// 表单验证
+document.getElementById('uploadForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    if (selectedFiles.length === 0) {
+        alert('请选择要上传的文件');
+        return;
+    }
+    
+    const filename = document.getElementById('filename').value.trim();
+    if (!filename) {
+        alert('请输入文件名');
+        document.getElementById('filename').focus();
+        return;
+    }
+    
+    // 验证文件大小
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    for (let file of selectedFiles) {
+        if (file.size > maxSize) {
+            alert(`文件 "${file.name}" 超过最大大小限制（10MB）`);
+            return;
+        }
+    }
+    
+    // 模拟上传进度
+    simulateUpload();
+});
+
+// 模拟上传进度
+function simulateUpload() {
+    uploadBtn.disabled = true;
+    uploadBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>上传中...';
+    
+    let progress = 0;
+    const interval = setInterval(() => {
+        progress += Math.random() * 20;
+        if (progress >= 100) {
+            progress = 100;
+            clearInterval(interval);
+            
+            // 上传完成
+            setTimeout(() => {
+                alert('文件上传成功！');
+                resetForm();
+                uploadBtn.disabled = false;
+                uploadBtn.innerHTML = '<i class="fas fa-upload me-1"></i>上传文件';
+            }, 500);
+        }
+        
+        // 更新进度条
+        selectedFiles.forEach((file, index) => {
+            const progressBar = document.getElementById(`progress-${index}`);
+            if (progressBar) {
+                progressBar.style.width = progress + '%';
+            }
+        });
+    }, 200);
+}
+
+// 重置表单
+function resetForm() {
+    document.getElementById('uploadForm').reset();
+    selectedFiles = [];
+    displayFilePreview();
+    updateUploadButton();
+}
+
+// 页面加载完成后的初始化
+document.addEventListener('DOMContentLoaded', function() {
+    // 设置默认过期时间为30天后
+    const expiryDate = new Date();
+    expiryDate.setDate(expiryDate.getDate() + 30);
+    document.getElementById('expiry_date').value = expiryDate.toISOString().split('T')[0];
+    
+    console.log('文件上传页面加载完成');
+});
+</script>
+{% endblock %} 

@@ -1,0 +1,313 @@
+{% extends "base.html" %}
+
+{% block title %}业务类型管理 - MyTravelPanel{% endblock %}
+
+{% block page_title %}业务类型管理{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item active">业务类型管理</li>
+{% endblock %}
+
+{% block page_actions %}
+<div class="btn-group" role="group">
+    <button type="button" class="btn btn-success" onclick="createBusinessType()">
+        <i class="fas fa-plus me-1"></i>新建类型
+    </button>
+    <button type="button" class="btn btn-outline-secondary dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown">
+        <span class="visually-hidden">Toggle Dropdown</span>
+    </button>
+    <ul class="dropdown-menu">
+        <li><a class="dropdown-item" href="#" onclick="initDefaultTypes()"><i class="fas fa-magic me-2"></i>初始化默认类型</a></li>
+        <li><a class="dropdown-item" href="#" onclick="exportTypes()"><i class="fas fa-download me-2"></i>导出类型</a></li>
+        <li><hr class="dropdown-divider"></li>
+        <li><a class="dropdown-item" href="#" onclick="typeSettings()"><i class="fas fa-cog me-2"></i>类型设置</a></li>
+    </ul>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- 筛选器 -->
+    <div class="col-12 mb-4">
+        <div class="card">
+            <div class="card-body">
+                <form method="GET" class="row g-3">
+                    <div class="col-md-3">
+                        <label for="category" class="form-label">业务分类</label>
+                        <select class="form-select" id="category" name="category">
+                            <option value="">全部分类</option>
+                            <option value="visa" {% if category == 'visa' %}selected{% endif %}>签证服务</option>
+                            <option value="flight" {% if category == 'flight' %}selected{% endif %}>机票服务</option>
+                            <option value="tour" {% if category == 'tour' %}selected{% endif %}>旅游服务</option>
+                            <option value="package" {% if category == 'package' %}selected{% endif %}>套餐服务</option>
+                            <option value="other" {% if category == 'other' %}selected{% endif %}>其他服务</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="status" class="form-label">状态</label>
+                        <select class="form-select" id="status" name="status">
+                            <option value="">全部状态</option>
+                            <option value="active" {% if status == 'active' %}selected{% endif %}>启用</option>
+                            <option value="inactive" {% if status == 'inactive' %}selected{% endif %}>禁用</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="search" class="form-label">搜索</label>
+                        <input type="text" class="form-control" id="search" name="search" 
+                               value="{{ search }}" placeholder="搜索类型名称、代码、描述...">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">&nbsp;</label>
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-search me-1"></i>搜索
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- 业务类型统计 -->
+    <div class="col-12 mb-4">
+        <div class="row">
+            <div class="col-md-3">
+                <div class="card bg-primary text-white">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h4 class="mb-0">{{ total }}</h4>
+                                <p class="mb-0">总类型数</p>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="fas fa-tags fa-2x"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-success text-white">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h4 class="mb-0">{{ business_types | selectattr('is_active', 'equalto', true) | list | length }}</h4>
+                                <p class="mb-0">启用类型</p>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="fas fa-check-circle fa-2x"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-warning text-white">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h4 class="mb-0">{{ business_types | selectattr('level', 'equalto', 1) | list | length }}</h4>
+                                <p class="mb-0">主类型</p>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="fas fa-layer-group fa-2x"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-info text-white">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h4 class="mb-0">{{ business_types | selectattr('level', 'equalto', 2) | list | length }}</h4>
+                                <p class="mb-0">子类型</p>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="fas fa-sitemap fa-2x"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 业务类型列表 -->
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">业务类型列表</h5>
+            </div>
+            <div class="card-body">
+                {% if business_types %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>类型信息</th>
+                                <th>分类</th>
+                                <th>层级</th>
+                                <th>状态</th>
+                                <th>排序</th>
+                                <th>创建时间</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for type in business_types %}
+                            <tr>
+                                <td>
+                                    <div>
+                                        <strong>{{ type.name_cn }}</strong>
+                                        <br>
+                                        <small class="text-muted">{{ type.name_en }}</small>
+                                        <br>
+                                        <small class="text-muted">代码: {{ type.code }}</small>
+                                        {% if type.description %}
+                                        <br>
+                                        <small class="text-muted">{{ type.description[:50] }}{% if type.description|length > 50 %}...{% endif %}</small>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="badge bg-outline-primary">{{ type.category }}</span>
+                                </td>
+                                <td>
+                                    {% if type.level == 1 %}
+                                        <span class="badge bg-primary">主类型</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">子类型</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if type.is_active %}
+                                        <span class="badge bg-success">启用</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">禁用</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge bg-light text-dark">{{ type.sort_order }}</span>
+                                </td>
+                                <td>
+                                    <small class="text-muted">{{ type.created_at.strftime('%Y-%m-%d') }}</small>
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        <button type="button" class="btn btn-outline-primary" 
+                                                onclick="viewBusinessType({{ type.id }})">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-outline-warning" 
+                                                onclick="editBusinessType({{ type.id }})">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-outline-info" 
+                                                onclick="viewExtensions({{ type.id }})">
+                                            <i class="fas fa-puzzle-piece"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-outline-{% if type.is_active %}danger{% else %}success{% endif %}" 
+                                                onclick="toggleBusinessType({{ type.id }})">
+                                            <i class="fas fa-{% if type.is_active %}times{% else %}check{% endif %}"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- 分页 -->
+                {% if total_pages > 1 %}
+                <nav aria-label="业务类型分页">
+                    <ul class="pagination justify-content-center">
+                        {% if current_page > 1 %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('staff.business_types', page=current_page-1, category=category, status=status, search=search) }}">
+                                <i class="fas fa-chevron-left"></i>
+                            </a>
+                        </li>
+                        {% endif %}
+                        
+                        {% for page_num in range(1, total_pages + 1) %}
+                        <li class="page-item {% if page_num == current_page %}active{% endif %}">
+                            <a class="page-link" href="{{ url_for('staff.business_types', page=page_num, category=category, status=status, search=search) }}">
+                                {{ page_num }}
+                            </a>
+                        </li>
+                        {% endfor %}
+                        
+                        {% if current_page < total_pages %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('staff.business_types', page=current_page+1, category=category, status=status, search=search) }}">
+                                <i class="fas fa-chevron-right"></i>
+                            </a>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+                {% endif %}
+                {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-tags fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">暂无业务类型</h5>
+                    <p class="text-muted">当前没有符合条件的业务类型</p>
+                    <button type="button" class="btn btn-primary" onclick="createBusinessType()">
+                        <i class="fas fa-plus me-1"></i>创建第一个业务类型
+                    </button>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function createBusinessType() {
+    alert('创建业务类型功能开发中...');
+}
+
+function viewBusinessType(typeId) {
+    alert(`查看业务类型 ${typeId} 功能开发中...`);
+}
+
+function editBusinessType(typeId) {
+    alert(`编辑业务类型 ${typeId} 功能开发中...`);
+}
+
+function viewExtensions(typeId) {
+    alert(`查看业务类型 ${typeId} 的扩展功能开发中...`);
+}
+
+function toggleBusinessType(typeId) {
+    if (confirm('确认切换此业务类型的状态？')) {
+        alert(`切换业务类型 ${typeId} 状态功能开发中...`);
+    }
+}
+
+function initDefaultTypes() {
+    if (confirm('确认初始化默认业务类型？这将创建系统预设的业务类型。')) {
+        alert('初始化默认业务类型功能开发中...');
+    }
+}
+
+function exportTypes() {
+    alert('导出业务类型功能开发中...');
+}
+
+function typeSettings() {
+    alert('业务类型设置功能开发中...');
+}
+
+// 自动刷新业务类型状态
+setInterval(function() {
+    // 这里可以添加自动刷新逻辑
+}, 60000); // 1分钟刷新一次
+</script>
+{% endblock %}

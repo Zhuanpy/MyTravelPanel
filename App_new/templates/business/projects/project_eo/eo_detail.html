@@ -1,0 +1,291 @@
+{% extends "shared/staff_base.html" %}
+{% block title %}EO详情 - {{ eo.eo_number }} - MyTravelPanel{% endblock %}
+
+{% block page_title %}EO详情{% endblock %}
+{% block content %}
+<style>
+    .eo-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 1.5rem 2rem;
+        border-radius: 10px;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    
+    .eo-title {
+        font-size: 1.8rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }
+    
+    .eo-subtitle {
+        font-size: 1.1rem;
+        opacity: 0.9;
+        margin-bottom: 0;
+    }
+    
+    .info-card {
+        background: white;
+        border-radius: 8px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        border: 1px solid #e9ecef;
+    }
+    
+    .info-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+    
+    .info-item {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 0.5rem;
+        background: #f8f9fa;
+        border-radius: 6px;
+        border: 1px solid #e9ecef;
+    }
+    
+    .info-label {
+        font-size: 0.8em;
+        color: #6c757d;
+        margin-bottom: 0.25rem;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .info-value {
+        font-size: 1em;
+        color: #212529;
+        font-weight: 500;
+        line-height: 1.2;
+    }
+    
+    .status-badge {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.875rem;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .status-draft { background-color: #fff3cd; color: #856404; }
+    .status-confirmed { background-color: #d1ecf1; color: #0c5460; }
+    .status-paid { background-color: #d4edda; color: #155724; }
+    .status-cancelled { background-color: #f8d7da; color: #721c24; }
+    
+    .supplier-type-badge {
+        background-color: #e3f2fd;
+        color: #1976d2;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.875rem;
+        font-weight: 500;
+    }
+    
+    .amount-display {
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: #28a745;
+        background: #f8f9fa;
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        border: 2px solid #28a745;
+        text-align: center;
+    }
+    
+    .external-info {
+        background: #fff3cd;
+        border: 1px solid #ffeaa7;
+        border-radius: 6px;
+        padding: 1rem;
+        margin-top: 1rem;
+    }
+    
+    .remarks-section {
+        background: #f8f9fa;
+        border: 1px solid #e9ecef;
+        border-radius: 6px;
+        padding: 1rem;
+        margin-top: 1rem;
+    }
+    
+    .action-buttons {
+        display: flex;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+    }
+    
+    .btn {
+        padding: 0.5rem 1.5rem;
+        border-radius: 6px;
+        font-weight: 500;
+        transition: all 0.2s ease;
+    }
+    
+    .btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    }
+</style>
+
+<div class="container-fluid">
+    <!-- EO头部信息 -->
+    <div class="eo-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h1 class="eo-title mb-0">{{ eo.eo_number }}</h1>
+                <p class="eo-subtitle mb-0">{{ eo.name or '未命名EO' }}</p>
+            </div>
+            <div class="action-buttons">
+                <a href="{{ url_for('projects.edit_eo', eo_id=eo.id) }}" class="btn btn-light">
+                    <i class="fas fa-edit"></i> 编辑EO
+                </a>
+                <a href="{{ url_for('projects.ref_detail', ref_id=eo.ref_id) }}" class="btn btn-outline-light">
+                    <i class="fas fa-arrow-left"></i> 返回REF
+                </a>
+                <a href="{{ url_for('projects.header_detail', header_id=eo.ref.header.id) }}" class="btn btn-outline-light">
+                    <i class="fas fa-home"></i> 返回HID
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 基本信息 -->
+    <div class="info-card">
+        <h4 class="mb-3">
+            <i class="fas fa-info-circle text-primary"></i> 基本信息
+        </h4>
+        <div class="info-grid">
+            <div class="info-item">
+                <span class="info-label">EO编号</span>
+                <span class="info-value">{{ eo.eo_number }}</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">订单名称</span>
+                <span class="info-value">{{ eo.name or '未设�? }}</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">供应商类�?/span>
+                <span class="supplier-type-badge">
+                    {% if eo.supplier_type == 'visa' %}签证
+                    {% elif eo.supplier_type == 'flight' %}机票
+                    {% elif eo.supplier_type == 'hotel' %}酒店
+                    {% elif eo.supplier_type == 'transport' %}交�?
+                    {% elif eo.supplier_type == 'local_operator' %}地接
+                    {% else %}其他
+                    {% endif %}
+                </span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">供应�?/span>
+                <span class="info-value">{{ eo.supplier.name if eo.supplier else '未设�? }}</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">状�?/span>
+                <span class="status-badge status-{{ eo.status }}">
+                    {% if eo.status == 'draft' %}草稿
+                    {% elif eo.status == 'confirmed' %}已确�?
+                    {% elif eo.status == 'paid' %}已支�?
+                    {% elif eo.status == 'cancelled' %}已取�?
+                    {% endif %}
+                </span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">创建时间</span>
+                <span class="info-value">{{ eo.created_at.strftime('%Y-%m-%d %H:%M:%S') if eo.created_at else '未设�? }}</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">更新时间</span>
+                <span class="info-value">{{ eo.updated_at.strftime('%Y-%m-%d %H:%M:%S') if eo.updated_at else '未设�? }}</span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 金额信息 -->
+    <div class="info-card">
+        <h4 class="mb-3">
+            <i class="fas fa-money-bill-wave text-success"></i> 金额信息
+        </h4>
+        <div class="text-center">
+            <div class="amount-display">
+                {{ eo.currency }} {{ "%.2f"|format(eo.amount) if eo.amount else '0.00' }}
+            </div>
+        </div>
+    </div>
+    
+    <!-- 外部系统信息 -->
+    {% if eo.external_system or eo.external_status or eo.external_reference %}
+    <div class="info-card">
+        <h4 class="mb-3">
+            <i class="fas fa-external-link-alt text-warning"></i> 外部系统信息
+        </h4>
+        <div class="external-info">
+            <div class="row">
+                <div class="col-md-4">
+                    <strong>外部系统�?/strong>
+                    <span class="badge bg-info">{{ eo.external_system or '未设�? }}</span>
+                </div>
+                <div class="col-md-4">
+                    <strong>外部状态：</strong>
+                    <span class="badge bg-secondary">{{ eo.external_status or '未设�? }}</span>
+                </div>
+                <div class="col-md-4">
+                    <strong>外部参考号�?/strong>
+                    <span class="badge bg-dark">{{ eo.external_reference or '未设�? }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- 备注信息 -->
+    {% if eo.remarks %}
+    <div class="info-card">
+        <h4 class="mb-3">
+            <i class="fas fa-sticky-note text-info"></i> 备注信息
+        </h4>
+        <div class="remarks-section" style="white-space: pre-wrap; word-wrap: break-word;">
+            {{ eo.remarks }}
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- REF关联信息 -->
+    <div class="info-card">
+        <h4 class="mb-3">
+            <i class="fas fa-link text-primary"></i> 关联REF信息
+        </h4>
+        <div class="info-grid">
+            <div class="info-item">
+                <span class="info-label">REF编号</span>
+                <span class="info-value">
+                    <a href="{{ url_for('projects.ref_detail', ref_id=eo.ref_id) }}" class="text-decoration-none">
+                        {{ eo.ref.ref_number if eo.ref else '未设�? }}
+                    </a>
+                </span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">REF名称</span>
+                <span class="info-value">{{ eo.ref.name or eo.ref.description if eo.ref else '未设�? }}</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">REF类型</span>
+                <span class="info-value">{{ eo.ref.ref_type.name if eo.ref and eo.ref.ref_type else '未设�? }}</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">REF状�?/span>
+                <span class="info-value">{{ eo.ref.status if eo.ref else '未设�? }}</span>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

@@ -1,0 +1,252 @@
+{% extends "staff_base.html" %}
+
+{% block title %}UOB银行账单 - MyTravelPanel{% endblock %}
+
+{% block page_title %}UOB银行账单{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* UOB账单处理页面样式 */
+    .uob-container {
+        max-width: 800px;
+        margin: 40px auto;
+        padding: 30px;
+        background-color: #ffffff;
+        border-radius: 12px;
+        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+    
+    .uob-header {
+        width: 100%;
+        margin-bottom: 30px;
+        text-align: center;
+        position: relative;
+    }
+    
+    .uob-title {
+        color: #1A5F7A;
+        font-size: 32px;
+        margin-bottom: 10px;
+        position: relative;
+        display: inline-block;
+    }
+    
+    .uob-title:after {
+        content: '';
+        position: absolute;
+        bottom: -10px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 100px;
+        height: 3px;
+        background-color: #00a8cc;
+        border-radius: 3px;
+    }
+    
+    .uob-section {
+        width: 100%;
+        margin-bottom: 25px;
+        padding: 20px;
+        background-color: #f8f9fa;
+        border-radius: 10px;
+        transition: all 0.3s ease;
+    }
+    
+    .uob-section:hover {
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        transform: translateY(-2px);
+    }
+    
+    .uob-section p {
+        font-size: 18px;
+        font-weight: 600;
+        margin-bottom: 15px;
+        color: #1A5F7A;
+    }
+    
+    .uob-button-group {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 15px;
+        justify-content: flex-start;
+    }
+    
+    .uob-button {
+        background-color: #00a8cc;
+        color: white;
+        border: none;
+        padding: 12px 25px;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        border-radius: 50px;
+        transition: all 0.3s ease;
+        box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        text-decoration: none;
+        min-width: 160px;
+        margin-right: 10px;
+        margin-bottom: 10px;
+    }
+    
+    /* 打开文件夹按钮特殊样式 */
+    .folder-btn {
+        position: relative;
+        padding-left: 40px;
+    }
+    
+    .folder-btn:before {
+        content: '📁';
+        position: absolute;
+        left: 20px;
+        font-size: 18px;
+    }
+    
+    .uob-button:hover {
+        background-color: #007a99;
+        box-shadow: 0 5px 12px rgba(0, 0, 0, 0.2);
+        transform: translateY(-2px);
+    }
+    
+    .uob-button:active {
+        background-color: #005f73;
+    }
+    
+    .uob-footer {
+        margin-top: 30px;
+        padding: 15px 0;
+        text-align: center;
+        font-size: 14px;
+        color: #666;
+    }
+    
+    .uob-footer span {
+        color: #00a8cc;
+        font-weight: bold;
+    }
+    
+    .uob-alert {
+        background-color: #00a8cc;
+        color: white;
+        padding: 15px 20px;
+        margin-bottom: 20px;
+        border-radius: 10px;
+        display: none;
+        width: 100%;
+        box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+    }
+    
+    .uob-alert.show {
+        display: block;
+    }
+
+    /* 响应式布局 */
+    @media (max-width: 768px) {
+        .uob-container {
+            padding: 20px 15px;
+            margin: 20px auto;
+        }
+
+        .uob-title {
+            font-size: 26px;
+        }
+
+        .uob-section {
+            padding: 15px;
+        }
+
+        .uob-button {
+            padding: 10px 20px;
+            font-size: 14px;
+        }
+
+        .uob-button-group {
+            gap: 10px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="uob-container">
+    <div class="uob-header">
+        <h1 class="uob-title">UOB账单处理</h1>
+    </div>
+    
+    {% with messages = get_flashed_messages() %}
+        {% if messages %}
+            <div class="uob-alert show">
+                {% for message in messages %}
+                    {{ message }}
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+
+    <!-- 完整进程 -->
+    <div class="uob-section">
+        <p>完整进程</p>
+        <div class="uob-button-group">
+            <form action="{{ url_for('statement_routes.uob_bank_processing') }}" method="post">
+                <button type="submit" class="uob-button">账单整理</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- 单项进程 -->
+    <div class="uob-section">
+        <p>单项进程</p>
+        <div class="uob-button-group">
+            <form action="{{ url_for('statement_routes.uob_original_processing') }}" method="post">
+                <button type="submit" class="uob-button">原始账单整理</button>
+            </form>
+            <form action="{{ url_for('statement_routes.latest_company_statement') }}" method="post">
+                <button type="submit" class="uob-button">公司账单整理</button>
+            </form>
+            <form action="{{ url_for('statement_routes.latest_self_statement') }}" method="post">
+                <button type="submit" class="uob-button">个人账单整理</button>
+            </form>
+            <form action="{{ url_for('statement_routes.statement_to_company') }}" method="post">
+                <button type="submit" class="uob-button">公司账单</button>
+            </form>
+            <form action="{{ url_for('statement_routes.latest_company_statement') }}" method="post">
+                <button type="submit" class="uob-button">最终公司账单</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- 打开项目文件 -->
+    <div class="uob-section"> 
+        <p>打开项目文件</p>
+        <div class="uob-button-group">
+            <form action="{{ url_for('statement_routes.open_uob_statement_folder') }}" method="post">
+                <button type="submit" class="uob-button folder-btn">打开文件夹</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- 页脚 -->
+    <div class="uob-footer">
+        &copy; 2024 <span>UOB账单处理系统</span>
+    </div>
+</div>
+
+<script>
+    // 显示flash消息，5秒后自动隐藏
+    document.addEventListener('DOMContentLoaded', function() {
+        const alerts = document.querySelectorAll('.uob-alert.show');
+        if (alerts.length > 0) {
+            setTimeout(function() {
+                alerts.forEach(function(alert) {
+                    alert.classList.remove('show');
+                });
+            }, 5000);
+        }
+    });
+</script>
+{% endblock %}

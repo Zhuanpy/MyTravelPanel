@@ -1,0 +1,1158 @@
+{% extends "staff_base.html" %}
+
+{% block title %}签证链接管理 - MyTravelPanel{% endblock %}
+
+{% block page_title %}签证链接管理{% endblock %}
+
+{% block extra_css %}
+{{ super() }}
+<style>
+    .visa-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+    
+    .visa-header-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin-bottom: 30px;
+        border-bottom: 2px solid #e9ecef;
+        padding-bottom: 15px;
+    }
+    
+    .visa-header-container h1 {
+        font-size: 1.75rem;
+        font-weight: 600;
+        color: #2d3748;
+        margin: 0;
+        text-align: center;
+    }
+    
+    .visa-home-btn {
+        display: inline-flex;
+        align-items: center;
+        padding: 8px 16px;
+        background-color: #f8f9fa;
+        color: #3182ce;
+        border-radius: 4px;
+        text-decoration: none;
+        transition: all 0.3s ease;
+        font-weight: 500;
+    }
+    
+    .visa-home-btn:hover {
+        background-color: #e9ecef;
+        color: #2c5282;
+        text-decoration: underline;
+    }
+    
+    .visa-home-btn i {
+        margin-right: 8px;
+    }
+    
+    .visa-form-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 15px;
+        margin-bottom: 20px;
+    }
+    
+    .visa-form-group {
+        flex: 1;
+        min-width: 200px;
+    }
+    
+    .visa-form-control {
+        width: 100%;
+        padding: 0.5rem;
+        border: 1px solid #e2e8f0;
+        border-radius: 0.375rem;
+        background-color: white;
+        font-size: 0.875rem;
+        color: #4a5568;
+        transition: border-color 0.15s ease-in-out;
+    }
+    
+    .visa-form-control:focus {
+        border-color: #3182ce;
+        outline: 0;
+        box-shadow: 0 0 0 0.2rem rgba(49, 130, 206, 0.25);
+    }
+    
+    .visa-btn {
+        display: inline-block;
+        padding: 8px 16px;
+        cursor: pointer;
+        border: none;
+        border-radius: 0.375rem;
+        font-weight: 500;
+        text-align: center;
+        white-space: nowrap;
+        vertical-align: middle;
+        transition: all 0.3s ease;
+    }
+    
+    .visa-btn-primary {
+        color: #fff;
+        background-color: #4299e1;
+    }
+    
+    .visa-btn-primary:hover {
+        background-color: #3182ce;
+    }
+    
+    .visa-btn-warning {
+        color: #212529;
+        background-color: #ecc94b;
+    }
+    
+    .visa-btn-warning:hover {
+        background-color: #d69e2e;
+    }
+    
+    .visa-btn-danger {
+        color: #fff;
+        background-color: #f56565;
+    }
+    
+    .visa-btn-danger:hover {
+        background-color: #e53e3e;
+    }
+    
+    .visa-btn-info {
+        color: #fff;
+        background-color: #4299e1;
+    }
+    
+    .visa-btn-info:hover {
+        background-color: #3182ce;
+    }
+    
+    .visa-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+        margin-bottom: 2rem;
+        table-layout: fixed; /* 固定表格布局 */
+    }
+    
+    .visa-table th,
+    .visa-table td {
+        padding: 0.75rem 1rem;
+        text-align: left;
+        border-bottom: 1px solid #e2e8f0;
+        height: 60px; /* 固定行高 */
+        vertical-align: middle; /* 垂直居中对齐 */
+        max-height: 60px; /* 最大高度限制 */
+        overflow: hidden; /* 超出部分隐藏 */
+        white-space: nowrap; /* 不换行 */
+        text-overflow: ellipsis; /* 超出显示省略号 */
+    }
+    
+    .visa-table th {
+        background-color: #f7fafc;
+        color: #4a5568;
+        font-weight: 600;
+        font-size: 0.875rem;
+        height: 50px; /* 表头稍矮一些 */
+    }
+    
+    /* 固定列宽 */
+    .visa-table th:nth-child(1),
+    .visa-table td:nth-child(1) {
+        width: 18%; /* 签证类型列 */
+    }
+    
+    .visa-table th:nth-child(2),
+    .visa-table td:nth-child(2) {
+        width: 15%; /* 国家列 */
+    }
+    
+    .visa-table th:nth-child(3),
+    .visa-table td:nth-child(3) {
+        width: 20%; /* 链接名称列 */
+    }
+    
+    .visa-table th:nth-child(4),
+    .visa-table td:nth-child(4) {
+        width: 32%; /* 链接地址列 */
+    }
+    
+    .visa-table th:nth-child(5),
+    .visa-table td:nth-child(5) {
+        width: 15%; /* 操作列 */
+        text-align: center;
+        min-width: 140px; /* 确保操作列有最小宽度 */
+    }
+    
+    /* 链接地址列的链接样式 */
+    .visa-table td:nth-child(3) a {
+        color: #3182ce;
+        text-decoration: none;
+        display: block; /* 块级显示 */
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    
+    .visa-table td:nth-child(3) a:hover {
+        text-decoration: underline;
+    }
+    
+    .visa-table tr:nth-child(even) {
+        background-color: #f9fafb;
+    }
+    
+    .visa-table tr:hover {
+        background-color: #edf2f7;
+    }
+    
+    .visa-alert {
+        padding: 12px 15px;
+        margin-bottom: 20px;
+        border-radius: 4px;
+    }
+    
+    .visa-alert-success {
+        color: #276749;
+        background-color: #c6f6d5;
+        border: 1px solid #9ae6b4;
+    }
+    
+    .visa-alert-danger {
+        color: #c53030;
+        background-color: #fed7d7;
+        border: 1px solid #feb2b2;
+    }
+    
+    .visa-alert-warning {
+        color: #c05621;
+        background-color: #feebc8;
+        border: 1px solid #fbd38d;
+    }
+    
+    .visa-alert-info {
+        color: #2c5282;
+        background-color: #bee3f8;
+        border: 1px solid #90cdf4;
+    }
+    
+    /* 分页样式 */
+    .visa-pagination {
+        display: flex;
+        justify-content: center;
+        margin-top: 30px;
+    }
+    
+    .visa-pagination-info {
+        text-align: center;
+        margin-bottom: 10px;
+        color: #4a5568;
+        font-size: 0.9rem;
+    }
+    
+    .visa-page-item {
+        margin: 0 3px;
+    }
+    
+    .visa-page-link {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 36px;
+        height: 36px;
+        padding: 0 10px;
+        border-radius: 4px;
+        background-color: #edf2f7;
+        color: #4a5568;
+        text-decoration: none;
+        transition: all 0.2s ease;
+    }
+    
+    .visa-page-link:hover {
+        background-color: #e2e8f0;
+        color: #2d3748;
+    }
+    
+    .visa-page-link.active {
+        background-color: #4299e1;
+        color: #ffffff;
+        cursor: default;
+    }
+    
+    .visa-page-link.disabled {
+        color: #a0aec0;
+        pointer-events: none;
+        background-color: #edf2f7;
+    }
+    
+    /* h3标题样式区分 */
+    .visa-section-title {
+        padding: 10px 15px;
+        border-radius: 4px;
+        margin: 25px 0 15px;
+        font-weight: 600;
+        font-size: 1.25rem;
+        color: #2d3748;
+    }
+    
+    .visa-add-title {
+        background-color: #ebf8ff;
+        color: #3182ce;
+        border-left: 4px solid #3182ce;
+    }
+    
+    .visa-list-title {
+        background-color: #f0fff4;
+        color: #38a169;
+        border-left: 4px solid #38a169;
+        margin-top: 40px;
+    }
+    
+    /* 多条目表单样式 */
+    .visa-form-container {
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        padding: 15px;
+        background-color: #f7fafc;
+    }
+    
+    .visa-form-entry {
+        background-color: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        padding: 15px;
+        margin-bottom: 15px;
+        position: relative;
+    }
+    
+    .visa-form-entry:last-child {
+        margin-bottom: 0;
+    }
+    
+    .visa-remove-entry {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        background-color: #fed7d7;
+        color: #e53e3e;
+        border: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    
+    .visa-remove-entry:hover {
+        background-color: #e53e3e;
+        color: #fff;
+    }
+    
+    .visa-entry-number {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        background-color: #ebf8ff;
+        color: #3182ce;
+        font-size: 0.8rem;
+        font-weight: 600;
+        padding: 2px 8px;
+        border-radius: 10px;
+    }
+    
+    .visa-form-actions {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 20px;
+    }
+    
+    .visa-add-entry {
+        display: flex;
+        align-items: center;
+        padding: 8px 16px;
+        background-color: #ebf8ff;
+        color: #3182ce;
+        border: 1px dashed #3182ce;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    
+    .visa-add-entry:hover {
+        background-color: #bee3f8;
+    }
+    
+    .visa-add-entry i {
+        margin-right: 8px;
+    }
+    
+    /* 编辑模态框样式 */
+    .visa-modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+        opacity: 0;
+        visibility: hidden;
+        transition: all 0.3s ease;
+    }
+    
+    .visa-modal-overlay.active {
+        opacity: 1;
+        visibility: visible;
+    }
+    
+    .visa-modal {
+        background-color: #ffffff;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        width: 100%;
+        max-width: 900px;
+        padding: 0;
+        transform: translateY(-20px);
+        transition: transform 0.3s ease;
+        overflow: hidden;
+    }
+    
+    .visa-modal-overlay.active .visa-modal {
+        transform: translateY(0);
+    }
+    
+    .visa-modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 16px 20px;
+        border-bottom: 1px solid #e2e8f0;
+        background-color: #f7fafc;
+    }
+    
+    .visa-modal-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: #2d3748;
+        margin: 0;
+    }
+    
+    .visa-modal-close {
+        background: none;
+        border: none;
+        font-size: 1.5rem;
+        cursor: pointer;
+        color: #a0aec0;
+        padding: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        border-radius: 4px;
+        transition: all 0.2s ease;
+    }
+    
+    .visa-modal-close:hover {
+        background-color: #edf2f7;
+        color: #4a5568;
+    }
+    
+    .visa-modal-body {
+        padding: 25px;
+    }
+    
+    .visa-modal-footer {
+        padding: 16px 20px;
+        border-top: 1px solid #e2e8f0;
+        display: flex;
+        justify-content: flex-end;
+        gap: 12px;
+    }
+    
+    .visa-modal-alert {
+        padding: 10px 15px;
+        border-radius: 4px;
+        margin-bottom: 15px;
+        display: none;
+    }
+    
+    .visa-modal-alert-success {
+        background-color: #f0fff4;
+        border: 1px solid #c6f6d5;
+        color: #276749;
+    }
+    
+    .visa-modal-alert-error {
+        background-color: #fff5f5;
+        border: 1px solid #fed7d7;
+        color: #c53030;
+    }
+    
+    /* 标题和按钮的布局容器 */
+    .visa-section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin: 25px 0 15px;
+        background-color: #f0fff4;
+        padding: 10px 15px;
+        border-radius: 4px;
+        border-left: 4px solid #38a169;
+    }
+    
+    .visa-section-header .visa-section-title {
+        margin: 0;
+        flex: 1;
+        padding: 0;
+        background: none;
+        border-left: none;
+    }
+    
+    .visa-action-btn {
+        margin-left: 15px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 8px 16px;
+        border-radius: 4px;
+        box-shadow: 0 2px 4px rgba(66, 153, 225, 0.2);
+        transition: all 0.3s ease;
+    }
+    
+    .visa-action-btn i {
+        margin-right: 8px;
+        font-size: 0.9rem;
+    }
+    
+    .visa-action-btn:hover {
+        box-shadow: 0 4px 8px rgba(66, 153, 225, 0.3);
+        transform: translateY(-1px);
+    }
+    
+    /* 添加链接表单专用样式 */
+    .visa-form-row.three-columns {
+        display: flex;
+        flex-wrap: nowrap;
+        gap: 15px;
+        margin-bottom: 20px;
+    }
+    
+    .visa-form-row.three-columns .visa-form-group {
+        flex: 1 1 0;
+        min-width: 0; /* 允许元素在必要时收缩到比min-width更小 */
+    }
+    
+    /* 调整添加链接模态窗口中的表单容器 */
+    #addModal .visa-form-container {
+        padding: 20px;
+        margin-bottom: 0;
+    }
+    
+    /* 筛选区域样式 */
+    .visa-filter-container {
+        background-color: #f7fafc;
+        border-radius: 6px;
+        padding: 15px;
+        margin-bottom: 20px;
+        border: 1px solid #e2e8f0;
+    }
+    
+    .visa-filter-title {
+        background-color: #ebf8ff;
+        color: #3182ce;
+        border-left: 4px solid #3182ce;
+        margin-top: 0;
+        margin-bottom: 15px;
+    }
+    
+    /* 结果计数 */
+    .visa-result-count {
+        margin-top: 10px;
+        font-size: 0.9rem;
+        color: #4a5568;
+    }
+    
+    /* 弹窗按钮样式优化 */
+    .visa-btn-secondary {
+        color: #4a5568;
+        background-color: #e2e8f0;
+        border: 1px solid #cbd5e0;
+    }
+    
+    .visa-btn-secondary:hover {
+        background-color: #cbd5e0;
+        color: #2d3748;
+    }
+    
+    /* 弹窗表单布局优化 */
+    #addModal .visa-form-actions {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 20px;
+        padding-top: 15px;
+        border-top: 1px solid #e2e8f0;
+    }
+    
+    #addModal .visa-form-actions > div {
+        display: flex;
+        gap: 10px;
+    }
+    
+    /* 弹窗动画优化 */
+    .visa-modal-overlay {
+        backdrop-filter: blur(2px);
+    }
+    
+    .visa-modal {
+        max-height: 90vh;
+        overflow-y: auto;
+    }
+    
+    /* 操作按钮样式优化 */
+    .visa-table td:last-child {
+        text-align: center;
+        white-space: nowrap;
+        padding: 8px 4px;
+    }
+    
+    .visa-table td:last-child .visa-btn {
+        margin: 0 2px;
+        padding: 4px 8px;
+        font-size: 0.75rem;
+        min-width: 50px;
+        display: inline-block;
+        text-decoration: none;
+        border-radius: 3px;
+        border: 1px solid transparent;
+        cursor: pointer;
+    }
+    
+    .visa-table td:last-child .visa-btn i {
+        margin-right: 3px;
+        font-size: 0.7rem;
+    }
+    
+    /* 删除按钮特殊样式 */
+    .visa-btn-danger {
+        color: #fff;
+        background-color: #e53e3e;
+        border-color: #e53e3e;
+        transition: all 0.2s ease;
+    }
+    
+    .visa-btn-danger:hover {
+        background-color: #c53030;
+        border-color: #c53030;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(229, 62, 62, 0.3);
+        text-decoration: none;
+        color: #fff;
+    }
+    
+    /* 编辑按钮特殊样式 */
+    .visa-btn-warning {
+        color: #fff;
+        background-color: #d69e2e;
+        border-color: #d69e2e;
+        transition: all 0.2s ease;
+    }
+    
+    .visa-btn-warning:hover {
+        background-color: #b7791f;
+        border-color: #b7791f;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(214, 158, 46, 0.3);
+        text-decoration: none;
+        color: #fff;
+    }
+    
+    /* 响应式设计 */
+    @media (max-width: 768px) {
+        .visa-container {
+            max-width: 100%;
+            padding: 10px;
+        }
+        
+        .visa-table {
+            font-size: 0.8rem;
+        }
+        
+        .visa-table th,
+        .visa-table td {
+            padding: 0.5rem 0.3rem;
+        }
+        
+        .visa-table td:last-child .visa-btn {
+            padding: 3px 6px;
+            font-size: 0.7rem;
+            min-width: 40px;
+        }
+        
+        .visa-table td:last-child .visa-btn i {
+            margin-right: 2px;
+            font-size: 0.6rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="visa-container">
+    <div class="visa-header-container">
+            <h1>签证链接管理</h1>
+        </div>
+
+    <!-- 链接列表 -->
+    <div class="visa-section-header">
+        <h3 class="visa-section-title visa-list-title">现有链接列表</h3>
+        <button type="button" class="visa-action-btn visa-btn visa-btn-primary" onclick="showAddModal()">
+            <i class="fas fa-plus"></i>
+            添加链接
+        </button>
+    </div>
+
+    <!-- 筛选区域 -->
+    <div class="visa-filter-container">
+        <h4 class="visa-filter-title">筛选条件</h4>
+        <form method="GET" action="{{ url_for('visa_links.visa_link_page') }}" class="visa-form-row">
+            <div class="visa-form-group">
+                <label for="filter_visa_type">签证类型：</label>
+                <select name="filter_visa_type" class="visa-form-control" onchange="this.form.submit()">
+                    <option value="">全部签证类型</option>
+                    {% for visa_type in visa_types %}
+                    <option value="{{ visa_type.id }}" {% if filter_visa_type|string == visa_type.id|string %}selected{% endif %}>{{ visa_type.visa_type }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="visa-form-group">
+                <label for="filter_country">国家：</label>
+                <select name="filter_country" class="visa-form-control" onchange="this.form.submit()">
+                    <option value="">全部国家</option>
+                    {% for country in countries %}
+                    <option value="{{ country.id }}" {% if filter_country|string == country.id|string %}selected{% endif %}>{{ country.country_name_CN }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="visa-form-group">
+                <label>&nbsp;</label>
+                <div>
+                    <button type="submit" class="visa-btn visa-btn-primary">
+                        <i class="fas fa-search"></i> 筛选
+                    </button>
+                    <a href="{{ url_for('visa_links.visa_link_page') }}" class="visa-btn visa-btn-secondary">
+                        <i class="fas fa-times"></i> 清除筛选
+                    </a>
+                </div>
+            </div>
+        </form>
+        <div class="visa-result-count">
+            共找到 {{ pagination.total }} 条记录
+        </div>
+    </div>
+
+    <table class="visa-table">
+            <thead>
+                <tr>
+                    <th>签证类型</th>
+                    <th>国家</th>
+                    <th>链接名称</th>
+                    <th>链接地址</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for link, visa_type, country in links %}
+                <tr>
+                <td>{{ visa_type.visa_type }}</td>
+                    <td>{{ country.country_name_CN if country else '' }}</td>
+                <td>{{ link.name }}</td>
+                <td><a href="{{ link.link }}" target="_blank">{{ link.link }}</a></td>
+                <td>
+                    <a href="{{ url_for('visa_links.edit_visa_link', link_id=link.id) }}" class="visa-btn visa-btn-warning">
+                        <i class="fas fa-edit"></i> 编辑
+                    </a>
+                    <a href="{{ url_for('visa_links.delete_visa_link', link_id=link.id) }}" class="visa-btn visa-btn-danger" 
+                       onclick="return confirm('确定要删除链接 \'{{ link.name }}\' 吗？')">
+                        <i class="fas fa-trash"></i> 删除
+                    </a>
+                </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        
+        <!-- 分页控件 -->
+        {% if pagination and pagination.pages > 1 %}
+        <div class="visa-pagination">
+            <div class="visa-pagination-info">
+                显示第 {{ (pagination.page - 1) * pagination.per_page + 1 }}-{{ pagination.page * pagination.per_page if pagination.page * pagination.per_page <= pagination.total else pagination.total }} 条，
+                共 {{ pagination.total }} 条记录
+            </div>
+            
+            <div class="visa-page-item">
+                {% if pagination.has_prev %}
+                    <a href="{{ url_for('visa_links.visa_link_page', page=pagination.prev_num, filter_visa_type=filter_visa_type, filter_country=filter_country) }}" class="visa-page-link">
+                        &laquo; 上一页
+                    </a>
+                {% else %}
+                    <span class="visa-page-link disabled">&laquo; 上一页</span>
+                {% endif %}
+            </div>
+            
+            {% for page in pagination.iter_pages(left_edge=2, left_current=2, right_current=3, right_edge=2) %}
+                {% if page %}
+                    {% if page == pagination.page %}
+                        <div class="visa-page-item">
+                            <span class="visa-page-link active">{{ page }}</span>
+                        </div>
+                    {% else %}
+                        <div class="visa-page-item">
+                            <a href="{{ url_for('visa_links.visa_link_page', page=page, filter_visa_type=filter_visa_type, filter_country=filter_country) }}" class="visa-page-link">{{ page }}</a>
+                        </div>
+                    {% endif %}
+                {% else %}
+                    <div class="visa-page-item">
+                        <span class="visa-page-link disabled">...</span>
+                    </div>
+                {% endif %}
+            {% endfor %}
+            
+            <div class="visa-page-item">
+                {% if pagination.has_next %}
+                    <a href="{{ url_for('visa_links.visa_link_page', page=pagination.next_num, filter_visa_type=filter_visa_type, filter_country=filter_country) }}" class="visa-page-link">
+                        下一页 &raquo;
+                    </a>
+                {% else %}
+                    <span class="visa-page-link disabled">下一页 &raquo;</span>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+        </div>
+        
+        <!-- 添加链接弹窗 -->
+        <div id="addModal" class="visa-modal-overlay">
+            <div class="visa-modal">
+                <div class="visa-modal-header">
+                    <h3 class="visa-modal-title">添加签证链接</h3>
+                    <button type="button" class="visa-modal-close" onclick="closeAddModal()">&times;</button>
+                </div>
+                <div class="visa-modal-body">
+                    <div id="addModalAlert" class="visa-modal-alert" style="display: none;"></div>
+                    
+                    <form method="POST" action="{{ url_for('visa_links.add_visa_link') }}" id="addLinkForm">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <div class="visa-form-container">
+                            <div class="visa-form-entry">
+                                <span class="visa-entry-number">1</span>
+                                <div class="visa-form-row three-columns">
+                                    <div class="visa-form-group">
+                                        <label for="visa_type">签证类型：</label>
+                                        <select name="visa_type[]" class="visa-form-control" required>
+                                            <option value="">请选择签证类型</option>
+                                            {% for visa_type in visa_types %}
+                                            <option value="{{ visa_type.id }}">{{ visa_type.visa_type }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div class="visa-form-group">
+                                        <label for="visa_countries_id">国家：</label>
+                                        <select name="visa_countries_id[]" class="visa-form-control" required>
+                                            <option value="">请选择国家</option>
+                                            {% for country in countries %}
+                                            <option value="{{ country.id }}">{{ country.country_name_CN }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div class="visa-form-group">
+                                        <label for="name">链接名称：</label>
+                                        <input type="text" name="name[]" class="visa-form-control" required>
+                                    </div>
+                                    <div class="visa-form-group">
+                                        <label for="link">链接地址：</label>
+                                        <input type="url" name="link[]" class="visa-form-control" required>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="visa-form-actions">
+                            <button type="button" class="visa-add-entry" onclick="addLinkRow()">
+                                <i class="fas fa-plus"></i> 添加更多链接
+                            </button>
+                            <div>
+                                <button type="button" class="visa-btn visa-btn-secondary" onclick="closeAddModal()">取消</button>
+                                <button type="submit" class="visa-btn visa-btn-primary">保存链接</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 编辑链接弹窗 -->
+        {% if is_editing and link %}
+        <div id="editModal" class="visa-modal-overlay active">
+            <div class="visa-modal">
+                <div class="visa-modal-header">
+                    <h3 class="visa-modal-title">编辑签证链接</h3>
+                    <button type="button" class="visa-modal-close" onclick="closeEditModal()">&times;</button>
+                </div>
+                <div class="visa-modal-body">
+                    <div id="editModalAlert" class="visa-modal-alert" style="display: none;"></div>
+                    
+                    <form method="POST" action="{{ url_for('visa_links.edit_visa_link', link_id=link.id) }}" id="editLinkForm">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <div class="visa-form-container">
+                            <div class="visa-form-row three-columns">
+                                <div class="visa-form-group">
+                                    <label for="edit_visa_type">签证类型：</label>
+                                    <select name="visa_type" class="visa-form-control" required>
+                                        <option value="">请选择签证类型</option>
+                                        {% for visa_type in visa_types %}
+                                        <option value="{{ visa_type.id }}" {% if visa_type.id == link.visa_type_id %}selected{% endif %}>{{ visa_type.visa_type }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="visa-form-group">
+                                    <label for="edit_visa_countries_id">国家：</label>
+                                    <select name="visa_countries_id" class="visa-form-control" required>
+                                        <option value="">请选择国家</option>
+                                        {% for country in countries %}
+                                        <option value="{{ country.id }}" {% if link.visa_countries_id == country.id %}selected{% endif %}>{{ country.country_name_CN }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="visa-form-group">
+                                    <label for="edit_name">链接名称：</label>
+                                    <input type="text" name="name" class="visa-form-control" value="{{ link.name }}" required>
+                                </div>
+                                <div class="visa-form-group">
+                                    <label for="edit_link">链接地址：</label>
+                                    <input type="url" name="link" class="visa-form-control" value="{{ link.link }}" required>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="visa-form-actions">
+                            <div>
+                                <button type="button" class="visa-btn visa-btn-secondary" onclick="closeEditModal()">取消</button>
+                                <button type="submit" class="visa-btn visa-btn-primary">保存修改</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+</div>
+
+<script>
+// 弹窗控制函数
+function showAddModal() {
+    document.getElementById('addModal').classList.add('active');
+    document.body.style.overflow = 'hidden'; // 防止背景滚动
+}
+
+function closeAddModal() {
+    document.getElementById('addModal').classList.remove('active');
+    document.body.style.overflow = ''; // 恢复背景滚动
+    // 清空表单
+    document.getElementById('addLinkForm').reset();
+    // 移除所有额外的表单行
+    const entries = document.querySelectorAll('.visa-form-entry');
+    for (let i = 1; i < entries.length; i++) {
+        entries[i].remove();
+    }
+    // 隐藏提示信息
+    document.getElementById('addModalAlert').style.display = 'none';
+}
+
+function closeEditModal() {
+    // 重定向回主页面
+    window.location.href = "{{ url_for('visa_links.visa_link_page') }}";
+}
+
+// 点击弹窗外部关闭
+document.getElementById('addModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeAddModal();
+    }
+});
+
+// 编辑弹窗外部点击关闭
+const editModal = document.getElementById('editModal');
+if (editModal) {
+    editModal.addEventListener('click', function(e) {
+        if (e.target === this) {
+            closeEditModal();
+        }
+    });
+}
+
+// 表单提交处理
+document.getElementById('addLinkForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const submitBtn = this.querySelector('button[type="submit"]');
+    const originalText = submitBtn.textContent;
+    
+    // 显示加载状态
+    submitBtn.disabled = true;
+    submitBtn.textContent = '保存中...';
+    
+    fetch(this.action, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => {
+        if (response.redirected) {
+            window.location.href = response.url;
+            return;
+        }
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data) {
+            if (data.success) {
+                showModalAlert(data.message || '链接添加成功！', 'success');
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1500);
+            } else {
+                showModalAlert(data.message || '添加失败，请检查输入信息', 'error');
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showModalAlert('系统错误，请稍后重试', 'error');
+    })
+    .finally(() => {
+        // 恢复按钮状态
+        submitBtn.disabled = false;
+        submitBtn.textContent = originalText;
+    });
+});
+
+// 编辑表单提交处理
+const editLinkForm = document.getElementById('editLinkForm');
+if (editLinkForm) {
+    editLinkForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(this);
+        const submitBtn = this.querySelector('button[type="submit"]');
+        const originalText = submitBtn.textContent;
+        
+        // 显示加载状态
+        submitBtn.disabled = true;
+        submitBtn.textContent = '保存中...';
+        
+        fetch(this.action, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => {
+            if (response.redirected) {
+                window.location.href = response.url;
+                return;
+            }
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.text();
+        })
+        .then(data => {
+            // 编辑成功，重定向回主页面
+            window.location.href = "{{ url_for('visa_links.visa_link_page') }}";
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showEditModalAlert('系统错误，请稍后重试', 'error');
+        })
+        .finally(() => {
+            // 恢复按钮状态
+            submitBtn.disabled = false;
+            submitBtn.textContent = originalText;
+        });
+    });
+}
+
+function showModalAlert(message, type) {
+    const alert = document.getElementById('addModalAlert');
+    alert.textContent = message;
+    alert.className = `visa-modal-alert visa-modal-alert-${type}`;
+    alert.style.display = 'block';
+    
+    // 3秒后自动隐藏
+    setTimeout(() => {
+        alert.style.display = 'none';
+    }, 3000);
+}
+
+function showEditModalAlert(message, type) {
+    const alert = document.getElementById('editModalAlert');
+    alert.textContent = message;
+    alert.className = `visa-modal-alert visa-modal-alert-${type}`;
+    alert.style.display = 'block';
+    
+    // 3秒后自动隐藏
+    setTimeout(() => {
+        alert.style.display = 'none';
+    }, 3000);
+}
+
+function addLinkRow() {
+    const container = document.querySelector('.visa-form-container');
+    const entries = container.querySelectorAll('.visa-form-entry');
+    const newEntry = entries[0].cloneNode(true);
+    
+    // 更新序号
+    newEntry.querySelector('.visa-entry-number').textContent = entries.length + 1;
+    
+    // 清空输入值
+    newEntry.querySelectorAll('input').forEach(input => input.value = '');
+    newEntry.querySelectorAll('select').forEach(select => select.selectedIndex = 0);
+    
+    // 添加删除按钮
+    const removeBtn = document.createElement('button');
+    removeBtn.type = 'button';
+    removeBtn.className = 'visa-remove-entry';
+    removeBtn.innerHTML = '<i class="fas fa-times"></i>';
+    removeBtn.onclick = function() {
+        this.closest('.visa-form-entry').remove();
+        updateEntryNumbers();
+    };
+    newEntry.appendChild(removeBtn);
+        
+    container.appendChild(newEntry);
+}
+
+function updateEntryNumbers() {
+    const entries = document.querySelectorAll('.visa-form-entry');
+    entries.forEach((entry, index) => {
+        entry.querySelector('.visa-entry-number').textContent = index + 1;
+    });
+}
+</script>
+{% endblock %}

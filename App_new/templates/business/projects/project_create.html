@@ -1,0 +1,367 @@
+{% extends "shared/staff_base.html" %}
+
+{% block title %}创建项目 - MyTravelPanel{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- 页面标题 -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h1 class="h3 mb-0">
+                    <i class="fas fa-plus-circle text-primary"></i>
+                    创建新项�?
+                </h1>
+                <div>
+                    <a href="{{ url_for('business_projects.list.list_projects') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-1"></i>返回列表
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-info-circle me-2"></i>项目基本信息
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <form method="POST" id="createProjectForm">
+                        {{ form.csrf_token }}
+                        
+                        <div class="row">
+                            <!-- 项目编号 -->
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.hid.id }}" class="form-label">
+                                    {{ form.hid.label.text }} <span class="text-danger">*</span>
+                                </label>
+                                <div class="input-group">
+                                    {{ form.hid(class="form-control", placeholder="系统自动生成") }}
+                                    <button type="button" class="btn btn-outline-primary" onclick="generateHid()">
+                                        <i class="fas fa-magic"></i> 生成
+                                    </button>
+                                </div>
+                                {% if form.hid.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {% for error in form.hid.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+
+                            <!-- 项目类型 -->
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.type.id }}" class="form-label">
+                                    {{ form.type.label.text }} <span class="text-danger">*</span>
+                                </label>
+                                {{ form.type(class="form-select") }}
+                                {% if form.type.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {% for error in form.type.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <!-- 项目描述 -->
+                            <div class="col-12 mb-3">
+                                <label for="{{ form.description.id }}" class="form-label">
+                                    {{ form.description.label.text }} <span class="text-danger">*</span>
+                                </label>
+                                {{ form.description(class="form-control", rows="3", placeholder="请详细描述项目内容、目标和要求...") }}
+                                {% if form.description.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {% for error in form.description.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <!-- 客户公司 -->
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.company_id.id }}" class="form-label">
+                                    {{ form.company_id.label.text }}
+                                </label>
+                                {{ form.company_id(class="form-select") }}
+                                {% if form.company_id.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {% for error in form.company_id.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+
+                            <!-- 项目状�?-->
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.status.id }}" class="form-label">
+                                    {{ form.status.label.text }}
+                                </label>
+                                {{ form.status(class="form-select") }}
+                                {% if form.status.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {% for error in form.status.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <!-- 联系�?-->
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.contact.id }}" class="form-label">
+                                    {{ form.contact.label.text }} <span class="text-danger">*</span>
+                                </label>
+                                {{ form.contact(class="form-control", placeholder="请输入联系人姓名") }}
+                                {% if form.contact.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {% for error in form.contact.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+
+                            <!-- 联系电话 -->
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.contact_phone.id }}" class="form-label">
+                                    {{ form.contact_phone.label.text }}
+                                </label>
+                                {{ form.contact_phone(class="form-control", placeholder="请输入联系电�?) }}
+                                {% if form.contact_phone.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {% for error in form.contact_phone.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <!-- 联系邮箱 -->
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.contact_email.id }}" class="form-label">
+                                    {{ form.contact_email.label.text }}
+                                </label>
+                                {{ form.contact_email(class="form-control", placeholder="请输入联系邮�?) }}
+                                {% if form.contact_email.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {% for error in form.contact_email.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+
+                            <!-- 项目负责�?-->
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.leader_name.id }}" class="form-label">
+                                    {{ form.leader_name.label.text }}
+                                </label>
+                                {{ form.leader_name(class="form-control", placeholder="请输入项目负责人姓名") }}
+                                {% if form.leader_name.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {% for error in form.leader_name.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <!-- 项目来源 -->
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.source.id }}" class="form-label">
+                                    {{ form.source.label.text }}
+                                </label>
+                                {{ form.source(class="form-control", placeholder="如：网站、推荐、展会等") }}
+                                {% if form.source.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {% for error in form.source.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+
+                            <!-- 目标国家 -->
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.country.id }}" class="form-label">
+                                    {{ form.country.label.text }}
+                                </label>
+                                {{ form.country(class="form-control", placeholder="如：新加坡、马来西亚等") }}
+                                {% if form.country.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {% for error in form.country.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <!-- 货币类型 -->
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.currency.id }}" class="form-label">
+                                    {{ form.currency.label.text }}
+                                </label>
+                                {{ form.currency(class="form-select") }}
+                                {% if form.currency.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {% for error in form.currency.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+
+                            <!-- 备注 -->
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.remarks.id }}" class="form-label">
+                                    {{ form.remarks.label.text }}
+                                </label>
+                                {{ form.remarks(class="form-control", placeholder="其他需要说明的信息") }}
+                                {% if form.remarks.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {% for error in form.remarks.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <hr class="my-4">
+
+                        <!-- 操作按钮 -->
+                        <div class="row">
+                            <div class="col-12 text-center">
+                                <button type="submit" class="btn btn-primary me-2">
+                                    <i class="fas fa-save me-1"></i>创建项目
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary me-2" onclick="resetForm()">
+                                    <i class="fas fa-undo me-1"></i>重置
+                                </button>
+                                <a href="{{ url_for('business_projects.list.list_projects') }}" class="btn btn-outline-danger">
+                                    <i class="fas fa-times me-1"></i>取消
+                                </a>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- 填写说明 -->
+            <div class="card shadow mt-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-info">
+                        <i class="fas fa-lightbulb me-2"></i>填写说明
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6 class="text-primary">必填字段</h6>
+                            <ul class="small text-muted">
+                                <li><strong>项目编号</strong>：系统自动生成，也可手动输入</li>
+                                <li><strong>项目描述</strong>：详细说明项目内容、目标和要求</li>
+                                <li><strong>联系�?/strong>：项目的主要联系人姓�?/li>
+                                <li><strong>项目类型</strong>：选择合适的业务分类</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="text-success">建议填写</h6>
+                            <ul class="small text-muted">
+                                <li><strong>客户公司</strong>：选择或输入客户公司信�?/li>
+                                <li><strong>联系方式</strong>：电话和邮箱便于后续沟�?/li>
+                                <li><strong>项目负责�?/strong>：指定项目执行负责人</li>
+                                <li><strong>备注信息</strong>：其他需要说明的重要信息</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// 生成项目编号
+function generateHid() {
+    fetch('{{ url_for("business_projects.create.api_generate_hid") }}')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('{{ form.hid.id }}').value = data.data.hid;
+                // 显示成功提示
+                showToast('项目编号生成成功�?, 'success');
+            } else {
+                showToast('生成项目编号失败�? + data.error, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showToast('生成项目编号时发生错�?, 'error');
+        });
+}
+
+// 重置表单
+function resetForm() {
+    if (confirm('确定要重置表单吗？所有已填写的内容将丢失�?)) {
+        document.getElementById('createProjectForm').reset();
+        // 清空项目编号
+        document.getElementById('{{ form.hid.id }}').value = '';
+    }
+}
+
+// 显示提示信息
+function showToast(message, type = 'info') {
+    // 创建提示元素
+    const toast = document.createElement('div');
+    toast.className = `alert alert-${type === 'error' ? 'danger' : type} alert-dismissible fade show position-fixed`;
+    toast.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    toast.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(toast);
+    
+    // 3秒后自动消失
+    setTimeout(() => {
+        if (toast.parentNode) {
+            toast.remove();
+        }
+    }, 3000);
+}
+
+// 页面加载完成后的初始�?
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('创建项目页面加载完成');
+    
+    // 如果项目编号为空，自动生成一�?
+    const hidField = document.getElementById('{{ form.hid.id }}');
+    if (!hidField.value) {
+        generateHid();
+    }
+});
+</script>
+{% endblock %}

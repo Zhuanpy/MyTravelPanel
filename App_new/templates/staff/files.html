@@ -1,0 +1,295 @@
+{% extends "base.html" %}
+
+{% block title %}文件管理 - MyTravelPanel{% endblock %}
+
+{% block page_title %}文件管理{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item active">文件管理</li>
+{% endblock %}
+
+{% block page_actions %}
+<div class="btn-group" role="group">
+    <a href="{{ url_for('staff.upload_file') }}" class="btn btn-success">
+        <i class="fas fa-upload me-1"></i>上传文件
+    </a>
+    <button type="button" class="btn btn-outline-secondary dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown">
+        <span class="visually-hidden">Toggle Dropdown</span>
+    </button>
+    <ul class="dropdown-menu">
+        <li><a class="dropdown-item" href="#"><i class="fas fa-download me-2"></i>批量下载</a></li>
+        <li><a class="dropdown-item" href="#"><i class="fas fa-folder-plus me-2"></i>新建文件夹</a></li>
+        <li><hr class="dropdown-divider"></li>
+        <li><a class="dropdown-item" href="#"><i class="fas fa-cog me-2"></i>文件设置</a></li>
+    </ul>
+</div>
+{% endblock %}
+
+{% block content %}
+<!-- 筛选和搜索 -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="GET" class="row g-3">
+            <div class="col-md-4">
+                <label for="search" class="form-label">搜索</label>
+                <input type="text" class="form-control" id="search" name="search" 
+                       value="{{ search }}" placeholder="文件名或项目名称">
+            </div>
+            <div class="col-md-3">
+                <label for="type" class="form-label">文件类型</label>
+                <select class="form-select" id="type" name="type">
+                    <option value="">全部类型</option>
+                    <option value="pdf" {% if file_type == 'pdf' %}selected{% endif %}>PDF文档</option>
+                    <option value="excel" {% if file_type == 'excel' %}selected{% endif %}>Excel表格</option>
+                    <option value="word" {% if file_type == 'word' %}selected{% endif %}>Word文档</option>
+                    <option value="image" {% if file_type == 'image' %}selected{% endif %}>图片文件</option>
+                    <option value="other" {% if file_type == 'other' %}selected{% endif %}>其他文件</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">&nbsp;</label>
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-search me-1"></i>搜索
+                    </button>
+                    <a href="{{ url_for('staff.files') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-undo me-1"></i>重置
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- 文件统计 -->
+<div class="row mb-4">
+    <div class="col-md-3 mb-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h5 class="card-title text-primary">{{ total }}</h5>
+                <p class="card-text">总文件数</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h5 class="card-title text-success">{{ files|selectattr('file_type', 'equalto', 'pdf')|list|length }}</h5>
+                <p class="card-text">PDF文档</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h5 class="card-title text-info">{{ files|selectattr('file_type', 'equalto', 'excel')|list|length }}</h5>
+                <p class="card-text">Excel表格</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h5 class="card-title text-warning">{{ files|selectattr('file_type', 'equalto', 'image')|list|length }}</h5>
+                <p class="card-text">图片文件</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 文件列表 -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">
+            <i class="fas fa-list me-2"></i>文件列表
+            <span class="badge bg-secondary ms-2">{{ total }}</span>
+        </h5>
+    </div>
+    <div class="card-body p-0">
+        {% if files %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>文件名</th>
+                        <th>类型</th>
+                        <th>大小</th>
+                        <th>项目</th>
+                        <th>上传者</th>
+                        <th>上传时间</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for file in files %}
+                    <tr>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <div class="file-icon me-2">
+                                    {% if file.file_type == 'pdf' %}
+                                        <i class="fas fa-file-pdf text-danger"></i>
+                                    {% elif file.file_type == 'excel' %}
+                                        <i class="fas fa-file-excel text-success"></i>
+                                    {% elif file.file_type == 'word' %}
+                                        <i class="fas fa-file-word text-primary"></i>
+                                    {% elif file.file_type == 'image' %}
+                                        <i class="fas fa-file-image text-info"></i>
+                                    {% else %}
+                                        <i class="fas fa-file text-secondary"></i>
+                                    {% endif %}
+                                </div>
+                                <div>
+                                    <div class="fw-bold">{{ file.filename }}</div>
+                                    <small class="text-muted">{{ file.category or '未分类' }}</small>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="badge bg-light text-dark">
+                                {% if file.file_type == 'pdf' %}PDF文档
+                                {% elif file.file_type == 'excel' %}Excel表格
+                                {% elif file.file_type == 'word' %}Word文档
+                                {% elif file.file_type == 'image' %}图片文件
+                                {% else %}其他文件
+                                {% endif %}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="text-muted">{{ file.size }}</span>
+                        </td>
+                        <td>
+                            <div class="project-info">
+                                <div class="fw-bold">{{ file.project or '未关联项目' }}</div>
+                                <small class="text-muted">{{ file.category or '未分类' }}</small>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="user-info">
+                                <div class="fw-bold">{{ file.uploaded_by }}</div>
+                                <small class="text-muted">员工</small>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="date-info">
+                                <div>{{ file.uploaded_at.strftime('%Y-%m-%d') }}</div>
+                                <small class="text-muted">{{ file.uploaded_at.strftime('%H:%M') }}</small>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="btn-group" role="group">
+                                <a href="#" class="btn btn-sm btn-outline-primary" onclick="viewFile({{ file.id }})">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                <a href="#" class="btn btn-sm btn-outline-success" onclick="downloadFile({{ file.id }})">
+                                    <i class="fas fa-download"></i>
+                                </a>
+                                <button type="button" class="btn btn-sm btn-outline-danger" 
+                                        onclick="deleteFile({{ file.id }})">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- 分页 -->
+        {% if total_pages > 1 %}
+        <div class="card-footer">
+            <nav aria-label="文件分页">
+                <ul class="pagination justify-content-center mb-0">
+                    {% if current_page > 1 %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('staff.files', page=current_page-1, type=file_type, search=search) }}">
+                            <i class="fas fa-chevron-left"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                    
+                    {% for page_num in range(1, total_pages + 1) %}
+                        {% if page_num == current_page %}
+                        <li class="page-item active">
+                            <span class="page-link">{{ page_num }}</span>
+                        </li>
+                        {% elif page_num <= 3 or page_num > total_pages - 2 or (page_num >= current_page - 1 and page_num <= current_page + 1) %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('staff.files', page=page_num, type=file_type, search=search) }}">
+                                {{ page_num }}
+                            </a>
+                        </li>
+                        {% elif page_num == 4 and current_page > 6 %}
+                        <li class="page-item disabled">
+                            <span class="page-link">...</span>
+                        </li>
+                        {% elif page_num == total_pages - 3 and current_page < total_pages - 5 %}
+                        <li class="page-item disabled">
+                            <span class="page-link">...</span>
+                        </li>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if current_page < total_pages %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('staff.files', page=current_page+1, type=file_type, search=search) }}">
+                            <i class="fas fa-chevron-right"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
+        
+        {% else %}
+        <div class="text-center py-5">
+            <div class="empty-state">
+                <i class="fas fa-folder-open fa-3x text-muted mb-3"></i>
+                <h4>暂无文件</h4>
+                <p class="text-muted">您还没有上传任何文件，快去上传第一个文件吧！</p>
+                <a href="{{ url_for('staff.upload_file') }}" class="btn btn-success">
+                    <i class="fas fa-upload me-1"></i>上传文件
+                </a>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// 查看文件
+function viewFile(fileId) {
+    // 这里应该跳转到文件预览页面
+    console.log('查看文件:', fileId);
+    alert('文件预览功能开发中...');
+}
+
+// 下载文件
+function downloadFile(fileId) {
+    // 这里应该触发文件下载
+    console.log('下载文件:', fileId);
+    alert('文件下载功能开发中...');
+}
+
+// 删除文件确认
+function deleteFile(fileId) {
+    if (confirm('确定要删除这个文件吗？此操作不可恢复。')) {
+        // 这里应该发送删除请求到后端
+        console.log('删除文件:', fileId);
+        alert('删除功能开发中...');
+    }
+}
+
+// 自动提交筛选表单
+document.addEventListener('DOMContentLoaded', function() {
+    const typeSelect = document.getElementById('type');
+    
+    typeSelect.addEventListener('change', function() {
+        this.form.submit();
+    });
+});
+</script>
+{% endblock %} 

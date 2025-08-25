@@ -1,0 +1,326 @@
+{% extends "guest/base.html" %}
+
+{% block title %}{{ package.name }} - MyTravelPanel{% endblock %}
+
+{% block content %}
+<!-- 页面标题区域 -->
+<section class="hero-section text-center" style="padding: 60px 0;">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-10">
+                <nav aria-label="breadcrumb" class="mb-4">
+                    <ol class="breadcrumb justify-content-center bg-transparent">
+                        <li class="breadcrumb-item">
+                            <a href="{{ url_for('guest.index') }}" class="text-white-50">首页</a>
+                        </li>
+                        <li class="breadcrumb-item">
+                            <a href="{{ url_for('guest.tour_packages') }}" class="text-white-50">旅游配套</a>
+                        </li>
+                        <li class="breadcrumb-item active text-white" aria-current="page">{{ package.name }}</li>
+                    </ol>
+                </nav>
+                <h1 class="display-4 fw-bold mb-3">{{ package.name }}</h1>
+                <div class="d-flex justify-content-center align-items-center flex-wrap gap-3">
+                    <span class="badge bg-light text-dark fs-6">
+                        <i class="fas fa-map-marker-alt me-1"></i>{{ package.destination }}
+                    </span>
+                    <span class="badge bg-warning text-dark fs-6">
+                        <i class="fas fa-calendar me-1"></i>{{ package.duration }}
+                    </span>
+                    <span class="badge bg-success fs-6">
+                        <i class="fas fa-dollar-sign me-1"></i>{{ package.price }}起
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- 配套详情 -->
+<section class="py-5">
+    <div class="container">
+        <div class="row">
+            <!-- 主要内容 -->
+            <div class="col-lg-8">
+                <!-- 配套描述 -->
+                <div class="bg-white rounded-3 p-4 mb-4 shadow-sm">
+                    <h3 class="mb-3">
+                        <i class="fas fa-info-circle text-primary me-2"></i>行程介绍
+                    </h3>
+                    <p class="lead text-muted">{{ package.description }}</p>
+                </div>
+                
+                <!-- 详细行程 -->
+                <div class="bg-white rounded-3 p-4 mb-4 shadow-sm">
+                    <h3 class="mb-4">
+                        <i class="fas fa-route text-primary me-2"></i>详细行程
+                    </h3>
+                    {% if package.itinerary %}
+                    <div class="timeline">
+                        {% for day in package.itinerary %}
+                        <div class="timeline-item">
+                            <div class="timeline-marker">
+                                <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                                    <strong>{{ day.day }}</strong>
+                                </div>
+                            </div>
+                            <div class="timeline-content">
+                                <h5 class="mb-2">第{{ day.day }}天：{{ day.title }}</h5>
+                                <ul class="list-unstyled">
+                                    {% for activity in day.activities %}
+                                    <li class="mb-1">
+                                        <i class="fas fa-chevron-right text-primary me-2"></i>{{ activity }}
+                                    </li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="text-muted">详细行程信息请联系我们的旅游顾问获取。</p>
+                    {% endif %}
+                </div>
+                
+                <!-- 费用包含 -->
+                <div class="bg-white rounded-3 p-4 mb-4 shadow-sm">
+                    <h3 class="mb-3">
+                        <i class="fas fa-check-circle text-success me-2"></i>费用包含
+                    </h3>
+                    <div class="row">
+                        {% for include in package.includes %}
+                        <div class="col-md-6 mb-2">
+                            <i class="fas fa-check text-success me-2"></i>{{ include }}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                
+                <!-- 费用不含 -->
+                {% if package.excludes %}
+                <div class="bg-white rounded-3 p-4 mb-4 shadow-sm">
+                    <h3 class="mb-3">
+                        <i class="fas fa-times-circle text-danger me-2"></i>费用不含
+                    </h3>
+                    <div class="row">
+                        {% for exclude in package.excludes %}
+                        <div class="col-md-6 mb-2">
+                            <i class="fas fa-times text-danger me-2"></i>{{ exclude }}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+                
+                <!-- 注意事项 -->
+                {% if package.notes %}
+                <div class="bg-white rounded-3 p-4 mb-4 shadow-sm">
+                    <h3 class="mb-3">
+                        <i class="fas fa-exclamation-triangle text-warning me-2"></i>注意事项
+                    </h3>
+                    <ul class="list-unstyled">
+                        {% for note in package.notes %}
+                        <li class="mb-2">
+                            <i class="fas fa-info-circle text-info me-2"></i>{{ note }}
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+            </div>
+            
+            <!-- 侧边栏 -->
+            <div class="col-lg-4">
+                <!-- 价格和预订 -->
+                <div class="bg-white rounded-3 p-4 mb-4 shadow-sm sticky-top">
+                    <div class="text-center mb-4">
+                        <div class="display-4 text-primary fw-bold">{{ package.price }}</div>
+                        <small class="text-muted">起价/人</small>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <div class="row text-center">
+                            <div class="col-6">
+                                <div class="border-end">
+                                    <i class="fas fa-calendar text-primary mb-2 d-block"></i>
+                                    <small class="text-muted d-block">行程天数</small>
+                                    <strong>{{ package.duration }}</strong>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <i class="fas fa-users text-success mb-2 d-block"></i>
+                                <small class="text-muted d-block">团队规模</small>
+                                <strong>8-20人</strong>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        <a href="{{ url_for('guest.contact') }}" class="btn btn-custom btn-lg">
+                            <i class="fas fa-comments me-1"></i>立即咨询
+                        </a>
+                        <a href="tel:+6512345678" class="btn btn-outline-primary">
+                            <i class="fas fa-phone me-1"></i>电话咨询
+                        </a>
+                    </div>
+                </div>
+                
+                <!-- 推荐理由 -->
+                <div class="bg-light rounded-3 p-4 mb-4">
+                    <h5 class="mb-3">
+                        <i class="fas fa-thumbs-up text-primary me-2"></i>推荐理由
+                    </h5>
+                    <ul class="list-unstyled">
+                        <li class="mb-2">
+                            <i class="fas fa-star text-warning me-2"></i>精选优质景点
+                        </li>
+                        <li class="mb-2">
+                            <i class="fas fa-star text-warning me-2"></i>专业中文导游
+                        </li>
+                        <li class="mb-2">
+                            <i class="fas fa-star text-warning me-2"></i>舒适酒店住宿
+                        </li>
+                        <li class="mb-0">
+                            <i class="fas fa-star text-warning me-2"></i>全程贴心服务
+                        </li>
+                    </ul>
+                </div>
+                
+                <!-- 联系信息 -->
+                <div class="bg-primary text-white rounded-3 p-4">
+                    <h5 class="mb-3">
+                        <i class="fas fa-headset me-2"></i>专业咨询
+                    </h5>
+                    <p class="mb-3">我们的旅游顾问随时为您提供专业咨询服务</p>
+                    <div class="mb-2">
+                        <i class="fas fa-phone me-2"></i>+65 1234 5678
+                    </div>
+                    <div class="mb-2">
+                        <i class="fas fa-envelope me-2"></i>info@mytravelpanel.com
+                    </div>
+                    <div>
+                        <i class="fas fa-clock me-2"></i>周一至周五 9:00-18:00
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- 相关推荐 -->
+<section class="py-5 bg-light">
+    <div class="container">
+        <div class="row text-center mb-5">
+            <div class="col-12">
+                <h2 class="fw-bold mb-3">您可能还喜欢</h2>
+                <p class="text-muted">更多精彩旅游配套等您探索</p>
+            </div>
+        </div>
+        
+        <div class="row g-4">
+            <div class="col-lg-4 col-md-6">
+                <div class="service-card">
+                    <div style="height: 200px; background: linear-gradient(45deg, #74b9ff, #0984e3); display: flex; align-items: center; justify-content: center;">
+                        <i class="fas fa-umbrella-beach text-white" style="font-size: 3rem;"></i>
+                    </div>
+                    <div class="service-card-body">
+                        <h5>巴厘岛浪漫5日游</h5>
+                        <p class="text-muted">享受热带海岛的浪漫风情</p>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="text-primary fw-bold">SGD 980起</span>
+                            <a href="#" class="btn btn-outline-primary btn-sm">查看详情</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-4 col-md-6">
+                <div class="service-card">
+                    <div style="height: 200px; background: linear-gradient(45deg, #fd79a8, #e84393); display: flex; align-items: center; justify-content: center;">
+                        <i class="fas fa-mountain text-white" style="font-size: 3rem;"></i>
+                    </div>
+                    <div class="service-card-body">
+                        <h5>日本樱花季6日游</h5>
+                        <p class="text-muted">春季赏樱之旅</p>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="text-primary fw-bold">SGD 1,680起</span>
+                            <a href="#" class="btn btn-outline-primary btn-sm">查看详情</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-4 col-md-6">
+                <div class="service-card">
+                    <div style="height: 200px; background: linear-gradient(45deg, #00b894, #00a085); display: flex; align-items: center; justify-content: center;">
+                        <i class="fas fa-landmark text-white" style="font-size: 3rem;"></i>
+                    </div>
+                    <div class="service-card-body">
+                        <h5>欧洲经典8日游</h5>
+                        <p class="text-muted">探索欧洲历史文化</p>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="text-primary fw-bold">SGD 2,880起</span>
+                            <a href="#" class="btn btn-outline-primary btn-sm">查看详情</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .timeline {
+        position: relative;
+        padding-left: 30px;
+    }
+    
+    .timeline::before {
+        content: '';
+        position: absolute;
+        left: 20px;
+        top: 20px;
+        bottom: 20px;
+        width: 2px;
+        background: #e9ecef;
+    }
+    
+    .timeline-item {
+        position: relative;
+        margin-bottom: 2rem;
+    }
+    
+    .timeline-marker {
+        position: absolute;
+        left: -30px;
+        top: 0;
+    }
+    
+    .timeline-content {
+        background: #f8f9fa;
+        padding: 1.5rem;
+        border-radius: 10px;
+        margin-left: 20px;
+    }
+    
+    .breadcrumb-item + .breadcrumb-item::before {
+        color: rgba(255,255,255,0.5);
+    }
+    
+    .service-card {
+        transition: all 0.3s ease;
+        overflow: hidden;
+    }
+    
+    .service-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+    }
+    
+    @media (max-width: 991px) {
+        .sticky-top {
+            position: relative !important;
+        }
+    }
+</style>
+{% endblock %}

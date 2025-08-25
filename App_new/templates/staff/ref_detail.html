@@ -1,0 +1,120 @@
+{% extends "shared/staff_base.html" %}
+
+{% block title %}REF详情 - {{ ref.ref_number }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="page-title-box">
+                <div class="page-title-right">
+                    <ol class="breadcrumb m-0">
+                        <li class="breadcrumb-item"><a href="{{ url_for('business_projects.list.list_projects') }}">项目管理</a></li>
+                        <li class="breadcrumb-item"><a href="{{ url_for('business_projects.detail.project_detail', project_id=project.id) }}">{{ project.hid }}</a></li>
+                        <li class="breadcrumb-item active">REF详情</li>
+                    </ol>
+                </div>
+                <h4 class="page-title">REF详情</h4>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="header-title">REF信息</h4>
+                    <div class="header-actions">
+                        <a href="{{ url_for('projects.edit_ref', ref_id=ref.id) }}" class="btn btn-primary btn-sm">
+                            <i class="mdi mdi-pencil"></i> 编辑
+                        </a>
+                        <a href="{{ url_for('business_projects.detail.project_detail', project_id=project.id) }}" class="btn btn-secondary btn-sm">
+                            <i class="mdi mdi-arrow-left"></i> 返回项目
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <table class="table table-borderless">
+                                <tr>
+                                    <td><strong>REF编号:</strong></td>
+                                    <td>{{ ref.ref_number }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>项目编号:</strong></td>
+                                    <td>{{ project.hid }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>联系人:</strong></td>
+                                    <td>{{ ref.contact_name }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>状态:</strong></td>
+                                    <td>
+                                        <span class="badge badge-{{ 'success' if ref.status == 'active' else 'secondary' }}">
+                                            {{ ref.status }}
+                                        </span>
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <table class="table table-borderless">
+                                <tr>
+                                    <td><strong>付款状态:</strong></td>
+                                    <td>
+                                        <span class="badge badge-{{ 'success' if ref.payment_status == 'paid' else 'warning' }}">
+                                            {{ ref.payment_status }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td><strong>总金额:</strong></td>
+                                    <td>{{ ref.total_amount or 0 }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>总成本:</strong></td>
+                                    <td>{{ ref.total_cost or 0 }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>利润:</strong></td>
+                                    <td class="text-{{ 'success' if (ref.total_amount or 0) - (ref.total_cost or 0) > 0 else 'danger' }}">
+                                        {{ (ref.total_amount or 0) - (ref.total_cost or 0) }}
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+
+                    {% if ref.remarks %}
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <h5>备注</h5>
+                            <p>{{ ref.remarks }}</p>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <h5>时间信息</h5>
+                            <table class="table table-borderless">
+                                <tr>
+                                    <td><strong>创建时间:</strong></td>
+                                    <td>{{ ref.created_at.strftime('%Y-%m-%d %H:%M') if ref.created_at else 'N/A' }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>更新时间:</strong></td>
+                                    <td>{{ ref.updated_at.strftime('%Y-%m-%d %H:%M') if ref.updated_at else 'N/A' }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

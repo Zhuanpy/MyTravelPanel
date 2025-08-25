@@ -1,0 +1,238 @@
+{% extends "guest/base.html" %}
+
+{% block title %}旅游配套 - MyTravelPanel{% endblock %}
+
+{% block content %}
+<!-- 页面标题区域 -->
+<section class="hero-section text-center" style="padding: 80px 0;">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <h1 class="display-4 fw-bold mb-4">精选旅游配套</h1>
+                <p class="lead mb-4">精心设计的旅游路线，包含机票、酒店、景点门票等一站式服务</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- 旅游配套列表 -->
+<section class="py-5">
+    <div class="container">
+        {% if packages %}
+        <div class="row g-4">
+            {% for package in packages %}
+            <div class="col-lg-6">
+                <div class="service-card h-100">
+                    <div class="position-relative">
+                        <!-- 图片占位符 -->
+                        <div style="height: 250px; background: linear-gradient(45deg, #667eea, #764ba2); display: flex; align-items: center; justify-content: center;">
+                            <i class="fas fa-image text-white" style="font-size: 4rem; opacity: 0.7;"></i>
+                        </div>
+                        <!-- 价格标签 -->
+                        <div class="position-absolute top-0 end-0 m-3">
+                            <span class="badge bg-primary fs-6">{{ package.price }}</span>
+                        </div>
+                        <!-- 天数标签 -->
+                        <div class="position-absolute bottom-0 start-0 m-3">
+                            <span class="badge bg-warning text-dark">{{ package.duration }}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="service-card-body">
+                        <h4 class="mb-3">{{ package.name }}</h4>
+                        <p class="text-muted mb-3">
+                            <i class="fas fa-map-marker-alt me-1"></i>{{ package.destination }}
+                        </p>
+                        
+                        <!-- 亮点特色 -->
+                        <div class="mb-3">
+                            <h6 class="text-primary mb-2">
+                                <i class="fas fa-star me-1"></i>行程亮点
+                            </h6>
+                            <div class="d-flex flex-wrap gap-1">
+                                {% for highlight in package.highlights %}
+                                <span class="badge bg-light text-dark">{{ highlight }}</span>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        
+                        <!-- 包含服务 -->
+                        <div class="mb-4">
+                            <h6 class="text-success mb-2">
+                                <i class="fas fa-check-circle me-1"></i>包含服务
+                            </h6>
+                            <ul class="list-unstyled">
+                                {% for include in package.includes %}
+                                <li class="mb-1">
+                                    <i class="fas fa-check text-success me-2"></i>{{ include }}
+                                </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                        
+                        <!-- 操作按钮 -->
+                        <div class="d-grid gap-2">
+                            <a href="{{ url_for('guest.tour_package_detail', package_id=package.id) }}" 
+                               class="btn btn-custom">
+                                <i class="fas fa-info-circle me-1"></i>查看详情
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="row justify-content-center">
+            <div class="col-lg-6 text-center">
+                <div class="py-5">
+                    <i class="fas fa-map-marked-alt text-muted" style="font-size: 4rem;"></i>
+                    <h4 class="mt-3 text-muted">暂无旅游配套信息</h4>
+                    <p class="text-muted">我们正在努力为您提供更多精彩的旅游配套，请稍后再来查看。</p>
+                    <a href="{{ url_for('guest.contact') }}" class="btn btn-custom">
+                        <i class="fas fa-phone"></i> 联系我们定制
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</section>
+
+<!-- 为什么选择我们的配套 -->
+<section class="py-5 bg-light">
+    <div class="container">
+        <div class="row text-center mb-5">
+            <div class="col-12">
+                <h2 class="fw-bold mb-3">为什么选择我们的旅游配套？</h2>
+                <p class="text-muted lead">专业规划，贴心服务，让您的旅行更加精彩</p>
+            </div>
+        </div>
+        
+        <div class="row g-4">
+            <div class="col-lg-3 col-md-6">
+                <div class="text-center">
+                    <div class="bg-primary text-white rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
+                        <i class="fas fa-route fa-2x"></i>
+                    </div>
+                    <h5>精心规划</h5>
+                    <p class="text-muted">专业团队精心设计每一条路线，确保行程丰富有趣</p>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6">
+                <div class="text-center">
+                    <div class="bg-success text-white rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
+                        <i class="fas fa-dollar-sign fa-2x"></i>
+                    </div>
+                    <h5>超值价格</h5>
+                    <p class="text-muted">团购优势，为您提供最具性价比的旅游配套</p>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6">
+                <div class="text-center">
+                    <div class="bg-warning text-white rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
+                        <i class="fas fa-user-friends fa-2x"></i>
+                    </div>
+                    <h5>专业导游</h5>
+                    <p class="text-muted">经验丰富的中文导游，让您深度了解当地文化</p>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6">
+                <div class="text-center">
+                    <div class="bg-info text-white rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
+                        <i class="fas fa-shield-alt fa-2x"></i>
+                    </div>
+                    <h5>安全保障</h5>
+                    <p class="text-muted">完善的保险体系和应急处理，确保旅行安全</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- 热门目的地 -->
+<section class="py-5">
+    <div class="container">
+        <div class="row text-center mb-5">
+            <div class="col-12">
+                <h2 class="fw-bold mb-3">热门目的地</h2>
+                <p class="text-muted lead">探索世界各地的精彩之旅</p>
+            </div>
+        </div>
+        
+        <div class="row g-4">
+            <div class="col-lg-4 col-md-6">
+                <div class="position-relative">
+                    <div style="height: 200px; background: linear-gradient(45deg, #FF6B6B, #4ECDC4); border-radius: 10px; display: flex; align-items: center; justify-content: center;">
+                        <div class="text-center text-white">
+                            <i class="fas fa-city" style="font-size: 3rem; margin-bottom: 1rem;"></i>
+                            <h4>东南亚</h4>
+                            <p class="mb-0">新马泰、印尼、越南</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-4 col-md-6">
+                <div class="position-relative">
+                    <div style="height: 200px; background: linear-gradient(45deg, #74b9ff, #0984e3); border-radius: 10px; display: flex; align-items: center; justify-content: center;">
+                        <div class="text-center text-white">
+                            <i class="fas fa-torii-gate" style="font-size: 3rem; margin-bottom: 1rem;"></i>
+                            <h4>东亚</h4>
+                            <p class="mb-0">日本、韩国、中国</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-4 col-md-6">
+                <div class="position-relative">
+                    <div style="height: 200px; background: linear-gradient(45deg, #fd79a8, #e84393); border-radius: 10px; display: flex; align-items: center; justify-content: center;">
+                        <div class="text-center text-white">
+                            <i class="fas fa-landmark" style="font-size: 3rem; margin-bottom: 1rem;"></i>
+                            <h4>欧洲</h4>
+                            <p class="mb-0">法国、意大利、德国</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- 联系咨询 -->
+<section class="py-5 bg-primary text-white">
+    <div class="container text-center">
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <h2 class="fw-bold mb-3">准备开始您的精彩旅程？</h2>
+                <p class="lead mb-4">联系我们的旅游顾问，为您定制专属的旅行方案</p>
+                <div>
+                    <a href="{{ url_for('guest.contact') }}" class="btn btn-light btn-lg me-3">
+                        <i class="fas fa-phone"></i> 立即咨询
+                    </a>
+                    <a href="{{ url_for('guest.visa_services') }}" class="btn btn-outline-light btn-lg">
+                        <i class="fas fa-passport"></i> 签证服务
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .service-card {
+        overflow: hidden;
+        transition: all 0.3s ease;
+    }
+    
+    .service-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 15px 40px rgba(0,0,0,0.2);
+    }
+    
+    .badge {
+        font-size: 0.75rem;
+    }
+</style>
+{% endblock %}

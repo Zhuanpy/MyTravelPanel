@@ -1,0 +1,329 @@
+{% extends "shared/staff_base.html" %}
+
+{% block title %}机票服务管理 - MyTravelPanel{% endblock %}
+
+{% block page_title %}机票服务管理{% endblock %}
+
+{% block extra_css %}
+<style>
+    .flight-home-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+    
+    .flight-home-header {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin-bottom: 2rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid #e5e7eb;
+    }
+    
+    .flight-home-title {
+        font-size: 2rem;
+        font-weight: 600;
+        color: #2d3748;
+        margin: 0;
+        text-align: center;
+    }
+    
+    .flight-home-section {
+        margin-bottom: 3rem;
+    }
+    
+    .flight-home-section-title {
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: #2d3748;
+        margin-bottom: 1.5rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid #e9ecef;
+    }
+    
+    .flight-home-card-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+        gap: 1.5rem;
+    }
+    
+    .flight-home-card {
+        background-color: #ffffff;
+        border-radius: 0.5rem;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        transition: transform 0.3s, box-shadow 0.3s;
+        overflow: hidden;
+    }
+    
+    .flight-home-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+    
+    .flight-home-card-header {
+        background-color: #48BB78;
+        color: white;
+        padding: 1rem;
+        font-weight: 600;
+        text-align: center;
+    }
+    
+    .flight-home-card-body {
+        padding: 1rem;
+    }
+    
+    .flight-home-card-description {
+        color: #4a5568;
+        font-size: 0.9rem;
+        margin-bottom: 1rem;
+        line-height: 1.5;
+    }
+    
+    .flight-home-card-actions {
+        display: flex;
+        justify-content: center;
+    }
+    
+    .flight-home-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.625rem 1.25rem;
+        border-radius: 0.375rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+        text-decoration: none;
+        transition: background-color 0.2s;
+    }
+    
+    .flight-home-btn-primary {
+        background-color: #48BB78;
+        color: white;
+    }
+    
+    .flight-home-btn-primary:hover {
+        background-color: #38A169;
+    }
+    
+    .flight-home-quick-links {
+        background-color: #f7fafc;
+        border-radius: 0.5rem;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+    }
+    
+    .flight-home-quick-links-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: #2d3748;
+        margin-top: 0;
+        margin-bottom: 1rem;
+    }
+    
+    .flight-home-link-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 1rem;
+    }
+    
+    .flight-home-link {
+        display: flex;
+        align-items: center;
+        padding: 0.75rem 1rem;
+        color: #3182ce;
+        text-decoration: none;
+        font-weight: 500;
+        border-radius: 0.375rem;
+        transition: background-color 0.2s;
+    }
+    
+    .flight-home-link:hover {
+        background-color: #edf2f7;
+    }
+    
+    .flight-home-link i {
+        margin-right: 0.5rem;
+    }
+    
+    @media (max-width: 768px) {
+        .flight-home-card-grid {
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        }
+        
+        .flight-home-link-grid {
+            grid-template-columns: 1fr 1fr;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="flight-home-container">
+    <div class="flight-home-header">
+        <h1 class="flight-home-title">机票服务</h1>
+    </div>
+    
+    <div class="flight-home-quick-links">
+        <h2 class="flight-home-quick-links-title">机票管理</h2>
+        <div class="flight-home-link-grid">
+            <a href="#" id="openFlightProjectFolder" class="flight-home-link">
+                <i class="fas fa-folder"></i> 资源文件夹
+            </a>
+            <a href="#" id="openRefundFolder" class="flight-home-link">
+                <i class="fas fa-undo"></i> 退票文件夹
+            </a>
+            <a href="#" id="openProjectFolder" class="flight-home-link">
+                <i class="fas fa-project-diagram"></i> 项目文件夹
+            </a>
+            <a href="{{ url_for('flights_booking.create_order') }}" class="flight-home-link">
+                <i class="fas fa-plus"></i> 创建订单
+            </a>
+            <a href="{{ url_for('flights_booking.order_list') }}" class="flight-home-link">
+                <i class="fas fa-list"></i> 订单列表
+            </a>
+            <a href="#" class="flight-home-link">
+                <i class="fas fa-tasks"></i> 项目管理
+            </a>
+        </div>
+    </div>
+    
+    <div class="flight-home-section">
+        <h2 class="flight-home-section-title">机票工具</h2>
+        <div class="flight-home-card-grid">
+            <div class="flight-home-card">
+                <div class="flight-home-card-header">
+                    <i class="fas fa-exchange-alt"></i> 简化TRAVELPORT
+                </div>
+                <div class="flight-home-card-body">
+                    <p class="flight-home-card-description">
+                        简化TRAVELPORT格式的航班行程，提供更易读的航班信息展示。
+                    </p>
+                    <div class="flight-home-card-actions">
+                        <a href="{{url_for('flights_athina.athina_conversion')}}" class="flight-home-btn flight-home-btn-primary">
+                            开始使用
+                        </a>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="flight-home-card">
+                <div class="flight-home-card-header">
+                    <i class="fas fa-calendar-alt"></i> 简化行程
+                </div>
+                <div class="flight-home-card-body">
+                    <p class="flight-home-card-description">
+                        根据日期和航班号简化行程信息，快速生成标准格式的行程单。
+                    </p>
+                    <div class="flight-home-card-actions">
+                        <a href="{{url_for('flights_athina.simplify_itinerary_by_flight_and_date')}}" class="flight-home-btn flight-home-btn-primary">
+                            开始使用
+                        </a>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="flight-home-card">
+                <div class="flight-home-card-header">
+                    <i class="fas fa-file-code"></i> Athina代码
+                </div>
+                <div class="flight-home-card-body">
+                    <p class="flight-home-card-description">
+                        生成Athina系统所需的代码格式，提高机票预订效率。
+                    </p>
+                    <div class="flight-home-card-actions">
+                        <a href="{{url_for('flights_athina.athina_page')}}" class="flight-home-btn flight-home-btn-primary">
+                            开始使用
+                        </a>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="flight-home-card">
+                <div class="flight-home-card-header">
+                    <i class="fas fa-clock"></i> 航班时刻表
+                </div>
+                <div class="flight-home-card-body">
+                    <p class="flight-home-card-description">
+                        查询和管理航班时刻信息，包括起飞和降落时间。
+                    </p>
+                    <div class="flight-home-card-actions">
+                        <a href="{{url_for('flights_schedule.input_flight_schedule')}}" class="flight-home-btn flight-home-btn-primary">
+                            开始使用
+                        </a>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="flight-home-card">
+                <div class="flight-home-card-header">
+                    <i class="fas fa-map-marker-alt"></i> 机场代码
+                </div>
+                <div class="flight-home-card-body">
+                    <p class="flight-home-card-description">
+                        查询和管理世界各地机场的IATA代码和相关信息。
+                    </p>
+                    <div class="flight-home-card-actions">
+                        <a href="{{url_for('flights_schedule.input_airport_code_info')}}" class="flight-home-btn flight-home-btn-primary">
+                            开始使用
+                        </a>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="flight-home-card">
+                <div class="flight-home-card-header">
+                    <i class="fas fa-file-alt"></i> 机票文件
+                </div>
+                <div class="flight-home-card-body">
+                    <p class="flight-home-card-description">
+                        管理和生成机票相关文件，如确认单和行程单。
+                    </p>
+                    <div class="flight-home-card-actions">
+                        <a href="{{url_for('flights_schedule.confirmation_detail_default')}}" class="flight-home-btn flight-home-btn-primary">
+                            开始使用
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- 引入ff.js文件 -->
+<script src="{{ url_for('static', filename='Js/ff.js') }}"></script>
+
+<script>
+    // 处理文件夹打开功能
+    document.addEventListener('DOMContentLoaded', function() {
+        // 资源文件夹
+        const openFlightProjectFolder = document.getElementById('openFlightProjectFolder');
+        if (openFlightProjectFolder) {
+            openFlightProjectFolder.addEventListener('click', function(e) {
+                e.preventDefault();
+                sendPostRequest('/flight_home/open_project_folder', '资源文件夹已打开');
+            });
+        }
+
+        // 退票文件夹
+        const openRefundFolder = document.getElementById('openRefundFolder');
+        if (openRefundFolder) {
+            openRefundFolder.addEventListener('click', function(e) {
+                e.preventDefault();
+                sendPostRequest('/flight_home/open_refund_folder', '退票文件夹已打开');
+            });
+        }
+
+        // 项目文件夹
+        const openProjectFolder = document.getElementById('openProjectFolder');
+        if (openProjectFolder) {
+            openProjectFolder.addEventListener('click', function(e) {
+                e.preventDefault();
+                sendPostRequest('/flight_home/open_flight_project_folder', '项目文件夹已打开');
+            });
+        }
+    });
+</script>
+{% endblock %} 

@@ -1,0 +1,235 @@
+{% extends "admin/base.html" %}
+
+{% block title %}创建用户 - 管理员后台{% endblock %}
+
+{% block content %}
+<div class="admin-content">
+    <div class="container-fluid">
+        <!-- 页面标题 -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2><i class="fas fa-user-plus me-2"></i>创建用户</h2>
+            <a href="{{ url_for('admin.users') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-2"></i>返回用户列表
+            </a>
+        </div>
+
+        <!-- 创建用户表单 -->
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">
+                            <i class="fas fa-user-cog me-2"></i>新建员工/管理员账户
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <!-- 重要说明 -->
+                        <div class="alert alert-info mb-4">
+                            <i class="fas fa-info-circle me-2"></i>
+                            <strong>说明：</strong>此功能仅用于创建员工和管理员账户。普通会员客户请通过前台注册功能自行注册。
+                        </div>
+
+                        <form method="POST" class="needs-validation" novalidate>
+                            <!-- CSRF令牌 -->
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                            
+                            <div class="row">
+                                <!-- 基本信息 -->
+                                <div class="col-md-6">
+                                    <div class="form-group mb-3">
+                                        <label for="first_name" class="form-label">姓名 *</label>
+                                        <input type="text" class="form-control" id="first_name" name="first_name" 
+                                               placeholder="请输入姓名" required>
+                                        <div class="invalid-feedback">
+                                            请输入姓名
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <div class="form-group mb-3">
+                                        <label for="last_name" class="form-label">姓氏</label>
+                                        <input type="text" class="form-control" id="last_name" name="last_name" 
+                                               placeholder="请输入姓氏（可选）">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group mb-3">
+                                        <label for="email" class="form-label">邮箱地址 *</label>
+                                        <input type="email" class="form-control" id="email" name="email" 
+                                               placeholder="请输入邮箱地址" required>
+                                        <div class="invalid-feedback">
+                                            请输入有效的邮箱地址
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <div class="form-group mb-3">
+                                        <label for="phone" class="form-label">联系电话</label>
+                                        <input type="tel" class="form-control" id="phone" name="phone" 
+                                               placeholder="请输入联系电话（可选）">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group mb-3">
+                                        <label for="role" class="form-label">用户角色 *</label>
+                                        <select class="form-select" id="role" name="role" required>
+                                            <option value="">请选择角色</option>
+                                            {% for role in roles %}
+                                            <option value="{{ role.name }}">{{ role.description }}</option>
+                                            {% endfor %}
+                                        </select>
+                                        <div class="invalid-feedback">
+                                            请选择用户角色
+                                        </div>
+                                        <div class="form-text">
+                                            <small>
+                                                <i class="fas fa-shield-alt text-warning me-1"></i>
+                                                <strong>员工：</strong>管理所属项目、报价管理、文件上传等<br>
+                                                <i class="fas fa-crown text-danger me-1"></i>
+                                                <strong>管理员：</strong>拥有所有权限，包括用户管理、系统配置等
+                                            </small>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <div class="form-group mb-3">
+                                        <label for="password" class="form-label">初始密码 *</label>
+                                        <div class="input-group">
+                                            <input type="password" class="form-control" id="password" name="password" 
+                                                   placeholder="请设置初始密码" required minlength="6">
+                                            <button class="btn btn-outline-secondary" type="button" id="togglePassword">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
+                                        </div>
+                                        <div class="invalid-feedback">
+                                            密码长度至少6位
+                                        </div>
+                                        <div class="form-text">
+                                            <small>
+                                                <i class="fas fa-key text-info me-1"></i>
+                                                用户首次登录后可以修改密码
+                                            </small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 操作按钮 -->
+                            <div class="d-flex justify-content-end gap-3 mt-4">
+                                <a href="{{ url_for('admin.users') }}" class="btn btn-secondary">
+                                    <i class="fas fa-times me-2"></i>取消
+                                </a>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-user-plus me-2"></i>创建用户
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- 角色权限说明 -->
+                <div class="card mt-4">
+                    <div class="card-header">
+                        <h6 class="mb-0">
+                            <i class="fas fa-info-circle me-2"></i>角色权限说明
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6 class="text-warning">
+                                    <i class="fas fa-shield-alt me-2"></i>员工权限
+                                </h6>
+                                <ul class="list-unstyled">
+                                    <li><i class="fas fa-check text-success me-2"></i>管理所属项目</li>
+                                    <li><i class="fas fa-check text-success me-2"></i>新增/修改报价</li>
+                                    <li><i class="fas fa-check text-success me-2"></i>上传文件</li>
+                                    <li><i class="fas fa-check text-success me-2"></i>更新项目进度</li>
+                                    <li><i class="fas fa-check text-success me-2"></i>查看相关订单</li>
+                                </ul>
+                            </div>
+                            <div class="col-md-6">
+                                <h6 class="text-danger">
+                                    <i class="fas fa-crown me-2"></i>管理员权限
+                                </h6>
+                                <ul class="list-unstyled">
+                                    <li><i class="fas fa-check text-success me-2"></i>管理全站数据</li>
+                                    <li><i class="fas fa-check text-success me-2"></i>用户管理</li>
+                                    <li><i class="fas fa-check text-success me-2"></i>权限管理</li>
+                                    <li><i class="fas fa-check text-success me-2"></i>系统配置</li>
+                                    <li><i class="fas fa-check text-success me-2"></i>查看统计数据</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// 表单验证
+(function() {
+    'use strict';
+    
+    window.addEventListener('load', function() {
+        var forms = document.getElementsByClassName('needs-validation');
+        
+        Array.prototype.filter.call(forms, function(form) {
+            form.addEventListener('submit', function(event) {
+                if (form.checkValidity() === false) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                }
+                form.classList.add('was-validated');
+            }, false);
+        });
+    }, false);
+})();
+
+// 密码显示/隐藏切换
+document.getElementById('togglePassword').addEventListener('click', function() {
+    const passwordInput = document.getElementById('password');
+    const icon = this.querySelector('i');
+    
+    if (passwordInput.type === 'password') {
+        passwordInput.type = 'text';
+        icon.className = 'fas fa-eye-slash';
+    } else {
+        passwordInput.type = 'password';
+        icon.className = 'fas fa-eye';
+    }
+});
+
+// 邮箱验证
+document.getElementById('email').addEventListener('blur', function() {
+    const email = this.value;
+    if (email) {
+        // 可以在这里添加实时邮箱重复检查
+        console.log('检查邮箱:', email);
+    }
+});
+
+// 角色选择提示
+document.getElementById('role').addEventListener('change', function() {
+    const role = this.value;
+    if (role === 'admin') {
+        if (!confirm('您确定要创建管理员账户吗？管理员拥有所有系统权限。')) {
+            this.value = '';
+        }
+    }
+});
+</script>
+{% endblock %} 

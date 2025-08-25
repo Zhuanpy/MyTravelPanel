@@ -1,0 +1,451 @@
+{% extends "staff_base.html" %}
+
+{% block title %}员工工作台 - MyTravelPanel{% endblock %}
+
+{% block page_title %}工作台总览{% endblock %}
+
+{% block content %}
+<!-- 统计卡片 -->
+<div class="row mb-4">
+    <div class="col-md-3 mb-3">
+        <div class="card stats-card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h3 class="stats-number stats-primary">{{ stats.total_projects or 0 }}</h3>
+                        <p class="stats-label">总项目数</p>
+                    </div>
+                    <div class="stats-icon stats-primary">
+                        <i class="fas fa-project-diagram"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-3">
+        <div class="card stats-card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h3 class="stats-number stats-success">{{ stats.active_projects or 0 }}</h3>
+                        <p class="stats-label">活跃项目</p>
+                    </div>
+                    <div class="stats-icon stats-success">
+                        <i class="fas fa-running"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-3">
+        <div class="card stats-card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h3 class="stats-number stats-warning">{{ stats.pending_quotes or 0 }}</h3>
+                        <p class="stats-label">待处理报价</p>
+                    </div>
+                    <div class="stats-icon stats-warning">
+                        <i class="fas fa-file-invoice"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-3">
+        <div class="card stats-card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h3 class="stats-number stats-info">{{ stats.completed_this_month or 0 }}</h3>
+                        <p class="stats-label">本月完成</p>
+                    </div>
+                    <div class="stats-icon stats-info">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- 最近项目 -->
+    <div class="col-lg-8 mb-4">
+        <div class="card form-card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-project-diagram me-2"></i>最近项目
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if recent_projects %}
+                <div class="data-table">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>项目名称</th>
+                                <th>客户</th>
+                                <th>类型</th>
+                                <th>状态</th>
+                                <th>创建时间</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="recentProjectsTable">
+                            <!-- 动态加载内容 -->
+                        </tbody>
+                    </table>
+                </div>
+                <div class="text-center mt-3">
+                    <a href="{{ url_for('business_projects.list.list_projects') }}" class="btn btn-staff btn-staff-primary">
+                        查看全部项目 <i class="fas fa-arrow-right ms-1"></i>
+                    </a>
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <i class="fas fa-project-diagram"></i>
+                    <h4>暂无项目</h4>
+                    <p>您还没有任何项目，快去创建第一个项目吧！</p>
+                    <a href="{{ url_for('business_projects.project_create.create_header') }}" class="btn btn-staff btn-staff-primary">
+                        创建项目 <i class="fas fa-plus ms-1"></i>
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- 待处理任务 -->
+    <div class="col-lg-4 mb-4">
+        <div class="card form-card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-tasks me-2"></i>待处理任务
+                </h5>
+            </div>
+            <div class="card-body p-0">
+                <div id="pendingTasksList">
+                    <!-- 动态加载内容 -->
+                </div>
+                <div class="text-center p-3">
+                    <a href="{{ url_for('utils_blue.render_todo_list') }}" class="btn btn-sm btn-outline-success btn-staff">
+                        查看全部任务
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 快速操作 -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-bolt me-2"></i>快速操作
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3 mb-3">
+                        <div class="project-card h-100">
+                            <div class="card-body text-center">
+                                <div class="stats-icon stats-primary mb-3">
+                                    <i class="fas fa-plus-circle"></i>
+                                </div>
+                                <h5 class="card-title">创建项目</h5>
+                                <p class="card-text text-muted">新建客户项目，开始工作流程</p>
+                                <a href="{{ url_for('business_projects.project_create.create_header') }}" class="btn btn-staff btn-staff-primary">
+                                    立即创建
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-3 mb-3">
+                        <div class="project-card h-100">
+                            <div class="card-body text-center">
+                                <div class="stats-icon stats-success mb-3">
+                                    <i class="fas fa-file-invoice-dollar"></i>
+                                </div>
+                                <h5 class="card-title">创建报价</h5>
+                                <p class="card-text text-muted">为客户制作详细报价单</p>
+                                <a href="{{ url_for('staff.create_quote') }}" class="btn btn-success btn-staff">
+                                    立即报价
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-3 mb-3">
+                        <div class="project-card h-100">
+                            <div class="card-body text-center">
+                                <div class="stats-icon stats-info mb-3">
+                                    <i class="fas fa-upload"></i>
+                                </div>
+                                <h5 class="card-title">上传文件</h5>
+                                <p class="card-text text-muted">管理项目相关文档资料</p>
+                                <a href="{{ url_for('staff.upload_file') }}" class="btn btn-info btn-staff">
+                                    上传文件
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-3 mb-3">
+                        <div class="project-card h-100">
+                            <div class="card-body text-center">
+                                <div class="stats-icon stats-warning mb-3">
+                                    <i class="fas fa-chart-line"></i>
+                                </div>
+                                <h5 class="card-title">工作报告</h5>
+                                <p class="card-text text-muted">查看工作统计和报告</p>
+                                <a href="#" class="btn btn-warning btn-staff" onclick="alert('工作报告功能开发中')">
+                                    查看报告
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// 加载统计数据
+function loadDashboardStats() {
+    fetch('/staff/api/stats')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                updateStatsDisplay(data.data);
+            }
+        })
+        .catch(error => {
+            console.error('加载统计数据失败:', error);
+        });
+}
+
+// 更新统计数据显示
+function updateStatsDisplay(stats) {
+    const elements = {
+        total_projects: document.querySelector('.stats-primary'),
+        active_projects: document.querySelector('.stats-success'),
+        pending_quotes: document.querySelector('.stats-warning'),
+        completed_this_month: document.querySelector('.stats-info')
+    };
+    
+    if (elements.total_projects) {
+        elements.total_projects.textContent = stats.total_projects || 0;
+    }
+    if (elements.active_projects) {
+        elements.active_projects.textContent = stats.active_projects || 0;
+    }
+    if (elements.pending_quotes) {
+        elements.pending_quotes.textContent = stats.pending_quotes || 0;
+    }
+    if (elements.completed_this_month) {
+        elements.completed_this_month.textContent = stats.completed_this_month || 0;
+    }
+}
+
+// 加载最近项目
+function loadRecentProjects() {
+    fetch('/staff/api/recent-projects')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.data.length > 0) {
+                updateProjectsDisplay(data.data);
+            }
+        })
+        .catch(error => {
+            console.error('加载项目数据失败:', error);
+        });
+}
+
+// 更新项目显示
+function updateProjectsDisplay(projects) {
+    const container = document.getElementById('recentProjectsTable');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    
+    projects.forEach(project => {
+        const projectElement = document.createElement('tr');
+        projectElement.innerHTML = `
+            <td data-label="项目名称">${project.name}</td>
+            <td data-label="客户">${project.client}</td>
+            <td data-label="类型">
+                <span class="badge bg-primary">${getProjectTypeName(project.type)}</span>
+            </td>
+            <td data-label="状态">
+                <span class="project-status ${project.status}">${getProjectStatusName(project.status)}</span>
+            </td>
+            <td data-label="创建时间">${project.created_at}</td>
+            <td data-label="操作">
+                <a href="/projects/project/${project.id}" class="btn btn-sm btn-outline-success btn-staff">
+                    查看
+                </a>
+            </td>
+        `;
+        container.appendChild(projectElement);
+    });
+}
+
+// 加载待处理任务
+function loadPendingTasks() {
+    console.log('开始加载待处理任务...');
+    fetch('/staff/api/pending-tasks')
+        .then(response => {
+            console.log('API响应状态:', response.status);
+            return response.json();
+        })
+        .then(data => {
+            console.log('API响应数据:', data);
+            if (data.success && data.data.length > 0) {
+                console.log('找到任务数据，开始更新显示...');
+                updateTasksDisplay(data.data);
+            } else {
+                console.log('没有任务数据或API返回失败');
+                // 显示空状态
+                const container = document.getElementById('pendingTasksList');
+                if (container) {
+                    container.innerHTML = `
+                        <div class="text-center p-4">
+                            <i class="fas fa-check-circle text-success mb-2" style="font-size: 2rem;"></i>
+                            <p class="text-muted mb-0">暂无待处理任务</p>
+                        </div>
+                    `;
+                }
+            }
+        })
+        .catch(error => {
+            console.error('加载任务数据失败:', error);
+            // 显示错误状态
+            const container = document.getElementById('pendingTasksList');
+            if (container) {
+                container.innerHTML = `
+                    <div class="text-center p-4">
+                        <i class="fas fa-exclamation-triangle text-warning mb-2" style="font-size: 2rem;"></i>
+                        <p class="text-muted mb-0">加载任务失败</p>
+                        <small class="text-danger">${error.message}</small>
+                    </div>
+                `;
+            }
+        });
+}
+
+// 更新任务显示
+function updateTasksDisplay(tasks) {
+    console.log('开始更新任务显示，任务数量:', tasks.length);
+    const container = document.getElementById('pendingTasksList');
+    if (!container) {
+        console.error('找不到pendingTasksList容器');
+        return;
+    }
+    
+    console.log('清空容器内容...');
+    container.innerHTML = '';
+    
+    tasks.forEach((task, index) => {
+        console.log(`创建任务 ${index + 1}:`, task);
+        const taskElement = document.createElement('div');
+        taskElement.className = 'task-card';
+        
+        // 格式化截止日期
+        const dueDate = task.due_date === '未设置' ? '未设置截止日期' : task.due_date;
+        
+        taskElement.innerHTML = `
+            <div class="card-body">
+                <div class="d-flex">
+                    <div class="task-priority ${task.priority}"></div>
+                    <div class="flex-grow-1">
+                        <h6 class="task-title" title="${task.title}">${task.title}</h6>
+                        ${task.description ? `<p class="task-description" title="${task.description}">${task.description}</p>` : ''}
+                        <div class="task-meta">
+                            <small>
+                                <span class="due-date">
+                                    <i class="fas fa-calendar-alt"></i>
+                                    ${dueDate}
+                                </span>
+                                <span class="priority-badge">
+                                    <i class="fas fa-flag"></i>
+                                    ${getPriorityName(task.priority)}
+                                </span>
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // 添加点击事件，可以跳转到待办事项详情
+        taskElement.addEventListener('click', function() {
+            // 可以在这里添加跳转逻辑
+            console.log('点击任务:', task);
+        });
+        
+        container.appendChild(taskElement);
+        console.log(`任务 ${index + 1} 已添加到容器`);
+    });
+    
+    console.log('任务显示更新完成');
+}
+
+// 获取项目类型名称
+function getProjectTypeName(type) {
+    const types = {
+        visa: '签证服务',
+        tour: '旅游配套',
+        flight: '机票服务',
+        other: '其他服务'
+    };
+    return types[type] || type;
+}
+
+// 获取项目状态名称
+function getProjectStatusName(status) {
+    const statuses = {
+        active: '进行中',
+        pending: '待开始',
+        completed: '已完成',
+        cancelled: '已取消'
+    };
+    return statuses[status] || status;
+}
+
+// 获取优先级名称
+function getPriorityName(priority) {
+    const priorities = {
+        high: '高优先级',
+        medium: '中优先级',
+        low: '低优先级'
+    };
+    return priorities[priority] || priority;
+}
+
+// 页面加载完成后执行
+document.addEventListener('DOMContentLoaded', function() {
+    // 添加动画效果
+    const cards = document.querySelectorAll('.stats-card, .form-card, .project-card');
+    cards.forEach((card, index) => {
+        setTimeout(() => {
+            card.classList.add('fade-in-up');
+        }, index * 100);
+    });
+    
+    // 加载数据
+    loadDashboardStats();
+    loadRecentProjects();
+    loadPendingTasks();
+});
+</script>
+{% endblock %} 

@@ -1,0 +1,360 @@
+{% extends "staff_base.html" %}
+
+{% block title %}Visa Type List - MyTravelPanel{% endblock %}
+
+{% block page_title %}Visa Type List{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 1400px; margin: 0 auto; padding: 20px;">
+    <!-- 闪现消息容器 -->
+    <div id="flash-messages" style="position: fixed; top: 20px; right: 20px; z-index: 1000;">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="flash-message" style="background-color: {% if category == 'success' %}#10B981{% else %}#EF4444{% endif %}; color: white; padding: 10px 20px; border-radius: 4px; margin-bottom: 10px; opacity: 1; transition: opacity 0.1s ease-in-out;">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    </div>
+
+    <h1 style="font-size: 24px; margin-bottom: 20px; font-weight: bold; text-align: center;">签证类型列表</h1>
+    
+    <!-- 添加筛选表单 -->
+    <div style="background-color: white; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); padding: 20px; margin-bottom: 20px;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+            <form method="GET" action="{{ url_for('visa_basic.visa_type_list') }}" style="display: flex; gap: 20px; align-items: center;">
+                <div style="width: 200px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 500;">筛选国家：</label>
+                    <select name="country" onchange="this.form.submit()" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                        <option value="">显示全部</option>
+                        {% for country in countries %}
+                        <option value="{{ country.id }}" {% if request.args.get('country')|int == country.id %}selected{% endif %}>
+                            {{ country.country_name_CN }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div style="margin-top: 24px;">
+                    <a href="{{ url_for('visa_basic.visa_type_list') }}" style="color: #666; text-decoration: none;">
+                        <i class="fas fa-times"></i> 清除筛选
+                    </a>
+                </div>
+            </form>
+            <div style="margin-top: 24px;">
+                <button onclick="openAddModal()" style="background-color: #1a56db; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">
+                    <i class="fas fa-plus"></i> 添加签证类型
+                </button>
+                <a href="{{ url_for('visa_basic.visa_type_document_manager') }}" style="background-color: #10b981; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; text-decoration: none; margin-left: 10px;">
+                    <i class="fas fa-cogs"></i> 签证文档管理器
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div style="background-color: white; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); padding: 20px; margin-bottom: 20px;">
+        <table style="width:100%; border-collapse:collapse;">
+            <thead>
+                <tr style="background: #f1f5f9;">
+                    <th style="padding: 12px;">签证类型名称</th>
+                    <th style="padding: 12px;">所属国家</th>
+                    <th style="padding: 12px;">处理时间</th>
+                    <th style="padding: 12px;">申请费用</th>
+                    <th style="padding: 12px;">新加坡身份</th>
+                    <th style="padding: 12px;">操作</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for vt in visa_types %}
+                <tr>
+                    <td style="padding: 12px;">{{ vt.visa_type }}</td>
+                    <td style="padding: 12px;">{{ vt.country.country_name_CN }}</td>       
+                    <td style="padding: 12px;">{{ vt.fee }}</td>
+                    <td style="padding: 12px;">{{ vt.processing_time }}</td>
+                    <td style="padding: 12px;">
+                        {% for identity in vt.actual_identities %}
+                            {{ identity }}{% if not loop.last %}，{% endif %}
+                        {% else %}
+                            <span style="color:#888;">无</span>
+                        {% endfor %}
+                    </td>
+                    <td style="padding: 12px;">
+                        <a href="{{ url_for('visa_basic.visa_type_detail', visa_type=vt.visa_type) }}" style="color: #059669; text-decoration: none; margin-right: 10px; background: none; border: none; cursor: pointer; font-weight: 500;">详细</a>
+                        <button onclick="openEditModal('fee', '{{ vt.visa_type }}', '{{ vt.fee }}')" style="color: #1a56db; text-decoration: none; margin-right: 10px; background: none; border: none; cursor: pointer;">编辑费用</button>
+                        <button onclick="openEditModal('processing_time', '{{ vt.visa_type }}', '{{ vt.processing_time }}')" style="color: #1a56db; text-decoration: none; margin-right: 10px; background: none; border: none; cursor: pointer;">编辑时间</button>
+                        <button onclick="openEditModal('identities', '{{ vt.visa_type }}')" style="color: #1a56db; text-decoration: none; margin-right: 10px; background: none; border: none; cursor: pointer;">编辑身份</button>
+                        <a href="{{ url_for('visa_basic.visa_type_document_manager') }}?visa_type={{ vt.visa_type }}" style="color: #10b981; text-decoration: none; margin-right: 10px; background: none; border: none; cursor: pointer;">编辑文档</a>
+                        <button onclick="openDeleteModal('{{ vt.visa_type }}')" style="color: #dc2626; text-decoration: none; background: none; border: none; cursor: pointer;">删除</button>
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        
+        <!-- 分页控件 -->
+        {% if pagination.pages > 1 %}
+        <div style="margin-top: 20px; display: flex; justify-content: center; align-items: center; gap: 10px;">
+            {% if pagination.has_prev %}
+                <a href="{{ url_for('visa_basic.visa_type_list', page=pagination.prev_num, country=request.args.get('country')) }}" 
+                   style="padding: 8px 16px; border: 1px solid #ddd; border-radius: 4px; text-decoration: none; color: #1a56db;">
+                    上一页
+                </a>
+            {% endif %}
+            
+            {% for page in pagination.iter_pages(left_edge=2, left_current=2, right_current=3, right_edge=2) %}
+                {% if page %}
+                    {% if page == pagination.page %}
+                        <span style="padding: 8px 16px; background-color: #1a56db; color: white; border-radius: 4px;">
+                            {{ page }}
+                        </span>
+                    {% else %}
+                        <a href="{{ url_for('visa_basic.visa_type_list', page=page, country=request.args.get('country')) }}"
+                           style="padding: 8px 16px; border: 1px solid #ddd; border-radius: 4px; text-decoration: none; color: #1a56db;">
+                            {{ page }}
+                        </a>
+                    {% endif %}
+                {% else %}
+                    <span style="padding: 8px 16px;">...</span>
+                {% endif %}
+            {% endfor %}
+            
+            {% if pagination.has_next %}
+                <a href="{{ url_for('visa_basic.visa_type_list', page=pagination.next_num, country=request.args.get('country')) }}"
+                   style="padding: 8px 16px; border: 1px solid #ddd; border-radius: 4px; text-decoration: none; color: #1a56db;">
+                    下一页
+                </a>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- 编辑模态框 -->
+<div id="editModal" class="modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); z-index: 1000;">
+    <div class="modal-content" style="position: relative; background-color: white; margin: 10% auto; padding: 20px; width: 80%; max-width: 500px; border-radius: 4px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+        <span class="close" onclick="closeEditModal()" style="position: absolute; right: 20px; top: 10px; font-size: 24px; cursor: pointer;">&times;</span>
+        <h2 id="modalTitle" style="margin-bottom: 20px; font-size: 20px; font-weight: bold;"></h2>
+        <form id="editForm" method="POST">
+            <input type="hidden" id="visaType" name="visa_type">
+            <input type="hidden" id="fieldType" name="field">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div id="modalContent"></div>
+            <div style="text-align: right; margin-top: 20px;">
+                <button type="button" onclick="closeEditModal()" style="background-color: #6b7280; color: white; border: none; padding: 8px 16px; border-radius: 4px; margin-right: 10px; cursor: pointer;">取消</button>
+                <button type="submit" style="background-color: #1a56db; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">保存</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- 删除确认模态框 -->
+<div id="deleteModal" class="modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); z-index: 1000;">
+    <div class="modal-content" style="position: relative; background-color: white; margin: 10% auto; padding: 20px; width: 80%; max-width: 400px; border-radius: 4px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+        <span class="close" onclick="closeDeleteModal()" style="position: absolute; right: 20px; top: 10px; font-size: 24px; cursor: pointer;">&times;</span>
+        <h2 style="margin-bottom: 20px; font-size: 20px; font-weight: bold; color: #dc2626;">确认删除</h2>
+        <p id="deleteConfirmText" style="margin-bottom: 20px;">确定要删除这个签证类型吗？此操作不可恢复。</p>
+        <form id="deleteForm" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div style="text-align: right;">
+                <button type="button" onclick="closeDeleteModal()" style="background-color: #6b7280; color: white; border: none; padding: 8px 16px; border-radius: 4px; margin-right: 10px; cursor: pointer;">取消</button>
+                <button type="submit" style="background-color: #dc2626; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">确认删除</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- 添加签证类型模态框 -->
+<div id="addModal" class="modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); z-index: 1000;">
+    <div class="modal-content" style="position: relative; background-color: white; margin: 10% auto; padding: 20px; width: 80%; max-width: 500px; border-radius: 4px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+        <span class="close" onclick="closeAddModal()" style="position: absolute; right: 20px; top: 10px; font-size: 24px; cursor: pointer;">&times;</span>
+        <h2 style="margin-bottom: 20px; font-size: 20px; font-weight: bold;">添加签证类型</h2>
+        <form id="addForm" method="POST" action="{{ url_for('visa_basic.add_visa_type') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 8px; font-weight: 500;">签证类型名称：</label>
+                <input type="text" name="visa_type" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+            </div>
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 8px; font-weight: 500;">所属国家：</label>
+                <select name="country_id" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                    <option value="">请选择国家</option>
+                    {% for country in countries %}
+                    <option value="{{ country.id }}">{{ country.country_name_CN }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 8px; font-weight: 500;">处理时间：</label>
+                <input type="text" name="processing_time" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+            </div>
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 8px; font-weight: 500;">申请费用：</label>
+                <input type="text" name="fee" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+            </div>
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 8px; font-weight: 500;">新加坡身份：</label>
+                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; max-height: 200px; overflow-y: auto;">
+                    {% for identity in singapore_identities %}
+                    <div style="display: flex; align-items: center;">
+                        <input type="checkbox" name="identity_ids" value="{{ identity.id }}" id="add_identity_{{ identity.id }}" style="margin-right: 8px;">
+                        <label for="add_identity_{{ identity.id }}">{{ identity.identity_zh }}</label>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            <div style="text-align: right;">
+                <button type="button" onclick="closeAddModal()" style="background-color: #6b7280; color: white; border: none; padding: 8px 16px; border-radius: 4px; margin-right: 10px; cursor: pointer;">取消</button>
+                <button type="submit" style="background-color: #1a56db; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">保存</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+// 处理闪现消息
+document.addEventListener('DOMContentLoaded', function() {
+    const flashMessages = document.querySelectorAll('.flash-message');
+    flashMessages.forEach(function(message) {
+        setTimeout(function() {
+            message.style.opacity = '0';
+            setTimeout(function() {
+                message.remove();
+            }, 100);
+        }, 100);
+    });
+});
+
+function openEditModal(field, visaType, currentValue = '') {
+    const modal = document.getElementById('editModal');
+    const modalTitle = document.getElementById('modalTitle');
+    const modalContent = document.getElementById('modalContent');
+    const form = document.getElementById('editForm');
+    const visaTypeInput = document.getElementById('visaType');
+    const fieldTypeInput = document.getElementById('fieldType');
+    
+    // 设置表单属性
+    const countryId = new URLSearchParams(window.location.search).get('country');
+    form.action = `/visa/basic/visa/edit_visa_type/${visaType}/${field}${countryId ? `?country=${countryId}` : ''}`;
+    visaTypeInput.value = visaType;
+    fieldTypeInput.value = field;
+    
+    // 设置标题
+    modalTitle.textContent = `编辑${field === 'fee' ? '费用' : field === 'processing_time' ? '处理时间' : '身份'}`;
+    
+    // 设置内容
+    if (field === 'identities') {
+        // 获取身份选项（包含SHARE）
+        fetch(`/visa/basic/get_identity_options_with_share/${visaType}`)
+            .then(response => response.json())
+            .then(data => {
+                console.log('Current identities:', data); // 添加日志
+                if (data.success) {
+                    const currentIdentities = data.identity_options;
+                    // 获取所有可用身份（包含SHARE）
+                    fetch('/visa/basic/get_all_identities_with_share')
+                        .then(response => response.json())
+                        .then(allData => {
+                            console.log('All identities:', allData); // 添加日志
+                            if (allData.success) {
+                                const identities = allData.identities || [];
+                                modalContent.innerHTML = `
+                                    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px;">
+                                        ${identities.map(identity => `
+                                            <div style="display: flex; align-items: center;">
+                                                <input type="checkbox" 
+                                                       name="identities" 
+                                                       value="${identity.identity_zh}"
+                                                       id="identity_${identity.id || 'share'}"
+                                                       ${currentIdentities.includes(identity.identity_zh) ? 'checked' : ''}
+                                                       style="margin-right: 8px;">
+                                                <label for="identity_${identity.id || 'share'}">${identity.identity_zh}</label>
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                `;
+                            } else {
+                                modalContent.innerHTML = '<p style="color: red;">获取身份列表失败</p>';
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error fetching all identities:', error);
+                            modalContent.innerHTML = '<p style="color: red;">获取身份列表时发生错误</p>';
+                        });
+                } else {
+                    modalContent.innerHTML = '<p style="color: red;">获取当前身份选项失败</p>';
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching current identities:', error);
+                modalContent.innerHTML = '<p style="color: red;">获取当前身份选项时发生错误</p>';
+            });
+    } else {
+        modalContent.innerHTML = `
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 10px; font-weight: bold;">${field === 'fee' ? '费用' : '处理时间'}：</label>
+                <input type="text" 
+                       name="value" 
+                       value="${currentValue}" 
+                       class="form-control" 
+                       style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+            </div>
+        `;
+    }
+    
+    modal.style.display = 'block';
+}
+
+function closeEditModal() {
+    const modal = document.getElementById('editModal');
+    modal.style.display = 'none';
+}
+
+// 点击模态框外部关闭
+window.onclick = function(event) {
+    const editModal = document.getElementById('editModal');
+    const deleteModal = document.getElementById('deleteModal');
+    const addModal = document.getElementById('addModal');
+    
+    if (event.target == editModal) {
+        closeEditModal();
+    }
+    if (event.target == deleteModal) {
+        closeDeleteModal();
+    }
+    if (event.target == addModal) {
+        closeAddModal();
+    }
+}
+
+function openDeleteModal(visaType) {
+    const modal = document.getElementById('deleteModal');
+    const form = document.getElementById('deleteForm');
+    const confirmText = document.getElementById('deleteConfirmText');
+    
+    // 设置表单属性
+    const countryId = new URLSearchParams(window.location.search).get('country');
+    form.action = `/visa/basic/visa/delete_visa_type/${visaType}${countryId ? `?country=${countryId}` : ''}`;
+    
+    // 设置确认文本
+    confirmText.textContent = `确定要删除签证类型"${visaType}"吗？此操作不可恢复。`;
+    
+    modal.style.display = 'block';
+}
+
+function closeDeleteModal() {
+    const modal = document.getElementById('deleteModal');
+    modal.style.display = 'none';
+}
+
+function openAddModal() {
+    const modal = document.getElementById('addModal');
+    modal.style.display = 'block';
+}
+
+function closeAddModal() {
+    const modal = document.getElementById('addModal');
+    modal.style.display = 'none';
+}
+</script>
+{% endblock %} 

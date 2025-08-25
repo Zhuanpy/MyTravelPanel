@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- CSRF令牌 -->
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>{% block title %}员工工作台 - MyTravelPanel{% endblock %}</title>
+    
+    <!-- CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/staff.css') }}" rel="stylesheet">
+    
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <!-- 导航栏 -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-success">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="{{ url_for('guest.index') }}">
+                <i class="fas fa-plane"></i> MyTravelPanel
+                <span class="badge bg-light text-success ms-2">员工版</span>
+            </a>
+            
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('staff.dashboard') }}">
+                            <i class="fas fa-tachometer-alt"></i> 工作台
+                        </a>
+                    </li>
+<!--                    <li class="nav-item">-->
+<!--                        <a class="nav-link" href="{{ url_for('business_projects.list.list_projects') }}">-->
+<!--                            <i class="fas fa-project-diagram"></i> 项目管理-->
+<!--                        </a>-->
+<!--                    </li>-->
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('staff.quotes') }}">
+                            <i class="fas fa-file-invoice-dollar"></i> 报价管理
+                        </a>
+                    </li>
+<!--                    <li class="nav-item">-->
+<!--                        <a class="nav-link" href="{{ url_for('staff.files') }}">-->
+<!--                            <i class="fas fa-folder"></i> 文件管理-->
+<!--                        </a>-->
+<!--                    </li>-->
+<!--                    <li class="nav-item">-->
+<!--                        <a class="nav-link" href="{{ url_for('staff.tasks') }}">-->
+<!--                            <i class="fas fa-tasks"></i> 任务中心-->
+<!--                        </a>-->
+<!--                    </li>-->
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="flightDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-plane"></i> 机票管理
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{{ url_for('flight_home.flight_home_page') }}">
+                                <i class="fas fa-home me-2"></i>机票首页
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><h6 class="dropdown-header">航班管理</h6></li>
+                            <li><a class="dropdown-item" href="{{ url_for('flights_schedule.input_flight_schedule') }}">
+                                <i class="fas fa-clock me-2"></i>航班时刻表
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('flights_schedule.input_airport_code_info') }}">
+                                <i class="fas fa-map-marker-alt me-2"></i>机场代码
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('flights_schedule.confirmation_detail_default') }}">
+                                <i class="fas fa-file-alt me-2"></i>机票文件
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><h6 class="dropdown-header">Athina系统</h6></li>
+                                            <li><a class="dropdown-item" href="{{ url_for('flights_athina.athina_conversion') }}">
+                    <i class="fas fa-tools me-2"></i>Athina机票工具
+                </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('flights_athina.athina_page') }}">
+                                <i class="fas fa-file-code me-2"></i>Athina代码
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><h6 class="dropdown-header">订单管理</h6></li>
+                            <li><a class="dropdown-item" href="{{ url_for('flights_booking.create_order') }}">
+                                <i class="fas fa-plus me-2"></i>创建订单
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('flights_booking.order_list') }}">
+                                <i class="fas fa-list me-2"></i>订单列表
+                            </a></li>
+                        </ul>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="packageDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-box"></i> 配套管理
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{{ url_for('package_routes.package_home') }}">
+                                <i class="fas fa-home me-2"></i>配套首页
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><h6 class="dropdown-header">产品管理</h6></li>
+                            <li><a class="dropdown-item" href="{{ url_for('package_routes.add_product_page') }}">
+                                <i class="fas fa-plus me-2"></i>添加产品
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('package_routes.all_packages') }}">
+                                <i class="fas fa-list me-2"></i>所有产品
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><h6 class="dropdown-header">供应商管理</h6></li>
+                            <li><a class="dropdown-item" href="{{ url_for('package_routes.add_supplier_info') }}">
+                                <i class="fas fa-user-plus me-2"></i>添加供应商
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('package_routes.manage_cities') }}">
+                                <i class="fas fa-city me-2"></i>城市管理
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><h6 class="dropdown-header">预算管理</h6></li>
+                            <li><a class="dropdown-item" href="{{ url_for('package_budget.list_budgets') }}">
+                                <i class="fas fa-file-invoice-dollar me-2"></i>预算列表
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('package_budget.create') }}">
+                                <i class="fas fa-plus-circle me-2"></i>创建预算
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('package_budget.list_templates') }}">
+                                <i class="fas fa-file-alt me-2"></i>预算模板
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('package_budget.import_budget') }}">
+                                <i class="fas fa-upload me-2"></i>导入预算
+                            </a></li>
+                        </ul>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="projectDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-project-diagram"></i> 项目管理
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{{ url_for('business_projects.list.list_projects') }}">
+                                <i class="fas fa-list me-2"></i>项目列表
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('business_projects.project_create.create_header') }}">
+                                <i class="fas fa-plus me-2"></i>创建项目
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><h6 class="dropdown-header">签证项目</h6></li>
+                            <li><a class="dropdown-item" href="{{ url_for('visa_project.show_current_all_projects') }}">
+                                <i class="fas fa-passport me-2"></i>项目列表
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('visa_home.home') }}">
+                                <i class="fas fa-home me-2"></i>签证首页
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><h6 class="dropdown-header">旅游项目</h6></li>
+                            <li><a class="dropdown-item" href="{{ url_for('tour_projects.manage_tour_projects') }}">
+                                <i class="fas fa-suitcase me-2"></i>旅游项目列表
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('tour_projects.create_tour_project') }}">
+                                <i class="fas fa-plus-circle me-2"></i>创建旅游项目
+                            </a></li>
+                        </ul>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="visaDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-passport"></i> 签证管理
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{{ url_for('visa_home.home') }}">
+                                <i class="fas fa-home me-2"></i>签证首页
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('visa_project.show_current_all_projects') }}">
+                                <i class="fas fa-list me-2"></i>签证项目列表
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><h6 class="dropdown-header">签证管理</h6></li>
+                            <li><a class="dropdown-item" href="{{ url_for('visa_documents.manage_visas') }}">
+                                <i class="fas fa-file-alt me-2"></i>资料管理
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('visa_links.visa_link_page') }}">
+                                <i class="fas fa-link me-2"></i>链接管理
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('visa_basic.manage_countries') }}">
+                                <i class="fas fa-globe me-2"></i>国家管理
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('visa_basic.manage_identities') }}">
+                                <i class="fas fa-id-card me-2"></i>身份管理
+                            </a></li>
+                        </ul>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="utilsDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-tools"></i> 文件处理
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{{ url_for('utils_process.file_processing') }}">
+                                <i class="fas fa-home me-2"></i>文件处理首页  
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('utils_process.file_processing') }}">
+                                <i class="fas fa-file-pdf me-2"></i>PDF处理
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('utils_blue.render_todo_list') }}">
+                                <i class="fas fa-list-check me-2"></i>任务中心
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('utils_blue.render_pomodoro') }}">
+                                <i class="fas fa-clock me-2"></i>番茄工作法
+                            </a></li>
+                        </ul>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="statementDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-file-invoice"></i> 账单处理
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{{ url_for('statement_routes.uob_bank') }}">
+                                <i class="fas fa-university me-2"></i>UOB银行
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('statement_routes.ocbc_bank') }}">
+                                <i class="fas fa-university me-2"></i>OCBC银行
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('statement_routes.cmb_bank') }}">
+                                <i class="fas fa-university me-2"></i>招商银行
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('statement_routes.athina_page') }}">
+                                <i class="fas fa-file-invoice me-2"></i>Athina账单
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('statement_routes.company_bill') }}">
+                                <i class="fas fa-file-invoice-dollar me-2"></i>公司账单
+                            </a></li>
+                        </ul>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="accountDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-user-cog"></i> 账号管理
+                        </a>
+                        <ul class="dropdown-menu" aria-labelledby="accountDropdown">
+                            <li><a class="dropdown-item" href="{{ url_for('account_routes.account_page') }}">
+                                <i class="fas fa-users me-2"></i>账号管理
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{{ url_for('company.list_companies') }}">
+                                <i class="fas fa-building me-2"></i>客户公司管理
+                            </a></li>
+                        </ul>
+                    </li>
+                </ul>
+                
+                <ul class="navbar-nav">
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-user-tie"></i> 
+                            {% if current_user.profile %}
+                                {{ current_user.profile.first_name }}
+                            {% else %}
+                                {{ current_user.email }}
+                            {% endif %}
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{{ url_for('auth_profile.profile') }}">
+                                <i class="fas fa-user me-2"></i>个人资料
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('auth_profile.change_password') }}">
+                                <i class="fas fa-key me-2"></i>修改密码
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('member.dashboard') }}">
+                                <i class="fas fa-user-circle me-2"></i>会员中心
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{{ url_for('auth.logout') }}">
+                                <i class="fas fa-sign-out-alt me-2"></i>退出登录
+                            </a></li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 主要内容 -->
+    <div class="container-fluid">
+        <div class="row">
+            <!-- 侧边栏 -->
+            <nav class="col-md-3 col-lg-2 d-md-block bg-light sidebar">
+                <div class="position-sticky pt-3">
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint == 'staff.dashboard' %}active{% endif %}" 
+                               href="{{ url_for('staff.dashboard') }}">
+                                <i class="fas fa-tachometer-alt me-2"></i>
+                                工作台
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint.startswith('business_projects.') %}active{% endif %}" 
+                               href="{{ url_for('business_projects.list.list_projects') }}">
+                                <i class="fas fa-project-diagram me-2"></i>
+                                项目管理
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint == 'staff.quotes' %}active{% endif %}" 
+                               href="{{ url_for('staff.quotes') }}">
+                                <i class="fas fa-file-invoice-dollar me-2"></i>
+                                报价管理
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint == 'staff.files' %}active{% endif %}" 
+                               href="{{ url_for('staff.files') }}">
+                                <i class="fas fa-folder me-2"></i>
+                                文件管理
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint == 'staff.tasks' %}active{% endif %}" 
+                               href="{{ url_for('staff.tasks') }}">
+                                <i class="fas fa-tasks me-2"></i>
+                                任务中心
+                            </a>
+                        </li>
+                        
+                        <!-- 机票管理分组 -->
+                        <li class="nav-item mt-3">
+                            <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted">
+                                <span><i class="fas fa-plane me-2"></i>机票管理</span>
+                            </h6>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint == 'flight_home.flight_home_page' %}active{% endif %}" 
+                               href="{{ url_for('flight_home.flight_home_page') }}">
+                                <i class="fas fa-home me-2"></i>
+                                机票首页
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint == 'flights_booking.create_order' %}active{% endif %}" 
+                               href="{{ url_for('flights_booking.create_order') }}">
+                                <i class="fas fa-plus me-2"></i>
+                                创建订单
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint == 'flights_booking.order_list' %}active{% endif %}" 
+                               href="{{ url_for('flights_booking.order_list') }}">
+                                <i class="fas fa-list me-2"></i>
+                                订单列表
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint == 'flights_schedule.input_flight_schedule' %}active{% endif %}" 
+                               href="{{ url_for('flights_schedule.input_flight_schedule') }}">
+                                <i class="fas fa-clock me-2"></i>
+                                航班时刻表
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint == 'flights_schedule.input_airport_code_info' %}active{% endif %}" 
+                               href="{{ url_for('flights_schedule.input_airport_code_info') }}">
+                                <i class="fas fa-map-marker-alt me-2"></i>
+                                机场代码
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint == 'flights_schedule.confirmation_detail_default' %}active{% endif %}" 
+                               href="{{ url_for('flights_schedule.confirmation_detail_default') }}">
+                                <i class="fas fa-file-alt me-2"></i>
+                                机票确认详情
+                            </a>
+                        </li>
+                        
+                        <!-- Athina系统分组 -->
+                        <li class="nav-item mt-3">
+                            <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted">
+                                <span><i class="fas fa-cogs me-2"></i>Athina系统</span>
+                            </h6>
+                        </li>
+                        <li class="nav-item">
+                                        <a class="nav-link {% if request.endpoint == 'flights_athina.athina_conversion' %}active{% endif %}" 
+               href="{{ url_for('flights_athina.athina_conversion') }}">
+                <i class="fas fa-tools me-2"></i>
+                Athina机票工具
+            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint == 'flights_athina.athina_page' %}active{% endif %}" 
+                               href="{{ url_for('flights_athina.athina_page') }}">
+                                <i class="fas fa-file-code me-2"></i>
+                                Athina代码
+                            </a>
+                        </li>
+                        
+                        <!-- 配套管理分组 -->
+                        <li class="nav-item mt-3">
+                            <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted">
+                                <span><i class="fas fa-box me-2"></i>配套管理</span>
+                            </h6>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint == 'package_routes.package_home' %}active{% endif %}" 
+                               href="{{ url_for('package_routes.package_home') }}">
+                                <i class="fas fa-home me-2"></i>
+                                配套首页
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint == 'package_routes.add_product_page' %}active{% endif %}" 
+                               href="{{ url_for('package_routes.add_product_page') }}">
+                                <i class="fas fa-plus me-2"></i>
+                                添加产品
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint == 'package_routes.all_packages' %}active{% endif %}" 
+                               href="{{ url_for('package_routes.all_packages') }}">
+                                <i class="fas fa-list me-2"></i>
+                                所有产品
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint == 'package_routes.manage_cities' %}active{% endif %}" 
+                               href="{{ url_for('package_routes.manage_cities') }}">
+                                <i class="fas fa-city me-2"></i>
+                                城市管理
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint.startswith('package_budget') %}active{% endif %}" 
+                               href="{{ url_for('package_budget.list_budgets') }}">
+                                <i class="fas fa-file-invoice-dollar me-2"></i>
+                                预算管理
+                            </a>
+                        </li>
+                        
+                        <!-- 项目管理分组 -->
+                        <li class="nav-item mt-3">
+                            <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted">
+                                <span><i class="fas fa-project-diagram me-2"></i>项目管理</span>
+                            </h6>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint == 'business_projects.list_projects' %}active{% endif %}" 
+                               href="{{ url_for('business_projects.list.list_projects') }}">
+                                <i class="fas fa-list me-2"></i>
+                                项目列表
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                                                        <a class="nav-link {% if request.endpoint == 'business_projects.create_project' %}active{% endif %}"
+                               href="{{ url_for('business_projects.project_create.create_header') }}">
+                                <i class="fas fa-plus me-2"></i>
+                                创建项目
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint.startswith('visa_project') %}active{% endif %}" 
+                               href="{{ url_for('visa_project.show_current_all_projects') }}">
+                                <i class="fas fa-passport me-2"></i>
+                                签证项目
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint.startswith('tour_projects') %}active{% endif %}" 
+                               href="{{ url_for('tour_projects.manage_tour_projects') }}">
+                                <i class="fas fa-suitcase me-2"></i>
+                                旅游项目
+                            </a>
+                        </li>
+                        
+                        <!-- 快速操作分组 -->
+                        <li class="nav-item mt-3">
+                            <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted">
+                                <span><i class="fas fa-bolt me-2"></i>快速操作</span>
+                            </h6>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('business_projects.project_create.create_header') }}">
+                                <i class="fas fa-plus me-2"></i>
+                                新建项目
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('staff.create_quote') }}">
+                                <i class="fas fa-file-invoice me-2"></i>
+                                新建报价
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('staff.upload_file') }}">
+                                <i class="fas fa-upload me-2"></i>
+                                上传文件
+                            </a>
+                        </li>
+                        
+                        <!-- 其他功能分组 -->
+                        <li class="nav-item mt-3">
+                            <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted">
+                                <span><i class="fas fa-external-link-alt me-2"></i>其他功能</span>
+                            </h6>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('visa_home.home') }}">
+                                <i class="fas fa-passport me-2"></i>
+                                签证管理
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('utils_process.file_processing') }}">
+                                <i class="fas fa-tools me-2"></i>
+                                文件处理
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('statement_routes.uob_bank') }}">
+                                <i class="fas fa-file-invoice me-2"></i>
+                                账单处理
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('account_routes.account_page') }}">
+                                <i class="fas fa-user-cog me-2"></i>
+                                账号管理
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </nav>
+
+            <!-- 主内容区域 -->
+            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+                <!-- 面包屑导航 -->
+                <nav aria-label="breadcrumb" class="pt-3">
+                    <ol class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="{{ url_for('staff.dashboard') }}">员工工作台</a></li>
+                        {% block breadcrumb %}{% endblock %}
+                    </ol>
+                </nav>
+
+                <!-- 页面标题 -->
+                <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                    <h1 class="h2">{% block page_title %}员工工作台{% endblock %}</h1>
+                    {% block page_actions %}{% endblock %}
+                </div>
+
+                <!-- Flash消息 -->
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+
+                <!-- 页面内容 -->
+                {% block content %}{% endblock %}
+            </main>
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    {% block extra_js %}{% endblock %}
+</body>
+</html> 

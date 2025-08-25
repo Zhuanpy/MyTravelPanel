@@ -1,0 +1,342 @@
+{% extends "base.html" %}
+
+{% block title %}项目详情 - {{ project.name }} - MyTravelPanel{% endblock %}
+
+{% block page_title %}{{ project.name }}{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{{ url_for('business_projects.list.list_projects') }}">项目管理</a></li>
+<li class="breadcrumb-item active">{{ project.name }}</li>
+{% endblock %}
+
+{% block page_actions %}
+<div class="btn-group" role="group">
+    <a href="#" class="btn btn-success" onclick="alert('编辑功能开发中...')">
+        <i class="fas fa-edit me-1"></i>编辑项目
+    </a>
+    <button type="button" class="btn btn-outline-secondary dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown">
+        <span class="visually-hidden">Toggle Dropdown</span>
+    </button>
+    <ul class="dropdown-menu">
+        <li><a class="dropdown-item" href="#"><i class="fas fa-file-upload me-2"></i>上传文件</a></li>
+        <li><a class="dropdown-item" href="#"><i class="fas fa-download me-2"></i>导出项目</a></li>
+        <li><hr class="dropdown-divider"></li>
+        <li><a class="dropdown-item text-danger" href="#" onclick="deleteProject({{ project.id }})">
+            <i class="fas fa-trash me-2"></i>删除项目
+        </a></li>
+    </ul>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- 项目基本信息 -->
+    <div class="col-lg-8">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-info-circle me-2"></i>项目信息
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label text-muted">项目编号</label>
+                        <div class="fw-bold">{{ project.hid }}</div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label text-muted">项目状态</label>
+                        <div>
+                            {% if project.status == 'active' %}
+                                <span class="badge bg-success">进行中</span>
+                            {% elif project.status == 'pending' %}
+                                <span class="badge bg-warning">待开始</span>
+                            {% elif project.status == 'completed' %}
+                                <span class="badge bg-info">已完成</span>
+                            {% elif project.status == 'cancelled' %}
+                                <span class="badge bg-danger">已取消</span>
+                            {% else %}
+                                <span class="badge bg-secondary">{{ project.status }}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label text-muted">项目类型</label>
+                        <div>
+                            {% if project.type == 'visa' %}
+                                <span class="badge bg-primary">签证服务</span>
+                            {% elif project.type == 'tour' %}
+                                <span class="badge bg-success">旅游配套</span>
+                            {% elif project.type == 'flight' %}
+                                <span class="badge bg-info">机票服务</span>
+                            {% elif project.type == 'business' %}
+                                <span class="badge bg-warning">商务考察</span>
+                            {% else %}
+                                <span class="badge bg-secondary">其他服务</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label text-muted">负责人</label>
+                        <div class="fw-bold">{{ project.leader }}</div>
+                    </div>
+                    <div class="col-12 mb-3">
+                        <label class="form-label text-muted">项目描述</label>
+                        <div class="fw-bold">{{ project.description or '暂无描述' }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 客户信息 -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-building me-2"></i>客户信息
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label text-muted">客户名称</label>
+                        <div class="fw-bold">{{ project.client }}</div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label text-muted">联系人</label>
+                        <div class="fw-bold">{{ project.contact }}</div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label text-muted">联系电话</label>
+                        <div class="fw-bold">{{ project.contact_phone or '未提供' }}</div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label text-muted">联系邮箱</label>
+                        <div class="fw-bold">{{ project.contact_email or '未提供' }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 财务信息 -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-dollar-sign me-2"></i>财务信息
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label text-muted">销售总额</label>
+                        <div class="fw-bold text-success">¥{{ "%.2f"|format(project.total_selling) }}</div>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label text-muted">总成本</label>
+                        <div class="fw-bold text-danger">¥{{ "%.2f"|format(project.total_cost) }}</div>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label text-muted">总利润</label>
+                        <div class="fw-bold text-primary">¥{{ "%.2f"|format(project.total_profit) }}</div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label text-muted">利润率</label>
+                        <div class="fw-bold">
+                            {% set profit_rate = (project.total_profit / project.total_selling * 100) if project.total_selling > 0 else 0 %}
+                            {{ "%.1f"|format(profit_rate) }}%
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label text-muted">参考数量</label>
+                        <div class="fw-bold">{{ project.ref_count }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 侧边栏 -->
+    <div class="col-lg-4">
+        <!-- 项目统计 -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-chart-pie me-2"></i>项目统计
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="text-center mb-3">
+                    <div class="display-6 text-primary">{{ project.ref_count }}</div>
+                    <div class="text-muted">参考数量</div>
+                </div>
+                <div class="row text-center">
+                    <div class="col-6">
+                        <div class="h5 text-success">{{ project.total_selling|round|int }}</div>
+                        <small class="text-muted">销售额</small>
+                    </div>
+                    <div class="col-6">
+                        <div class="h5 text-danger">{{ project.total_cost|round|int }}</div>
+                        <small class="text-muted">成本</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 时间信息 -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-clock me-2"></i>时间信息
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label text-muted">创建时间</label>
+                    <div class="fw-bold">{{ project.created_at.strftime('%Y-%m-%d %H:%M') }}</div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label text-muted">更新时间</label>
+                    <div class="fw-bold">{{ project.updated_at.strftime('%Y-%m-%d %H:%M') }}</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 快速操作 -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-bolt me-2"></i>快速操作
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="#" class="btn btn-outline-primary" onclick="alert('创建报价功能开发中...')">
+                        <i class="fas fa-file-invoice-dollar me-2"></i>创建报价
+                    </a>
+                    <a href="#" class="btn btn-outline-success" onclick="alert('上传文件功能开发中...')">
+                        <i class="fas fa-upload me-2"></i>上传文件
+                    </a>
+                    <a href="#" class="btn btn-outline-info" onclick="alert('添加任务功能开发中...')">
+                        <i class="fas fa-tasks me-2"></i>添加任务
+                    </a>
+                    <a href="#" class="btn btn-outline-warning" onclick="alert('发送邮件功能开发中...')">
+                        <i class="fas fa-envelope me-2"></i>发送邮件
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 项目时间线 -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-history me-2"></i>项目时间线
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="timeline">
+                    <div class="timeline-item">
+                        <div class="timeline-marker bg-success">
+                            <i class="fas fa-plus"></i>
+                        </div>
+                        <div class="timeline-content">
+                            <h6 class="mb-1">项目创建</h6>
+                            <p class="text-muted mb-0">{{ project.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
+                        </div>
+                    </div>
+                    <div class="timeline-item">
+                        <div class="timeline-marker bg-info">
+                            <i class="fas fa-user"></i>
+                        </div>
+                        <div class="timeline-content">
+                            <h6 class="mb-1">负责人分配</h6>
+                            <p class="text-muted mb-0">{{ project.leader }} 被分配为项目负责人</p>
+                        </div>
+                    </div>
+                    <div class="timeline-item">
+                        <div class="timeline-marker bg-warning">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                        <div class="timeline-content">
+                            <h6 class="mb-1">项目启动</h6>
+                            <p class="text-muted mb-0">项目正式启动，开始执行</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.timeline {
+    position: relative;
+    padding-left: 30px;
+}
+
+.timeline::before {
+    content: '';
+    position: absolute;
+    left: 15px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: #e9ecef;
+}
+
+.timeline-item {
+    position: relative;
+    margin-bottom: 2rem;
+}
+
+.timeline-marker {
+    position: absolute;
+    left: -22px;
+    top: 0;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 12px;
+}
+
+.timeline-content {
+    background: #f8f9fa;
+    padding: 1rem;
+    border-radius: 8px;
+    border-left: 3px solid #007bff;
+}
+
+.timeline-content h6 {
+    margin-bottom: 0.5rem;
+    color: #495057;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// 删除项目确认
+function deleteProject(projectId) {
+    if (confirm('确定要删除这个项目吗？此操作不可恢复。')) {
+        // 这里应该发送删除请求到后端
+        console.log('删除项目:', projectId);
+        alert('删除功能开发中...');
+    }
+}
+
+// 页面加载完成后的初始化
+document.addEventListener('DOMContentLoaded', function() {
+    // 可以在这里添加一些初始化逻辑
+    console.log('项目详情页面加载完成');
+});
+</script>
+{% endblock %}

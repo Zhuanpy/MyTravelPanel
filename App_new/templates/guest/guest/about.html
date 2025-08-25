@@ -1,0 +1,215 @@
+{% extends "guest/base.html" %}
+
+{% block title %}关于我们 - MyTravelPanel{% endblock %}
+
+{% block content %}
+<!-- 页面标题区域 -->
+<section class="hero-section text-center" style="padding: 80px 0;">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <h1 class="display-4 fw-bold mb-4">关于我们</h1>
+                <p class="lead mb-4">{{ company.description }}</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- 公司介绍 -->
+<section class="py-5">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-lg-6">
+                <div class="pe-lg-4">
+                    <h2 class="fw-bold mb-4">{{ company.name }}</h2>
+                    <p class="lead text-muted mb-4">{{ company.description }}</p>
+                    <div class="row g-4">
+                        <div class="col-6">
+                            <div class="text-center p-3 bg-light rounded">
+                                <h3 class="text-primary mb-1">{{ company.established }}</h3>
+                                <small class="text-muted">成立时间</small>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="text-center p-3 bg-light rounded">
+                                <h3 class="text-success mb-1">10,000+</h3>
+                                <small class="text-muted">满意客户</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="text-center">
+                    <!-- 公司图片占位符 -->
+                    <div style="height: 400px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 15px; display: flex; align-items: center; justify-content: center;">
+                        <i class="fas fa-building text-white" style="font-size: 6rem; opacity: 0.7;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- 我们的服务 -->
+<section class="py-5 bg-light">
+    <div class="container">
+        <div class="row text-center mb-5">
+            <div class="col-12">
+                <h2 class="fw-bold mb-3">我们的服务</h2>
+                <p class="text-muted lead">为您提供全方位的旅游服务解决方案</p>
+            </div>
+        </div>
+        
+        <div class="row g-4">
+            {% for service in company.services %}
+            <div class="col-lg-3 col-md-6">
+                <div class="feature-card">
+                    <i class="fas fa-{% if loop.index == 1 %}passport{% elif loop.index == 2 %}map-marked-alt{% elif loop.index == 3 %}plane{% else %}headset{% endif %}"></i>
+                    <h5>{{ service }}</h5>
+                    <p class="text-muted">为您提供专业、高效的{{ service }}，让您的旅行更加便捷。</p>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+
+<!-- 我们的优势 -->
+<section class="py-5">
+    <div class="container">
+        <div class="row text-center mb-5">
+            <div class="col-12">
+                <h2 class="fw-bold mb-3">我们的优势</h2>
+                <p class="text-muted lead">为什么选择MyTravelPanel？</p>
+            </div>
+        </div>
+        
+        <div class="row g-4">
+            {% for advantage in company.advantages %}
+            <div class="col-lg-6">
+                <div class="d-flex align-items-start">
+                    <div class="flex-shrink-0">
+                        <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
+                            <i class="fas fa-{% if loop.index == 1 %}users{% elif loop.index == 2 %}globe{% elif loop.index == 3 %}percentage{% else %}heart{% endif %}"></i>
+                        </div>
+                    </div>
+                    <div class="flex-grow-1 ms-3">
+                        <h5 class="mb-2">{{ advantage }}</h5>
+                        <p class="text-muted mb-0">
+                            {% if loop.index == 1 %}
+                            拥有多年行业经验的专业团队，为您提供最优质的服务体验。
+                            {% elif loop.index == 2 %}
+                            业务覆盖全球多个国家和地区，满足您不同的旅行需求。
+                            {% elif loop.index == 3 %}
+                            签证申请成功率高达95%以上，办理速度快，让您出行无忧。
+                            {% else %}
+                            专属客服一对一服务，从咨询到出行全程贴心陪伴。
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+
+<!-- 团队介绍 -->
+<section class="py-5 bg-light">
+    <div class="container">
+        <div class="row text-center mb-5">
+            <div class="col-12">
+                <h2 class="fw-bold mb-3">专业团队</h2>
+                <p class="text-muted lead">经验丰富的专业团队为您服务</p>
+            </div>
+        </div>
+        
+        <div class="row g-4">
+            <div class="col-lg-4 col-md-6">
+                <div class="text-center">
+                    <div class="bg-primary text-white rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center" style="width: 120px; height: 120px;">
+                        <i class="fas fa-user-tie" style="font-size: 3rem;"></i>
+                    </div>
+                    <h5>签证专家团队</h5>
+                    <p class="text-muted">拥有丰富签证办理经验的专业顾问，熟悉各国签证政策和流程。</p>
+                </div>
+            </div>
+            <div class="col-lg-4 col-md-6">
+                <div class="text-center">
+                    <div class="bg-success text-white rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center" style="width: 120px; height: 120px;">
+                        <i class="fas fa-map-marked-alt" style="font-size: 3rem;"></i>
+                    </div>
+                    <h5>旅游策划师</h5>
+                    <p class="text-muted">资深旅游策划师为您量身定制专属旅行方案，让每一次出行都完美无缺。</p>
+                </div>
+            </div>
+            <div class="col-lg-4 col-md-6">
+                <div class="text-center">
+                    <div class="bg-warning text-white rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center" style="width: 120px; height: 120px;">
+                        <i class="fas fa-headset" style="font-size: 3rem;"></i>
+                    </div>
+                    <h5>客服团队</h5>
+                    <p class="text-muted">24/7客服支持，随时为您解答疑问，提供贴心的售前售后服务。</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- 企业文化 -->
+<section class="py-5">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-lg-6">
+                <div class="text-center">
+                    <!-- 企业文化图片占位符 -->
+                    <div style="height: 350px; background: linear-gradient(45deg, #74b9ff, #0984e3); border-radius: 15px; display: flex; align-items: center; justify-content: center;">
+                        <i class="fas fa-handshake text-white" style="font-size: 6rem; opacity: 0.7;"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="ps-lg-4">
+                    <h2 class="fw-bold mb-4">我们的使命</h2>
+                    <p class="lead text-muted mb-4">让每一次旅行都成为美好的回忆，为客户提供最专业、最贴心的旅游服务。</p>
+                    
+                    <div class="mb-4">
+                        <h5 class="text-primary mb-2">
+                            <i class="fas fa-eye me-2"></i>愿景
+                        </h5>
+                        <p class="text-muted">成为亚太地区最受信赖的旅游服务平台。</p>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <h5 class="text-success mb-2">
+                            <i class="fas fa-heart me-2"></i>价值观
+                        </h5>
+                        <p class="text-muted">诚信、专业、创新、服务，始终以客户满意为我们的最高追求。</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- 联系我们 CTA -->
+<section class="py-5 bg-primary text-white">
+    <div class="container text-center">
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <h2 class="fw-bold mb-3">想了解更多？</h2>
+                <p class="lead mb-4">我们很乐意为您介绍更多关于我们的服务和优势</p>
+                <div>
+                    <a href="{{ url_for('guest.contact') }}" class="btn btn-light btn-lg me-3">
+                        <i class="fas fa-envelope"></i> 联系我们
+                    </a>
+                    <a href="{{ url_for('guest.visa_services') }}" class="btn btn-outline-light btn-lg">
+                        <i class="fas fa-passport"></i> 查看服务
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

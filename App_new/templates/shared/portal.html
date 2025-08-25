@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MyTravelPanel - 专业旅游服务平台</title>
+    
+    <!-- CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    
+    <style>
+        :root {
+            --primary-blue: #007bff;
+            --secondary-green: #28a745;
+            --staff-blue: #007bff;
+            --admin-red: #dc3545;
+            --gradient-bg: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--gradient-bg);
+            min-height: 100vh;
+            padding: 2rem 0;
+        }
+
+        .portal-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 1rem;
+        }
+
+        .portal-header {
+            text-align: center;
+            color: white;
+            margin-bottom: 3rem;
+        }
+
+        .portal-header h1 {
+            font-size: 3rem;
+            font-weight: bold;
+            margin-bottom: 1rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .portal-header p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+        }
+
+        .portal-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-bottom: 3rem;
+        }
+
+        .portal-card {
+            background: white;
+            border-radius: 20px;
+            padding: 2rem;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s ease;
+            text-decoration: none;
+            color: inherit;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .portal-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: var(--card-color);
+            transition: height 0.3s ease;
+        }
+
+        .portal-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+            text-decoration: none;
+            color: inherit;
+        }
+
+        .portal-card:hover::before {
+            height: 8px;
+        }
+
+        .portal-card.public {
+            --card-color: var(--primary-blue);
+        }
+
+        .portal-card.member {
+            --card-color: var(--secondary-green);
+        }
+
+        .portal-card.staff {
+            --card-color: var(--staff-blue);
+        }
+
+        .portal-card.admin {
+            --card-color: var(--admin-red);
+        }
+
+        .portal-icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            color: var(--card-color);
+        }
+
+        .portal-title {
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin-bottom: 1rem;
+            color: #333;
+        }
+
+        .portal-description {
+            color: #666;
+            margin-bottom: 1.5rem;
+            line-height: 1.6;
+        }
+
+        .portal-features {
+            list-style: none;
+            padding: 0;
+            margin: 1rem 0;
+        }
+
+        .portal-features li {
+            padding: 0.25rem 0;
+            color: #777;
+            font-size: 0.9rem;
+        }
+
+        .portal-features li i {
+            color: var(--card-color);
+            margin-right: 0.5rem;
+            width: 16px;
+        }
+
+        .portal-status {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin-bottom: 1rem;
+        }
+
+        .status-open {
+            background-color: rgba(40, 167, 69, 0.2);
+            color: #155724;
+        }
+
+        .status-login {
+            background-color: rgba(255, 193, 7, 0.2);
+            color: #856404;
+        }
+
+        .current-system {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 1.5rem;
+            text-align: center;
+            color: white;
+            margin-bottom: 2rem;
+        }
+
+        .current-system h3 {
+            margin-bottom: 1rem;
+        }
+
+        .current-system a {
+            color: white;
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border: 2px solid white;
+            border-radius: 25px;
+            transition: all 0.3s ease;
+        }
+
+        .current-system a:hover {
+            background: white;
+            color: #667eea;
+        }
+
+        .footer-info {
+            text-align: center;
+            color: rgba(255, 255, 255, 0.8);
+            margin-top: 2rem;
+        }
+
+        .footer-info a {
+            color: white;
+            text-decoration: none;
+        }
+
+        .footer-info a:hover {
+            text-decoration: underline;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .fade-in-up {
+            animation: fadeInUp 0.6s ease-out;
+        }
+
+        .stagger-1 { animation-delay: 0.1s; }
+        .stagger-2 { animation-delay: 0.2s; }
+        .stagger-3 { animation-delay: 0.3s; }
+        .stagger-4 { animation-delay: 0.4s; }
+
+        @media (max-width: 768px) {
+            .portal-header h1 {
+                font-size: 2rem;
+            }
+            
+            .portal-grid {
+                grid-template-columns: 1fr;
+                gap: 1.5rem;
+            }
+            
+            .portal-card {
+                padding: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="portal-container">
+        <!-- 页面标题 -->
+        <div class="portal-header fade-in-up">
+            <h1><i class="fas fa-plane me-3"></i>MyTravelPanel</h1>
+            <p>专业的旅游服务平台 - 选择您的服务入口</p>
+        </div>
+
+
+
+        <!-- 新功能入口网格 -->
+        <div class="portal-grid">
+            <!-- 访客服务入口 -->
+            <a href="{{ url_for('guest.index') }}" class="portal-card public fade-in-up stagger-1">
+                <div class="portal-status status-open">公开访问</div>
+                <div class="portal-icon">
+                    <i class="fas fa-globe"></i>
+                </div>
+                <div class="portal-title">访客服务</div>
+                <div class="portal-description">
+                    浏览我们的签证服务、旅游配套等公开信息，无需注册即可访问
+                </div>
+                <ul class="portal-features">
+                    <li><i class="fas fa-passport"></i> 签证服务信息</li>
+                    <li><i class="fas fa-map-marked-alt"></i> 旅游配套展示</li>
+                    <li><i class="fas fa-info-circle"></i> 公司介绍</li>
+                    <li><i class="fas fa-envelope"></i> 联系方式</li>
+                </ul>
+            </a>
+
+            <!-- 会员中心入口 -->
+            <a href="{{ url_for('auth.member_login') }}" class="portal-card member fade-in-up stagger-2">
+                <div class="portal-status status-login">需要登录</div>
+                <div class="portal-icon">
+                    <i class="fas fa-user-circle"></i>
+                </div>
+                <div class="portal-title">会员中心</div>
+                <div class="portal-description">
+                    注册会员享受个性化服务，管理您的订单和查看专属报价
+                </div>
+                <ul class="portal-features">
+                    <li><i class="fas fa-user-plus"></i> 用户注册登录</li>
+                    <li><i class="fas fa-shopping-cart"></i> 订单管理</li>
+                    <li><i class="fas fa-file-invoice"></i> 报价查看</li>
+                    <li><i class="fas fa-bell"></i> 消息通知</li>
+                </ul>
+            </a>
+
+            <!-- 员工工作台入口 -->
+            <a href="{{ url_for('auth.staff_login') }}" class="portal-card staff fade-in-up stagger-3">
+                <div class="portal-status status-login">员工权限</div>
+                <div class="portal-icon">
+                    <i class="fas fa-user-tie"></i>
+                </div>
+                <div class="portal-title">员工工作台</div>
+                <div class="portal-description">
+                    公司员工专用工作平台，管理项目进度和客户服务
+                </div>
+                <ul class="portal-features">
+                    <li><i class="fas fa-project-diagram"></i> 项目管理</li>
+                    <li><i class="fas fa-file-invoice-dollar"></i> 报价管理</li>
+                    <li><i class="fas fa-upload"></i> 文件上传</li>
+                    <li><i class="fas fa-tasks"></i> 任务跟踪</li>
+                </ul>
+            </a>
+
+            <!-- 管理员后台入口 -->
+            <a href="{{ url_for('auth.admin_login') }}" class="portal-card admin fade-in-up stagger-4">
+                <div class="portal-status status-login">管理员权限</div>
+                <div class="portal-icon">
+                    <i class="fas fa-user-crown"></i>
+                </div>
+                <div class="portal-title">管理员后台</div>
+                <div class="portal-description">
+                    系统管理员专用后台，全面管控平台运营和用户权限
+                </div>
+                <ul class="portal-features">
+                    <li><i class="fas fa-users"></i> 用户管理</li>
+                    <li><i class="fas fa-user-shield"></i> 权限控制</li>
+                    <li><i class="fas fa-chart-bar"></i> 数据分析</li>
+                    <li><i class="fas fa-cogs"></i> 系统设置</li>
+                </ul>
+            </a>
+        </div>
+
+        <!-- 页脚信息 -->
+        <div class="footer-info fade-in-up">
+            <p>
+                <i class="fas fa-info-circle me-2"></i>
+                登录后系统会根据您的权限自动跳转到对应的功能区域
+            </p>
+            <p>
+                <small>
+                    MyTravelPanel v1.0.0 | 
+                    <a href="{{ url_for('guest.about') }}">关于我们</a> | 
+                    <a href="{{ url_for('guest.contact') }}">联系我们</a>
+                </small>
+            </p>
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // 页面加载动画
+        document.addEventListener('DOMContentLoaded', function() {
+            // 添加动画类到各个元素
+            const elements = document.querySelectorAll('.fade-in-up');
+            elements.forEach((element, index) => {
+                element.style.opacity = '0';
+                element.style.transform = 'translateY(30px)';
+                
+                setTimeout(() => {
+                    element.style.transition = 'all 0.6s ease-out';
+                    element.style.opacity = '1';
+                    element.style.transform = 'translateY(0)';
+                }, index * 100);
+            });
+        });
+
+        // 卡片点击效果
+        document.querySelectorAll('.portal-card').forEach(card => {
+            card.addEventListener('click', function(e) {
+                // 添加点击动画
+                this.style.transform = 'translateY(-5px) scale(0.98)';
+                setTimeout(() => {
+                    this.style.transform = 'translateY(-10px) scale(1)';
+                }, 150);
+            });
+        });
+    </script>
+</body>
+</html> 
