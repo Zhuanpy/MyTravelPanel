@@ -6,8 +6,8 @@
 
 from flask import Blueprint
 
-# 创建项目管理蓝图
-projects_bp = Blueprint('projects', __name__, url_prefix='/projects')
+# 创建项目管理蓝图（保持历史端点前缀 business_projects）
+projects_bp = Blueprint('business_projects', __name__, url_prefix='/projects')
 
 # 导入路由
 from .routes import project_list, project_detail, project_create, project_edit, project_header, project_ref, project_eo, project_receipt
