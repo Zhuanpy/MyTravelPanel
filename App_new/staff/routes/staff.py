@@ -159,15 +159,6 @@ def quotes():
             }
         ]
         
-        return render_template('staff_quotes.html',
-                             quotes=quotes_page,
-                             current_page=page,
-                             total_pages=(total + per_page - 1) // per_page,
-                             total=total,
-                             status=status,
-                             search=search,
-                             now=datetime.utcnow())
-        
         # 应用筛选
         filtered_quotes = all_quotes
         
@@ -185,7 +176,7 @@ def quotes():
         end = start + per_page
         quotes_page = filtered_quotes[start:end]
         
-        return render_template('staff_quotes.html',
+        return render_template('staff/staff_quotes.html',
                              quotes=quotes_page,
                              current_page=page,
                              total_pages=(total + per_page - 1) // per_page,
@@ -194,7 +185,7 @@ def quotes():
                              search=search)
     except Exception as e:
         flash(f'加载报价列表失败：{str(e)}', 'error')
-        return render_template('staff_quotes.html',
+        return render_template('staff/staff_quotes.html',
                              quotes=[],
                              current_page=1,
                              total_pages=1,
@@ -227,7 +218,7 @@ def create_quote():
         except Exception as e:
             flash(f'创建报价失败：{str(e)}', 'error')
     
-    return render_template('staff_create_quote.html')
+    return render_template('staff/create_quote.html')
 
 # ==================== 文件管理 ====================
 @staff.route('/files')
@@ -283,7 +274,7 @@ def files():
         end = start + per_page
         files_page = filtered_files[start:end]
         
-        return render_template('staff_files.html',
+        return render_template('staff/staff_files.html',
                              files=files_page,
                              current_page=page,
                              total_pages=(total + per_page - 1) // per_page,
@@ -292,7 +283,7 @@ def files():
                              search=search)
     except Exception as e:
         flash(f'加载文件列表失败：{str(e)}', 'error')
-        return render_template('staff_files.html',
+        return render_template('staff/staff_files.html',
                              files=[],
                              current_page=1,
                              total_pages=1,
@@ -320,7 +311,7 @@ def upload_file():
         except Exception as e:
             flash(f'文件上传失败：{str(e)}', 'error')
     
-    return render_template('staff_upload.html')
+    return render_template('staff/staff_upload.html')
 
 # ==================== API 路由 ====================
 @staff.route('/api/stats')
@@ -623,7 +614,7 @@ def customers():
         end = start + per_page
         customers_page = filtered_customers[start:end]
         
-        return render_template('staff_customers.html',
+        return render_template('staff/staff_customers.html',
                              customers=customers_page,
                              current_page=page,
                              total_pages=(total + per_page - 1) // per_page,
@@ -633,7 +624,7 @@ def customers():
                              search=search)
     except Exception as e:
         flash(f'加载客户列表失败：{str(e)}', 'error')
-        return render_template('staff_customers.html',
+        return render_template('staff/staff_customers.html',
                              customers=[],
                              current_page=1,
                              total_pages=1,
@@ -719,7 +710,7 @@ def suppliers():
         end = start + per_page
         suppliers_page = filtered_suppliers[start:end]
         
-        return render_template('staff_suppliers.html',
+        return render_template('staff/staff_suppliers.html',
                              suppliers=suppliers_page,
                              current_page=page,
                              total_pages=(total + per_page - 1) // per_page,
@@ -729,7 +720,7 @@ def suppliers():
                              search=search)
     except Exception as e:
         flash(f'加载供应商列表失败：{str(e)}', 'error')
-        return render_template('staff_suppliers.html',
+        return render_template('staff/staff_suppliers.html',
                              suppliers=[],
                              current_page=1,
                              total_pages=1,
@@ -840,7 +831,7 @@ def business_types():
         end = start + per_page
         types_page = filtered_types[start:end]
         
-        return render_template('staff_business_types.html',
+        return render_template('staff/staff_business_types.html',
                              business_types=types_page,
                              current_page=page,
                              total_pages=(total + per_page - 1) // per_page,
@@ -850,7 +841,7 @@ def business_types():
                              search=search)
     except Exception as e:
         flash(f'加载业务类型列表失败：{str(e)}', 'error')
-        return render_template('staff_business_types.html',
+        return render_template('staff/staff_business_types.html',
                              business_types=[],
                              current_page=1,
                              total_pages=1,
@@ -883,14 +874,14 @@ def reports():
             'profit_margin': 28.0
         }
         
-        return render_template('staff_reports.html',
+        return render_template('staff/staff_reports.html',
                              report_data=report_data,
                              report_type=report_type,
                              start_date=start_date,
                              end_date=end_date)
     except Exception as e:
         flash(f'加载报告失败：{str(e)}', 'error')
-        return render_template('staff_reports.html',
+        return render_template('staff/staff_reports.html',
                              report_data={},
                              report_type='monthly',
                              start_date='',

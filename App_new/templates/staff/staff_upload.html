@@ -1,0 +1,280 @@
+{% extends "shared/staff_base.html" %}
+
+{% block title %}文件上传 - 员工系统{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- 页面标题 -->
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800">
+            <i class="fas fa-upload"></i> 文件上传
+        </h1>
+        <a href="{{ url_for('staff.files') }}" class="btn btn-outline-secondary btn-sm">
+            <i class="fas fa-arrow-left"></i> 返回文件列表
+        </a>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-cloud-upload-alt me-2"></i>上传新文件
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <form method="POST" enctype="multipart/form-data" id="uploadForm">
+                        <!-- CSRF令牌 -->
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        
+                        <div class="row">
+                            <!-- 文件选择 -->
+                            <div class="col-12 mb-3">
+                                <label for="file" class="form-label">选择文件 <span class="text-danger">*</span></label>
+                                <input type="file" class="form-control" id="file" name="file" required
+                                       accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif">
+                                <div class="form-text">
+                                    支持的文件格式：PDF、Word、Excel、图片等，最大文件大小：16MB
+                                </div>
+                            </div>
+
+                            <!-- 文件名 -->
+                            <div class="col-md-6 mb-3">
+                                <label for="filename" class="form-label">文件名 <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="filename" name="filename" required
+                                       placeholder="请输入文件名">
+                            </div>
+
+                            <!-- 文件分类 -->
+                            <div class="col-md-6 mb-3">
+                                <label for="category" class="form-label">文件分类 <span class="text-danger">*</span></label>
+                                <select class="form-select" id="category" name="category" required>
+                                    <option value="">请选择分类</option>
+                                    <option value="visa">签证材料</option>
+                                    <option value="tour">旅游资料</option>
+                                    <option value="flight">机票资料</option>
+                                    <option value="hotel">酒店资料</option>
+                                    <option value="document">文档资料</option>
+                                    <option value="other">其他</option>
+                                </select>
+                            </div>
+
+                            <!-- 关联项目 -->
+                            <div class="col-md-6 mb-3">
+                                <label for="project" class="form-label">关联项目</label>
+                                <select class="form-select" id="project" name="project">
+                                    <option value="">选择项目（可选）</option>
+                                    <option value="project1">新加坡商务团队签证</option>
+                                    <option value="project2">泰国旅游团队套餐</option>
+                                    <option value="project3">马来西亚工作签证</option>
+                                </select>
+                            </div>
+
+                            <!-- 标签 -->
+                            <div class="col-md-6 mb-3">
+                                <label for="tags" class="form-label">标签</label>
+                                <input type="text" class="form-control" id="tags" name="tags"
+                                       placeholder="用逗号分隔多个标签">
+                                <div class="form-text">例如：重要，紧急，客户资料</div>
+                            </div>
+
+                            <!-- 文件描述 -->
+                            <div class="col-12 mb-3">
+                                <label for="description" class="form-label">文件描述</label>
+                                <textarea class="form-control" id="description" name="description" rows="3"
+                                          placeholder="请描述文件内容、用途等信息..."></textarea>
+                            </div>
+
+                            <!-- 权限设置 -->
+                            <div class="col-md-6 mb-3">
+                                <label for="permission" class="form-label">访问权限</label>
+                                <select class="form-select" id="permission" name="permission">
+                                    <option value="public">公开</option>
+                                    <option value="staff">仅员工</option>
+                                    <option value="admin">仅管理员</option>
+                                    <option value="private">私有</option>
+                                </select>
+                            </div>
+
+                            <!-- 过期时间 -->
+                            <div class="col-md-6 mb-3">
+                                <label for="expiry_date" class="form-label">过期时间</label>
+                                <input type="date" class="form-control" id="expiry_date" name="expiry_date">
+                                <div class="form-text">留空表示永不过期</div>
+                            </div>
+                        </div>
+
+                        <!-- 文件预览 -->
+                        <div class="mb-3" id="filePreview" style="display: none;">
+                            <label class="form-label">文件预览</label>
+                            <div class="border rounded p-3 bg-light">
+                                <div id="previewContent"></div>
+                            </div>
+                        </div>
+
+                        <!-- 上传进度 -->
+                        <div class="mb-3" id="uploadProgress" style="display: none;">
+                            <label class="form-label">上传进度</label>
+                            <div class="progress">
+                                <div class="progress-bar" role="progressbar" style="width: 0%" 
+                                     aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+                            </div>
+                        </div>
+
+                        <!-- 提交按钮 -->
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <button type="reset" class="btn btn-secondary me-md-2">
+                                <i class="fas fa-undo"></i> 重置
+                            </button>
+                            <button type="submit" class="btn btn-primary" id="submitBtn">
+                                <i class="fas fa-upload"></i> 上传文件
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- 上传说明 -->
+            <div class="card shadow mt-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-info-circle me-2"></i>上传说明
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6 class="text-primary">支持的文件格式</h6>
+                            <ul class="list-unstyled">
+                                <li><i class="fas fa-file-pdf text-danger me-2"></i>PDF文档 (.pdf)</li>
+                                <li><i class="fas fa-file-word text-primary me-2"></i>Word文档 (.doc, .docx)</li>
+                                <li><i class="fas fa-file-excel text-success me-2"></i>Excel表格 (.xls, .xlsx)</li>
+                                <li><i class="fas fa-file-image text-info me-2"></i>图片文件 (.jpg, .jpeg, .png, .gif)</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="text-primary">注意事项</h6>
+                            <ul class="list-unstyled">
+                                <li><i class="fas fa-exclamation-triangle text-warning me-2"></i>单个文件最大16MB</li>
+                                <li><i class="fas fa-shield-alt text-success me-2"></i>支持病毒扫描</li>
+                                <li><i class="fas fa-lock text-info me-2"></i>可设置访问权限</li>
+                                <li><i class="fas fa-tags text-primary me-2"></i>支持标签分类</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const fileInput = document.getElementById('file');
+    const filenameInput = document.getElementById('filename');
+    const filePreview = document.getElementById('filePreview');
+    const previewContent = document.getElementById('previewContent');
+    const uploadForm = document.getElementById('uploadForm');
+    const submitBtn = document.getElementById('submitBtn');
+
+    // 文件选择时自动填充文件名
+    fileInput.addEventListener('change', function() {
+        if (this.files.length > 0) {
+            const file = this.files[0];
+            filenameInput.value = file.name;
+            
+            // 显示文件预览
+            showFilePreview(file);
+        }
+    });
+
+    // 显示文件预览
+    function showFilePreview(file) {
+        filePreview.style.display = 'block';
+        
+        if (file.type.startsWith('image/')) {
+            // 图片预览
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                previewContent.innerHTML = `
+                    <img src="${e.target.result}" class="img-fluid" style="max-height: 200px;" alt="文件预览">
+                    <div class="mt-2">
+                        <strong>文件名：</strong>${file.name}<br>
+                        <strong>文件大小：</strong>${formatFileSize(file.size)}<br>
+                        <strong>文件类型：</strong>${file.type}
+                    </div>
+                `;
+            };
+            reader.readAsDataURL(file);
+        } else {
+            // 其他文件类型
+            previewContent.innerHTML = `
+                <div class="text-center">
+                    <i class="fas fa-file fa-3x text-muted mb-2"></i>
+                    <div>
+                        <strong>文件名：</strong>${file.name}<br>
+                        <strong>文件大小：</strong>${formatFileSize(file.size)}<br>
+                        <strong>文件类型：</strong>${file.type}
+                    </div>
+                </div>
+            `;
+        }
+    }
+
+    // 格式化文件大小
+    function formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    // 表单提交处理
+    uploadForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        // 显示上传进度
+        const progressBar = document.querySelector('.progress-bar');
+        const uploadProgress = document.getElementById('uploadProgress');
+        uploadProgress.style.display = 'block';
+        
+        // 模拟上传进度
+        let progress = 0;
+        const interval = setInterval(() => {
+            progress += Math.random() * 30;
+            if (progress >= 100) {
+                progress = 100;
+                clearInterval(interval);
+                
+                // 上传完成，提交表单
+                setTimeout(() => {
+                    uploadForm.submit();
+                }, 500);
+            }
+            
+            progressBar.style.width = progress + '%';
+            progressBar.textContent = Math.round(progress) + '%';
+            progressBar.setAttribute('aria-valuenow', progress);
+        }, 200);
+        
+        // 禁用提交按钮
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 上传中...';
+    });
+
+    // 文件大小验证
+    fileInput.addEventListener('change', function() {
+        const file = this.files[0];
+        if (file && file.size > 16 * 1024 * 1024) { // 16MB
+            alert('文件大小不能超过16MB');
+            this.value = '';
+            filenameInput.value = '';
+            filePreview.style.display = 'none';
+        }
+    });
+});
+</script>
+{% endblock %}
