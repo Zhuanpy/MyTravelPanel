@@ -401,7 +401,8 @@ def submit_order():
         db.session.commit()
         print("事务提交成功!")  # 调试日志
 
-        return redirect(url_for('flights_booking.order_detail', order_id=order.id))
+        # 跳转到订单详情：此处详情页按 ProjectRef.id 展示
+        return redirect(url_for('flights_booking.order_detail', order_id=project_ref.id))
 
     except Exception as e:
         db.session.rollback()
@@ -426,9 +427,50 @@ def submit_order():
 @flights_booking.route('/order_detail/<int:order_id>')
 @login_required
 @staff_only
+
 def order_detail(order_id):
-    """订单详情页面"""
-    order = FlightOrder.query.get_or_404(order_id)
+    """订单详情页面（按 REF ID 构建）"""
+    # 这里的 order_id 实际为 ProjectRef.id
+    from App_new.business.projects.models.ref import ProjectRef
+    from App_new.business.projects.models.project import ProjectHeader
+    from App_new.business.flight.models.flight import ProjectFlightSegment, ProjectFlightPassenger
+
+    ref = ProjectRef.query.get_or_404(order_id)
+    header = ProjectHeader.query.get(ref.header_id) if ref.header_id else None
+    # 关联的 FlightOrder（如果有），用于状态更新等操作
+    try:
+        from App_new.business.flight.models.models import FlightOrder as NewFlightOrder
+        FlightOrderModel = NewFlightOrder
+    except Exception:
+        from App_new.business.flight.models.models import FlightOrder as FlightOrderModel  # 兼容导入
+    flight_order = FlightOrderModel.query.filter_by(project_ref_id=ref.id).order_by(FlightOrderModel.id.desc()).first()
+
+    # 明细：乘客与航段
+    passengers = ProjectFlightPassenger.query.filter_by(ref_id=ref.id).all()
+    flight_segments = ProjectFlightSegment.query.filter_by(ref_id=ref.id).order_by(ProjectFlightSegment.departure_time).all()
+
+    # 组装模板所需字段
+    order = {
+        'id': ref.id,
+        'order_number': ref.ref_number,
+        'project_header_hid': header.hid if header else None,
+        'project_ref_ref_number': ref.ref_number,
+        'order_status': ref.status,  # 保留为 REF 状态，供显示兼容
+        'selling_price': float(ref.selling_price or 0),
+        'cost_price': float(ref.cost_price or 0),
+        'supplier_name': ref.supplier.name if getattr(ref, 'supplier', None) else '',
+        'supplier_type': ref.supplier.supplier_type if getattr(ref, 'supplier', None) else '',
+        'contact_person': ref.contact_name,
+        'contact_phone': ref.contact_phone,
+        'remarks': ref.remarks,
+        'project_header': header,
+        'passengers': passengers,
+        'flight_segments': flight_segments,
+        # 注入 FlightOrder 信息
+        'flight_order_id': flight_order.id if flight_order else None,
+        'flight_order_status': flight_order.order_status if flight_order else None,
+    }
+
     return render_template('business/flight/order_detail.html', order=order)
 
 @flights_booking.route('/search_flights', methods=['POST'])
@@ -632,128 +674,135 @@ def order_list():
 @flights_booking.route('/edit_order/<int:order_id>', methods=['GET', 'POST'])
 @login_required
 @staff_only
+
 def edit_order(order_id):
-    """编辑订单"""
-    order = FlightOrder.query.get_or_404(order_id)
-    
+    """编辑订单（以 ProjectRef.id 作为标识）"""
+    from App_new.business.projects.models.ref import ProjectRef
+    from App_new.business.projects.models.project import ProjectHeader
+    from App_new.business.flight.models.flight import ProjectFlightSegment, ProjectFlightPassenger
+
+    # 找到对应的 REF
+    ref = ProjectRef.query.get_or_404(order_id)
+    header = ProjectHeader.query.get(ref.header_id) if ref.header_id else None
+
+    # 获取供应商列表与类型
+    suppliers = Supplier.query.filter_by(status='active').all()
+    supplier_types = Supplier.get_supplier_types()
+
     if request.method == 'POST':
         try:
-            print("=== Starting order edit process ===")
-            print("Original order data:")
-            print(f"Order ID: {order.id}")
-            print(f"Original supplier: {order.supplier_name}")
-            
-            # 更新订单基本信息
-            order.contact_name = request.form['contact_name']
-            order.contact_person = request.form['contact_name']
-            order.contact_phone = request.form['contact_phone']
-            
-            # 更新供应商名称
+            # 基本信息
+            ref.contact_name = request.form.get('contact_name', ref.contact_name)
+            ref.contact_phone = request.form.get('contact_phone', ref.contact_phone)
+            ref.contact_email = request.form.get('contact_email', ref.contact_email)
+            ref.remarks = request.form.get('remarks', ref.remarks)
+
+            # 供应商更新（按名称选择）
             supplier_name = request.form.get('supplier_name')
-            print(f"Received supplier name: {supplier_name}")
             if supplier_name:
-                order.supplier_name = supplier_name
-                print(f"Setting supplier name to: {supplier_name}")
-            
-            order.remarks = request.form.get('remarks', '')
-            
-            # 更新乘客信息
-            print("Updating passenger information...")
+                supplier = Supplier.query.filter_by(name=supplier_name).first()
+                if supplier:
+                    ref.supplier_id = supplier.id
+
+            # 更新乘客：先清空再重建
+            ProjectFlightPassenger.query.filter_by(ref_id=ref.id).delete(synchronize_session=False)
             passenger_names = request.form.getlist('passenger_name[]')
-            passenger_types = request.form.getlist('passenger_type[]')
+            passenger_types_form = request.form.getlist('passenger_type[]')
             selling_prices = request.form.getlist('selling_price[]')
             cost_prices = request.form.getlist('cost_price[]')
-            
-            # 安全获取ticket_number和pnr，确保长度与passenger_names匹配
-            ticket_numbers = []
-            pnrs = []
-            for _ in range(len(passenger_names)):
-                ticket_numbers.append('')
-                pnrs.append('')
-                
-            # 获取实际提交的值
-            submitted_ticket_numbers = request.form.getlist('ticket_number[]')
-            submitted_pnrs = request.form.getlist('pnr[]')
-            
-            # 将提交的值填充到准备好的数组中
-            for i in range(len(submitted_ticket_numbers)):
-                if i < len(ticket_numbers):
-                    ticket_numbers[i] = submitted_ticket_numbers[i]
-                    
-            for i in range(len(submitted_pnrs)):
-                if i < len(pnrs):
-                    pnrs[i] = submitted_pnrs[i]
+            ticket_numbers = request.form.getlist('ticket_number[]')
+            pnrs = request.form.getlist('pnr[]')
 
-            # 计算总价
-            total_selling_price = 0
-            total_cost_price = 0
-
-            # 确保所有列表长度一致
-            if not (len(passenger_names) == len(passenger_types) == 
-                   len(selling_prices) == len(cost_prices)):
-                raise ValueError("乘客信息数据不完整")
-
-            # 更新现有乘客信息
-            for i, passenger in enumerate(order.passengers):
-                if i < len(passenger_names):
-                    print(f"Updating passenger {i+1}: {passenger_names[i]}")
-                    passenger.name = passenger_names[i]
-                    passenger.passenger_type = passenger_types[i]
-                    passenger.selling_price = float(selling_prices[i])
-                    passenger.cost_price = float(cost_prices[i])
-                    passenger.ticket_number = ticket_numbers[i] if ticket_numbers[i] else None
-                    passenger.pnr = pnrs[i] if pnrs[i] else None
-                    total_selling_price += float(selling_prices[i])
-                    total_cost_price += float(cost_prices[i])
-                else:
-                    # 如果提交的乘客数量少于原有数量，删除多余的乘客
-                    print(f"Removing excess passenger: {passenger.name}")
-                    db.session.delete(passenger)
-
-            # 添加新增的乘客
-            for i in range(len(order.passengers), len(passenger_names)):
-                print(f"Adding new passenger: {passenger_names[i]}")
-                new_passenger = Passenger(
-                    order_id=order.id,
-                    name=passenger_names[i],
-                    passenger_type=passenger_types[i],
-                    selling_price=float(selling_prices[i]),
-                    cost_price=float(cost_prices[i]),
-                    ticket_number=ticket_numbers[i] if ticket_numbers[i] else None,
-                    pnr=pnrs[i] if pnrs[i] else None
+            for idx, name in enumerate(passenger_names):
+                if not name:
+                    continue
+                passenger = ProjectFlightPassenger(
+                    ref_id=ref.id,
+                    name=name,
+                    passenger_type=(passenger_types_form[idx] if idx < len(passenger_types_form) else 'adult'),
+                    selling_price=float(selling_prices[idx]) if idx < len(selling_prices) and selling_prices[idx] else 0,
+                    cost_price=float(cost_prices[idx]) if idx < len(cost_prices) and cost_prices[idx] else 0,
+                    ticket_number=(ticket_numbers[idx] if idx < len(ticket_numbers) else None),
+                    pnr=(pnrs[idx] if idx < len(pnrs) else None)
                 )
-                db.session.add(new_passenger)
-                total_selling_price += float(selling_prices[i])
-                total_cost_price += float(cost_prices[i])
+                db.session.add(passenger)
 
-            # 更新订单总价
-            print(f"Updating order prices - Selling: {total_selling_price}, Cost: {total_cost_price}")
-            order.selling_price = total_selling_price
-            order.cost_price = total_cost_price
-            
-            # 提交事务
-            print("Committing transaction...")
+            # 更新航段：先清空再重建
+            ProjectFlightSegment.query.filter_by(ref_id=ref.id).delete(synchronize_session=False)
+            flight_numbers = request.form.getlist('flight_number[]')
+            cabin_codes = request.form.getlist('cabin_code[]')
+            departure_airports = request.form.getlist('departure_airport[]')
+            arrival_airports = request.form.getlist('arrival_airport[]')
+            departure_times = request.form.getlist('departure_time[]')  # 已由前端合并为 YYYY-MM-DD HH:MM
+            arrival_times = request.form.getlist('arrival_time[]')
+            cabin_classes = request.form.getlist('cabin_class[]')  # 前端提交的隐藏字段
+
+            for i in range(len(flight_numbers)):
+                if not flight_numbers[i]:
+                    continue
+                # 解析日期时间
+                dep_dt = None
+                arr_dt = None
+                dep_raw = departure_times[i] if i < len(departure_times) else ''
+                arr_raw = arrival_times[i] if i < len(arrival_times) else ''
+                if dep_raw:
+                    try:
+                        dep_dt = datetime.strptime(dep_raw, '%Y-%m-%d %H:%M')
+                    except ValueError:
+                        try:
+                            dep_dt = datetime.strptime(dep_raw, '%Y-%m-%dT%H:%M')
+                        except ValueError:
+                            dep_dt = None
+                if arr_raw:
+                    try:
+                        arr_dt = datetime.strptime(arr_raw, '%Y-%m-%d %H:%M')
+                    except ValueError:
+                        try:
+                            arr_dt = datetime.strptime(arr_raw, '%Y-%m-%dT%H:%M')
+                        except ValueError:
+                            arr_dt = None
+
+                segment = ProjectFlightSegment(
+                    ref_id=ref.id,
+                    flight_number=flight_numbers[i],
+                    cabin_code=(cabin_codes[i] if i < len(cabin_codes) else None),
+                    cabin_class=(cabin_classes[i] if i < len(cabin_classes) else None),
+                    departure_airport=(departure_airports[i] if i < len(departure_airports) else None),
+                    arrival_airport=(arrival_airports[i] if i < len(arrival_airports) else None),
+                    departure_time=dep_dt,
+                    arrival_time=arr_dt,
+                )
+                db.session.add(segment)
+
             db.session.commit()
-            print("Transaction committed successfully")
-            
-            flash('订单更新成功！', 'success')
-            return redirect(url_for('flights_booking.order_list'))
-
+            flash('订单已更新', 'success')
+            return redirect(url_for('flights_booking.order_detail', order_id=ref.id))
         except Exception as e:
-            print(f"Error during order update: {str(e)}")
             db.session.rollback()
-            flash(f'订单更新失败：{str(e)}', 'error')
-            return redirect(url_for('flights_booking.edit_order', order_id=order.id))
+            flash(f'更新失败：{str(e)}', 'error')
 
-    # GET 请求，显示编辑表单
-    airports = AirportData.query.all()
-    suppliers = Supplier.query.filter_by(status='active').all()
-    supplier_types = dict(Supplier.get_supplier_type_choices())  # 获取供应商类型选项
-    return render_template('business/flight/order_edit.html', 
-                         order=order, 
-                         airports=airports, 
-                         suppliers=suppliers,
-                         supplier_types=supplier_types)
+    # 组装编辑页所需数据
+    passengers = ProjectFlightPassenger.query.filter_by(ref_id=ref.id).all()
+    flight_segments = ProjectFlightSegment.query.filter_by(ref_id=ref.id).order_by(ProjectFlightSegment.departure_time).all()
+
+    order = {
+        'id': ref.id,
+        'order_number': ref.ref_number,
+        'contact_name': ref.contact_name,
+        'contact_phone': ref.contact_phone,
+        'contact_email': ref.contact_email,
+        'supplier_name': ref.supplier.name if getattr(ref, 'supplier', None) else '',
+        'remarks': ref.remarks,
+        'passengers': passengers,
+        'flight_segments': flight_segments,
+    }
+
+    return render_template(
+        'business/flight/order_edit.html',
+        order=order,
+        suppliers=suppliers,
+        supplier_types=supplier_types,
+    )
 
 @flights_booking.route('/update_order_status/<int:order_id>', methods=['POST'])
 @login_required

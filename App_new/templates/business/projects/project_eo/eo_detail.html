@@ -146,13 +146,13 @@
                 <p class="eo-subtitle mb-0">{{ eo.name or '未命名EO' }}</p>
             </div>
             <div class="action-buttons">
-                <a href="{{ url_for('projects.edit_eo', eo_id=eo.id) }}" class="btn btn-light">
+                <a href="{{ url_for('business_projects.project_eo.edit_eo', eo_id=eo.id) }}" class="btn btn-light">
                     <i class="fas fa-edit"></i> 编辑EO
                 </a>
-                <a href="{{ url_for('projects.ref_detail', ref_id=eo.ref_id) }}" class="btn btn-outline-light">
+                <a href="{{ url_for('business_projects.project_ref.ref_detail', ref_id=eo.ref_id) }}" class="btn btn-outline-light">
                     <i class="fas fa-arrow-left"></i> 返回REF
                 </a>
-                <a href="{{ url_for('projects.header_detail', header_id=eo.ref.header.id) }}" class="btn btn-outline-light">
+                <a href="{{ url_for('business_projects.detail.project_detail', project_id=eo.ref.header.id) }}" class="btn btn-outline-light">
                     <i class="fas fa-home"></i> 返回HID
                 </a>
             </div>
@@ -171,41 +171,41 @@
             </div>
             <div class="info-item">
                 <span class="info-label">订单名称</span>
-                <span class="info-value">{{ eo.name or '未设�? }}</span>
+                <span class="info-value">{{ eo.name or '未设置' }}</span>
             </div>
             <div class="info-item">
-                <span class="info-label">供应商类�?/span>
+                <span class="info-label">供应商类型</span>
                 <span class="supplier-type-badge">
                     {% if eo.supplier_type == 'visa' %}签证
                     {% elif eo.supplier_type == 'flight' %}机票
                     {% elif eo.supplier_type == 'hotel' %}酒店
-                    {% elif eo.supplier_type == 'transport' %}交�?
+                    {% elif eo.supplier_type == 'transport' %}交通
                     {% elif eo.supplier_type == 'local_operator' %}地接
                     {% else %}其他
                     {% endif %}
                 </span>
             </div>
             <div class="info-item">
-                <span class="info-label">供应�?/span>
-                <span class="info-value">{{ eo.supplier.name if eo.supplier else '未设�? }}</span>
+                <span class="info-label">供应商</span>
+                <span class="info-value">{{ eo.supplier.name if eo.supplier else '未设置' }}</span>
             </div>
             <div class="info-item">
-                <span class="info-label">状�?/span>
+                <span class="info-label">状态</span>
                 <span class="status-badge status-{{ eo.status }}">
                     {% if eo.status == 'draft' %}草稿
-                    {% elif eo.status == 'confirmed' %}已确�?
-                    {% elif eo.status == 'paid' %}已支�?
-                    {% elif eo.status == 'cancelled' %}已取�?
+                    {% elif eo.status == 'confirmed' %}已确认
+                    {% elif eo.status == 'paid' %}已支付
+                    {% elif eo.status == 'cancelled' %}已取消
                     {% endif %}
                 </span>
             </div>
             <div class="info-item">
                 <span class="info-label">创建时间</span>
-                <span class="info-value">{{ eo.created_at.strftime('%Y-%m-%d %H:%M:%S') if eo.created_at else '未设�? }}</span>
+                <span class="info-value">{{ eo.created_at.strftime('%Y-%m-%d %H:%M:%S') if eo.created_at else '未设置' }}</span>
             </div>
             <div class="info-item">
                 <span class="info-label">更新时间</span>
-                <span class="info-value">{{ eo.updated_at.strftime('%Y-%m-%d %H:%M:%S') if eo.updated_at else '未设�? }}</span>
+                <span class="info-value">{{ eo.updated_at.strftime('%Y-%m-%d %H:%M:%S') if eo.updated_at else '未设置' }}</span>
             </div>
         </div>
     </div>
@@ -231,16 +231,16 @@
         <div class="external-info">
             <div class="row">
                 <div class="col-md-4">
-                    <strong>外部系统�?/strong>
-                    <span class="badge bg-info">{{ eo.external_system or '未设�? }}</span>
+                    <strong>外部系统：</strong>
+                    <span class="badge bg-info">{{ eo.external_system or '未设置' }}</span>
                 </div>
                 <div class="col-md-4">
                     <strong>外部状态：</strong>
-                    <span class="badge bg-secondary">{{ eo.external_status or '未设�? }}</span>
+                    <span class="badge bg-secondary">{{ eo.external_status or '未设置' }}</span>
                 </div>
                 <div class="col-md-4">
-                    <strong>外部参考号�?/strong>
-                    <span class="badge bg-dark">{{ eo.external_reference or '未设�? }}</span>
+                    <strong>外部参考号：</strong>
+                    <span class="badge bg-dark">{{ eo.external_reference or '未设置' }}</span>
                 </div>
             </div>
         </div>
@@ -268,22 +268,22 @@
             <div class="info-item">
                 <span class="info-label">REF编号</span>
                 <span class="info-value">
-                    <a href="{{ url_for('projects.ref_detail', ref_id=eo.ref_id) }}" class="text-decoration-none">
-                        {{ eo.ref.ref_number if eo.ref else '未设�? }}
+                    <a href="{{ url_for('business_projects.project_ref.ref_detail', ref_id=eo.ref_id) }}" class="text-decoration-none">
+                        {{ eo.ref.ref_number if eo.ref else '未设置' }}
                     </a>
                 </span>
             </div>
             <div class="info-item">
                 <span class="info-label">REF名称</span>
-                <span class="info-value">{{ eo.ref.name or eo.ref.description if eo.ref else '未设�? }}</span>
+                <span class="info-value">{{ eo.ref.name or eo.ref.description if eo.ref else '未设置' }}</span>
             </div>
             <div class="info-item">
                 <span class="info-label">REF类型</span>
-                <span class="info-value">{{ eo.ref.ref_type.name if eo.ref and eo.ref.ref_type else '未设�? }}</span>
+                <span class="info-value">{{ eo.ref.ref_type.name if eo.ref and eo.ref.ref_type else '未设置' }}</span>
             </div>
             <div class="info-item">
-                <span class="info-label">REF状�?/span>
-                <span class="info-value">{{ eo.ref.status if eo.ref else '未设�? }}</span>
+                <span class="info-label">REF状态</span>
+                <span class="info-value">{{ eo.ref.status if eo.ref else '未设置' }}</span>
             </div>
         </div>
     </div>

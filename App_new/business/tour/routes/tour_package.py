@@ -433,4 +433,4 @@ def package_home():
         if city.country_name not in cities_by_country:
             cities_by_country[city.country_name] = []
         cities_by_country[city.country_name].append(city)
-    return render_template('package/配套首页.html', cities_by_country=cities_by_country)
+    return render_template('business/tour/package/配套首页.html', cities_by_country=cities_by_country)

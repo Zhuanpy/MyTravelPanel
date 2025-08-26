@@ -10,7 +10,7 @@
             <div class="d-flex justify-content-between align-items-center">
                 <h1 class="h3 mb-0">
                     <i class="fas fa-plus-circle text-primary"></i>
-                    创建新项�?
+                    创建新项目
                 </h1>
                 <div>
                     <a href="{{ url_for('business_projects.list.list_projects') }}" class="btn btn-outline-secondary">
@@ -103,7 +103,7 @@
                                 {% endif %}
                             </div>
 
-                            <!-- 项目状�?-->
+                            <!-- 项目状态 -->
                             <div class="col-md-6 mb-3">
                                 <label for="{{ form.status.id }}" class="form-label">
                                     {{ form.status.label.text }}
@@ -120,7 +120,7 @@
                         </div>
 
                         <div class="row">
-                            <!-- 联系�?-->
+                            <!-- 联系人 -->
                             <div class="col-md-6 mb-3">
                                 <label for="{{ form.contact.id }}" class="form-label">
                                     {{ form.contact.label.text }} <span class="text-danger">*</span>
@@ -140,7 +140,7 @@
                                 <label for="{{ form.contact_phone.id }}" class="form-label">
                                     {{ form.contact_phone.label.text }}
                                 </label>
-                                {{ form.contact_phone(class="form-control", placeholder="请输入联系电�?) }}
+                                {{ form.contact_phone(class="form-control", placeholder="请输入联系电话") }}
                                 {% if form.contact_phone.errors %}
                                     <div class="invalid-feedback d-block">
                                         {% for error in form.contact_phone.errors %}
@@ -157,7 +157,7 @@
                                 <label for="{{ form.contact_email.id }}" class="form-label">
                                     {{ form.contact_email.label.text }}
                                 </label>
-                                {{ form.contact_email(class="form-control", placeholder="请输入联系邮�?) }}
+                                {{ form.contact_email(class="form-control", placeholder="请输入联系邮箱") }}
                                 {% if form.contact_email.errors %}
                                     <div class="invalid-feedback d-block">
                                         {% for error in form.contact_email.errors %}
@@ -167,7 +167,7 @@
                                 {% endif %}
                             </div>
 
-                            <!-- 项目负责�?-->
+                            <!-- 项目负责人 -->
                             <div class="col-md-6 mb-3">
                                 <label for="{{ form.leader_name.id }}" class="form-label">
                                     {{ form.leader_name.label.text }}
@@ -281,16 +281,16 @@
                             <ul class="small text-muted">
                                 <li><strong>项目编号</strong>：系统自动生成，也可手动输入</li>
                                 <li><strong>项目描述</strong>：详细说明项目内容、目标和要求</li>
-                                <li><strong>联系�?/strong>：项目的主要联系人姓�?/li>
+                                <li><strong>联系人</strong>：项目的主要联系人姓名</li>
                                 <li><strong>项目类型</strong>：选择合适的业务分类</li>
                             </ul>
                         </div>
                         <div class="col-md-6">
                             <h6 class="text-success">建议填写</h6>
                             <ul class="small text-muted">
-                                <li><strong>客户公司</strong>：选择或输入客户公司信�?/li>
-                                <li><strong>联系方式</strong>：电话和邮箱便于后续沟�?/li>
-                                <li><strong>项目负责�?/strong>：指定项目执行负责人</li>
+                                <li><strong>客户公司</strong>：选择或输入客户公司信息</li>
+                                <li><strong>联系方式</strong>：电话和邮箱便于后续沟通</li>
+                                <li><strong>项目负责人</strong>：指定项目执行负责人</li>
                                 <li><strong>备注信息</strong>：其他需要说明的重要信息</li>
                             </ul>
                         </div>
@@ -300,68 +300,70 @@
         </div>
     </div>
 </div>
+
 {% endblock %}
 
 {% block scripts %}
 <script>
-// 生成项目编号
-function generateHid() {
-    fetch('{{ url_for("business_projects.create.api_generate_hid") }}')
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                document.getElementById('{{ form.hid.id }}').value = data.data.hid;
-                // 显示成功提示
-                showToast('项目编号生成成功�?, 'success');
-            } else {
-                showToast('生成项目编号失败�? + data.error, 'error');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            showToast('生成项目编号时发生错�?, 'error');
-        });
-}
-
-// 重置表单
-function resetForm() {
-    if (confirm('确定要重置表单吗？所有已填写的内容将丢失�?)) {
-        document.getElementById('createProjectForm').reset();
-        // 清空项目编号
-        document.getElementById('{{ form.hid.id }}').value = '';
+    // 生成项目编号
+    function generateHid() {
+        fetch('{{ url_for("business_projects.create.api_generate_hid") }}')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('{{ form.hid.id }}').value = data.data.hid;
+                    // 显示成功提示
+                    showToast('项目编号生成成功', 'success');
+                } else {
+                    showToast('生成项目编号失败: ' + data.error, 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showToast('生成项目编号时发生错误', 'error');
+            });
     }
-}
-
-// 显示提示信息
-function showToast(message, type = 'info') {
-    // 创建提示元素
-    const toast = document.createElement('div');
-    toast.className = `alert alert-${type === 'error' ? 'danger' : type} alert-dismissible fade show position-fixed`;
-    toast.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
-    toast.innerHTML = `
-        ${message}
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    `;
     
-    document.body.appendChild(toast);
-    
-    // 3秒后自动消失
-    setTimeout(() => {
-        if (toast.parentNode) {
-            toast.remove();
+    // 重置表单
+    function resetForm() {
+        if (confirm('确定要重置表单吗？所有已填写的内容将丢失')) {
+            document.getElementById('createProjectForm').reset();
+            // 清空项目编号
+            document.getElementById('{{ form.hid.id }}').value = '';
         }
-    }, 3000);
-}
-
-// 页面加载完成后的初始�?
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('创建项目页面加载完成');
-    
-    // 如果项目编号为空，自动生成一�?
-    const hidField = document.getElementById('{{ form.hid.id }}');
-    if (!hidField.value) {
-        generateHid();
     }
-});
+    
+    // 显示提示信息
+    function showToast(message, type = 'info') {
+        // 创建提示元素
+        const toast = document.createElement('div');
+        toast.className = `alert alert-${type === 'error' ? 'danger' : type} alert-dismissible fade show position-fixed`;
+        toast.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+        toast.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        
+        document.body.appendChild(toast);
+        
+        // 3秒后自动消失
+        setTimeout(() => {
+            if (toast.parentNode) {
+                toast.remove();
+            }
+        }, 3000);
+    }
+    
+    // 页面加载完成后的初始化
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('创建项目页面加载完成');
+        
+        // 如果项目编号为空，自动生成一次
+        const hidField = document.getElementById('{{ form.hid.id }}');
+        if (!hidField.value) {
+            generateHid();
+        }
+    });
 </script>
+
 {% endblock %}

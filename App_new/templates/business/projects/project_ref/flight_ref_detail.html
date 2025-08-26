@@ -165,7 +165,7 @@
 </style>
 
 <div class="detail-container">
-    <!-- 导航�?-->
+    <!-- 导航栏 -->
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div class="d-flex align-items-center">
             <!-- 导航按钮 -->
@@ -173,14 +173,14 @@
                 {% if prev_ref %}
                     <a href="{{ url_for('business_projects.project_ref.flight_ref_detail', ref_id=prev_ref.id) }}"
                        class="btn btn-outline-primary">
-                        <i class="fas fa-chevron-left"></i> 上一�?
+                        <i class="fas fa-chevron-left"></i> 上一个
                     </a>
                 {% endif %}
                 
                 {% if next_ref %}
                     <a href="{{ url_for('business_projects.project_ref.flight_ref_detail', ref_id=next_ref.id) }}"
                        class="btn btn-outline-primary">
-                        下一�?<i class="fas fa-chevron-right"></i>
+                        下一个 <i class="fas fa-chevron-right"></i>
                     </a>
                 {% endif %}
             </div>
@@ -189,11 +189,11 @@
             
             <span class="text-muted me-3">
                 {% if prev_ref and next_ref %}
-                    {{ prev_ref.ref_number }} �?{{ ref.ref_number }} �?{{ next_ref.ref_number }}
+                    {{ prev_ref.ref_number }} → {{ ref.ref_number }} → {{ next_ref.ref_number }}
                 {% elif prev_ref %}
-                    {{ prev_ref.ref_number }} �?{{ ref.ref_number }}
+                    {{ prev_ref.ref_number }} → {{ ref.ref_number }}
                 {% elif next_ref %}
-                    {{ ref.ref_number }} �?{{ next_ref.ref_number }}
+                    {{ ref.ref_number }} → {{ next_ref.ref_number }}
                 {% else %}
                     {{ ref.ref_number }}
                 {% endif %}
@@ -225,28 +225,28 @@
                 <td colspan="3">{{ ref.description }}</td>
             </tr>
             <tr>
-                <th>供应�?/th>
-                <td>{{ ref.supplier.name if ref.supplier else '未指�? }}</td>
-                <th>状�?/th>
+                <th>供应商</th>
+                <td>{{ ref.supplier.name if ref.supplier else '未指定' }}</td>
+                <th>状态</th>
                 <td>
                     <span class="status-badge status-{{ ref.status }}">
                         {% if ref.status == 'draft' %}草稿
-                        {% elif ref.status == 'processing' %}处理�?
-                        {% elif ref.status == 'completed' %}已完�?
-                        {% else %}已取�?
+                        {% elif ref.status == 'processing' %}处理中
+                        {% elif ref.status == 'completed' %}已完成
+                        {% else %}已取消
                         {% endif %}
                     </span>
                 </td>
             </tr>
             <tr>
-                <th>联系�?/th>
+                <th>联系人</th>
                 <td>{{ ref.contact_name }}</td>
                 <th>联系电话</th>
-                <td>{{ ref.contact_phone or '未填�? }}</td>
+                <td>{{ ref.contact_phone or '未填写' }}</td>
             </tr>
             <tr>
                 <th>电子邮箱</th>
-                <td colspan="3">{{ ref.contact_email or '未填�? }}</td>
+                <td colspan="3">{{ ref.contact_email or '未填写' }}</td>
             </tr>
             <tr>
                 <th>创建时间</th>
@@ -265,16 +265,16 @@
 
     <!-- 航段信息 -->
     <div class="detail-card">
-        <h2 class="detail-title">航段信息 ({{ ref.flight_segments|length }}个航�?</h2>
+        <h2 class="detail-title">航段信息 ({{ ref.flight_segments|length }} 个航段)</h2>
         {% if ref.flight_segments %}
             {% for segment in ref.flight_segments %}
             <div class="segment-card">
                 <div class="segment-header">
                     <span>航段 {{ loop.index }}: {{ segment.flight_number }}</span>
                     <span class="status-badge status-{{ segment.status }}">
-                        {% if segment.status == 'pending' %}待处�?
-                        {% elif segment.status == 'confirmed' %}已确�?
-                        {% elif segment.status == 'cancelled' %}已取�?
+                        {% if segment.status == 'pending' %}待处理
+                        {% elif segment.status == 'confirmed' %}已确认
+                        {% elif segment.status == 'cancelled' %}已取消
                         {% else %}{{ segment.status }}
                         {% endif %}
                     </span>
@@ -308,7 +308,7 @@
 
     <!-- 乘客信息 -->
     <div class="detail-card">
-        <h2 class="detail-title">乘客信息 ({{ ref.flight_passengers|length }}位乘�?</h2>
+        <h2 class="detail-title">乘客信息 ({{ ref.flight_passengers|length }} 位乘客)</h2>
         {% if ref.flight_passengers %}
             {% for passenger in ref.flight_passengers %}
             <div class="passenger-card">
@@ -337,7 +337,7 @@
                     </div>
                     {% if passenger.ticket_number %}
                     <div class="price-item">
-                        <span class="price-label">电子客票�?/span>
+                        <span class="price-label">电子客票号</span>
                         <span class="price-value">{{ passenger.ticket_number }}</span>
                     </div>
                     {% endif %}
@@ -358,15 +358,15 @@
                 </div>
                 <div class="price-info">
                     <div class="price-item">
-                        <span class="price-label">总售�?/span>
+                        <span class="price-label">总售价</span>
                         <span class="price-value">SGD {{ "%.2f"|format(ref.total_flight_selling_price) }}</span>
                     </div>
                     <div class="price-item">
-                        <span class="price-label">总成�?/span>
+                        <span class="price-label">总成本</span>
                         <span class="price-value">SGD {{ "%.2f"|format(ref.total_flight_cost_price) }}</span>
                     </div>
                     <div class="price-item">
-                        <span class="price-label">总利�?/span>
+                        <span class="price-label">总利润</span>
                         <span class="price-value">SGD {{ "%.2f"|format(ref.flight_profit) }}</span>
                     </div>
                 </div>
@@ -392,14 +392,15 @@
     <div class="alert alert-info alert-dismissible fade show" role="alert" style="max-width: 300px;">
         <small>
             <strong>键盘快捷键：</strong><br>
-            <kbd>�?/kbd> 上一个REF<br>
-            <kbd>�?/kbd> 下一个REF<br>
-            <kbd>�?/kbd> 返回项目<br>
+            <kbd>←</kbd> 上一个REF<br>
+            <kbd>→</kbd> 下一个REF<br>
+            <kbd>B</kbd> 返回项目<br>
             <kbd>L</kbd> 项目列表
         </small>
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>
 </div>
+
 
 <script>
 // 键盘导航功能

@@ -21,7 +21,7 @@
         min-height: 100vh !important;
     }
 
-    /* 主容�?- 现代化设�?*/
+    /* 主容�?- 现代化设�?*/
     .tour-create-project-page .container-fluid {
         max-width: 1400px !important;
         margin: 20px auto !important;
@@ -126,186 +126,187 @@
 {% block content %}
 <div class="tour-create-project-page">
     <div class="container-fluid">
-    <!-- Header Section -->
-    <div class="header-section">
-        <div class="section-title">基本信息</div>
-        <div class="header-row">
-            <span class="header-label">HID编号:</span>
-            <input type="text" class="form-control" name="hid" readonly value="{{ generated_hid }}">
+        <!-- Header Section -->
+        <div class="header-section">
+            <div class="section-title">基本信息</div>
+            <div class="header-row">
+                <span class="header-label">HID编号:</span>
+                <input type="text" class="form-control" name="hid" readonly value="{{ generated_hid }}">
+            </div>
+            <div class="header-row">
+                <span class="header-label">项目名称:</span>
+                <input type="text" class="form-control" name="project_name" required>
+            </div>
+            <div class="header-row">
+                <span class="header-label">订单名称:</span>
+                <input type="text" class="form-control" name="name">
+            </div>
+            <div class="header-row">
+                <span class="header-label">项目描述:</span>
+                <textarea class="form-control" name="description" rows="3"></textarea>
+            </div>
+            <div class="header-row">
+                <span class="header-label">状态:</span>
+                <select class="form-control" name="status">
+                    <option value="draft">草稿</option>
+                    <option value="active">进行中</option>
+                    <option value="completed">已完成</option>
+                    <option value="cancelled">已取消</option>
+                </select>
+            </div>
         </div>
-        <div class="header-row">
-            <span class="header-label">项目名称:</span>
-            <input type="text" class="form-control" name="project_name" required>
-        </div>
-        <div class="header-row">
-            <span class="header-label">订单名称:</span>
-            <input type="text" class="form-control" name="name">
-        </div>
-        <div class="header-row">
-            <span class="header-label">项目描述:</span>
-            <textarea class="form-control" name="description" rows="3"></textarea>
-        </div>
-        <div class="header-row">
-            <span class="header-label">状�?</span>
-            <select class="form-control" name="status">
-                <option value="draft">草稿</option>
-                <option value="active">进行�?/option>
-                <option value="completed">已完�?/option>
-                <option value="cancelled">已取�?/option>
-            </select>
-        </div>
-    </div>
 
-    <!-- Customer Information Section -->
-    <div class="header-section">
-        <div class="section-title">客户信息</div>
-        <div class="header-row">
-            <span class="header-label">客户名称:</span>
-            <input type="text" class="form-control" name="client_name" required>
+        <!-- Customer Information Section -->
+        <div class="header-section">
+            <div class="section-title">客户信息</div>
+            <div class="header-row">
+                <span class="header-label">客户名称:</span>
+                <input type="text" class="form-control" name="client_name" required>
+            </div>
+            <div class="header-row">
+                <span class="header-label">客户电话:</span>
+                <input type="text" class="form-control" name="customer_phone">
+            </div>
+            <div class="header-row">
+                <span class="header-label">客户邮箱:</span>
+                <input type="email" class="form-control" name="customer_email">
+            </div>
+            <div class="header-row">
+                <span class="header-label">证件类型:</span>
+                <select class="form-control" name="customer_id_type">
+                    <option value="">请选择</option>
+                    <option value="passport">护照</option>
+                    <option value="id_card">身份证</option>
+                    <option value="other">其他</option>
+                </select>
+            </div>
+            <div class="header-row">
+                <span class="header-label">证件号码:</span>
+                <input type="text" class="form-control" name="customer_id_number">
+            </div>
+            <div class="header-row">
+                <span class="header-label">公司名称:</span>
+                <input type="text" class="form-control" name="customer_company">
+            </div>
+            <div class="header-row">
+                <span class="header-label">联系人:</span>
+                <input type="text" class="form-control" name="customer_contact_person">
+            </div>
         </div>
-        <div class="header-row">
-            <span class="header-label">客户电话:</span>
-            <input type="text" class="form-control" name="customer_phone">
-        </div>
-        <div class="header-row">
-            <span class="header-label">客户邮箱:</span>
-            <input type="email" class="form-control" name="customer_email">
-        </div>
-        <div class="header-row">
-            <span class="header-label">证件类型:</span>
-            <select class="form-control" name="customer_id_type">
-                <option value="">请选择</option>
-                <option value="passport">护照</option>
-                <option value="id_card">身份�?/option>
-                <option value="other">其他</option>
-            </select>
-        </div>
-        <div class="header-row">
-            <span class="header-label">证件号码:</span>
-            <input type="text" class="form-control" name="customer_id_number">
-        </div>
-        <div class="header-row">
-            <span class="header-label">公司名称:</span>
-            <input type="text" class="form-control" name="customer_company">
-        </div>
-        <div class="header-row">
-            <span class="header-label">联系�?</span>
-            <input type="text" class="form-control" name="customer_contact_person">
-        </div>
-    </div>
 
-    <!-- Financial Information Section -->
-    <div class="header-section">
-        <div class="section-title">财务信息</div>
-        <div class="header-row">
-            <span class="header-label">总金�?</span>
-            <input type="number" class="form-control" name="total_amount" step="0.01">
+        <!-- Financial Information Section -->
+        <div class="header-section">
+            <div class="section-title">财务信息</div>
+            <div class="header-row">
+                <span class="header-label">总金额:</span>
+                <input type="number" class="form-control" name="total_amount" step="0.01">
+            </div>
+            <div class="header-row">
+                <span class="header-label">已付金额:</span>
+                <input type="number" class="form-control" name="paid_amount" step="0.01">
+            </div>
         </div>
-        <div class="header-row">
-            <span class="header-label">已付金额:</span>
-            <input type="number" class="form-control" name="paid_amount" step="0.01">
-        </div>
-    </div>
 
-    <!-- Date Information Section -->
-    <div class="header-section">
-        <div class="section-title">日期信息</div>
-        <div class="header-row">
-            <span class="header-label">开始日�?</span>
-            <input type="date" class="form-control" name="start_date" value="{{ now.strftime('%Y-%m-%d') }}" required onchange="updateEndDate()">
+        <!-- Date Information Section -->
+        <div class="header-section">
+            <div class="section-title">日期信息</div>
+            <div class="header-row">
+                <span class="header-label">开始日期:</span>
+                <input type="date" class="form-control" name="start_date" value="{{ now.strftime('%Y-%m-%d') }}" required onchange="updateEndDate()">
+            </div>
+            <div class="header-row">
+                <span class="header-label">结束日期:</span>
+                <input type="date" class="form-control" name="end_date" value="{{ now.strftime('%Y-%m-%d') }}" required>
+            </div>
         </div>
-        <div class="header-row">
-            <span class="header-label">结束日期:</span>
-            <input type="date" class="form-control" name="end_date" value="{{ now.strftime('%Y-%m-%d') }}" required>
-        </div>
-    </div>
 
-    <!-- REF Section -->
-    <div class="header-section">
-        <div class="section-title">REF信息</div>
-        <div id="refs-container">
-            <div class="ref-section">
-                <div class="ref-header">
-                    <h4>REF #1</h4>
-                    <button class="add-button" onclick="addEO(this)">添加EO</button>
-                </div>
-                <div class="ref-content">
-                    <div class="header-row">
-                        <span class="header-label">REF编号:</span>
-                        <input type="text" class="form-control" name="ref_number[]" readonly>
+        <!-- REF Section -->
+        <div class="header-section">
+            <div class="section-title">REF信息</div>
+            <div id="refs-container">
+                <div class="ref-section">
+                    <div class="ref-header">
+                        <h4>REF #1</h4>
+                        <button class="add-button" onclick="addEO(this)">添加EO</button>
                     </div>
-                    <div class="header-row">
-                        <span class="header-label">REF名称:</span>
-                        <input type="text" class="form-control" name="ref_name[]">
-                    </div>
-                    <div class="header-row">
-                        <span class="header-label">REF类型:</span>
-                        <select class="form-control" name="ref_type_id[]" required>
-                            {% for type in business_types %}
-                            <option value="{{ type.id }}">{{ type.name }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="header-row">
-                        <span class="header-label">描述:</span>
-                        <textarea class="form-control" name="ref_description[]" required></textarea>
-                    </div>
-                    <div class="header-row">
-                        <span class="header-label">供应�?</span>
-                        <select class="form-control" name="supplier_id[]">
-                            <option value="">请选择</option>
-                            {% for supplier in suppliers %}
-                            <option value="{{ supplier.supplier_id }}">{{ supplier.name }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="header-row">
-                        <span class="header-label">销售价�?</span>
-                        <input type="number" class="form-control" name="selling_price[]" step="0.01">
-                    </div>
-                    <div class="header-row">
-                        <span class="header-label">成本价格:</span>
-                        <input type="number" class="form-control" name="cost_price[]" step="0.01">
-                    </div>
-                    <div class="header-row">
-                        <span class="header-label">货币:</span>
-                        <select class="form-control" name="currency[]">
-                            <option value="SGD">SGD</option>
-                            <option value="CNY">CNY</option>
-                            <option value="USD">USD</option>
-                        </select>
-                    </div>
-                    <div class="header-row">
-                        <span class="header-label">备注:</span>
-                        <textarea class="form-control" name="ref_remarks[]"></textarea>
-                    </div>
-                    <div class="header-row">
-                        <span class="header-label">状�?</span>
-                        <select class="form-control" name="ref_status[]">
-                            <option value="draft">草稿</option>
-                            <option value="processing">处理�?/option>
-                            <option value="completed">已完�?/option>
-                            <option value="cancelled">已取�?/option>
-                        </select>
-                    </div>
-                    <div class="header-row">
-                        <span class="header-label">支付状�?</span>
-                        <select class="form-control" name="ref_payment_status[]">
-                            <option value="unpaid">未支�?/option>
-                            <option value="partial">部分支付</option>
-                            <option value="paid">已支�?/option>
-                            <option value="refunded">已退�?/option>
-                        </select>
+                    <div class="ref-content">
+                        <div class="header-row">
+                            <span class="header-label">REF编号:</span>
+                            <input type="text" class="form-control" name="ref_number[]" readonly>
+                        </div>
+                        <div class="header-row">
+                            <span class="header-label">REF名称:</span>
+                            <input type="text" class="form-control" name="ref_name[]">
+                        </div>
+                        <div class="header-row">
+                            <span class="header-label">REF类型:</span>
+                            <select class="form-control" name="ref_type_id[]" required>
+                                {% for type in business_types %}
+                                <option value="{{ type.id }}">{{ type.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="header-row">
+                            <span class="header-label">描述:</span>
+                            <textarea class="form-control" name="ref_description[]" required></textarea>
+                        </div>
+                        <div class="header-row">
+                            <span class="header-label">供应商:</span>
+                            <select class="form-control" name="supplier_id[]">
+                                <option value="">请选择</option>
+                                {% for supplier in suppliers %}
+                                <option value="{{ supplier.supplier_id }}">{{ supplier.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="header-row">
+                            <span class="header-label">销售价格:</span>
+                            <input type="number" class="form-control" name="selling_price[]" step="0.01">
+                        </div>
+                        <div class="header-row">
+                            <span class="header-label">成本价格:</span>
+                            <input type="number" class="form-control" name="cost_price[]" step="0.01">
+                        </div>
+                        <div class="header-row">
+                            <span class="header-label">货币:</span>
+                            <select class="form-control" name="currency[]">
+                                <option value="SGD">SGD</option>
+                                <option value="CNY">CNY</option>
+                                <option value="USD">USD</option>
+                            </select>
+                        </div>
+                        <div class="header-row">
+                            <span class="header-label">备注:</span>
+                            <textarea class="form-control" name="ref_remarks[]"></textarea>
+                        </div>
+                        <div class="header-row">
+                            <span class="header-label">状态:</span>
+                            <select class="form-control" name="ref_status[]">
+                                <option value="draft">草稿</option>
+                                <option value="processing">处理中</option>
+                                <option value="completed">已完成</option>
+                                <option value="cancelled">已取消</option>
+                            </select>
+                        </div>
+                        <div class="header-row">
+                            <span class="header-label">支付状态:</span>
+                            <select class="form-control" name="ref_payment_status[]">
+                                <option value="unpaid">未支付</option>
+                                <option value="partial">部分支付</option>
+                                <option value="paid">已支付</option>
+                                <option value="refunded">已退款</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
             </div>
+            <button class="add-button" onclick="addRef()">添加REF</button>
         </div>
-        <button class="add-button" onclick="addRef()">添加REF</button>
-    </div>
 
-    <!-- Action Buttons -->
-    <div class="action-buttons">
-        <button class="action-button" onclick="saveProject()">创建项目</button>
+        <!-- Action Buttons -->
+        <div class="action-buttons">
+            <button class="action-button" onclick="saveProject()">创建项目</button>
+        </div>
     </div>
 </div>
 
@@ -352,7 +353,7 @@ function addRef() {
                 <textarea class="form-control" name="ref_description[]" required></textarea>
             </div>
             <div class="header-row">
-                <span class="header-label">供应�?</span>
+                <span class="header-label">供应�?</span>
                 <select class="form-control" name="supplier_id[]">
                     <option value="">请选择</option>
                     {% for supplier in suppliers %}
@@ -361,7 +362,7 @@ function addRef() {
                 </select>
             </div>
             <div class="header-row">
-                <span class="header-label">销售价�?</span>
+                <span class="header-label">销售价�?</span>
                 <input type="number" class="form-control" name="selling_price[]" step="0.01">
             </div>
             <div class="header-row">
@@ -381,21 +382,21 @@ function addRef() {
                 <textarea class="form-control" name="ref_remarks[]"></textarea>
             </div>
             <div class="header-row">
-                <span class="header-label">状�?</span>
+                <span class="header-label">状�?</span>
                 <select class="form-control" name="ref_status[]">
                     <option value="draft">草稿</option>
-                    <option value="processing">处理�?/option>
-                    <option value="completed">已完�?/option>
-                    <option value="cancelled">已取�?/option>
+                    <option value="processing">处理�?/option>
+                    <option value="completed">已完�?/option>
+                    <option value="cancelled">已取�?/option>
                 </select>
             </div>
             <div class="header-row">
-                <span class="header-label">支付状�?</span>
+                <span class="header-label">支付状�?</span>
                 <select class="form-control" name="ref_payment_status[]">
-                    <option value="unpaid">未支�?/option>
+                    <option value="unpaid">未支�?/option>
                     <option value="partial">部分支付</option>
-                    <option value="paid">已支�?/option>
-                    <option value="refunded">已退�?/option>
+                    <option value="paid">已支�?/option>
+                    <option value="refunded">已退�?/option>
                 </select>
             </div>
         </div>
@@ -418,18 +419,18 @@ function addEO(refButton) {
             <input type="text" class="form-control" name="eo_name[]">
         </div>
         <div class="header-row">
-            <span class="header-label">供应商类�?</span>
+            <span class="header-label">供应商类�?</span>
             <select class="form-control" name="eo_supplier_type[]" required>
                 <option value="visa">签证</option>
                 <option value="flight">机票</option>
                 <option value="hotel">酒店</option>
-                <option value="transport">交�?/option>
+                <option value="transport">交�?/option>
                 <option value="local_operator">地接</option>
                 <option value="other">其他</option>
             </select>
         </div>
         <div class="header-row">
-            <span class="header-label">供应�?</span>
+            <span class="header-label">供应�?</span>
             <select class="form-control" name="eo_supplier_id[]" required>
                 {% for supplier in suppliers %}
                 <option value="{{ supplier.supplier_id }}">{{ supplier.name }}</option>
@@ -453,7 +454,7 @@ function addEO(refButton) {
             <input type="text" class="form-control" name="eo_external_system[]">
         </div>
         <div class="header-row">
-            <span class="header-label">外部状�?</span>
+            <span class="header-label">外部状�?</span>
             <input type="text" class="form-control" name="eo_external_status[]">
         </div>
         <div class="header-row">
@@ -465,12 +466,12 @@ function addEO(refButton) {
             <textarea class="form-control" name="eo_remarks[]"></textarea>
         </div>
         <div class="header-row">
-            <span class="header-label">状�?</span>
+            <span class="header-label">状�?</span>
             <select class="form-control" name="eo_status[]">
                 <option value="draft">草稿</option>
-                <option value="confirmed">已确�?/option>
-                <option value="paid">已支�?/option>
-                <option value="cancelled">已取�?/option>
+                <option value="confirmed">已确�?/option>
+                <option value="paid">已支�?/option>
+                <option value="cancelled">已取�?/option>
             </select>
         </div>
         <button class="remove-button" onclick="this.parentElement.remove()">删除EO</button>
@@ -576,11 +577,11 @@ function saveProject() {
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('保存失败，请检查网络连�?);
+        alert('保存失败，请检查网络连�?);
     });
 }
 
-// 初始化第一个REF的编�?
+// 初始化第一个REF的编�?
 document.addEventListener('DOMContentLoaded', function() {
     generateRefNumber(0);
 });

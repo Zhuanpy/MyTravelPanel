@@ -1,10 +1,6 @@
 {% extends "shared/staff_base.html" %}
 
-
-
 {% block page_title %}Hotel Ref Detail{% endblock %}
-
-
 
 {% block content %}
 <style>
@@ -126,65 +122,65 @@
                 <th>REF编号</th>
                 <td>{{ ref.ref_number }}</td>
                 <th>REF名称</th>
-                <td>{{ ref.name or '未设�? }}</td>
+                <td>{{ ref.name or '未设置' }}</td>
             </tr>
             <tr>
                 <th>业务类型</th>
-                <td>{{ ref_type_name if ref_type_name else '未设�? }}</td>
+                <td>{{ ref_type_name if ref_type_name else '未设置' }}</td>
                 <th>描述</th>
-                <td>{{ ref.description or '未设�? }}</td>
+                <td>{{ ref.description or '未设置' }}</td>
             </tr>
             <tr>
-                <th>供应�?/th>
-                <td>{{ supplier_name if supplier_name else '未设�? }}</td>
+                <th>供应商</th>
+                <td>{{ supplier_name if supplier_name else '未设置' }}</td>
                 <th>供应商联系人</th>
-                <td>{{ ref.supplier_contact or '未设�? }}</td>
+                <td>{{ ref.supplier_contact or '未设置' }}</td>
             </tr>
             <tr>
-                <th>供应商电�?/th>
-                <td>{{ ref.supplier_phone or '未设�? }}</td>
+                <th>供应商电话</th>
+                <td>{{ ref.supplier_phone or '未设置' }}</td>
                 <th>货币</th>
                 <td>{{ ref.currency or 'SGD' }}</td>
             </tr>
             <tr>
-                <th>销售价�?/th>
-                <td>{{ "%.2f"|format(ref.selling_price) if ref.selling_price else '未设�? }}</td>
+                <th>销售价格</th>
+                <td>{{ "%.2f"|format(ref.selling_price) if ref.selling_price else '未设置' }}</td>
                 <th>成本价格</th>
-                <td>{{ "%.2f"|format(ref.cost_price) if ref.cost_price else '未设�? }}</td>
+                <td>{{ "%.2f"|format(ref.cost_price) if ref.cost_price else '未设置' }}</td>
             </tr>
             <tr>
                 <th>利润</th>
-                <td>{{ "%.2f"|format(ref.selling_price - ref.cost_price) if ref.selling_price and ref.cost_price else '未设�? }}</td>
-                <th>利润�?/th>
-                <td>{{ "%.2f%%"|format((ref.selling_price - ref.cost_price) / ref.selling_price * 100) if ref.selling_price and ref.cost_price and ref.selling_price > 0 else '未设�? }}</td>
+                <td>{{ "%.2f"|format(ref.selling_price - ref.cost_price) if ref.selling_price and ref.cost_price else '未设置' }}</td>
+                <th>利润率</th>
+                <td>{{ "%.2f%%"|format((ref.selling_price - ref.cost_price) / ref.selling_price * 100) if ref.selling_price and ref.cost_price and ref.selling_price > 0 else '未设置' }}</td>
             </tr>
             <tr>
-                <th>联系�?/th>
-                <td>{{ ref.contact_name or '未设�? }}</td>
+                <th>联系人</th>
+                <td>{{ ref.contact_name or '未设置' }}</td>
                 <th>联系电话</th>
-                <td>{{ ref.contact_phone or '未设�? }}</td>
+                <td>{{ ref.contact_phone or '未设置' }}</td>
             </tr>
             <tr>
                 <th>电子邮箱</th>
-                <td>{{ ref.contact_email or '未设�? }}</td>
-                <th>状�?/th>
+                <td>{{ ref.contact_email or '未设置' }}</td>
+                <th>状态</th>
                 <td><span class="status-badge status-{{ ref.status }}">{{ ref.status }}</span></td>
             </tr>
             <tr>
-                <th>支付状�?/th>
+                <th>支付状态</th>
                 <td><span class="status-badge status-{{ ref.payment_status }}">{{ ref.payment_status }}</span></td>
                 <th>预计交付日期</th>
-                <td>{{ ref.expected_delivery_date.strftime('%Y-%m-%d') if ref.expected_delivery_date else '未设�? }}</td>
+                <td>{{ ref.expected_delivery_date.strftime('%Y-%m-%d') if ref.expected_delivery_date else '未设置' }}</td>
             </tr>
             <tr>
                 <th>实际交付日期</th>
-                <td>{{ ref.actual_delivery_date.strftime('%Y-%m-%d') if ref.actual_delivery_date else '未设�? }}</td>
+                <td>{{ ref.actual_delivery_date.strftime('%Y-%m-%d') if ref.actual_delivery_date else '未设置' }}</td>
                 <th>创建时间</th>
-                <td>{{ ref.created_at.strftime('%Y-%m-%d %H:%M') if ref.created_at else '未设�? }}</td>
+                <td>{{ ref.created_at.strftime('%Y-%m-%d %H:%M') if ref.created_at else '未设置' }}</td>
             </tr>
             <tr>
                 <th>备注</th>
-                <td colspan="3">{{ ref.remarks or '�? }}</td>
+                <td colspan="3">{{ ref.remarks or '未设置' }}</td>
             </tr>
         </table>
     </div>
@@ -200,31 +196,31 @@
             <div class="room-info">
                 <div class="room-info-item">
                     <span class="room-info-label">酒店名称</span>
-                    <span class="room-info-value">待完�?/span>
+                    <span class="room-info-value">待完善</span>
                 </div>
                 <div class="room-info-item">
                     <span class="room-info-label">房间类型</span>
-                    <span class="room-info-value">待完�?/span>
+                    <span class="room-info-value">待完善</span>
                 </div>
                 <div class="room-info-item">
                     <span class="room-info-label">入住日期</span>
-                    <span class="room-info-value">待完�?/span>
+                    <span class="room-info-value">待完善</span>
                 </div>
                 <div class="room-info-item">
-                    <span class="room-info-label">退房日�?/span>
-                    <span class="room-info-value">待完�?/span>
+                    <span class="room-info-label">退房日期</span>
+                    <span class="room-info-value">待完善</span>
                 </div>
                 <div class="room-info-item">
                     <span class="room-info-label">房间数量</span>
-                    <span class="room-info-value">待完�?/span>
+                    <span class="room-info-value">待完善</span>
                 </div>
                 <div class="room-info-item">
                     <span class="room-info-label">入住人数</span>
-                    <span class="room-info-value">待完�?/span>
+                    <span class="room-info-value">待完善</span>
                 </div>
             </div>
         </div>
-        <p style="color: #718096; text-align: center; padding: 20px;">酒店房间详细信息待完�?/p>
+        <p style="color: #718096; text-align: center; padding: 20px;">酒店房间详细信息待完善</p>
     </div>
 
     <!-- 操作按钮 -->
@@ -237,4 +233,6 @@
         </a>
     </div>
 </div>
-{% endblock %} \n\n{% block title %}酒店REF详情 - {{ ref.ref_number }}{% endblock %}
+{% endblock %}
+
+{% block title %}酒店REF详情 - {{ ref.ref_number }}{% endblock %}

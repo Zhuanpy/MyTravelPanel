@@ -92,16 +92,16 @@
             <div class="stats-number">{{ count }}</div>
             <div class="stats-label">
                 {% if status == 'draft' %}草稿
-                {% elif status == 'active' %}进行�?
-                {% elif status == 'completed' %}已完�?
-                {% else %}已取�?
+                {% elif status == 'active' %}进行中
+                {% elif status == 'completed' %}已完成
+                {% else %}已取消
                 {% endif %}
             </div>
         </div>
         {% endfor %}
     </div>
     
-    <!-- 月度趋势�?-->
+    <!-- 月度趋势 -->
     <div class="chart-container">
         <div class="chart-header">
             <h2 class="chart-title">月度项目趋势</h2>
@@ -109,7 +109,7 @@
         <canvas id="monthlyChart"></canvas>
     </div>
     
-    <!-- REF类型分布�?-->
+    <!-- REF类型分布 -->
     <div class="chart-container">
         <div class="chart-header">
             <h2 class="chart-title">REF类型分布</h2>
@@ -120,14 +120,14 @@
     <!-- 供应商类型分布图 -->
     <div class="chart-container">
         <div class="chart-header">
-            <h2 class="chart-title">供应商类型分�?/h2>
+            <h2 class="chart-title">供应商类型分布</h2>
         </div>
         <canvas id="supplierTypeChart"></canvas>
     </div>
 </div>
 
 <script>
-// 月度趋势�?
+// 月度趋势图
 const monthlyCtx = document.getElementById('monthlyChart').getContext('2d');
 new Chart(monthlyCtx, {
     type: 'line',
@@ -146,27 +146,30 @@ new Chart(monthlyCtx, {
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
-            legend: {
-                display: false
-            }
+            legend: { display: false }
         },
         scales: {
             y: {
                 beginAtZero: true,
-                ticks: {
-                    stepSize: 1
-                }
+                ticks: { stepSize: 1 }
             }
         }
     }
 });
 
-// REF类型分布�?
+// REF类型分布图
 const refTypeCtx = document.getElementById('refTypeChart').getContext('2d');
 new Chart(refTypeCtx, {
     type: 'doughnut',
     data: {
-        labels: {{ ref_type_stats|map(attribute=0)|map('replace', 'flight', '机票')|map('replace', 'hotel', '酒店')|map('replace', 'transport', '交�?)|map('replace', 'visa', '签证')|map('replace', 'tour', '旅游')|map('replace', 'other', '其他')|list|tojson }},
+        labels: {{ ref_type_stats|map(attribute=0)
+            |map('replace', 'flight', '机票')
+            |map('replace', 'hotel', '酒店')
+            |map('replace', 'transport', '交通')
+            |map('replace', 'visa', '签证')
+            |map('replace', 'tour', '旅游')
+            |map('replace', 'other', '其他')
+            |list|tojson }},
         datasets: [{
             data: {{ ref_type_stats|map(attribute=1)|list|tojson }},
             backgroundColor: [
@@ -182,11 +185,7 @@ new Chart(refTypeCtx, {
     options: {
         responsive: true,
         maintainAspectRatio: false,
-        plugins: {
-            legend: {
-                position: 'right'
-            }
-        }
+        plugins: { legend: { position: 'right' } }
     }
 });
 
@@ -195,9 +194,16 @@ const supplierTypeCtx = document.getElementById('supplierTypeChart').getContext(
 new Chart(supplierTypeCtx, {
     type: 'bar',
     data: {
-        labels: {{ supplier_type_stats|map(attribute=0)|map('replace', 'visa', '签证')|map('replace', 'flight', '机票')|map('replace', 'hotel', '酒店')|map('replace', 'transport', '用车')|map('replace', 'local_operator', '地接')|map('replace', 'other', '其他')|list|tojson }},
+        labels: {{ supplier_type_stats|map(attribute=0)
+            |map('replace', 'visa', '签证')
+            |map('replace', 'flight', '机票')
+            |map('replace', 'hotel', '酒店')
+            |map('replace', 'transport', '用车')
+            |map('replace', 'local_operator', '地接')
+            |map('replace', 'other', '其他')
+            |list|tojson }},
         datasets: [{
-            label: '供应商数�?,
+            label: '供应商数量',
             data: {{ supplier_type_stats|map(attribute=1)|list|tojson }},
             backgroundColor: '#3b82f6'
         }]
@@ -205,20 +211,14 @@ new Chart(supplierTypeCtx, {
     options: {
         responsive: true,
         maintainAspectRatio: false,
-        plugins: {
-            legend: {
-                display: false
-            }
-        },
+        plugins: { legend: { display: false } },
         scales: {
             y: {
                 beginAtZero: true,
-                ticks: {
-                    stepSize: 1
-                }
+                ticks: { stepSize: 1 }
             }
         }
     }
 });
 </script>
-{% endblock %} 
+{% endblock %}

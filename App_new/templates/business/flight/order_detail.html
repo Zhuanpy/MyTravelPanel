@@ -160,11 +160,11 @@
             <div class="row mt-3">
                 <div class="col-md-3">
                     <strong>出发时间：</strong>
-                    <span>{{ segment.departure_time.strftime('%Y-%m-%d %H:%M') }}</span>
+                    <span>{{ segment.departure_time.strftime('%Y-%m-%d %H:%M') if segment.departure_time else '' }}</span>
                 </div>
                 <div class="col-md-3">
                     <strong>到达时间：</strong>
-                    <span>{{ segment.arrival_time.strftime('%Y-%m-%d %H:%M') }}</span>
+                    <span>{{ segment.arrival_time.strftime('%Y-%m-%d %H:%M') if segment.arrival_time else '' }}</span>
                 </div>
                 <div class="col-md-3">
                     <strong>舱位等级：</strong>
@@ -212,11 +212,11 @@
                 </div>
                 <div class="col-md-3">
                     <strong>售价：</strong>
-                    <span>SGD {{ "%.2f"|format(passenger.selling_price) }}</span>
+                    <span>SGD {{ "%.2f"|format(passenger.selling_price or 0) }}</span>
                 </div>
                 <div class="col-md-3">
                     <strong>成本：</strong>
-                    <span>SGD {{ "%.2f"|format(passenger.cost_price) }}</span>
+                    <span>SGD {{ "%.2f"|format(passenger.cost_price or 0) }}</span>
                 </div>
             </div>
         </div>
@@ -293,8 +293,20 @@
         {% if order.project_header %}
         <a href="{{ url_for('business_projects.detail.project_detail', project_id=order.project_header.id) }}" class="btn btn-primary" target="_blank">查看HID详情</a>
         {% endif %}
-        {% if order.order_status == 'pending' %}
-        <button class="btn btn-danger" onclick="cancelOrder()">取消订单</button>
+        {% if order.flight_order_id %}
+        <form id="statusUpdateForm" method="POST" action="{{ url_for('flights_booking.update_order_status', order_id=order.flight_order_id) }}" style="display: inline; margin-left: 8px;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <select name="order_status" class="order-select" style="width: auto; display: inline-block; margin-right: 10px;">
+                <option value="pending" {% if order.flight_order_status == 'pending' %}selected{% endif %}>待处理</option>
+                <option value="confirmed" {% if order.flight_order_status == 'confirmed' %}selected{% endif %}>已确认</option>
+                <option value="ticketed" {% if order.flight_order_status == 'ticketed' %}selected{% endif %}>已出票</option>
+                <option value="completed" {% if order.flight_order_status == 'completed' %}selected{% endif %}>已完成</option>
+                <option value="cancelled" {% if order.flight_order_status == 'cancelled' %}selected{% endif %}>已取消</option>
+            </select>
+            <button type="submit" class="order-btn order-btn-primary">
+                <i class="fas fa-save"></i> 更新状态
+            </button>
+        </form>
         {% endif %}
     </div>
 
