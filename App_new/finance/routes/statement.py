@@ -2,6 +2,15 @@ from flask import Blueprint, render_template, jsonify, request, url_for, redirec
 from flask_login import login_required
 from App_new.utils.Statement import OriginalStatement
 from App_new.utils.Invoice import CountHid
+import os
+import logging
+from App_new.config import Config
+import subprocess
+import pandas as pd
+import tempfile
+from datetime import datetime
+from App_new.exts import csrf
+from App_new.utils.decorators import staff_only
 from App_new.utils.report_utils import (
     get_report_headers_string,
     read_excel_file,
@@ -9,17 +18,7 @@ from App_new.utils.report_utils import (
     compare_profit_columns,
     add_comparison_column
 )
-from App_new.config import Config
-
-import os
-import logging
-import subprocess
-import pandas as pd
-import tempfile
-from datetime import datetime
-from pathlib import Path
-from App_new.exts import csrf
-from App_new.utils.decorators import staff_only
+from App_new.config import safe_json
 
 # 配置日志
 logger = logging.getLogger(__name__)
@@ -41,7 +40,7 @@ def uob_bank():
 def open_uob_statement_folder():
     if request.method == 'GET':
         return redirect(url_for('statement_routes.uob_bank'))
-    folder_path = Path(Config.BILLING_DATA_PATH) / "ZHANG ZHUAN UOB MASTER"
+    folder_path = Config.BILLING_DATA_PATH / "ZHANG ZHUAN UOB MASTER"
     
     # 如果文件夹不存在，则创建它
     if not folder_path.exists():
@@ -134,7 +133,7 @@ def ocbc_bank():
 def open_ocbc_statement_folder():
     if request.method == 'GET':
         return redirect(url_for('statement_routes.ocbc_bank'))
-    folder_path = Path(Config.BILLING_DATA_PATH) / "OCBC"
+    folder_path = Config.BILLING_DATA_PATH / "OCBC"
     
     # 如果文件夹不存在，则创建它
     if not folder_path.exists():
@@ -159,7 +158,7 @@ def open_ocbc_statement_folder():
 def ocbc_bank_processing():
     if request.method == 'GET':
         return redirect(url_for('statement_routes.ocbc_bank'))
-    folder_path = Path(Config.BILLING_DATA_PATH) / "OCBC"
+    folder_path = Config.BILLING_DATA_PATH / "OCBC"
     flash('OCBC账单整理功能尚未实现')
     return redirect(url_for('statement_routes.ocbc_bank'))
 
@@ -169,7 +168,7 @@ def ocbc_bank_processing():
 def ocbc_original_processing():
     if request.method == 'GET':
         return redirect(url_for('statement_routes.ocbc_bank'))
-    folder_path = Path(Config.BILLING_DATA_PATH) / "OCBC"
+    folder_path = Config.BILLING_DATA_PATH / "OCBC"
     flash('OCBC原始账单整理功能尚未实现')
     return redirect(url_for('statement_routes.ocbc_bank'))
 
@@ -179,7 +178,7 @@ def ocbc_original_processing():
 def ocbc_latest_company_statement():
     if request.method == 'GET':
         return redirect(url_for('statement_routes.ocbc_bank'))
-    folder_path = Path(Config.BILLING_DATA_PATH) / "OCBC"
+    folder_path = Config.BILLING_DATA_PATH / "OCBC"
     flash('OCBC公司账单整理功能尚未实现')
     return redirect(url_for('statement_routes.ocbc_bank'))
 
@@ -189,7 +188,7 @@ def ocbc_latest_company_statement():
 def ocbc_latest_self_statement():
     if request.method == 'GET':
         return redirect(url_for('statement_routes.ocbc_bank'))
-    folder_path = Path(Config.BILLING_DATA_PATH) / "OCBC"
+    folder_path = Config.BILLING_DATA_PATH / "OCBC"
     flash('OCBC个人账单整理功能尚未实现')
     return redirect(url_for('statement_routes.ocbc_bank'))
 
@@ -199,7 +198,7 @@ def ocbc_latest_self_statement():
 def ocbc_to_company():
     if request.method == 'GET':
         return redirect(url_for('statement_routes.ocbc_bank'))
-    folder_path = Path(Config.BILLING_DATA_PATH) / "OCBC"
+    folder_path = Config.BILLING_DATA_PATH / "OCBC"
     flash('OCBC公司账单生成功能尚未实现')
     return redirect(url_for('statement_routes.ocbc_bank'))
 
@@ -209,7 +208,7 @@ def ocbc_to_company():
 @login_required
 @staff_only
 def cmb_bank():
-    return render_template('statement/CmbBank.html')
+    return render_template('finance/statement/CmbBank.html')
 
 
 @statement_blue.route('/open_cmb_statement_folder', methods=['GET', 'POST'])
@@ -217,7 +216,7 @@ def cmb_bank():
 def open_cmb_statement_folder():
     if request.method == 'GET':
         return redirect(url_for('statement_routes.cmb_bank'))
-    folder_path = Path(Config.BILLING_DATA_PATH) / "CMB"
+    folder_path = Config.BILLING_DATA_PATH / "CMB"
     
     # 如果文件夹不存在，则创建它
     if not folder_path.exists():
@@ -242,7 +241,7 @@ def open_cmb_statement_folder():
 def cmb_bank_processing():
     if request.method == 'GET':
         return redirect(url_for('statement_routes.cmb_bank'))
-    folder_path = Path(Config.BILLING_DATA_PATH) / "CMB"
+    folder_path = Config.BILLING_DATA_PATH / "CMB"
     flash('招商银行账单整理功能尚未实现')
     return redirect(url_for('statement_routes.cmb_bank'))
 
@@ -252,7 +251,7 @@ def cmb_bank_processing():
 def cmb_original_processing():
     if request.method == 'GET':
         return redirect(url_for('statement_routes.cmb_bank'))
-    folder_path = Path(Config.BILLING_DATA_PATH) / "CMB"
+    folder_path = Config.BILLING_DATA_PATH / "CMB"
     flash('招商银行原始账单整理功能尚未实现')
     return redirect(url_for('statement_routes.cmb_bank'))
 
@@ -262,7 +261,7 @@ def cmb_original_processing():
 def cmb_latest_company_statement():
     if request.method == 'GET':
         return redirect(url_for('statement_routes.cmb_bank'))
-    folder_path = Path(Config.BILLING_DATA_PATH) / "CMB"
+    folder_path = Config.BILLING_DATA_PATH / "CMB"
     flash('招商银行公司账单整理功能尚未实现')
     return redirect(url_for('statement_routes.cmb_bank'))
 
@@ -272,7 +271,7 @@ def cmb_latest_company_statement():
 def cmb_latest_self_statement():
     if request.method == 'GET':
         return redirect(url_for('statement_routes.cmb_bank'))
-    folder_path = Path(Config.BILLING_DATA_PATH) / "CMB"
+    folder_path = Config.BILLING_DATA_PATH / "CMB"
     flash('招商银行个人账单整理功能尚未实现')
     return redirect(url_for('statement_routes.cmb_bank'))
 
@@ -282,7 +281,7 @@ def cmb_latest_self_statement():
 def cmb_to_company():
     if request.method == 'GET':
         return redirect(url_for('statement_routes.cmb_bank'))
-    folder_path = Path(Config.BILLING_DATA_PATH) / "CMB"
+    folder_path = Config.BILLING_DATA_PATH / "CMB"
     flash('招商银行公司账单生成功能尚未实现')
     return redirect(url_for('statement_routes.cmb_bank'))
 
@@ -291,27 +290,24 @@ def cmb_to_company():
 @login_required
 @staff_only
 def athina_page():
-    return render_template('statement/athina.html')
+    return render_template('finance/statement/athina.html')
 
 
 @statement_blue.route('/athina_processing', methods=['GET', 'POST'])
 @csrf.exempt
 def process_all_invoices():
     try:
-        # 暂时注释掉，因为依赖旧的App模块
-        # folder_path = Path(Config.BILLING_DATA_PATH) / "BOOKING"
-        # 
-        # # 检查文件夹是否存在
-        # if not folder_path.exists():
-        #     return jsonify({'error': f'账单文件夹不存在: {folder_path}'}), 404
-        # 
-        # count = CountHid(str(folder_path))
-        # profits, pre_sum = count.find_no_inv_booking()
-        # 
-        # r = f'全部未结算总额：SGD {int(profits)};'
-        # return jsonify({'result': r})
+        folder_path = Config.BILLING_DATA_PATH / "BOOKING"
         
-        return jsonify({'error': 'Athina账单处理功能暂时不可用，正在开发中...'}), 503
+        # 检查文件夹是否存在
+        if not folder_path.exists():
+            return jsonify({'error': f'账单文件夹不存在: {folder_path}'}), 404
+        
+        count = CountHid(str(folder_path))
+        profits, pre_sum = count.find_no_inv_booking()
+        
+        r = f'全部未结算总额：SGD {int(profits)};'
+        return jsonify({'result': r})
         
     except Exception as e:
         logger.error(f"处理全部订单失败: {e}")
@@ -322,33 +318,30 @@ def process_all_invoices():
 @csrf.exempt
 def process_month_invoice():
     try:
-        # 暂时注释掉，因为依赖旧的App模块
-        # folder_path = Path(Config.BILLING_DATA_PATH) / "BOOKING"
-        # 
-        # # 检查文件夹是否存在
-        # if not folder_path.exists():
-        #     return jsonify({'error': f'账单文件夹不存在: {folder_path}'}), 400
+        folder_path = Config.BILLING_DATA_PATH / "BOOKING"
         
-        # data = request.get_json()
-        # if not data:
-        #     return jsonify({'error': '未提供月份数据'}), 400
-        # 
-        # month = data.get('month')
-        # if not month:
-        #     return jsonify({'error': '月份参数不能为空'}), 400
-        # 
-        # # 验证月份格式
-        # import re
-        # if not re.match(r'^\d{4}-\d{2}$', month):
-        #     return jsonify({'error': '月份格式错误，请使用YYYY-MM格式'}), 400
-        # 
-        # count = CountHid(str(folder_path))
-        # profits, pre_sum = count.find_no_inv_booking(pre_month=month)
-        # 
-        # results = f'截至{month[:4]}年{month[-2:]}月的未结算总额: SGD {int(pre_sum)}'
-        # return jsonify({'result': results})
+        # 检查文件夹是否存在
+        if not folder_path.exists():
+            return jsonify({'error': f'账单文件夹不存在: {folder_path}'}), 404
         
-        return jsonify({'error': 'Athina月份账单处理功能暂时不可用，正在开发中...'}), 503
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': '未提供月份数据'}), 400
+        
+        month = data.get('month')
+        if not month:
+            return jsonify({'error': '月份参数不能为空'}), 400
+        
+        # 验证月份格式
+        import re
+        if not re.match(r'^\d{4}-\d{2}$', month):
+            return jsonify({'error': '月份格式错误，请使用YYYY-MM格式'}), 400
+        
+        count = CountHid(str(folder_path))
+        profits, pre_sum = count.find_no_inv_booking(pre_month=month)
+        
+        results = f'截至{month[:4]}年{month[-2:]}月的未结算总额: SGD {int(pre_sum)}'
+        return jsonify({'result': results})
         
     except Exception as e:
         logger.error(f"处理指定月份订单失败: {e}")
@@ -358,7 +351,7 @@ def process_month_invoice():
 @statement_blue.route('/open_athina_statement_folder', methods=['GET', 'POST'])
 @csrf.exempt
 def open_athina_statement_folder():
-    folder_path = Path(Config.BILLING_DATA_PATH) / "BOOKING"
+    folder_path = Config.BILLING_DATA_PATH / "BOOKING"
     
     # 如果文件夹不存在，则创建它
     if not folder_path.exists():
@@ -384,7 +377,7 @@ def open_athina_statement_folder():
 def company_bill():
     """公司账单主页面"""
     if request.method == 'POST':
-        folder_path = Path(Config.BILLING_DATA_PATH) / "Company"
+        folder_path = Config.BILLING_DATA_PATH / "Company"
         
         # 如果文件夹不存在，则创建它
         if not folder_path.exists():
@@ -405,13 +398,13 @@ def company_bill():
     
     # GET请求，显示公司账单页面
     companies = get_company_list()
-    return render_template('statement/CompanyBill.html', companies=companies)
+    return render_template('finance/statement/CompanyBill.html', companies=companies)
 
 
 def get_company_list():
     """获取公司列表"""
     companies = []
-    company_folder = Path(Config.BILLING_DATA_PATH) / "Company"
+    company_folder = Config.BILLING_DATA_PATH / "Company"
     
     if company_folder.exists():
         for company_dir in company_folder.iterdir():
@@ -448,7 +441,7 @@ def get_company_list():
 def company_bill_processing():
     """批量处理公司账单"""
     try:
-        company_folder = Path(Config.BILLING_DATA_PATH) / "Company"
+        company_folder = Config.BILLING_DATA_PATH / "Company"
         processed_count = 0
         
         if company_folder.exists():
@@ -474,7 +467,7 @@ def company_bill_processing():
 def company_bill_consolidate():
     """汇总公司账单"""
     try:
-        company_folder = Path(Config.BILLING_DATA_PATH) / "Company"
+        company_folder = Config.BILLING_DATA_PATH / "Company"
         consolidated_count = 0
         
         if company_folder.exists():
@@ -515,7 +508,7 @@ def company_bill_export():
 def open_company_bill_folder():
     """打开公司账单文件夹"""
     try:
-        folder_path = Path(Config.BILLING_DATA_PATH) / "Company"
+        folder_path = Config.BILLING_DATA_PATH / "Company"
         
         # 如果文件夹不存在，则创建它
         if not folder_path.exists():
@@ -561,7 +554,7 @@ def open_company_folder():
             flash('公司名称不能为空', 'error')
             return redirect(url_for("statement_routes.company_bill"))
         
-        company_folder = Path(Config.BILLING_DATA_PATH) / "Company" / company_name
+        company_folder = Config.BILLING_DATA_PATH / "Company" / company_name
         
         if not company_folder.exists():
             flash(f'公司文件夹不存在：{company_name}', 'error')
@@ -888,73 +881,66 @@ def batch_compare_reports():
         if not folder_b_files:
             return jsonify({'success': False, 'error': '文件夹B中没有有效的报表文件'})
         
-        # 暂时注释掉，因为依赖旧的App模块
-        # # 打印A、B第一个文件的前5行数据
-        # if folder_a_files and folder_b_files:
-        #     from App.utils.report_utils import BatchReportComparer
-        #     comparer = BatchReportComparer('order_report')
-        #     df_a = comparer.read_report_file(folder_a_files[0])
-        #     df_b = comparer.read_report_file(folder_b_files[0])
-        #     print('调试: A文件前5行:')
-        #     print(df_a.head())
-        #     print('调试: B文件前5行:')
-        #     print(df_b.head())
+        # 打印A、B第一个文件的前5行数据
+        if folder_a_files and folder_b_files:
+            from App.utils.report_utils import BatchReportComparer
+            comparer = BatchReportComparer('order_report')
+            df_a = comparer.read_report_file(folder_a_files[0])
+            df_b = comparer.read_report_file(folder_b_files[0])
+            print('调试: A文件前5行:')
+            print(df_a.head())
+            print('调试: B文件前5行:')
+            print(df_b.head())
 
-        # # 使用批量报表对比工具
-        # from App.utils.report_utils import BatchReportComparer
-        # 
-        # comparer = BatchReportComparer('order_report')
-        # results = comparer.compare_reports_by_filename(folder_a_files, folder_b_files)
-        # 
-        # # 生成Excel报告
-        # import tempfile
-        # import os
-        # temp_dir = tempfile.mkdtemp()
-        # report_filename = f'批量报表对比报告_{os.path.basename(temp_dir)}.xlsx'
-        # report_path = os.path.join(temp_dir, report_filename)
-        # 
-        # excel_path = comparer.generate_excel_report_new(results, report_path)
-        # 
-        # if excel_path:
-        #     # 将文件路径存储到session中供下载使用
-        #     from flask import session
-        #     session['batch_report_path'] = excel_path
-        #     session['batch_report_filename'] = report_filename
+        # 使用批量报表对比工具
+        from App.utils.report_utils import BatchReportComparer
         
-        # 暂时注释掉，因为依赖旧的App模块
-        # # 准备详细差异信息用于前端显示
-        # detailed_differences = []
-        # if 'differences' in results:
-        #     for diff in results['differences']:
-        #         detailed_differences.append({
-        #             '报表A': diff.get('所属文件A', ''),
-        #             '报表B': diff.get('所属文件B', ''),
-        #             'HID': diff.get('order_id', ''),
-        #             'A利润': diff.get('A利润', ''),
-        #             'B利润': diff.get('B利润', ''),
-        #             '备注': diff.get('差异说明', '')
-        #         })
-        # 
-        # # 提取缺失的HID（A有B无的）
-        # missing_hids = []
-        # if 'differences' in results:
-        #     for diff in results['differences']:
-        #         if diff.get('差异说明', '').startswith('报表A含有order_id') and not diff.get('B利润'):
-        #             missing_hids.append(diff.get('order_id', ''))
-        # 
-        # print(f"Debug: 批量对比完成，结果: {results}")
-        # 
-        # return jsonify({
-        #     'success': True,
-        #     'summary': safe_json(results['summary']),
-        #     'differences': safe_json(results['differences']),
-        #     'missing_hids': safe_json(missing_hids),
-        #     'detailed_differences': safe_json(detailed_differences)
-        # })
+        comparer = BatchReportComparer('order_report')
+        results = comparer.compare_reports_by_filename(folder_a_files, folder_b_files)
+        
+        # 生成Excel报告
+        import tempfile
+        import os
+        temp_dir = tempfile.mkdtemp()
+        report_filename = f'批量报表对比报告_{os.path.basename(temp_dir)}.xlsx'
+        report_path = os.path.join(temp_dir, report_filename)
+        
+        excel_path = comparer.generate_excel_report_new(results, report_path)
+        
+        if excel_path:
+            # 将文件路径存储到session中供下载使用
+            from flask import session
+            session['batch_report_path'] = excel_path
+            session['batch_report_filename'] = report_filename
+        
+        # 准备详细差异信息用于前端显示
+        detailed_differences = []
+        if 'differences' in results:
+            for diff in results['differences']:
+                detailed_differences.append({
+                    '报表A': diff.get('所属文件A', ''),
+                    '报表B': diff.get('所属文件B', ''),
+                    'HID': diff.get('order_id', ''),
+                    'A利润': diff.get('A利润', ''),
+                    'B利润': diff.get('B利润', ''),
+                    '备注': diff.get('差异说明', '')
+                })
+        
+        # 提取缺失的HID（A有B无的）
+        missing_hids = []
+        if 'differences' in results:
+            for diff in results['differences']:
+                if diff.get('差异说明', '').startswith('报表A含有order_id') and not diff.get('B利润'):
+                    missing_hids.append(diff.get('order_id', ''))
+        
+        print(f"Debug: 批量对比完成，结果: {results}")
         
         return jsonify({
-            'success': False,
-            'error': '批量报表对比功能暂时不可用，正在开发中...'
+            'success': True,
+            'summary': safe_json(results['summary']),
+            'differences': safe_json(results['differences']),
+            'missing_hids': safe_json(missing_hids),
+            'detailed_differences': safe_json(detailed_differences)
         })
         
     except Exception as e:

@@ -76,3 +76,34 @@ class ProjectEO(db.Model):
         if not self.eo_number:
             # 生成一个临时编号，保存时会被替换
             self.eo_number = 'TEMP'
+    
+    @staticmethod
+    def sync_eo_prices_from_ref(ref_id, new_cost_price, new_currency):
+        """从REF同步更新EO价格"""
+        from App_new.exts import db
+        
+        try:
+            # 查找所有相关的EO
+            related_eos = ProjectEO.query.filter_by(ref_id=ref_id).all()
+            updated_count = 0
+            
+            for eo in related_eos:
+                # 如果EO的金额与REF的成本价格不同，则更新EO金额
+                if new_cost_price and (eo.amount is None or float(eo.amount) != float(new_cost_price)):
+                    eo.amount = new_cost_price
+                    eo.currency = new_currency
+                    updated_count += 1
+                    print(f"同步更新EO {eo.eo_number} 金额: {eo.amount} {eo.currency}")
+            
+            if updated_count > 0:
+                db.session.commit()
+                print(f"成功同步更新了 {updated_count} 个EO的价格")
+                return True
+            else:
+                print("没有需要更新的EO价格")
+                return False
+                
+        except Exception as e:
+            db.session.rollback()
+            print(f"同步EO价格时发生错误: {str(e)}")
+            return False

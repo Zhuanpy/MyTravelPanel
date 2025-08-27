@@ -1,0 +1,445 @@
+{% extends "shared/staff_base.html" %}
+
+{% block title %}EO列表{% endblock %}
+
+{% block page_title %}EO管理{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- 页面标题 -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h1 class="h3 mb-0">
+                    <i class="fas fa-file-invoice text-primary"></i>
+                    EO列表管理
+                </h1>
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#filterModal">
+                        <i class="fas fa-filter"></i> 筛选
+                    </button>
+                    <button type="button" class="btn btn-success" onclick="exportToExcel()">
+                        <i class="fas fa-download"></i> 导出Excel
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 筛选结果统计 -->
+    <div class="row mb-3">
+        <div class="col-md-6">
+            <span class="badge bg-info">总计: <span id="totalCount">{{ eos|length }}</span></span>
+            {% if filtered_count %}
+            <span class="badge bg-warning">筛选结果: {{ filtered_count }}</span>
+            {% endif %}
+        </div>
+        <div class="col-md-6 text-end">
+            <small class="text-muted">
+                最后更新: 刚刚
+            </small>
+        </div>
+    </div>
+
+    <!-- EO列表表格 -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">
+                <i class="fas fa-list"></i> EO列表
+            </h6>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped table-hover" id="eoTable">
+                    <thead class="table-dark">
+                        <tr>
+                            <th style="width: 120px;">EO编号</th>
+                            <th style="width: 200px;">名称</th>
+                            <th style="width: 100px;">供应商类型</th>
+                            <th style="width: 120px;">供应商</th>
+                            <th style="width: 150px;">关联REF</th>
+                            <th style="width: 150px;">项目</th>
+                            <th style="width: 120px;">公司</th>
+                            <th style="width: 100px;">金额</th>
+                            <th style="width: 80px;">状态</th>
+                            <th style="width: 120px;">外部系统</th>
+                            <th style="width: 100px;">创建时间</th>
+                            <th style="width: 100px;">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for eo in eos %}
+                        <tr data-eo-id="{{ eo.id }}" data-supplier-type="{{ eo.supplier_type }}">
+                            <td>
+                                <span class="badge bg-primary">{{ eo.eo_number }}</span>
+                            </td>
+                            <td title="{{ eo.name or '未命名' }}{% if eo.remarks and eo.remarks != eo.name %} - {{ eo.remarks }}{% endif %}">
+                                <strong>{{ eo.name or '未命名' }}</strong>
+                                {% if eo.remarks and eo.remarks != eo.name %}
+                                <br><small class="text-muted">{{ eo.remarks }}</small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="badge bg-{{ eo.supplier_type_color }}">
+                                    {{ eo.supplier_type_display or '未知' }}
+                                </span>
+                            </td>
+                            <td>
+                                {% if eo.supplier_name %}
+                                <span class="text-info">{{ eo.supplier_name }}</span>
+                                {% else %}
+                                <span class="text-muted">未指定</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if eo.ref_name %}
+                                <a href="{{ url_for('business_projects.project_ref.ref_detail', ref_id=eo.ref_id) }}" 
+                                   class="text-primary">
+                                    {{ eo.ref_name }}
+                                </a>
+                                <br><small class="text-muted">{{ eo.ref_number }}</small>
+                                {% else %}
+                                <span class="text-muted">未关联</span>
+                                {% endif %}
+                            </td>
+                                                         <td>
+                                 {% if eo.project_name %}
+                                 <a href="{{ url_for('business_projects.detail.project_detail', project_id=eo.project_id) }}" 
+                                    class="text-primary">
+                                     {{ eo.project_name }}
+                                 </a>
+                                 {% else %}
+                                 <span class="text-muted">未指定</span>
+                                 {% endif %}
+                             </td>
+                             <td>
+                                 {% if eo.company_name %}
+                                 <span class="text-primary">{{ eo.company_name }}</span>
+                                 {% else %}
+                                 <span class="text-muted">未指定</span>
+                                 {% endif %}
+                             </td>
+                             <td>
+                                 {% if eo.amount %}
+                                 <span class="text-success">{{ eo.currency }} {{ "%.2f"|format(eo.amount) }}</span>
+                                 {% else %}
+                                 <span class="text-muted">-</span>
+                                 {% endif %}
+                             </td>
+                            <td>
+                                <span class="badge bg-{{ eo.status_color }}">
+                                    {{ eo.status_display }}
+                                </span>
+                            </td>
+                            <td>
+                                {% if eo.external_system %}
+                                <div class="small">
+                                    <strong>{{ eo.external_system }}</strong>
+                                    {% if eo.external_status %}
+                                    <br><span class="badge bg-secondary">{{ eo.external_status }}</span>
+                                    {% endif %}
+                                    {% if eo.external_reference %}
+                                    <br><small class="text-muted">{{ eo.external_reference }}</small>
+                                    {% endif %}
+                                </div>
+                                {% else %}
+                                <span class="text-muted">未同步</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <small class="text-muted">
+                                    {{ eo.created_at.strftime('%m-%d %H:%M') if eo.created_at else '-' }}
+                                </small>
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    <a href="{{ url_for('business_projects.project_eo.eo_detail', eo_id=eo.id) }}" 
+                                       class="btn btn-info btn-sm" title="查看详情">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    <a href="{{ url_for('business_projects.project_eo.edit_eo', eo_id=eo.id) }}" 
+                                       class="btn btn-warning btn-sm" title="编辑">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- 分页 -->
+            {% if pagination %}
+            <nav aria-label="EO列表分页">
+                <ul class="pagination justify-content-center">
+                    {% if pagination.has_prev %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('business_projects.project_eo.eo_list', page=pagination.prev_num,
+                            supplier_type=current_filters.supplier_type, status=current_filters.status,
+                            supplier=current_filters.supplier, external_system=current_filters.external_system,
+                            date_range=current_filters.date_range, min_amount=current_filters.min_amount,
+                            max_amount=current_filters.max_amount, keyword=current_filters.keyword,
+                            sort_by=current_filters.sort_by, sort_order=current_filters.sort_order) }}">
+                            <i class="fas fa-chevron-left"></i> 上一页
+                        </a>
+                    </li>
+                    {% endif %}
+                    
+                    {% for page_num in pagination.iter_pages() %}
+                        {% if page_num %}
+                            {% if page_num != pagination.page %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('business_projects.project_eo.eo_list', page=page_num,
+                                    supplier_type=current_filters.supplier_type, status=current_filters.status,
+                                    supplier=current_filters.supplier, external_system=current_filters.external_system,
+                                    date_range=current_filters.date_range, min_amount=current_filters.min_amount,
+                                    max_amount=current_filters.max_amount, keyword=current_filters.keyword,
+                                    sort_by=current_filters.sort_by, sort_order=current_filters.sort_order) }}">
+                                    {{ page_num }}
+                                </a>
+                            </li>
+                            {% else %}
+                            <li class="page-item active">
+                                <span class="page-link">{{ page_num }}</span>
+                            </li>
+                            {% endif %}
+                        {% else %}
+                        <li class="page-item disabled">
+                            <span class="page-link">...</span>
+                        </li>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if pagination.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('business_projects.project_eo.eo_list', page=pagination.next_num,
+                            supplier_type=current_filters.supplier_type, status=current_filters.status,
+                            supplier=current_filters.supplier, external_system=current_filters.external_system,
+                            date_range=current_filters.date_range, min_amount=current_filters.min_amount,
+                            max_amount=current_filters.max_amount, keyword=current_filters.keyword,
+                            sort_by=current_filters.sort_by, sort_order=current_filters.sort_order) }}">
+                            下一页 <i class="fas fa-chevron-right"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- 筛选模态框 -->
+<div class="modal fade" id="filterModal" tabindex="-1" aria-labelledby="filterModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="filterModalLabel">
+                    <i class="fas fa-filter"></i> EO筛选条件
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="GET" action="{{ url_for('business_projects.project_eo.eo_list') }}">
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="supplier_type" class="form-label">供应商类型</label>
+                                <select class="form-select" id="supplier_type" name="supplier_type">
+                                    <option value="">全部类型</option>
+                                    <option value="visa" {% if current_filters.supplier_type == 'visa' %}selected{% endif %}>签证</option>
+                                    <option value="flight" {% if current_filters.supplier_type == 'flight' %}selected{% endif %}>机票</option>
+                                    <option value="hotel" {% if current_filters.supplier_type == 'hotel' %}selected{% endif %}>酒店</option>
+                                    <option value="transport" {% if current_filters.supplier_type == 'transport' %}selected{% endif %}>交通</option>
+                                    <option value="local_operator" {% if current_filters.supplier_type == 'local_operator' %}selected{% endif %}>地接社</option>
+                                    <option value="other" {% if current_filters.supplier_type == 'other' %}selected{% endif %}>其他</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="status" class="form-label">状态</label>
+                                <select class="form-select" id="status" name="status">
+                                    <option value="">全部状态</option>
+                                    <option value="draft" {% if current_filters.status == 'draft' %}selected{% endif %}>草稿</option>
+                                    <option value="confirmed" {% if current_filters.status == 'confirmed' %}selected{% endif %}>已确认</option>
+                                    <option value="paid" {% if current_filters.status == 'paid' %}selected{% endif %}>已付款</option>
+                                    <option value="cancelled" {% if current_filters.status == 'cancelled' %}selected{% endif %}>已取消</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="supplier" class="form-label">供应商</label>
+                                <select class="form-select" id="supplier" name="supplier">
+                                    <option value="">全部供应商</option>
+                                    {% for supplier in suppliers %}
+                                    <option value="{{ supplier.supplier_id }}" {% if current_filters.supplier == supplier.supplier_id %}selected{% endif %}>
+                                        {{ supplier.name }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="external_system" class="form-label">外部系统</label>
+                                <input type="text" class="form-control" id="external_system" name="external_system" 
+                                       placeholder="搜索外部系统名称" 
+                                       value="{{ current_filters.external_system if current_filters.external_system else '' }}">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="date_range" class="form-label">创建时间范围</label>
+                                <select class="form-select" id="date_range" name="date_range">
+                                    <option value="">全部时间</option>
+                                    <option value="today" {% if current_filters.date_range == 'today' %}selected{% endif %}>今天</option>
+                                    <option value="week" {% if current_filters.date_range == 'week' %}selected{% endif %}>本周</option>
+                                    <option value="month" {% if current_filters.date_range == 'month' %}selected{% endif %}>本月</option>
+                                    <option value="quarter" {% if current_filters.date_range == 'quarter' %}selected{% endif %}>本季度</option>
+                                    <option value="year" {% if current_filters.date_range == 'year' %}selected{% endif %}>本年</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="min_amount" class="form-label">最低金额</label>
+                                <input type="number" class="form-control" id="min_amount" name="min_amount" 
+                                       placeholder="0.00" step="0.01" 
+                                       value="{{ current_filters.min_amount if current_filters.min_amount else '' }}">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="max_amount" class="form-label">最高金额</label>
+                                <input type="number" class="form-control" id="max_amount" name="max_amount" 
+                                       placeholder="999999.99" step="0.01" 
+                                       value="{{ current_filters.max_amount if current_filters.max_amount else '' }}">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="keyword" class="form-label">关键词搜索</label>
+                                <input type="text" class="form-control" id="keyword" name="keyword" 
+                                       placeholder="搜索EO名称、编号、备注等" 
+                                       value="{{ current_filters.keyword if current_filters.keyword else '' }}">
+                                <div class="form-text">支持搜索EO名称、编号、备注、REF信息等字段</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <a href="{{ url_for('business_projects.project_eo.eo_list') }}" class="btn btn-warning">重置</a>
+                    <button type="submit" class="btn btn-primary">应用筛选</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<style>
+    /* 表格列宽固定样式 */
+    #eoTable {
+        table-layout: fixed;
+        width: 100%;
+    }
+    
+    #eoTable th,
+    #eoTable td {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        vertical-align: middle;
+    }
+    
+    /* 名称列特殊处理 */
+    #eoTable td:nth-child(2) {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    
+    /* 操作列按钮组样式 */
+    .btn-group-sm .btn {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.875rem;
+    }
+    
+    /* 表格响应式处理 */
+    @media (max-width: 768px) {
+        #eoTable {
+            font-size: 0.875rem;
+        }
+        
+        .btn-group-sm .btn {
+            padding: 0.2rem 0.4rem;
+            font-size: 0.8rem;
+        }
+    }
+</style>
+
+<script>
+$(document).ready(function() {
+    // 实时搜索功能
+    $('#keyword').on('input', function() {
+        var keyword = $(this).val().toLowerCase();
+        $('#eoTable tbody tr').each(function() {
+            var text = $(this).text().toLowerCase();
+            if (text.includes(keyword)) {
+                $(this).show();
+            } else {
+                $(this).hide();
+            }
+        });
+        updateCount();
+    });
+
+    // 更新计数
+    function updateCount() {
+        var visibleCount = $('#eoTable tbody tr:visible').length;
+        $('#totalCount').text(visibleCount);
+    }
+});
+
+// 导出Excel功能
+function exportToExcel() {
+    // 获取表格数据
+    var rows = $('#eoTable tbody tr:visible');
+         var csv = 'EO编号,名称,供应商类型,供应商,关联REF,项目,公司,金额,状态,外部系统,创建时间\n';
+    
+    rows.each(function() {
+        var rowData = [];
+                 // 获取每行的文本内容（排除操作列）
+         $(this).find('td').slice(0, 11).each(function() {
+            var cellData = $(this).text().trim();
+            // 清理HTML标签和多余空格
+            cellData = cellData.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ');
+            rowData.push('"' + cellData + '"');
+        });
+        csv += rowData.join(',') + '\n';
+    });
+    
+    // 下载文件
+    var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    var link = document.createElement("a");
+    var url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", "EO列表_" + new Date().toISOString().slice(0,10) + ".csv");
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+</script>
+{% endblock %}

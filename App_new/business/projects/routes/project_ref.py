@@ -81,7 +81,7 @@ def create_ref(header_id):
         return redirect(url_for('business_projects.list.list_projects'))
 
 
-@project_ref.route('/detail/<int:ref_id>')
+@project_ref.route('/general/detail/<int:ref_id>')
 def ref_detail(ref_id):
     """REF详情页面 - 根据业务类型路由到不同详情页"""
     ref = ProjectRef.query.get_or_404(ref_id)
@@ -937,6 +937,80 @@ def visa_ref_detail(ref_id):
                          ref_type_name=ref_type_name,
                          supplier_name=supplier_name)
 
+@project_ref.route('/visa/edit/<int:ref_id>', methods=['GET', 'POST'])
+@csrf.exempt
+def edit_visa_ref(ref_id):
+    """编辑签证REF"""
+    ref = ProjectRef.query.get_or_404(ref_id)
+    
+    # 确保这是签证类型的REF
+    business_type = BusinessType.query.get(ref.ref_type_id)
+    if not business_type or business_type.name != '签证':
+        flash('只能编辑签证类型的REF', 'error')
+        return redirect(url_for('business_projects.detail.project_detail', project_id=ref.header_id))
+    
+    if request.method == 'POST':
+        try:
+            # 更新REF数据
+            ref.name = request.form.get('name', '签证服务')
+            ref.description = request.form.get('description', '签证服务')
+            ref.supplier_id = request.form.get('supplier_id') if request.form.get('supplier_id') and request.form.get('supplier_id') != '0' else None
+            ref.supplier_contact = request.form.get('supplier_contact', '')
+            ref.supplier_phone = request.form.get('supplier_phone', '')
+            ref.leader_name = request.form.get('leader_name', '')
+            ref.selling_price = float(request.form.get('selling_price', 0)) if request.form.get('selling_price') else None
+            ref.cost_price = float(request.form.get('cost_price', 0)) if request.form.get('cost_price') else None
+            
+            # 处理日期字段，空字符串转换为None
+            expected_date = request.form.get('expected_delivery_date')
+            ref.expected_delivery_date = datetime.strptime(expected_date, '%Y-%m-%d').date() if expected_date else None
+            
+            actual_date = request.form.get('actual_delivery_date')
+            ref.actual_delivery_date = datetime.strptime(actual_date, '%Y-%m-%d').date() if actual_date else None
+            
+            ref.status = request.form.get('status') or 'draft'
+            ref.remarks = request.form.get('remarks', '')
+            
+            # 处理签证专属字段
+            visa_extra_info = {
+                'country': request.form.get('country', ''),
+                'visa_type': request.form.get('visa_type', ''),
+                'applicant_info': request.form.get('applicant_info', '')
+            }
+            ref.extra_info = json.dumps(visa_extra_info)
+            
+            # 同步更新相关EO的价格
+            from App_new.business.projects.models.eo import ProjectEO
+            ProjectEO.sync_eo_prices_from_ref(ref.id, ref.cost_price, ref.currency)
+            flash('签证REF更新成功', 'success')
+            return redirect(url_for('business_projects.detail.project_detail', project_id=ref.header_id))
+            
+        except Exception as e:
+            db.session.rollback()
+            flash(f'更新失败：{str(e)}', 'error')
+            return redirect(url_for('business_projects.detail.project_detail', project_id=ref.header_id))
+    
+    # 获取供应商数据
+    suppliers = Supplier.query.all()
+    
+    # 获取所有国家数据
+    countries = VisaCountries.query.order_by(VisaCountries.country_name_CN).all()
+    
+    # 解析签证专属信息
+    visa_info = {}
+    if ref and ref.extra_info:
+        try:
+            visa_info = json.loads(ref.extra_info)
+        except json.JSONDecodeError:
+            visa_info = {}
+    
+    return render_template('business/projects/project_ref/create_visa_ref.html', 
+                         ref=ref, 
+                         suppliers=suppliers,
+                         countries=countries,
+                         visa_info=visa_info,
+                         is_create=False)
+
 @project_ref.route('/tour/detail/<int:ref_id>')
 def tour_ref_detail(ref_id):
     """旅游团REF详情页面"""
@@ -1047,3 +1121,495 @@ def update_ref_status():
             'success': False,
             'message': f'更新失败：{str(e)}'
         }), 500
+
+@project_ref.route('/other/edit/<int:ref_id>', methods=['GET', 'POST'])
+@csrf.exempt
+def edit_other_ref(ref_id):
+    """编辑其他类型REF"""
+    ref = ProjectRef.query.get_or_404(ref_id)
+    
+    # 确保这是其他类型的REF
+    business_type = BusinessType.query.get(ref.ref_type_id)
+    if not business_type or business_type.name != '其他':
+        flash('只能编辑其他类型的REF', 'error')
+        return redirect(url_for('business_projects.project_header.header_detail', header_id=ref.header_id))
+    
+    if request.method == 'POST':
+        try:
+            # 更新REF数据
+            ref.name = request.form.get('name', '其他服务')
+            ref.description = request.form.get('description', '其他服务')
+            ref.supplier_id = request.form.get('supplier_id') if request.form.get('supplier_id') and request.form.get('supplier_id') != '0' else None
+            ref.supplier_contact = request.form.get('supplier_contact', '')
+            ref.supplier_phone = request.form.get('supplier_phone', '')
+            ref.leader_name = request.form.get('leader_name', '')
+            ref.selling_price = float(request.form.get('selling_price', 0)) if request.form.get('selling_price') else None
+            ref.cost_price = float(request.form.get('cost_price', 0)) if request.form.get('cost_price') else None
+            
+            # 处理日期字段，空字符串转换为None
+            expected_date = request.form.get('expected_delivery_date')
+            ref.expected_delivery_date = datetime.strptime(expected_date, '%Y-%m-%d').date() if expected_date else None
+            
+            actual_date = request.form.get('actual_delivery_date')
+            ref.actual_delivery_date = datetime.strptime(actual_date, '%Y-%m-%d').date() if actual_date else None
+            
+            ref.status = request.form.get('status') or 'draft'
+            ref.remarks = request.form.get('remarks', '')
+            
+            # 同步更新相关EO的价格
+            from App_new.business.projects.models.eo import ProjectEO
+            ProjectEO.sync_eo_prices_from_ref(ref.id, ref.cost_price, ref.currency)
+            flash('其他REF更新成功', 'success')
+            return redirect(url_for('business_projects.project_header.header_detail', header_id=ref.header_id))
+            
+        except Exception as e:
+            db.session.rollback()
+            flash(f'更新失败：{str(e)}', 'error')
+            return redirect(url_for('business_projects.project_header.header_detail', header_id=ref.header_id))
+    
+    # 获取供应商数据
+    suppliers = Supplier.query.all()
+    
+    return render_template('business/projects/project_ref/create_ref.html', 
+                         ref=ref, 
+                         suppliers=suppliers,
+                         is_create=False)
+
+@project_ref.route('/insurance/edit/<int:ref_id>', methods=['GET', 'POST'])
+@csrf.exempt
+def edit_insurance_ref(ref_id):
+    """编辑保险REF"""
+    ref = ProjectRef.query.get_or_404(ref_id)
+    
+    # 确保这是保险类型的REF
+    business_type = BusinessType.query.get(ref.ref_type_id)
+    if not business_type or business_type.name != '保险':
+        flash('只能编辑保险类型的REF', 'error')
+        return redirect(url_for('business_projects.project_header.header_detail', header_id=ref.header_id))
+    
+    if request.method == 'POST':
+        try:
+            # 更新REF数据
+            ref.name = request.form.get('name', '保险服务')
+            ref.description = request.form.get('description', '保险服务')
+            ref.supplier_id = request.form.get('supplier_id') if request.form.get('supplier_id') and request.form.get('supplier_id') != '0' else None
+            ref.supplier_contact = request.form.get('supplier_contact', '')
+            ref.supplier_phone = request.form.get('supplier_phone', '')
+            ref.leader_name = request.form.get('leader_name', '')
+            ref.selling_price = float(request.form.get('selling_price', 0)) if request.form.get('selling_price') else None
+            ref.cost_price = float(request.form.get('cost_price', 0)) if request.form.get('cost_price') else None
+            
+            # 处理日期字段，空字符串转换为None
+            expected_date = request.form.get('expected_delivery_date')
+            ref.expected_delivery_date = datetime.strptime(expected_date, '%Y-%m-%d').date() if expected_date else None
+            
+            actual_date = request.form.get('actual_delivery_date')
+            ref.actual_delivery_date = datetime.strptime(actual_date, '%Y-%m-%d').date() if actual_date else None
+            
+            ref.status = request.form.get('status') or 'draft'
+            ref.remarks = request.form.get('remarks', '')
+            
+            # 同步更新相关EO的价格
+            from App_new.business.projects.models.eo import ProjectEO
+            ProjectEO.sync_eo_prices_from_ref(ref.id, ref.cost_price, ref.currency)
+            flash('保险REF更新成功', 'success')
+            return redirect(url_for('business_projects.project_header.header_detail', header_id=ref.header_id))
+            
+        except Exception as e:
+            db.session.rollback()
+            flash(f'更新失败：{str(e)}', 'error')
+            return redirect(url_for('business_projects.project_header.header_detail', header_id=ref.header_id))
+    
+    # 获取供应商数据
+    suppliers = Supplier.query.all()
+    
+    return render_template('business/projects/project_ref/create_ref.html', 
+                         ref=ref, 
+                         suppliers=suppliers,
+                         is_create=False)
+
+@project_ref.route('/tour/edit/<int:ref_id>', methods=['GET', 'POST'])
+@csrf.exempt
+def edit_tour_ref(ref_id):
+    """编辑旅游团REF"""
+    ref = ProjectRef.query.get_or_404(ref_id)
+    
+    # 确保这是旅游团类型的REF
+    business_type = BusinessType.query.get(ref.ref_type_id)
+    if not business_type or business_type.name != '旅游团':
+        flash('只能编辑旅游团类型的REF', 'error')
+        return redirect(url_for('business_projects.project_header.header_detail', header_id=ref.header_id))
+    
+    if request.method == 'POST':
+        try:
+            # 更新REF数据
+            ref.name = request.form.get('name', '旅游团服务')
+            ref.description = request.form.get('description', '旅游团服务')
+            ref.supplier_id = request.form.get('supplier_id') if request.form.get('supplier_id') and request.form.get('supplier_id') != '0' else None
+            ref.supplier_contact = request.form.get('supplier_contact', '')
+            ref.supplier_phone = request.form.get('supplier_phone', '')
+            ref.leader_name = request.form.get('leader_name', '')
+            ref.selling_price = float(request.form.get('selling_price', 0)) if request.form.get('selling_price') else None
+            ref.cost_price = float(request.form.get('cost_price', 0)) if request.form.get('cost_price') else None
+            
+            # 处理日期字段，空字符串转换为None
+            expected_date = request.form.get('expected_delivery_date')
+            ref.expected_delivery_date = datetime.strptime(expected_date, '%Y-%m-%d').date() if expected_date else None
+            
+            actual_date = request.form.get('actual_delivery_date')
+            ref.actual_delivery_date = datetime.strptime(actual_date, '%Y-%m-%d').date() if actual_date else None
+            
+            ref.status = request.form.get('status') or 'draft'
+            ref.remarks = request.form.get('remarks', '')
+            
+            # 同步更新相关EO的价格
+            from App_new.business.projects.models.eo import ProjectEO
+            ProjectEO.sync_eo_prices_from_ref(ref.id, ref.cost_price, ref.currency)
+            flash('旅游团REF更新成功', 'success')
+            return redirect(url_for('business_projects.project_header.header_detail', header_id=ref.header_id))
+            
+        except Exception as e:
+            db.session.rollback()
+            flash(f'更新失败：{str(e)}', 'error')
+            return redirect(url_for('business_projects.project_header.header_detail', header_id=ref.header_id))
+    
+    # 获取供应商数据
+    suppliers = Supplier.query.all()
+    
+    return render_template('business/projects/project_ref/create_ref.html', 
+                         ref=ref, 
+                         suppliers=suppliers,
+                         is_create=False)
+
+@project_ref.route('/api/get_visa_types/<int:country_id>')
+def get_visa_types_by_country(country_id):
+    """根据国家ID获取签证类型"""
+    try:
+        from App_new.business.visa.models.Visamodels import VisaTypes
+        
+        # 查询指定国家的签证类型
+        visa_types = VisaTypes.query.filter_by(country_id=country_id).all()
+        
+        # 转换为前端需要的格式
+        visa_types_list = [
+            {
+                'visa_type': vt.visa_type,
+                'country_id': vt.country_id
+            }
+            for vt in visa_types
+        ]
+        
+        return jsonify({
+            'success': True,
+            'visa_types': visa_types_list
+        })
+    except Exception as e:
+        print(f"获取签证类型时发生错误: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+
+@project_ref.route('/list')
+def ref_list():
+    """REF列表页面 - 支持筛选、搜索和分页"""
+    try:
+        from sqlalchemy import and_, or_, desc, asc
+        from datetime import datetime, timedelta
+        
+        # 获取筛选参数
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 25, type=int)
+        business_type = request.args.get('business_type', '')
+        status = request.args.get('status', '')
+        supplier_id = request.args.get('supplier', None, type=int)
+        leader_name = request.args.get('leader_name', '')
+        date_range = request.args.get('date_range', '')
+        min_price = request.args.get('min_price', None, type=float)
+        max_price = request.args.get('max_price', None, type=float)
+        keyword = request.args.get('keyword', '')
+        sort_by = request.args.get('sort_by', 'created_at')
+        sort_order = request.args.get('sort_order', 'desc')
+        
+        # 构建查询
+        query = db.session.query(
+            ProjectRef,
+            BusinessType.name.label('business_type_name'),
+            Supplier.name.label('supplier_name'),
+            ProjectHeader.desc.label('project_name')
+        ).join(
+            BusinessType, ProjectRef.ref_type_id == BusinessType.id, isouter=True
+        ).join(
+            Supplier, ProjectRef.supplier_id == Supplier.supplier_id, isouter=True
+        ).join(
+            ProjectHeader, ProjectRef.header_id == ProjectHeader.id, isouter=True
+        )
+        
+        # 应用筛选条件
+        filters = []
+        
+        if business_type:
+            filters.append(BusinessType.name == business_type)
+        
+        if status:
+            filters.append(ProjectRef.status == status)
+        
+        if supplier_id:
+            filters.append(ProjectRef.supplier_id == supplier_id)
+        
+        if leader_name:
+            filters.append(ProjectRef.leader_name.ilike(f'%{leader_name}%'))
+        
+        if date_range:
+            today = datetime.now().date()
+            if date_range == 'today':
+                start_date = today
+                end_date = today + timedelta(days=1)
+            elif date_range == 'week':
+                start_date = today - timedelta(days=today.weekday())
+                end_date = start_date + timedelta(days=7)
+            elif date_range == 'month':
+                start_date = today.replace(day=1)
+                if today.month == 12:
+                    end_date = today.replace(year=today.year + 1, month=1, day=1)
+                else:
+                    end_date = today.replace(month=today.month + 1, day=1)
+            elif date_range == 'quarter':
+                quarter = (today.month - 1) // 3
+                start_date = today.replace(month=quarter * 3 + 1, day=1)
+                if quarter == 3:
+                    end_date = today.replace(year=today.year + 1, month=1, day=1)
+                else:
+                    end_date = today.replace(month=quarter * 3 + 4, day=1)
+            elif date_range == 'year':
+                start_date = today.replace(month=1, day=1)
+                end_date = today.replace(year=today.year + 1, month=1, day=1)
+            
+            filters.append(and_(
+                ProjectRef.created_at >= start_date,
+                ProjectRef.created_at < end_date
+            ))
+        
+        if min_price is not None and min_price > 0:
+            filters.append(ProjectRef.selling_price >= float(min_price))
+        
+        if max_price is not None and max_price > 0:
+            filters.append(ProjectRef.selling_price <= float(max_price))
+        
+        if keyword:
+            keyword_filter = or_(
+                ProjectRef.name.ilike(f'%{keyword}%'),
+                ProjectRef.description.ilike(f'%{keyword}%'),
+                ProjectRef.ref_number.ilike(f'%{keyword}%'),
+                ProjectRef.leader_name.ilike(f'%{keyword}%'),
+                ProjectHeader.desc.ilike(f'%{keyword}%')
+            )
+            filters.append(keyword_filter)
+        
+        # 应用筛选条件
+        if filters:
+            query = query.filter(and_(*filters))
+        
+        # 排序
+        if sort_by == 'created_at':
+            order_column = ProjectRef.created_at
+        elif sort_by == 'name':
+            order_column = ProjectRef.name
+        elif sort_by == 'selling_price':
+            order_column = ProjectRef.selling_price
+        elif sort_by == 'status':
+            order_column = ProjectRef.status
+        else:
+            order_column = ProjectRef.created_at
+        
+        if sort_order == 'asc':
+            query = query.order_by(asc(order_column))
+        else:
+            query = query.order_by(desc(order_column))
+        
+        # 分页 - 使用新版本Flask-SQLAlchemy的方法
+        try:
+            # 尝试使用新版本的分页方法
+            pagination = query.paginate(
+                page=page, 
+                per_page=per_page, 
+                error_out=False
+            )
+            print(f"使用新版本分页方法成功")
+        except AttributeError as e:
+            print(f"新版本分页方法失败: {e}")
+            # 如果新版本方法不存在，使用旧版本
+            try:
+                pagination = query.paginate(
+                    page=page, 
+                    per_page=per_page, 
+                    error_out=False
+                )
+                print(f"使用旧版本分页方法成功")
+            except Exception as e2:
+                print(f"旧版本分页方法也失败: {e2}")
+                # 如果都失败了，手动创建分页对象
+                total = query.count()
+                pages = (total + per_page - 1) // per_page
+                offset = (page - 1) * per_page
+                items = query.offset(offset).limit(per_page).all()
+                
+                class ManualPagination:
+                    def __init__(self, items, page, per_page, total, pages):
+                        self.items = items
+                        self.page = page
+                        self.per_page = per_page
+                        self.total = total
+                        self.pages = pages
+                        self.has_prev = page > 1
+                        self.has_next = page < pages
+                        self.prev_num = page - 1 if page > 1 else None
+                        self.next_num = page + 1 if page < pages else None
+                    
+                    def iter_pages(self, left_edge=2, left_current=2, right_current=5, right_edge=2):
+                        last = 0
+                        for num in range(1, self.pages + 1):
+                            if num <= left_edge or \
+                               (num > self.page - left_current - 1 and \
+                                num < self.page + right_current) or \
+                               num > self.pages - right_edge:
+                                if last + 1 != num:
+                                    yield None
+                                yield num
+                                last = num
+                
+                pagination = ManualPagination(items, page, per_page, total, pages)
+                print(f"使用手动分页对象成功")
+        
+        # 确保分页对象有必要的属性
+        if not hasattr(pagination, 'has_prev'):
+            # 手动添加分页属性（兼容旧版本）
+            pagination.has_prev = pagination.page > 1
+            pagination.has_next = pagination.page < pagination.pages
+            pagination.prev_num = pagination.page - 1 if pagination.page > 1 else None
+            pagination.next_num = pagination.page + 1 if pagination.page < pagination.pages else None
+        
+        # 确保分页对象有iter_pages方法
+        if not hasattr(pagination, 'iter_pages'):
+            def iter_pages(left_edge=2, left_current=2, right_current=5, right_edge=2):
+                """生成分页页码"""
+                last = 0
+                for num in range(1, pagination.pages + 1):
+                    if num <= left_edge or \
+                       (num > pagination.page - left_current - 1 and \
+                        num < pagination.page + right_current) or \
+                       num > pagination.pages - right_edge:
+                        if last + 1 != num:
+                            yield None
+                        yield num
+                        last = num
+            pagination.iter_pages = iter_pages
+        
+        # 处理REF数据，添加显示属性
+        refs = []
+        for ref, business_type_name, supplier_name, project_name in pagination.items:
+            ref_dict = {
+                'id': ref.id,
+                'ref_number': str(ref.ref_number) if ref.ref_number else '',
+                'name': str(ref.name) if ref.name else '',
+                'description': str(ref.description) if ref.description else '',
+                'business_type_name': str(business_type_name) if business_type_name else '未知',
+                'business_type_color': get_business_type_color(business_type_name),
+                'header_id': ref.header_id,
+                'project_name': str(project_name) if project_name else f'项目{ref.header_id}',
+                'supplier_name': str(supplier_name) if supplier_name else '',
+                'leader_name': str(ref.leader_name) if ref.leader_name else '',
+                'status': str(ref.status) if ref.status else 'draft',
+                'status_display': get_status_display(ref.status),
+                'status_color': get_status_color(ref.status),
+                'selling_price': float(ref.selling_price) if ref.selling_price is not None else 0,
+                'cost_price': float(ref.cost_price) if ref.cost_price is not None else 0,
+                'created_at': ref.created_at
+            }
+            refs.append(ref_dict)
+        
+        # 获取筛选选项数据
+        business_types = BusinessType.query.order_by(BusinessType.name).all()
+        suppliers = Supplier.query.order_by(Supplier.name).all()
+        
+        # 计算筛选结果数量
+        filtered_count = pagination.total if any([business_type, status, supplier_id, leader_name, date_range, min_price, max_price, keyword]) else None
+        
+        # 添加调试信息
+        print(f"分页调试信息:")
+        print(f"  当前页: {pagination.page}")
+        print(f"  总页数: {pagination.pages}")
+        print(f"  每页数量: {pagination.per_page}")
+        print(f"  总记录数: {pagination.total}")
+        print(f"  是否有上一页: {pagination.has_prev}")
+        print(f"  是否有下一页: {pagination.has_next}")
+        print(f"  上一页页码: {pagination.prev_num}")
+        print(f"  下一页页码: {pagination.next_num}")
+        
+        return render_template('business/projects/project_ref/ref_list.html',
+                             refs=refs,
+                             pagination=pagination,
+                             business_types=business_types,
+                             suppliers=suppliers,
+                             filtered_count=filtered_count,
+                             current_filters={
+                                 'business_type': business_type,
+                                 'status': status,
+                                 'supplier': supplier_id,
+                                 'leader_name': leader_name,
+                                 'date_range': date_range,
+                                 'min_price': min_price,
+                                 'max_price': max_price,
+                                 'keyword': keyword,
+                                 'sort_by': sort_by,
+                                 'sort_order': sort_order
+                             })
+                             
+    except Exception as e:
+        import traceback
+        print(f"REF列表加载失败: {str(e)}")
+        print(f"错误详情: {traceback.format_exc()}")
+        flash(f'REF列表加载失败：{str(e)}', 'error')
+        return redirect(url_for('business_projects.list.list_projects'))
+
+def get_status_display(status):
+    """获取状态的中文显示名称"""
+    if not status or not isinstance(status, str):
+        return '未知'
+    
+    status_map = {
+        'draft': '草稿',
+        'processing': '进行中',
+        'completed': '已完成',
+        'cancelled': '已取消'
+    }
+    return status_map.get(status, status)
+
+def get_status_color(status):
+    """获取状态对应的Bootstrap颜色类"""
+    if not status or not isinstance(status, str):
+        return 'secondary'
+    
+    color_map = {
+        'draft': 'secondary',
+        'processing': 'info',
+        'completed': 'success',
+        'cancelled': 'danger'
+    }
+    return color_map.get(status, 'secondary')
+
+def get_business_type_color(business_type_name):
+    """获取业务类型对应的Bootstrap颜色类"""
+    if not business_type_name or not isinstance(business_type_name, str):
+        return 'secondary'
+    
+    color_map = {
+        '机票': 'primary',
+        '酒店': 'success',
+        '签证': 'warning',
+        '旅游团': 'info',
+        '保险': 'danger',
+        '交通': 'secondary',
+        '其他': 'dark'
+    }
+    return color_map.get(business_type_name, 'secondary')

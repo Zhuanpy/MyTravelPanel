@@ -41,6 +41,14 @@
                                     <label>签证类型 <span class="text-danger">*</span></label>
                                     <select name="visa_type" id="visa_type" class="form-control" required>
                                         <option value="">请先选择国家</option>
+                                        {% if not is_create and visa_types %}
+                                            {% for visa_type in visa_types %}
+                                                <option value="{{ visa_type.visa_type }}" 
+                                                        {% if visa_info and visa_info.get('visa_type') == visa_type.visa_type %}selected{% endif %}>
+                                                    {{ visa_type.visa_type }}
+                                                </option>
+                                            {% endfor %}
+                                        {% endif %}
                                     </select>
                                     <div class="invalid-feedback">请选择签证类型</div>
                                 </div>
@@ -387,7 +395,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 visaTypeSelect.disabled = true;
 
                 // 获取该国家的签证类型
-                fetch(`/projects/api/get_visa_types/${countryId}`)
+                fetch(`/projects/ref/api/get_visa_types/${countryId}`)
                     .then(response => response.json())
                     .then(data => {
                         if (data.success) {
