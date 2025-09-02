@@ -55,7 +55,7 @@ class Todo(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     priority = db.Column(db.Integer, default=2)  # 1=高，2=中，3=低
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('auth_users.id'), nullable=True)
 
     def __init__(self, title, description=None, due_date=None, priority=2, user_id=None):
         self.title = title

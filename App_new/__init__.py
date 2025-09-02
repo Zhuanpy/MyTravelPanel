@@ -123,10 +123,10 @@ def create_app():
     app.register_blueprint(product_details, url_prefix='/tour/product_details')
 
     # 工具与共享
-    from .shared.routes.utils_tasks import utils_blue
+    from .shared.routes.tasks import utils_blue
     from .shared.routes.utils import utils_process
     from .shared.routes.account import account_routes
-    from .shared.routes.utils_company_info import company_info
+    from .shared.routes.company_info import company_info
     from .shared.routes.company import company
     from .shared.routes.business_type import business_types
     from .shared.routes.supplier import supplier
@@ -180,6 +180,7 @@ def import_all_models():
         try:
             from .shared.models.business_types import BusinessType, BusinessTypeExtension, BusinessTypeRelation
             from .shared.models.Suppliers import Supplier
+            from .shared.models.Utilsmodels import Todo, Task
         except Exception:
             pass
     except Exception:

@@ -420,7 +420,7 @@
         if (openPackageFolder) {
             openPackageFolder.addEventListener('click', function(event) {
                 event.preventDefault();
-                sendPostRequest('{{ url_for("index.open_package_folder") }}', '资源文件夹已打开');
+                sendPostRequest('{{ url_for("shared.open_package_folder") }}', '资源文件夹已打开');
             });
         }
         
@@ -429,7 +429,7 @@
         if (openProjectFolder) {
             openProjectFolder.addEventListener('click', function(event) {
                 event.preventDefault();
-                sendPostRequest('{{ url_for("index.open_package_project_folder") }}', '项目文件夹已打开');
+                sendPostRequest('{{ url_for("shared.open_package_project_folder") }}', '项目文件夹已打开');
             });
         }
     });
