@@ -182,14 +182,18 @@ def quotes():
                              total_pages=(total + per_page - 1) // per_page,
                              total=total,
                              status=status,
-                             search=search)
+                             search=search,
+                             now=datetime.now())
     except Exception as e:
         flash(f'加载报价列表失败：{str(e)}', 'error')
         return render_template('staff/staff_quotes.html',
                              quotes=[],
                              current_page=1,
                              total_pages=1,
-                             total=0)
+                             total=0,
+                             status='',
+                             search='',
+                             now=datetime.now())
 
 @staff.route('/create_quote', methods=['GET', 'POST'])
 @login_required

@@ -98,11 +98,13 @@ def quotes():
         return render_template('member/quotes.html',
                              quotes=quotes,
                              pagination=pagination,
-                             current_type=quote_type)
+                             current_type=quote_type,
+                             now=datetime.now())
     except Exception as e:
         flash(f'加载报价列表失败：{str(e)}', 'error')
         return render_template('member/quotes.html',
-                             quotes=[], pagination=None, current_type='')
+                             quotes=[], pagination=None, current_type='',
+                             now=datetime.now())
 
 @member.route('/quote/<int:quote_id>')
 @login_required

@@ -1032,6 +1032,9 @@ def edit_visa_ref(ref_id):
             # 同步更新相关EO的价格
             from App_new.business.projects.models.eo import ProjectEO
             ProjectEO.sync_eo_prices_from_ref(ref.id, ref.cost_price, ref.currency)
+            
+            # 提交数据库更改
+            db.session.commit()
             flash('签证REF更新成功', 'success')
             return redirect(url_for('business_projects.detail.project_detail', project_id=ref.header_id))
             
@@ -1209,6 +1212,9 @@ def edit_other_ref(ref_id):
             # 同步更新相关EO的价格
             from App_new.business.projects.models.eo import ProjectEO
             ProjectEO.sync_eo_prices_from_ref(ref.id, ref.cost_price, ref.currency)
+            
+            # 提交数据库更改
+            db.session.commit()
             flash('其他REF更新成功', 'success')
             return redirect(url_for('business_projects.project_header.header_detail', header_id=ref.header_id))
             
@@ -1267,6 +1273,9 @@ def edit_insurance_ref(ref_id):
             # 同步更新相关EO的价格
             from App_new.business.projects.models.eo import ProjectEO
             ProjectEO.sync_eo_prices_from_ref(ref.id, ref.cost_price, ref.currency)
+            
+            # 提交数据库更改
+            db.session.commit()
             flash('保险REF更新成功', 'success')
             return redirect(url_for('business_projects.project_header.header_detail', header_id=ref.header_id))
             
@@ -1320,6 +1329,9 @@ def edit_tour_ref(ref_id):
             # 同步更新相关EO的价格
             from App_new.business.projects.models.eo import ProjectEO
             ProjectEO.sync_eo_prices_from_ref(ref.id, ref.cost_price, ref.currency)
+            
+            # 提交数据库更改
+            db.session.commit()
             flash('旅游团REF更新成功', 'success')
             return redirect(url_for('business_projects.project_header.header_detail', header_id=ref.header_id))
             
