@@ -104,8 +104,9 @@ function initializeFilters(accounts) {
     const categorySelect = document.getElementById('categorySelect');
     const countrySelect = document.getElementById('countrySelect');
     const ownerSelect = document.getElementById('ownerSelect');
+    const sortSelect = document.getElementById('sortSelect');
     
-    if (!categorySelect || !countrySelect || !ownerSelect) return;
+    if (!categorySelect || !countrySelect || !ownerSelect || !sortSelect) return;
     
     // 清空现有选项，只保留"全部"选项
     categorySelect.innerHTML = '<option value="">全部</option>';
@@ -189,7 +190,8 @@ let currentFilters = {
     category: '',
     country: '',
     owner: '',
-    search: ''
+    search: '',
+    sort: 'updated_desc'
 };
 let currentPage = 1;
 const itemsPerPage = 20;
@@ -294,7 +296,8 @@ async function initializeApp() {
             category: document.getElementById('categorySelect'),
             country: document.getElementById('countrySelect'),
             owner: document.getElementById('ownerSelect'),
-            search: document.getElementById('searchInput')
+            search: document.getElementById('searchInput'),
+            sort: document.getElementById('sortSelect')
         };
 
         // 检查并设置筛选器
@@ -549,6 +552,7 @@ function filterByPlatform(platformName) {
         currentFilters.category = '';
         currentFilters.country = '';
         currentFilters.owner = '';
+        currentFilters.sort = 'updated_desc';
         
         // 高亮显示被点击的热门网站
         const popularItems = document.querySelectorAll('.popular-item');
@@ -603,6 +607,7 @@ function clearFilters() {
     currentFilters.category = '';
     currentFilters.country = '';
     currentFilters.owner = '';
+    currentFilters.sort = 'updated_desc';
     
     // 移除热门网站高亮
     const popularItems = document.querySelectorAll('.popular-item');
@@ -679,14 +684,36 @@ function renderAccounts() {
         return matchesCategory && matchesCountry && matchesOwner && matchesSearch;
     });
 
+    // 排序账号
+    const sortedAccounts = filteredAccounts.sort((a, b) => {
+        const sortType = currentFilters.sort;
+        
+        switch (sortType) {
+            case 'updated_desc':
+                return new Date(b.updated_at || 0) - new Date(a.updated_at || 0);
+            case 'updated_asc':
+                return new Date(a.updated_at || 0) - new Date(b.updated_at || 0);
+            case 'created_desc':
+                return new Date(b.created_at || 0) - new Date(a.created_at || 0);
+            case 'created_asc':
+                return new Date(a.created_at || 0) - new Date(b.created_at || 0);
+            case 'platform_asc':
+                return (a.platform || '').localeCompare(b.platform || '');
+            case 'platform_desc':
+                return (b.platform || '').localeCompare(a.platform || '');
+            default:
+                return 0;
+        }
+    });
+
     // 计算分页
-    const totalPages = Math.ceil(filteredAccounts.length / itemsPerPage);
+    const totalPages = Math.ceil(sortedAccounts.length / itemsPerPage);
     if (currentPage > totalPages && totalPages > 0) {
         currentPage = totalPages;
     }
     
     const startIndex = (currentPage - 1) * itemsPerPage;
-    const paginatedAccounts = filteredAccounts.slice(startIndex, startIndex + itemsPerPage);
+    const paginatedAccounts = sortedAccounts.slice(startIndex, startIndex + itemsPerPage);
 
     // 渲染账号列表
     accountListElement.innerHTML = '';
@@ -709,7 +736,7 @@ function renderAccounts() {
     // 更新总记录数
     const totalItemsElement = document.getElementById('totalItems');
     if (totalItemsElement) {
-        totalItemsElement.textContent = filteredAccounts.length;
+        totalItemsElement.textContent = sortedAccounts.length;
     }
 }
 
