@@ -485,6 +485,56 @@ def submit_hotel_ref():
         return redirect(url_for('business_projects.detail.project_detail', project_id=header_id))
 
 
+@project_ref.route('/hotel/edit/<int:ref_id>', methods=['GET', 'POST'])
+@csrf.exempt
+def edit_hotel_ref(ref_id):
+    """编辑酒店REF"""
+    ref = ProjectRef.query.get_or_404(ref_id)
+    
+    # 确保这是酒店类型的REF
+    business_type = BusinessType.query.get(ref.ref_type_id)
+    if not business_type or business_type.name != '酒店':
+        flash('只能编辑酒店类型的REF', 'error')
+        return redirect(url_for('business_projects.detail.project_detail', project_id=ref.header_id))
+    
+    if request.method == 'POST':
+        try:
+            # 更新REF数据
+            ref.name = request.form.get('name', '酒店订单')
+            ref.description = request.form.get('description', '酒店订单')
+            ref.supplier_id = request.form.get('supplier_id') if request.form.get('supplier_id') and request.form.get('supplier_id') != '0' else None
+            ref.leader_name = request.form.get('leader_name', '')
+            ref.contact_name = request.form.get('contact_name')
+            ref.contact_phone = request.form.get('contact_phone')
+            ref.contact_email = request.form.get('contact_email')
+            ref.remarks = request.form.get('remarks')
+            ref.status = request.form.get('status', 'draft')
+            ref.payment_status = request.form.get('payment_status', 'unpaid')
+            ref.selling_price = float(request.form.get('selling_price', 0)) if request.form.get('selling_price') else None
+            ref.cost_price = float(request.form.get('cost_price', 0)) if request.form.get('cost_price') else None
+            
+            db.session.commit()
+            flash('酒店REF更新成功', 'success')
+            return redirect(url_for('business_projects.detail.project_detail', project_id=ref.header_id))
+            
+        except Exception as e:
+            db.session.rollback()
+            flash(f'更新失败：{str(e)}', 'error')
+            return redirect(url_for('business_projects.detail.project_detail', project_id=ref.header_id))
+    
+    # GET请求 - 显示编辑页面
+    suppliers = Supplier.query.all()
+    supplier_types = ['visa', 'flight', 'hotel', 'transport', 'local_operator', 'other']
+    
+    return render_template('business/projects/project_ref/create_hotel_ref.html', 
+                         header_id=ref.header_id,
+                         ref_id=ref.id,
+                         ref=ref,
+                         suppliers=suppliers,
+                         supplier_types=supplier_types,
+                         is_create=False)
+
+
 # 签证REF相关函数
 @project_ref.route('/visa/create/<int:header_id>', methods=['GET'])
 def create_visa_ref(header_id):
@@ -1185,7 +1235,7 @@ def edit_other_ref(ref_id):
     business_type = BusinessType.query.get(ref.ref_type_id)
     if not business_type or business_type.name != '其他':
         flash('只能编辑其他类型的REF', 'error')
-        return redirect(url_for('business_projects.project_header.header_detail', header_id=ref.header_id))
+        return redirect(url_for('business_projects.detail.project_detail', project_id=ref.header_id))
     
     if request.method == 'POST':
         try:
@@ -1216,12 +1266,12 @@ def edit_other_ref(ref_id):
             # 提交数据库更改
             db.session.commit()
             flash('其他REF更新成功', 'success')
-            return redirect(url_for('business_projects.project_header.header_detail', header_id=ref.header_id))
+            return redirect(url_for('business_projects.detail.project_detail', project_id=ref.header_id))
             
         except Exception as e:
             db.session.rollback()
             flash(f'更新失败：{str(e)}', 'error')
-            return redirect(url_for('business_projects.project_header.header_detail', header_id=ref.header_id))
+            return redirect(url_for('business_projects.detail.project_detail', project_id=ref.header_id))
     
     # 获取供应商数据与项目头信息（有些模板/基类可能需要 header）
     suppliers = Supplier.query.all()
@@ -1246,7 +1296,7 @@ def edit_insurance_ref(ref_id):
     business_type = BusinessType.query.get(ref.ref_type_id)
     if not business_type or business_type.name != '保险':
         flash('只能编辑保险类型的REF', 'error')
-        return redirect(url_for('business_projects.project_header.header_detail', header_id=ref.header_id))
+        return redirect(url_for('business_projects.detail.project_detail', project_id=ref.header_id))
     
     if request.method == 'POST':
         try:
@@ -1277,12 +1327,12 @@ def edit_insurance_ref(ref_id):
             # 提交数据库更改
             db.session.commit()
             flash('保险REF更新成功', 'success')
-            return redirect(url_for('business_projects.project_header.header_detail', header_id=ref.header_id))
+            return redirect(url_for('business_projects.detail.project_detail', project_id=ref.header_id))
             
         except Exception as e:
             db.session.rollback()
             flash(f'更新失败：{str(e)}', 'error')
-            return redirect(url_for('business_projects.project_header.header_detail', header_id=ref.header_id))
+            return redirect(url_for('business_projects.detail.project_detail', project_id=ref.header_id))
     
     # 获取供应商数据
     suppliers = Supplier.query.all()
@@ -1302,7 +1352,7 @@ def edit_tour_ref(ref_id):
     business_type = BusinessType.query.get(ref.ref_type_id)
     if not business_type or business_type.name != '旅游团':
         flash('只能编辑旅游团类型的REF', 'error')
-        return redirect(url_for('business_projects.project_header.header_detail', header_id=ref.header_id))
+        return redirect(url_for('business_projects.detail.project_detail', project_id=ref.header_id))
     
     if request.method == 'POST':
         try:
@@ -1333,12 +1383,12 @@ def edit_tour_ref(ref_id):
             # 提交数据库更改
             db.session.commit()
             flash('旅游团REF更新成功', 'success')
-            return redirect(url_for('business_projects.project_header.header_detail', header_id=ref.header_id))
+            return redirect(url_for('business_projects.detail.project_detail', project_id=ref.header_id))
             
         except Exception as e:
             db.session.rollback()
             flash(f'更新失败：{str(e)}', 'error')
-            return redirect(url_for('business_projects.project_header.header_detail', header_id=ref.header_id))
+            return redirect(url_for('business_projects.detail.project_detail', project_id=ref.header_id))
     
     # 获取供应商数据
     header = ProjectHeader.query.get(ref.header_id)  # 获取header对象

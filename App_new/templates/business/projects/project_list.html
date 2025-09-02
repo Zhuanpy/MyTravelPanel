@@ -6,20 +6,150 @@
 
 {% block content %}
 <div class="container-fluid">
-    <!-- 页面标题 -->
+        <!-- 页面标题 -->
     <div class="row mb-4">
         <div class="col-12">
-            <div class="d-flex justify-content-between align-items-center">
-                <h1 class="h3 mb-0">
-                    <i class="fas fa-project-diagram text-primary"></i>
-                    项目管理
-                </h1>
-                <div class="d-flex gap-2">
-                    <a href="{{ url_for('business_projects.project_create.create_header') }}" class="btn btn-primary">
-                         <i class="fas fa-plus"></i> 新建项目
-                    </a>
-                </div>
-            </div>
+            <!-- <h1 class="h3 mb-0">
+                <i class="fas fa-project-diagram text-primary"></i>
+                项目管理
+            </h1> -->
+            <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                var companyEditables = document.querySelectorAll('.company-editable');
+                var currentEditing = null;
+                
+                companyEditables.forEach(function(editable) {
+                    var display = editable.querySelector('.company-display');
+                    var input = editable.querySelector('.company-input');
+                    var suggestions = editable.querySelector('.company-suggestions');
+                    var projectId = editable.getAttribute('data-project-id');
+                    
+                    // 点击显示区域进入编辑模式
+                    display.addEventListener('click', function() {
+                        if (currentEditing && currentEditing !== editable) {
+                            saveCurrentEdit();
+                        }
+                        enterEditMode(editable);
+                    });
+                    
+                    // 输入框失焦时保存
+                    input.addEventListener('blur', function() {
+                        setTimeout(function() {
+                            if (currentEditing === editable) {
+                                saveCurrentEdit();
+                            }
+                        }, 200);
+                    });
+                    
+                    // 输入时搜索公司
+                    input.addEventListener('input', function() {
+                        var query = this.value.trim();
+                        if (query.length > 0) {
+                            searchCompanies(query, suggestions, input, projectId);
+                        } else {
+                            suggestions.classList.add('d-none');
+                        }
+                    });
+                    
+                    // 回车键保存
+                    input.addEventListener('keydown', function(e) {
+                        if (e.key === 'Enter') {
+                            saveCurrentEdit();
+                        } else if (e.key === 'Escape') {
+                            cancelEdit(editable);
+                        }
+                    });
+                });
+                
+                function enterEditMode(editable) {
+                    currentEditing = editable;
+                    var display = editable.querySelector('.company-display');
+                    var input = editable.querySelector('.company-input');
+                    
+                    display.classList.add('d-none');
+                    input.classList.remove('d-none');
+                    input.focus();
+                    input.select();
+                }
+                
+                function saveCurrentEdit() {
+                    if (!currentEditing) return;
+                    
+                    var input = currentEditing.querySelector('.company-input');
+                    var display = currentEditing.querySelector('.company-display');
+                    var projectId = currentEditing.getAttribute('data-project-id');
+                    var companyName = input.value.trim();
+                    
+                    // 保存到服务器
+                    fetch("/projects/list/api/update_company_name", {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            project_id: projectId, 
+                            company_name: companyName 
+                        })
+                    }).then(function(resp){ 
+                        return resp.json(); 
+                    }).then(function(data){
+                        if (data.success) {
+                            // 更新显示
+                            if (companyName) {
+                                display.textContent = companyName;
+                            } else {
+                                display.innerHTML = '<span class="text-muted">点击编辑</span>';
+                            }
+                        } else {
+                            alert('更新失败：' + (data.message || '未知错误'));
+                        }
+                    }).catch(function(){
+                        alert('网络错误，更新失败');
+                    });
+                    
+                    // 退出编辑模式
+                    input.classList.add('d-none');
+                    display.classList.remove('d-none');
+                    currentEditing = null;
+                }
+                
+                function cancelEdit(editable) {
+                    var display = editable.querySelector('.company-display');
+                    var input = editable.querySelector('.company-input');
+                    var suggestions = editable.querySelector('.company-suggestions');
+                    
+                    input.classList.add('d-none');
+                    display.classList.remove('d-none');
+                    suggestions.classList.add('d-none');
+                    currentEditing = null;
+                }
+                
+                function searchCompanies(query, suggestions, input, projectId) {
+                    fetch("/projects/list/api/search_companies?q=" + encodeURIComponent(query))
+                        .then(function(resp) { return resp.json(); })
+                        .then(function(data) {
+                            if (data.success && data.companies.length > 0) {
+                                suggestions.innerHTML = '';
+                                data.companies.forEach(function(company) {
+                                    var item = document.createElement('div');
+                                    item.className = 'suggestion-item';
+                                    item.textContent = company.company_name;
+                                    item.addEventListener('click', function() {
+                                        input.value = company.company_name;
+                                        suggestions.classList.add('d-none');
+                                        input.focus();
+                                    });
+                                    suggestions.appendChild(item);
+                                });
+                                suggestions.classList.remove('d-none');
+                            } else {
+                                suggestions.classList.add('d-none');
+                            }
+                        })
+                        .catch(function() {
+                            suggestions.classList.add('d-none');
+                        });
+                }
+            });
+            </script>
         </div>
     </div>
 
@@ -31,14 +161,95 @@
             </h6>
         </div>
         <div class="card-body">
+            <style>
+            /* 过滤表单采用10列栅格布局 */
+            #filterForm .filter-grid { display: grid; grid-template-columns: repeat(10, minmax(90px, 1fr)); gap: 8px 12px; }
+            #filterForm .filter-item { margin-bottom: 0; }
+            #filterForm .filter-item .form-label { font-size: 12px; margin-bottom: 4px; }
+            #filterForm .filter-item .form-control, 
+            #filterForm .filter-item .form-select { padding: 0.25rem 0.5rem; height: 32px; }
+            @media (max-width: 1400px) { #filterForm .filter-grid { grid-template-columns: repeat(8, 1fr); } }
+            @media (max-width: 1200px) { #filterForm .filter-grid { grid-template-columns: repeat(6, 1fr); } }
+            @media (max-width: 992px)  { #filterForm .filter-grid { grid-template-columns: repeat(4, 1fr); } }
+            @media (max-width: 768px)  { #filterForm .filter-grid { grid-template-columns: repeat(2, 1fr); } }
+            
+            /* 公司编辑样式 */
+            .company-editable { position: relative; cursor: pointer; }
+            .company-display { padding: 4px 8px; border-radius: 4px; }
+            .company-display:hover { background-color: #f8f9fa; }
+            .company-input { width: 100%; }
+            .company-suggestions { 
+                position: absolute; 
+                top: 100%; 
+                left: 0; 
+                right: 0; 
+                background: white; 
+                border: 1px solid #ddd; 
+                border-radius: 4px; 
+                box-shadow: 0 2px 8px rgba(0,0,0,0.1); 
+                z-index: 1000; 
+                max-height: 200px; 
+                overflow-y: auto; 
+            }
+            .suggestion-item { 
+                padding: 8px 12px; 
+                cursor: pointer; 
+                border-bottom: 1px solid #eee; 
+            }
+            .suggestion-item:hover { background-color: #f8f9fa; }
+            .suggestion-item:last-child { border-bottom: none; }
+            
+            /* 表格固定宽度样式 */
+            #projectsTable { 
+                table-layout: fixed; 
+                width: 100%; 
+                min-width: 1200px;
+            }
+            #projectsTable th, 
+            #projectsTable td { 
+                overflow: hidden; 
+                text-overflow: ellipsis; 
+                white-space: nowrap; 
+                padding: 8px 6px;
+            }
+            #projectsTable th:nth-child(1), 
+            #projectsTable td:nth-child(1) { width: 100px; } /* 项目编号 */
+            #projectsTable th:nth-child(2), 
+            #projectsTable td:nth-child(2) { width: 150px; } /* 项目描述 */
+            #projectsTable th:nth-child(3), 
+            #projectsTable td:nth-child(3) { width: 120px; } /* 客户公司 */
+            #projectsTable th:nth-child(4), 
+            #projectsTable td:nth-child(4) { width: 100px; } /* 联系人 */
+            #projectsTable th:nth-child(5), 
+            #projectsTable td:nth-child(5) { width: 100px; } /* 负责人 */
+            #projectsTable th:nth-child(6), 
+            #projectsTable td:nth-child(6) { width: 80px; }  /* 类型 */
+            #projectsTable th:nth-child(7), 
+            #projectsTable td:nth-child(7) { width: 80px; }  /* 状态 */
+            #projectsTable th:nth-child(8), 
+            #projectsTable td:nth-child(8) { width: 100px; } /* 销售金额 */
+            #projectsTable th:nth-child(9), 
+            #projectsTable td:nth-child(9) { width: 100px; } /* 成本 */
+            #projectsTable th:nth-child(10), 
+            #projectsTable td:nth-child(10) { width: 100px; } /* 利润 */
+            #projectsTable th:nth-child(11), 
+            #projectsTable td:nth-child(11) { width: 100px; } /* 已收款 */
+            #projectsTable th:nth-child(12), 
+            #projectsTable td:nth-child(12) { width: 100px; } /* 未付款 */
+            #projectsTable th:nth-child(13), 
+            #projectsTable td:nth-child(13) { width: 100px; } /* 创建时间 */
+            #projectsTable th:nth-child(14), 
+            #projectsTable td:nth-child(14) { width: 80px; }  /* 操作 */
+            </style>
+
             <form method="GET" action="{{ url_for('business_projects.list.list_projects') }}" id="filterForm">
-                <div class="row">
-                    <div class="col-md-2 mb-3">
+                <div class="filter-grid">
+                    <div class="filter-item">
                         <label for="search" class="form-label">搜索关键词</label>
                         <input type="text" class="form-control filter-input" id="search" name="search" 
                                value="{{ filters.search }}" placeholder="项目编号、描述、联系人...">
                     </div>
-                    <div class="col-md-2 mb-3">
+                    <div class="filter-item">
                         <label for="status" class="form-label">项目状态</label>
                         <select class="form-select filter-input" id="status" name="status">
                             <option value="">所有状态</option>
@@ -48,25 +259,38 @@
                             <option value="cancelled" {{ 'selected' if filters.status == 'cancelled' }}>已取消</option>
                         </select>
                     </div>
-                    <div class="col-md-2 mb-3">
+                    <div class="filter-item">
                         <label for="company" class="form-label">客户公司</label>
                         <input type="text" class="form-control filter-input" id="company" name="company" 
                                value="{{ filters.company }}" placeholder="公司名称...">
                     </div>
-                    <div class="col-md-2 mb-3">
+                    <div class="filter-item">
                         <label for="leader" class="form-label">项目负责人</label>
                         <input type="text" class="form-control filter-input" id="leader" name="leader" 
                                value="{{ filters.leader }}" placeholder="负责人姓名...">
                     </div>
-                    <div class="col-md-2 mb-3">
+                    <div class="filter-item">
                         <label for="contact" class="form-label">联系人</label>
                         <input type="text" class="form-control filter-input" id="contact" name="contact" 
                                value="{{ filters.contact }}" placeholder="联系人姓名...">
                     </div>
-                    <div class="col-md-2 mb-3 d-flex align-items-end">
-                        <button type="submit" class="btn btn-primary">
+                    <div class="filter-item">
+                        <label for="payment_status" class="form-label">付款状态</label>
+                        <select class="form-select filter-input" id="payment_status" name="payment_status">
+                            <option value="">所有状态</option>
+                            <option value="unpaid" {{ 'selected' if filters.payment_status == 'unpaid' }}>未付款</option>
+                            <option value="paid" {{ 'selected' if filters.payment_status == 'paid' }}>已付款</option>
+                        </select>
+                    </div>
+                    <div class="filter-item d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary w-100">
                             <i class="fas fa-search"></i> 筛选
                         </button>
+                    </div>
+                    <div class="filter-item d-flex align-items-end">
+                        <a href="{{ url_for('business_projects.list.list_projects') }}" class="btn btn-secondary w-100">
+                            <i class="fas fa-undo"></i> 重置
+                        </a>
                     </div>
                 </div>
             </form>
@@ -76,13 +300,19 @@
     <!-- 项目列表 -->
     <div class="card shadow mb-4">
         <div class="card-header py-3">
-            <h6 class="m-0 font-weight-bold text-primary">
-                <i class="fas fa-list"></i> 项目列表
-                <span class="badge bg-primary ms-2" id="projectCount">
-                    {{ projects|length if projects else 0 }}
-                </span>
-            </h6>
+            <div class="d-flex justify-content-between align-items-center">
+                <h6 class="m-0 font-weight-bold text-primary">
+                    <i class="fas fa-list"></i> 项目列表
+                    <span class="badge bg-primary ms-2" id="projectCount">
+                        {{ projects|length if projects else 0 }}
+                    </span>
+                </h6>
+                <a href="{{ url_for('business_projects.project_create.create_header') }}" class="btn btn-primary btn-sm">
+                     <i class="fas fa-plus"></i> 新建项目
+                </a>
+            </div>
         </div>
+
         <div class="card-body">
             {% if projects %}
             <div class="table-responsive">
@@ -116,11 +346,20 @@
                             </td>
                             <td>{{ project.desc or '无描述' }}</td>
                             <td>
-                                {% if project.company %}
-                                    <span class="badge bg-info">{{ project.company.company_name }}</span>
-                                {% else %}
-                                    <span class="text-muted">未指定</span>
-                                {% endif %}
+                                <div class="company-editable" data-project-id="{{ project.id }}">
+                                    <span class="company-display">
+                                        {% if project.company %}
+                                            {{ project.company.company_name }}
+                                        {% else %}
+                                            <span class="text-muted">点击编辑</span>
+                                        {% endif %}
+                                    </span>
+                                    <input type="text" class="form-control form-control-sm company-input d-none" 
+                                           data-project-id="{{ project.id }}" 
+                                           value="{% if project.company %}{{ project.company.company_name }}{% endif %}"
+                                           placeholder="输入公司名称...">
+                                    <div class="company-suggestions d-none"></div>
+                                </div>
                             </td>
                             <td>{{ project.contact or '未指定' }}</td>
                             <td>{{ project.leader_name or '未指定' }}</td>
@@ -204,6 +443,58 @@
                      <i class="fas fa-plus"></i> 创建第一个项目
                  </a>
             </div>
+            {% endif %}
+            
+            <!-- 分页控件 -->
+            {% if pagination and pagination.pages > 1 %}
+            <nav aria-label="项目列表分页" class="mt-4">
+                <ul class="pagination justify-content-center">
+                    {% if pagination.has_prev %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('business_projects.list.list_projects', page=pagination.prev_num, status=filters.status, search=filters.search, company=filters.company, leader=filters.leader, contact=filters.contact, staff_name=filters.staff_name, date_from=filters.date_from, date_to=filters.date_to, selling_min=filters.selling_min, selling_max=filters.selling_max, profit_min=filters.profit_min, profit_max=filters.profit_max, balance_min=filters.balance_min, balance_max=filters.balance_max, payment_status=filters.payment_status, sort_by=filters.sort_by) }}">
+                            <i class="fas fa-chevron-left"></i> 上一页
+                        </a>
+                    </li>
+                    {% endif %}
+                    
+                    {% for page_num in pagination.iter_pages() %}
+                        {% if page_num %}
+                            {% if page_num != pagination.page %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('business_projects.list.list_projects', page=page_num, status=filters.status, search=filters.search, company=filters.company, leader=filters.leader, contact=filters.contact, staff_name=filters.staff_name, date_from=filters.date_from, date_to=filters.date_to, selling_min=filters.selling_min, selling_max=filters.selling_max, profit_min=filters.profit_min, profit_max=filters.profit_max, balance_min=filters.balance_min, balance_max=filters.balance_max, payment_status=filters.payment_status, sort_by=filters.sort_by) }}">
+                                    {{ page_num }}
+                                </a>
+                            </li>
+                            {% else %}
+                            <li class="page-item active">
+                                <span class="page-link">{{ page_num }}</span>
+                            </li>
+                            {% endif %}
+                        {% else %}
+                        <li class="page-item disabled">
+                            <span class="page-link">...</span>
+                        </li>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if pagination.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('business_projects.list.list_projects', page=pagination.next_num, status=filters.status, search=filters.search, company=filters.company, leader=filters.leader, contact=filters.contact, staff_name=filters.staff_name, date_from=filters.date_from, date_to=filters.date_to, selling_min=filters.selling_min, selling_max=filters.selling_max, profit_min=filters.profit_min, profit_max=filters.profit_max, balance_min=filters.balance_min, balance_max=filters.balance_max, payment_status=filters.payment_status, sort_by=filters.sort_by) }}">
+                            下一页 <i class="fas fa-chevron-right"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+                
+                <!-- 分页信息 -->
+                <div class="text-center text-muted">
+                    <small>
+                        显示第 {{ (pagination.page - 1) * pagination.per_page + 1 }} - 
+                        {{ pagination.page * pagination.per_page if pagination.page * pagination.per_page < pagination.total else pagination.total }} 
+                        条，共 {{ pagination.total }} 条记录
+                    </small>
+                </div>
+            </nav>
             {% endif %}
         </div>
     </div>

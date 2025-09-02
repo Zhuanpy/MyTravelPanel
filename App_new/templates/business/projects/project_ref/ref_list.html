@@ -15,9 +15,6 @@
                     REF列表管理
                 </h1>
                 <div class="d-flex gap-2">
-                    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#filterModal">
-                        <i class="fas fa-filter"></i> 筛选
-                    </button>
                     <button type="button" class="btn btn-success" onclick="exportToExcel()">
                         <i class="fas fa-download"></i> 导出Excel
                     </button>
@@ -38,6 +35,100 @@
             <small class="text-muted">
                 最后更新: 刚刚
             </small>
+        </div>
+    </div>
+
+    <!-- 筛选表单 -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">
+                <i class="fas fa-filter"></i> 筛选条件
+            </h6>
+        </div>
+        <div class="card-body">
+            <form method="GET" action="{{ url_for('business_projects.project_ref.ref_list') }}">
+                <div class="row">
+                    <div class="col-md-2">
+                        <div class="mb-3">
+                            <label for="business_type" class="form-label">业务类型</label>
+                            <select class="form-select" id="business_type" name="business_type">
+                                <option value="">全部类型</option>
+                                {% for type in business_types %}
+                                <option value="{{ type.name }}" {% if request.args.get('business_type') == type.name %}selected{% endif %}>
+                                    {{ type.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="mb-3">
+                            <label for="status" class="form-label">状态</label>
+                            <select class="form-select" id="status" name="status">
+                                <option value="">全部状态</option>
+                                <option value="draft" {% if request.args.get('status') == 'draft' %}selected{% endif %}>草稿</option>
+                                <option value="processing" {% if request.args.get('status') == 'processing' %}selected{% endif %}>进行中</option>
+                                <option value="completed" {% if request.args.get('status') == 'completed' %}selected{% endif %}>已完成</option>
+                                <option value="cancelled" {% if request.args.get('status') == 'cancelled' %}selected{% endif %}>已取消</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="mb-3">
+                            <label for="supplier" class="form-label">供应商</label>
+                            <select class="form-select" id="supplier" name="supplier">
+                                <option value="">全部供应商</option>
+                                {% for supplier in suppliers %}
+                                <option value="{{ supplier.supplier_id }}" {% if request.args.get('supplier') == supplier.supplier_id|string %}selected{% endif %}>
+                                    {{ supplier.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="mb-3">
+                            <label for="leader_name" class="form-label">出行人</label>
+                            <input type="text" class="form-control" id="leader_name" name="leader_name" 
+                                   placeholder="搜索出行人姓名" 
+                                   value="{{ request.args.get('leader_name', '') }}">
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="mb-3">
+                            <label for="date_range" class="form-label">创建时间范围</label>
+                            <select class="form-select" id="date_range" name="date_range">
+                                <option value="">全部时间</option>
+                                <option value="today" {% if request.args.get('date_range') == 'today' %}selected{% endif %}>今天</option>
+                                <option value="week" {% if request.args.get('date_range') == 'week' %}selected{% endif %}>本周</option>
+                                <option value="month" {% if request.args.get('date_range') == 'month' %}selected{% endif %}>本月</option>
+                                <option value="quarter" {% if request.args.get('date_range') == 'quarter' %}selected{% endif %}>本季度</option>
+                                <option value="year" {% if request.args.get('date_range') == 'year' %}selected{% endif %}>本年</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="mb-3">
+                            <label for="keyword" class="form-label">关键词搜索</label>
+                            <input type="text" class="form-control" id="keyword" name="keyword" 
+                                   placeholder="搜索REF名称、描述、编号等" 
+                                   value="{{ request.args.get('keyword', '') }}">
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-12">
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-search"></i> 应用筛选
+                            </button>
+                            <a href="{{ url_for('business_projects.project_ref.ref_list') }}" class="btn btn-warning">
+                                <i class="fas fa-undo"></i> 重置
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </form>
         </div>
     </div>
 
@@ -191,7 +282,7 @@
                 <ul class="pagination justify-content-center">
                     {% if pagination.has_prev %}
                     <li class="page-item">
-                        <a class="page-link" href="{{ url_for('business_projects.project_ref.ref_list', page=pagination.prev_num, business_type=request.args.get('business_type', ''), status=request.args.get('status', ''), supplier=request.args.get('supplier', ''), leader_name=request.args.get('leader_name', ''), date_range=request.args.get('date_range', ''), min_price=request.args.get('min_price', ''), max_price=request.args.get('max_price', ''), keyword=request.args.get('keyword', ''), sort_by=request.args.get('sort_by', 'created_at'), sort_order=request.args.get('sort_order', 'desc')) }}">
+                        <a class="page-link" href="{{ url_for('business_projects.project_ref.ref_list', page=pagination.prev_num, business_type=request.args.get('business_type', ''), status=request.args.get('status', ''), supplier=request.args.get('supplier', ''), leader_name=request.args.get('leader_name', ''), date_range=request.args.get('date_range', ''), keyword=request.args.get('keyword', ''), sort_by=request.args.get('sort_by', 'created_at'), sort_order=request.args.get('sort_order', 'desc')) }}">
                             <i class="fas fa-chevron-left"></i> 上一页
                         </a>
                     </li>
@@ -201,7 +292,7 @@
                         {% if page_num %}
                             {% if page_num != pagination.page %}
                             <li class="page-item">
-                                <a class="page-link" href="{{ url_for('business_projects.project_ref.ref_list', page=page_num, business_type=request.args.get('business_type', ''), status=request.args.get('status', ''), supplier=request.args.get('supplier', ''), leader_name=request.args.get('leader_name', ''), date_range=request.args.get('date_range', ''), min_price=request.args.get('min_price', ''), max_price=request.args.get('max_price', ''), keyword=request.args.get('keyword', ''), sort_by=request.args.get('sort_by', 'created_at'), sort_order=request.args.get('sort_order', 'desc')) }}">
+                                <a class="page-link" href="{{ url_for('business_projects.project_ref.ref_list', page=page_num, business_type=request.args.get('business_type', ''), status=request.args.get('status', ''), supplier=request.args.get('supplier', ''), leader_name=request.args.get('leader_name', ''), date_range=request.args.get('date_range', ''), keyword=request.args.get('keyword', ''), sort_by=request.args.get('sort_by', 'created_at'), sort_order=request.args.get('sort_order', 'desc')) }}">
                                     {{ page_num }}
                                 </a>
                             </li>
@@ -219,7 +310,7 @@
                     
                     {% if pagination.has_next %}
                     <li class="page-item">
-                        <a class="page-link" href="{{ url_for('business_projects.project_ref.ref_list', page=pagination.next_num, business_type=request.args.get('business_type', ''), status=request.args.get('status', ''), supplier=request.args.get('supplier', ''), leader_name=request.args.get('leader_name', ''), date_range=request.args.get('date_range', ''), min_price=request.args.get('min_price', ''), max_price=request.args.get('max_price', ''), keyword=request.args.get('keyword', ''), sort_by=request.args.get('sort_by', 'created_at'), sort_order=request.args.get('sort_order', 'desc')) }}">
+                        <a class="page-link" href="{{ url_for('business_projects.project_ref.ref_list', page=pagination.next_num, business_type=request.args.get('business_type', ''), status=request.args.get('status', ''), supplier=request.args.get('supplier', ''), leader_name=request.args.get('leader_name', ''), date_range=request.args.get('date_range', ''), keyword=request.args.get('keyword', ''), sort_by=request.args.get('sort_by', 'created_at'), sort_order=request.args.get('sort_order', 'desc')) }}">
                             下一页 <i class="fas fa-chevron-right"></i>
                         </a>
                     </li>
@@ -231,120 +322,7 @@
     </div>
 </div>
 
-<!-- 筛选模态框 -->
-<div class="modal fade" id="filterModal" tabindex="-1" aria-labelledby="filterModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="filterModalLabel">
-                    <i class="fas fa-filter"></i> REF筛选条件
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <form method="GET" action="{{ url_for('business_projects.project_ref.ref_list') }}">
-                <div class="modal-body">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="business_type" class="form-label">业务类型</label>
-                                <select class="form-select" id="business_type" name="business_type">
-                                    <option value="">全部类型</option>
-                                    {% for type in business_types %}
-                                    <option value="{{ type.name }}" {% if request.args.get('business_type') == type.name %}selected{% endif %}>
-                                        {{ type.name }}
-                                    </option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="status" class="form-label">状态</label>
-                                <select class="form-select" id="status" name="status">
-                                    <option value="">全部状态</option>
-                                    <option value="draft" {% if request.args.get('status') == 'draft' %}selected{% endif %}>草稿</option>
-                                    <option value="processing" {% if request.args.get('status') == 'processing' %}selected{% endif %}>进行中</option>
-                                    <option value="completed" {% if request.args.get('status') == 'completed' %}selected{% endif %}>已完成</option>
-                                    <option value="cancelled" {% if request.args.get('status') == 'cancelled' %}selected{% endif %}>已取消</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="row">
-                        <div class="col-md-4">
-                            <div class="mb-3">
-                                <label for="supplier" class="form-label">供应商</label>
-                                <select class="form-select" id="supplier" name="supplier">
-                                    <option value="">全部供应商</option>
-                                    {% for supplier in suppliers %}
-                                    <option value="{{ supplier.supplier_id }}" {% if request.args.get('supplier') == supplier.supplier_id|string %}selected{% endif %}>
-                                        {{ supplier.name }}
-                                    </option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="mb-3">
-                                <label for="leader_name" class="form-label">出行人</label>
-                                <input type="text" class="form-control" id="leader_name" name="leader_name" 
-                                       placeholder="搜索出行人姓名" 
-                                       value="{{ request.args.get('leader_name', '') }}">
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="mb-3">
-                                <label for="date_range" class="form-label">创建时间范围</label>
-                                <select class="form-select" id="date_range" name="date_range">
-                                    <option value="">全部时间</option>
-                                    <option value="today" {% if request.args.get('date_range') == 'today' %}selected{% endif %}>今天</option>
-                                    <option value="week" {% if request.args.get('date_range') == 'week' %}selected{% endif %}>本周</option>
-                                    <option value="month" {% if request.args.get('date_range') == 'month' %}selected{% endif %}>本月</option>
-                                    <option value="quarter" {% if request.args.get('date_range') == 'quarter' %}selected{% endif %}>本季度</option>
-                                    <option value="year" {% if request.args.get('date_range') == 'year' %}selected{% endif %}>本年</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="min_price" class="form-label">最低价格</label>
-                                <input type="number" class="form-control" id="min_price" name="min_price" 
-                                       placeholder="0.00" step="0.01" 
-                                       value="{{ request.args.get('min_price', '') }}">
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="max_price" class="form-label">最高价格</label>
-                                <input type="number" class="form-control" id="max_price" name="max_price" 
-                                       placeholder="999999.99" step="0.01" 
-                                       value="{{ request.args.get('max_price', '') }}">
-                            </div>
-                        </div>
-                    </div>
-                    <div class="row">
-                        <div class="col-md-12">
-                            <div class="mb-3">
-                                <label for="keyword" class="form-label">关键词搜索</label>
-                                <input type="text" class="form-control" id="keyword" name="keyword" 
-                                       placeholder="搜索REF名称、描述、编号等" 
-                                       value="{{ request.args.get('keyword', '') }}">
-                                <div class="form-text">支持搜索REF名称、描述、编号等字段</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-                    <a href="{{ url_for('business_projects.project_ref.ref_list') }}" class="btn btn-warning">重置</a>
-                    <button type="submit" class="btn btn-primary">应用筛选</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
+
 {% endblock %}
 
 {% block extra_js %}

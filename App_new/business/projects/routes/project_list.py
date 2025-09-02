@@ -6,7 +6,7 @@
 
 from flask import Blueprint, render_template, request, flash, jsonify
 from flask_login import login_required
-from App_new.exts import db
+from App_new.exts import db, csrf
 from App_new.business.projects.models.project import ProjectHeader, CustomerCompany
 from App_new.business.projects.models.ref import ProjectRef
 from App_new.business.projects.models.receipt import ProjectReceipt
@@ -16,8 +16,90 @@ from App_new.utils.decorators import staff_only
 from datetime import datetime
 import traceback
 
+
 # 创建蓝图
 bp = Blueprint('list', __name__)
+
+
+@bp.route('/api/update_company', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def api_update_company():
+    try:
+        project_id = request.json.get('project_id')
+        company_id = request.json.get('company_id') or None
+
+        project = ProjectHeader.query.get_or_404(project_id)
+        if company_id:
+            company = CustomerCompany.query.get(company_id)
+            if not company:
+                return jsonify({'success': False, 'message': '客户公司不存在'}), 400
+            project.company_id = company.id
+        else:
+            project.company_id = None
+
+        db.session.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@bp.route('/api/update_company_name', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def api_update_company_name():
+    try:
+        project_id = request.json.get('project_id')
+        company_name = request.json.get('company_name', '').strip()
+
+        project = ProjectHeader.query.get_or_404(project_id)
+        
+        if company_name:
+            # 查找或创建公司
+            company = CustomerCompany.query.filter_by(company_name=company_name).first()
+            if not company:
+                # 创建新公司
+                company = CustomerCompany(
+                    company_name=company_name,
+                    company_code=company_name[:10],  # 使用前10个字符作为代码
+                    status='active'
+                )
+                db.session.add(company)
+                db.session.flush()  # 获取新创建的ID
+            
+            project.company_id = company.id
+        else:
+            project.company_id = None
+
+        db.session.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@bp.route('/api/search_companies')
+@login_required
+@staff_only
+def api_search_companies():
+    try:
+        query = request.args.get('q', '').strip()
+        if not query:
+            return jsonify({'success': True, 'companies': []})
+        
+        # 搜索匹配的公司名称
+        companies = CustomerCompany.query.filter(
+            CustomerCompany.company_name.like(f'%{query}%')
+        ).limit(10).all()
+        
+        return jsonify({
+            'success': True,
+            'companies': [{'id': c.id, 'company_name': c.company_name} for c in companies]
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
 
 @bp.route('/')
 @login_required
@@ -40,6 +122,7 @@ def list_projects():
         profit_max = request.args.get('profit_max', '')
         balance_min = request.args.get('balance_min', '')
         balance_max = request.args.get('balance_max', '')
+        payment_status = request.args.get('payment_status', '')
         sort_by = request.args.get('sort_by', 'created_at_desc')
         
         # 使用服务层处理业务逻辑
@@ -92,6 +175,52 @@ def list_projects():
         project_type = request.args.get('type', '')
         if project_type:
             base_query = base_query.filter(ProjectHeader.type == project_type)
+        
+        # 添加付款状态筛选 - 在数据库层面基于总销售与总收款聚合
+        if payment_status:
+            # 按 header 统计总销售金额
+            refs_sum_subq = db.session.query(
+                ProjectRef.header_id.label('hid'),
+                db.func.coalesce(db.func.sum(ProjectRef.selling_price), 0).label('total_selling')
+            ).group_by(ProjectRef.header_id).subquery()
+
+            # 按 header 统计总收款金额
+            receipts_sum_subq = db.session.query(
+                ProjectReceipt.header_id.label('hid'),
+                db.func.coalesce(db.func.sum(ProjectReceipt.amount), 0).label('total_received')
+            ).group_by(ProjectReceipt.header_id).subquery()
+
+            # 合并两者，得到每个 header 的余额（total_selling - total_received）
+            totals_subq = db.session.query(
+                refs_sum_subq.c.hid.label('header_id'),
+                refs_sum_subq.c.total_selling.label('total_selling'),
+                db.func.coalesce(receipts_sum_subq.c.total_received, 0).label('total_received')
+            ).outerjoin(
+                receipts_sum_subq,
+                receipts_sum_subq.c.hid == refs_sum_subq.c.hid
+            ).subquery()
+
+            if payment_status == 'unpaid':
+                # 余额 > 0 且 有销售金额的项目
+                condition = db.and_(
+                    totals_subq.c.total_selling > 0,
+                    (totals_subq.c.total_selling - totals_subq.c.total_received) > 0
+                )
+            elif payment_status == 'paid':
+                # 余额 <= 0 且 有销售金额的项目
+                condition = db.and_(
+                    totals_subq.c.total_selling > 0,
+                    (totals_subq.c.total_selling - totals_subq.c.total_received) <= 0
+                )
+            else:
+                condition = None
+
+            if condition is not None:
+                base_query = base_query.filter(
+                    ProjectHeader.id.in_(
+                        db.session.query(totals_subq.c.header_id).filter(condition)
+                    )
+                )
         
         if date_from:
             base_query = base_query.filter(ProjectHeader.created_at >= date_from)
@@ -247,6 +376,8 @@ def list_projects():
                         'has_receipt': False
                     }
         
+        # 注意：付款状态筛选已在数据库层面完成，无需在此二次筛选
+        
         # 获取总体统计（简化版本，只获取基本计数）
         total_stats = {
             'total_projects': ProjectHeader.query.count(),
@@ -401,12 +532,16 @@ def list_projects():
                 # 如果筛选失败，继续使用原始查询结果
                 pass
         
+        # 提供客户公司列表用于前端下拉选择
+        companies = CustomerCompany.query.order_by(CustomerCompany.company_name).all()
+
         return render_template(
             'business/projects/project_list.html',
             projects=projects,
             project_stats=project_stats,
             pagination=pagination,
             total_stats=total_stats,
+            companies=companies,
             filters={
                 'status': status,
                 'search': search,
@@ -418,6 +553,7 @@ def list_projects():
                 'date_to': date_to,
                 'selling_min': selling_min,
                 'selling_max': selling_max,
+                'payment_status': payment_status,
                 'profit_min': profit_min,
                 'profit_max': profit_max,
                 'balance_min': balance_min,
@@ -438,6 +574,7 @@ def list_projects():
             project_stats={},
             pagination=None,
             total_stats={},
+            companies=[],
             filters={}
         )
 

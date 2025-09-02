@@ -486,14 +486,15 @@
                              <span class="info-value" id="contact-span" data-header-id="{{ header.id }}" style="cursor: pointer;">{{ header.contact or '未设置' }}</span>
                              <input type="text" id="contact-input" style="display: none; width: 60%;" />
                          </div>
-                         <div class="info-item">
+                         <!-- <div class="info-item">
                              <span class="info-label">部门</span>
                              <span class="info-value">{{ header.dept or '未设置' }}</span>
-                         </div>
-                         <div class="info-item">
+                         </div> -->
+                         <!-- 额度限制字段已隐藏 -->
+                         <!-- <div class="info-item">
                              <span class="info-label">额度限制</span>
                              <span class="info-value">{{ header.limit or '未设置' }}</span>
-                         </div>
+                         </div> -->
                          <div class="info-item">
                              <span class="info-label">创建日期</span>
                              <span class="info-value">{{ header.created_at.strftime('%Y-%m-%d') if header.created_at else '未设置' }}</span>
