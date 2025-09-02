@@ -143,7 +143,9 @@ def get_accounts():
             'region': account.region,
             'description': account.description,
             'notes': account.notes,
-            'click_count': account.click_count or 0
+            'click_count': account.click_count or 0,
+            'created_at': account.created_at.isoformat() if account.created_at else None,
+            'updated_at': account.updated_at.isoformat() if account.updated_at else None
         } for account in accounts]
         
         logger.info(f"Successfully fetched {len(accounts_data)} accounts")
@@ -177,7 +179,9 @@ def get_account(account_id):
                 'region': account.region,
                 'description': account.description,
                 'notes': account.notes,
-                'click_count': account.click_count or 0
+                'click_count': account.click_count or 0,
+                'created_at': account.created_at.isoformat() if account.created_at else None,
+                'updated_at': account.updated_at.isoformat() if account.updated_at else None
             }
         })
     except Exception as e:

@@ -192,7 +192,7 @@ let currentFilters = {
     search: ''
 };
 let currentPage = 1;
-const itemsPerPage = 10;
+const itemsPerPage = 20;
 
 // 初始化密码按钮状态
 function initPasswordButtons() {
@@ -794,6 +794,23 @@ function renderAccountRow(account) {
     }
     locationCell.textContent = locationText;
     row.appendChild(locationCell);
+    
+    // 更新日期
+    const updatedAtCell = document.createElement('td');
+    updatedAtCell.className = 'updated-at-cell';
+    if (account.updated_at) {
+        const updatedDate = new Date(account.updated_at);
+        updatedAtCell.textContent = updatedDate.toLocaleDateString('zh-CN', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    } else {
+        updatedAtCell.textContent = '-';
+    }
+    row.appendChild(updatedAtCell);
     
     // 操作
     const actionsCell = document.createElement('td');

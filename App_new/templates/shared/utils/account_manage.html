@@ -416,6 +416,14 @@ nav.navbar {
 .account-content {
     margin-top: 20px;
 }
+
+/* 更新日期列样式 */
+.updated-at-cell {
+    font-size: 0.85rem;
+    color: #6c757d;
+    white-space: nowrap;
+    min-width: 120px;
+}
 </style>
 
 <script>
@@ -515,7 +523,7 @@ nav.navbar {
 
 {% block content %}
 <div class="container-fluid account-content">
-    <div class="container">
+    <div class="container-fluid" style="max-width: 95%;">
         <!-- 标题部分 -->
         <div class="title-section">
             <h1>账号管理系统</h1>
@@ -590,6 +598,7 @@ nav.navbar {
                         <th>用户名</th>
                         <th>密码</th>
                         <th>国家/地区</th>
+                        <th>更新日期</th>
                         <th>操作</th>
                     </tr>
                 </thead>
@@ -602,7 +611,7 @@ nav.navbar {
                 <!-- 分页控件 -->
                 <div class="pagination-container">
                     <div class="pagination-info">
-                        共 <span id="totalItems">0</span> 条记录，每页 <span>10</span> 条
+                        共 <span id="totalItems">0</span> 条记录，每页 <span>20</span> 条
                     </div>
                     <div class="pagination" id="pagination">
                         <button class="btn-page" onclick="changePage('prev')">&lt;</button>
