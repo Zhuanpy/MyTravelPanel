@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Letter Generator - JOYFUL ESCAPES</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f5f5f5;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: flex;
+      gap: 30px;
+    }
+
+    .form-section {
+      flex: 1;
+      background: white;
+      padding: 30px;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+
+    .preview-section {
+      flex: 1;
+      background: white;
+      padding: 30px;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+
+    h1 {
+      color: #333;
+      margin-bottom: 30px;
+      text-align: center;
+    }
+
+    h2 {
+      color: #555;
+      margin-bottom: 20px;
+      border-bottom: 2px solid #007bff;
+      padding-bottom: 10px;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+      color: #333;
+    }
+
+    input[type="text"], 
+    input[type="email"], 
+    textarea, 
+    select {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 14px;
+      font-family: inherit;
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 100px;
+    }
+
+    .form-row {
+      display: flex;
+      gap: 15px;
+    }
+
+    .form-row .form-group {
+      flex: 1;
+    }
+
+    .btn {
+      background: #007bff;
+      color: white;
+      padding: 12px 24px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+      margin-right: 10px;
+      transition: background 0.3s;
+    }
+
+    .btn:hover {
+      background: #0056b3;
+    }
+
+    .btn-secondary {
+      background: #6c757d;
+    }
+
+    .btn-secondary:hover {
+      background: #545b62;
+    }
+
+    .btn-success {
+      background: #28a745;
+    }
+
+    .btn-success:hover {
+      background: #1e7e34;
+    }
+
+    .button-group {
+      margin-top: 30px;
+      text-align: center;
+    }
+
+    /* Letter Preview Styles */
+    .letter-preview {
+      background: white;
+      padding: 40px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-family: 'Times New Roman', serif;
+      line-height: 1.6;
+    }
+
+    .company-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 30px;
+    }
+
+    .logo-section {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .logo {
+      width: 80px;
+      height: 80px;
+      margin-bottom: 10px;
+    }
+
+    .logo img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    .company-name {
+      font-size: 18px;
+      font-weight: bold;
+      color: #333;
+      margin-bottom: 5px;
+      text-align: center;
+    }
+
+    .company-name-chinese {
+      font-size: 16px;
+      color: #333;
+      text-align: center;
+    }
+
+    .contact-section {
+      text-align: right;
+      color: #333;
+    }
+
+    .company-name-full {
+      font-size: 14px;
+      margin-bottom: 5px;
+    }
+
+    .company-name-english {
+      font-size: 16px;
+      font-weight: bold;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+    }
+
+    .license-info {
+      font-size: 12px;
+      margin-bottom: 5px;
+    }
+
+    .phone-info {
+      font-size: 12px;
+      margin-bottom: 5px;
+    }
+
+    .email-info {
+      font-size: 12px;
+    }
+
+    .recipient-info {
+      margin-bottom: 20px;
+    }
+
+    .date-info {
+      margin-bottom: 20px;
+    }
+
+    .subject-info {
+      font-weight: bold;
+      margin-bottom: 20px;
+    }
+
+    .letter-body {
+      margin-bottom: 30px;
+      text-align: justify;
+    }
+
+    .signature-info {
+      margin-top: 40px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+    }
+
+    .signature-content {
+      flex: 1;
+    }
+
+    .digital-stamp {
+      flex-shrink: 0;
+      margin-left: 20px;
+    }
+
+    .stamp-image {
+      width: 80px;
+      height: 80px;
+      object-fit: contain;
+    }
+
+    @media print {
+      .form-section, .button-group {
+        display: none;
+      }
+      
+      .preview-section {
+        box-shadow: none;
+        border: none;
+      }
+    }
+
+    .loading {
+      display: none;
+      text-align: center;
+      padding: 20px;
+    }
+
+    .spinner {
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid #007bff;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 10px;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Form Section -->
+    <div class="form-section">
+      <h1>Letter Generator</h1>
+      <h2>Enter Letter Information</h2>
+      
+      <form id="letterForm">
+        <!-- Recipient Information -->
+        <div class="form-group">
+          <label for="recipientName">Recipient Name *</label>
+          <input type="text" id="recipientName" name="recipientName" required>
+        </div>
+        
+        <div class="form-group">
+          <label for="recipientTitle">Recipient Title</label>
+          <input type="text" id="recipientTitle" name="recipientTitle">
+        </div>
+        
+        <div class="form-group">
+          <label for="recipientCompany">Recipient Company</label>
+          <input type="text" id="recipientCompany" name="recipientCompany">
+        </div>
+        
+        <div class="form-group">
+          <label for="recipientAddress">Recipient Address</label>
+          <textarea id="recipientAddress" name="recipientAddress" rows="3"></textarea>
+        </div>
+        
+        <!-- Letter Information -->
+        <div class="form-row">
+          <div class="form-group">
+            <label for="letterDate">Letter Date</label>
+            <input type="date" id="letterDate" name="letterDate">
+          </div>
+          <div class="form-group">
+            <label for="letterSubject">Letter Subject *</label>
+            <input type="text" id="letterSubject" name="letterSubject" required>
+          </div>
+        </div>
+        
+        <div class="form-group">
+          <label for="letterBody">Letter Content *</label>
+          <textarea id="letterBody" name="letterBody" rows="10" required 
+                    placeholder="Please enter your letter content..."></textarea>
+        </div>
+        
+        <!-- Signature Information -->
+        <div class="form-group">
+          <label for="senderName">Sender Name *</label>
+          <input type="text" id="senderName" name="senderName" required>
+        </div>
+        
+        <div class="form-group">
+          <label for="senderTitle">Sender Title</label>
+          <input type="text" id="senderTitle" name="senderTitle">
+        </div>
+        
+        <div class="button-group">
+          <button type="button" class="btn btn-secondary" onclick="previewLetter()">Preview Letter</button>
+          <button type="button" class="btn btn-success" onclick="generatePDF()">Generate PDF</button>
+          <button type="button" class="btn" onclick="printLetter()">Print Letter</button>
+        </div>
+      </form>
+    </div>
+    
+    <!-- Preview Section -->
+    <div class="preview-section">
+      <h2>Letter Preview</h2>
+      <div id="letterPreview" class="letter-preview">
+        <div class="company-header">
+          <div class="logo-section">
+            <div class="logo">
+              <img src="{{ url_for('static', filename='JE/LOGO.jpg') }}" alt="JOYFUL ESCAPE Logo">
+            </div>
+            <div class="company-name">JOYFUL ESCAPE</div>
+            <div class="company-name-chinese">Travel & Tourism Services</div>
+          </div>
+          
+          <div class="contact-section">
+            <div class="company-name-full">JOYFUL ESCAPES PTE LTD</div>
+            <div class="company-name-english">Travel & Tourism Services</div>
+            <div class="license-info">TA License No.: TA03652</div>
+            <div class="phone-info">TEL: 9106 8716 / 9627 5316</div>
+            <div class="email-info">Email: joyfulescape@hotmail.com</div>
+          </div>
+        </div>
+        
+        <div class="recipient-info">
+          <strong id="previewRecipientName">Recipient Name</strong><br>
+          <span id="previewRecipientTitle">Recipient Title</span><br>
+          <span id="previewRecipientCompany">Recipient Company</span><br>
+          <span id="previewRecipientAddress">Recipient Address</span>
+        </div>
+        
+        <div class="date-info">
+          <span id="previewDate">Date</span>
+        </div>
+        
+        <div class="subject-info">
+          Subject: <span id="previewSubject">Letter Subject</span>
+        </div>
+        
+        <div class="letter-body">
+          <span id="previewBody">Letter content will be displayed here...</span>
+        </div>
+        
+        <div class="signature-info">
+          <div class="signature-content">
+            <strong id="previewSenderName">Sender Name</strong><br>
+            <span id="previewSenderTitle">Sender Title</span><br>
+            JOYFUL ESCAPES PTE LTD
+          </div>
+          <div class="digital-stamp">
+            <img src="{{ url_for('static', filename='JE/company digital stamp.png') }}" alt="Company Digital Stamp" class="stamp-image">
+          </div>
+        </div>
+      </div>
+      
+      <div id="loading" class="loading">
+        <div class="spinner"></div>
+        <p>Generating PDF, please wait...</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Set default date to today
+    document.getElementById('letterDate').value = new Date().toISOString().split('T')[0];
+    
+    // Auto-preview when form changes
+    document.getElementById('letterForm').addEventListener('input', function() {
+      previewLetter();
+    });
+    
+    function previewLetter() {
+      // Update recipient info
+      document.getElementById('previewRecipientName').textContent = 
+        document.getElementById('recipientName').value || '收件人姓名';
+      document.getElementById('previewRecipientTitle').textContent = 
+        document.getElementById('recipientTitle').value || '';
+      document.getElementById('previewRecipientCompany').textContent = 
+        document.getElementById('recipientCompany').value || '';
+      document.getElementById('previewRecipientAddress').textContent = 
+        document.getElementById('recipientAddress').value || '';
+      
+      // Update date
+      const dateInput = document.getElementById('letterDate').value;
+      if (dateInput) {
+        const date = new Date(dateInput);
+        document.getElementById('previewDate').textContent = 
+          date.toLocaleDateString('en-US', { 
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric' 
+          });
+      }
+      
+      // Update subject
+      document.getElementById('previewSubject').textContent = 
+        document.getElementById('letterSubject').value || 'Letter Subject';
+      
+      // Update body
+      const bodyContent = document.getElementById('letterBody').value || 'Letter content will be displayed here...';
+      document.getElementById('previewBody').innerHTML = bodyContent.replace(/\n/g, '<br>');
+      
+      // Update sender info
+      document.getElementById('previewSenderName').textContent = 
+        document.getElementById('senderName').value || 'Sender Name';
+      document.getElementById('previewSenderTitle').textContent = 
+        document.getElementById('senderTitle').value || '';
+    }
+    
+    function generatePDF() {
+      if (!validateForm()) return;
+      
+      document.getElementById('loading').style.display = 'block';
+      
+      // Collect form data
+      const formData = new FormData(document.getElementById('letterForm'));
+      
+      // Send to backend for PDF generation
+      fetch('/files/generate_letter_pdf', {
+        method: 'POST',
+        body: formData
+      })
+      .then(response => {
+        const contentType = response.headers.get('Content-Type') || '';
+        if (!response.ok || !contentType.includes('application/pdf')) {
+          return response.text().then(text => {
+            const msg = text && text.length < 500 ? text : 'Failed to generate PDF';
+            throw new Error(msg);
+          });
+        }
+        return response.blob();
+      })
+      .then(blob => {
+        // Create download link
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'JOYFUL_ESCAPES_Letter.pdf';
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        
+        document.getElementById('loading').style.display = 'none';
+      })
+      .catch(error => {
+        console.error('Error generating PDF:', error);
+        alert('Error generating PDF: ' + (error && error.message ? error.message : 'Unknown error'));
+        document.getElementById('loading').style.display = 'none';
+      });
+    }
+    
+    function printLetter() {
+      if (!validateForm()) return;
+      
+      window.print();
+    }
+    
+    function validateForm() {
+      const requiredFields = ['recipientName', 'letterSubject', 'letterBody', 'senderName'];
+      let isValid = true;
+      
+      requiredFields.forEach(fieldId => {
+        const field = document.getElementById(fieldId);
+        if (!field.value.trim()) {
+          field.style.borderColor = 'red';
+          isValid = false;
+        } else {
+          field.style.borderColor = '#ddd';
+        }
+      });
+      
+      if (!isValid) {
+        alert('Please fill in all required fields');
+      }
+      
+      return isValid;
+    }
+    
+    // Initial preview
+    previewLetter();
+  </script>
+</body>
+</html>

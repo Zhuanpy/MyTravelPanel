@@ -152,12 +152,12 @@
                     <th>REF名称</th>
                     <th>类型</th>
                     <th>描述</th>
-                    <th>供应�?/th>
-                    <th>销售价�?/th>
+                    <th>供应商</th>
+                    <th>销售价格</th>
                     <th>成本价格</th>
                     <th>货币</th>
-                    <th>状�?/th>
-                    <th>支付状�?/th>
+                    <th>状态</th>
+                    <th>支付状态</th>
                     <th>操作</th>
                 </tr>
             </thead>
@@ -192,60 +192,60 @@ function addNewRow() {
     const row = document.createElement('tr');
     
     row.innerHTML = `
-        <td>${rowCounter}</td>
-        <td class="ref-cell">
-            <input type="text" class="form-control" name="ref_number[]" readonly>
-            <button type="button" class="eo-button" onclick="addEO(this)">添加EO</button>
-            <div class="eo-list"></div>
-        </td>
-        <td><input type="text" class="form-control" name="ref_name[]"></td>
-        <td>
-            <select class="form-control" name="ref_type_id[]" required>
-                <option value="">选择类型</option>
-                {% for type in business_types %}
-                <option value="{{ type.id }}">{{ type.name }}</option>
-                {% endfor %}
-            </select>
-        </td>
-        <td><input type="text" class="form-control" name="ref_description[]" required></td>
-        <td>
-            <select class="form-control" name="supplier_id[]" required>
-                <option value="">选择供应�?/option>
-                {% for supplier in suppliers %}
-                <option value="{{ supplier.id }}">{{ supplier.name }}</option>
-                {% endfor %}
-            </select>
-        </td>
-        <td><input type="number" step="0.01" class="form-control selling-input" name="selling_price[]" value="0" onchange="updateTotals(this)"></td>
-        <td><input type="number" step="0.01" class="form-control cost-input" name="cost_price[]" value="0" onchange="updateTotals(this)"></td>
-        <td>
-            <select class="form-control" name="currency[]">
-                <option value="SGD">SGD</option>
-                <option value="CNY">CNY</option>
-                <option value="USD">USD</option>
-            </select>
-        </td>
-        <td>
-            <select class="form-control" name="ref_status[]">
-                <option value="draft">草稿</option>
-                <option value="processing">处理�?/option>
-                <option value="completed">已完�?/option>
-                <option value="cancelled">已取�?/option>
-            </select>
-        </td>
-        <td>
-            <select class="form-control" name="ref_payment_status[]">
-                <option value="unpaid">未支�?/option>
-                <option value="partial">部分支付</option>
-                <option value="paid">已支�?/option>
-                <option value="refunded">已退�?/option>
-            </select>
-        </td>
-        <td>
-            <button type="button" class="btn btn-sm btn-danger" onclick="removeRow(this)">删除</button>
-        </td>
-    `;
-    
+    <td>${rowCounter}</td>
+    <td class="ref-cell">
+        <input type="text" class="form-control" name="ref_number[]" readonly>
+        <button type="button" class="eo-button" onclick="addEO(this)">添加EO</button>
+        <div class="eo-list"></div>
+    </td>
+    <td><input type="text" class="form-control" name="ref_name[]"></td>
+    <td>
+        <select class="form-control" name="ref_type_id[]" required>
+            <option value="">选择类型</option>
+            {% for type in business_types %}
+            <option value="{{ type.id }}">{{ type.name }}</option>
+            {% endfor %}
+        </select>
+    </td>
+    <td><input type="text" class="form-control" name="ref_description[]" required></td>
+    <td>
+        <select class="form-control" name="supplier_id[]" required>
+            <option value="">选择供应商</option>
+            {% for supplier in suppliers %}
+            <option value="{{ supplier.id }}">{{ supplier.name }}</option>
+            {% endfor %}
+        </select>
+    </td>
+    <td><input type="number" step="0.01" class="form-control selling-input" name="selling_price[]" value="0" onchange="updateTotals(this)"></td>
+    <td><input type="number" step="0.01" class="form-control cost-input" name="cost_price[]" value="0" onchange="updateTotals(this)"></td>
+    <td>
+        <select class="form-control" name="currency[]">
+            <option value="SGD">SGD</option>
+            <option value="CNY">CNY</option>
+            <option value="USD">USD</option>
+        </select>
+    </td>
+    <td>
+        <select class="form-control" name="ref_status[]">
+            <option value="draft">草稿</option>
+            <option value="processing">处理中</option>
+            <option value="completed">已完成</option>
+            <option value="cancelled">已取消</option>
+        </select>
+    </td>
+    <td>
+        <select class="form-control" name="ref_payment_status[]">
+            <option value="unpaid">未支付</option>
+            <option value="partial">部分支付</option>
+            <option value="paid">已支付</option>
+            <option value="refunded">已退款</option>
+        </select>
+    </td>
+    <td>
+        <button type="button" class="btn btn-sm btn-danger" onclick="removeRow(this)">删除</button>
+    </td>
+`;
+  
     tbody.appendChild(row);
 }
 
@@ -306,12 +306,12 @@ function addEO(button) {
                     <option value="visa">签证</option>
                     <option value="flight">机票</option>
                     <option value="hotel">酒店</option>
-                    <option value="transport">交�?/option>
+                    <option value="transport">交�?/option>
                     <option value="local_operator">地接</option>
                     <option value="other">其他</option>
                 </select>
                 <select class="form-control form-control-sm" name="eo_supplier_id[]" required>
-                    <option value="">选择供应�?/option>
+                    <option value="">选择供应�?/option>
                     {% for supplier in suppliers %}
                     <option value="{{ supplier.id }}">{{ supplier.name }}</option>
                     {% endfor %}
@@ -325,15 +325,15 @@ function addEO(button) {
                     <option value="USD">USD</option>
                 </select>
                 <input type="text" class="form-control form-control-sm" name="eo_external_system[]" placeholder="外部系统">
-                <input type="text" class="form-control form-control-sm" name="eo_external_status[]" placeholder="外部状�?>
+                <input type="text" class="form-control form-control-sm" name="eo_external_status[]" placeholder="外部状�?>
                 <input type="text" class="form-control form-control-sm" name="eo_external_reference[]" placeholder="外部参考号">
             </div>
             <div class="eo-row">
                 <select class="form-control form-control-sm" name="eo_status[]">
                     <option value="draft">草稿</option>
-                    <option value="confirmed">已确�?/option>
-                    <option value="paid">已支�?/option>
-                    <option value="cancelled">已取�?/option>
+                    <option value="confirmed">已确�?/option>
+                    <option value="paid">已支�?/option>
+                    <option value="cancelled">已取�?/option>
                 </select>
                 <input type="text" class="form-control form-control-sm" name="eo_remarks[]" placeholder="备注" style="grid-column: 2 / -1;">
             </div>
@@ -363,7 +363,7 @@ function saveRefs() {
     
     // Add detail rows
     const rows = document.getElementById('detailTableBody').getElementsByTagName('tr');
-    const row = rows[0]; // 只处理第一�?
+    const row = rows[0]; // 只处理第一�?
     
     // REF data
     const refTypeId = row.querySelector('[name="ref_type_id[]"]').value;
@@ -378,13 +378,13 @@ function saveRefs() {
     console.log('Supplier ID:', supplierId); // Debug log
     
     if (!supplierId) {
-        alert('请选择供应�?);
+        alert('请选择供应�?);
         return;
     }
 
     const description = row.querySelector('[name="ref_description[]"]').value;
     if (!description) {
-        alert('请输入描�?);
+        alert('请输入描�?);
         return;
     }
 
@@ -429,11 +429,11 @@ function saveRefs() {
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('保存失败，请检查网络连�?);
+        alert('保存失败，请检查网络连�?);
     });
 }
 
-// 初始化第一�?
+// 初始化第一�?
 document.addEventListener('DOMContentLoaded', function() {
     addNewRow();
 });

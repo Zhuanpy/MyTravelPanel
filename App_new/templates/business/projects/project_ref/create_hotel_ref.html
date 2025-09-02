@@ -11,9 +11,8 @@
                     <h2 class="mb-0">新建酒店REF</h2>
                 </div>
                 <div class="card-body">
-                    <form method="post">
-                        <!-- CSRF令牌 -->
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <form method="post" action="{{ url_for('business_projects.project_ref.submit_hotel_ref') }}">
+
                         
                         <!-- 基础字段 -->
                         <div class="row mb-4">
@@ -118,19 +117,57 @@
                                     </select>
                                 </div>
                             </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>付款状态</label>
+                                    <select name="payment_status" class="form-control">
+                                        <option value="unpaid">未付款</option>
+                                        <option value="partial">部分付款</option>
+                                        <option value="paid">已付款</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>联系人姓名</label>
+                                    <input type="text" name="contact_name" class="form-control" 
+                                           placeholder="请输入联系人姓名">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>联系人电话</label>
+                                    <input type="text" name="contact_phone" class="form-control" 
+                                           placeholder="请输入联系人电话">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-4">
+                            <div class="col-md-12">
+                                <div class="form-group">
+                                    <label>联系人邮箱</label>
+                                    <input type="email" name="contact_email" class="form-control" 
+                                           placeholder="请输入联系人邮箱">
+                                </div>
+                            </div>
                         </div>
                         
                         <div class="row mb-4">
                             <div class="col-md-12">
                                 <div class="form-group">
                                     <label>备注信息</label>
-                                    <textarea name="guest_info" class="form-control" rows="3" placeholder="请输入备注信息，如特殊要求、客人信息等"></textarea>
+                                    <textarea name="remarks" class="form-control" rows="3" placeholder="请输入备注信息，如特殊要求、客人信息等"></textarea>
                                 </div>
                             </div>
                         </div>
                         
                         <!-- 隐藏字段：存储酒店专属信息到extra_info -->
                         <input type="hidden" name="extra_info" id="extra_info">
+                        <input type="hidden" name="header_id" value="{{ header_id }}">
                         
                         <div class="row mt-4">
                             <div class="col-12 text-center">
@@ -335,7 +372,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 checkin_date: document.querySelector('input[name="checkin_date"]').value,
                 checkout_date: document.querySelector('input[name="checkout_date"]').value,
                 room_type: document.querySelector('input[name="room_type"]').value,
-                remarks: document.querySelector('textarea[name="guest_info"]').value
+                remarks: document.querySelector('textarea[name="remarks"]').value
             };
             
             // 将数据转换为JSON字符串并存储到隐藏字段

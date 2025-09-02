@@ -34,6 +34,45 @@ class BusinessType(db.Model):
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
+    
+    @classmethod
+    def init_default_types(cls):
+        """初始化默认业务类型"""
+        from ...exts import db
+        
+        default_types = [
+            {'code': 'flight', 'name': '机票', 'description': '航空机票服务', 'sort_order': 1},
+            {'code': 'hotel', 'name': '酒店', 'description': '酒店预订服务', 'sort_order': 2},
+            {'code': 'visa', 'name': '签证', 'description': '签证申请服务', 'sort_order': 3},
+            {'code': 'tour', 'name': '旅游团', 'description': '旅游团服务', 'sort_order': 4},
+            {'code': 'insurance', 'name': '保险', 'description': '旅游保险服务', 'sort_order': 5},
+            {'code': 'transport', 'name': '交通', 'description': '交通服务', 'sort_order': 6},
+            {'code': 'attraction', 'name': '景点/活动', 'description': '景点门票和活动', 'sort_order': 7},
+            {'code': 'car', 'name': '租车', 'description': '汽车租赁服务', 'sort_order': 8},
+            {'code': 'cruise', 'name': '邮轮', 'description': '邮轮旅游服务', 'sort_order': 9},
+            {'code': 'ferry', 'name': '渡轮', 'description': '渡轮服务', 'sort_order': 10},
+            {'code': 'land_tour', 'name': '地接', 'description': '地接服务', 'sort_order': 11},
+            {'code': 'rail_coach', 'name': '火车/大巴', 'description': '铁路和公路交通', 'sort_order': 12},
+            {'code': 'service_fee', 'name': '服务费', 'description': '各种服务费用', 'sort_order': 13},
+            {'code': 'ticket', 'name': '门票', 'description': '各种门票服务', 'sort_order': 14},
+            {'code': 'transfer', 'name': '接送', 'description': '接送服务', 'sort_order': 15},
+            {'code': 'tour_package', 'name': '旅游套餐', 'description': '旅游套餐服务', 'sort_order': 16},
+            {'code': 'voucher', 'name': '代金券', 'description': '代金券服务', 'sort_order': 17},
+            {'code': 'other', 'name': '其他', 'description': '其他服务', 'sort_order': 18}
+        ]
+
+        for type_info in default_types:
+            if not cls.query.filter_by(code=type_info['code']).first():
+                new_type = cls(**type_info)
+                db.session.add(new_type)
+        
+        try:
+            db.session.commit()
+            print(f"✓ 成功初始化 {len(default_types)} 个默认业务类型")
+        except Exception as e:
+            db.session.rollback()
+            print(f"✗ 初始化业务类型失败: {e}")
+            raise e
 
 class BusinessTypeExtension(db.Model):
     """业务类型扩展表 - 支持不同模块的特定属性"""

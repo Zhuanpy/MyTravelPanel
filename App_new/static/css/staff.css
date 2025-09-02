@@ -19,6 +19,15 @@ body {
 }
 
 /* 导航栏自定义 */
+.navbar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1030;
+    box-shadow: 0 2px 4px rgba(0,0,0,.1);
+}
+
 .navbar-brand .badge {
     font-size: 0.6rem;
     padding: 0.25rem 0.5rem;
@@ -68,7 +77,8 @@ body {
 /* 主内容区域 */
 main {
     margin-left: var(--sidebar-width);
-    padding-top: 56px; /* navbar height */
+    padding-top: 80px; /* navbar height + extra spacing */
+    min-height: 100vh;
 }
 
 /* 统计卡片 */
@@ -468,7 +478,7 @@ main {
     
     main {
         margin-left: 0;
-        padding-top: 1rem;
+        padding-top: 80px; /* 保持与桌面版一致的顶部间距 */
     }
     
     .stats-card {

@@ -1,0 +1,59 @@
+{% extends "shared/staff_base.html" %}
+
+{% block title %}页面未找到 - MyTravelPanel{% endblock %}
+
+{% block page_title %}页面未找到{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-6 text-center">
+            <div class="error-template">
+                <h1 class="display-1 text-muted">404</h1>
+                <h2 class="mb-4">页面未找到</h2>
+                <div class="error-details mb-4">
+                    抱歉，您访问的页面不存在或已被删除。
+                </div>
+                <div class="error-actions">
+                    <a href="{{ url_for('staff.staff_dashboard') }}" class="btn btn-primary btn-lg">
+                        <i class="fas fa-home"></i> 返回首页
+                    </a>
+                    <a href="javascript:history.back()" class="btn btn-secondary btn-lg">
+                        <i class="fas fa-arrow-left"></i> 返回上页
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.error-template {
+    padding: 40px 15px;
+    text-align: center;
+}
+
+.error-template .display-1 {
+    font-size: 8rem;
+    font-weight: 300;
+    color: #6c757d;
+}
+
+.error-template h2 {
+    color: #495057;
+}
+
+.error-details {
+    color: #6c757d;
+    font-size: 1.1rem;
+}
+
+.error-actions {
+    margin-top: 30px;
+}
+
+.error-actions .btn {
+    margin: 0 10px;
+}
+</style>
+{% endblock %}

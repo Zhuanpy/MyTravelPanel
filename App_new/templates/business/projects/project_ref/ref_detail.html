@@ -83,65 +83,65 @@
                 <th>REF编号</th>
                 <td>{{ ref.ref_number }}</td>
                 <th>REF名称</th>
-                <td>{{ ref.name or '未设�? }}</td>
+                <td>{{ ref.name or '未设定' }}</td>
             </tr>
             <tr>
                 <th>业务类型</th>
-                <td>{{ ref_type_name if ref_type_name else '未设�? }}</td>
+                <td>{{ ref_type_name if ref_type_name else '未设定' }}</td>
                 <th>描述</th>
-                <td>{{ ref.description or '未设�? }}</td>
+                <td>{{ ref.description or '未设定' }}</td>
             </tr>
             <tr>
-                <th>供应�?/th>
-                <td>{{ ref.supplier_id if ref.supplier_id else '未设�? }}</td>
+                <th>供应商</th>
+                <td>{{ ref.supplier_id if ref.supplier_id else '未设定' }}</td>
                 <th>供应商联系人</th>
-                <td>{{ ref.supplier_contact or '未设�? }}</td>
+                <td>{{ ref.supplier_contact or '未设定' }}</td>
             </tr>
             <tr>
-                <th>供应商电�?/th>
-                <td>{{ ref.supplier_phone or '未设�? }}</td>
+                <th>供应商电话</th>
+                <td>{{ ref.supplier_phone or '未设定' }}</td>
                 <th>货币</th>
                 <td>{{ ref.currency or 'SGD' }}</td>
             </tr>
             <tr>
-                <th>销售价�?/th>
-                <td>{{ "%.2f"|format(ref.selling_price) if ref.selling_price else '未设�? }}</td>
+                <th>销售价格</th>
+                <td>{{ "%.2f"|format(ref.selling_price) if ref.selling_price else '未设定' }}</td>
                 <th>成本价格</th>
-                <td>{{ "%.2f"|format(ref.cost_price) if ref.cost_price else '未设�? }}</td>
+                <td>{{ "%.2f"|format(ref.cost_price) if ref.cost_price else '未设定' }}</td>
             </tr>
             <tr>
                 <th>利润</th>
-                <td>{{ "%.2f"|format(ref.selling_price - ref.cost_price) if ref.selling_price and ref.cost_price else '未设�? }}</td>
-                <th>利润�?/th>
-                <td>{{ "%.2f%%"|format((ref.selling_price - ref.cost_price) / ref.selling_price * 100) if ref.selling_price and ref.cost_price and ref.selling_price > 0 else '未设�? }}</td>
+                <td>{{ "%.2f"|format(ref.selling_price - ref.cost_price) if ref.selling_price and ref.cost_price else '未设定' }}</td>
+                <th>利润率</th>
+                <td>{{ "%.2f%%"|format((ref.selling_price - ref.cost_price) / ref.selling_price * 100) if ref.selling_price and ref.cost_price and ref.selling_price > 0 else '未设定' }}</td>
             </tr>
             <tr>
-                <th>联系�?/th>
-                <td>{{ ref.contact_name or '未设�? }}</td>
+                <th>联系人</th>
+                <td>{{ ref.contact_name or '未设定' }}</td>
                 <th>联系电话</th>
-                <td>{{ ref.contact_phone or '未设�? }}</td>
+                <td>{{ ref.contact_phone or '未设定' }}</td>
             </tr>
             <tr>
                 <th>电子邮箱</th>
-                <td>{{ ref.contact_email or '未设�? }}</td>
-                <th>状�?/th>
+                <td>{{ ref.contact_email or '未设定' }}</td>
+                <th>状态</th>
                 <td><span class="status-badge status-{{ ref.status }}">{{ ref.status }}</span></td>
             </tr>
             <tr>
-                <th>支付状�?/th>
+                <th>支付状态</th>
                 <td><span class="status-badge status-{{ ref.payment_status }}">{{ ref.payment_status }}</span></td>
                 <th>预计交付日期</th>
-                <td>{{ ref.expected_delivery_date.strftime('%Y-%m-%d') if ref.expected_delivery_date else '未设�? }}</td>
+                <td>{{ ref.expected_delivery_date.strftime('%Y-%m-%d') if ref.expected_delivery_date else '未设定' }}</td>
             </tr>
             <tr>
                 <th>实际交付日期</th>
-                <td>{{ ref.actual_delivery_date.strftime('%Y-%m-%d') if ref.actual_delivery_date else '未设�? }}</td>
+                <td>{{ ref.actual_delivery_date.strftime('%Y-%m-%d') if ref.actual_delivery_date else '未设定' }}</td>
                 <th>创建时间</th>
-                <td>{{ ref.created_at.strftime('%Y-%m-%d %H:%M') if ref.created_at else '未设�? }}</td>
+                <td>{{ ref.created_at.strftime('%Y-%m-%d %H:%M') if ref.created_at else '未设定' }}</td>
             </tr>
             <tr>
                 <th>备注</th>
-                <td colspan="3">{{ ref.remarks or '�? }}</td>
+                <td colspan="3">{{ ref.remarks or '暂无' }}</td>
             </tr>
             <tr>
                 <th>EO编号</th>
@@ -156,9 +156,9 @@
         </table>
     </div>
     
-    <!-- EO子明�?-->
+    <!-- EO子明细 -->
     <div class="detail-card">
-        <h2 class="detail-title">EO子明�?/h2>
+        <h2 class="detail-title">EO子明细</h2>
         {% if ref.eos %}
             <table class="table table-bordered">
                 <thead>
@@ -166,9 +166,9 @@
                         <th>EO编号</th>
                         <th>名称</th>
                         <th>类型</th>
-                        <th>供应�?/th>
+                        <th>供应商</th>
                         <th>金额</th>
-                        <th>状�?/th>
+                        <th>状态</th>
                         <th>操作</th>
                     </tr>
                 </thead>
@@ -181,15 +181,15 @@
                         <td>{{ "%.2f"|format(ref.eos.amount) if ref.eos.amount else '' }}</td>
                         <td><span class="status-badge status-{{ ref.eos.status }}">{{ ref.eos.status }}</span></td>
                         <td>
-                            <a href="{{ url_for('business_projects.project_ref.edit_eo', eo_id=ref.eos.id) }}" class="btn btn-sm btn-warning">编辑</a>
-                            <a href="{{ url_for('business_projects.project_ref.eo_detail', eo_id=ref.eos.id) }}" class="btn btn-sm btn-info">详情</a>
+                            <a href="{{ url_for('business_projects.project_eo.edit_eo', eo_id=ref.eos.id) }}" class="btn btn-sm btn-warning">编辑</a>
+                            <a href="{{ url_for('business_projects.project_eo.eo_detail', eo_id=ref.eos.id) }}" class="btn btn-sm btn-info">详情</a>
                         </td>
                     </tr>
                 </tbody>
             </table>
         {% else %}
-            <p style="color: #718096; text-align: center; padding: 20px;">暂无EO子明�?/p>
-            <a href="{{ url_for('business_projects.project_ref.create_eo', ref_id=ref.id) }}" class="btn btn-success">添加EO</a>
+            <p style="color: #718096; text-align: center; padding: 20px;">暂无EO子明细</p>
+            <a href="{{ url_for('business_projects.project_eo.create_eo', ref_id=ref.id) }}" class="btn btn-success">添加EO</a>
         {% endif %}
     </div>
     
@@ -211,7 +211,7 @@
             <a href="{{ url_for('business_projects.project_ref.edit_insurance_ref', ref_id=ref.id) }}" class="btn btn-warning">
                 编辑REF
             </a>
-        {% elif ref_type_name == '旅游�? %}
+        {% elif ref_type_name == '旅游' %}
             <a href="{{ url_for('business_projects.project_ref.edit_tour_ref', ref_id=ref.id) }}" class="btn btn-warning">
                 编辑REF
             </a>
@@ -220,9 +220,10 @@
                 编辑REF
             </a>
         {% endif %}
-        <a href="{{ url_for('business_projects.project_header.header_detail', header_id=ref.header_id) }}" class="btn btn-secondary">
+        <a href="{{ url_for('business_projects.detail.project_detail', project_id=ref.header_id) }}" class="btn btn-secondary">
             返回项目
         </a>
     </div>
 </div>
+
 {% endblock %}

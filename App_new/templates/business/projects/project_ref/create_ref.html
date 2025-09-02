@@ -1,11 +1,11 @@
 {% extends "shared/staff_base.html" %}
 
-{% block title %}创建REF - MyTravelPanel{% endblock %}
+{% block title %}{% if is_create %}创建REF{% else %}编辑REF{% endif %} - MyTravelPanel{% endblock %}
 
-{% block page_title %}创建REF{% endblock %}
+{% block page_title %}{% if is_create %}创建REF{% else %}编辑REF{% endif %}{% endblock %}
 {% block content %}
 <div class="container mt-4">
-    <h2>新建明细（REF）</h2>
+    <h2>{% if is_create %}新建明细（REF）{% else %}编辑明细（REF）{% endif %}</h2>
     <p class="text-muted">项目：{{ header.hid }} - {{ header.desc }}</p>
     
     {% with messages = get_flashed_messages(with_categories=true) %}
@@ -19,7 +19,7 @@
         {% endif %}
     {% endwith %}
     
-    <form method="post" action="{{ url_for('business_projects.project_ref.create_ref', header_id=header.id) }}">
+    <form method="post" action="{% if is_create %}{{ url_for('business_projects.project_ref.create_ref', header_id=header.id) }}{% else %}{{ url_for('business_projects.project_ref.edit_ref', ref_id=ref.id if ref else '') }}{% endif %}">
         {{ form.hidden_tag() }}
         
         <div class="row">
@@ -173,8 +173,8 @@
         </div>
         
         <div class="d-flex gap-2">
-            {{ form.submit(class="btn btn-primary") }}
-            <a href="{{ url_for('business_projects.detail.project_detail', project_id=header.id) }}" class="btn btn-secondary">{{ form.cancel.label }}</a>
+            <button type="submit" class="btn btn-primary">{% if is_create %}创建REF{% else %}更新REF{% endif %}</button>
+            <a href="{{ url_for('business_projects.detail.project_detail', project_id=header.id) }}" class="btn btn-secondary">取消</a>
         </div>
     </form>
 </div>

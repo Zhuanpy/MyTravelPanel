@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Company Header - Standalone</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      background-color: white;
+      padding: 20px;
+    }
+
+    .company-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px 0;
+    }
+
+    .logo-section {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .logo {
+      width: 80px;
+      height: 80px;
+      margin-bottom: 10px;
+    }
+
+    .logo img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    .company-name {
+      font-size: 18px;
+      font-weight: bold;
+      color: #333;
+      margin-bottom: 5px;
+      text-align: center;
+    }
+
+    .company-name-chinese {
+      font-size: 16px;
+      color: #333;
+      text-align: center;
+    }
+
+    .contact-section {
+      text-align: right;
+      color: #333;
+    }
+
+    .company-name-full {
+      font-size: 14px;
+      margin-bottom: 5px;
+    }
+
+    .company-name-english {
+      font-size: 16px;
+      font-weight: bold;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+    }
+
+    .license-info {
+      font-size: 12px;
+      margin-bottom: 5px;
+    }
+
+    .phone-info {
+      font-size: 12px;
+      margin-bottom: 5px;
+    }
+
+    .email-info {
+      font-size: 12px;
+    }
+
+    @media print {
+      body {
+        padding: 0;
+      }
+      
+      .company-header {
+        padding: 10px 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="company-header">
+    <div class="logo-section">
+      <div class="logo">
+        <img src="LOGO.jpg" alt="JOYFUL ESCAPE Logo">
+      </div>
+      <div class="company-name">JOYFUL ESCAPE</div>
+      <div class="company-name-chinese">悦行假期</div>
+    </div>
+    
+    <div class="contact-section">
+      <div class="company-name-full">悦行假期有限公司</div>
+      <div class="company-name-english">JOYFUL ESCAPES PTE LTD</div>
+      <div class="license-info">TA License No.: TA03652</div>
+      <div class="phone-info">TEL: 9106 8716 / 9627 5316</div>
+      <div class="email-info">Email: joyfulescape@hotmail.com</div>
+    </div>
+  </div>
+</body>
+</html>

@@ -74,14 +74,15 @@ def create_ref(header_id):
                            form=form, 
                            header=header, 
                            ref_number=ref_number,
-                         business_types=business_types,
-                         suppliers=suppliers)
+                           business_types=business_types,
+                           suppliers=suppliers,
+                           is_create=True)
     except Exception as e:
         flash(f'页面加载失败：{str(e)}', 'error')
         return redirect(url_for('business_projects.list.list_projects'))
 
 
-@project_ref.route('/general/detail/<int:ref_id>')
+@project_ref.route('/general/detail/<int:ref_id>', methods=['GET'])
 def ref_detail(ref_id):
     """REF详情页面 - 根据业务类型路由到不同详情页"""
     ref = ProjectRef.query.get_or_404(ref_id)
@@ -112,7 +113,7 @@ def ref_detail(ref_id):
         )
 
 
-@project_ref.route('/flight/create/<int:header_id>')
+@project_ref.route('/flight/create/<int:header_id>', methods=['GET'])
 def create_flight_ref(header_id):
     """创建机票REF页面"""
     header = ProjectHeader.query.get_or_404(header_id)
@@ -370,11 +371,11 @@ def submit_flight_ref():
     except Exception as e:
         db.session.rollback()
         flash(f'保存失败：{str(e)}', 'error')
-        return redirect(url_for('business_projects.detail.project_detail', header_id=header_id))
+        return redirect(url_for('business_projects.detail.project_detail', project_id=header_id))
 
 
 # 酒店REF相关函数
-@project_ref.route('/hotel/create/<int:header_id>')
+@project_ref.route('/hotel/create/<int:header_id>', methods=['GET'])
 def create_hotel_ref(header_id):
     """创建酒店REF页面"""
     try:
@@ -447,7 +448,7 @@ def submit_hotel_ref():
             hotel_business_type = BusinessType.query.filter_by(name='酒店').first()
             if not hotel_business_type:
                 flash('未找到酒店业务类型，请先创建', 'error')
-                return redirect(url_for('business_projects.detail.project_detail', header_id=header_id))
+                return redirect(url_for('business_projects.detail.project_detail', project_id=header_id))
 
             ref = ProjectRef(
                 header_id=header.id,
@@ -473,7 +474,7 @@ def submit_hotel_ref():
 
         db.session.commit()
         flash('酒店REF保存成功', 'success')
-        return redirect(url_for('business_projects.detail.project_detail', header_id=header_id))
+        return redirect(url_for('business_projects.detail.project_detail', project_id=header_id))
 
     except Exception as e:
         import traceback
@@ -481,11 +482,11 @@ def submit_hotel_ref():
         print(f"错误详情: {traceback.format_exc()}")
         db.session.rollback()
         flash(f'保存失败：{str(e)}', 'error')
-        return redirect(url_for('business_projects.detail.project_detail', header_id=header_id))
+        return redirect(url_for('business_projects.detail.project_detail', project_id=header_id))
 
 
 # 签证REF相关函数
-@project_ref.route('/visa/create/<int:header_id>')
+@project_ref.route('/visa/create/<int:header_id>', methods=['GET'])
 def create_visa_ref(header_id):
     """创建签证REF页面"""
     try:
@@ -547,7 +548,7 @@ def submit_visa_ref():
             visa_business_type = BusinessType.query.filter_by(name='签证').first()
             if not visa_business_type:
                 flash('未找到签证业务类型，请先创建', 'error')
-                return redirect(url_for('business_projects.detail.project_detail', header_id=header_id))
+                return redirect(url_for('business_projects.detail.project_detail', project_id=header_id))
             
             ref = ProjectRef(
                 header_id=header.id,
@@ -571,21 +572,68 @@ def submit_visa_ref():
         
             db.session.commit()
         flash('签证REF保存成功', 'success')
-        return redirect(url_for('business_projects.detail.project_detail', header_id=header_id))
+        return redirect(url_for('business_projects.detail.project_detail', project_id=header_id))
             
     except Exception as e:
         db.session.rollback()
         flash(f'保存失败：{str(e)}', 'error')
-        return redirect(url_for('business_projects.detail.project_detail', header_id=header_id))
+        return redirect(url_for('business_projects.detail.project_detail', project_id=header_id))
 
 # 旅游团REF相关函数
-@project_ref.route('/tour/create/<int:header_id>')
+@project_ref.route('/tour/create/<int:header_id>', methods=['GET', 'POST'])
+@csrf.exempt
 def create_tour_ref(header_id):
     """创建旅游团REF页面"""
     try:
         header = ProjectHeader.query.get_or_404(header_id)
-    
-        # 获取供应商数据
+        
+        if request.method == 'POST':
+            # 处理POST请求 - 创建旅游团REF
+            try:
+                ref_number = ProjectRef.generate_ref_number("")
+
+                # 获取旅游团业务类型ID（优先按code查询，避免名称差异导致ID不一致）
+                tour_business_type = BusinessType.query.filter_by(code='tour').first()
+                if not tour_business_type:
+                    tour_business_type = BusinessType.query.filter_by(name='旅游团').first()
+                if not tour_business_type:
+                    flash('未找到旅游团业务类型，请先创建', 'error')
+                    return redirect(url_for('business_projects.detail.project_detail', project_id=header_id))
+
+                ref = ProjectRef(
+                    header_id=header.id,
+                    ref_number=ref_number,
+                    name=request.form.get('name', '旅游团订购'),
+                    ref_type_id=tour_business_type.id,
+                    description=request.form.get('description', '旅游团订购'),
+                    supplier_id=(
+                        request.form.get('supplier_id')
+                        if request.form.get('supplier_id') and request.form.get('supplier_id') != '0'
+                        else None
+                    ),
+                    leader_name=request.form.get('leader_name', ''),
+                    contact_name=request.form.get('contact_name'),
+                    contact_phone=request.form.get('contact_phone'),
+                    contact_email=request.form.get('contact_email'),
+                    remarks=request.form.get('remarks'),
+                    status=request.form.get('status', 'draft'),
+                    payment_status=request.form.get('payment_status', 'unpaid'),
+                    selling_price=float(request.form.get('selling_price', 0)) if request.form.get(
+                        'selling_price') else None,
+                    cost_price=float(request.form.get('cost_price', 0)) if request.form.get('cost_price') else None
+                )
+                db.session.add(ref)
+                db.session.commit()
+                
+                flash('旅游团REF创建成功', 'success')
+                return redirect(url_for('business_projects.detail.project_detail', project_id=header_id))
+                
+            except Exception as e:
+                db.session.rollback()
+                flash(f'创建失败：{str(e)}', 'error')
+                return redirect(url_for('business_projects.detail.project_detail', project_id=header_id))
+        
+        # GET请求 - 显示创建页面
         suppliers = Supplier.query.all()
         supplier_types = ['visa', 'flight', 'hotel', 'transport', 'local_operator', 'other']
         
@@ -632,11 +680,13 @@ def submit_tour_ref():
             header = ProjectHeader.query.get_or_404(header_id)
             ref_number = ProjectRef.generate_ref_number("")
 
-            # 获取旅游团业务类型ID
-            tour_business_type = BusinessType.query.filter_by(name='旅游团').first()
+            # 获取旅游团业务类型ID（优先按code查询，避免名称差异导致ID不一致）
+            tour_business_type = BusinessType.query.filter_by(code='tour').first()
+            if not tour_business_type:
+                tour_business_type = BusinessType.query.filter_by(name='旅游团').first()
             if not tour_business_type:
                 flash('未找到旅游团业务类型，请先创建', 'error')
-                return redirect(url_for('business_projects.detail.project_detail', header_id=header_id))
+                return redirect(url_for('business_projects.detail.project_detail', project_id=header_id))
 
             ref = ProjectRef(
                 header_id=header.id,
@@ -665,7 +715,7 @@ def submit_tour_ref():
 
             db.session.commit()
         flash('旅游团REF保存成功', 'success')
-        return redirect(url_for('business_projects.detail.project_detail', header_id=header_id))
+        return redirect(url_for('business_projects.detail.project_detail', project_id=header_id))
 
     except Exception as e:
         db.session.rollback()
@@ -674,7 +724,7 @@ def submit_tour_ref():
 
 
 # 保险REF相关函数
-@project_ref.route('/insurance/create/<int:header_id>')
+@project_ref.route('/insurance/create/<int:header_id>', methods=['GET'])
 def create_insurance_ref(header_id):
     """创建保险REF页面"""
     try:
@@ -757,7 +807,7 @@ def submit_insurance_ref():
         return redirect(url_for('business_projects.detail.project_detail', header_id=header_id))
 
 # 交通REF相关函数
-@project_ref.route('/transport/create/<int:header_id>')
+@project_ref.route('/transport/create/<int:header_id>', methods=['GET'])
 def create_transport_ref(header_id):
     """创建交通REF页面"""
     try:
@@ -852,7 +902,7 @@ def submit_transport_ref():
         return redirect(url_for('business_projects.detail.project_detail', header_id=header_id))
 
 
-@project_ref.route('/flight/edit/<int:ref_id>')
+@project_ref.route('/flight/edit/<int:ref_id>', methods=['GET'])
 def edit_flight_ref(ref_id):
     """编辑机票REF页面"""
     from sqlalchemy.orm import joinedload
@@ -871,7 +921,7 @@ def edit_flight_ref(ref_id):
                           suppliers=suppliers,
                           supplier_types=supplier_types)
 
-@project_ref.route('/flight/detail/<int:ref_id>')
+@project_ref.route('/flight/detail/<int:ref_id>', methods=['GET'])
 def flight_ref_detail(ref_id):
     """机票REF详情页面"""
     ref = ProjectRef.query.get_or_404(ref_id)
@@ -892,7 +942,7 @@ def flight_ref_detail(ref_id):
                          prev_ref=prev_ref, 
                          next_ref=next_ref)
 
-@project_ref.route('/hotel/detail/<int:ref_id>')
+@project_ref.route('/hotel/detail/<int:ref_id>', methods=['GET'])
 def hotel_ref_detail(ref_id):
     """酒店REF详情页面"""
     ref = ProjectRef.query.get_or_404(ref_id)
@@ -910,7 +960,7 @@ def hotel_ref_detail(ref_id):
                          ref_type_name=ref_type_name,
                          supplier_name=supplier_name)
 
-@project_ref.route('/visa/detail/<int:ref_id>')
+@project_ref.route('/visa/detail/<int:ref_id>', methods=['GET'])
 def visa_ref_detail(ref_id):
     """签证REF详情页面"""
     ref = ProjectRef.query.get_or_404(ref_id)
@@ -1011,7 +1061,7 @@ def edit_visa_ref(ref_id):
                          visa_info=visa_info,
                          is_create=False)
 
-@project_ref.route('/tour/detail/<int:ref_id>')
+@project_ref.route('/tour/detail/<int:ref_id>', methods=['GET'])
 def tour_ref_detail(ref_id):
     """旅游团REF详情页面"""
     ref = ProjectRef.query.get_or_404(ref_id)
@@ -1029,7 +1079,7 @@ def tour_ref_detail(ref_id):
                          ref_type_name=ref_type_name,
                          supplier_name=supplier_name)
 
-@project_ref.route('/insurance/detail/<int:ref_id>')
+@project_ref.route('/insurance/detail/<int:ref_id>', methods=['GET'])
 def insurance_ref_detail(ref_id):
     """保险REF详情页面"""
     ref = ProjectRef.query.get_or_404(ref_id)
@@ -1047,7 +1097,7 @@ def insurance_ref_detail(ref_id):
                          ref_type_name=ref_type_name,
                          supplier_name=supplier_name)
 
-@project_ref.route('/transport/detail/<int:ref_id>')
+@project_ref.route('/transport/detail/<int:ref_id>', methods=['GET'])
 def transport_ref_detail(ref_id):
     """交通REF详情页面"""
     ref = ProjectRef.query.get_or_404(ref_id)
@@ -1167,13 +1217,18 @@ def edit_other_ref(ref_id):
             flash(f'更新失败：{str(e)}', 'error')
             return redirect(url_for('business_projects.project_header.header_detail', header_id=ref.header_id))
     
-    # 获取供应商数据
+    # 获取供应商数据与项目头信息（有些模板/基类可能需要 header）
     suppliers = Supplier.query.all()
+    header = ProjectHeader.query.get(ref.header_id)
     
-    return render_template('business/projects/project_ref/create_ref.html', 
-                         ref=ref, 
-                         suppliers=suppliers,
-                         is_create=False)
+    return render_template(
+        'business/projects/project_ref/create_tour_ref.html',
+        ref=ref,
+        suppliers=suppliers,
+        header=header,
+        header_id=ref.header_id,
+        is_create=False
+    )
 
 @project_ref.route('/insurance/edit/<int:ref_id>', methods=['GET', 'POST'])
 @csrf.exempt
@@ -1274,14 +1329,17 @@ def edit_tour_ref(ref_id):
             return redirect(url_for('business_projects.project_header.header_detail', header_id=ref.header_id))
     
     # 获取供应商数据
+    header = ProjectHeader.query.get(ref.header_id)  # 获取header对象
     suppliers = Supplier.query.all()
     
-    return render_template('business/projects/project_ref/create_ref.html', 
-                         ref=ref, 
+    return render_template('business/projects/project_ref/create_tour_ref.html',
+                         header=header,  # 传入header
+                         header_id=ref.header_id,  # 传入header_id
+                         ref=ref,
                          suppliers=suppliers,
                          is_create=False)
 
-@project_ref.route('/api/get_visa_types/<int:country_id>')
+@project_ref.route('/api/get_visa_types/<int:country_id>', methods=['GET'])
 def get_visa_types_by_country(country_id):
     """根据国家ID获取签证类型"""
     try:
@@ -1310,7 +1368,7 @@ def get_visa_types_by_country(country_id):
             'message': str(e)
         }), 500
 
-@project_ref.route('/list')
+@project_ref.route('/list', methods=['GET'])
 def ref_list():
     """REF列表页面 - 支持筛选、搜索和分页"""
     try:
@@ -1613,3 +1671,85 @@ def get_business_type_color(business_type_name):
         '其他': 'dark'
     }
     return color_map.get(business_type_name, 'secondary')
+
+
+@project_ref.route('/general/edit/<int:ref_id>', methods=['GET', 'POST'])
+@csrf.exempt
+def edit_ref(ref_id):
+    """编辑通用REF"""
+    ref = ProjectRef.query.get_or_404(ref_id)
+    
+    if request.method == 'POST':
+        try:
+            # 调试：打印所有表单数据
+            print(f"DEBUG: All form data: {dict(request.form)}")
+            
+            # 更新REF数据
+            ref.name = request.form.get('name', 'REF服务')
+            ref.description = request.form.get('description', 'REF服务')
+            supplier_id = request.form.get('supplier_id')
+            print(f"DEBUG: supplier_id from form: {supplier_id}, type: {type(supplier_id)}")
+            ref.supplier_id = int(supplier_id) if supplier_id and supplier_id != '0' else None
+            print(f"DEBUG: ref.supplier_id after update: {ref.supplier_id}")
+            ref.supplier_contact = request.form.get('supplier_contact', '')
+            ref.supplier_phone = request.form.get('supplier_phone', '')
+            ref.leader_name = request.form.get('leader_name', '')
+            ref.selling_price = float(request.form.get('selling_price', 0)) if request.form.get('selling_price') else None
+            ref.cost_price = float(request.form.get('cost_price', 0)) if request.form.get('cost_price') else None
+            
+            # 处理日期字段，空字符串转换为None
+            expected_date = request.form.get('expected_delivery_date')
+            ref.expected_delivery_date = datetime.strptime(expected_date, '%Y-%m-%d').date() if expected_date else None
+            
+            actual_date = request.form.get('actual_delivery_date')
+            ref.actual_delivery_date = datetime.strptime(actual_date, '%Y-%m-%d').date() if actual_date else None
+            
+            ref.status = request.form.get('status') or 'draft'
+            ref.remarks = request.form.get('remarks', '')
+            
+            # 同步更新相关EO的价格
+            from App_new.business.projects.models.eo import ProjectEO
+            ProjectEO.sync_eo_prices_from_ref(ref.id, ref.cost_price, ref.currency)
+            
+            # 提交数据库更改
+            db.session.commit()
+            
+            return redirect(url_for('business_projects.detail.project_detail', project_id=ref.header_id))
+            
+        except Exception as e:
+            db.session.rollback()
+            flash(f'更新失败：{str(e)}', 'error')
+            return redirect(url_for('business_projects.detail.project_detail', project_id=ref.header_id))
+    
+    # 获取供应商数据和项目头部信息
+    suppliers = Supplier.query.all()
+    header = ProjectHeader.query.get(ref.header_id)
+    
+    # 创建表单对象用于编辑模式
+    from App_new.business.projects.forms.ref_forms import ProjectRefForm
+    form = ProjectRefForm()
+    
+    # 预填充表单数据
+    form.ref_number.data = ref.ref_number
+    form.name.data = ref.name
+    form.description.data = ref.description
+    form.ref_type_id.data = ref.ref_type_id
+    form.supplier_id.data = ref.supplier_id
+    form.supplier_contact.data = ref.supplier_contact
+    form.supplier_phone.data = ref.supplier_phone
+    form.leader_name.data = ref.leader_name
+    form.selling_price.data = ref.selling_price
+    form.cost_price.data = ref.cost_price
+    form.currency.data = ref.currency
+    form.expected_delivery_date.data = ref.expected_delivery_date
+    form.actual_delivery_date.data = ref.actual_delivery_date
+    form.status.data = ref.status
+    form.payment_status.data = ref.payment_status
+    form.remarks.data = ref.remarks
+    
+    return render_template('business/projects/project_ref/create_ref.html', 
+                         ref=ref, 
+                         header=header,
+                         suppliers=suppliers,
+                         form=form,
+                         is_create=False)

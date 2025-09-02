@@ -27,14 +27,74 @@
         margin-bottom: 0;
     }
     
-    .info-card {
-        background: white;
-        border-radius: 8px;
-        padding: 0.75rem;
-        margin-bottom: 1.5rem;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        border: 1px solid #e9ecef;
-    }
+         .info-card {
+         background: white;
+         border-radius: 8px;
+         padding: 0.75rem;
+         margin-bottom: 1.5rem;
+         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+         border: 1px solid #e9ecef;
+         height: auto; /* 自动高度 */
+         min-height: 250px; /* 最小高度 */
+         max-height: 300px; /* 最大高度 */
+         overflow: hidden; /* 隐藏溢出内容 */
+     }
+     
+     /* 项目详情布局容器 */
+     .project-detail-layout {
+         display: flex;
+         gap: 20px;
+         align-items: stretch; /* 拉伸对齐 */
+     }
+     
+     .project-main-content {
+         flex: 2;
+         display: flex;
+         flex-direction: column;
+         gap: 20px;
+     }
+     
+     .project-right-sidebar {
+         flex: 1;
+         min-width: 0;
+         display: flex;
+         flex-direction: column;
+     }
+     
+     /* 项目信息卡片样式 - 确保高度一致 */
+     .project-info-card {
+         display: flex;
+         flex-direction: column;
+         height: 100%;
+         min-height: 250px;
+         max-height: 300px;
+     }
+     
+     /* 备注信息卡片样式 - 确保高度一致 */
+     .remarks-info-card {
+         display: flex;
+         flex-direction: column;
+         height: 100%;
+         min-height: 250px;
+         max-height: 300px;
+     }
+     
+     /* 确保项目详情卡片高度一致 */
+     .project-main-content .info-card,
+     .project-right-sidebar .info-card {
+         display: flex !important;
+         flex-direction: column !important;
+         min-height: 250px;
+         height: 100% !important;
+     }
+     
+     /* 确保内容区域能够正确填充 */
+     .project-info-container,
+     #existing-remarks {
+         flex: 1 !important;
+         overflow-y: auto !important;
+         min-height: 0 !important;
+     }
     
     .info-grid {
         display: grid;
@@ -50,11 +110,38 @@
         margin-bottom: 0.5rem;
     }
     
-    .project-info-grid {
-        display: grid;
-        grid-template-columns: repeat(10, 1fr);
-        gap: 0.8rem;
-        align-items: start;
+         .project-info-grid {
+         display: grid;
+         grid-template-columns: repeat(10, 1fr);
+         gap: 0.8rem;
+         align-items: start;
+         position: relative; /* 相对定位 */
+     }
+    
+         /* 项目信息容器的滚动条样式 */
+     .project-info-container {
+         overflow-y: auto; /* 垂直滚动 */
+         overflow-x: hidden; /* 水平隐藏 */
+         padding-right: 5px; /* 为滚动条留出空间 */
+     }
+    
+    /* 自定义滚动条样式 */
+    .project-info-container::-webkit-scrollbar {
+        width: 6px;
+    }
+    
+    .project-info-container::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 3px;
+    }
+    
+    .project-info-container::-webkit-scrollbar-thumb {
+        background: #c1c1c1;
+        border-radius: 3px;
+    }
+    
+    .project-info-container::-webkit-scrollbar-thumb:hover {
+        background: #a8a8a8;
     }
     
     .info-item {
@@ -64,6 +151,8 @@
         padding: 1px 0;
         min-width: 0;
         word-break: break-all;
+        max-height: 100%; /* 限制每个项目的高度 */
+        overflow: hidden; /* 隐藏溢出内容 */
     }
     
     .info-label {
@@ -71,6 +160,9 @@
         color: #888;
         margin-bottom: 0px;
         line-height: 1.1;
+        white-space: nowrap; /* 标签不换行 */
+        overflow: hidden; /* 隐藏溢出内容 */
+        text-overflow: ellipsis; /* 显示省略号 */
     }
     
     .info-value {
@@ -78,6 +170,13 @@
         color: #222;
         font-weight: 500;
         line-height: 1.2;
+        max-height: 2.4em; /* 限制为2行高度 */
+        overflow: hidden; /* 隐藏溢出内容 */
+        text-overflow: ellipsis; /* 显示省略号 */
+        display: -webkit-box;
+        -webkit-line-clamp: 2; /* 限制为2行 */
+        -webkit-box-orient: vertical;
+        word-wrap: break-word; /* 允许单词换行 */
     }
     
     .status-badge {
@@ -275,187 +374,183 @@
 </style>
 
 <div class="container-fluid">
-    <!-- 主要内容区域 - A和B容器 -->
-    <div style="display: flex; gap: 20px;">
-        
-        <!-- A容器（左侧） -->
-        <div style="flex: 2; display: flex; flex-direction: column; gap: 20px;">
-            
-            <!-- A容器第一部分：项目头部 -->
-            <div class="project-header">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div class="d-flex align-items-center gap-3">
-                        <h1 class="project-title mb-0">{{ header.hid }}</h1>
-                        <span class="project-subtitle mb-0">| {{ header.desc }}</span>
-                    </div>
-                    <div class="d-flex align-items-center gap-3">
-                        <!-- 导航按钮 -->
-                        <div class="d-flex align-items-center gap-2">
-                                                         {% if prev_header %}
-                                 <a href="{{ url_for('business_projects.detail.project_detail', project_id=prev_header.id) }}" 
-                                    class="btn btn-outline-light btn-sm" title="上一个项目: {{ prev_header.hid }}">
-                                     <i class="fas fa-chevron-left"></i>
-                                 </a>
-                             {% else %}
-                                 <button class="btn btn-outline-light btn-sm" disabled>
-                                     <i class="fas fa-chevron-left"></i>
-                                 </button>
-                             {% endif %}
-                            
-                            <span class="navigation-info">
-                                {% if prev_header and next_header %}
-                                    {{ prev_header.hid }} ← {{ header.hid }} → {{ next_header.hid }}
-                                {% elif prev_header %}
-                                    {{ prev_header.hid }} ← {{ header.hid }}
-                                {% elif next_header %}
-                                    {{ header.hid }} → {{ next_header.hid }}
-                                {% else %}
-                                    {{ header.hid }}
-                                {% endif %}
-                            </span>
-                            
-                                                         {% if next_header %}
-                                 <a href="{{ url_for('business_projects.detail.project_detail', project_id=next_header.id) }}" 
-                                    class="btn btn-outline-light btn-sm" title="下一个项目: {{ next_header.hid }}">
-                                     <i class="fas fa-chevron-right"></i>
-                                 </a>
-                             {% else %}
-                                 <button class="btn btn-outline-light btn-sm" disabled>
-                                     <i class="fas fa-chevron-right"></i>
-                                 </button>
-                             {% endif %}
-                        </div>
-                        
-                        <div class="text-center">
-                                                         <a href="{{ url_for('business_projects.project_create.create_header') }}" 
-                                class="btn btn-primary btn-sm me-2">
-                                 <i class="fas fa-plus"></i> 新建HID
+         <!-- 项目详情布局 -->
+     <div class="project-detail-layout">
+         
+         <!-- 主要内容区域 -->
+         <div class="project-main-content">
+             
+             <!-- 项目头部 -->
+             <div class="project-header">
+                 <div class="d-flex justify-content-between align-items-center">
+                     <div class="d-flex align-items-center gap-3">
+                         <h1 class="project-title mb-0">{{ header.hid }}</h1>
+                         <span class="project-subtitle mb-0">| {{ header.desc }}</span>
+                     </div>
+                     <div class="d-flex align-items-center gap-3">
+                         <!-- 导航按钮 -->
+                         <div class="d-flex align-items-center gap-2">
+                                                          {% if prev_header %}
+                                  <a href="{{ url_for('business_projects.detail.project_detail', project_id=prev_header.id) }}" 
+                                     class="btn btn-outline-light btn-sm" title="上一个项目: {{ prev_header.hid }}">
+                                      <i class="fas fa-chevron-left"></i>
+                                  </a>
+                              {% else %}
+                                  <button class="btn btn-outline-light btn-sm" disabled>
+                                      <i class="fas fa-chevron-left"></i>
+                                  </button>
+                              {% endif %}
+                             
+                             <span class="navigation-info">
+                                 {% if prev_header and next_header %}
+                                     {{ prev_header.hid }} ← {{ header.hid }} → {{ next_header.hid }}
+                                 {% elif prev_header %}
+                                     {{ prev_header.hid }} ← {{ header.hid }}
+                                 {% elif next_header %}
+                                     {{ header.hid }} → {{ next_header.hid }}
+                                 {% else %}
+                                     {{ header.hid }}
+                                 {% endif %}
+                             </span>
+                             
+                                                          {% if next_header %}
+                                  <a href="{{ url_for('business_projects.detail.project_detail', project_id=next_header.id) }}" 
+                                     class="btn btn-outline-light btn-sm" title="下一个项目: {{ next_header.hid }}">
+                                      <i class="fas fa-chevron-right"></i>
+                                  </a>
+                              {% else %}
+                                  <button class="btn btn-outline-light btn-sm" disabled>
+                                      <i class="fas fa-chevron-right"></i>
+                                  </button>
+                              {% endif %}
+                         </div>
+                         
+                         <div class="text-center">
+                                                          <a href="{{ url_for('business_projects.project_create.create_header') }}" 
+                                 class="btn btn-primary btn-sm me-2">
+                                  <i class="fas fa-plus"></i> 新建HID
+                              </a>
+                  
+                             <a href="{{ url_for('business_projects.list.list_projects') }}" 
+                                class="btn btn-secondary btn-sm">
+                                 <i class="fas fa-arrow-left"></i> 返回列表
                              </a>
-                 
-                            <a href="{{ url_for('business_projects.list.list_projects') }}" 
-                               class="btn btn-secondary btn-sm">
-                                <i class="fas fa-arrow-left"></i> 返回列表
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- A容器第二部分：项目信息 -->
-            <div class="info-card" style="position: relative;">
-                <div style="margin-bottom: 15px;">
-                    <h3 class="section-title" style="font-size: 1.3rem; margin: 0;">项目信息</h3>
-                </div>
-                <div class="project-info-grid">
-                    <div class="info-item">
-                        <span class="info-label">经办人</span>
-                        <span class="info-value">{{ header.staff_name or '未设置' }}</span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">状态</span>
-                        <span class="status-badge status-{{ header.status }}" id="status-span" data-header-id="{{ header.id }}">
-                            {% if header.status == 'draft' %}草稿
-                            {% elif header.status == 'active' %}进行中
-                            {% elif header.status == 'completed' %}已完成
-                            {% else %}已取消
-                            {% endif %}
-                        </span>
-                        <select id="status-select" style="display: none; width: 90%;">
-                            <option value="draft" {% if header.status == 'draft' %}selected{% endif %}>草稿</option>
-                            <option value="active" {% if header.status == 'active' %}selected{% endif %}>进行中</option>
-                            <option value="completed" {% if header.status == 'completed' %}selected{% endif %}>已完成</option>
-                            <option value="cancelled" {% if header.status == 'cancelled' %}selected{% endif %}>已取消</option>
-                        </select>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">公司</span>
-                        <span class="info-value" id="company-name-span" data-header-id="{{ header.id }}">{{ company.company_name if company else '未设置' }}</span>
-                        <select id="company-select" style="display: none; width: 70%;">
-                            <option value="">清除选择</option>
-                            {% for c in companies %}
-                                <option value="{{ c.id }}" {% if company and c.id == company.id %}selected{% endif %}>{{ c.company_name }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">币种</span>
-                        <span class="info-value">{{ header.currency or '未设置' }}</span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">联系人</span>
-                        <span class="info-value" id="contact-span" data-header-id="{{ header.id }}" style="cursor: pointer;">{{ header.contact or '未设置' }}</span>
-                        <input type="text" id="contact-input" style="display: none; width: 60%;" />
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">部门</span>
-                        <span class="info-value">{{ header.dept or '未设置' }}</span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">额度限制</span>
-                        <span class="info-value">{{ header.limit or '未设置' }}</span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">创建日期</span>
-                        <span class="info-value">{{ header.created_at.strftime('%Y-%m-%d') if header.created_at else '未设置' }}</span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">更新时间</span>
-                        <span class="info-value">{{ header.updated_at.strftime('%Y-%m-%d') if header.updated_at else '未设置' }}</span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">项目类型</span>
-                        <span class="info-value">{{ header.project_type or '未设置' }}</span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">优先级</span>
-                        <span class="info-value">{{ header.priority or '未设置' }}</span>
-                    </div>
-                </div>
-                                 <a href="{{ url_for('business_projects.project_header.edit_header', header_id=header.id) }}" class="btn btn-outline-primary btn-sm" style="position: absolute; bottom: 10px; right: 10px;">
-                     <i class="fas fa-edit"></i> 编辑HID
-                 </a>
-            </div>
-        </div>
-        
-        <!-- B容器（右侧）：备注信息 -->
-        <div style="flex: 1; min-width: 0; display: flex; flex-direction: column;">
-            <div class="info-card" style="flex: 1; display: flex; flex-direction: column;">
-                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px;">
-                    <h3 class="section-title" style="font-size: 1.3rem; margin: 0;">备注信息</h3>
-                    <button type="button" class="btn btn-outline-primary btn-sm" onclick="showNewRemarksInput()" id="add-remarks-btn">
-                        <i class="fas fa-plus"></i> 新增备注
-                    </button>
-                </div>
-                
-                <!-- 显示已有备注 -->
-                <div id="existing-remarks" style="flex: 1; display: flex; flex-direction: column;">
-                    {% if header.remarks %}
-                        <div style="background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 4px; padding: 15px; font-size: 0.9rem; line-height: 1.6; color: #495057; flex: 1; overflow-y: auto; white-space: pre-wrap; text-align: left; word-wrap: break-word; text-indent: 0;" id="remarks-display">
-                            {{ header.remarks | trim }}
-                        </div>
-                    {% else %}
-                        <div style="color: #6c757d; font-style: italic; font-size: 0.9rem; padding: 15px; text-align: center; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 4px; flex: 1; display: flex; align-items: center; justify-content: center;">
-                            暂无备注信息
-                        </div>
-                    {% endif %}
-                </div>
-                
-                <!-- 新增备注输入框 -->
-                <div id="new-remarks-section" style="display: none; margin-top: 15px;">
-                    <textarea id="new-remarks-input" placeholder="输入新的备注信息...
-支持多行输入，每条备注会自动添加时间戳" style="width: 100%; min-height: 120px; max-height: 300px; border: 1px solid #ced4da; border-radius: 4px; padding: 12px; font-size: 0.9rem; resize: vertical; box-sizing: border-box; margin-bottom: 10px; line-height: 1.5;"></textarea>
-                    <div style="text-align: right;">
-                        <button type="button" class="btn btn-secondary btn-sm" onclick="cancelNewRemarks()" style="margin-right: 5px;">
-                            <i class="fas fa-times"></i> 取消
-                        </button>
-                        <button type="button" class="btn btn-primary btn-sm" onclick="submitNewRemarks()">
-                            <i class="fas fa-save"></i> 提交备注
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+                         </div>
+                     </div>
+                 </div>
+             </div>
+             
+             <!-- 项目信息 -->
+             <div class="info-card project-info-card" style="display: flex; flex-direction: column;">
+                 <div style="margin-bottom: 15px;">
+                     <h3 class="section-title" style="font-size: 1.3rem; margin: 0;">项目信息</h3>
+                 </div>
+                 <div class="project-info-container" style="flex: 1; overflow-y: auto;">
+                     <div class="project-info-grid">
+                         <div class="info-item">
+                             <span class="info-label">经办人</span>
+                             <span class="info-value">{{ header.staff_name or '未设置' }}</span>
+                         </div>
+                         <div class="info-item">
+                             <span class="info-label">状态</span>
+                             <span class="status-badge status-{{ header.status }}" id="status-span" data-header-id="{{ header.id }}">
+                                 {% if header.status == 'draft' %}草稿
+                                 {% elif header.status == 'active' %}进行中
+                                 {% elif header.status == 'completed' %}已完成
+                                 {% else %}已取消
+                                 {% endif %}
+                             </span>
+                             <select id="status-select" style="display: none; width: 90%;">
+                                 <option value="draft" {% if header.status == 'draft' %}selected{% endif %}>草稿</option>
+                                 <option value="active" {% if header.status == 'active' %}selected{% endif %}>进行中</option>
+                                 <option value="completed" {% if header.status == 'completed' %}selected{% endif %}>已完成</option>
+                                 <option value="cancelled" {% if header.status == 'cancelled' %}selected{% endif %}>已取消</option>
+                             </select>
+                         </div>
+                         <div class="info-item">
+                             <span class="info-label">公司</span>
+                             <span class="info-value" id="company-name-span" data-header-id="{{ header.id }}">{{ company.company_name if company else '未设置' }}</span>
+                             <select id="company-select" style="display: none; width: 70%;">
+                                 <option value="">清除选择</option>
+                                 {% for c in companies %}
+                                     <option value="{{ c.id }}" {% if company and c.id == company.id %}selected{% endif %}>{{ c.company_name }}</option>
+                                 {% endfor %}
+                             </select>
+                         </div>
+                         <div class="info-item">
+                             <span class="info-label">币种</span>
+                             <span class="info-value">{{ header.currency or '未设置' }}</span>
+                         </div>
+                         <div class="info-item">
+                             <span class="info-label">联系人</span>
+                             <span class="info-value" id="contact-span" data-header-id="{{ header.id }}" style="cursor: pointer;">{{ header.contact or '未设置' }}</span>
+                             <input type="text" id="contact-input" style="display: none; width: 60%;" />
+                         </div>
+                         <div class="info-item">
+                             <span class="info-label">部门</span>
+                             <span class="info-value">{{ header.dept or '未设置' }}</span>
+                         </div>
+                         <div class="info-item">
+                             <span class="info-label">额度限制</span>
+                             <span class="info-value">{{ header.limit or '未设置' }}</span>
+                         </div>
+                         <div class="info-item">
+                             <span class="info-label">创建日期</span>
+                             <span class="info-value">{{ header.created_at.strftime('%Y-%m-%d') if header.created_at else '未设置' }}</span>
+                         </div>
+                         <div class="info-item">
+                             <span class="info-label">更新时间</span>
+                             <span class="info-value">{{ header.updated_at.strftime('%Y-%m-%d') if header.updated_at else '未设置' }}</span>
+                         </div>
+                     </div>
+                 </div>
+                 <div style="margin-top: auto; padding-top: 10px;">
+                     <a href="{{ url_for('business_projects.project_header.edit_header', header_id=header.id) }}" class="btn btn-outline-primary btn-sm">
+                         <i class="fas fa-edit"></i> 编辑HID
+                     </a>
+                 </div>
+             </div>
+         </div>
+         
+          <!-- 右侧边栏：备注信息 -->
+          <div class="project-right-sidebar">
+                             <div class="info-card remarks-info-card" style="display: flex; flex-direction: column;">
+                  <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px;">
+                      <h3 class="section-title" style="font-size: 1.3rem; margin: 0;">备注信息</h3>
+                      <button type="button" class="btn btn-outline-primary btn-sm" onclick="showNewRemarksInput()" id="add-remarks-btn">
+                          <i class="fas fa-plus"></i> 新增备注
+                      </button>
+                  </div>
+                  
+                  <!-- 显示已有备注 -->
+                  <div id="existing-remarks" style="flex: 1; display: flex; flex-direction: column; overflow-y: auto;">
+                      {% if header.remarks %}
+                          <div style="background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 4px; padding: 15px; font-size: 0.9rem; line-height: 1.6; color: #495057; flex: 1; overflow-y: auto; white-space: pre-wrap; text-align: left; word-wrap: break-word; text-indent: 0;" id="remarks-display">
+                              {{ header.remarks | trim }}
+                          </div>
+                      {% else %}
+                          <div style="color: #6c757d; font-style: italic; font-size: 0.9rem; padding: 15px; text-align: center; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 4px; flex: 1; display: flex; align-items: center; justify-content: center;">
+                              暂无备注信息
+                          </div>
+                      {% endif %}
+                  </div>
+                  
+                  <!-- 新增备注输入框 -->
+                  <div id="new-remarks-section" style="display: none; margin-top: 15px;">
+                      <textarea id="new-remarks-input" placeholder="输入新的备注信息...
+  支持多行输入，每条备注会自动添加时间戳" style="width: 100%; min-height: 120px; max-height: 300px; border: 1px solid #ced4da; border-radius: 4px; padding: 12px; font-size: 0.9rem; resize: vertical; box-sizing: border-box; margin-bottom: 10px; line-height: 1.5;"></textarea>
+                      <div style="text-align: right;">
+                          <button type="button" class="btn btn-secondary btn-sm" onclick="cancelNewRemarks()" style="margin-right: 5px;">
+                              <i class="fas fa-times"></i> 取消
+                          </button>
+                          <button type="button" class="btn btn-primary btn-sm" onclick="submitNewRemarks()">
+                              <i class="fas fa-save"></i> 提交备注
+                          </button>
+                      </div>
+                  </div>
+              </div>
+          </div>
+     </div>
 
 
     <!-- REF列表 -->
@@ -515,7 +610,7 @@
                                     <strong>{{ ref.ref_number }}</strong>
                                 </a>
                                                          {% elif ref.ref_type and ref.ref_type.name == '其他' %}
-                                 <a href="{{ url_for('business_projects.project_ref.ref_detail', ref_id=ref.id) }}" class="ref-number-link" title="点击编辑其他REF">
+                                 <a href="{{ url_for('business_projects.project_ref.edit_ref', ref_id=ref.id) }}" class="ref-number-link" title="点击编辑其他REF">
                                      <strong>{{ ref.ref_number }}</strong>
                                  </a>
                             {% elif ref.ref_type and ref.ref_type.name == '签证' %}
@@ -531,11 +626,11 @@
                                     <strong>{{ ref.ref_number }}</strong>
                                 </a>
                             {% elif ref.ref_type and ref.ref_type.name == '酒店' %}
-                                <a href="{{ url_for('business_projects.project_ref.ref_detail', ref_id=ref.id) }}" class="ref-number-link" title="点击编辑酒店REF">
+                                <a href="{{ url_for('business_projects.project_ref.edit_ref', ref_id=ref.id) }}" class="ref-number-link" title="点击编辑酒店REF">
                                     <strong>{{ ref.ref_number }}</strong>
                                 </a>
                             {% elif ref.ref_type and ref.ref_type.name == '交通' %}
-                                <a href="{{ url_for('business_projects.project_ref.ref_detail', ref_id=ref.id) }}" class="ref-number-link" title="点击编辑交通REF">
+                                <a href="{{ url_for('business_projects.project_ref.edit_ref', ref_id=ref.id) }}" class="ref-number-link" title="点击编辑交通REF">
                                     <strong>{{ ref.ref_number }}</strong>
                                 </a>
                             {% else %}
