@@ -11,6 +11,8 @@ import html
 import logging
 from flask_wtf.csrf import generate_csrf
 from flask_wtf.csrf import CSRFError
+from werkzeug.utils import secure_filename
+import uuid
 
 # 创建蓝图
 tour_projects = Blueprint('tour_projects', __name__)
@@ -21,6 +23,26 @@ def create_folder(base_path, folder_name):
     if not os.path.exists(folder_path):
         os.makedirs(folder_path)
     return folder_path
+
+def save_uploaded_image(file, upload_folder):
+    """保存上传的图片文件"""
+    if file and file.filename:
+        # 生成唯一的文件名
+        filename = secure_filename(file.filename)
+        name, ext = os.path.splitext(filename)
+        unique_filename = f"{name}_{uuid.uuid4().hex[:8]}{ext}"
+        
+        # 确保上传目录存在
+        if not os.path.exists(upload_folder):
+            os.makedirs(upload_folder)
+        
+        # 保存文件
+        file_path = os.path.join(upload_folder, unique_filename)
+        file.save(file_path)
+        
+        # 返回相对于static目录的路径
+        return f"itinerary_images/{unique_filename}"
+    return None
 
 @tour_projects.route('/create', methods=['GET', 'POST'])
 @csrf.exempt
@@ -630,6 +652,33 @@ def edit_itinerary(itinerary_id):
             itinerary.date = datetime.strptime(request.form.get('date'), '%Y-%m-%d').date()
             itinerary.content = request.form.get('content')
             
+            # 处理图片上传
+            upload_folder = os.path.join('App_new', 'static', 'itinerary_images')
+            
+            # 处理图片1
+            if 'image1' in request.files:
+                image1_file = request.files['image1']
+                if image1_file and image1_file.filename:
+                    image1_path = save_uploaded_image(image1_file, upload_folder)
+                    if image1_path:
+                        itinerary.image1 = image1_path
+            
+            # 处理图片2
+            if 'image2' in request.files:
+                image2_file = request.files['image2']
+                if image2_file and image2_file.filename:
+                    image2_path = save_uploaded_image(image2_file, upload_folder)
+                    if image2_path:
+                        itinerary.image2 = image2_path
+            
+            # 处理图片3
+            if 'image3' in request.files:
+                image3_file = request.files['image3']
+                if image3_file and image3_file.filename:
+                    image3_path = save_uploaded_image(image3_file, upload_folder)
+                    if image3_path:
+                        itinerary.image3 = image3_path
+            
             db.session.commit()
             
             # 检查是否是AJAX请求
@@ -660,7 +709,10 @@ def edit_itinerary(itinerary_id):
             'id': itinerary.id,
             'day_title': itinerary.day_title,
             'date': itinerary.date.strftime('%Y-%m-%d') if itinerary.date else '',
-            'content': itinerary.content
+            'content': itinerary.content,
+            'image1': itinerary.image1,
+            'image2': itinerary.image2,
+            'image3': itinerary.image3
         }
         return jsonify({'success': True, 'itinerary': itinerary_data})
     else:
@@ -825,6 +877,35 @@ def create_itinerary(group_id):
                 content=request.form.get('content')
             )
             db.session.add(new_itinerary)
+            db.session.flush()  # 获取新创建的ID
+            
+            # 处理图片上传
+            upload_folder = os.path.join('App_new', 'static', 'itinerary_images')
+            
+            # 处理图片1
+            if 'image1' in request.files:
+                image1_file = request.files['image1']
+                if image1_file and image1_file.filename:
+                    image1_path = save_uploaded_image(image1_file, upload_folder)
+                    if image1_path:
+                        new_itinerary.image1 = image1_path
+            
+            # 处理图片2
+            if 'image2' in request.files:
+                image2_file = request.files['image2']
+                if image2_file and image2_file.filename:
+                    image2_path = save_uploaded_image(image2_file, upload_folder)
+                    if image2_path:
+                        new_itinerary.image2 = image2_path
+            
+            # 处理图片3
+            if 'image3' in request.files:
+                image3_file = request.files['image3']
+                if image3_file and image3_file.filename:
+                    image3_path = save_uploaded_image(image3_file, upload_folder)
+                    if image3_path:
+                        new_itinerary.image3 = image3_path
+            
             db.session.commit()
             
             # 检查是否是AJAX请求

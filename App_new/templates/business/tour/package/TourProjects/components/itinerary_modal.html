@@ -1,4 +1,45 @@
 {% macro render_itinerary_modal(itinerary, loop_index) %}
+<style>
+.image-upload-container {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.image-upload-item {
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    padding: 10px;
+    background-color: #f9f9f9;
+}
+
+.image-upload-item label {
+    font-weight: bold;
+    margin-bottom: 5px;
+    display: block;
+}
+
+.current-image {
+    margin-top: 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.current-image img {
+    border: 1px solid #ddd;
+    border-radius: 3px;
+}
+
+.remove-image {
+    font-size: 12px;
+    padding: 2px 8px;
+}
+
+.image-upload-input {
+    margin-bottom: 5px;
+}
+</style>
 <!-- 编辑行程模态框 -->
 <div class="modal custom-modal" id="editItineraryModal-{{ itinerary.id }}" style="display: none;">
     <div class="modal-dialog modal-lg">
@@ -12,7 +53,8 @@
                       action="{{ url_for('tour_projects.edit_itinerary', itinerary_id=itinerary.id) }}" 
                       class="itinerary-edit-form" 
                       id="itinerary-edit-{{ itinerary.id }}"
-                      data-itinerary-id="{{ itinerary.id }}">
+                      data-itinerary-id="{{ itinerary.id }}"
+                      enctype="multipart/form-data">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div class="form-row-3">
                         <div class="form-group mb-3">
@@ -27,6 +69,43 @@
                     <div class="form-group mb-3">
                         <label class="form-label">行程内容</label>
                         <textarea name="content" rows="5" required class="form-control">{{ itinerary.content }}</textarea>
+                    </div>
+                    
+                    <!-- 图片上传区域 -->
+                    <div class="form-group mb-3">
+                        <label class="form-label">行程图片（最多3张）</label>
+                        <div class="image-upload-container">
+                            <div class="image-upload-item">
+                                <label class="form-label small">图片1</label>
+                                <input type="file" name="image1" accept="image/*" class="form-control image-upload-input">
+                                {% if itinerary.image1 %}
+                                <div class="current-image">
+                                    <img src="{{ url_for('static', filename=itinerary.image1) }}" alt="当前图片1" class="img-thumbnail" style="max-width: 100px; max-height: 100px;">
+                                    <button type="button" class="btn btn-sm btn-danger remove-image" data-field="image1">删除</button>
+                                </div>
+                                {% endif %}
+                            </div>
+                            <div class="image-upload-item">
+                                <label class="form-label small">图片2</label>
+                                <input type="file" name="image2" accept="image/*" class="form-control image-upload-input">
+                                {% if itinerary.image2 %}
+                                <div class="current-image">
+                                    <img src="{{ url_for('static', filename=itinerary.image2) }}" alt="当前图片2" class="img-thumbnail" style="max-width: 100px; max-height: 100px;">
+                                    <button type="button" class="btn btn-sm btn-danger remove-image" data-field="image2">删除</button>
+                                </div>
+                                {% endif %}
+                            </div>
+                            <div class="image-upload-item">
+                                <label class="form-label small">图片3</label>
+                                <input type="file" name="image3" accept="image/*" class="form-control image-upload-input">
+                                {% if itinerary.image3 %}
+                                <div class="current-image">
+                                    <img src="{{ url_for('static', filename=itinerary.image3) }}" alt="当前图片3" class="img-thumbnail" style="max-width: 100px; max-height: 100px;">
+                                    <button type="button" class="btn btn-sm btn-danger remove-image" data-field="image3">删除</button>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
                     </div>
                 </form>
             </div>

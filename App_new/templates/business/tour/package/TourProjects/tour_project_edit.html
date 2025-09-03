@@ -4,6 +4,46 @@
 
 {% block extra_css %}
 <style>
+/* 图片上传样式 */
+.image-upload-container {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.image-upload-item {
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    padding: 10px;
+    background-color: #f9f9f9;
+}
+
+.image-upload-item label {
+    font-weight: bold;
+    margin-bottom: 5px;
+    display: block;
+}
+
+.image-upload-input {
+    margin-bottom: 5px;
+}
+
+.current-image {
+    margin-top: 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.current-image img {
+    border: 1px solid #ddd;
+    border-radius: 3px;
+}
+
+.remove-image {
+    font-size: 12px;
+    padding: 2px 8px;
+}
 /* 强制覆盖Bootstrap样式 - 最高优先级 */
 body {
     background-color: #f0f2f5 !important;
@@ -1255,7 +1295,7 @@ html body .tour-project-edit-page .modal .form-grid {
             <span class="close" onclick="closeModal('addItineraryModal')">&times;</span>
         </div>
         <div class="modal-body">
-            <form id="addItineraryForm">
+            <form id="addItineraryForm" enctype="multipart/form-data">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="group_id" id="addItineraryGroupId">
                 <div class="form-grid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-bottom: 20px;">
@@ -1271,6 +1311,25 @@ html body .tour-project-edit-page .modal .form-grid {
                 <div class="form-group">
                     <label class="form-label">行程内容</label>
                     <textarea name="content" rows="8" class="form-control" required placeholder="请输入详细的行程安排..."></textarea>
+                </div>
+                
+                <!-- 图片上传区域 -->
+                <div class="form-group">
+                    <label class="form-label">行程图片（最多3张）</label>
+                    <div class="image-upload-container">
+                        <div class="image-upload-item">
+                            <label class="form-label small">图片1</label>
+                            <input type="file" name="image1" accept="image/*" class="form-control image-upload-input">
+                        </div>
+                        <div class="image-upload-item">
+                            <label class="form-label small">图片2</label>
+                            <input type="file" name="image2" accept="image/*" class="form-control image-upload-input">
+                        </div>
+                        <div class="image-upload-item">
+                            <label class="form-label small">图片3</label>
+                            <input type="file" name="image3" accept="image/*" class="form-control image-upload-input">
+                        </div>
+                    </div>
                 </div>
             </form>
         </div>
@@ -1289,7 +1348,7 @@ html body .tour-project-edit-page .modal .form-grid {
             <span class="close" onclick="closeModal('editItineraryModal')">&times;</span>
         </div>
         <div class="modal-body">
-            <form id="editItineraryForm">
+            <form id="editItineraryForm" enctype="multipart/form-data">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="itinerary_id" id="editItineraryId">
                 <div class="form-grid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-bottom: 20px;">
@@ -1305,6 +1364,37 @@ html body .tour-project-edit-page .modal .form-grid {
                 <div class="form-group">
                     <label class="form-label">行程内容</label>
                     <textarea name="content" id="editItineraryContent" rows="8" class="form-control" required placeholder="请输入详细的行程安排..."></textarea>
+                </div>
+                
+                <!-- 图片上传区域 -->
+                <div class="form-group">
+                    <label class="form-label">行程图片（最多3张）</label>
+                    <div class="image-upload-container">
+                        <div class="image-upload-item">
+                            <label class="form-label small">图片1</label>
+                            <input type="file" name="image1" accept="image/*" class="form-control image-upload-input">
+                            <div id="editCurrentImage1" class="current-image" style="display: none;">
+                                <img id="editImage1Preview" src="" alt="当前图片1" class="img-thumbnail" style="max-width: 100px; max-height: 100px;">
+                                <button type="button" class="btn btn-sm btn-danger remove-image" data-field="image1">删除</button>
+                            </div>
+                        </div>
+                        <div class="image-upload-item">
+                            <label class="form-label small">图片2</label>
+                            <input type="file" name="image2" accept="image/*" class="form-control image-upload-input">
+                            <div id="editCurrentImage2" class="current-image" style="display: none;">
+                                <img id="editImage2Preview" src="" alt="当前图片2" class="img-thumbnail" style="max-width: 100px; max-height: 100px;">
+                                <button type="button" class="btn btn-sm btn-danger remove-image" data-field="image2">删除</button>
+                            </div>
+                        </div>
+                        <div class="image-upload-item">
+                            <label class="form-label small">图片3</label>
+                            <input type="file" name="image3" accept="image/*" class="form-control image-upload-input">
+                            <div id="editCurrentImage3" class="current-image" style="display: none;">
+                                <img id="editImage3Preview" src="" alt="当前图片3" class="img-thumbnail" style="max-width: 100px; max-height: 100px;">
+                                <button type="button" class="btn btn-sm btn-danger remove-image" data-field="image3">删除</button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </form>
         </div>
@@ -1859,6 +1949,28 @@ function editItinerary(itineraryId) {
             document.getElementById('editItineraryDayTitle').value = itinerary.day_title;
             document.getElementById('editItineraryDate').value = itinerary.date;
             document.getElementById('editItineraryContent').value = itinerary.content;
+            
+            // 处理图片显示
+            if (itinerary.image1) {
+                document.getElementById('editImage1Preview').src = `/static/${itinerary.image1}`;
+                document.getElementById('editCurrentImage1').style.display = 'flex';
+            } else {
+                document.getElementById('editCurrentImage1').style.display = 'none';
+            }
+            
+            if (itinerary.image2) {
+                document.getElementById('editImage2Preview').src = `/static/${itinerary.image2}`;
+                document.getElementById('editCurrentImage2').style.display = 'flex';
+            } else {
+                document.getElementById('editCurrentImage2').style.display = 'none';
+            }
+            
+            if (itinerary.image3) {
+                document.getElementById('editImage3Preview').src = `/static/${itinerary.image3}`;
+                document.getElementById('editCurrentImage3').style.display = 'flex';
+            } else {
+                document.getElementById('editCurrentImage3').style.display = 'none';
+            }
             
             showModal('editItineraryModal');
         } else {

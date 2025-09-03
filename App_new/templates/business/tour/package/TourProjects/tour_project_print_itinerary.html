@@ -47,8 +47,8 @@
         }
 
         .company-logo img {
-            max-height: 35px;
-            max-width: 80px;
+            max-height: 50px;
+            max-width: 120px;
             object-fit: contain;
         }
 
@@ -57,14 +57,14 @@
         }
 
         .company-abbrev-en {
-            font-size: 8pt;
+            font-size: 11pt;
             color: #4CAF50;
             font-weight: bold;
-            margin-bottom: 1px;
+            margin-bottom: 2px;
         }
 
         .company-abbrev-cn {
-            font-size: 7pt;
+            font-size: 10pt;
             color: #4CAF50;
             font-weight: normal;
         }
@@ -199,18 +199,18 @@
 
         .proposal-text {
             position: absolute;
-            right: 0;
+            right: 20px;
             top: 50%;
             transform: translateY(-50%) rotate(-15deg);
-            font-size: 24pt;
+            font-size: 20pt;
             color: #ff4444;
             font-weight: bold;
             font-family: "Times New Roman", serif;
             text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
             border: 3px solid #ff4444;
             border-radius: 50%;
-            width: 80px;
-            height: 80px;
+            width: 70px;
+            height: 70px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -226,6 +226,26 @@
             border-radius: 8px;
             background: linear-gradient(135deg, #f8f9fa, #e9ecef);
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .day-images {
+            margin-top: 15px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .day-image-item {
+            flex: 0 0 auto;
+        }
+
+        .itinerary-image {
+            width: 200px;
+            height: 150px;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            object-fit: cover;
         }
 
         .day-header {
@@ -410,6 +430,17 @@
             <div class="day-header">{{ day.day_title }}</div>
             <div class="day-date">{{ day.date.strftime('%Y年%m月%d日') if day.date else '' }}</div>
             <div class="day-content">{{ day.content | safe }}</div>
+            
+            <!-- 行程图片展示 -->
+            {% if day.images %}
+            <div class="day-images">
+                {% for image_path in day.images %}
+                <div class="day-image-item">
+                    <img src="{{ url_for('static', filename=image_path) }}" alt="行程图片" class="itinerary-image">
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
         </div>
     {% endfor %}
 {% else %}

@@ -59,6 +59,9 @@ class TourItinerary(db.Model):
     day_title = db.Column(db.String(200), nullable=False, comment='日期标题（如 Day 1: Arrival）')
     date = db.Column(db.Date, nullable=False, comment='日期')
     content = db.Column(db.Text, nullable=False, comment='行程详情（HTML 或纯文本）')
+    image1 = db.Column(db.String(500), nullable=True, comment='图片1路径')
+    image2 = db.Column(db.String(500), nullable=True, comment='图片2路径')
+    image3 = db.Column(db.String(500), nullable=True, comment='图片3路径')
     created_at = db.Column(db.DateTime, default=datetime.utcnow, comment='创建时间')
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, comment='更新时间')
 
@@ -73,6 +76,18 @@ class TourItinerary(db.Model):
         if match:
             return int(match.group(1))
         return None
+    
+    @property
+    def images(self):
+        """获取所有图片路径列表"""
+        images = []
+        if self.image1:
+            images.append(self.image1)
+        if self.image2:
+            images.append(self.image2)
+        if self.image3:
+            images.append(self.image3)
+        return images
     
 
 # 定义 tour_project 表的模型
