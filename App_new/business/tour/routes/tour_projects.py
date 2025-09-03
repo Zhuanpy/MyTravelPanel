@@ -348,7 +348,7 @@ def open_tour_project_folder():
 def list_tour_groups():
     """列出所有行程团"""
     groups = TourGroup.query.order_by(TourGroup.created_at.desc()).all()
-    return render_template('projects/TourProjects/tour_groups.html', groups=groups)
+    return render_template('business/tour/package/TourProjects/tour_groups.html', groups=groups)
 
 @tour_projects.route('/create_tour_group/<int:project_id>', methods=['POST'])
 @csrf.exempt
@@ -410,7 +410,7 @@ def view_tour_group(group_id):
     itineraries = TourItinerary.query.filter_by(tour_id=group_id).order_by(TourItinerary.date.asc()).all()
     company = CompanyInfo.query.first()
     current_time = datetime.now()
-    return render_template('projects/TourProjects/tour_project_print_confirmation.html',
+    return render_template('business/tour/package/TourProjects/tour_project_print_confirmation.html',
                          tour=group, 
                          itinerary=itineraries,
                          company=company,
@@ -423,7 +423,7 @@ def view_tour_itinerary(group_id):
     itineraries = TourItinerary.query.filter_by(tour_id=group_id).order_by(TourItinerary.date.asc()).all()
     company = CompanyInfo.query.first()
     current_time = datetime.now()
-    return render_template('projects/TourProjects/tour_project_print_itinerary.html',
+    return render_template('business/tour/package/TourProjects/tour_project_print_itinerary.html',
                          tour=group, 
                          itinerary=itineraries,
                          company=company,
@@ -613,7 +613,7 @@ def add_itinerary(group_id):
         except Exception as e:
             flash(f'添加失败：{str(e)}', 'error')
     
-    return render_template('projects/TourProjects/add_itinerary.html', group=group)
+    return render_template('business/tour/package/TourProjects/add_itinerary.html', group=group)
 
 @tour_projects.route('/itinerary/<int:itinerary_id>/edit', methods=['GET', 'POST'])
 @csrf.exempt
@@ -664,7 +664,7 @@ def edit_itinerary(itinerary_id):
         }
         return jsonify({'success': True, 'itinerary': itinerary_data})
     else:
-        return render_template('projects/TourProjects/edit_itinerary.html', itinerary=itinerary)
+        return render_template('business/tour/package/TourProjects/edit_itinerary.html', itinerary=itinerary)
 
 @tour_projects.route('/itinerary/<int:itinerary_id>/delete', methods=['POST'])
 @csrf.exempt
@@ -851,4 +851,4 @@ def create_itinerary(group_id):
                 flash(f'行程添加失败：{str(e)}', 'error')
                 return redirect(url_for('tour_projects.edit_tour_project', project_id=group.project_id))
     
-    return render_template('projects/TourProjects/create_itinerary.html', group=group)
+    return render_template('business/tour/package/TourProjects/create_itinerary.html', group=group)
