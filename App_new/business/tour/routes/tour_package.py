@@ -6,7 +6,7 @@ from flask_login import login_required, current_user
 from App_new.utils.decorators import staff_only
 from sqlalchemy.exc import SQLAlchemyError
 from App_new.exts import db
-# from ..forms.ProductForm import ProductForm  # 文件不存在，暂时注释
+from App_new.business.orders.forms.ProductForm import ProductForm
 from App_new.shared.models.Accountsmodels import SupplierData
 from ..models.Packagemodels import Product, ProductCity
 from App_new.config import Config
@@ -43,7 +43,7 @@ def construct_folder_path(*args) -> Path:
 @package_blue.route('/add_product_page')
 def add_product_page():
     form = ProductForm()
-    return render_template('package/add_product.html', form=form)
+    return render_template('business/tour/package/add_product.html', form=form)
 
 
 @login_required
@@ -65,7 +65,7 @@ def add_product():
         flash("产品添加成功!", "success")
         return redirect(url_for('index.index'))
 
-    return render_template('package/add_product.html', form=form)
+    return render_template('business/tour/package/add_product.html', form=form)
 
 
 @login_required
@@ -76,7 +76,7 @@ def our_package(city_name):
         return jsonify({"error": "City parameter is required"}), 400
     country_name = ProductCity.get_country_name_by_city(city_name=city_name)
     products = Product.query.filter_by(city_name=city_name).all()
-    return render_template('package/旅游产品展示.html', country_name=country_name,  city_name=city_name, products=products)
+    return render_template('business/tour/package/旅游产品展示.html', country_name=country_name,  city_name=city_name, products=products)
 
 
 @package_blue.route('/open_company_package_folder/<country_name>/<city_name>/<company_name>', methods=['GET', 'POST'])
@@ -264,7 +264,7 @@ def show_supplier_info(supplier_name=None):
     supplier = None
     if supplier_name:
         supplier = SupplierData.query.filter_by(name=supplier_name).first()
-    return render_template('package/供应商介绍.html', supplier=supplier, supplier_name=supplier_name)
+    return render_template('business/tour/package/供应商介绍.html', supplier=supplier, supplier_name=supplier_name)
 
 
 @login_required
@@ -292,7 +292,7 @@ def edit_supplier_info(supplier_name):
             db.session.rollback()
             flash(f"更新失败：{str(e)}", 'error')
             return redirect(url_for('package_routes.edit_supplier_info', supplier_name=supplier_name))
-    return render_template('package/供应商信息编辑.html', supplier=supplier)
+    return render_template('business/tour/package/供应商信息编辑.html', supplier=supplier)
 
 
 @login_required
@@ -319,7 +319,7 @@ def add_supplier_info(supplier_name):
                                   region=region, rating=rating, notes=notes)
         flash('新供应商添加成功！', 'success')
         return redirect(url_for('package_routes.show_supplier_info', supplier_name=supplier_name))
-    return render_template('package/供应商信息添加.html', supplier_name=supplier_name)
+    return render_template('business/tour/package/供应商信息添加.html', supplier_name=supplier_name)
 
 
 @login_required
@@ -354,7 +354,7 @@ def manage_cities():
             flash(f"发生错误：{str(e)}", "error")
         return redirect(url_for('package_routes.manage_cities'))
     cities = ProductCity.query.order_by(ProductCity.display_name).all()
-    return render_template('package/供应商所属城市管理.html', cities=cities)
+    return render_template('business/tour/package/供应商所属城市管理.html', cities=cities)
 
 
 @login_required
@@ -421,16 +421,90 @@ def all_packages():
         if country not in cities_by_country:
             cities_by_country[country] = []
         cities_by_country[country].append(city)
-    return render_template('package/all_packages.html', cities_by_country=cities_by_country)
+    return render_template('business/tour/package/all_packages.html', cities_by_country=cities_by_country)
 
 @login_required
 @staff_only
 @package_blue.route('/package_home')
 def package_home():
-    cities_by_country = {}
-    cities = ProductCity.query.order_by(ProductCity.country_name).all()
-    for city in cities:
-        if city.country_name not in cities_by_country:
-            cities_by_country[city.country_name] = []
-        cities_by_country[city.country_name].append(city)
-    return render_template('business/tour/package/配套首页.html', cities_by_country=cities_by_country)
+    try:
+        cities_by_country = {}
+        # 添加重试机制和错误处理
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                cities = ProductCity.query.order_by(ProductCity.country_name).all()
+                break
+            except SQLAlchemyError as e:
+                if attempt < max_retries - 1:
+                    print(f"数据库查询失败，重试 {attempt + 1}/{max_retries}: {e}")
+                    db.session.rollback()  # 回滚当前事务
+                    continue
+                else:
+                    raise e
+        
+        for city in cities:
+            if city.country_name not in cities_by_country:
+                cities_by_country[city.country_name] = []
+            cities_by_country[city.country_name].append(city)
+        
+        return render_template('business/tour/package/配套首页.html', cities_by_country=cities_by_country)
+    
+    except SQLAlchemyError as e:
+        print(f"数据库错误: {e}")
+        flash('数据库连接失败，请稍后重试', 'error')
+        return render_template('business/tour/package/配套首页.html', cities_by_country={})
+    except Exception as e:
+        print(f"未知错误: {e}")
+        flash('页面加载失败，请稍后重试', 'error')
+        return render_template('business/tour/package/配套首页.html', cities_by_country={})
+
+
+@package_blue.route('/open_package_folder', methods=['GET', 'POST'])
+def open_package_folder():
+    """打开旅游产品资源文件夹"""
+    try:
+        from pathlib import Path
+        import subprocess
+        import os
+        
+        # 获取项目根目录
+        current_dir = Path(__file__).resolve().parent.parent.parent.parent
+        folder_path = current_dir / "资源" / "旅游产品"
+        
+        # 确保文件夹存在
+        if not folder_path.exists():
+            folder_path.mkdir(parents=True, exist_ok=True)
+        
+        # 使用 explorer 命令打开文件夹
+        subprocess.run(['explorer', str(folder_path)], shell=True)
+        
+        return jsonify({"status": "success", "message": "文件夹已打开"})
+    except Exception as e:
+        print(f"打开文件夹失败: {e}")
+        return jsonify({"status": "error", "message": f"打开文件夹失败: {str(e)}"})
+
+
+@package_blue.route('/open_project_folder', methods=['GET', 'POST'])
+def open_project_folder():
+    """打开旅游项目文件夹"""
+    try:
+        from pathlib import Path
+        import subprocess
+        import os
+        
+        # 获取项目根目录
+        current_dir = Path(__file__).resolve().parent.parent.parent.parent
+        folder_path = current_dir / "资源" / "Project" / "Tour"
+        
+        # 确保文件夹存在
+        if not folder_path.exists():
+            folder_path.mkdir(parents=True, exist_ok=True)
+        
+        # 使用 explorer 命令打开文件夹
+        subprocess.run(['explorer', str(folder_path)], shell=True)
+        
+        return jsonify({"status": "success", "message": "文件夹已打开"})
+    except Exception as e:
+        print(f"打开文件夹失败: {e}")
+        return jsonify({"status": "error", "message": f"打开文件夹失败: {str(e)}"})

@@ -146,7 +146,7 @@ def create_tour_project():
             return redirect(url_for('tour_projects.create_tour_project'))
 
     # 不要传入与模板全局函数同名的 csrf_token，避免覆盖导致 'str' object is not callable
-    return render_template('projects/TourProjects/tour_project_create.html')
+    return render_template('business/tour/package/TourProjects/tour_project_create.html')
 
 @tour_projects.route('/manage', methods=['GET'])
 def manage_tour_projects():
@@ -188,7 +188,7 @@ def manage_tour_projects():
     pagination = query.paginate(page=page, per_page=per_page, error_out=False)
     tour_projects = pagination.items
 
-    return render_template('projects/TourProjects/tour_project_list.html',
+    return render_template('business/tour/package/TourProjects/tour_project_list.html',
                          projects=tour_projects,
                          pagination=pagination,
                          travel_status=travel_status, 
@@ -779,7 +779,7 @@ def edit_tour_project(project_id):
     except Exception:
         recent_budgets = []
     
-    return render_template('projects/TourProjects/tour_project_edit.html',
+    return render_template('business/tour/package/TourProjects/tour_project_edit.html',
                          project=project, 
                          groups=groups,
                          recent_budgets=recent_budgets)
@@ -798,7 +798,7 @@ def project_details(project_id):
         itineraries = TourItinerary.query.filter_by(tour_id=group.id).order_by(TourItinerary.date.asc()).all()
         group.itineraries = itineraries
     
-    return render_template('projects/TourProjects/tour_project_detail.html',
+    return render_template('business/tour/package/TourProjects/tour_project_detail.html',
                          project=project, 
                          groups=groups)
 

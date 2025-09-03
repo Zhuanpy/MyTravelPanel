@@ -63,14 +63,14 @@ def list_budgets():
         
         budgets = pagination.items
         
-        return render_template('package/budget/list.html', 
+        return render_template('business/tour/package/TourBudget/list.html', 
                              budgets=budgets, 
                              pagination=pagination)
     
     except Exception as e:
         current_app.logger.error(f"Error in list_budgets: {e}")
         flash('获取预算单列表时发生错误', 'error')
-        return render_template('package/budget/list.html', budgets=[], pagination=None)
+        return render_template('business/tour/package/TourBudget/list.html', budgets=[], pagination=None)
 
 
 @login_required
@@ -93,11 +93,11 @@ def create():
             # 验证必填字段
             if not package_name:
                 flash('套餐名称不能为空', 'error')
-                return render_template('package/budget/create.html', form=request.form)
+                return render_template('business/tour/package/TourBudget/create.html', form=request.form)
             
             if not adult_count or adult_count < 1:
                 flash('成人数量必须大于0', 'error')
-                return render_template('package/budget/create.html', form=request.form)
+                return render_template('business/tour/package/TourBudget/create.html', form=request.form)
             
             # 创建预算单
             budget = BudgetHeader(
@@ -138,9 +138,9 @@ def create():
             'is_template': request.args.get('is_template', ''),
             'remarks': request.args.get('remarks', ''),
         }
-        return render_template('package/budget/create.html', form=prefill)
+        return render_template('business/tour/package/TourBudget/create.html', form=prefill)
 
-    return render_template('package/budget/create.html')
+    return render_template('business/tour/package/TourBudget/create.html')
 
 
 @login_required
@@ -177,7 +177,7 @@ def detail(budget_id):
                 child_unit_price = item.child_unit_price or 0
                 child_total += child_unit_price * child_count
         
-        return render_template('package/budget/detail.html',
+        return render_template('business/tour/package/TourBudget/detail.html',
                              budget=budget,
                              category_totals=category_totals,
                              adult_total=adult_total,
@@ -212,11 +212,11 @@ def edit(budget_id):
             # 验证必填字段
             if not package_name:
                 flash('套餐名称不能为空', 'error')
-                return render_template('package/budget/edit.html', budget=budget)
+                return render_template('business/tour/package/TourBudget/edit.html', budget=budget)
             
             if not adult_count or adult_count < 1:
                 flash('成人数量必须大于0', 'error')
-                return render_template('package/budget/edit.html', budget=budget)
+                return render_template('business/tour/package/TourBudget/edit.html', budget=budget)
             
             # 更新预算单
             budget.package_name = package_name
@@ -233,7 +233,7 @@ def edit(budget_id):
             flash('预算单更新成功！', 'success')
             return redirect(url_for('package_budget.detail', budget_id=budget.id))
         
-        return render_template('package/budget/edit.html', budget=budget)
+        return render_template('business/tour/package/TourBudget/edit.html', budget=budget)
     
     except SQLAlchemyError as e:
         db.session.rollback()
@@ -469,7 +469,6 @@ def edit_item(budget_id, item_id):
             item.remarks = remarks if remarks else None
             
             db.session.commit()
-            flash('项目更新成功！', 'success')
             return redirect(url_for('package_budget.detail', budget_id=budget_id))
             
         except ValueError as e:
@@ -478,7 +477,7 @@ def edit_item(budget_id, item_id):
             db.session.rollback()
             flash(f'更新失败: {str(e)}', 'error')
     
-    return render_template('package/budget/edit_item.html', budget=header, item=item)
+    return render_template('business/tour/package/TourBudget/edit_item.html', budget=header, item=item)
 
 
 @login_required
@@ -657,7 +656,7 @@ def import_budget():
             current_app.logger.error(f"Error in import budget: {e}")
             flash('导入预算单时发生错误', 'error')
     
-    return render_template('package/budget/import.html')
+    return render_template('business/tour/package/TourBudget/import.html')
 
 
 @login_required
@@ -694,16 +693,18 @@ def list_templates():
         
         templates = pagination.items
         
-        return render_template('package/budget/templates.html', 
+        return render_template('business/tour/package/TourBudget/templates.html', 
                              templates=templates, 
                              pagination=pagination)
     
     except Exception as e:
         current_app.logger.error(f"Error in list templates: {e}")
         flash('获取模板列表时发生错误', 'error')
-        return render_template('package/budget/templates.html', templates=[], pagination=None)
+        return render_template('business/tour/package/TourBudget/templates.html', templates=[], pagination=None)
 
 
+@login_required
+@staff_only
 @package_budget.route('/<int:budget_id>/download_txt', methods=['GET'])
 def download_budget_txt(budget_id):
     """下载预算项目为txt文件（顾客版本）"""
@@ -778,12 +779,20 @@ def download_budget_txt(budget_id):
             content.append(budget.remarks)
             content.append("")
         
-        # 生成纯ASCII文件名避免编码问题
-        filename = f"{budget.package_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
-        filename = "".join(c for c in filename if c.isalnum() or c in (' ', '-', '_', '.')).rstrip()
+        # 生成安全的文件名，避免编码问题
+        safe_package_name = "".join(c for c in budget.package_name if c.isalnum() or c in (' ', '-', '_')).strip()
+        if not safe_package_name:
+            safe_package_name = "package"
+        filename = f"{safe_package_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
         
-        response = Response('\n'.join(content), mimetype='text/plain; charset=utf-8')
-        response.headers['Content-Disposition'] = f'attachment; filename=\"{filename}\"'
+        # 使用RFC 5987标准编码文件名，支持中文
+        import urllib.parse
+        encoded_filename = urllib.parse.quote(filename.encode('utf-8'))
+        
+        # 使用UTF-8编码生成响应
+        content_str = '\n'.join(content)
+        response = Response(content_str.encode('utf-8'), mimetype='text/plain; charset=utf-8')
+        response.headers['Content-Disposition'] = f'attachment; filename*=UTF-8\'\'{encoded_filename}'
         return response
     except Exception as e:
         current_app.logger.error(f"Error in download_budget_txt for budget {budget_id}: {e}")

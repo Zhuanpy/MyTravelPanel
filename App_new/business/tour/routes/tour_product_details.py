@@ -51,7 +51,7 @@ def get_image_base64(image_path):
 def tour_product_details():
     products = TourProduct.query.order_by(TourProduct.created_at.desc()).all()
     company = CompanyInfo.query.first()
-    return render_template('package/旅游产品详细.html', products=products, company=company, is_pdf_export=False)
+    return render_template('business/tour/package/旅游产品详细.html', products=products, company=company, is_pdf_export=False)
 
 # 添加新产品
 @product_details.route('/tour_product/add', methods=['GET', 'POST'])
@@ -83,7 +83,7 @@ def add_product():
                 flash(f'添加失败：{str(e)}', 'error')
                 return redirect(url_for('product_details.add_product'))
     
-    return render_template('package/add_product.html')
+    return render_template('business/tour/package/add_product.html')
 
 # 编辑产品
 @product_details.route('/tour_product/edit/<int:id>', methods=['GET', 'POST'])
@@ -114,7 +114,7 @@ def edit_product(id):
             else:
                 flash(f'更新失败：{str(e)}', 'error')
     
-    return render_template('package/edit_product.html', product=product)
+    return render_template('business/tour/package/edit_product.html', product=product)
 
 # 删除产品
 @product_details.route('/tour_product/delete/<int:id>', methods=['POST'])
@@ -158,7 +158,7 @@ def generate_pdf(id):
             if company.logo_base64 is None:
                 print("Failed to convert image to base64")  # 调试信息
             
-        rendered = render_template('package/旅游产品详细.html', 
+        rendered = render_template('business/tour/package/旅游产品详细.html', 
                                 products=[product],  # 将单个产品放入列表中
                                 company=company,
                                 is_pdf_export=True)

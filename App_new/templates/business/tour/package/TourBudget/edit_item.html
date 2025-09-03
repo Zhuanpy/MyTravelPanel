@@ -28,8 +28,21 @@
                     <div class="col-md-6">
                         <div class="form-group">
                             <label for="category">类别 <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" id="category" name="category" 
-                                   value="{{ item.category or '' }}" required>
+                            <select class="form-control" id="category" name="category" required>
+                                <option value="">请选择类别</option>
+                                {% if item.category and item.category not in ['住宿', '交通', '餐饮', '门票', '导游', '保险', '签证', '购物', '其他'] %}
+                                <option value="{{ item.category }}" selected>{{ item.category }}</option>
+                                {% endif %}
+                                <option value="住宿" {% if item.category == '住宿' %}selected{% endif %}>住宿</option>
+                                <option value="交通" {% if item.category == '交通' %}selected{% endif %}>交通</option>
+                                <option value="餐饮" {% if item.category == '餐饮' %}selected{% endif %}>餐饮</option>
+                                <option value="门票" {% if item.category == '门票' %}selected{% endif %}>门票</option>
+                                <option value="导游" {% if item.category == '导游' %}selected{% endif %}>导游</option>
+                                <option value="保险" {% if item.category == '保险' %}selected{% endif %}>保险</option>
+                                <option value="签证" {% if item.category == '签证' %}selected{% endif %}>签证</option>
+                                <option value="购物" {% if item.category == '购物' %}selected{% endif %}>购物</option>
+                                <option value="其他" {% if item.category == '其他' %}selected{% endif %}>其他</option>
+                            </select>
                         </div>
                     </div>
                     <div class="col-md-6">

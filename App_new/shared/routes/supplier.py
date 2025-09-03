@@ -12,14 +12,14 @@ def suppliers():
     suppliers = Supplier.query.all()
     # 从模型中获取供应商类型列表
     supplier_types = Supplier.get_supplier_types()
-    return render_template('package/供应商信息展示.html', suppliers=suppliers, supplier_types=supplier_types)
+    return render_template('business/tour/package/供应商信息展示.html', suppliers=suppliers, supplier_types=supplier_types)
 
 
 @supplier.route('/supplier/<int:supplier_id>', methods=['GET'])
 def view_supplier(supplier_id):
     # 获取供应商的详细信息
     supplier = Supplier.query.get_or_404(supplier_id)
-    return render_template('package/供应商信息详细.html', supplier=supplier)
+    return render_template('business/tour/package/供应商信息详细.html', supplier=supplier)
 
 
 @supplier.route('/add', methods=['GET', 'POST'])
@@ -42,7 +42,7 @@ def add_supplier():
     
     # 从模型中获取供应商类型列表
     supplier_types = Supplier.get_supplier_types()
-    return render_template('package/供应商添加.html', supplier_types=supplier_types)
+    return render_template('business/tour/package/供应商添加.html', supplier_types=supplier_types)
 
 @supplier.route('/edit/<int:supplier_id>', methods=['GET', 'POST'])
 def edit_supplier(supplier_id):
@@ -62,7 +62,7 @@ def edit_supplier(supplier_id):
         supplier.status = request.form.get('status')
         db.session.commit()
         return redirect(url_for('supplier.suppliers'))
-    return render_template('package/供应商信息编辑.html', supplier=supplier, supplier_types=supplier_types)
+    return render_template('business/tour/package/供应商信息编辑.html', supplier=supplier, supplier_types=supplier_types)
 
 @supplier.route('/delete/<int:supplier_id>')
 def delete_supplier(supplier_id):

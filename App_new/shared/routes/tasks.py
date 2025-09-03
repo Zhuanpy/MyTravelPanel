@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify, render_template, current_app
 from flask_login import login_required
 from App_new.shared.models.Utilsmodels import Task, Todo
-from App_new.exts import db
+from App_new.exts import db, csrf
 from App_new.utils.decorators import staff_only
 from datetime import datetime
 import traceback
@@ -165,6 +165,7 @@ def list_todos():
 
 # 创建待办事项
 @utils_blue.route('/todos/create', methods=['POST'])
+@csrf.exempt
 @login_required
 @staff_only
 def create_todo():
@@ -195,6 +196,7 @@ def create_todo():
 
 # 更新待办事项
 @utils_blue.route('/todos/update', methods=['POST'])
+@csrf.exempt
 @login_required
 @staff_only
 def update_todo():
@@ -245,6 +247,7 @@ def update_todo():
 
 # 删除待办事项
 @utils_blue.route('/todos/delete', methods=['POST'])
+@csrf.exempt
 @login_required
 @staff_only
 def delete_todo():

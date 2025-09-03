@@ -1,0 +1,1964 @@
+{% extends 'shared/staff_base.html' %}
+
+{% block title %}编辑旅游项目 - {{ project.project_name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+/* 强制覆盖Bootstrap样式 - 最高优先级 */
+body {
+    background-color: #f0f2f5 !important;
+    margin: 0 !important;
+    padding: 20px !important;
+}
+
+.edit-project-container {
+    max-width: 1600px !important;
+    margin: 20px auto !important;
+    padding: 30px !important;
+    background: white !important;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.1) !important;
+    border-radius: 12px !important;
+}
+
+/* 重置和基础样式 - 使用更具体的选择器避免与Bootstrap冲突 */
+/* 重置和基础样式 - 使用更具体的选择器避免与Bootstrap冲突 */
+.tour-project-edit-page * {
+    box-sizing: border-box !important;
+}
+
+/* 强制覆盖Bootstrap样式 */
+body.tour-project-edit-page,
+html .tour-project-edit-page {
+    background-color: #f0f2f5 !important;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important;
+    line-height: 1.6 !important;
+    color: #333 !important;
+    margin: 0 !important;
+    padding: 20px !important;
+    min-height: 100vh !important;
+}
+
+.tour-project-edit-page {
+    background-color: #f0f2f5 !important;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important;
+    line-height: 1.6 !important;
+    color: #333 !important;
+    margin: 0 !important;
+    padding: 20px !important;
+    min-height: 100vh !important;
+}
+
+/* 主容器 - 现代化设计，与tour_project_list保持一致 */
+.tour-project-edit-page .edit-project-container,
+html .tour-project-edit-page .edit-project-container {
+    max-width: 1600px !important;
+    margin: 20px auto !important;
+    padding: 30px !important;
+    background: white !important;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.1) !important;
+    border-radius: 12px !important;
+}
+
+/* 项目头部 - 与tour_project_list保持一致的颜色主题 */
+.tour-project-edit-page .project-header {
+    background: linear-gradient(135deg, #4CAF50, #45a049) !important;
+    color: white !important;
+    padding: 30px !important;
+    border-radius: 12px !important;
+    margin-bottom: 30px !important;
+    text-align: center !important;
+    box-shadow: 0 4px 20px rgba(76, 175, 80, 0.3) !important;
+}
+
+.tour-project-edit-page .project-title {
+    font-size: 28px !important;
+    font-weight: 600 !important;
+    margin: 0 0 10px 0 !important;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
+}
+
+.tour-project-edit-page .project-subtitle {
+    font-size: 16px !important;
+    opacity: 0.9 !important;
+    margin: 0 !important;
+}
+
+/* 闪现消息 - 覆盖Bootstrap样式 */
+.tour-project-edit-page .alert {
+    padding: 15px 20px !important;
+    margin-bottom: 20px !important;
+    border-radius: 8px !important;
+    border: 1px solid transparent !important;
+    font-weight: 500 !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+}
+
+.tour-project-edit-page .alert-success {
+    background-color: #d4edda !important;
+    border-color: #c3e6cb !important;
+    color: #155724 !important;
+}
+
+.tour-project-edit-page .alert-danger {
+    background-color: #f8d7da !important;
+    border-color: #f5c6cb !important;
+    color: #721c24 !important;
+}
+
+/* 模块卡片 - 与tour_project_list保持一致的设计 */
+.tour-project-edit-page .section-card {
+    background: white !important;
+    border-radius: 8px !important;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+    margin-bottom: 30px !important;
+    overflow: hidden !important;
+    border: 1px solid #e9ecef !important;
+}
+
+.tour-project-edit-page .section-header {
+    background: linear-gradient(135deg, #4CAF50, #45a049) !important;
+    color: white !important;
+    padding: 20px 25px !important;
+    border-bottom: 1px solid #dee2e6 !important;
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+}
+
+.tour-project-edit-page .section-title {
+    font-size: 18px !important;
+    font-weight: 600 !important;
+    color: white !important;
+    margin: 0 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
+}
+
+.tour-project-edit-page .section-content {
+    padding: 25px !important;
+}
+
+/* 表单样式 - 与tour_project_list保持一致 */
+.tour-project-edit-page .form-grid {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)) !important;
+    gap: 20px !important;
+    margin-bottom: 25px !important;
+}
+
+.tour-project-edit-page .form-group {
+    margin-bottom: 20px !important;
+}
+
+.tour-project-edit-page .form-label {
+    display: block !important;
+    margin-bottom: 8px !important;
+    font-weight: 500 !important;
+    color: #495057 !important;
+    font-size: 14px !important;
+}
+
+.tour-project-edit-page .form-control {
+    width: 100% !important;
+    padding: 10px 12px !important;
+    border: 1px solid #ced4da !important;
+    border-radius: 6px !important;
+    font-size: 14px !important;
+    transition: all 0.2s ease !important;
+    background: white !important;
+    box-sizing: border-box !important;
+}
+
+.tour-project-edit-page .form-control:focus {
+    outline: none !important;
+    border-color: #4CAF50 !important;
+    box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.1) !important;
+    transform: translateY(-1px) !important;
+}
+
+.tour-project-edit-page .form-control:hover {
+    border-color: #adb5bd !important;
+}
+
+/* 按钮样式 - 与tour_project_list保持一致 */
+.tour-project-edit-page .btn {
+    padding: 8px 12px !important;
+    border: none !important;
+    border-radius: 4px !important;
+    font-size: 14px !important;
+    font-weight: 500 !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+    text-decoration: none !important;
+    display: inline-block !important;
+    text-align: center !important;
+    min-width: 80px !important;
+    margin-right: 10px !important;
+    margin-bottom: 5px !important;
+    background: none !important;
+}
+
+.tour-project-edit-page .btn-primary {
+    background-color: #007BFF !important;
+    color: white !important;
+}
+
+.tour-project-edit-page .btn-primary:hover {
+    background-color: #0056b3 !important;
+    transform: translateY(-1px) !important;
+    color: white !important;
+}
+
+.tour-project-edit-page .btn-secondary {
+    background: #6c757d !important;
+    color: white !important;
+}
+
+.tour-project-edit-page .btn-secondary:hover {
+    background: #5a6268 !important;
+    transform: translateY(-1px) !important;
+    color: white !important;
+}
+
+.tour-project-edit-page .btn-success {
+    background-color: #4CAF50 !important;
+    color: white !important;
+}
+
+.tour-project-edit-page .btn-success:hover {
+    background-color: #45a049 !important;
+    transform: translateY(-1px) !important;
+    color: white !important;
+}
+
+.tour-project-edit-page .btn-danger {
+    background-color: #dc3545 !important;
+    color: white !important;
+}
+
+.tour-project-edit-page .btn-danger:hover {
+    background-color: #c82333 !important;
+    transform: translateY(-1px) !important;
+    color: white !important;
+}
+
+.tour-project-edit-page .btn-sm {
+    padding: 8px 16px !important;
+    font-size: 12px !important;
+    min-width: 80px !important;
+}
+
+.tour-project-edit-page .text-center {
+    text-align: center !important;
+}
+
+/* 团队卡片 - 与tour_project_list保持一致 */
+.tour-project-edit-page .group-card {
+    background: white !important;
+    border: 1px solid #e9ecef !important;
+    border-radius: 8px !important;
+    margin-bottom: 25px !important;
+    overflow: hidden !important;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+    transition: all 0.2s ease !important;
+}
+
+.tour-project-edit-page .group-card:hover {
+    transform: scale(1.01) !important;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15) !important;
+}
+
+.tour-project-edit-page .group-header {
+    background: linear-gradient(135deg, #4CAF50, #45a049) !important;
+    color: white !important;
+    padding: 20px 25px !important;
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+}
+
+.tour-project-edit-page .group-title {
+    font-weight: 600 !important;
+    margin: 0 !important;
+    font-size: 16px !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
+}
+
+.tour-project-edit-page .group-actions {
+    display: flex !important;
+    gap: 10px !important;
+}
+
+.tour-project-edit-page .group-content {
+    padding: 25px !important;
+}
+
+/* 团队信息展示 - 与tour_project_list保持一致 */
+.tour-project-edit-page .group-info {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)) !important;
+    gap: 20px !important;
+    margin-bottom: 25px !important;
+}
+
+.tour-project-edit-page .info-item {
+    background: #f8f9fa !important;
+    padding: 15px !important;
+    border-radius: 6px !important;
+    border: 1px solid #e9ecef !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
+}
+
+.tour-project-edit-page .info-label {
+    font-size: 12px !important;
+    color: #6c757d !important;
+    margin-bottom: 5px !important;
+    font-weight: 500 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
+}
+
+.tour-project-edit-page .info-value {
+    font-weight: 600 !important;
+    color: #495057 !important;
+    font-size: 14px !important;
+}
+
+/* 表格样式 - 与tour_project_list完全一致 */
+.tour-project-edit-page .itinerary-table {
+    width: 100% !important;
+    border-collapse: separate !important;
+    border-spacing: 0 !important;
+    margin-top: 20px !important;
+    font-size: 14px !important;
+    background: white !important;
+    border-radius: 8px !important;
+    overflow: hidden !important;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+}
+
+.tour-project-edit-page .itinerary-table th,
+.tour-project-edit-page .itinerary-table td {
+    padding: 16px 12px !important;
+    border: 1px solid #e9ecef !important;
+    text-align: left !important;
+    vertical-align: middle !important;
+    min-width: 80px !important;
+}
+
+/* 行程表列宽：放大“行程内容”，缩小“操作” */
+.tour-project-edit-page .itinerary-table th:nth-child(1),
+.tour-project-edit-page .itinerary-table td:nth-child(1) { width: 140px !important; }
+.tour-project-edit-page .itinerary-table th:nth-child(2),
+.tour-project-edit-page .itinerary-table td:nth-child(2) { width: 90px !important; }
+.tour-project-edit-page .itinerary-table th:nth-child(3),
+.tour-project-edit-page .itinerary-table td:nth-child(3) { width: 180px !important; }
+.tour-project-edit-page .itinerary-table th:nth-child(4),
+.tour-project-edit-page .itinerary-table td:nth-child(4) { width: 60% !important; }
+.tour-project-edit-page .itinerary-table th:nth-child(5),
+.tour-project-edit-page .itinerary-table td:nth-child(5) { width: 120px !important; }
+
+.tour-project-edit-page .itinerary-table th {
+    background: linear-gradient(135deg, #4CAF50, #45a049) !important;
+    color: white !important;
+    font-weight: 600 !important;
+    font-size: 14px !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 10 !important;
+}
+
+.tour-project-edit-page .itinerary-table tr:nth-child(even) {
+    background-color: #f8f9fa !important;
+}
+
+.tour-project-edit-page .itinerary-table tr:hover {
+    background-color: #e8f5e8 !important;
+    transform: scale(1.01) !important;
+    transition: all 0.2s ease !important;
+}
+
+.tour-project-edit-page .action-buttons {
+    display: flex !important;
+    gap: 8px !important;
+    flex-wrap: wrap !important;
+}
+
+/* 操作列按钮统一宽度 */
+.tour-project-edit-page .itinerary-table .action-buttons .btn {
+    width: 100px !important;
+    text-align: center !important;
+}
+
+/* 空状态 - 与tour_project_list保持一致 */
+.tour-project-edit-page .empty-state {
+    text-align: center !important;
+    padding: 40px 20px !important;
+    color: #999 !important;
+    background: #f8f9fa !important;
+    border-radius: 8px !important;
+    border: 1px solid #e9ecef !important;
+}
+
+.tour-project-edit-page .empty-state i {
+    font-size: 48px !important;
+    color: #ddd !important;
+    margin-bottom: 15px !important;
+    display: block !important;
+}
+
+.tour-project-edit-page .empty-state h3 {
+    margin: 0 0 10px 0 !important;
+    color: #495057 !important;
+    font-size: 18px !important;
+}
+
+.tour-project-edit-page .empty-state p {
+    margin: 0 0 20px 0 !important;
+    color: #6c757d !important;
+    font-size: 14px !important;
+}
+
+/* 模态框样式 - 优化团队编辑界面 */
+/* 强制覆盖Bootstrap模态框背景样式 */
+.tour-project-edit-page .modal,
+body .tour-project-edit-page .modal,
+html body .tour-project-edit-page .modal {
+    display: none !important;
+    position: fixed !important;
+    z-index: 1050 !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    background-color: rgba(0, 0, 0, 0.6) !important;
+    backdrop-filter: blur(2px) !important;
+    overflow: hidden !important;
+}
+
+/* 强制覆盖Bootstrap模态框样式 */
+.tour-project-edit-page .modal-content,
+body .tour-project-edit-page .modal-content,
+html body .tour-project-edit-page .modal-content {
+    background-color: white !important;
+    margin: 5% auto !important;
+    padding: 0 !important;
+    border-radius: 12px !important;
+    width: 90% !important;
+    max-width: 600px !important;
+    max-height: 80vh !important;
+    overflow-y: auto !important;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3) !important;
+    animation: modalSlideIn 0.3s ease-out !important;
+    position: relative !important;
+    transform: none !important;
+}
+
+@keyframes modalSlideIn {
+    from {
+        opacity: 0 !important;
+        transform: translateY(-50px) scale(0.9) !important;
+    }
+    to {
+        opacity: 1 !important;
+        transform: translateY(0) scale(1) !important;
+    }
+}
+
+.tour-project-edit-page .modal-header {
+    padding: 25px 30px !important;
+    border-bottom: 1px solid #e9ecef !important;
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    background: linear-gradient(135deg, #4CAF50, #45a049) !important;
+    color: white !important;
+    border-radius: 12px 12px 0 0 !important;
+}
+
+.tour-project-edit-page .modal-title {
+    margin: 0 !important;
+    font-size: 20px !important;
+    font-weight: 600 !important;
+    color: white !important;
+}
+
+.tour-project-edit-page .modal-body {
+    padding: 30px !important;
+    max-height: 60vh !important;
+    overflow-y: auto !important;
+}
+
+.tour-project-edit-page .modal-footer {
+    padding: 25px 30px !important;
+    border-top: 1px solid #e9ecef !important;
+    display: flex !important;
+    justify-content: flex-end !important;
+    gap: 15px !important;
+    background: #f8f9fa !important;
+    border-radius: 0 0 12px 12px !important;
+}
+
+.tour-project-edit-page .close {
+    color: rgba(255, 255, 255, 0.8) !important;
+    font-size: 32px !important;
+    font-weight: bold !important;
+    cursor: pointer !important;
+    transition: all 0.3s ease !important;
+    line-height: 1 !important;
+    width: 32px !important;
+    height: 32px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border-radius: 50% !important;
+}
+
+.tour-project-edit-page .close:hover {
+    color: white !important;
+    background-color: rgba(255, 255, 255, 0.2) !important;
+    transform: scale(1.1) !important;
+}
+
+/* 模态框内表单样式优化 - 强制4列布局 */
+.tour-project-edit-page .modal .form-grid,
+body .tour-project-edit-page .modal .form-grid,
+html body .tour-project-edit-page .modal .form-grid {
+    display: grid !important;
+    grid-template-columns: repeat(4, 1fr) !important;
+    gap: 15px !important;
+    margin-bottom: 20px !important;
+}
+
+.tour-project-edit-page .modal .form-group {
+    margin-bottom: 20px !important;
+}
+
+.tour-project-edit-page .modal .form-label {
+    display: block !important;
+    margin-bottom: 6px !important;
+    font-weight: 600 !important;
+    color: #495057 !important;
+    font-size: 13px !important;
+}
+
+.tour-project-edit-page .modal .form-control {
+    width: 100% !important;
+    padding: 10px 12px !important;
+    border: 2px solid #e9ecef !important;
+    border-radius: 8px !important;
+    font-size: 14px !important;
+    transition: all 0.3s ease !important;
+    background-color: #fff !important;
+    box-sizing: border-box !important;
+    min-height: 42px !important;
+}
+
+.tour-project-edit-page .modal .form-control:focus {
+    outline: none !important;
+    border-color: #4CAF50 !important;
+    box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.1) !important;
+    transform: translateY(-1px) !important;
+}
+
+.tour-project-edit-page .modal textarea.form-control {
+    resize: vertical !important;
+    min-height: 120px !important;
+    font-family: inherit !important;
+    line-height: 1.5 !important;
+    padding: 15px !important;
+}
+
+.tour-project-edit-page .modal select.form-control {
+    cursor: pointer !important;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e") !important;
+    background-position: right 12px center !important;
+    background-repeat: no-repeat !important;
+    background-size: 16px !important;
+    padding-right: 40px !important;
+}
+
+/* 模态框按钮样式 */
+.tour-project-edit-page .modal .btn {
+    padding: 12px 24px !important;
+    border: none !important;
+    border-radius: 8px !important;
+    font-size: 14px !important;
+    font-weight: 600 !important;
+    cursor: pointer !important;
+    transition: all 0.3s ease !important;
+    text-decoration: none !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    min-width: 100px !important;
+}
+
+.tour-project-edit-page .modal .btn-primary {
+    background: linear-gradient(135deg, #4CAF50, #45a049) !important;
+    color: white !important;
+}
+
+.tour-project-edit-page .modal .btn-primary:hover {
+    background: linear-gradient(135deg, #45a049, #3d8b40) !important;
+    transform: translateY(-2px) !important;
+    box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3) !important;
+}
+
+.tour-project-edit-page .modal .btn-secondary {
+    background: #6c757d !important;
+    color: white !important;
+}
+
+.tour-project-edit-page .modal .btn-secondary:hover {
+    background: #5a6268 !important;
+    transform: translateY(-2px) !important;
+    box-shadow: 0 4px 12px rgba(108, 117, 125, 0.3) !important;
+}
+
+/* 表格响应式 */
+.tour-project-edit-page .table-responsive {
+    width: 100% !important;
+    overflow-x: auto !important;
+    border-radius: 8px !important;
+}
+
+
+
+/* 响应式设计 - 与tour_project_list保持一致 */
+@media (max-width: 1200px) {
+    .tour-project-edit-page .edit-project-container {
+        margin: 15px !important;
+        padding: 25px !important;
+    }
+    
+    .tour-project-edit-page .form-grid {
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)) !important;
+        gap: 15px !important;
+    }
+    
+    .tour-project-edit-page .group-info {
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)) !important;
+        gap: 15px !important;
+    }
+}
+
+@media (max-width: 768px) {
+    .tour-project-edit-page .edit-project-container {
+        margin: 10px !important;
+        padding: 20px !important;
+    }
+    
+    .tour-project-edit-page .project-header {
+        padding: 20px !important;
+    }
+    
+    .tour-project-edit-page .project-title {
+        font-size: 24px !important;
+    }
+    
+    .tour-project-edit-page .section-header {
+        padding: 15px 20px !important;
+        flex-direction: column !important;
+        gap: 15px !important;
+        align-items: flex-start !important;
+    }
+    
+    .tour-project-edit-page .form-grid:not(.modal .form-grid) {
+        grid-template-columns: 1fr !important;
+        gap: 15px !important;
+    }
+    
+    .tour-project-edit-page .group-info {
+        grid-template-columns: 1fr !important;
+        gap: 15px !important;
+    }
+    
+    .tour-project-edit-page .group-actions {
+        flex-direction: column !important;
+        gap: 8px !important;
+    }
+    
+    .tour-project-edit-page .action-buttons {
+        flex-direction: column !important;
+        gap: 5px !important;
+    }
+    
+    .tour-project-edit-page .modal-content {
+        width: 95% !important;
+        margin: 3% auto !important;
+        max-width: 550px !important;
+        max-height: 85vh !important;
+    }
+    
+    .tour-project-edit-page .modal-header,
+    .tour-project-edit-page .modal-body,
+    .tour-project-edit-page .modal-footer {
+        padding: 20px !important;
+    }
+    
+    .tour-project-edit-page .modal .form-grid {
+        grid-template-columns: repeat(3, 1fr) !important;
+        gap: 15px !important;
+    }
+    
+    .tour-project-edit-page .modal .form-control {
+        padding: 10px 12px !important;
+        font-size: 16px !important; /* 移动端更大的字体 */
+    }
+    
+    .tour-project-edit-page .modal .btn {
+        padding: 12px 20px !important;
+        font-size: 16px !important;
+        min-width: 80px !important;
+    }
+    
+    .tour-project-edit-page .itinerary-table {
+        font-size: 12px !important;
+    }
+    
+    .tour-project-edit-page .itinerary-table th,
+    .tour-project-edit-page .itinerary-table td {
+        padding: 10px 8px !important;
+    }
+}
+
+@media (max-width: 480px) {
+    .tour-project-edit-page .edit-project-container {
+        margin: 5px !important;
+        padding: 15px !important;
+    }
+    
+    .tour-project-edit-page .project-title {
+        font-size: 20px !important;
+    }
+    
+    .tour-project-edit-page .section-content {
+        padding: 15px !important;
+    }
+    
+    .tour-project-edit-page .group-content {
+        padding: 15px !important;
+    }
+    
+    .tour-project-edit-page .btn {
+        padding: 10px 16px !important;
+        font-size: 13px !important;
+    }
+    
+    /* 超小屏幕模态框优化 */
+    .tour-project-edit-page .modal-content {
+        width: 98% !important;
+        margin: 1% auto !important;
+        max-width: 500px !important;
+        border-radius: 8px !important;
+        max-height: 95vh !important;
+    }
+    
+    .tour-project-edit-page .modal-header {
+        border-radius: 0 !important;
+        padding: 15px 20px !important;
+    }
+    
+    .tour-project-edit-page .modal-body {
+        padding: 15px 20px !important;
+        max-height: 70vh !important;
+    }
+    
+    .tour-project-edit-page .modal-footer {
+        border-radius: 0 !important;
+        padding: 15px 20px !important;
+        flex-direction: column !important;
+        gap: 10px !important;
+    }
+    
+    .tour-project-edit-page .modal .btn {
+        width: 100% !important;
+        justify-content: center !important;
+    }
+    
+    .tour-project-edit-page .modal .form-grid {
+        grid-template-columns: 1fr !important;
+        gap: 15px !important;
+    }
+}
+
+/* 行程操作按钮样式 */
+.tour-project-edit-page .itinerary-actions {
+    margin-top: 20px !important;
+    text-align: center !important;
+    padding: 15px !important;
+    background: #f8f9fa !important;
+    border-radius: 8px !important;
+    border: 1px solid #e9ecef !important;
+}
+
+.tour-project-edit-page .itinerary-actions .btn {
+    padding: 10px 20px !important;
+    font-size: 14px !important;
+    font-weight: 600 !important;
+    border-radius: 6px !important;
+    transition: all 0.3s ease !important;
+}
+
+.tour-project-edit-page .itinerary-actions .btn:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3) !important;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="tour-project-edit-page">
+    <div class="edit-project-container">
+        <!-- 项目头部 -->
+        <div class="project-header">
+            <h1 class="project-title">{{ project.project_name }}</h1>
+            <p class="project-subtitle">项目ID: {{ project.id }} | 创建时间: {{ project.created_at.strftime('%Y-%m-%d') }}</p>
+        </div>
+
+        <!-- 闪现消息 -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ 'success' if category == 'success' else 'danger' }}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <!-- 项目基本信息 -->
+        <div class="section-card">
+            <div class="section-header">
+                <h2 class="section-title">项目基本信息</h2>
+            </div>
+            <div class="section-content">
+                <form method="POST" id="projectForm">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label class="form-label">项目名称</label>
+                            <input type="text" name="project_name" value="{{ project.project_name }}" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">项目HID</label>
+                            <input type="text" name="project_hid" value="{{ project.project_hid or '' }}" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">项目类型</label>
+                            <input type="text" name="project_type" value="{{ project.project_type or '' }}" class="form-control" placeholder="如：自由行/跟团游/定制游">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">项目状态</label>
+                            <select name="project_status" class="form-control">
+                                <option value="处理中" {% if project.project_status == '处理中' %}selected{% endif %}>处理中</option>
+                                <option value="待出行" {% if project.project_status == '待出行' %}selected{% endif %}>待出行</option>
+                                <option value="已完成" {% if project.project_status == '已完成' %}selected{% endif %}>已完成</option>
+                                <option value="忽略单" {% if project.project_status == '忽略单' %}selected{% endif %}>忽略单</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">联系人</label>
+                            <input type="text" name="contact_person" value="{{ project.contact_person }}" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">联系方式</label>
+                            <input type="text" name="contact_info" value="{{ project.contact_info }}" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">项目预算 SGD</label>
+                            <input type="number" step="0.01" name="budget" value="{{ project.budget or '' }}" class="form-control" placeholder="如：10000">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">备注</label>
+                        <textarea name="remarks" rows="4" class="form-control">{{ project.remarks or '' }}</textarea>
+                    </div>
+                    <div class="text-center">
+                        <button type="submit" class="btn btn-primary">保存项目信息</button>
+                        <a href="{{ url_for('tour_projects.manage_tour_projects') }}" class="btn btn-secondary">返回项目列表</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        {% if recent_budgets %}
+        <div class="section-card">
+            <div class="section-header">
+                <h2 class="section-title">最近的配套价格预算</h2>
+                <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('package_budget.list_budgets') }}" target="_blank">查看全部</a>
+            </div>
+            <div class="section-content">
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>套餐名称</th>
+                                <th>人数</th>
+                                <th>币种</th>
+                                <th>总价</th>
+                                <th>创建时间</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for b in recent_budgets %}
+                            <tr>
+                                <td>{{ b.id }}</td>
+                                <td>{{ b.package_name }}</td>
+                                <td>{{ b.adult_count }}A{% if b.child_count and b.child_count>0 %}+{{ b.child_count }}C{% endif %}</td>
+                                <td>{{ b.currency }}</td>
+                                <td>{{ '%.2f'|format(b.total_price) }}</td>
+                                <td>{{ b.created_at.strftime('%Y-%m-%d %H:%M') if b.created_at else '-' }}</td>
+                                <td>
+                                    <a class="btn btn-sm btn-outline-primary" href="{{ url_for('package_budget.detail', budget_id=b.id) }}" target="_blank">详情</a>
+                                    <a class="btn btn-sm btn-outline-warning" href="{{ url_for('package_budget.edit', budget_id=b.id) }}" target="_blank">编辑</a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- 团队管理 -->
+        <div class="section-card">
+            <div class="section-header">
+                <h2 class="section-title">团队管理</h2>
+                <button class="btn btn-success" onclick="showCreateGroupModal()">
+                    <i class="fas fa-plus"></i> 创建新团队
+                </button>
+            </div>
+            <div class="section-content">
+                {% if groups %}
+                    {% for group in groups %}
+                    <div class="group-card" data-group-id="{{ group.id }}">
+                        <div class="group-header">
+                            <h3 class="group-title">{{ group.title }}</h3>
+                            <div class="group-actions">
+                                <a href="{{ url_for('tour_projects.view_tour_group', group_id=group.id) }}" class="btn btn-sm btn-success" target="_blank">
+                                    <i class="fas fa-print"></i> 确认书
+                                </a>
+                                <a href="{{ url_for('tour_projects.view_tour_itinerary', group_id=group.id) }}" class="btn btn-sm btn-info" target="_blank">
+                                    <i class="fas fa-route"></i> 行程单
+                                </a>
+                                <button class="btn btn-sm btn-primary" onclick="editGroup({{ group.id }})">
+                                    <i class="fas fa-edit"></i> 编辑
+                                </button>
+                                <button class="btn btn-sm btn-danger" onclick="deleteGroup({{ group.id }})">
+                                    <i class="fas fa-trash"></i> 删除
+                                </button>
+                            </div>
+                        </div>
+                        <div class="group-content">
+                            <div class="group-info">
+                                <div class="info-item">
+                                    <div class="info-label">出发日期</div>
+                                    <div class="info-value">{{ group.departure_date.strftime('%Y-%m-%d') }}</div>
+                                </div>
+                                <div class="info-item">
+                                    <div class="info-label">返回日期</div>
+                                    <div class="info-value">{{ group.return_date.strftime('%Y-%m-%d') }}</div>
+                                </div>
+                                <div class="info-item">
+                                    <div class="info-label">人数</div>
+                                    <div class="info-value">{{ group.pax }}人</div>
+                                </div>
+                                <div class="info-item">
+                                    <div class="info-label">旅行社</div>
+                                    <div class="info-value">{{ group.agency or '未设置' }}</div>
+                                </div>
+                                <div class="info-item">
+                                    <div class="info-label">地接社</div>
+                                    <div class="info-value">{{ group.operator or '未设置' }}</div>
+                                </div>
+                                <div class="info-item">
+                                    <div class="info-label">团状态</div>
+                                    <div class="info-value">{{ group.group_status or '未设置' }}</div>
+                                </div>
+                            </div>
+
+                            <!-- 行程列表 -->
+                            {% if group.itineraries %}
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h4 class="mb-0">行程安排</h4>
+                                <a class="btn btn-lg btn-success" href="{{ url_for('package_budget.create', package_name=project.project_name, adult_count=groups[0].pax if groups and groups[0].pax else '', child_count=0, currency='SGD') }}" target="_blank" title="为此行程新建价格预算">
+                                    <i class="fas fa-calculator me-1"></i> 配套价格预算
+                                </a>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="itinerary-table">
+                                    <thead>
+                                        <tr>
+                                            <th>日期</th>
+                                            <th>天数</th>
+                                            <th>日期标题</th>
+                                            <th>行程内容</th>
+                                            <th>操作</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for itinerary in group.itineraries %}
+                                        <tr>
+                                            <td>{{ itinerary.date.strftime('%Y-%m-%d') }}</td>
+                                            <td>第{{ loop.index }}天</td>
+                                            <td>{{ itinerary.day_title }}</td>
+                                            <td>{{ itinerary.content[:100] }}{% if itinerary.content|length > 100 %}...{% endif %}</td>
+                                            <td>
+                                                <div class="action-buttons">
+                                                    <button class="btn btn-sm btn-primary" onclick="editItinerary({{ itinerary.id }})">
+                                                        编辑
+                                                    </button>
+                                                    <button class="btn btn-sm btn-danger" onclick="deleteItinerary({{ itinerary.id }})">
+                                                        删除
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="itinerary-actions" style="margin-top: 15px; text-align: center;">
+                                <button class="btn btn-success" onclick="addItinerary({{ group.id }})">
+                                    <i class="fas fa-plus"></i> 添加行程
+                                </button>
+                                <button class="btn btn-info" onclick="autoGenerateItineraries({{ group.id }})" style="margin-left: 10px;">
+                                    <i class="fas fa-magic"></i> 自动生成行程
+                                </button>
+                            </div>
+                            {% else %}
+                            <div class="empty-state">
+                                <i class="fas fa-route"></i>
+                                <p>暂无行程安排</p>
+                                <div class="empty-state-actions" style="display: flex; gap: 10px; justify-content: center; margin-top: 15px;">
+                                    <button class="btn btn-success" onclick="addItinerary({{ group.id }})">
+                                        <i class="fas fa-plus"></i> 添加第一个行程
+                                    </button>
+                                    <button class="btn btn-info" onclick="autoGenerateItineraries({{ group.id }})">
+                                        <i class="fas fa-magic"></i> 自动生成行程
+                                    </button>
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                <div class="empty-state">
+                    <i class="fas fa-users"></i>
+                    <h3>暂无团队</h3>
+                    <p>点击"创建新团队"开始添加团队信息</p>
+                    <button class="btn btn-success" onclick="showCreateGroupModal()">
+                        <i class="fas fa-plus"></i> 创建第一个团队
+                    </button>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 创建团队模态框 -->
+<div id="createGroupModal" class="modal" data-backdrop-close="false" style="display: none; position: fixed; z-index: 1050; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.6); backdrop-filter: blur(2px); overflow: hidden;">
+    <div class="modal-content" style="background-color: white; margin: 5% auto; padding: 0; border-radius: 12px; width: 95%; max-width: 900px; max-height: 85vh; overflow-y: auto; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3); position: relative; transform: none;">
+        <div class="modal-header">
+            <h3 class="modal-title">创建新团队</h3>
+            <span class="close" onclick="closeModal('createGroupModal')">&times;</span>
+        </div>
+        <div class="modal-body">
+            <form id="createGroupForm">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="form-grid" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 20px;">
+                    <div class="form-group">
+                        <label class="form-label">团队名称</label>
+                        <input type="text" name="title" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">出发日期</label>
+                        <input type="date" name="departure_date" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">返回日期</label>
+                        <input type="date" name="return_date" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">人数</label>
+                        <input type="number" name="pax" class="form-control" required min="1">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">旅行社</label>
+                        <input type="text" name="agency" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">地接社</label>
+                        <input type="text" name="operator" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">团编号</label>
+                        <input type="text" name="group_code" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">团状态</label>
+                        <select name="group_status" class="form-control">
+                            <option value="计划中">计划中</option>
+                            <option value="确认中">确认中</option>
+                            <option value="已确认">已确认</option>
+                            <option value="进行中">进行中</option>
+                            <option value="已完成">已完成</option>
+                            <option value="已取消">已取消</option>
+                        </select>
+                    </div>
+
+                </div>
+                <div class="form-group">
+                    <label class="form-label">酒店信息</label>
+                    <textarea name="hotel_info" rows="5" class="form-control" placeholder="请输入酒店详细信息..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">交通工具</label>
+                    <textarea name="transport" rows="5" class="form-control" placeholder="请输入交通工具安排..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">用餐安排</label>
+                    <textarea name="meals" rows="5" class="form-control" placeholder="请输入用餐安排详情..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">景点/活动</label>
+                    <textarea name="attractions" rows="5" class="form-control" placeholder="请输入景点和活动安排..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">包含项目</label>
+                    <textarea name="included_items" rows="5" class="form-control" placeholder="请输入包含的服务项目..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">不包含项目</label>
+                    <textarea name="excluded_items" rows="5" class="form-control" placeholder="请输入不包含的服务项目..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">注意事项</label>
+                    <textarea name="important_notes" rows="5" class="form-control" placeholder="请输入重要注意事项..."></textarea>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="closeModal('createGroupModal')">取消</button>
+            <button type="button" class="btn btn-primary" onclick="createGroup()">创建团队</button>
+        </div>
+    </div>
+</div>
+
+<!-- 编辑团队模态框 -->
+<div id="editGroupModal" class="modal" data-backdrop-close="false" style="display: none; position: fixed; z-index: 1050; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.6); backdrop-filter: blur(2px); overflow: hidden;">
+    <div class="modal-content" style="background-color: white; margin: 5% auto; padding: 0; border-radius: 12px; width: 95%; max-width: 900px; max-height: 85vh; overflow-y: auto; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3); position: relative; transform: none;">
+        <div class="modal-header">
+            <h3 class="modal-title">编辑团队信息</h3>
+            <span class="close" onclick="closeModal('editGroupModal')">&times;</span>
+        </div>
+        <div class="modal-body">
+            <form id="editGroupForm">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="group_id" id="editGroupId">
+                <div class="form-grid" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 20px;">
+                    <div class="form-group">
+                        <label class="form-label">团队名称</label>
+                        <input type="text" name="title" id="editGroupTitle" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">出发日期</label>
+                        <input type="date" name="departure_date" id="editGroupDepartureDate" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">返回日期</label>
+                        <input type="date" name="return_date" id="editGroupReturnDate" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">人数</label>
+                        <input type="number" name="pax" id="editGroupPax" class="form-control" required min="1">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">旅行社</label>
+                        <input type="text" name="agency" id="editGroupAgency" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">地接社</label>
+                        <input type="text" name="operator" id="editGroupOperator" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">团编号</label>
+                        <input type="text" name="group_code" id="editGroupCode" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">团状态</label>
+                        <select name="group_status" id="editGroupStatus" class="form-control">
+                            <option value="计划中">计划中</option>
+                            <option value="确认中">确认中</option>
+                            <option value="已确认">已确认</option>
+                            <option value="进行中">进行中</option>
+                            <option value="已完成">已完成</option>
+                            <option value="已取消">已取消</option>
+                        </select>
+                    </div>
+
+                </div>
+                <div class="form-group">
+                    <label class="form-label">酒店信息</label>
+                    <textarea name="hotel_info" id="editGroupHotelInfo" rows="5" class="form-control" placeholder="请输入酒店详细信息..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">交通工具</label>
+                    <textarea name="transport" id="editGroupTransport" rows="5" class="form-control" placeholder="请输入交通工具安排..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">用餐安排</label>
+                    <textarea name="meals" id="editGroupMeals" rows="5" class="form-control" placeholder="请输入用餐安排详情..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">景点/活动</label>
+                    <textarea name="attractions" id="editGroupAttractions" rows="5" class="form-control" placeholder="请输入景点和活动安排..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">包含项目</label>
+                    <textarea name="included_items" id="editGroupIncludedItems" rows="5" class="form-control" placeholder="请输入包含的服务项目..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">不包含项目</label>
+                    <textarea name="excluded_items" id="editGroupExcludedItems" rows="5" class="form-control" placeholder="请输入不包含的服务项目..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">注意事项</label>
+                    <textarea name="important_notes" id="editGroupImportantNotes" rows="5" class="form-control" placeholder="请输入重要注意事项..."></textarea>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="closeModal('editGroupModal')">取消</button>
+            <button type="button" class="btn btn-primary" onclick="updateGroup()">更新团队</button>
+        </div>
+    </div>
+</div>
+
+<!-- 添加行程模态框 -->
+<div id="addItineraryModal" class="modal" data-backdrop-close="false" style="display: none; position: fixed; z-index: 1050; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.6); backdrop-filter: blur(2px); overflow: hidden;">
+    <div class="modal-content" style="background-color: white; margin: 5% auto; padding: 0; border-radius: 12px; width: 95%; max-width: 700px; max-height: 85vh; overflow-y: auto; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3); position: relative; transform: none;">
+        <div class="modal-header">
+            <h3 class="modal-title">添加行程</h3>
+            <span class="close" onclick="closeModal('addItineraryModal')">&times;</span>
+        </div>
+        <div class="modal-body">
+            <form id="addItineraryForm">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="group_id" id="addItineraryGroupId">
+                <div class="form-grid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-bottom: 20px;">
+                    <div class="form-group">
+                        <label class="form-label">日期标题</label>
+                        <input type="text" name="day_title" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">日期</label>
+                        <input type="date" name="date" class="form-control" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">行程内容</label>
+                    <textarea name="content" rows="8" class="form-control" required placeholder="请输入详细的行程安排..."></textarea>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="closeModal('addItineraryModal')">取消</button>
+            <button type="button" class="btn btn-primary" onclick="createItinerary()">添加行程</button>
+        </div>
+    </div>
+</div>
+
+<!-- 编辑行程模态框 -->
+<div id="editItineraryModal" class="modal" data-backdrop-close="false" style="display: none; position: fixed; z-index: 1050; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.6); backdrop-filter: blur(2px); overflow: hidden;">
+    <div class="modal-content" style="background-color: white; margin: 5% auto; padding: 0; border-radius: 12px; width: 95%; max-width: 700px; max-height: 85vh; overflow-y: auto; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3); position: relative; transform: none;">
+        <div class="modal-header">
+            <h3 class="modal-title">编辑行程</h3>
+            <span class="close" onclick="closeModal('editItineraryModal')">&times;</span>
+        </div>
+        <div class="modal-body">
+            <form id="editItineraryForm">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="itinerary_id" id="editItineraryId">
+                <div class="form-grid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-bottom: 20px;">
+                    <div class="form-group">
+                        <label class="form-label">日期标题</label>
+                        <input type="text" name="day_title" id="editItineraryDayTitle" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">日期</label>
+                        <input type="date" name="date" id="editItineraryDate" class="form-control" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">行程内容</label>
+                    <textarea name="content" id="editItineraryContent" rows="8" class="form-control" required placeholder="请输入详细的行程安排..."></textarea>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="closeModal('editItineraryModal')">取消</button>
+            <button type="button" class="btn btn-primary" onclick="updateItinerary()">更新行程</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// 显示提示信息
+function showAlert(message, type = 'info') {
+    // 创建提示元素
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type === 'success' ? 'success' : type === 'danger' ? 'danger' : 'info'}`;
+    alertDiv.style.cssText = `
+        position: fixed;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 9999;
+        padding: 15px 25px;
+        border-radius: 8px;
+        font-weight: 500;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        animation: slideDown 0.3s ease-out;
+    `;
+    alertDiv.textContent = message;
+    
+    // 添加到页面
+    document.body.appendChild(alertDiv);
+    
+    // 3秒后自动移除
+    setTimeout(() => {
+        alertDiv.style.animation = 'slideUp 0.3s ease-out';
+        setTimeout(() => {
+            if (alertDiv.parentNode) {
+                alertDiv.parentNode.removeChild(alertDiv);
+            }
+        }, 300);
+    }, 3000);
+}
+
+// 添加动画样式
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes slideDown {
+        from { transform: translateX(-50%) translateY(-100%); opacity: 0; }
+        to { transform: translateX(-50%) translateY(0); opacity: 1; }
+    }
+    @keyframes slideUp {
+        from { transform: translateX(-50%) translateY(0); opacity: 1; }
+        to { transform: translateX(-50%) translateY(-100%); opacity: 0; }
+    }
+`;
+document.head.appendChild(style);
+
+// 模态框控制函数
+function showModal(modalId) {
+    document.getElementById(modalId).style.display = 'block';
+}
+
+function closeModal(modalId) {
+    document.getElementById(modalId).style.display = 'none';
+}
+
+// 点击模态框外部关闭
+window.onclick = function(event) {
+    if (event.target.classList.contains('modal')) {
+        // 如果标记不允许背景点击关闭，则忽略
+        const allowBackdropClose = event.target.getAttribute('data-backdrop-close');
+        if (allowBackdropClose === 'false') {
+            return;
+        }
+        event.target.style.display = 'none';
+    }
+}
+
+// 项目表单提交
+document.getElementById('projectForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    
+    // 添加调试信息
+    console.log('表单提交数据:');
+    for (let [key, value] of formData.entries()) {
+        console.log(`${key}: ${value}`);
+    }
+    
+    // 显示加载状态
+    const submitBtn = this.querySelector('button[type="submit"]');
+    const originalText = submitBtn.textContent;
+    submitBtn.textContent = '保存中...';
+    submitBtn.disabled = true;
+    
+    fetch(window.location.href, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            showAlert('项目信息保存成功！', 'success');
+            // 可选：刷新页面以显示最新数据
+            // location.reload();
+        } else {
+            showAlert(data.message || '保存失败', 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showAlert('保存失败，请稍后重试', 'danger');
+    })
+    .finally(() => {
+        // 恢复按钮状态
+        submitBtn.textContent = originalText;
+        submitBtn.disabled = false;
+    });
+});
+
+// 创建团队
+function showCreateGroupModal() {
+    showModal('createGroupModal');
+}
+
+function createGroup() {
+    const form = document.getElementById('createGroupForm');
+    const formData = new FormData(form);
+    
+    // 显示加载状态
+    const createBtn = document.querySelector('#createGroupModal .btn-primary');
+    const originalText = createBtn.textContent;
+    createBtn.textContent = '创建中...';
+    createBtn.disabled = true;
+    
+    fetch('{{ url_for("tour_projects.create_tour_group", project_id=project.id) }}', {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            showAlert('团队创建成功！', 'success');
+            setTimeout(() => {
+                location.reload();
+            }, 1000);
+        } else {
+            showAlert('创建团队失败: ' + data.message, 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showAlert('创建团队时发生错误，请稍后重试', 'danger');
+    })
+    .finally(() => {
+        // 恢复按钮状态
+        createBtn.textContent = originalText;
+        createBtn.disabled = false;
+    });
+}
+
+// 编辑团队
+function editGroup(groupId) {
+    // 获取团队数据并填充表单
+    fetch(`{{ url_for("tour_projects.edit_tour_group", group_id=0) }}`.replace('0', groupId), {
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const group = data.group;
+            document.getElementById('editGroupId').value = group.id;
+            document.getElementById('editGroupTitle').value = group.title;
+            document.getElementById('editGroupDepartureDate').value = group.departure_date;
+            document.getElementById('editGroupReturnDate').value = group.return_date;
+            document.getElementById('editGroupPax').value = group.pax;
+            document.getElementById('editGroupAgency').value = group.agency || '';
+            document.getElementById('editGroupOperator').value = group.operator || '';
+            document.getElementById('editGroupCode').value = group.group_code || '';
+            document.getElementById('editGroupStatus').value = group.group_status || '计划中';
+            document.getElementById('editGroupHotelInfo').value = group.hotel_info || '';
+            document.getElementById('editGroupTransport').value = group.transport || '';
+            document.getElementById('editGroupMeals').value = group.meals || '';
+            document.getElementById('editGroupAttractions').value = group.attractions || '';
+            document.getElementById('editGroupIncludedItems').value = group.included_items || '';
+            document.getElementById('editGroupExcludedItems').value = group.excluded_items || '';
+            document.getElementById('editGroupImportantNotes').value = group.important_notes || '';
+            
+            showModal('editGroupModal');
+        } else {
+            alert('获取团队信息失败: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('获取团队信息时发生错误');
+    });
+}
+
+function updateGroup() {
+    const form = document.getElementById('editGroupForm');
+    const formData = new FormData(form);
+    const groupId = document.getElementById('editGroupId').value;
+    
+    // 检查日期变化
+    const departureDate = document.getElementById('editGroupDepartureDate').value;
+    const returnDate = document.getElementById('editGroupReturnDate').value;
+    
+    // 获取原始日期（从页面显示的信息中获取）
+    const groupCard = document.querySelector(`[data-group-id="${groupId}"]`);
+    let originalDepartureDate = '';
+    let originalReturnDate = '';
+    
+    if (groupCard) {
+        const departureText = groupCard.querySelector('.info-item:nth-child(1) .info-value').textContent.trim();
+        const returnText = groupCard.querySelector('.info-item:nth-child(2) .info-value').textContent.trim();
+        
+        // 转换日期格式
+        if (departureText) {
+            const parts = departureText.split('-');
+            if (parts.length === 3) {
+                originalDepartureDate = `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+            }
+        }
+        
+        if (returnText) {
+            const parts = returnText.split('-');
+            if (parts.length === 3) {
+                originalReturnDate = `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+            }
+        }
+    }
+    
+    // 检查日期是否发生变化
+    const dateChanged = (departureDate !== originalDepartureDate) || (returnDate !== originalReturnDate);
+    
+    if (dateChanged) {
+        const confirmMessage = '您修改了出发日期或返回日期，系统将自动调整行程安排中的日期。是否继续？';
+        if (!confirm(confirmMessage)) {
+            return;
+        }
+    }
+    
+    // 显示加载状态
+    const updateBtn = document.querySelector('#editGroupModal .btn-primary');
+    const originalText = updateBtn.textContent;
+    updateBtn.textContent = '更新中...';
+    updateBtn.disabled = true;
+    
+    fetch(`{{ url_for("tour_projects.edit_tour_group", group_id=0) }}`.replace('0', groupId), {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            let message = '团队信息更新成功！';
+            if (dateChanged) {
+                message += ' 行程安排中的日期已自动调整。';
+            }
+            showAlert(message, 'success');
+            setTimeout(() => {
+                location.reload();
+            }, 1000);
+        } else {
+            showAlert('更新团队失败: ' + data.message, 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showAlert('更新团队时发生错误，请稍后重试', 'danger');
+    })
+    .finally(() => {
+        // 恢复按钮状态
+        updateBtn.textContent = originalText;
+        updateBtn.disabled = false;
+    });
+}
+
+// 删除团队
+function deleteGroup(groupId) {
+    if (confirm('确定要删除这个团队吗？此操作不可撤销。')) {
+        const formData = new FormData();
+        formData.append('csrf_token', '{{ csrf_token() }}');
+        
+        fetch(`{{ url_for("tour_projects.delete_tour_group", group_id=0) }}`.replace('0', groupId), {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showAlert('团队删除成功！', 'success');
+                setTimeout(() => {
+                    location.reload();
+                }, 1000);
+            } else {
+                showAlert('删除团队失败: ' + data.message, 'danger');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showAlert('删除团队时发生错误，请稍后重试', 'danger');
+        });
+    }
+}
+
+// 添加行程
+function addItinerary(groupId) {
+    document.getElementById('addItineraryGroupId').value = groupId;
+    
+    // 清空表单字段
+    const form = document.getElementById('addItineraryForm');
+    if (form) {
+        form.reset();
+    }
+    
+    // 获取当前团队的所有行程日期
+    const groupCard = document.querySelector(`[data-group-id="${groupId}"]`);
+    if (groupCard) {
+        const dateCells = groupCard.querySelectorAll('.itinerary-table tbody td:nth-child(1)');
+        let latestDate = null;
+        
+        // 找到最新的日期
+        dateCells.forEach(cell => {
+            const dateText = cell.textContent.trim();
+            if (dateText) {
+                const date = new Date(dateText);
+                if (!latestDate || date > latestDate) {
+                    latestDate = date;
+                }
+            }
+        });
+        
+        // 计算下一个天数
+        const existingItineraries = groupCard.querySelectorAll('.itinerary-table tbody tr');
+        const nextDayNumber = existingItineraries.length + 1;
+        
+        // 设置日期标题
+        const dayTitleInput = document.querySelector('#addItineraryModal input[name="day_title"]');
+        if (dayTitleInput) {
+            dayTitleInput.value = `Day ${nextDayNumber}：`;
+        }
+        
+        // 如果找到最新日期，计算下一天；否则使用团队出发日期
+        if (latestDate) {
+            const nextDate = new Date(latestDate);
+            nextDate.setDate(nextDate.getDate() + 1);
+            
+            // 格式化为 YYYY-MM-DD
+            const year = nextDate.getFullYear();
+            const month = String(nextDate.getMonth() + 1).padStart(2, '0');
+            const day = String(nextDate.getDate()).padStart(2, '0');
+            const formattedDate = `${year}-${month}-${day}`;
+            
+            // 设置日期输入框的值
+            const dateInput = document.querySelector('#addItineraryModal input[name="date"]');
+            if (dateInput) {
+                dateInput.value = formattedDate;
+            }
+        } else {
+            // 如果没有现有行程，使用团队出发日期
+            const departureDateText = groupCard.querySelector('.info-item:nth-child(1) .info-value').textContent.trim();
+            if (departureDateText) {
+                const dateInput = document.querySelector('#addItineraryModal input[name="date"]');
+                if (dateInput) {
+                    dateInput.value = departureDateText;
+                }
+            }
+        }
+    }
+    
+    showModal('addItineraryModal');
+}
+
+// 自动生成行程
+function autoGenerateItineraries(groupId) {
+    const groupCard = document.querySelector(`[data-group-id="${groupId}"]`);
+    if (!groupCard) return;
+    
+    // 获取出发日期和返回日期
+    const departureDateText = groupCard.querySelector('.info-item:nth-child(1) .info-value').textContent.trim();
+    const returnDateText = groupCard.querySelector('.info-item:nth-child(2) .info-value').textContent.trim();
+    
+    if (!departureDateText || !returnDateText) {
+        showAlert('请先设置团队的出发日期和返回日期', 'warning');
+        return;
+    }
+    
+    const departureDate = new Date(departureDateText);
+    const returnDate = new Date(returnDateText);
+    
+    if (departureDate >= returnDate) {
+        showAlert('返回日期必须晚于出发日期', 'warning');
+        return;
+    }
+    
+    // 计算天数差
+    const timeDiff = returnDate.getTime() - departureDate.getTime();
+    const daysDiff = Math.ceil(timeDiff / (1000 * 3600 * 24)) + 1; // +1 包含出发当天
+    
+    if (daysDiff > 30) {
+        showAlert('行程天数不能超过30天', 'warning');
+        return;
+    }
+    
+    if (confirm(`将自动生成 ${daysDiff} 天的行程安排（从 ${departureDateText} 到 ${returnDateText}），确定继续吗？`)) {
+        // 显示加载状态
+        showAlert('正在生成行程安排...', 'info');
+        
+        // 批量创建行程
+        const promises = [];
+        for (let i = 0; i < daysDiff; i++) {
+            const currentDate = new Date(departureDate);
+            currentDate.setDate(departureDate.getDate() + i);
+            
+            const year = currentDate.getFullYear();
+            const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+            const day = String(currentDate.getDate()).padStart(2, '0');
+            const formattedDate = `${year}-${month}-${day}`;
+            
+            const formData = new FormData();
+            formData.append('csrf_token', '{{ csrf_token() }}');
+            formData.append('day_title', `Day ${i + 1}：`);
+            formData.append('date', formattedDate);
+            formData.append('content', `第${i + 1}天行程安排`);
+            
+            const promise = fetch(`{{ url_for("tour_projects.create_itinerary", group_id=0) }}`.replace('0', groupId), {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            }).then(response => response.json());
+            
+            promises.push(promise);
+        }
+        
+        // 等待所有请求完成
+        Promise.all(promises)
+            .then(results => {
+                const successCount = results.filter(result => result.success).length;
+                if (successCount === daysDiff) {
+                    showAlert(`成功生成 ${daysDiff} 天的行程安排！`, 'success');
+                    setTimeout(() => {
+                        location.reload();
+                    }, 1500);
+                } else {
+                    showAlert(`部分行程生成失败，成功生成 ${successCount}/${daysDiff} 天`, 'warning');
+                    setTimeout(() => {
+                        location.reload();
+                    }, 1500);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showAlert('生成行程时发生错误，请稍后重试', 'danger');
+            });
+    }
+}
+
+function createItinerary() {
+    const form = document.getElementById('addItineraryForm');
+    const formData = new FormData(form);
+    const groupId = document.getElementById('addItineraryGroupId').value;
+    
+    // 显示加载状态
+    const createBtn = document.querySelector('#addItineraryModal .btn-primary');
+    const originalText = createBtn.textContent;
+    createBtn.textContent = '添加中...';
+    createBtn.disabled = true;
+    
+    fetch(`{{ url_for("tour_projects.create_itinerary", group_id=0) }}`.replace('0', groupId), {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            showAlert('行程添加成功！', 'success');
+            setTimeout(() => {
+                location.reload();
+            }, 1000);
+        } else {
+            showAlert('添加行程失败: ' + data.message, 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showAlert('添加行程时发生错误，请稍后重试', 'danger');
+    })
+    .finally(() => {
+        // 恢复按钮状态
+        createBtn.textContent = originalText;
+        createBtn.disabled = false;
+    });
+}
+
+// 编辑行程
+function editItinerary(itineraryId) {
+    fetch(`{{ url_for("tour_projects.edit_itinerary", itinerary_id=0) }}`.replace('0', itineraryId), {
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const itinerary = data.itinerary;
+            document.getElementById('editItineraryId').value = itinerary.id;
+            document.getElementById('editItineraryDayTitle').value = itinerary.day_title;
+            document.getElementById('editItineraryDate').value = itinerary.date;
+            document.getElementById('editItineraryContent').value = itinerary.content;
+            
+            showModal('editItineraryModal');
+        } else {
+            alert('获取行程信息失败: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('获取行程信息时发生错误');
+    });
+}
+
+function updateItinerary() {
+    const form = document.getElementById('editItineraryForm');
+    const formData = new FormData(form);
+    const itineraryId = document.getElementById('editItineraryId').value;
+    
+    // 显示加载状态
+    const updateBtn = document.querySelector('#editItineraryModal .btn-primary');
+    const originalText = updateBtn.textContent;
+    updateBtn.textContent = '更新中...';
+    updateBtn.disabled = true;
+    
+    fetch(`{{ url_for("tour_projects.edit_itinerary", itinerary_id=0) }}`.replace('0', itineraryId), {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            showAlert('行程更新成功！', 'success');
+            setTimeout(() => {
+                location.reload();
+            }, 1000);
+        } else {
+            showAlert('更新行程失败: ' + data.message, 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showAlert('更新行程时发生错误，请稍后重试', 'danger');
+    })
+    .finally(() => {
+        // 恢复按钮状态
+        updateBtn.textContent = originalText;
+        updateBtn.disabled = false;
+    });
+}
+
+// 删除行程
+function deleteItinerary(itineraryId) {
+    if (confirm('确定要删除这个行程吗？此操作不可撤销。')) {
+        const formData = new FormData();
+        formData.append('csrf_token', '{{ csrf_token() }}');
+        
+        fetch(`{{ url_for("tour_projects.delete_itinerary", itinerary_id=0) }}`.replace('0', itineraryId), {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showAlert('行程删除成功！', 'success');
+                setTimeout(() => {
+                    location.reload();
+                }, 1000);
+            } else {
+                showAlert('删除行程失败: ' + data.message, 'danger');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showAlert('删除行程时发生错误，请稍后重试', 'danger');
+        });
+    }
+}
+
+// 显示提示消息
+function showAlert(message, type) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type}`;
+    alertDiv.textContent = message;
+    
+    const container = document.querySelector('.edit-project-container');
+    container.insertBefore(alertDiv, container.firstChild);
+    
+    setTimeout(() => {
+        alertDiv.remove();
+    }, 3000);
+}
+</script>
+{% endblock %} 

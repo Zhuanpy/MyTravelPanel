@@ -476,73 +476,8 @@ def api_pending_tasks():
 @login_required
 @staff_only
 def tasks():
-    """任务中心"""
-    try:
-        # 获取筛选参数
-        priority = request.args.get('priority', '')
-        status = request.args.get('status', '')
-        search = request.args.get('search', '')
-        page = request.args.get('page', 1, type=int)
-        per_page = 20
-        
-        # 模拟任务数据
-        all_tasks = [
-            {
-                'id': 1,
-                'title': '处理ABC公司签证申请',
-                'description': '需要审核材料并提交领事馆',
-                'priority': 'high',
-                'status': 'pending',
-                'due_date': datetime(2024, 1, 20),
-                'assigned_to': current_user.username,
-                'type': 'visa'
-            },
-            {
-                'id': 2,
-                'title': '准备XYZ旅行社报价单',
-                'description': '整理泰国旅游套餐详细报价',
-                'priority': 'medium',
-                'status': 'in_progress',
-                'due_date': datetime(2024, 1, 22),
-                'assigned_to': current_user.username,
-                'type': 'quote'
-            }
-        ]
-        
-        # 应用筛选
-        filtered_tasks = all_tasks
-        
-        if priority:
-            filtered_tasks = [t for t in filtered_tasks if t['priority'] == priority]
-        if status:
-            filtered_tasks = [t for t in filtered_tasks if t['status'] == status]
-        if search:
-            search_lower = search.lower()
-            filtered_tasks = [t for t in filtered_tasks 
-                               if search_lower in t['title'].lower() 
-                               or search_lower in t['description'].lower()]
-        
-        # 分页
-        total = len(filtered_tasks)
-        start = (page - 1) * per_page
-        end = start + per_page
-        tasks_page = filtered_tasks[start:end]
-        
-        return render_template('staff/tasks.html',
-                             tasks=tasks_page,
-                             current_page=page,
-                             total_pages=(total + per_page - 1) // per_page,
-                             total=total,
-                             priority=priority,
-                             status=status,
-                             search=search)
-    except Exception as e:
-        flash(f'加载任务列表失败：{str(e)}', 'error')
-        return render_template('staff/tasks.html',
-                             tasks=[],
-                             current_page=1,
-                             total_pages=1,
-                             total=0)
+    """任务中心 - 重定向到todo_list页面"""
+    return redirect(url_for('utils_blue.render_todo_list'))
 
 # ==================== 客户管理 ====================
 @staff.route('/customers')
