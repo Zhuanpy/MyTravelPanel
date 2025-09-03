@@ -3,26 +3,42 @@
 {% block title %}项目详情 - {{ header.hid }}{% endblock %}
 
 {% block page_title %}项目详情{% endblock %}
+
+{% block page_actions %}
+<div class="d-flex gap-2">
+    <a href="{{ url_for('business_projects.project_create.create_header') }}" 
+       class="btn btn-primary btn-sm">
+        <i class="fas fa-plus"></i> 新建HID
+    </a>
+    <a href="{{ url_for('business_projects.list.list_projects') }}" 
+       class="btn btn-secondary btn-sm">
+        <i class="fas fa-arrow-left"></i> 返回列表
+    </a>
+</div>
+{% endblock %}
+
 {% block content %}
 <style>
     .project-header {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
+        background: white;
+        color: #198754;
         padding: 1rem 2rem;
-        border-radius: 10px;
+        border-radius: 8px;
         margin-bottom: 1.5rem;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        border: 1px solid #198754;
         min-height: 60px;
     }
     
     .project-title {
         font-size: 1.5rem;
-        font-weight: 600;
+        font-weight: 700;
         margin-bottom: 0.25rem;
     }
     
     .project-subtitle {
         font-size: 0.9rem;
+        font-weight: 600;
         opacity: 0.9;
         margin-bottom: 0;
     }
@@ -34,9 +50,6 @@
          margin-bottom: 1.5rem;
          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
          border: 1px solid #e9ecef;
-         height: auto; /* 自动高度 */
-         min-height: 250px; /* 最小高度 */
-         max-height: 300px; /* 最大高度 */
          overflow: hidden; /* 隐藏溢出内容 */
      }
      
@@ -45,13 +58,15 @@
          display: flex;
          gap: 20px;
          align-items: stretch; /* 拉伸对齐 */
+         height: 300px; /* 固定高度 */
      }
      
-     .project-main-content {
+     .project-left-sidebar {
          flex: 2;
          display: flex;
          flex-direction: column;
          gap: 20px;
+         height: 100%;
      }
      
      .project-right-sidebar {
@@ -59,6 +74,7 @@
          min-width: 0;
          display: flex;
          flex-direction: column;
+         height: 100%;
      }
      
      /* 项目信息卡片样式 - 确保高度一致 */
@@ -66,8 +82,6 @@
          display: flex;
          flex-direction: column;
          height: 100%;
-         min-height: 250px;
-         max-height: 300px;
      }
      
      /* 备注信息卡片样式 - 确保高度一致 */
@@ -75,16 +89,13 @@
          display: flex;
          flex-direction: column;
          height: 100%;
-         min-height: 250px;
-         max-height: 300px;
      }
      
      /* 确保项目详情卡片高度一致 */
-     .project-main-content .info-card,
+     .project-left-sidebar .info-card,
      .project-right-sidebar .info-card {
          display: flex !important;
          flex-direction: column !important;
-         min-height: 250px;
          height: 100% !important;
      }
      
@@ -377,12 +388,12 @@
          <!-- 项目详情布局 -->
      <div class="project-detail-layout">
          
-         <!-- 主要内容区域 -->
-         <div class="project-main-content">
+         <!-- 左侧边栏：项目头部 + 项目信息 -->
+         <div class="project-left-sidebar">
              
-             <!-- 项目头部 -->
-             <div class="project-header">
-                 <div class="d-flex justify-content-between align-items-center">
+             <!-- 项目头部 (占1/4高度) -->
+             <div class="project-header" style="height: 25%; display: flex; flex-direction: column;">
+                 <div class="d-flex justify-content-between align-items-center" style="flex: 1;">
                      <div class="d-flex align-items-center gap-3">
                          <h1 class="project-title mb-0">{{ header.hid }}</h1>
                          <span class="project-subtitle mb-0">| {{ header.desc }}</span>
@@ -392,11 +403,11 @@
                          <div class="d-flex align-items-center gap-2">
                                                           {% if prev_header %}
                                   <a href="{{ url_for('business_projects.detail.project_detail', project_id=prev_header.id) }}" 
-                                     class="btn btn-outline-light btn-sm" title="上一个项目: {{ prev_header.hid }}">
+                                     class="btn btn-outline-success btn-sm" title="上一个项目: {{ prev_header.hid }}">
                                       <i class="fas fa-chevron-left"></i>
                                   </a>
                               {% else %}
-                                  <button class="btn btn-outline-light btn-sm" disabled>
+                                  <button class="btn btn-outline-success btn-sm" disabled>
                                       <i class="fas fa-chevron-left"></i>
                                   </button>
                               {% endif %}
@@ -415,33 +426,23 @@
                              
                                                           {% if next_header %}
                                   <a href="{{ url_for('business_projects.detail.project_detail', project_id=next_header.id) }}" 
-                                     class="btn btn-outline-light btn-sm" title="下一个项目: {{ next_header.hid }}">
+                                     class="btn btn-outline-success btn-sm" title="下一个项目: {{ next_header.hid }}">
                                       <i class="fas fa-chevron-right"></i>
                                   </a>
                               {% else %}
-                                  <button class="btn btn-outline-light btn-sm" disabled>
+                                  <button class="btn btn-outline-success btn-sm" disabled>
                                       <i class="fas fa-chevron-right"></i>
                                   </button>
                               {% endif %}
                          </div>
                          
-                         <div class="text-center">
-                                                          <a href="{{ url_for('business_projects.project_create.create_header') }}" 
-                                 class="btn btn-primary btn-sm me-2">
-                                  <i class="fas fa-plus"></i> 新建HID
-                              </a>
-                  
-                             <a href="{{ url_for('business_projects.list.list_projects') }}" 
-                                class="btn btn-secondary btn-sm">
-                                 <i class="fas fa-arrow-left"></i> 返回列表
-                             </a>
-                         </div>
+                         
                      </div>
                  </div>
              </div>
              
-             <!-- 项目信息 -->
-             <div class="info-card project-info-card" style="display: flex; flex-direction: column;">
+             <!-- 项目信息 (占3/4高度) -->
+             <div class="info-card project-info-card" style="height: 75%; display: flex; flex-direction: column;">
                  <div style="margin-bottom: 15px;">
                      <h3 class="section-title" style="font-size: 1.3rem; margin: 0;">项目信息</h3>
                  </div>
@@ -486,15 +487,7 @@
                              <span class="info-value" id="contact-span" data-header-id="{{ header.id }}" style="cursor: pointer;">{{ header.contact or '未设置' }}</span>
                              <input type="text" id="contact-input" style="display: none; width: 60%;" />
                          </div>
-                         <!-- <div class="info-item">
-                             <span class="info-label">部门</span>
-                             <span class="info-value">{{ header.dept or '未设置' }}</span>
-                         </div> -->
-                         <!-- 额度限制字段已隐藏 -->
-                         <!-- <div class="info-item">
-                             <span class="info-label">额度限制</span>
-                             <span class="info-value">{{ header.limit or '未设置' }}</span>
-                         </div> -->
+
                          <div class="info-item">
                              <span class="info-label">创建日期</span>
                              <span class="info-value">{{ header.created_at.strftime('%Y-%m-%d') if header.created_at else '未设置' }}</span>
@@ -515,7 +508,7 @@
          
           <!-- 右侧边栏：备注信息 -->
           <div class="project-right-sidebar">
-                             <div class="info-card remarks-info-card" style="display: flex; flex-direction: column;">
+            <div class="info-card remarks-info-card" style="height: 100%; display: flex; flex-direction: column;">
                   <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px;">
                       <h3 class="section-title" style="font-size: 1.3rem; margin: 0;">备注信息</h3>
                       <button type="button" class="btn btn-outline-primary btn-sm" onclick="showNewRemarksInput()" id="add-remarks-btn">
@@ -524,13 +517,13 @@
                   </div>
                   
                   <!-- 显示已有备注 -->
-                  <div id="existing-remarks" style="flex: 1; display: flex; flex-direction: column; overflow-y: auto;">
+                  <div id="existing-remarks" style="height: 200px; display: flex; flex-direction: column; overflow-y: auto;">
                       {% if header.remarks %}
-                          <div style="background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 4px; padding: 15px; font-size: 0.9rem; line-height: 1.6; color: #495057; flex: 1; overflow-y: auto; white-space: pre-wrap; text-align: left; word-wrap: break-word; text-indent: 0;" id="remarks-display">
+                          <div style="background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 4px; padding: 15px; font-size: 0.9rem; line-height: 1.6; color: #495057; height: 100%; overflow-y: auto; white-space: pre-wrap; text-align: left; word-wrap: break-word; text-indent: 0;" id="remarks-display">
                               {{ header.remarks | trim }}
                           </div>
                       {% else %}
-                          <div style="color: #6c757d; font-style: italic; font-size: 0.9rem; padding: 15px; text-align: center; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 4px; flex: 1; display: flex; align-items: center; justify-content: center;">
+                          <div style="color: #6c757d; font-style: italic; font-size: 0.9rem; padding: 15px; text-align: center; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 4px; height: 100%; display: flex; align-items: center; justify-content: center;">
                               暂无备注信息
                           </div>
                       {% endif %}
@@ -790,7 +783,6 @@
         </div>
         {% endif %}
     </div>
-</div>
 
     <!-- 余额和付款状态 -->
     <div class="info-card">
@@ -895,6 +887,7 @@
             </div>
         </div>
     </div>
+</div>
 
     
 <!-- 键盘导航提示 -->

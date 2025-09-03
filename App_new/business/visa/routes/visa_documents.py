@@ -135,7 +135,7 @@ def manage_visas():
             'html': render_template('business/visa/签证文档管理/visa_document_table.html', documents=documents)
         })
 
-        return render_template('business/visa/签证文档管理/visa_document.html',
+    return render_template('business/visa/签证文档管理/visa_document.html',
                          documents=documents, 
                          visa_types=visa_types,
                          countries=countries,

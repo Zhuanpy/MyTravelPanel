@@ -15,9 +15,6 @@
                     EO列表管理
                 </h1>
                 <div class="d-flex gap-2">
-                    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#filterModal">
-                        <i class="fas fa-filter"></i> 筛选
-                    </button>
                     <button type="button" class="btn btn-success" onclick="exportToExcel()">
                         <i class="fas fa-download"></i> 导出Excel
                     </button>
@@ -38,6 +35,100 @@
             <small class="text-muted">
                 最后更新: 刚刚
             </small>
+        </div>
+    </div>
+
+    <!-- 筛选表单 -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">
+                <i class="fas fa-filter"></i> 筛选条件
+            </h6>
+        </div>
+        <div class="card-body">
+            <style>
+            /* 过滤表单采用10列栅格布局 */
+            #filterForm .filter-grid { display: grid; grid-template-columns: repeat(10, minmax(90px, 1fr)); gap: 8px 12px; }
+            #filterForm .filter-item { margin-bottom: 0; }
+            #filterForm .filter-item .form-label { font-size: 12px; margin-bottom: 4px; }
+            #filterForm .filter-item .form-control, 
+            #filterForm .filter-item .form-select { padding: 0.25rem 0.5rem; height: 32px; }
+            @media (max-width: 1400px) { #filterForm .filter-grid { grid-template-columns: repeat(8, 1fr); } }
+            @media (max-width: 1200px) { #filterForm .filter-grid { grid-template-columns: repeat(6, 1fr); } }
+            @media (max-width: 992px)  { #filterForm .filter-grid { grid-template-columns: repeat(4, 1fr); } }
+            @media (max-width: 768px)  { #filterForm .filter-grid { grid-template-columns: repeat(2, 1fr); } }
+            </style>
+
+            <form method="GET" action="{{ url_for('business_projects.project_eo.eo_list') }}" id="filterForm">
+                <div class="filter-grid">
+                    <div class="filter-item">
+                        <label for="supplier_type" class="form-label">供应商类型</label>
+                        <select class="form-select" id="supplier_type" name="supplier_type">
+                            <option value="">全部类型</option>
+                            <option value="visa" {% if current_filters.supplier_type == 'visa' %}selected{% endif %}>签证</option>
+                            <option value="flight" {% if current_filters.supplier_type == 'flight' %}selected{% endif %}>机票</option>
+                            <option value="hotel" {% if current_filters.supplier_type == 'hotel' %}selected{% endif %}>酒店</option>
+                            <option value="transport" {% if current_filters.supplier_type == 'transport' %}selected{% endif %}>交通</option>
+                            <option value="local_operator" {% if current_filters.supplier_type == 'local_operator' %}selected{% endif %}>地接社</option>
+                            <option value="other" {% if current_filters.supplier_type == 'other' %}selected{% endif %}>其他</option>
+                        </select>
+                    </div>
+                    <div class="filter-item">
+                        <label for="status" class="form-label">状态</label>
+                        <select class="form-select" id="status" name="status">
+                            <option value="">全部状态</option>
+                            <option value="draft" {% if current_filters.status == 'draft' %}selected{% endif %}>草稿</option>
+                            <option value="confirmed" {% if current_filters.status == 'confirmed' %}selected{% endif %}>已确认</option>
+                            <option value="paid" {% if current_filters.status == 'paid' %}selected{% endif %}>已付款</option>
+                            <option value="cancelled" {% if current_filters.status == 'cancelled' %}selected{% endif %}>已取消</option>
+                        </select>
+                    </div>
+                    <div class="filter-item">
+                        <label for="supplier" class="form-label">供应商</label>
+                        <select class="form-select" id="supplier" name="supplier">
+                            <option value="">全部供应商</option>
+                            {% for supplier in suppliers %}
+                            <option value="{{ supplier.supplier_id }}" {% if current_filters.supplier == supplier.supplier_id %}selected{% endif %}>
+                                {{ supplier.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="filter-item">
+                        <label for="external_system" class="form-label">外部系统</label>
+                        <input type="text" class="form-control" id="external_system" name="external_system" 
+                               placeholder="外部系统名称" 
+                               value="{{ current_filters.external_system if current_filters.external_system else '' }}">
+                    </div>
+                    <div class="filter-item">
+                        <label for="date_range" class="form-label">时间范围</label>
+                        <select class="form-select" id="date_range" name="date_range">
+                            <option value="">全部时间</option>
+                            <option value="today" {% if current_filters.date_range == 'today' %}selected{% endif %}>今天</option>
+                            <option value="week" {% if current_filters.date_range == 'week' %}selected{% endif %}>本周</option>
+                            <option value="month" {% if current_filters.date_range == 'month' %}selected{% endif %}>本月</option>
+                            <option value="quarter" {% if current_filters.date_range == 'quarter' %}selected{% endif %}>本季度</option>
+                            <option value="year" {% if current_filters.date_range == 'year' %}selected{% endif %}>本年</option>
+                        </select>
+                    </div>
+                    <div class="filter-item">
+                        <label for="keyword" class="form-label">关键词</label>
+                        <input type="text" class="form-control" id="keyword" name="keyword" 
+                               placeholder="搜索EO名称、编号..." 
+                               value="{{ current_filters.keyword if current_filters.keyword else '' }}">
+                    </div>
+                    <div class="filter-item d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="fas fa-search"></i> 筛选
+                        </button>
+                    </div>
+                    <div class="filter-item d-flex align-items-end">
+                        <a href="{{ url_for('business_projects.project_eo.eo_list') }}" class="btn btn-secondary w-100">
+                            <i class="fas fa-undo"></i> 重置
+                        </a>
+                    </div>
+                </div>
+            </form>
         </div>
     </div>
 
@@ -230,121 +321,7 @@
     </div>
 </div>
 
-<!-- 筛选模态框 -->
-<div class="modal fade" id="filterModal" tabindex="-1" aria-labelledby="filterModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="filterModalLabel">
-                    <i class="fas fa-filter"></i> EO筛选条件
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <form method="GET" action="{{ url_for('business_projects.project_eo.eo_list') }}">
-                <div class="modal-body">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="supplier_type" class="form-label">供应商类型</label>
-                                <select class="form-select" id="supplier_type" name="supplier_type">
-                                    <option value="">全部类型</option>
-                                    <option value="visa" {% if current_filters.supplier_type == 'visa' %}selected{% endif %}>签证</option>
-                                    <option value="flight" {% if current_filters.supplier_type == 'flight' %}selected{% endif %}>机票</option>
-                                    <option value="hotel" {% if current_filters.supplier_type == 'hotel' %}selected{% endif %}>酒店</option>
-                                    <option value="transport" {% if current_filters.supplier_type == 'transport' %}selected{% endif %}>交通</option>
-                                    <option value="local_operator" {% if current_filters.supplier_type == 'local_operator' %}selected{% endif %}>地接社</option>
-                                    <option value="other" {% if current_filters.supplier_type == 'other' %}selected{% endif %}>其他</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="status" class="form-label">状态</label>
-                                <select class="form-select" id="status" name="status">
-                                    <option value="">全部状态</option>
-                                    <option value="draft" {% if current_filters.status == 'draft' %}selected{% endif %}>草稿</option>
-                                    <option value="confirmed" {% if current_filters.status == 'confirmed' %}selected{% endif %}>已确认</option>
-                                    <option value="paid" {% if current_filters.status == 'paid' %}selected{% endif %}>已付款</option>
-                                    <option value="cancelled" {% if current_filters.status == 'cancelled' %}selected{% endif %}>已取消</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="supplier" class="form-label">供应商</label>
-                                <select class="form-select" id="supplier" name="supplier">
-                                    <option value="">全部供应商</option>
-                                    {% for supplier in suppliers %}
-                                    <option value="{{ supplier.supplier_id }}" {% if current_filters.supplier == supplier.supplier_id %}selected{% endif %}>
-                                        {{ supplier.name }}
-                                    </option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="external_system" class="form-label">外部系统</label>
-                                <input type="text" class="form-control" id="external_system" name="external_system" 
-                                       placeholder="搜索外部系统名称" 
-                                       value="{{ current_filters.external_system if current_filters.external_system else '' }}">
-                            </div>
-                        </div>
-                    </div>
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="date_range" class="form-label">创建时间范围</label>
-                                <select class="form-select" id="date_range" name="date_range">
-                                    <option value="">全部时间</option>
-                                    <option value="today" {% if current_filters.date_range == 'today' %}selected{% endif %}>今天</option>
-                                    <option value="week" {% if current_filters.date_range == 'week' %}selected{% endif %}>本周</option>
-                                    <option value="month" {% if current_filters.date_range == 'month' %}selected{% endif %}>本月</option>
-                                    <option value="quarter" {% if current_filters.date_range == 'quarter' %}selected{% endif %}>本季度</option>
-                                    <option value="year" {% if current_filters.date_range == 'year' %}selected{% endif %}>本年</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="min_amount" class="form-label">最低金额</label>
-                                <input type="number" class="form-control" id="min_amount" name="min_amount" 
-                                       placeholder="0.00" step="0.01" 
-                                       value="{{ current_filters.min_amount if current_filters.min_amount else '' }}">
-                            </div>
-                        </div>
-                    </div>
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="max_amount" class="form-label">最高金额</label>
-                                <input type="number" class="form-control" id="max_amount" name="max_amount" 
-                                       placeholder="999999.99" step="0.01" 
-                                       value="{{ current_filters.max_amount if current_filters.max_amount else '' }}">
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="keyword" class="form-label">关键词搜索</label>
-                                <input type="text" class="form-control" id="keyword" name="keyword" 
-                                       placeholder="搜索EO名称、编号、备注等" 
-                                       value="{{ current_filters.keyword if current_filters.keyword else '' }}">
-                                <div class="form-text">支持搜索EO名称、编号、备注、REF信息等字段</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-                    <a href="{{ url_for('business_projects.project_eo.eo_list') }}" class="btn btn-warning">重置</a>
-                    <button type="submit" class="btn btn-primary">应用筛选</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
+
 {% endblock %}
 
 {% block extra_js %}
