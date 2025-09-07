@@ -646,34 +646,32 @@ nav.navbar {
                     <form id="editAccountForm">
                         <input type="hidden" id="editId">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
+                        <div class="row g-3">
+                            <div class="col-lg-3 col-md-4 col-sm-6 mb-3">
                                 <label for="editPlatform" class="form-label">平台/网址 <span class="text-danger">*</span></label>
                                 <input type="text" class="form-control" id="editPlatform" name="platform" required>
                             </div>
-                            <div class="col-md-6 mb-3">
+                            <div class="col-lg-3 col-md-4 col-sm-6 mb-3">
                                 <label for="editWebsiteUrl" class="form-label">网站链接</label>
                                 <input type="url" class="form-control" id="editWebsiteUrl" name="website_url">
                             </div>
-                        </div>
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
+                        
+                            <div class="col-lg-3 col-md-4 col-sm-6 mb-3">
                                 <label for="editCategory" class="form-label">类别 <span class="text-danger">*</span></label>
                                 <select class="form-control" id="editCategory" name="category" required>
                                     <option value="">请选择类别</option>
                                 </select>
                             </div>
-                            <div class="col-md-6 mb-3">
+                            <div class="col-lg-3 col-md-4 col-sm-6 mb-3">
                                 <label for="editOwner" class="form-label">所有者</label>
                                 <input type="text" class="form-control" id="editOwner" name="owner">
                             </div>
-                        </div>
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
+                        
+                            <div class="col-lg-3 col-md-4 col-sm-6 mb-3">
                                 <label for="editUsername" class="form-label">用户名 <span class="text-danger">*</span></label>
                                 <input type="text" class="form-control" id="editUsername" name="username" required>
                             </div>
-                            <div class="col-md-6 mb-3">
+                            <div class="col-lg-3 col-md-4 col-sm-6 mb-3">
                                 <label for="editPassword" class="form-label">密码</label>
                                 <div class="password-container">
                                     <input type="password" class="form-control" id="editPassword" name="password">
@@ -684,13 +682,12 @@ nav.navbar {
                                     <small class="text-muted">如果不修改密码，请留空</small>
                                 </div>
                             </div>
-                        </div>
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
+                        
+                            <div class="col-lg-3 col-md-4 col-sm-6 mb-3">
                                 <label for="editCountry" class="form-label">国家</label>
                                 <input type="text" class="form-control" id="editCountry" name="country">
                             </div>
-                            <div class="col-md-6 mb-3">
+                            <div class="col-lg-3 col-md-4 col-sm-6 mb-3">
                                 <label for="editRegion" class="form-label">地区</label>
                                 <input type="text" class="form-control" id="editRegion" name="region">
                             </div>
@@ -701,13 +698,13 @@ nav.navbar {
                         </div>
                         <div class="mb-3">
                             <label for="editNotes" class="form-label">备注</label>
-                            <textarea class="form-control" id="editNotes" name="notes" rows="2"></textarea>
+                            <textarea class="form-control" id="editNotes" name="notes" rows="4"></textarea>
                         </div>
                     </form>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-                    <button type="button" class="btn btn-primary" onclick="submitEditForm()">保存</button>
+                    <button type="button" class="btn btn-primary" id="submitEditAccount">保存</button>
                 </div>
             </div>
         </div>
@@ -724,35 +721,32 @@ nav.navbar {
                 <div class="modal-body">
                     <form id="addAccountForm">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
+                        <!-- 合并为一个 row，避免右侧空白，保证自动顶上填充 -->
+                        <div class="row g-3">
+                            <div class="col-lg-3 col-md-4 col-sm-6 mb-3">
                                 <label for="platform" class="form-label">平台/网址 <span class="text-danger">*</span></label>
                                 <input type="text" class="form-control" id="platform" name="platform" required>
                             </div>
-                            <div class="col-md-6 mb-3">
+                            <div class="col-lg-3 col-md-4 col-sm-6 mb-3">
                                 <label for="website_url" class="form-label">网站链接</label>
                                 <input type="url" class="form-control" id="website_url" name="website_url">
                             </div>
-                        </div>
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
+                            <div class="col-lg-3 col-md-4 col-sm-6 mb-3">
                                 <label for="category" class="form-label">分类 <span class="text-danger">*</span></label>
                                 <input type="text" class="form-control" id="category" name="category" list="categoryList" required>
                                 <datalist id="categoryList">
                                     <!-- 分类选项将通过 JavaScript 动态加载 -->
                                 </datalist>
                             </div>
-                            <div class="col-md-6 mb-3">
+                            <div class="col-lg-3 col-md-4 col-sm-6 mb-3">
                                 <label for="owner" class="form-label">所有者</label>
                                 <input type="text" class="form-control" id="owner" name="owner">
                             </div>
-                        </div>
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
+                            <div class="col-lg-3 col-md-4 col-sm-6 mb-3">
                                 <label for="username" class="form-label">用户名 <span class="text-danger">*</span></label>
                                 <input type="text" class="form-control" id="username" name="username" required>
                             </div>
-                            <div class="col-md-6 mb-3">
+                            <div class="col-lg-3 col-md-4 col-sm-6 mb-3">
                                 <label for="password" class="form-label">密码 <span class="text-danger">*</span></label>
                                 <div class="password-container">
                                     <input type="password" class="form-control" id="password" name="password" required>
@@ -762,13 +756,11 @@ nav.navbar {
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
+                            <div class="col-lg-3 col-md-4 col-sm-6 mb-3">
                                 <label for="country" class="form-label">国家</label>
                                 <input type="text" class="form-control" id="country" name="country">
                             </div>
-                            <div class="col-md-6 mb-3">
+                            <div class="col-lg-3 col-md-4 col-sm-6 mb-3">
                                 <label for="region" class="form-label">地区</label>
                                 <input type="text" class="form-control" id="region" name="region">
                             </div>
@@ -779,7 +771,7 @@ nav.navbar {
                         </div>
                         <div class="mb-3">
                             <label for="notes" class="form-label">备注</label>
-                            <textarea class="form-control" id="notes" name="notes" rows="2"></textarea>
+                            <textarea class="form-control" id="notes" name="notes" rows="4"></textarea>
                         </div>
                     </form>
                 </div>
@@ -947,6 +939,18 @@ nav.navbar {
             console.log('添加账号按钮事件监听器已设置');
         } else {
             console.error('未找到添加账号按钮元素');
+        }
+
+        // 绑定编辑账号保存按钮
+        const submitEditBtn = document.getElementById('submitEditAccount');
+        if (submitEditBtn) {
+            submitEditBtn.addEventListener('click', function() {
+                if (typeof submitEditForm === 'function') {
+                    submitEditForm();
+                } else {
+                    console.error('submitEditForm function not found');
+                }
+            });
         }
     });
 </script>

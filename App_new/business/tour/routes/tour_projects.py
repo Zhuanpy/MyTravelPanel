@@ -228,10 +228,6 @@ def update_tour_project(project_id):
             return redirect(url_for('tour_projects.manage_tour_projects'))
 
         project.project_status = request.form.get("project_status")
-        project.contact_person = request.form.get("contact_person")
-        project.contact_info = request.form.get("contact_info")
-        project.remarks = request.form.get("remarks")
-        project.project_hid = request.form.get("project_hid")
         
         # 处理预算字段
         budget_value = request.form.get("budget", "").strip()
@@ -652,6 +648,31 @@ def edit_itinerary(itinerary_id):
             itinerary.date = datetime.strptime(request.form.get('date'), '%Y-%m-%d').date()
             itinerary.content = request.form.get('content')
             
+            # 处理删除标记
+            remove_image1 = request.form.get('remove_image1') == '1'
+            remove_image2 = request.form.get('remove_image2') == '1'
+            remove_image3 = request.form.get('remove_image3') == '1'
+
+            def try_delete_file(relative_path: str):
+                try:
+                    if not relative_path:
+                        return
+                    abs_path = os.path.join('App_new', 'static', relative_path.replace('/', os.sep))
+                    if os.path.exists(abs_path):
+                        os.remove(abs_path)
+                except Exception:
+                    pass
+
+            if remove_image1 and itinerary.image1:
+                try_delete_file(itinerary.image1)
+                itinerary.image1 = None
+            if remove_image2 and itinerary.image2:
+                try_delete_file(itinerary.image2)
+                itinerary.image2 = None
+            if remove_image3 and itinerary.image3:
+                try_delete_file(itinerary.image3)
+                itinerary.image3 = None
+
             # 处理图片上传
             upload_folder = os.path.join('App_new', 'static', 'itinerary_images')
             
@@ -777,11 +798,7 @@ def edit_tour_project(project_id):
             
             # 更新项目基本信息
             project.project_name = request.form.get('project_name', '').strip()
-            project.project_hid = request.form.get('project_hid', '').strip()
             project.project_type = request.form.get('project_type', '').strip()
-            project.contact_person = request.form.get('contact_person', '').strip()
-            project.contact_info = request.form.get('contact_info', '').strip()
-            project.remarks = request.form.get('remarks', '').strip()
             
             # 处理预算字段
             budget_value = request.form.get('budget', '').strip()

@@ -103,6 +103,20 @@ class BankTransaction(db.Model):
                                       default='unmatched', nullable=False, comment='对账状态')
     matched_receipt_id = db.Column(db.Integer, db.ForeignKey('project_receipts.id'), nullable=True, comment='匹配的收款记录ID')
     
+    # 账务关联（REF/EO）与检索
+    ref_id = db.Column(db.Integer, db.ForeignKey('project_refs.id'), nullable=True, comment='关联REF ID')
+    eo_id = db.Column(db.Integer, db.ForeignKey('project_eos.id'), nullable=True, comment='关联EO ID')
+    accounting_ref = db.Column(db.String(100), nullable=True, comment='账务参考编号(REF/EO 编号)')
+    keyword = db.Column(db.String(255), nullable=True, index=True, comment='识别关键字')
+    
+    # 去重指纹（基于特征生成）
+    tx_fingerprint = db.Column(db.String(64), unique=True, nullable=True, comment='去重指纹')
+    
+    # 使用者归属
+    owner_label = db.Column(db.String(100), nullable=True, comment='归属标签：JE公司/LG公司/个人商用/个人消费等')
+    owner_type = db.Column(db.Enum('company', 'personal', 'personal_business', 'other'),
+                           default='other', nullable=False, comment='归属类型')
+    
     # 备注信息
     remarks = db.Column(db.Text, nullable=True, comment='备注')
     extra_info = db.Column(db.Text, nullable=True, comment='额外信息(JSON)')
@@ -132,6 +146,13 @@ class BankTransaction(db.Model):
             'counterparty_account': self.counterparty_account,
             'reconciliation_status': self.reconciliation_status,
             'matched_receipt_id': self.matched_receipt_id,
+            'ref_id': self.ref_id,
+            'eo_id': self.eo_id,
+            'accounting_ref': self.accounting_ref,
+            'keyword': self.keyword,
+            'tx_fingerprint': self.tx_fingerprint,
+            'owner_label': self.owner_label,
+            'owner_type': self.owner_type,
             'remarks': self.remarks,
             'extra_info': json.loads(self.extra_info) if self.extra_info else None,
             'created_at': self.created_at.isoformat() if self.created_at else None,

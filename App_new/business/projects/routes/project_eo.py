@@ -301,6 +301,7 @@ def eo_list():
             keyword_filter = or_(
                 ProjectEO.name.ilike(f'%{keyword}%'),
                 ProjectEO.eo_number.ilike(f'%{keyword}%'),
+                ProjectEO.external_system.ilike(f'%{keyword}%'),
                 ProjectEO.external_reference.ilike(f'%{keyword}%'),
                 ProjectEO.remarks.ilike(f'%{keyword}%'),
                 ProjectRef.name.ilike(f'%{keyword}%'),

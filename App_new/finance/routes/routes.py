@@ -18,8 +18,226 @@ import pandas as pd
 import tempfile
 from datetime import datetime
 from pathlib import Path
-from App_new.exts import csrf
+from App_new.exts import csrf, db
 from App_new.utils.decorators import staff_only
+from App_new.finance.models.statement import BankStatement, BankTransaction
+
+# === UOB 入库辅助方法 ===
+def _infer_owner_type(label: str) -> str:
+    if not label:
+        return 'other'
+    if label in ('LG', 'JE'):
+        return 'company'
+    if isinstance(label, str) and (label.lower() == 'business' or label == '个人商用' or label == '个人商务'):
+        return 'personal_business'
+    if label == '个人消费':
+        return 'personal'
+    return 'other'
+
+def _normalize_owner_label(label: str | None) -> str | None:
+    if label is None:
+        return None
+    try:
+        s = str(label).strip()
+    except Exception:
+        return None
+    if not s:
+        return None
+    # 归一：大小写与同义
+    if s.lower() == 'business':
+        return 'Business'
+    if s.upper() == 'LG':
+        return 'LG'
+    if s.upper() == 'JE':
+        return 'JE'
+    if s in ('个人商务', '个人商用'):
+        return '个人商用'
+    if s == '个人消费':
+        return '个人消费'
+    return s
+
+def _normalize_str(value):
+    try:
+        import pandas as pd
+        if value is None:
+            return None
+        # 处理 pandas 的 NaN
+        try:
+            if pd.isna(value):
+                return None
+        except Exception:
+            pass
+    except Exception:
+        if value is None:
+            return None
+    s = str(value).strip()
+    return s if s else None
+
+def _normalize_float(value):
+    try:
+        import pandas as pd
+        if value is None:
+            return None
+        try:
+            if pd.isna(value):
+                return None
+        except Exception:
+            pass
+    except Exception:
+        if value is None:
+            return None
+    try:
+        return float(value)
+    except Exception:
+        return None
+
+def _upsert_uob_statement_and_transactions(df, original_df, *, bank_name='UOB', account_name='UOB Account', account_number='UOB-XXXX', currency='SGD'):
+    """根据整理后的 DataFrame 入库对账单及交易。
+    - df: 整理后的“整理下载.xls”数据（通常仅 Withdrawal）
+    - original_df: 原始读取数据（包含 Balance），用于计算期初期末余额
+    """
+    try:
+        import pandas as pd  # 避免外部导入变更影响
+    except Exception:
+        raise
+
+    if df is None or df.empty:
+        return 0
+
+    df = df.copy()
+    df['T-Date'] = pd.to_datetime(df['T-Date']).dt.date
+
+    period_start = df['T-Date'].min()
+    period_end = df['T-Date'].max()
+
+    # 计算期初/期末余额：优先使用 original_df（含 Balance）按日期区间获取
+    opening_balance = 0.0
+    closing_balance = 0.0
+    try:
+        if original_df is not None and not original_df.empty and 'Balance' in original_df.columns:
+            ods = original_df.copy()
+            ods['T-Date'] = pd.to_datetime(ods['T-Date']).dt.date
+            rng = ods[(ods['T-Date'] >= period_start) & (ods['T-Date'] <= period_end)].sort_values(by=['T-Date'])
+            if not rng.empty:
+                opening_balance = float(rng.iloc[0]['Balance']) if rng.iloc[0]['Balance'] is not None else 0.0
+                closing_balance = float(rng.iloc[-1]['Balance']) if rng.iloc[-1]['Balance'] is not None else 0.0
+    except Exception:
+        # 安静失败，使用默认 0 值
+        pass
+
+    statement_number = f'UOB-{period_start}-{period_end}'
+
+    statement = BankStatement.query.filter_by(statement_number=statement_number).first()
+    if not statement:
+        statement = BankStatement(
+            statement_number=statement_number,
+            bank_name=bank_name,
+            account_number=account_number,
+            account_name=account_name,
+            statement_date=period_end,
+            period_start=period_start,
+            period_end=period_end,
+            opening_balance=opening_balance,
+            closing_balance=closing_balance,
+            currency=currency,
+            status='processing'
+        )
+        db.session.add(statement)
+        db.session.flush()
+
+    created = 0
+    updated = 0
+    for _, row in df.iterrows():
+        t_date = row.get('T-Date')
+        withdrawal = _normalize_float(row.get('Withdrawal', 0)) or 0.0
+        deposit = _normalize_float(row.get('Deposit', 0)) if 'Deposit' in row else 0.0
+        description = _normalize_str(row.get('Description'))
+        if description:
+            description = description[:10000]
+        balance = _normalize_float(row.get('Balance', None))  # 可能不存在
+        keyword = _normalize_str(row.get('Keyword', None))
+        owner_label = _normalize_owner_label(_normalize_str(row.get('User', None)))
+        accounting_ref = _normalize_str(row.get('EO', None))
+        tx_fingerprint = _normalize_str(row.get('Id', None))
+
+        # 借贷判断
+        if withdrawal and float(withdrawal) != 0:
+            amount = float(withdrawal)
+            transaction_type = 'debit'
+        else:
+            amount = float(deposit or 0)
+            transaction_type = 'credit' if amount != 0 else 'debit'
+
+        if not t_date or amount == 0:
+            continue
+
+        # 指纹去重
+        exists = None
+        if tx_fingerprint:
+            exists = BankTransaction.query.filter_by(tx_fingerprint=tx_fingerprint).first()
+        if not exists and description:
+            # 备用匹配：日期+金额+描述前缀
+            desc_prefix = description[:50]
+            exists = BankTransaction.query \
+                .filter(
+                    BankTransaction.transaction_date == t_date,
+                    BankTransaction.amount == amount,
+                    BankTransaction.description.like(f"{desc_prefix}%")
+                ).first()
+
+        if exists:
+            changed = False
+            # 仅在提供新值时更新
+            if accounting_ref:
+                if exists.accounting_ref != accounting_ref:
+                    exists.accounting_ref = accounting_ref
+                    changed = True
+            if owner_label:
+                owner_label = _normalize_owner_label(owner_label)
+                if exists.owner_label != owner_label:
+                    exists.owner_label = owner_label
+                    exists.owner_type = _infer_owner_type(owner_label)
+                    changed = True
+            if keyword and (not exists.keyword or exists.keyword != keyword):
+                exists.keyword = keyword
+                changed = True
+            # 不覆盖对方名称，除非为空且我们有值（整理表无对方列，这里保持）
+            if balance is not None and exists.balance is None:
+                exists.balance = float(balance)
+                changed = True
+            if changed:
+                updated += 1
+            continue
+
+        bt = BankTransaction(
+            statement_id=statement.id,
+            transaction_date=t_date,
+            transaction_id=None,
+            transaction_type=transaction_type,
+            amount=amount,
+            balance=float(balance) if balance is not None else None,
+            description=description,
+            counterparty_name=None,
+            counterparty_account=None,
+            reconciliation_status='unmatched',
+            matched_receipt_id=None,
+            ref_id=None,
+            eo_id=None,
+            accounting_ref=accounting_ref,
+            keyword=keyword,
+            tx_fingerprint=tx_fingerprint,
+            owner_label=owner_label,
+            owner_type=_infer_owner_type(owner_label),
+            remarks=None,
+            extra_info=None
+        )
+        db.session.add(bt)
+        created += 1
+
+    statement.status = 'completed'
+    db.session.commit()
+    return created, updated
+from App_new.finance.models.statement import BankStatement, BankTransaction
 
 # 配置日志
 logger = logging.getLogger(__name__)
@@ -32,8 +250,191 @@ statement_blue = Blueprint('statement_routes', __name__)
 @login_required
 @staff_only
 def uob_bank():
-    # 只渲染UOB银行账单页面，不执行任何操作
-    return render_template('finance/statement/UobBank.html')
+    # 展示UOB银行的对账单与交易，支持筛选
+    try:
+        # 最近对账单（UOB）
+        statements = (
+            BankStatement.query
+            .filter(BankStatement.bank_name.ilike('%UOB%'))
+            .order_by(BankStatement.created_at.desc())
+            .limit(10)
+            .all()
+        )
+
+        # 读取筛选参数
+        month = request.args.get('month', '').strip()
+        start_date_str = request.args.get('start_date', '').strip()
+        end_date_str = request.args.get('end_date', '').strip()
+        tx_type = request.args.get('type', '').strip()  # 'debit' / 'credit'
+        owner = request.args.get('owner', '').strip()   # owner_label
+        page = request.args.get('page', 1, type=int)
+        per_page = 30
+
+        # 构建交易查询
+        tx_query = (
+            BankTransaction.query
+            .join(BankStatement, BankTransaction.statement_id == BankStatement.id)
+            .filter(BankStatement.bank_name.ilike('%UOB%'))
+        )
+
+        # 按月份筛选（YYYY-MM）
+        from datetime import date
+        if month:
+            try:
+                year, mon = month.split('-')
+                year = int(year); mon = int(mon)
+                start_month = date(year, mon, 1)
+                if mon == 12:
+                    next_month = date(year + 1, 1, 1)
+                else:
+                    next_month = date(year, mon + 1, 1)
+                tx_query = tx_query.filter(
+                    BankTransaction.transaction_date >= start_month,
+                    BankTransaction.transaction_date < next_month
+                )
+            except Exception:
+                pass
+
+        # 按日期范围筛选（可与月份叠加）
+        from datetime import datetime as _dt
+        if start_date_str:
+            try:
+                sd = _dt.strptime(start_date_str, '%Y-%m-%d').date()
+                tx_query = tx_query.filter(BankTransaction.transaction_date >= sd)
+            except Exception:
+                pass
+        if end_date_str:
+            try:
+                ed = _dt.strptime(end_date_str, '%Y-%m-%d').date()
+                tx_query = tx_query.filter(BankTransaction.transaction_date <= ed)
+            except Exception:
+                pass
+
+        # 类型筛选
+        if tx_type in ('debit', 'credit'):
+            tx_query = tx_query.filter(BankTransaction.transaction_type == tx_type)
+
+        # 归属筛选（owner_label）
+        if owner:
+            # 归一筛选（个人商用/个人商务 同义）
+            if owner in ('个人商用', '个人商务'):
+                tx_query = tx_query.filter(BankTransaction.owner_label.in_(['个人商用', '个人商务']))
+            else:
+                tx_query = tx_query.filter(BankTransaction.owner_label == owner)
+
+        pagination = tx_query.order_by(
+            BankTransaction.transaction_date.desc(), BankTransaction.id.desc()
+        ).paginate(page=page, per_page=per_page, error_out=False)
+        transactions = pagination.items
+
+        # 归属下拉选项（去重）
+        owners = (
+            db.session.query(BankTransaction.owner_label)
+            .join(BankStatement, BankTransaction.statement_id == BankStatement.id)
+            .filter(BankStatement.bank_name.ilike('%UOB%'))
+            .filter(BankTransaction.owner_label.isnot(None))
+            .distinct()
+            .order_by(BankTransaction.owner_label.asc())
+            .all()
+        )
+        owner_options = []
+        for o in owners:
+            label = o[0]
+            if not label:
+                continue
+            label = _normalize_owner_label(label) or label
+            if label not in owner_options:
+                owner_options.append(label)
+
+    except Exception:
+        statements = []
+        transactions = []
+        pagination = None
+        owner_options = []
+        month = start_date_str = end_date_str = tx_type = owner = ''
+        page = 1
+        per_page = 30
+
+    # 部分渲染（用于AJAX无跳动刷新表格）
+    if request.args.get('partial') == 'table':
+        return render_template(
+            'finance/statement/_uob_tx_table.html',
+            transactions=transactions,
+            pagination=pagination,
+            filters={
+                'month': month,
+                'start_date': start_date_str,
+                'end_date': end_date_str,
+                'type': tx_type,
+                'owner': owner,
+                'page': page,
+                'per_page': per_page
+            }
+        )
+
+    return render_template(
+        'finance/statement/UobBank.html',
+        statements=statements,
+        transactions=transactions,
+        pagination=pagination,
+        owner_options=owner_options,
+        filters={
+            'month': month,
+            'start_date': start_date_str,
+            'end_date': end_date_str,
+            'type': tx_type,
+            'owner': owner,
+            'page': page,
+            'per_page': per_page
+        }
+    )
+
+
+# 行内编辑：更新交易的 REF/EO 与归属
+@statement_blue.route('/uob_tx_update', methods=['POST'])
+@csrf.exempt
+def uob_tx_update():
+    try:
+        data = request.get_json(silent=True) or request.form
+        tx_id = data.get('tx_id')
+        if not tx_id:
+            return jsonify({'success': False, 'message': '缺少交易ID'}), 400
+        try:
+            tx_id = int(tx_id)
+        except Exception:
+            return jsonify({'success': False, 'message': '交易ID无效'}), 400
+
+        tx = BankTransaction.query.get(tx_id)
+        if not tx:
+            return jsonify({'success': False, 'message': '未找到交易'}), 404
+
+        accounting_ref = _normalize_str(data.get('accounting_ref'))
+        owner_label = _normalize_owner_label(_normalize_str(data.get('owner_label')))
+        counterparty_name = _normalize_str(data.get('counterparty_name'))
+        remarks = _normalize_str(data.get('remarks'))
+
+        if accounting_ref is not None:
+            tx.accounting_ref = accounting_ref
+        if owner_label is not None:
+            tx.owner_label = owner_label
+            tx.owner_type = _infer_owner_type(owner_label)
+        if counterparty_name is not None:
+            tx.counterparty_name = counterparty_name
+        if remarks is not None:
+            tx.remarks = remarks
+
+        db.session.commit()
+        return jsonify({'success': True, 'data': {
+            'id': tx.id,
+            'accounting_ref': tx.accounting_ref,
+            'owner_label': tx.owner_label,
+            'owner_type': tx.owner_type,
+            'counterparty_name': tx.counterparty_name,
+            'remarks': tx.remarks
+        }})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 
 @statement_blue.route('/open_uob_statement_folder', methods=['GET', 'POST'])
@@ -68,8 +469,90 @@ def uob_bank_processing():
         return redirect(url_for('statement_routes.uob_bank'))
     folder_path = Config.BILLING_DATA_PATH / "ZHANG ZHUAN UOB MASTER"
     st = OriginalStatement(str(folder_path))
+    # 原有整理流程
     st.statement_process()
-    flash('账单整理完成')
+
+    # 读取整理后的账单与原始账单用于入库
+    import os
+    import pandas as pd
+    latest_path = os.path.join(str(folder_path), "整理区别分类", "整理下载.xls")
+    try:
+        latest_df = pd.read_excel(latest_path, sheet_name="Sheet1", engine='openpyxl')
+    except Exception:
+        latest_df = None
+
+    try:
+        original_df = st.read_original_file()
+    except Exception:
+        original_df = None
+
+    created, updated = _upsert_uob_statement_and_transactions(
+        latest_df,
+        original_df,
+        bank_name='UOB',
+        account_name='UOB Account',
+        account_number='UOB-XXXX',
+        currency='SGD'
+    ) if latest_df is not None else 0
+
+    # 兼容返回元组或0
+    if isinstance(created, tuple):
+        created, updated = created
+    flash(f'账单整理完成，新建 {created or 0} 条，更新 {updated or 0} 条')
+    return redirect(url_for('statement_routes.uob_bank'))
+
+
+# 添加原始数据：读取原始下载文件，提取关键词并直接入库
+@statement_blue.route('/uob_add_original', methods=['POST'])
+@csrf.exempt
+def uob_add_original():
+    try:
+        folder_path = Config.BILLING_DATA_PATH / "ZHANG ZHUAN UOB MASTER"
+        st = OriginalStatement(str(folder_path))
+        # 原始数据
+        original_df = st.read_original_file()
+        # 关键词与使用者识别
+        df_kw = st.key_words_data(original_df.copy()) if original_df is not None else None
+        created, updated = _upsert_uob_statement_and_transactions(
+            df_kw,
+            original_df,
+            bank_name='UOB',
+            account_name='UOB Account',
+            account_number='UOB-XXXX',
+            currency='SGD'
+        ) if df_kw is not None else 0
+        if isinstance(created, tuple):
+            created, updated = created
+        flash(f'添加原始数据完成，新建 {created or 0} 条，更新 {updated or 0} 条')
+    except Exception as e:
+        flash(f'添加原始数据失败：{str(e)}', 'error')
+    return redirect(url_for('statement_routes.uob_bank'))
+
+
+# 分析数据：仅整理并入库最新数据
+@statement_blue.route('/uob_analyze', methods=['POST'])
+@csrf.exempt
+def uob_analyze():
+    try:
+        import pandas as pd
+        folder_path = Config.BILLING_DATA_PATH / "ZHANG ZHUAN UOB MASTER"
+        st = OriginalStatement(str(folder_path))
+        # 仅执行最新数据整理
+        latest_df = st.organized_statement_data()
+        original_df = st.read_original_file()
+        created, updated = _upsert_uob_statement_and_transactions(
+            latest_df,
+            original_df,
+            bank_name='UOB',
+            account_name='UOB Account',
+            account_number='UOB-XXXX',
+            currency='SGD'
+        ) if latest_df is not None and not latest_df.empty else 0
+        if isinstance(created, tuple):
+            created, updated = created
+        flash(f'分析数据完成，新建 {created or 0} 条，更新 {updated or 0} 条')
+    except Exception as e:
+        flash(f'分析数据失败：{str(e)}', 'error')
     return redirect(url_for('statement_routes.uob_bank'))
 
 

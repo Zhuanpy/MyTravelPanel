@@ -1109,6 +1109,16 @@ async function copyAddPassword() {
     }
 }
 
+// 打开统一模态框用于新增
+function openCreateAccount() {
+    const ids = ['accountId','platform','website_url','category','owner','username','password','country','region','description','notes'];
+    ids.forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+    const label = document.getElementById('accountModalLabel');
+    if (label) label.textContent = '添加新账号';
+    const modal = new bootstrap.Modal(document.getElementById('accountModal'));
+    modal.show();
+}
+
 // 编辑账号
 async function editAccount(id) {
     try {
@@ -1122,7 +1132,9 @@ async function editAccount(id) {
         
         console.log('找到账号数据:', account);
         
-        // 填充编辑表单
+        // 填充编辑表单（页面当前仍使用 editModal 与 edit* 字段）
+        const idEl = document.getElementById('editId');
+        if (!idEl) throw new Error('找不到编辑表单元素（editId）');
         document.getElementById('editId').value = account.id;
         document.getElementById('editPlatform').value = account.platform || '';
         document.getElementById('editWebsiteUrl').value = account.website_url || '';
@@ -1175,12 +1187,10 @@ async function editAccount(id) {
     }
 }
 
-// 提交编辑表单
+// 提交编辑表单（编辑模态专用）
 async function submitEditForm() {
     try {
         console.log('提交编辑表单...');
-        
-        // 获取表单数据
         const id = document.getElementById('editId').value;
         const formData = {
             platform: document.getElementById('editPlatform').value,
@@ -1193,9 +1203,54 @@ async function submitEditForm() {
             notes: document.getElementById('editNotes').value,
             owner: document.getElementById('editOwner').value
         };
+        const password = document.getElementById('editPassword').value;
+        if (password) formData.password = password;
+        if (!formData.platform || !formData.username) {
+            throw new Error('平台/网址和用户名为必填项');
+        }
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        const response = await fetch(`/account/api/accounts/${id}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify(formData)
+        });
+        if (!response.ok) throw new Error(`HTTP错误: ${response.status}`);
+        const result = await response.json();
+        if (!result.success) throw new Error(result.message || '更新账号失败');
+        const editModal = bootstrap.Modal.getInstance(document.getElementById('editModal'));
+        if (editModal) editModal.hide();
+        showAlert('账号更新成功', true);
+        await loadAccounts();
+    } catch (error) {
+        console.error('更新账号失败:', error);
+        showAlert('更新账号失败: ' + error.message, false);
+    }
+}
+
+// 统一提交（新增/编辑）
+async function submitAccountForm() {
+    try {
+        console.log('提交账号表单...');
+        
+        // 获取表单数据
+        const id = document.getElementById('accountId').value;
+        const formData = {
+            platform: document.getElementById('platform').value,
+            website_url: document.getElementById('website_url').value,
+            category: document.getElementById('category').value,
+            username: document.getElementById('username').value,
+            country: document.getElementById('country').value,
+            region: document.getElementById('region').value,
+            description: document.getElementById('description').value,
+            notes: document.getElementById('notes').value,
+            owner: document.getElementById('owner').value
+        };
         
         // 如果有输入密码，也包含密码字段
-        const password = document.getElementById('editPassword').value;
+        const password = document.getElementById('password').value;
         if (password) {
             formData.password = password;
         }
@@ -1205,14 +1260,15 @@ async function submitEditForm() {
             throw new Error('平台/网址和用户名为必填项');
         }
         
-        console.log('编辑账号数据:', formData);
+        console.log('提交数据:', formData);
         
         // 获取CSRF令牌
         const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-        
-        // 发送API请求
-        const response = await fetch(`/account/api/accounts/${id}`, {
-            method: 'PUT',
+        const isCreate = !id;
+        const url = isCreate ? '/account/api/accounts' : `/account/api/accounts/${id}`;
+        const method = isCreate ? 'POST' : 'PUT';
+        const response = await fetch(url, {
+            method,
             headers: {
                 'Content-Type': 'application/json',
                 'X-CSRFToken': csrfToken
@@ -1231,10 +1287,8 @@ async function submitEditForm() {
         }
         
         // 关闭模态框
-        const editModal = bootstrap.Modal.getInstance(document.getElementById('editModal'));
-        if (editModal) {
-            editModal.hide();
-        }
+        const modal = bootstrap.Modal.getInstance(document.getElementById('accountModal'));
+        if (modal) modal.hide();
         
         // 显示成功消息
         showAlert('账号更新成功', true);

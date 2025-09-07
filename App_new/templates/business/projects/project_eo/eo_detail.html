@@ -216,8 +216,10 @@
             <i class="fas fa-money-bill-wave text-success"></i> 金额信息
         </h4>
         <div class="text-center">
+            {% set display_currency = eo.currency or (eo.ref.currency if eo.ref else 'SGD') %}
+            {% set display_amount = (eo.amount if (eo.amount is not none and (eo.amount|float) > 0) else (eo.ref.cost_price if eo.ref and eo.ref.cost_price else 0)) %}
             <div class="amount-display">
-                {{ eo.currency }} {{ "%.2f"|format(eo.amount) if eo.amount else '0.00' }}
+                {{ display_currency }} {{ "%.2f"|format(display_amount|float) }}
             </div>
         </div>
     </div>

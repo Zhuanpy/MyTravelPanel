@@ -4,7 +4,7 @@
 按模块化设计重构后的应用入口（冲突已合并）
 """
 
-from flask import Flask, send_from_directory
+from flask import Flask, send_from_directory, redirect
 from flask_migrate import Migrate
 from datetime import timedelta
 import os
@@ -52,7 +52,24 @@ def create_app():
     # /favicon.ico 兼容
     @app.route('/favicon.ico')
     def favicon():
-        return send_from_directory(app.static_folder, 'favicon.ico', mimetype='image/x-icon')
+        # 兼容新旧命名：优先使用 favico.ico，其次 favicon.ico
+        preferred = 'favico.ico'
+        fallback = 'favicon.ico'
+        icon_file = preferred if os.path.exists(os.path.join(app.static_folder, preferred)) else fallback
+        return send_from_directory(app.static_folder, icon_file, mimetype='image/x-icon')
+
+    @app.route('/favico.ico')
+    def favico():
+        # 直接提供 favico.ico（若不存在则回退到 favicon.ico）
+        preferred = 'favico.ico'
+        fallback = 'favicon.ico'
+        icon_file = preferred if os.path.exists(os.path.join(app.static_folder, preferred)) else fallback
+        return send_from_directory(app.static_folder, icon_file, mimetype='image/x-icon')
+
+    # 根路径重定向到 /public/
+    @app.route('/')
+    def root_redirect():
+        return redirect('/public/', code=301)
 
     # 导入所有模型以确保数据库表创建（按需导入）
     import_all_models()
@@ -147,6 +164,19 @@ def create_app():
     def add_encoding_header(response):
         if response.mimetype == 'text/html':
             response.headers['Content-Type'] = 'text/html; charset=utf-8'
+        return response
+
+    # 全站品牌文案统一替换：将 MyTravelPanel 动态替换为 Joyeful Escapes（仅作用于HTML响应）
+    @app.after_request
+    def replace_brand_name(response):
+        try:
+            if response.mimetype == 'text/html':
+                html = response.get_data(as_text=True)
+                if 'MyTravelPanel' in html:
+                    response.set_data(html.replace('MyTravelPanel', 'Joyeful Escapes'))
+        except Exception:
+            # 安静失败，不阻断响应
+            pass
         return response
 
     return app

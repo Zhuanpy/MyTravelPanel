@@ -153,7 +153,8 @@
                             <th style="width: 120px;">公司</th>
                             <th style="width: 100px;">金额</th>
                             <th style="width: 80px;">状态</th>
-                            <th style="width: 120px;">外部系统</th>
+                            {# 隐藏主表“外部系统”列，仍保留筛选与导出 #}
+                            {# <th style="width: 120px;">外部系统</th> #}
                             <th style="width: 100px;">创建时间</th>
                             <th style="width: 100px;">操作</th>
                         </tr>
@@ -222,6 +223,8 @@
                                     {{ eo.status_display }}
                                 </span>
                             </td>
+                            {# 外部系统列隐藏 #}
+                            {#
                             <td>
                                 {% if eo.external_system %}
                                 <div class="small">
@@ -237,6 +240,7 @@
                                 <span class="text-muted">未同步</span>
                                 {% endif %}
                             </td>
+                            #}
                             <td>
                                 <small class="text-muted">
                                     {{ eo.created_at.strftime('%m-%d %H:%M') if eo.created_at else '-' }}
@@ -368,42 +372,39 @@
 
 <script>
 $(document).ready(function() {
-    // 实时搜索功能
-    $('#keyword').on('input', function() {
-        var keyword = $(this).val().toLowerCase();
-        $('#eoTable tbody tr').each(function() {
-            var text = $(this).text().toLowerCase();
-            if (text.includes(keyword)) {
-                $(this).show();
-            } else {
-                $(this).hide();
-            }
-        });
-        updateCount();
+    // 关键词回车提交表单，触发后端全量搜索
+    $('#keyword').on('keypress', function(e) {
+        if (e.which === 13) {
+            e.preventDefault();
+            $('#filterForm').submit();
+        }
     });
-
-    // 更新计数
-    function updateCount() {
-        var visibleCount = $('#eoTable tbody tr:visible').length;
-        $('#totalCount').text(visibleCount);
-    }
 });
 
 // 导出Excel功能
 function exportToExcel() {
     // 获取表格数据
     var rows = $('#eoTable tbody tr:visible');
-         var csv = 'EO编号,名称,供应商类型,供应商,关联REF,项目,公司,金额,状态,外部系统,创建时间\n';
+    var csv = 'EO编号,名称,供应商类型,供应商,关联REF,项目,公司,金额,状态,外部系统,创建时间\n';
     
     rows.each(function() {
         var rowData = [];
                  // 获取每行的文本内容（排除操作列）
-         $(this).find('td').slice(0, 11).each(function() {
+        // 因为页面隐藏了外部系统列，这里手动拼接外部系统字段
+        $(this).find('td').slice(0, 10).each(function(idx) {
             var cellData = $(this).text().trim();
             // 清理HTML标签和多余空格
             cellData = cellData.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ');
             rowData.push('"' + cellData + '"');
         });
+        // 外部系统（从 data-attrs 或重绘时行数据不可见，回退取隐藏文本）
+        var externalSystem = '';
+        // 如果以后加了 data-external-system，可改为 $(this).data('external-system')
+        var hiddenExternalCell = $(this).find('td').eq(9); // 原先外部系统列位置
+        if (hiddenExternalCell && hiddenExternalCell.length) {
+            externalSystem = hiddenExternalCell.text().trim().replace(/\s+/g, ' ');
+        }
+        rowData.push('"' + externalSystem + '"');
         csv += rowData.join(',') + '\n';
     });
     

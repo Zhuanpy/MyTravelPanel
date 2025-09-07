@@ -80,17 +80,44 @@
         box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.2);
     }
 
+    /* 表格容器样式 */
+    .tour-table-container {
+        max-height: 600px;
+        overflow-y: auto;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        margin-top: 20px;
+        border: 1px solid #e9ecef;
+    }
+
+    /* 自定义滚动条样式 */
+    .tour-table-container::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    .tour-table-container::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 4px;
+    }
+
+    .tour-table-container::-webkit-scrollbar-thumb {
+        background: #4CAF50;
+        border-radius: 4px;
+    }
+
+    .tour-table-container::-webkit-scrollbar-thumb:hover {
+        background: #45a049;
+    }
+
     /* 表格样式 */
     .tour-table {
         width: 100%;
         border-collapse: separate;
         border-spacing: 0;
-        margin-top: 20px;
         font-size: 14px;
         background: white;
         border-radius: 8px;
         overflow: hidden;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     }
 
     .tour-table th, 
@@ -429,6 +456,7 @@
 
     <!-- 项目列表 -->
     {% if projects %}
+    <div class="tour-table-container">
     <table class="tour-table">
         <thead>
             <tr>    
@@ -459,7 +487,7 @@
                     <input type="hidden" name="folder_name" value="{{ project.folder_name }}">
                     <td>{{ project.id }}</td>
                     <td>{{ project.created_at.strftime('%Y-%m-%d') }}</td>
-                    <td><input type="text" name="project_hid" value="{{ project.project_hid or 'N/A'}}" class="tour-input-field"></td>
+                    <td>{{ project.project_hid or 'N/A' }}</td>
                     <td class="project-name-cell">{{ project.project_name }}</td>
                     <td>
                         <select name="project_status" class="tour-select-field" onchange="this.form.submit()">
@@ -469,9 +497,9 @@
                             <option value="忽略单" {% if project.project_status == '忽略单' %}selected{% endif %}>忽略单</option>
                         </select>
                     </td>
-                    <td><input type="text" name="contact_person" value="{{ project.contact_person }}" class="tour-input-field"></td>
-                    <td><input type="text" name="contact_info" value="{{ project.contact_info }}" class="tour-input-field"></td>
-                    <td><input type="text" name="remarks" value="{{ project.remarks or '' }}" class="tour-input-field"></td>
+                    <td>{{ project.contact_person or 'N/A' }}</td>
+                    <td>{{ project.contact_info or 'N/A' }}</td>
+                    <td>{{ project.remarks or 'N/A' }}</td>
                     
                     <!-- 保存修改按钮 -->
                     <td><button type="submit" class="tour-action-link">保存修改</button></td>
@@ -500,6 +528,7 @@
             {% endfor %}
         </tbody>
     </table>
+    </div>
     {% if pagination and pagination.pages > 1 %}
     <div class="d-flex justify-content-center mt-3">
         <nav aria-label="Pagination">

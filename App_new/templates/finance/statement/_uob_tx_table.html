@@ -1,0 +1,75 @@
+{% macro page_url(p) -%}
+{{ url_for('statement_routes.uob_bank', page=p, month=filters.month, start_date=filters.start_date, end_date=filters.end_date, type=filters.type, owner=filters.owner, partial='table') }}
+{%- endmacro %}
+
+<div class="table-responsive">
+    <table class="table table-striped table-hover" id="txTable">
+        <thead>
+            <tr>
+                <th>日期</th>
+                <th>类型</th>
+                <th>金额</th>
+                <th>余额</th>
+                <th>摘要</th>
+                <th>REF/EO</th>
+                <th>关键词</th>
+                <th>归属</th>
+                <th>备注</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for t in transactions %}
+            <tr>
+                <td>{{ t.transaction_date }}</td>
+                <td>{{ '支出' if t.transaction_type=='debit' else '收入' }}</td>
+                <td>{{ '%.2f'|format(t.amount) }}</td>
+                <td>{{ '%.2f'|format(t.balance) if t.balance is not none else '-' }}</td>
+                <td class="summary-cell" title="点击查看/关闭全文" data-full="{{ t.description or '' }}">{{ (t.description or '')[:40] }}{% if t.description and t.description|length>40 %}...{% endif %}</td>
+                <td>
+                    <input type="text" class="form-control form-control-sm tx-input" data-tx-id="{{ t.id }}" data-field="accounting_ref" value="{{ t.accounting_ref or '' }}" placeholder="填写REF/EO">
+                </td>
+                <td style="text-align:left; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ t.keyword or '-' }}</td>
+                <td>
+                    <select class="form-select form-select-sm tx-input" data-tx-id="{{ t.id }}" data-field="owner_label">
+                        <option value="" {% if not t.owner_label %}selected{% endif %}></option>
+                        <option value="Business" {% if t.owner_label=='Business' %}selected{% endif %}>Business</option>
+                        <option value="LG" {% if t.owner_label=='LG' %}selected{% endif %}>LG</option>
+                        <option value="JE" {% if t.owner_label=='JE' %}selected{% endif %}>JE</option>
+                        <option value="个人消费" {% if t.owner_label=='个人消费' %}selected{% endif %}>个人消费</option>
+                        <option value="个人商用" {% if t.owner_label=='个人商用' %}selected{% endif %}>个人商用</option>
+                    </select>
+                </td>
+                <td>
+                    <textarea class="form-control form-control-sm tx-remarks" data-tx-id="{{ t.id }}" data-field="remarks" placeholder="填写备注">{{ t.remarks or '' }}</textarea>
+                </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="9" class="text-center text-muted">暂无交易</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% if pagination %}
+<nav aria-label="分页" class="mt-3">
+    <ul class="pagination justify-content-center">
+        {% if pagination.has_prev %}
+        <li class="page-item"><a class="page-link" href="{{ page_url(pagination.prev_num) }}">上一页</a></li>
+        {% endif %}
+        {% for p in pagination.iter_pages() %}
+            {% if p %}
+                {% if p == pagination.page %}
+                    <li class="page-item active"><span class="page-link">{{ p }}</span></li>
+                {% else %}
+                    <li class="page-item"><a class="page-link" href="{{ page_url(p) }}">{{ p }}</a></li>
+                {% endif %}
+            {% else %}
+                <li class="page-item disabled"><span class="page-link">…</span></li>
+            {% endif %}
+        {% endfor %}
+        {% if pagination.has_next %}
+        <li class="page-item"><a class="page-link" href="{{ page_url(pagination.next_num) }}">下一页</a></li>
+        {% endif %}
+    </ul>
+</nav>
+{% endif %}

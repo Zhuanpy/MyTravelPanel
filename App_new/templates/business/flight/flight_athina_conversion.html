@@ -508,6 +508,17 @@
         margin: 1rem 0;
     }
 
+    /* 行程代码输出 标题与按钮同排且靠右 */
+    .athina-output-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-bottom: 0.5rem;
+        width: 100%;
+    }
+    .athina-output-header .athina-subtitle { margin: 0; }
+
     .athina-button {
         background-color: var(--success-color);
         color: white;
@@ -906,21 +917,24 @@
                 </div>
 
                 <div class="athina-output-section">
-                    <h3 class="athina-subtitle">行程代码输出</h3>
+                    <div class="athina-output-header">
+                        <h3 class="athina-subtitle">行程代码输出</h3>
+                        <div class="athina-button-container" style="margin:0;">
+                            <button class="athina-button unified-button" onclick="sendData()">
+                                <i class="fas fa-magic"></i> 生成代码
+                            </button>
+                            <a id="addScheduleBtn" href="{{ url_for('flights_schedule.input_flight_schedule') }}" class="athina-button unified-button secondary" style="display: none;">
+                                <i class="fas fa-plus-circle"></i> 添加航班时刻
+                            </a>
+                        </div>
+                    </div>
                     <div class="athina-textarea-container">
                         <textarea id="itinerary" class="athina-textarea unified-textarea" placeholder="生成的行程代码将显示在这里..."></textarea>
                         <button id="copyBtn" class="athina-copy-btn unified-button" onclick="copyToClipboard()" title="复制到剪贴板">
                             <i class="fas fa-copy"></i> 复制
                         </button>
                     </div>
-                    <div class="athina-button-container">
-                        <button class="athina-button unified-button" onclick="sendData()">
-                            <i class="fas fa-magic"></i> 生成代码
-                        </button>
-                        <a id="addScheduleBtn" href="{{ url_for('flights_schedule.input_flight_schedule') }}" class="athina-button unified-button secondary" style="display: none;">
-                            <i class="fas fa-plus-circle"></i> 添加航班时刻
-                        </a>
-                    </div>
+
                 </div>
             </div>
         </div>

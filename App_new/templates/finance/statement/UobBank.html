@@ -8,8 +8,9 @@
 <style>
     /* UOB账单处理页面样式 */
     .uob-container {
-        max-width: 800px;
-        margin: 40px auto;
+        width: 100%;
+        max-width: none;
+        margin: 0;
         padding: 30px;
         background-color: #ffffff;
         border-radius: 12px;
@@ -44,6 +45,54 @@
         height: 3px;
         background-color: #00a8cc;
         border-radius: 3px;
+    }
+
+    /* 缩窄 REF/EO 与 归属 输入、加宽备注 */
+    #txTable .tx-input[data-field="accounting_ref"],
+    #txTable .tx-input[data-field="owner_label"] {
+        width: 100%;
+        min-width: 0;
+        max-width: 100%;
+        box-sizing: border-box;
+    }
+    #txTable textarea.tx-remarks {
+        width: 100%;
+        height: 48px;
+        resize: vertical;
+    }
+
+    /* 列宽度：8列为1x，2列为2x（总计12份） */
+    #txTable { table-layout: fixed; width: 100%; }
+    #txTable th, #txTable td { text-align: center; vertical-align: middle; }
+    /* 1x: 8.333% */
+    #txTable th:nth-child(1), #txTable td:nth-child(1), /* 日期 */
+    #txTable th:nth-child(2), #txTable td:nth-child(2), /* 类型 */
+    #txTable th:nth-child(3), #txTable td:nth-child(3), /* 金额 */
+    #txTable th:nth-child(4), #txTable td:nth-child(4), /* 余额 */
+    #txTable th:nth-child(6), #txTable td:nth-child(6), /* REF/EO */
+    #txTable th:nth-child(7), #txTable td:nth-child(7), /* 关键词 */
+    #txTable th:nth-child(8), #txTable td:nth-child(8)  /* 归属 */
+    { width: 8.333%; }
+
+    /* 2x: 16.666% （摘要、备注）*/
+    #txTable th:nth-child(5), #txTable td:nth-child(5),
+    #txTable th:nth-child(9), #txTable td:nth-child(9)
+    { width: 16.666%; vertical-align: top; }
+
+    /* 摘要列多行换行显示且内容居左 */
+    #txTable td:nth-child(5) { white-space: normal; word-break: break-word; overflow: visible; text-align: left; }
+    #txTable td.summary-cell { cursor: pointer; }
+    /* 关键词列避免溢出，内容居左 */
+    #txTable td:nth-child(7) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
+
+    /* 筛选表单：放大 日期 与 类型 输入宽度 */
+    form[action*="uob_bank"] input[name="month"],
+    form[action*="uob_bank"] input[name="start_date"],
+    form[action*="uob_bank"] input[name="end_date"] {
+        min-width: 180px;
+    }
+    form[action*="uob_bank"] select[name="type"] {
+        min-width: 140px;
     }
     
     .uob-section {
@@ -195,6 +244,12 @@
             <form action="{{ url_for('statement_routes.uob_bank_processing') }}" method="post">
                 <button type="submit" class="uob-button">账单整理</button>
             </form>
+            <form action="{{ url_for('statement_routes.uob_add_original') }}" method="post">
+                <button type="submit" class="uob-button">添加原始数据</button>
+            </form>
+            <form action="{{ url_for('statement_routes.uob_analyze') }}" method="post">
+                <button type="submit" class="uob-button">分析数据</button>
+            </form>
         </div>
     </div>
 
@@ -230,6 +285,92 @@
         </div>
     </div>
 
+    <!-- 对账单概览 -->
+    <div class="uob-section">
+        <p>最近对账单</p>
+        <div class="table-responsive">
+            <table class="table table-striped table-hover">
+                <thead>
+                    <tr>
+                        <th>对账单号</th>
+                        <th>银行</th>
+                        <th>账户</th>
+                        <th>期间</th>
+                        <th>期初余额</th>
+                        <th>期末余额</th>
+                        <th>币种</th>
+                        <th>状态</th>
+                        <th>创建时间</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for s in statements %}
+                    <tr>
+                        <td>{{ s.statement_number }}</td>
+                        <td>{{ s.bank_name }}</td>
+                        <td>{{ s.account_name }}<br><small class="text-muted">{{ s.account_number }}</small></td>
+                        <td>{{ s.period_start }} ~ {{ s.period_end }}</td>
+                        <td>{{ '%.2f'|format(s.opening_balance) }}</td>
+                        <td>{{ '%.2f'|format(s.closing_balance) }}</td>
+                        <td>{{ s.currency }}</td>
+                        <td>{{ s.status }}</td>
+                        <td><small class="text-muted">{{ s.created_at.strftime('%Y-%m-%d %H:%M') if s.created_at else '' }}</small></td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="9" class="text-center text-muted">暂无对账单</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- 最近交易 -->
+    <div class="uob-section">
+        <p>最近交易</p>
+        <form method="get" action="{{ url_for('statement_routes.uob_bank') }}" class="mb-3">
+            <div class="row g-2 align-items-end">
+                <div class="col-auto">
+                    <label class="form-label">月份</label>
+                    <input type="month" class="form-control" name="month" value="{{ filters.month or '' }}">
+                </div>
+                <div class="col-auto">
+                    <label class="form-label">开始日期</label>
+                    <input type="date" class="form-control" name="start_date" value="{{ filters.start_date or '' }}">
+                </div>
+                <div class="col-auto">
+                    <label class="form-label">结束日期</label>
+                    <input type="date" class="form-control" name="end_date" value="{{ filters.end_date or '' }}">
+                </div>
+                <div class="col-auto">
+                    <label class="form-label">类型</label>
+                    <select class="form-select" name="type">
+                        <option value="">全部</option>
+                        <option value="debit" {% if filters.type=='debit' %}selected{% endif %}>支出</option>
+                        <option value="credit" {% if filters.type=='credit' %}selected{% endif %}>收入</option>
+                    </select>
+                </div>
+                <div class="col-auto">
+                    <label class="form-label">归属</label>
+                    <select class="form-select" name="owner">
+                        <option value="">全部</option>
+                        {% for o in owner_options %}
+                        <option value="{{ o }}" {% if filters.owner==o %}selected{% endif %}>{{ '个人商用' if o=='个人商务' else o }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-auto">
+                    <button type="button" id="uob-filter-submit" class="btn btn-primary">筛选</button>
+                </div>
+                <div class="col-auto">
+                    <a href="{{ url_for('statement_routes.uob_bank') }}" class="btn btn-secondary">重置</a>
+                </div>
+            </div>
+        </form>
+        <div id="uob-tx-table" data-partial-url="{{ url_for('statement_routes.uob_bank', partial='table') }}">
+            {% include 'finance/statement/_uob_tx_table.html' %}
+        </div>
+    </div>
+
     <!-- 页脚 -->
     <div class="uob-footer">
         &copy; 2024 <span>UOB账单处理系统</span>
@@ -246,6 +387,125 @@
                     alert.classList.remove('show');
                 });
             }, 5000);
+        }
+    });
+
+    // 行内编辑：失焦自动保存
+    const saveTxField = async (inputEl) => {
+        if (!inputEl) return;
+        const txId = inputEl.getAttribute('data-tx-id');
+        const field = inputEl.getAttribute('data-field');
+        if (!txId || !field) return;
+        const row = inputEl.closest('tr');
+        const refInput = row.querySelector('[data-field="accounting_ref"]');
+        const ownerInput = row.querySelector('[data-field="owner_label"]');
+        const counterpartyInput = row.querySelector('[data-field="counterparty_name"]');
+        const remarksInput = row.querySelector('textarea[data-field="remarks"]');
+        const payload = {
+            tx_id: txId,
+            accounting_ref: refInput ? refInput.value.trim() : '',
+            owner_label: ownerInput ? ownerInput.value.trim() : '',
+            counterparty_name: counterpartyInput ? counterpartyInput.value.trim() : '',
+            remarks: remarksInput ? remarksInput.value.trim() : ''
+        };
+        try {
+            const resp = await fetch("{{ url_for('statement_routes.uob_tx_update') }}", {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await resp.json();
+            if (!data.success) {
+                console.warn('保存失败：', data.message || '未知错误');
+                inputEl.classList.add('is-invalid');
+            } else {
+                inputEl.classList.remove('is-invalid');
+                inputEl.classList.add('is-valid');
+                setTimeout(() => inputEl.classList.remove('is-valid'), 1200);
+            }
+        } catch (err) {
+            console.warn('网络错误，稍后重试');
+            inputEl.classList.add('is-invalid');
+        }
+    };
+
+    document.addEventListener('focusout', function(e) {
+        const input = e.target.closest('.tx-input');
+        if (!input) return;
+        saveTxField(input);
+    });
+
+    document.addEventListener('keypress', function(e) {
+        const input = e.target.closest('.tx-input');
+        if (!input) return;
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            input.blur();
+        }
+    });
+
+    // 变更即保存（尤其是下拉选择）
+    document.addEventListener('change', function(e) {
+        const input = e.target.closest('.tx-input');
+        if (!input) return;
+        saveTxField(input);
+    });
+
+    // 备注输入：失焦即保存，Ctrl+Enter 也保存
+    document.addEventListener('focusout', function(e) {
+        const ta = e.target.closest('.tx-remarks');
+        if (!ta) return;
+        saveTxField(ta);
+    });
+    document.addEventListener('keydown', function(e) {
+        const ta = e.target.closest('.tx-remarks');
+        if (!ta) return;
+        if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+            e.preventDefault();
+            ta.blur();
+        }
+    });
+
+    // 无刷新筛选提交
+    (function(){
+        const btn = document.getElementById('uob-filter-submit');
+        const container = document.getElementById('uob-tx-table');
+        if (!btn || !container) return;
+        const form = btn.closest('form');
+        const baseUrl = container.getAttribute('data-partial-url');
+        const buildUrl = () => {
+            const params = new URLSearchParams(new FormData(form));
+            params.set('partial', 'table');
+            return baseUrl + (baseUrl.includes('?') ? '&' : '?') + params.toString();
+        };
+        const loadTable = async () => {
+            try {
+                const url = buildUrl();
+                const res = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+                const html = await res.text();
+                container.innerHTML = html;
+            } catch (err) {
+                console.warn('筛选加载失败');
+            }
+        };
+        btn.addEventListener('click', function(e){ e.preventDefault(); loadTable(); });
+    })();
+
+    // 摘要：点击切换展开/收起
+    document.addEventListener('click', function(e) {
+        const cell = e.target.closest('.summary-cell');
+        if (!cell) return;
+        const full = cell.getAttribute('data-full') || '';
+        const isExpanded = cell.getAttribute('data-expanded') === '1';
+        if (isExpanded) {
+            // 收起
+            const shortText = full.length > 40 ? (full.slice(0, 40) + '...') : full;
+            cell.textContent = shortText;
+            cell.setAttribute('data-expanded', '0');
+        } else {
+            // 展开
+            cell.textContent = full;
+            cell.setAttribute('data-expanded', '1');
         }
     });
 </script>

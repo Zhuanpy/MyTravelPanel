@@ -88,12 +88,12 @@ class ProjectEOForm(FlaskForm):
     def _load_choices(self):
         """动态加载下拉选项"""
         try:
-            from App.models.Product.Suppliers import Supplier
-            
-            # 加载供应商
+            # 使用新架构的 Supplier 模型，避免混用不同 SQLAlchemy 实例
+            from App_new.shared.models.Suppliers import Supplier
+
             suppliers = Supplier.query.all()
             self.supplier_id.choices = [(s.supplier_id, s.name) for s in suppliers]
-            
-        except ImportError:
-            # 如果模型导入失败，使用默认选项
-            self.supplier_id.choices = [(1, '默认供应商')] 
+
+        except Exception:
+            # 兜底，避免页面崩溃
+            self.supplier_id.choices = [(1, '默认供应商')]
