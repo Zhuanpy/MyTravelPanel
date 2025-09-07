@@ -1,5 +1,5 @@
 {% macro page_url(p) -%}
-{{ url_for('statement_routes.uob_bank', page=p, month=filters.month, start_date=filters.start_date, end_date=filters.end_date, type=filters.type, owner=filters.owner, partial='table') }}
+{{ url_for('statement_routes.uob_bank', page=p, month=filters.month, start_date=filters.start_date, end_date=filters.end_date, type=filters.type, owner=filters.owner, ref=filters.ref, partial='table') }}
 {%- endmacro %}
 
 <div class="table-responsive">
@@ -11,9 +11,9 @@
                 <th>金额</th>
                 <th>余额</th>
                 <th>摘要</th>
-                <th>REF/EO</th>
                 <th>关键词</th>
                 <th>归属</th>
+                <th>REF/EO</th>
                 <th>备注</th>
             </tr>
         </thead>
@@ -25,9 +25,6 @@
                 <td>{{ '%.2f'|format(t.amount) }}</td>
                 <td>{{ '%.2f'|format(t.balance) if t.balance is not none else '-' }}</td>
                 <td class="summary-cell" title="点击查看/关闭全文" data-full="{{ t.description or '' }}">{{ (t.description or '')[:40] }}{% if t.description and t.description|length>40 %}...{% endif %}</td>
-                <td>
-                    <input type="text" class="form-control form-control-sm tx-input" data-tx-id="{{ t.id }}" data-field="accounting_ref" value="{{ t.accounting_ref or '' }}" placeholder="填写REF/EO">
-                </td>
                 <td style="text-align:left; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ t.keyword or '-' }}</td>
                 <td>
                     <select class="form-select form-select-sm tx-input" data-tx-id="{{ t.id }}" data-field="owner_label">
@@ -38,6 +35,9 @@
                         <option value="个人消费" {% if t.owner_label=='个人消费' %}selected{% endif %}>个人消费</option>
                         <option value="个人商用" {% if t.owner_label=='个人商用' %}selected{% endif %}>个人商用</option>
                     </select>
+                </td>
+                <td>
+                    <input type="text" class="form-control form-control-sm tx-input" data-tx-id="{{ t.id }}" data-field="accounting_ref" value="{{ t.accounting_ref or '' }}" placeholder="填写REF/EO">
                 </td>
                 <td>
                     <textarea class="form-control form-control-sm tx-remarks" data-tx-id="{{ t.id }}" data-field="remarks" placeholder="填写备注">{{ t.remarks or '' }}</textarea>

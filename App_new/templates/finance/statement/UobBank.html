@@ -353,10 +353,18 @@
                     <label class="form-label">归属</label>
                     <select class="form-select" name="owner">
                         <option value="">全部</option>
+                        <option value="__blank__" {% if filters.owner=='__blank__' %}selected{% endif %}>空白/未设置</option>
+                        <option value="Business" {% if filters.owner=='Business' %}selected{% endif %}>Business</option>
                         {% for o in owner_options %}
+                        {% if o != 'Business' %}
                         <option value="{{ o }}" {% if filters.owner==o %}selected{% endif %}>{{ '个人商用' if o=='个人商务' else o }}</option>
+                        {% endif %}
                         {% endfor %}
                     </select>
+                </div>
+                <div class="col-auto">
+                    <label class="form-label">REF/EO</label>
+                    <input type="text" class="form-control" name="ref" value="{{ filters.ref or '' }}" placeholder="输入REF或EO编号">
                 </div>
                 <div class="col-auto">
                     <button type="button" id="uob-filter-submit" class="btn btn-primary">筛选</button>
@@ -489,6 +497,25 @@
             }
         };
         btn.addEventListener('click', function(e){ e.preventDefault(); loadTable(); });
+    })();
+
+    // 无刷新分页：拦截分页链接点击
+    (function(){
+        const container = document.getElementById('uob-tx-table');
+        if (!container) return;
+        container.addEventListener('click', async function(e){
+            const link = e.target.closest('a.page-link');
+            if (!link) return;
+            e.preventDefault();
+            try {
+                const res = await fetch(link.href, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+                const html = await res.text();
+                container.innerHTML = html;
+                container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            } catch (err) {
+                console.warn('分页加载失败');
+            }
+        });
     })();
 
     // 摘要：点击切换展开/收起

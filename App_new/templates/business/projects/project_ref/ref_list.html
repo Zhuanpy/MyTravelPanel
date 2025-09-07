@@ -6,6 +6,13 @@
 
 {% block content %}
 <div class="container-fluid">
+    <style>
+    @media (min-width: 1400px) {
+        .filter-row { gap: 12px; flex-wrap: nowrap; overflow-x: auto; align-items: flex-end; }
+        .filter-row .filter-col { flex: 0 0 12.5%; max-width: 12.5%; }
+        .filter-actions { white-space: nowrap; }
+    }
+    </style>
     <!-- 页面标题 -->
     <div class="row mb-4">
         <div class="col-12">
@@ -47,8 +54,8 @@
         </div>
         <div class="card-body">
             <form method="GET" action="{{ url_for('business_projects.project_ref.ref_list') }}">
-                <div class="row">
-                    <div class="col-md-2">
+                <div class="row filter-row">
+                    <div class="col-md-2 filter-col">
                         <div class="mb-3">
                             <label for="business_type" class="form-label">业务类型</label>
                             <select class="form-select" id="business_type" name="business_type">
@@ -61,7 +68,7 @@
                             </select>
                         </div>
                     </div>
-                    <div class="col-md-2">
+                    <div class="col-md-2 filter-col">
                         <div class="mb-3">
                             <label for="status" class="form-label">状态</label>
                             <select class="form-select" id="status" name="status">
@@ -73,7 +80,7 @@
                             </select>
                         </div>
                     </div>
-                    <div class="col-md-2">
+                    <div class="col-md-2 filter-col">
                         <div class="mb-3">
                             <label for="supplier" class="form-label">供应商</label>
                             <select class="form-select" id="supplier" name="supplier">
@@ -86,7 +93,7 @@
                             </select>
                         </div>
                     </div>
-                    <div class="col-md-2">
+                    <div class="col-md-2 filter-col">
                         <div class="mb-3">
                             <label for="leader_name" class="form-label">出行人</label>
                             <input type="text" class="form-control" id="leader_name" name="leader_name" 
@@ -94,7 +101,7 @@
                                    value="{{ request.args.get('leader_name', '') }}">
                         </div>
                     </div>
-                    <div class="col-md-2">
+                    <div class="col-md-2 filter-col">
                         <div class="mb-3">
                             <label for="date_range" class="form-label">创建时间范围</label>
                             <select class="form-select" id="date_range" name="date_range">
@@ -107,7 +114,7 @@
                             </select>
                         </div>
                     </div>
-                    <div class="col-md-2">
+                    <div class="col-md-2 filter-col">
                         <div class="mb-3">
                             <label for="keyword" class="form-label">关键词搜索</label>
                             <input type="text" class="form-control" id="keyword" name="keyword" 
@@ -115,9 +122,7 @@
                                    value="{{ request.args.get('keyword', '') }}">
                         </div>
                     </div>
-                </div>
-                <div class="row">
-                    <div class="col-12">
+                    <div class="col-md-2 filter-col filter-actions">
                         <div class="d-flex gap-2">
                             <button type="submit" class="btn btn-primary">
                                 <i class="fas fa-search"></i> 应用筛选

@@ -316,8 +316,13 @@ def uob_bank():
 
         # 归属筛选（owner_label）
         if owner:
+            # 空白筛选：显示未设置归属（NULL 或 空字符串）
+            if owner == '__blank__':
+                tx_query = tx_query.filter(
+                    (BankTransaction.owner_label.is_(None)) | (BankTransaction.owner_label == '')
+                )
             # 归一筛选（个人商用/个人商务 同义）
-            if owner in ('个人商用', '个人商务'):
+            elif owner in ('个人商用', '个人商务'):
                 tx_query = tx_query.filter(BankTransaction.owner_label.in_(['个人商用', '个人商务']))
             else:
                 tx_query = tx_query.filter(BankTransaction.owner_label == owner)
