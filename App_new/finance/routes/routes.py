@@ -18,6 +18,7 @@ import pandas as pd
 import tempfile
 from datetime import datetime
 from pathlib import Path
+import hashlib
 from App_new.exts import csrf, db
 from App_new.utils.decorators import staff_only
 from App_new.finance.models.statement import BankStatement, BankTransaction
@@ -86,14 +87,303 @@ def _normalize_float(value):
     except Exception:
         if value is None:
             return None
+    # 字符串清洗：去货币符号、千分位、空格，仅保留数字/点/负号
+    if isinstance(value, str):
+        import re
+        s = value.strip()
+        if not s:
+            return None
+        s = s.replace(',', '')
+        s = s.replace('￥', '').replace('¥', '').replace('HK$', '').replace('SGD', '').replace('CNY', '').replace('$', '')
+        s = s.strip()
+        s = re.sub(r'[^0-9\.-]', '', s)
+        if not s or s in ('-', '.', '-.', '.-'):
+            return None
+        try:
+            return float(s)
+        except Exception:
+            return None
     try:
         return float(value)
     except Exception:
         return None
 
+
+# === CMB 导入辅助方法 ===
+def _find_latest_excel_file(folder_path: Path) -> Path | None:
+    try:
+        folder = Path(folder_path)
+        if not folder.exists():
+            return None
+        candidates = [
+            p for p in folder.iterdir()
+            if p.is_file() and p.suffix.lower() in ('.xls', '.xlsx')
+        ]
+        if not candidates:
+            return None
+        return max(candidates, key=lambda p: p.stat().st_mtime)
+    except Exception:
+        return None
+
+
+def _read_cmb_excel_to_df(file_path: Path):
+    import pandas as pd
+    df = None
+    # 尝试不同引擎以兼容 xls/xlsx
+    try:
+        df = pd.read_excel(file_path, engine='openpyxl')
+    except Exception:
+        try:
+            df = pd.read_excel(file_path, engine='xlrd')
+        except Exception:
+            df = pd.read_excel(file_path)
+    return df
+
+
+def _find_latest_statement_file(folder_path: Path, preferred_name: str | None = None) -> Path | None:
+    """在文件夹下优先寻找指定文件名，其次在 .csv/.xls/.xlsx 中选最近修改的一个。"""
+    try:
+        folder = Path(folder_path)
+        if not folder.exists():
+            return None
+        if preferred_name:
+            preferred = folder / preferred_name
+            if preferred.exists() and preferred.is_file():
+                return preferred
+        candidates = [
+            p for p in folder.iterdir()
+            if p.is_file() and p.suffix.lower() in ('.csv', '.xls', '.xlsx')
+        ]
+        if not candidates:
+            return None
+        return max(candidates, key=lambda p: p.stat().st_mtime)
+    except Exception:
+        return None
+
+
+def _read_statement_file_to_df(file_path: Path):
+    """根据扩展名读取账单为 DataFrame。优先 utf-8-sig，回退 gbk/latin1。"""
+    import pandas as pd
+    suffix = file_path.suffix.lower()
+    if suffix == '.csv':
+        encodings = ['utf-8-sig', 'gbk', 'cp936', 'latin1']
+        last_err = None
+        for enc in encodings:
+            try:
+                return pd.read_csv(file_path, encoding=enc)
+            except Exception as e:
+                last_err = e
+                continue
+        raise last_err
+    elif suffix in ('.xls', '.xlsx'):
+        return _read_cmb_excel_to_df(file_path)
+    else:
+        # 兜底：尝试自动判断为CSV
+        try:
+            return pd.read_csv(file_path, encoding='utf-8-sig')
+        except Exception:
+            return _read_cmb_excel_to_df(file_path)
+
+
+def _upsert_cmb_statement_and_transactions(folder_path: Path):
+    """读取招商银行账单Excel并入库到 bank_statements / bank_transactions。
+    规则：
+    - 交易日期: 使用列名包含"交易"且包含"日期"的列，优先匹配"交易日期"
+    - 描述: 使用 'Description' 或含"摘要"的列
+    - 金额: 优先 'Amount-CNY'，否则使用含"金额"的列；负数视为支出，正数视为收入
+    - 余额: 如无则置空
+    - 指纹: sha1(日期|原始金额|描述|卡号)
+    - statement_number: CMB-<period_start>-<period_end>
+    """
+    import pandas as pd
+
+    latest = _find_latest_statement_file(folder_path, preferred_name="e-Statement CSV (with header).csv")
+    if latest is None:
+        return 0, 0
+
+    raw = _read_statement_file_to_df(latest)
+    if raw is None or raw.empty:
+        return 0, 0
+
+    # 规范列名，去除空白
+    raw.columns = [str(c).strip() for c in raw.columns]
+
+    # 列定位
+    def _pick(cols, candidates):
+        for name in candidates:
+            for c in cols:
+                if name.lower() == str(c).lower():
+                    return c
+        # 模糊：中文包含
+        for c in cols:
+            s = str(c)
+            for name in candidates:
+                if name in s:
+                    return c
+        return None
+
+    date_col = _pick(raw.columns, ['交易日期', '交易日', '交易 日期', '交易-日期', 'T-Date'])
+    desc_col = _pick(raw.columns, ['Description', '摘要', '说明'])
+    amount_col = _pick(raw.columns, ['Amount-CNY', '金额', '交易地金额', '交易金额'])
+    card_col = _pick(raw.columns, ['Card', '卡号', '卡末四位'])
+
+    if amount_col is None or date_col is None:
+        # 关键列缺失
+        return 0, 0
+
+    df = raw[[col for col in [date_col, desc_col, amount_col, card_col] if col is not None]].copy()
+    # 统一为标准列名
+    rename_map = {}
+    if date_col:
+        rename_map[date_col] = 'T-Date'
+    if desc_col:
+        rename_map[desc_col] = 'Description'
+    rename_map[amount_col] = 'Amount'
+    if card_col:
+        rename_map[card_col] = 'Card'
+    df.rename(columns=rename_map, inplace=True)
+
+    # 处理日期与金额：CMB的日期可能为"710"表示7月10日
+    def _parse_cmb_date(v):
+        from datetime import date as _date
+        try:
+            import pandas as pd
+            if v is None or (hasattr(pd, 'isna') and pd.isna(v)):
+                return None
+        except Exception:
+            if v is None:
+                return None
+        # 已是日期/时间
+        try:
+            if hasattr(v, 'date'):
+                d = v.date()
+                return _date(d.year, d.month, d.day)
+        except Exception:
+            pass
+        # 解析 mmdd 或 mdd 形式
+        s = str(v).strip()
+        if not s:
+            return None
+        # 去除非数字
+        if s.isdigit():
+            year = datetime.now().year
+            if len(s) == 3:
+                m = int(s[0])
+                d = int(s[1:])
+            elif len(s) == 4:
+                m = int(s[:2])
+                d = int(s[2:])
+            else:
+                # 其他纯数字长度，尝试 pandas 解析
+                try:
+                    dts = pd.to_datetime(s, errors='coerce')
+                    return None if dts is None or str(dts) == 'NaT' else dts.date()
+                except Exception:
+                    return None
+            try:
+                return _date(year, m, d)
+            except Exception:
+                return None
+        # 兜底：常规解析
+        try:
+            dts = pd.to_datetime(s, errors='coerce')
+            return None if dts is None or str(dts) == 'NaT' else dts.date()
+        except Exception:
+            return None
+
+    df['T-Date'] = df['T-Date'].apply(_parse_cmb_date)
+    df['Amount'] = df['Amount'].apply(_normalize_float).fillna(0.0)
+
+    # 期间
+    # 过滤掉None日期
+    df = df[df['T-Date'].notna()]
+    if df.empty:
+        return 0, 0
+    period_start = df['T-Date'].min()
+    period_end = df['T-Date'].max()
+
+    statement_number = f'CMB-{period_start}-{period_end}'
+    statement = BankStatement.query.filter_by(statement_number=statement_number).first()
+    if not statement:
+        statement = BankStatement(
+            statement_number=statement_number,
+            bank_name='CMB',
+            account_number=str(df.get('Card').iloc[0]) if 'Card' in df.columns and len(df) > 0 else 'CMB-XXXX',
+            account_name='CMB Account',
+            statement_date=period_end,
+            period_start=period_start,
+            period_end=period_end,
+            opening_balance=0.0,
+            closing_balance=0.0,
+            currency='CNY',
+            status='processing'
+        )
+        db.session.add(statement)
+        db.session.flush()
+
+    created = 0
+    updated = 0
+    for _, row in df.iterrows():
+        t_date = row['T-Date']
+        amt_raw = float(row['Amount'] or 0.0)
+        if amt_raw == 0:
+            continue
+        if amt_raw < 0:
+            transaction_type = 'debit'
+            amount = -amt_raw
+        else:
+            transaction_type = 'credit'
+            amount = amt_raw
+        desc = _normalize_str(row.get('Description'))
+        card = _normalize_str(row.get('Card')) if 'Card' in df.columns else None
+
+        # 指纹
+        fp_src = f"{t_date}|{amt_raw}|{desc or ''}|{card or ''}"
+        tx_fingerprint = hashlib.sha1(fp_src.encode('utf-8', errors='ignore')).hexdigest()
+
+        exists = BankTransaction.query.filter_by(tx_fingerprint=tx_fingerprint).first()
+        if exists:
+            # 如有需要可更新描述
+            changed = False
+            if desc and (not exists.description or exists.description != desc):
+                exists.description = desc
+                changed = True
+            if changed:
+                updated += 1
+            continue
+
+        bt = BankTransaction(
+            statement_id=statement.id,
+            transaction_date=t_date,
+            transaction_id=None,
+            transaction_type=transaction_type,
+            amount=amount,
+            balance=None,
+            description=desc,
+            counterparty_name=None,
+            counterparty_account=None,
+            reconciliation_status='unmatched',
+            matched_receipt_id=None,
+            ref_id=None,
+            eo_id=None,
+            accounting_ref=None,
+            keyword=None,
+            tx_fingerprint=tx_fingerprint,
+            owner_label=None,
+            owner_type='other',
+            remarks=None,
+            extra_info=None
+        )
+        db.session.add(bt)
+        created += 1
+
+    statement.status = 'completed'
+    db.session.commit()
+    return created, updated
+
 def _upsert_uob_statement_and_transactions(df, original_df, *, bank_name='UOB', account_name='UOB Account', account_number='UOB-XXXX', currency='SGD'):
     """根据整理后的 DataFrame 入库对账单及交易。
-    - df: 整理后的“整理下载.xls”数据（通常仅 Withdrawal）
+    - df: 整理后的"整理下载.xls"数据（通常仅 Withdrawal）
     - original_df: 原始读取数据（包含 Balance），用于计算期初期末余额
     """
     try:
@@ -609,12 +899,419 @@ def statement_to_company():
     return redirect(url_for('statement_routes.uob_bank'))
 
 
+# === OCBC 导入辅助方法 ===
+def _upsert_ocbc_statement_and_transactions(folder_path: Path):
+    """读取 OCBC 目录下所有 CSV（若无则回退 xls/xlsx）并入库；包含详细调试日志。"""
+    logger = logging.getLogger(__name__)
+    import pandas as pd
+
+    folder = Path(folder_path)
+    if not folder.exists():
+        logger.warning(f"OCBC: 目录不存在: {folder}")
+        return 0, 0
+
+    files = [p for p in folder.iterdir() if p.is_file() and p.suffix.lower() == '.csv']
+    if not files:
+        files = [p for p in folder.iterdir() if p.is_file() and p.suffix.lower() in ('.xls', '.xlsx')]
+
+    logger.info(f"OCBC: 待处理文件数: {len(files)}，目录: {folder}")
+    if not files:
+        return 0, 0
+
+    total_created = 0
+    total_updated = 0
+
+    def _pick(cols, candidates):
+        for name in candidates:
+            for c in cols:
+                if name.lower() == str(c).lower():
+                    return c
+        for c in cols:
+            s = str(c)
+            for name in candidates:
+                if name in s:
+                    return c
+        return None
+
+    for file_path in sorted(files, key=lambda p: p.stat().st_mtime):
+        logger.info(f"OCBC: 处理文件: {file_path.name}")
+        try:
+            raw = _read_statement_file_to_df(file_path)
+        except Exception as e:
+            logger.error(f"OCBC: 读取失败 {file_path.name}: {e}")
+            continue
+
+        if raw is None or raw.empty:
+            logger.warning(f"OCBC: 空文件或无法解析: {file_path.name}")
+            continue
+
+        raw.columns = [str(c).strip() for c in raw.columns]
+        logger.info(f"OCBC: 列名: {list(raw.columns)}")
+
+        date_col = _pick(raw.columns, ['Statement Date', 'Transaction Date', 'Posting Date', 'T-Date', 'Date', '日期'])
+        desc_col = _pick(raw.columns, ['Statement Details Info', 'Transaction Description', 'Narrative', 'Description', '摘要', '说明'])
+        w_col = _pick(raw.columns, ['Debit Amount', 'Withdrawals', 'Withdrawal', '支出', '借方'])
+        d_col = _pick(raw.columns, ['Credit Amount', 'Deposits', 'Deposit', '收入', '贷方'])
+        amt_col = _pick(raw.columns, ['Amount', '金额'])
+        bal_col = _pick(raw.columns, ['Ledger Balance', 'Available Balance', 'Balance', '余额'])
+        ref_col = _pick(raw.columns, ['Ref For Account Owner', 'Ref For Account', 'Reference', 'Ref'])
+
+        logger.info(f"OCBC: 选中列 -> date:{date_col}, desc:{desc_col}, w:{w_col}, d:{d_col}, amt:{amt_col}, bal:{bal_col}")
+
+        if date_col is None or (amt_col is None and (w_col is None and d_col is None)):
+            logger.warning(f"OCBC: 关键列缺失，跳过文件: {file_path.name}")
+            continue
+
+        use_cols = [date_col]
+        if desc_col: use_cols.append(desc_col)
+        if bal_col: use_cols.append(bal_col)
+        # 优先使用借贷双列（Debit/Credit）。若不存在再退回到单列 Amount
+        if w_col or d_col:
+            if w_col: use_cols.append(w_col)
+            if d_col: use_cols.append(d_col)
+        elif amt_col:
+            use_cols.append(amt_col)
+        if ref_col: use_cols.append(ref_col)
+
+        df = raw[use_cols].copy()
+        rename_map = {date_col: 'T-Date'}
+        if desc_col: rename_map[desc_col] = 'Description'
+        if bal_col: rename_map[bal_col] = 'Balance'
+        if amt_col: rename_map[amt_col] = 'Amount'
+        if w_col: rename_map[w_col] = 'Withdrawal'
+        if d_col: rename_map[d_col] = 'Deposit'
+        if ref_col: rename_map[ref_col] = 'AccountingRef'
+        df.rename(columns=rename_map, inplace=True)
+
+        # 日期解析（支持 OCBC CSV 的 YYYYMMDD，如 20250401），并尝试 Posting Date 作为 post_date
+        from datetime import date as _date
+        def _parse_ocbc_date(v):
+            try:
+                if v is None:
+                    return None
+                s = str(v).strip()
+                if not s:
+                    return None
+                # 8位纯数字，按 YYYYMMDD 解析
+                if s.isdigit() and len(s) == 8:
+                    y = int(s[:4]); m = int(s[4:6]); d = int(s[6:8])
+                    return _date(y, m, d)
+                # 常规解析
+                dts = pd.to_datetime(s, errors='coerce')
+                return None if dts is None or str(dts) == 'NaT' else dts.date()
+            except Exception:
+                return None
+
+        # 用原始列重新生成 T-Date，避免 int 型被当作 Unix 时间
+        df['T-Date'] = raw[date_col].apply(_parse_ocbc_date)
+
+        # 尝试定位过账日期列
+        post_col = _pick(raw.columns, ['Posting Date', 'Post Date', 'Posted Date', '记账日期', '过账日期'])
+        post_date_series = None
+        if post_col:
+            try:
+                post_date_series = raw[post_col].apply(_parse_ocbc_date)
+            except Exception:
+                post_date_series = None
+        null_dates = int(df['T-Date'].isna().sum())
+        logger.info(f"OCBC: 日期解析完成，行数: {len(df)}，无效日期: {null_dates}")
+
+        # 规范金额
+        if 'Amount' in df.columns:
+            df['Amount'] = df['Amount'].apply(_normalize_float).fillna(0.0)
+            zero_amt = int((df['Amount'] == 0).sum())
+            logger.info(f"OCBC: 金额列规范化完成，零金额行: {zero_amt}")
+        else:
+            if 'Withdrawal' in df.columns:
+                df['Withdrawal'] = df['Withdrawal'].apply(_normalize_float).fillna(0.0)
+            if 'Deposit' in df.columns:
+                df['Deposit'] = df['Deposit'].apply(_normalize_float).fillna(0.0)
+            logger.info("OCBC: 使用 Withdrawal/Deposit 列解析金额")
+
+        # 过滤有效日期
+        df = df[df['T-Date'].notna()]
+        if df.empty:
+            logger.warning(f"OCBC: 全部日期无效，跳过文件: {file_path.name}")
+            continue
+
+        period_start = df['T-Date'].min()
+        period_end = df['T-Date'].max()
+        statement_number = f'OCBC-{period_start}-{period_end}'
+        statement = BankStatement.query.filter_by(statement_number=statement_number).first()
+        if not statement:
+            statement = BankStatement(
+                statement_number=statement_number,
+                bank_name='OCBC',
+                account_number='OCBC-XXXX',
+                account_name='OCBC Account',
+                statement_date=period_end,
+                period_start=period_start,
+                period_end=period_end,
+                opening_balance=0.0,
+                closing_balance=0.0,
+                currency='SGD',
+                status='processing'
+            )
+            db.session.add(statement)
+            db.session.flush()
+            logger.info(f"OCBC: 新建对账单 {statement_number} (id={statement.id})")
+        else:
+            logger.info(f"OCBC: 复用对账单 {statement_number} (id={statement.id})")
+
+        created = 0
+        updated = 0
+
+        # 打印前几行示例
+        try:
+            logger.info(f"OCBC: 数据示例: {df.head(3).to_dict(orient='records')}")
+        except Exception:
+            pass
+
+        for idx, row in df.iterrows():
+            t_date = row['T-Date']
+            # 先看是否存在借方/贷方双列
+            if ('Withdrawal' in df.columns) or ('Deposit' in df.columns):
+                w = _normalize_float(row.get('Withdrawal')) or 0.0
+                d = _normalize_float(row.get('Deposit')) or 0.0
+                if w and w != 0:
+                    transaction_type = 'debit'
+                    amount = float(w)
+                    amt_raw = -float(w)
+                elif d and d != 0:
+                    transaction_type = 'credit'
+                    amount = float(d)
+                    amt_raw = float(d)
+                else:
+                    # 两列都为空或为0，跳过
+                    continue
+            # 否则退回单列 Amount（可能带正负号）
+            elif 'Amount' in df.columns:
+                amt_raw = _normalize_float(row.get('Amount')) or 0.0
+                if amt_raw == 0:
+                    continue
+                if amt_raw < 0:
+                    transaction_type = 'debit'
+                    amount = float(-amt_raw)
+                else:
+                    transaction_type = 'credit'
+                    amount = float(amt_raw)
+            else:
+                continue
+
+            desc = _normalize_str(row.get('Description'))
+            balance = _normalize_float(row.get('Balance')) if 'Balance' in df.columns else None
+            accounting_ref = _normalize_str(row.get('AccountingRef')) if 'AccountingRef' in df.columns else None
+            keyword_from_ref = accounting_ref  # OCBC: 将 Ref For Account Owner 录入 keyword
+            # 逐行确定 post_date（优先使用解析到的过账日期列，否则回退为交易日）
+            post_date = None
+            try:
+                if post_date_series is not None:
+                    post_date = post_date_series.iloc[idx]
+            except Exception:
+                post_date = None
+            if not post_date:
+                post_date = t_date
+
+            fp_src = f"{t_date}|{amt_raw}|{desc or ''}|OCBC"
+            tx_fingerprint = hashlib.sha1(fp_src.encode('utf-8', errors='ignore')).hexdigest()
+
+            exists = BankTransaction.query.filter_by(tx_fingerprint=tx_fingerprint).first()
+            if exists:
+                changed = False
+                if desc and (not exists.description or exists.description != desc):
+                    exists.description = desc
+                    changed = True
+                if balance is not None and exists.balance is None:
+                    exists.balance = float(balance)
+                    changed = True
+                if keyword_from_ref and (not exists.keyword or exists.keyword != keyword_from_ref):
+                    exists.keyword = keyword_from_ref
+                    changed = True
+                # 按需求：不自动写入/更新 accounting_ref，保留为空，供手动维护
+                if changed:
+                    updated += 1
+                    logger.debug(f"OCBC: 更新交易(id={exists.id}) 指纹={tx_fingerprint}")
+                else:
+                    logger.debug(f"OCBC: 跳过重复交易 指纹={tx_fingerprint}")
+                continue
+
+            bt = BankTransaction(
+                statement_id=statement.id,
+                transaction_date=t_date,
+                transaction_id=None,
+                transaction_type=transaction_type,
+                amount=amount,
+                balance=float(balance) if balance is not None else None,
+                description=desc,
+                post_date=post_date,
+                accounting_ref=None,
+                keyword=keyword_from_ref,
+                counterparty_name=None,
+                counterparty_account=None,
+                reconciliation_status='unmatched',
+                matched_receipt_id=None,
+                ref_id=None,
+                eo_id=None,
+                tx_fingerprint=tx_fingerprint,
+                owner_label=None,
+                owner_type='other',
+                remarks=None,
+                extra_info=None
+            )
+            db.session.add(bt)
+            created += 1
+
+        statement.status = 'completed'
+        db.session.commit()
+        logger.info(f"OCBC: 文件 {file_path.name} 入库完成，新建 {created}，更新 {updated}")
+        total_created += created
+        total_updated += updated
+
+    logger.info(f"OCBC: 全部文件处理完成，总新建 {total_created}，总更新 {total_updated}")
+    return total_created, total_updated
+
+
 # OCBC银行相关路由
 @statement_blue.route('/ocbc_bank')
 @login_required
 @staff_only
 def ocbc_bank():
-    return render_template('finance/statement/OcbcBank.html')
+    # 展示OCBC账单与交易，结构同 CMB/UOB
+    try:
+        statements = (
+            BankStatement.query
+            .filter(BankStatement.bank_name.ilike('%OCBC%'))
+            .order_by(BankStatement.created_at.desc())
+            .limit(10)
+            .all()
+        )
+
+        month = request.args.get('month', '').strip()
+        start_date_str = request.args.get('start_date', '').strip()
+        end_date_str = request.args.get('end_date', '').strip()
+        tx_type = request.args.get('type', '').strip()
+        owner = request.args.get('owner', '').strip()
+        ref_query = request.args.get('ref', '').strip()
+        page = request.args.get('page', 1, type=int)
+        per_page = 30
+
+        tx_query = (
+            BankTransaction.query
+            .join(BankStatement, BankTransaction.statement_id == BankStatement.id)
+            .filter(BankStatement.bank_name.ilike('%OCBC%'))
+        )
+
+        from datetime import date
+        if month:
+            try:
+                year, mon = month.split('-')
+                year = int(year); mon = int(mon)
+                start_month = date(year, mon, 1)
+                next_month = date(year + (1 if mon == 12 else 0), (1 if mon == 12 else mon + 1), 1)
+                tx_query = tx_query.filter(
+                    BankTransaction.transaction_date >= start_month,
+                    BankTransaction.transaction_date < next_month
+                )
+            except Exception:
+                pass
+
+        from datetime import datetime as _dt
+        if start_date_str:
+            try:
+                sd = _dt.strptime(start_date_str, '%Y-%m-%d').date()
+                tx_query = tx_query.filter(BankTransaction.transaction_date >= sd)
+            except Exception:
+                pass
+        if end_date_str:
+            try:
+                ed = _dt.strptime(end_date_str, '%Y-%m-%d').date()
+                tx_query = tx_query.filter(BankTransaction.transaction_date <= ed)
+            except Exception:
+                pass
+
+        if tx_type in ('debit', 'credit'):
+            tx_query = tx_query.filter(BankTransaction.transaction_type == tx_type)
+
+        if owner:
+            if owner == '__blank__':
+                tx_query = tx_query.filter((BankTransaction.owner_label.is_(None)) | (BankTransaction.owner_label == ''))
+            elif owner in ('个人商用', '个人商务'):
+                tx_query = tx_query.filter(BankTransaction.owner_label.in_(['个人商用', '个人商务']))
+            else:
+                tx_query = tx_query.filter(BankTransaction.owner_label == owner)
+
+        if ref_query:
+            tx_query = tx_query.filter(BankTransaction.accounting_ref.ilike(f"%{ref_query}%"))
+
+        pagination = tx_query.order_by(
+            BankTransaction.transaction_date.desc(), BankTransaction.id.desc()
+        ).paginate(page=page, per_page=per_page, error_out=False)
+        transactions = pagination.items
+
+        owners = (
+            db.session.query(BankTransaction.owner_label)
+            .join(BankStatement, BankTransaction.statement_id == BankStatement.id)
+            .filter(BankStatement.bank_name.ilike('%OCBC%'))
+            .filter(BankTransaction.owner_label.isnot(None))
+            .distinct()
+            .order_by(BankTransaction.owner_label.asc())
+            .all()
+        )
+        owner_options = []
+        for o in owners:
+            label = o[0]
+            if not label:
+                continue
+            label = _normalize_owner_label(label) or label
+            if label not in owner_options:
+                owner_options.append(label)
+
+    except Exception:
+        statements = []
+        transactions = []
+        pagination = None
+        owner_options = []
+        month = start_date_str = end_date_str = tx_type = owner = ''
+        ref_query = ''
+        page = 1
+        per_page = 30
+
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest' and request.args.get('partial') == 'table':
+        return render_template(
+            'finance/statement/_uob_tx_table.html',
+            transactions=transactions,
+            pagination=pagination,
+            page_endpoint='statement_routes.ocbc_bank',
+            filters={
+                'month': month,
+                'start_date': start_date_str,
+                'end_date': end_date_str,
+                'type': tx_type,
+                'owner': owner,
+                'ref': ref_query,
+                'page': page,
+                'per_page': per_page
+            }
+        )
+
+    return render_template(
+        'finance/statement/OcbcBank.html',
+        statements=statements,
+        transactions=transactions,
+        pagination=pagination,
+        owner_options=owner_options,
+        page_endpoint='statement_routes.ocbc_bank',
+        filters={
+            'month': month,
+            'start_date': start_date_str,
+            'end_date': end_date_str,
+            'type': tx_type,
+            'owner': owner,
+            'ref': ref_query,
+            'page': page,
+            'per_page': per_page
+        }
+    )
 
 
 @statement_blue.route('/open_ocbc_statement_folder', methods=['GET', 'POST'])
@@ -648,7 +1345,13 @@ def ocbc_bank_processing():
     if request.method == 'GET':
         return redirect(url_for('statement_routes.ocbc_bank'))
     folder_path = Path(Config.BILLING_DATA_PATH) / "OCBC"
-    flash('OCBC账单整理功能尚未实现')
+    try:
+        created, updated = _upsert_ocbc_statement_and_transactions(folder_path)
+        if isinstance(created, tuple):
+            created, updated = created
+        flash(f'OCBC账单入库完成，新建 {created or 0} 条，更新 {updated or 0} 条')
+    except Exception as e:
+        flash(f'OCBC账单入库失败：{str(e)}', 'error')
     return redirect(url_for('statement_routes.ocbc_bank'))
 
 
@@ -697,7 +1400,157 @@ def ocbc_to_company():
 @login_required
 @staff_only
 def cmb_bank():
-    return render_template('statement/CmbBank.html')
+    # 展示CMB银行的对账单与交易，支持筛选（参考UOB实现）
+    try:
+        # 最近对账单（CMB）
+        statements = (
+            BankStatement.query
+            .filter(BankStatement.bank_name.ilike('%CMB%'))
+            .order_by(BankStatement.created_at.desc())
+            .limit(10)
+            .all()
+        )
+
+        # 读取筛选参数
+        month = request.args.get('month', '').strip()
+        start_date_str = request.args.get('start_date', '').strip()
+        end_date_str = request.args.get('end_date', '').strip()
+        tx_type = request.args.get('type', '').strip()  # 'debit' / 'credit'
+        owner = request.args.get('owner', '').strip()   # owner_label
+        ref_query = request.args.get('ref', '').strip() # accounting_ref 模糊
+        page = request.args.get('page', 1, type=int)
+        per_page = 30
+
+        # 构建交易查询
+        tx_query = (
+            BankTransaction.query
+            .join(BankStatement, BankTransaction.statement_id == BankStatement.id)
+            .filter(BankStatement.bank_name.ilike('%CMB%'))
+        )
+
+        # 按月份筛选（YYYY-MM）
+        from datetime import date
+        if month:
+            try:
+                year, mon = month.split('-')
+                year = int(year); mon = int(mon)
+                start_month = date(year, mon, 1)
+                if mon == 12:
+                    next_month = date(year + 1, 1, 1)
+                else:
+                    next_month = date(year, mon + 1, 1)
+                tx_query = tx_query.filter(
+                    BankTransaction.transaction_date >= start_month,
+                    BankTransaction.transaction_date < next_month
+                )
+            except Exception:
+                pass
+
+        # 按日期范围筛选
+        from datetime import datetime as _dt
+        if start_date_str:
+            try:
+                sd = _dt.strptime(start_date_str, '%Y-%m-%d').date()
+                tx_query = tx_query.filter(BankTransaction.transaction_date >= sd)
+            except Exception:
+                pass
+        if end_date_str:
+            try:
+                ed = _dt.strptime(end_date_str, '%Y-%m-%d').date()
+                tx_query = tx_query.filter(BankTransaction.transaction_date <= ed)
+            except Exception:
+                pass
+
+        # 类型筛选
+        if tx_type in ('debit', 'credit'):
+            tx_query = tx_query.filter(BankTransaction.transaction_type == tx_type)
+
+        # 归属筛选
+        if owner:
+            if owner == '__blank__':
+                tx_query = tx_query.filter(
+                    (BankTransaction.owner_label.is_(None)) | (BankTransaction.owner_label == '')
+                )
+            elif owner in ('个人商用', '个人商务'):
+                tx_query = tx_query.filter(BankTransaction.owner_label.in_(['个人商用', '个人商务']))
+            else:
+                tx_query = tx_query.filter(BankTransaction.owner_label == owner)
+
+        # REF/EO 模糊筛选（accounting_ref）
+        if ref_query:
+            tx_query = tx_query.filter(BankTransaction.accounting_ref.ilike(f"%{ref_query}%"))
+
+        pagination = tx_query.order_by(
+            BankTransaction.transaction_date.desc(), BankTransaction.id.desc()
+        ).paginate(page=page, per_page=per_page, error_out=False)
+        transactions = pagination.items
+
+        # 归属下拉选项（去重）
+        owners = (
+            db.session.query(BankTransaction.owner_label)
+            .join(BankStatement, BankTransaction.statement_id == BankStatement.id)
+            .filter(BankStatement.bank_name.ilike('%CMB%'))
+            .filter(BankTransaction.owner_label.isnot(None))
+            .distinct()
+            .order_by(BankTransaction.owner_label.asc())
+            .all()
+        )
+        owner_options = []
+        for o in owners:
+            label = o[0]
+            if not label:
+                continue
+            label = _normalize_owner_label(label) or label
+            if label not in owner_options:
+                owner_options.append(label)
+
+    except Exception:
+        statements = []
+        transactions = []
+        pagination = None
+        owner_options = []
+        month = start_date_str = end_date_str = tx_type = owner = ''
+        ref_query = ''
+        page = 1
+        per_page = 30
+
+    # AJAX 部分渲染
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest' and request.args.get('partial') == 'table':
+        return render_template(
+            'finance/statement/_uob_tx_table.html',
+            transactions=transactions,
+            pagination=pagination,
+            page_endpoint='statement_routes.cmb_bank',
+            filters={
+                'month': month,
+                'start_date': start_date_str,
+                'end_date': end_date_str,
+                'type': tx_type,
+                'owner': owner,
+                'ref': ref_query,
+                'page': page,
+                'per_page': per_page
+            }
+        )
+
+    return render_template(
+        'finance/statement/CmbBank.html',
+        statements=statements,
+        transactions=transactions,
+        pagination=pagination,
+        owner_options=owner_options,
+        page_endpoint='statement_routes.cmb_bank',
+        filters={
+            'month': month,
+            'start_date': start_date_str,
+            'end_date': end_date_str,
+            'type': tx_type,
+            'owner': owner,
+            'ref': ref_query,
+            'page': page,
+            'per_page': per_page
+        }
+    )
 
 
 @statement_blue.route('/open_cmb_statement_folder', methods=['GET', 'POST'])
@@ -731,7 +1584,13 @@ def cmb_bank_processing():
     if request.method == 'GET':
         return redirect(url_for('statement_routes.cmb_bank'))
     folder_path = Path(Config.BILLING_DATA_PATH) / "CMB"
-    flash('招商银行账单整理功能尚未实现')
+    try:
+        created, updated = _upsert_cmb_statement_and_transactions(folder_path)
+        if isinstance(created, tuple):
+            created, updated = created
+        flash(f'招商银行账单入库完成，新建 {created or 0} 条，更新 {updated or 0} 条')
+    except Exception as e:
+        flash(f'招商银行账单入库失败：{str(e)}', 'error')
     return redirect(url_for('statement_routes.cmb_bank'))
 
 

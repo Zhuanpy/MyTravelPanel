@@ -1,5 +1,6 @@
+{% set endpoint = page_endpoint|default('statement_routes.uob_bank') %}
 {% macro page_url(p) -%}
-{{ url_for('statement_routes.uob_bank', page=p, month=filters.month, start_date=filters.start_date, end_date=filters.end_date, type=filters.type, owner=filters.owner, ref=filters.ref, partial='table') }}
+{{ url_for(endpoint, page=p, month=filters.month, start_date=filters.start_date, end_date=filters.end_date, type=filters.type, owner=filters.owner, ref=filters.ref, partial='table') }}
 {%- endmacro %}
 
 <div class="table-responsive">
@@ -7,6 +8,7 @@
         <thead>
             <tr>
                 <th>日期</th>
+                <th>记账日期</th>
                 <th>类型</th>
                 <th>金额</th>
                 <th>余额</th>
@@ -21,6 +23,7 @@
             {% for t in transactions %}
             <tr>
                 <td>{{ t.transaction_date }}</td>
+                <td>{{ t.post_date or '-' }}</td>
                 <td>{{ '支出' if t.transaction_type=='debit' else '收入' }}</td>
                 <td>{{ '%.2f'|format(t.amount) }}</td>
                 <td>{{ '%.2f'|format(t.balance) if t.balance is not none else '-' }}</td>
@@ -44,7 +47,7 @@
                 </td>
             </tr>
             {% else %}
-            <tr><td colspan="9" class="text-center text-muted">暂无交易</td></tr>
+            <tr><td colspan="10" class="text-center text-muted">暂无交易</td></tr>
             {% endfor %}
         </tbody>
     </table>

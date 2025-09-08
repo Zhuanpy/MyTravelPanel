@@ -86,6 +86,7 @@ class BankTransaction(db.Model):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     statement_id = db.Column(db.Integer, db.ForeignKey('bank_statements.id'), nullable=False, comment='对账单ID')
     transaction_date = db.Column(db.Date, nullable=False, comment='交易日期')
+    post_date = db.Column(db.Date, nullable=True, comment='记账日期(Post Date)')
     transaction_id = db.Column(db.String(100), nullable=True, comment='银行交易流水号')
     
     # 交易信息
@@ -137,6 +138,7 @@ class BankTransaction(db.Model):
             'id': self.id,
             'statement_id': self.statement_id,
             'transaction_date': self.transaction_date.isoformat() if self.transaction_date else None,
+            'post_date': self.post_date.isoformat() if self.post_date else None,
             'transaction_id': self.transaction_id,
             'transaction_type': self.transaction_type,
             'amount': float(self.amount) if self.amount else 0,

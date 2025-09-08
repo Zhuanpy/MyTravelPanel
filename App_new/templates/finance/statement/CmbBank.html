@@ -6,11 +6,7 @@
 
 {% block extra_css %}
 <style>
-    .bank-statement-container {
-        max-width: 900px;
-        margin: 0 auto;
-        padding: 20px;
-    }
+    .bank-statement-container { width: 100%; max-width: none; margin: 0; padding: 20px; }
     
     .bank-statement-header {
         text-align: center;
@@ -93,6 +89,40 @@
         color: #856404;
         border: 1px solid #ffeeba;
     }
+
+    /* 固定交易表格列宽，避免编辑时跳动（与 UOB 保持一致） */
+    #txTable { table-layout: fixed; width: 100%; }
+    #txTable th, #txTable td { text-align: center; vertical-align: middle; }
+    /* 1x: 8.333% */
+    #txTable th:nth-child(1), #txTable td:nth-child(1), /* 日期 */
+    #txTable th:nth-child(2), #txTable td:nth-child(2), /* 类型 */
+    #txTable th:nth-child(3), #txTable td:nth-child(3), /* 金额 */
+    #txTable th:nth-child(4), #txTable td:nth-child(4), /* 余额 */
+    #txTable th:nth-child(6), #txTable td:nth-child(6), /* 关键词 */
+    #txTable th:nth-child(7), #txTable td:nth-child(7), /* 归属 */
+    #txTable th:nth-child(8), #txTable td:nth-child(8)  /* REF/EO */
+    { width: 8.333%; }
+
+    /* 2x: 16.666% （摘要、备注）*/
+    #txTable th:nth-child(5), #txTable td:nth-child(5),
+    #txTable th:nth-child(9), #txTable td:nth-child(9)
+    { width: 16.666%; vertical-align: top; }
+
+    /* 输入类控件占满单元格且不在 focus 时增大尺寸 */
+    #txTable .tx-input,
+    #txTable .tx-remarks,
+    #txTable select.tx-input {
+        width: 100%;
+        min-width: 0;
+        max-width: 100%;
+        box-sizing: border-box;
+    }
+    #txTable .tx-remarks { height: 48px; resize: vertical; }
+    #txTable .tx-input:focus,
+    #txTable .tx-remarks:focus { box-shadow: none; outline: 0; }
+    /* 文本列保持左对齐，避免折行导致跳动 */
+    #txTable td:nth-child(5) { white-space: normal; word-break: break-word; overflow: visible; text-align: left; }
+    #txTable td:nth-child(6) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
 </style>
 {% endblock %}
 
@@ -115,35 +145,74 @@
     
     <div class="bank-statement-card">
         <h2 class="bank-statement-section-title">账单文件操作</h2>
-        
         <div class="bank-statement-btn-row">
             <form action="{{ url_for('statement_routes.open_cmb_statement_folder') }}" method="post">
-                <button type="submit" class="bank-statement-btn">
-                    <i class="fas fa-folder-open"></i> 打开账单文件夹
-                </button>
+                <button type="submit" class="bank-statement-btn"><i class="fas fa-folder-open"></i> 打开账单文件夹</button>
+            </form>
+            <form action="{{ url_for('statement_routes.cmb_bank_processing') }}" method="post">
+                <button type="submit" class="bank-statement-btn"><i class="fas fa-cogs"></i> 入库最新账单</button>
             </form>
         </div>
-        
         <div class="bank-statement-note">
-            <p><i class="fas fa-info-circle"></i> 请确保账单文件已下载并保存在正确的文件夹中</p>
+            <p><i class="fas fa-info-circle"></i> 将最新 .xls/.xlsx 放在 CMB 文件夹后，点击“入库最新账单”</p>
         </div>
     </div>
     
     <div class="bank-statement-card">
-        <h2 class="bank-statement-section-title">账单处理操作</h2>
-        
-        <div class="bank-statement-btn-row">
-            <form action="{{ url_for('statement_routes.cmb_bank_processing') }}" method="post">
-                <button type="submit" class="bank-statement-btn">
-                    <i class="fas fa-cogs"></i> 处理账单
-                </button>
-            </form>
-            
-            <form action="{{ url_for('statement_routes.cmb_original_processing') }}" method="post">
-                <button type="submit" class="bank-statement-btn">
-                    <i class="fas fa-file-alt"></i> 整理原始账单
-                </button>
-            </form>
+        <h2 class="bank-statement-section-title">交易筛选</h2>
+        <form method="get" action="{{ url_for('statement_routes.cmb_bank') }}" class="mb-3">
+            <div class="bank-statement-btn-row" style="align-items: flex-end;">
+                <div>
+                    <label class="form-label">月份</label>
+                    <input type="month" class="form-control" name="month" value="{{ filters.month or '' }}">
+                </div>
+                <div>
+                    <label class="form-label">开始日期</label>
+                    <input type="date" class="form-control" name="start_date" value="{{ filters.start_date or '' }}">
+                </div>
+                <div>
+                    <label class="form-label">结束日期</label>
+                    <input type="date" class="form-control" name="end_date" value="{{ filters.end_date or '' }}">
+                </div>
+                <div>
+                    <label class="form-label">类型</label>
+                    <select class="form-select" name="type">
+                        <option value="">全部</option>
+                        <option value="debit" {% if filters.type=='debit' %}selected{% endif %}>支出</option>
+                        <option value="credit" {% if filters.type=='credit' %}selected{% endif %}>收入</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="form-label">归属</label>
+                    <select class="form-select" name="owner">
+                        <option value="">全部</option>
+                        <option value="__blank__" {% if filters.owner=='__blank__' %}selected{% endif %}>空白/未设置</option>
+                        <option value="Business" {% if filters.owner=='Business' %}selected{% endif %}>Business</option>
+                        <option value="LG" {% if filters.owner=='LG' %}selected{% endif %}>LG</option>
+                        <option value="JE" {% if filters.owner=='JE' %}selected{% endif %}>JE</option>
+                        <option value="个人消费" {% if filters.owner=='个人消费' %}selected{% endif %}>个人消费</option>
+                        <option value="个人商用" {% if filters.owner in ['个人商用','个人商务'] %}selected{% endif %}>个人商用</option>
+                        {% set fixed = ['Business','LG','JE','个人消费','个人商用','个人商务'] %}
+                        {% for o in owner_options %}
+                        {% if o not in fixed %}
+                        <option value="{{ o }}" {% if filters.owner==o %}selected{% endif %}>{{ '个人商用' if o=='个人商务' else o }}</option>
+                        {% endif %}
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="form-label">REF/EO</label>
+                    <input type="text" class="form-control" name="ref" value="{{ filters.ref or '' }}" placeholder="输入REF或EO编号">
+                </div>
+                <div>
+                    <button type="submit" class="btn btn-primary">筛选</button>
+                    <a href="{{ url_for('statement_routes.cmb_bank') }}" class="btn btn-secondary">重置</a>
+                </div>
+            </div>
+        </form>
+
+        <div id="cmb-tx-table" data-partial-url="{{ url_for('statement_routes.cmb_bank', partial='table') }}">
+            {% include 'finance/statement/_uob_tx_table.html' with context %}
         </div>
     </div>
     
@@ -175,4 +244,96 @@
         </div>
     </div>
 </div>
-{% endblock %} 
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const container = document.getElementById('cmb-tx-table');
+    if (!container) return;
+
+    const form = document.querySelector('form[action*="cmb_bank"][method="get"]');
+    const baseUrl = container.getAttribute('data-partial-url');
+
+    const buildUrl = () => {
+        const params = new URLSearchParams(new FormData(form));
+        params.set('partial', 'table');
+        return baseUrl + (baseUrl.includes('?') ? '&' : '?') + params.toString();
+    };
+
+    const loadTable = async (url) => {
+        try {
+            const res = await fetch(url || buildUrl(), { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+            const html = await res.text();
+            container.innerHTML = html;
+        } catch (err) {
+            console.warn('CMB 表格加载失败');
+        }
+    };
+
+    // 拦截筛选提交
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            loadTable();
+        });
+    }
+
+    // 拦截分页
+    container.addEventListener('click', function(e) {
+        const link = e.target.closest('a.page-link');
+        if (!link) return;
+        e.preventDefault();
+        loadTable(link.href);
+    });
+
+    // 行内编辑保存（归属/REF-EO/备注）
+    const saveTxField = async (inputEl) => {
+        if (!inputEl) return;
+        const row = inputEl.closest('tr');
+        const txId = inputEl.getAttribute('data-tx-id');
+        if (!row || !txId) return;
+        const refInput = row.querySelector('[data-field="accounting_ref"]');
+        const ownerInput = row.querySelector('[data-field="owner_label"]');
+        const remarksInput = row.querySelector('textarea[data-field="remarks"]');
+        const payload = {
+            tx_id: txId,
+            accounting_ref: refInput ? refInput.value.trim() : '',
+            owner_label: ownerInput ? ownerInput.value.trim() : '',
+            remarks: remarksInput ? remarksInput.value.trim() : ''
+        };
+        try {
+            const resp = await fetch("{{ url_for('statement_routes.uob_tx_update') }}", {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await resp.json();
+            if (!data.success) {
+                inputEl.classList.add('is-invalid');
+            } else {
+                inputEl.classList.remove('is-invalid');
+                inputEl.classList.add('is-valid');
+                setTimeout(() => inputEl.classList.remove('is-valid'), 1200);
+            }
+        } catch (err) {
+            inputEl.classList.add('is-invalid');
+        }
+    };
+
+    document.addEventListener('focusout', function(e) {
+        const el = e.target.closest('.tx-input, .tx-remarks');
+        if (!el || !container.contains(el)) return;
+        saveTxField(el);
+    });
+    document.addEventListener('change', function(e) {
+        const el = e.target.closest('.tx-input');
+        if (!el || !container.contains(el)) return;
+        saveTxField(el);
+    });
+    document.addEventListener('keypress', function(e) {
+        const el = e.target.closest('.tx-input');
+        if (!el || !container.contains(el)) return;
+        if (e.key === 'Enter') { e.preventDefault(); el.blur(); }
+    });
+});
+</script>
+{% endblock %}

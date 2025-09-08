@@ -6,11 +6,23 @@
 
 {% block extra_css %}
 <style>
-    .bank-statement-container {
-        max-width: 900px;
-        margin: 0 auto;
-        padding: 20px;
-    }
+    .bank-statement-container { width: 100%; max-width: none; margin: 0; padding: 20px; }
+    /* 统一表格与输入宽度，避免跳动 */
+    #txTable { table-layout: fixed; width: 100%; }
+    #txTable th, #txTable td { text-align: center; vertical-align: middle; }
+    #txTable th:nth-child(1), #txTable td:nth-child(1),
+    #txTable th:nth-child(2), #txTable td:nth-child(2),
+    #txTable th:nth-child(3), #txTable td:nth-child(3),
+    #txTable th:nth-child(4), #txTable td:nth-child(4),
+    #txTable th:nth-child(6), #txTable td:nth-child(6),
+    #txTable th:nth-child(7), #txTable td:nth-child(7),
+    #txTable th:nth-child(8), #txTable td:nth-child(8) { width: 8.333%; }
+    #txTable th:nth-child(5), #txTable td:nth-child(5),
+    #txTable th:nth-child(9), #txTable td:nth-child(9) { width: 16.666%; vertical-align: top; }
+    #txTable .tx-input, #txTable .tx-remarks, #txTable select.tx-input { width: 100%; min-width: 0; max-width: 100%; box-sizing: border-box; }
+    #txTable .tx-remarks { height: 48px; resize: vertical; }
+    #txTable td:nth-child(5) { white-space: normal; word-break: break-word; overflow: visible; text-align: left; }
+    #txTable td:nth-child(6) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
     
     .bank-statement-header {
         text-align: center;
@@ -130,20 +142,57 @@
     </div>
     
     <div class="bank-statement-card">
-        <h2 class="bank-statement-section-title">账单处理操作</h2>
-        
+        <h2 class="bank-statement-section-title">账单处理 / 交易筛选</h2>
         <div class="bank-statement-btn-row">
             <form action="{{ url_for('statement_routes.ocbc_bank_processing') }}" method="post">
-                <button type="submit" class="bank-statement-btn">
-                    <i class="fas fa-cogs"></i> 处理账单
-                </button>
+                <button type="submit" class="bank-statement-btn"><i class="fas fa-cogs"></i> 入库最新账单</button>
             </form>
-            
-            <form action="{{ url_for('statement_routes.ocbc_original_processing') }}" method="post">
-                <button type="submit" class="bank-statement-btn">
-                    <i class="fas fa-file-alt"></i> 整理原始账单
-                </button>
-            </form>
+        </div>
+        <form method="get" action="{{ url_for('statement_routes.ocbc_bank') }}" class="mb-3">
+            <div class="bank-statement-btn-row" style="align-items: flex-end;">
+                <div>
+                    <label class="form-label">月份</label>
+                    <input type="month" class="form-control" name="month" value="{{ filters.month or '' }}">
+                </div>
+                <div>
+                    <label class="form-label">开始日期</label>
+                    <input type="date" class="form-control" name="start_date" value="{{ filters.start_date or '' }}">
+                </div>
+                <div>
+                    <label class="form-label">结束日期</label>
+                    <input type="date" class="form-control" name="end_date" value="{{ filters.end_date or '' }}">
+                </div>
+                <div>
+                    <label class="form-label">类型</label>
+                    <select class="form-select" name="type">
+                        <option value="">全部</option>
+                        <option value="debit" {% if filters.type=='debit' %}selected{% endif %}>支出</option>
+                        <option value="credit" {% if filters.type=='credit' %}selected{% endif %}>收入</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="form-label">归属</label>
+                    <select class="form-select" name="owner">
+                        <option value="">全部</option>
+                        <option value="__blank__" {% if filters.owner=='__blank__' %}selected{% endif %}>空白/未设置</option>
+                        <option value="Business" {% if filters.owner=='Business' %}selected{% endif %}>Business</option>
+                        {% for o in owner_options %}
+                        <option value="{{ o }}" {% if filters.owner==o %}selected{% endif %}>{{ '个人商用' if o=='个人商务' else o }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="form-label">REF/EO</label>
+                    <input type="text" class="form-control" name="ref" value="{{ filters.ref or '' }}" placeholder="输入REF或EO编号">
+                </div>
+                <div>
+                    <button type="submit" class="btn btn-primary">筛选</button>
+                    <a href="{{ url_for('statement_routes.ocbc_bank') }}" class="btn btn-secondary">重置</a>
+                </div>
+            </div>
+        </form>
+        <div id="ocbc-tx-table" data-partial-url="{{ url_for('statement_routes.ocbc_bank', partial='table') }}">
+            {% include 'finance/statement/_uob_tx_table.html' with context %}
         </div>
     </div>
     
