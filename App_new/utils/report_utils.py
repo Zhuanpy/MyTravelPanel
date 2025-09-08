@@ -4,7 +4,7 @@
 """
 
 import pandas as pd
-from App.config import Config
+from App_new.config import Config
 import tempfile
 import os
 
