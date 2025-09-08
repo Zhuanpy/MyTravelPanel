@@ -6,8 +6,8 @@ from typing import Tuple, Optional, List
 
 from xlwt.ExcelMagic import ptgInt
 
-from App.config import Config
-from App.utils.report_utils import get_report_headers
+# 避免引入旧架构的 App 模块导致服务器无图形依赖
+from App_new.utils.report_utils import get_report_headers
 
 # 设置pandas显示选项
 pd.set_option('display.max_columns', None)
