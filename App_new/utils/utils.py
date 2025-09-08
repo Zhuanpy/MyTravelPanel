@@ -1,6 +1,9 @@
 import time
 import pymysql
-import pyautogui
+try:
+    import pyautogui  # 在无图形环境（Linux服务器）可能不可用
+except Exception:
+    pyautogui = None
 import datetime
 import os
 
@@ -74,7 +77,10 @@ def take_screenshot(save_path="screenshots"):
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     screenshot_filename = os.path.join(save_path, f"screenshot_{timestamp}.png")
 
-    # 截图并保存
+    # 截图并保存（无GUI环境时跳过）
+    if pyautogui is None:
+        print("pyautogui 不可用：服务器可能无图形环境，已跳过截图。")
+        return None
     screenshot = pyautogui.screenshot()
     screenshot.save(screenshot_filename)
 
