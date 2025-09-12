@@ -7,22 +7,29 @@
 {% block extra_css %}
 <style>
     .bank-statement-container { width: 100%; max-width: none; margin: 0; padding: 20px; }
-    /* 统一表格与输入宽度，避免跳动 */
+    /* 列宽度调整：7个字段等宽，3个字段更宽 */
     #txTable { table-layout: fixed; width: 100%; }
     #txTable th, #txTable td { text-align: center; vertical-align: middle; }
-    #txTable th:nth-child(1), #txTable td:nth-child(1),
-    #txTable th:nth-child(2), #txTable td:nth-child(2),
-    #txTable th:nth-child(3), #txTable td:nth-child(3),
-    #txTable th:nth-child(4), #txTable td:nth-child(4),
-    #txTable th:nth-child(6), #txTable td:nth-child(6),
-    #txTable th:nth-child(7), #txTable td:nth-child(7),
-    #txTable th:nth-child(8), #txTable td:nth-child(8) { width: 8.333%; }
-    #txTable th:nth-child(5), #txTable td:nth-child(5),
-    #txTable th:nth-child(9), #txTable td:nth-child(9) { width: 16.666%; vertical-align: top; }
+    
+    /* 等宽字段：日期、记账日期、类型、金额、余额、归属、REF/EO (7个字段，每个约9.5%) */
+    #txTable th:nth-child(1), #txTable td:nth-child(1), /* 日期 */
+    #txTable th:nth-child(2), #txTable td:nth-child(2), /* 记账日期 */
+    #txTable th:nth-child(3), #txTable td:nth-child(3), /* 类型 */
+    #txTable th:nth-child(4), #txTable td:nth-child(4), /* 金额 */
+    #txTable th:nth-child(5), #txTable td:nth-child(5), /* 余额 */
+    #txTable th:nth-child(8), #txTable td:nth-child(8), /* 归属 */
+    #txTable th:nth-child(9), #txTable td:nth-child(9)  /* REF/EO */
+    { width: 9.5%; }
+
+    /* 更宽字段：摘要、关键词、备注 (3个字段，每个约21.5%) */
+    #txTable th:nth-child(6), #txTable td:nth-child(6), /* 摘要 */
+    #txTable th:nth-child(7), #txTable td:nth-child(7), /* 关键词 */
+    #txTable th:nth-child(10), #txTable td:nth-child(10) /* 备注 */
+    { width: 21.5%; vertical-align: top; }
     #txTable .tx-input, #txTable .tx-remarks, #txTable select.tx-input { width: 100%; min-width: 0; max-width: 100%; box-sizing: border-box; }
     #txTable .tx-remarks { height: 48px; resize: vertical; }
-    #txTable td:nth-child(5) { white-space: normal; word-break: break-word; overflow: visible; text-align: left; }
-    #txTable td:nth-child(6) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
+    #txTable td:nth-child(6) { white-space: normal; word-break: break-word; overflow: visible; text-align: left; }
+    #txTable td:nth-child(7) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
     
     .bank-statement-header {
         text-align: center;

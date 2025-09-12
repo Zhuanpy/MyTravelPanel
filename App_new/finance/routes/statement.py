@@ -241,8 +241,36 @@ def open_cmb_statement_folder():
 def cmb_bank_processing():
     if request.method == 'GET':
         return redirect(url_for('statement_routes.cmb_bank'))
-    folder_path = Config.BILLING_DATA_PATH / "CMB"
-    flash('招商银行账单整理功能尚未实现')
+    
+    try:
+        folder_path = Config.BILLING_DATA_PATH / "CMB"
+        
+        # 检查文件夹是否存在
+        if not folder_path.exists():
+            folder_path.mkdir(parents=True, exist_ok=True)
+            flash('CMB文件夹不存在，已自动创建', 'info')
+        
+        # 导入招商银行处理类
+        from App_new.utils.CmbStatement import CmbStatement
+        
+        # 处理账单
+        cmb_processor = CmbStatement(str(folder_path))
+        output_file = cmb_processor.statement_process()
+        
+        # 获取摘要信息
+        summary = cmb_processor.get_statement_summary()
+        
+        if summary:
+            flash(f'招商银行账单处理完成！共处理 {summary["total_transactions"]} 笔交易，总金额: {summary["total_amount"]:.2f} CNY', 'success')
+        else:
+            flash('招商银行账单处理完成！', 'success')
+            
+    except FileNotFoundError as e:
+        flash(f'未找到账单文件：{str(e)}', 'error')
+    except Exception as e:
+        logger.error(f"招商银行账单处理失败: {str(e)}")
+        flash(f'账单处理失败：{str(e)}', 'error')
+    
     return redirect(url_for('statement_routes.cmb_bank'))
 
 

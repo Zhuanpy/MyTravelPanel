@@ -1,0 +1,20 @@
+/* 桌面端样式：更宽的布局与悬浮动效 */
+
+/* 容器最大宽度适中以便内容舒展 */
+.container{
+  max-width: 1200px;
+}
+
+/* 签证卡片：桌面端更大缩略图 */
+.visa-grid .visa-thumb{ height: 160px; }
+.visa-grid .visa-card{ transition: transform .2s ease, box-shadow .2s ease; }
+.visa-grid .visa-card:hover{ transform: translateY(-3px); box-shadow: 0 10px 30px rgba(0,0,0,.12); }
+
+/* 文案字号稍大 */
+.visa-grid .visa-country{ font-size: 1.1rem; }
+.visa-grid .visa-meta{ font-size: .95rem; }
+
+/* 顶部英雄区：桌面留白更大 */
+.hero-section{ padding: 100px 0; }
+
+

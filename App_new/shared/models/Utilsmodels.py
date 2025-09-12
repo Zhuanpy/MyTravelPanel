@@ -56,13 +56,16 @@ class Todo(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     priority = db.Column(db.Integer, default=2)  # 1=高，2=中，3=低
     user_id = db.Column(db.Integer, db.ForeignKey('auth_users.id'), nullable=True)
+    # 分类（类型）
+    category = db.Column(db.String(50), nullable=True)
 
-    def __init__(self, title, description=None, due_date=None, priority=2, user_id=None):
+    def __init__(self, title, description=None, due_date=None, priority=2, user_id=None, category=None):
         self.title = title
         self.description = description
         self.due_date = due_date
         self.priority = priority
         self.user_id = user_id
+        self.category = category
 
     def to_dict(self):
         """将模型转换为字典"""
@@ -75,18 +78,20 @@ class Todo(db.Model):
             'created_at': self.created_at.isoformat(),
             'updated_at': self.updated_at.isoformat(),
             'priority': self.priority,
-            'user_id': self.user_id
+            'user_id': self.user_id,
+            'category': self.category
         }
 
     @classmethod
-    def create(cls, title, description=None, due_date=None, priority=2, user_id=None):
+    def create(cls, title, description=None, due_date=None, priority=2, user_id=None, category=None):
         """创建新的待办事项"""
         todo = cls(
             title=title,
             description=description,
             due_date=due_date,
             priority=priority,
-            user_id=user_id
+            user_id=user_id,
+            category=category
         )
         db.session.add(todo)
         db.session.commit()

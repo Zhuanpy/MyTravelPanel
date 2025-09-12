@@ -61,26 +61,28 @@
         resize: vertical;
     }
 
-    /* 列宽度：8列为1x，2列为2x（总计12份） */
+    /* 列宽度调整：7个字段等宽，3个字段更宽 */
     #txTable { table-layout: fixed; width: 100%; }
     #txTable th, #txTable td { text-align: center; vertical-align: middle; }
-    /* 1x: 8.333% */
+    
+    /* 等宽字段：日期、记账日期、类型、金额、余额、归属、REF/EO (7个字段，每个约9.5%) */
     #txTable th:nth-child(1), #txTable td:nth-child(1), /* 日期 */
-    #txTable th:nth-child(2), #txTable td:nth-child(2), /* 类型 */
-    #txTable th:nth-child(3), #txTable td:nth-child(3), /* 金额 */
-    #txTable th:nth-child(4), #txTable td:nth-child(4), /* 余额 */
-    #txTable th:nth-child(6), #txTable td:nth-child(6), /* REF/EO */
-    #txTable th:nth-child(7), #txTable td:nth-child(7), /* 关键词 */
-    #txTable th:nth-child(8), #txTable td:nth-child(8)  /* 归属 */
-    { width: 8.333%; }
+    #txTable th:nth-child(2), #txTable td:nth-child(2), /* 记账日期 */
+    #txTable th:nth-child(3), #txTable td:nth-child(3), /* 类型 */
+    #txTable th:nth-child(4), #txTable td:nth-child(4), /* 金额 */
+    #txTable th:nth-child(5), #txTable td:nth-child(5), /* 余额 */
+    #txTable th:nth-child(8), #txTable td:nth-child(8), /* 归属 */
+    #txTable th:nth-child(9), #txTable td:nth-child(9)  /* REF/EO */
+    { width: 9.5%; }
 
-    /* 2x: 16.666% （摘要、备注）*/
-    #txTable th:nth-child(5), #txTable td:nth-child(5),
-    #txTable th:nth-child(9), #txTable td:nth-child(9)
-    { width: 16.666%; vertical-align: top; }
+    /* 更宽字段：摘要、关键词、备注 (3个字段，每个约21.5%) */
+    #txTable th:nth-child(6), #txTable td:nth-child(6), /* 摘要 */
+    #txTable th:nth-child(7), #txTable td:nth-child(7), /* 关键词 */
+    #txTable th:nth-child(10), #txTable td:nth-child(10) /* 备注 */
+    { width: 21.5%; vertical-align: top; }
 
     /* 摘要列多行换行显示且内容居左 */
-    #txTable td:nth-child(5) { white-space: normal; word-break: break-word; overflow: visible; text-align: left; }
+    #txTable td:nth-child(6) { white-space: normal; word-break: break-word; overflow: visible; text-align: left; }
     #txTable td.summary-cell { cursor: pointer; }
     /* 关键词列避免溢出，内容居左 */
     #txTable td:nth-child(7) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
@@ -239,51 +241,34 @@
 
     <!-- 完整进程 -->
     <div class="uob-section">
-        <p>完整进程</p>
+        <p>账单文件操作</p>
         <div class="uob-button-group">
-            <form action="{{ url_for('statement_routes.uob_bank_processing') }}" method="post">
+            <!-- <form action="{{ url_for('statement_routes.uob_bank_processing') }}" method="post">
                 <button type="submit" class="uob-button">账单整理</button>
+            </form> -->
+            <form action="{{ url_for('statement_routes.open_uob_statement_folder') }}" method="post">
+                <button type="submit" class="uob-button folder-btn">打开文件夹</button>
             </form>
+
             <form action="{{ url_for('statement_routes.uob_add_original') }}" method="post">
-                <button type="submit" class="uob-button">添加原始数据</button>
+                <button type="submit" class="uob-button">入库最新账单</button>
             </form>
-            <form action="{{ url_for('statement_routes.uob_analyze') }}" method="post">
+            <!-- <form action="{{ url_for('statement_routes.uob_analyze') }}" method="post">
                 <button type="submit" class="uob-button">分析数据</button>
-            </form>
+            </form> -->
         </div>
     </div>
 
-    <!-- 单项进程 -->
-    <div class="uob-section">
-        <p>单项进程</p>
-        <div class="uob-button-group">
-            <form action="{{ url_for('statement_routes.uob_original_processing') }}" method="post">
-                <button type="submit" class="uob-button">原始账单整理</button>
-            </form>
-            <form action="{{ url_for('statement_routes.latest_company_statement') }}" method="post">
-                <button type="submit" class="uob-button">公司账单整理</button>
-            </form>
-            <form action="{{ url_for('statement_routes.latest_self_statement') }}" method="post">
-                <button type="submit" class="uob-button">个人账单整理</button>
-            </form>
-            <form action="{{ url_for('statement_routes.statement_to_company') }}" method="post">
-                <button type="submit" class="uob-button">公司账单</button>
-            </form>
-            <form action="{{ url_for('statement_routes.latest_company_statement') }}" method="post">
-                <button type="submit" class="uob-button">最终公司账单</button>
-            </form>
-        </div>
-    </div>
 
     <!-- 打开项目文件 -->
-    <div class="uob-section"> 
+    <!-- <div class="uob-section"> 
         <p>打开项目文件</p>
         <div class="uob-button-group">
             <form action="{{ url_for('statement_routes.open_uob_statement_folder') }}" method="post">
                 <button type="submit" class="uob-button folder-btn">打开文件夹</button>
             </form>
         </div>
-    </div>
+    </div> -->
 
     <!-- 对账单概览 -->
     <div class="uob-section">

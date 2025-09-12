@@ -1,0 +1,133 @@
+{% extends 'staff_base.html' %}
+{% block title %}收据列表{% endblock %}
+{% block extra_css %}
+<style>
+  /* 窄屏优化：将表格转为卡片式堆叠显示 */
+  @media (max-width: 576px) {
+    .receipt-table thead { display: none; }
+    .receipt-table, .receipt-table tbody, .receipt-table tr, .receipt-table td {
+      display: block; width: 100%;
+    }
+    .receipt-table tr {
+      margin-bottom: 12px; border: 1px solid #eee; border-radius: 6px; padding: 6px 8px;
+      background: #fff;
+    }
+    .receipt-table td {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 6px 4px; border: none; border-bottom: 1px dashed #f0f0f0;
+    }
+    .receipt-table td:last-child { border-bottom: 0; }
+    .receipt-table td::before {
+      content: attr(data-label);
+      font-weight: 600; color: #6c757d; margin-right: 12px; flex: 0 0 auto;
+    }
+    /* 长文本在移动端允许换行 */
+    .receipt-remarks { white-space: normal !important; }
+  }
+</style>
+{% endblock %}
+{% block content %}
+<div class="container-fluid" style="max-width:none;">
+  <h3 class="mb-3">收据列表</h3>
+
+  <form class="row g-2 mb-3" method="get">
+    <div class="col-md-2">
+      <input class="form-control" name="keyword" placeholder="关键词(单号/公司/备注/HID/REF)" value="{{ current_filters.keyword or '' }}">
+    </div>
+    <div class="col-md-2">
+      <select class="form-select" name="status">
+        {% for v,lbl in statuses %}
+        <option value="{{ v }}" {% if current_filters.status==v %}selected{% endif %}>{{ lbl }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-2">
+      <select class="form-select" name="payment_method">
+        {% for v,lbl in payment_methods %}
+        <option value="{{ v }}" {% if current_filters.payment_method==v %}selected{% endif %}>{{ lbl }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-1">
+      <input class="form-control" name="currency" placeholder="币种" value="{{ current_filters.currency or '' }}">
+    </div>
+    <div class="col-md-1">
+      <input class="form-control" name="header_id" placeholder="项目ID" value="{{ current_filters.header_id or '' }}">
+    </div>
+    <div class="col-md-1">
+      <input class="form-control" name="ref_id" placeholder="REF ID" value="{{ current_filters.ref_id or '' }}">
+    </div>
+    <div class="col-md-1">
+      <input type="date" class="form-control" name="start_date" value="{{ current_filters.start_date or '' }}">
+    </div>
+    <div class="col-md-1">
+      <input type="date" class="form-control" name="end_date" value="{{ current_filters.end_date or '' }}">
+    </div>
+    <div class="col-md-1 d-grid">
+      <button class="btn btn-primary" type="submit">筛选</button>
+    </div>
+  </form>
+
+  <div class="table-responsive">
+    <table class="table table-striped table-hover receipt-table">
+      <thead>
+        <tr>
+          <th>收据号</th>
+          <th>项目(HID)</th>
+          <th>REF</th>
+          <th>金额</th>
+          <th>方式</th>
+          <th>日期</th>
+          <th>付款方</th>
+          <th>状态</th>
+          <th>交易号</th>
+          <th>备注</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in receipts %}
+        <tr>
+          <td data-label="收据号">{{ r.receipt_number }}</td>
+          <td data-label="项目(HID)">{{ r.project_hid }}<div class="text-muted small">{{ r.project_name }}</div></td>
+          <td data-label="REF">{{ r.ref_number or '-' }}</td>
+          <td data-label="金额">{{ r.currency }} {{ '%.2f'|format(r.amount) }}</td>
+          <td data-label="方式">{{ r.payment_method_display }}</td>
+          <td data-label="日期">{{ r.payment_date }}</td>
+          <td data-label="付款方">{{ r.payer_company or r.payer_name or '-' }}</td>
+          <td data-label="状态">{{ r.status_display }}</td>
+          <td data-label="交易号">{{ r.transaction_id or '-' }}</td>
+          <td data-label="备注" class="receipt-remarks" style="max-width:260px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="{{ r.remarks or '' }}">{{ r.remarks or '' }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="10" class="text-center text-muted">暂无数据</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if pagination %}
+  <nav aria-label="分页">
+    <ul class="pagination justify-content-center">
+      {% if pagination.has_prev %}
+      <li class="page-item"><a class="page-link" href="{{ url_for('business_projects.project_receipt.receipt_list', page=pagination.prev_num, **current_filters) }}">上一页</a></li>
+      {% endif %}
+      {% for p in pagination.iter_pages() %}
+        {% if p %}
+          {% if p == pagination.page %}
+            <li class="page-item active"><span class="page-link">{{ p }}</span></li>
+          {% else %}
+            <li class="page-item"><a class="page-link" href="{{ url_for('business_projects.project_receipt.receipt_list', page=p, **current_filters) }}">{{ p }}</a></li>
+          {% endif %}
+        {% else %}
+          <li class="page-item disabled"><span class="page-link">…</span></li>
+        {% endif %}
+      {% endfor %}
+      {% if pagination.has_next %}
+      <li class="page-item"><a class="page-link" href="{{ url_for('business_projects.project_receipt.receipt_list', page=pagination.next_num, **current_filters) }}">下一页</a></li>
+      {% endif %}
+    </ul>
+  </nav>
+  {% endif %}
+</div>
+{% endblock %}
+

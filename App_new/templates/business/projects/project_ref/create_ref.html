@@ -22,8 +22,9 @@
     <form method="post" action="{% if is_create %}{{ url_for('business_projects.project_ref.create_ref', header_id=header.id) }}{% else %}{{ url_for('business_projects.project_ref.edit_ref', ref_id=ref.id if ref else '') }}{% endif %}">
         {{ form.hidden_tag() }}
         
+        <!-- 第一行：REF编号，REF订单名称，出行人姓名 -->
         <div class="row">
-            <div class="col-md-6">
+            <div class="col-md-4">
                 <div class="mb-3">
                     {{ form.ref_number.label(class="form-label") }}
                     {{ form.ref_number(class="form-control", readonly=true) }}
@@ -35,10 +36,12 @@
                         </div>
                     {% endif %}
                 </div>
-                
+            </div>
+            
+            <div class="col-md-4">
                 <div class="mb-3">
                     {{ form.name.label(class="form-label") }}
-                    {{ form.name(class="form-control") }}
+                    {{ form.name(class="form-control", id="ref_name") }}
                     {% if form.name.errors %}
                         <div class="text-danger">
                             {% for error in form.name.errors %}
@@ -47,51 +50,16 @@
                         </div>
                     {% endif %}
                 </div>
-                
-                <div class="mb-3">
-                    {{ form.ref_type_id.label(class="form-label") }}
-                    {{ form.ref_type_id(class="form-select") }}
-                    {% if form.ref_type_id.errors %}
-                        <div class="text-danger">
-                            {% for error in form.ref_type_id.errors %}
-                                <small>{{ error }}</small>
-                            {% endfor %}
-                        </div>
-                    {% endif %}
-                </div>
-                
-                <div class="mb-3">
-                    {{ form.description.label(class="form-label") }}
-                    {{ form.description(class="form-control") }}
-                    {% if form.description.errors %}
-                        <div class="text-danger">
-                            {% for error in form.description.errors %}
-                                <small>{{ error }}</small>
-                            {% endfor %}
-                        </div>
-                    {% endif %}
-                </div>
             </div>
             
-            <div class="col-md-6">
+            <div class="col-md-4">
                 <div class="mb-3">
-                    {{ form.supplier_id.label(class="form-label") }}
-                    {{ form.supplier_id(class="form-select") }}
-                    {% if form.supplier_id.errors %}
+                    {{ form.passenger_names.label(class="form-label") }}
+                    {{ form.passenger_names(class="form-control", placeholder="请输入出行人姓名，多个姓名用逗号分隔") }}
+                    <small class="form-text text-muted">多个出行人姓名请用逗号分隔，例如：张三,李四,王五</small>
+                    {% if form.passenger_names.errors %}
                         <div class="text-danger">
-                            {% for error in form.supplier_id.errors %}
-                                <small>{{ error }}</small>
-                            {% endfor %}
-                        </div>
-                    {% endif %}
-                </div>
-                
-                <div class="mb-3">
-                    {{ form.currency.label(class="form-label") }}
-                    {{ form.currency(class="form-select") }}
-                    {% if form.currency.errors %}
-                        <div class="text-danger">
-                            {% for error in form.currency.errors %}
+                            {% for error in form.passenger_names.errors %}
                                 <small>{{ error }}</small>
                             {% endfor %}
                         </div>
@@ -100,8 +68,9 @@
             </div>
         </div>
         
+        <!-- 第二行：销售价格，成本价格，供应商 -->
         <div class="row">
-            <div class="col-md-6">
+            <div class="col-md-4">
                 <div class="mb-3">
                     {{ form.selling_price.label(class="form-label") }}
                     {{ form.selling_price(class="form-control") }}
@@ -115,7 +84,7 @@
                 </div>
             </div>
             
-            <div class="col-md-6">
+            <div class="col-md-4">
                 <div class="mb-3">
                     {{ form.cost_price.label(class="form-label") }}
                     {{ form.cost_price(class="form-control") }}
@@ -128,30 +97,31 @@
                     {% endif %}
                 </div>
             </div>
+            
+            <div class="col-md-4">
+                <div class="mb-3">
+                    {{ form.supplier_id.label(class="form-label") }}
+                    {{ form.supplier_id(class="form-select") }}
+                    {% if form.supplier_id.errors %}
+                        <div class="text-danger">
+                            {% for error in form.supplier_id.errors %}
+                                <small>{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
         </div>
         
+        <!-- 7. 备注 -->
         <div class="row">
             <div class="col-md-6">
                 <div class="mb-3">
-                    {{ form.status.label(class="form-label") }}
-                    {{ form.status(class="form-select") }}
-                    {% if form.status.errors %}
+                    {{ form.remarks.label(class="form-label") }}
+                    {{ form.remarks(class="form-control", rows=3) }}
+                    {% if form.remarks.errors %}
                         <div class="text-danger">
-                            {% for error in form.status.errors %}
-                                <small>{{ error }}</small>
-                            {% endfor %}
-                        </div>
-                    {% endif %}
-                </div>
-            </div>
-            
-            <div class="col-md-6">
-                <div class="mb-3">
-                    {{ form.payment_status.label(class="form-label") }}
-                    {{ form.payment_status(class="form-select") }}
-                    {% if form.payment_status.errors %}
-                        <div class="text-danger">
-                            {% for error in form.payment_status.errors %}
+                            {% for error in form.remarks.errors %}
                                 <small>{{ error }}</small>
                             {% endfor %}
                         </div>
@@ -160,12 +130,51 @@
             </div>
         </div>
         
-        <div class="mb-3">
-            {{ form.remarks.label(class="form-label") }}
-            {{ form.remarks(class="form-control", rows=3) }}
-            {% if form.remarks.errors %}
+        <!-- 隐藏字段 -->
+        <!-- REF类型字段隐藏，自动设置为"其他" -->
+        {{ form.ref_type_id(class="form-select", style="display: none;") }}
+        {% if form.ref_type_id.errors %}
+            <div class="text-danger">
+                {% for error in form.ref_type_id.errors %}
+                    <small>{{ error }}</small>
+                {% endfor %}
+            </div>
+        {% endif %}
+        
+        <!-- 描述字段隐藏，自动同步REF订单名称 -->
+        {{ form.description(class="form-control", id="ref_description", style="display: none;") }}
+        {% if form.description.errors %}
+            <div class="text-danger">
+                {% for error in form.description.errors %}
+                    <small>{{ error }}</small>
+                {% endfor %}
+            </div>
+        {% endif %}
+        
+        <!-- 货币类型字段隐藏，自动设置为"新加坡元" -->
+        {{ form.currency(class="form-select", style="display: none;") }}
+        {% if form.currency.errors %}
+            <div class="text-danger">
+                {% for error in form.currency.errors %}
+                    <small>{{ error }}</small>
+                {% endfor %}
+            </div>
+        {% endif %}
+        
+        <!-- 状态和支付状态字段隐藏，自动设置默认值 -->
+        <div style="display: none;">
+            {{ form.status(class="form-select") }}
+            {{ form.payment_status(class="form-select") }}
+            {% if form.status.errors %}
                 <div class="text-danger">
-                    {% for error in form.remarks.errors %}
+                    {% for error in form.status.errors %}
+                        <small>{{ error }}</small>
+                    {% endfor %}
+                </div>
+            {% endif %}
+            {% if form.payment_status.errors %}
+                <div class="text-danger">
+                    {% for error in form.payment_status.errors %}
                         <small>{{ error }}</small>
                     {% endfor %}
                 </div>
@@ -178,4 +187,31 @@
         </div>
     </form>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const nameField = document.getElementById('ref_name');
+    const descriptionField = document.getElementById('ref_description');
+    const form = document.querySelector('form');
+    
+    if (nameField && descriptionField) {
+        // 当REF订单名称字段内容改变时，自动同步到描述字段
+        nameField.addEventListener('input', function() {
+            descriptionField.value = this.value;
+        });
+        
+        // 页面加载时，如果描述字段为空但名称字段有值，则同步
+        if (!descriptionField.value && nameField.value) {
+            descriptionField.value = nameField.value;
+        }
+        
+        // 表单提交前确保描述字段同步
+        if (form) {
+            form.addEventListener('submit', function() {
+                descriptionField.value = nameField.value;
+            });
+        }
+    }
+});
+</script>
 {% endblock %} 

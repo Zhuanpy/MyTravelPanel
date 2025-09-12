@@ -1,57 +1,94 @@
-# MyTravelPanel 项目文档
+# MyTravelPanel
 
-## 📚 文档目录
+一个用于管理旅行社业务的 Web 应用程序。
 
-### 架构设计
-- [系统架构文档](./architecture.md) - 完整的系统架构说明和图表
-- [数据库设计](./database.md) - 数据库表结构和关系设计
-- [API设计](./api.md) - RESTful API接口文档
+## 功能特点
 
-### 开发指南
-- [开发环境搭建](./development.md) - 本地开发环境配置
-- [代码规范](./coding-standards.md) - 编码规范和最佳实践
-- [测试指南](./testing.md) - 单元测试和集成测试
+- 签证申请管理
+- 航班预订管理
+- 旅游产品管理
+- 文件资源管理
+- 供应商管理
 
-### 部署运维
-- [部署指南](./deployment.md) - 生产环境部署说明
-- [配置管理](./configuration.md) - 环境变量和配置说明
-- [监控运维](./monitoring.md) - 系统监控和日志管理
+## 技术栈
 
-### 用户手册
-- [用户指南](./user-guide.md) - 系统功能使用说明
-- [管理员手册](./admin-guide.md) - 系统管理和维护
-- [FAQ](./faq.md) - 常见问题解答
+- Python Flask
+- SQLAlchemy
+- HTML/CSS/JavaScript
+- Bootstrap
 
-## 🖼️ 图表导出说明
+## 安装说明
 
-### Mermaid图表使用方法
+1. 克隆仓库
+```bash
+git clone [repository-url]
+cd MyTravelPanel
+```
 
-1. **在线编辑器**：访问 [mermaid.live](https://mermaid.live/)
-2. **GitHub/GitLab**：直接在Markdown中显示
-3. **VS Code**：安装Mermaid插件预览
-4. **Typora**：支持实时预览Mermaid图表
+2. 创建虚拟环境
+```bash
+python -m venv venv
+source venv/bin/activate  # Linux/Mac
+venv\Scripts\activate     # Windows
+```
 
-### 导出格式支持
-- PNG图片
-- SVG矢量图
-- PDF文档
-- HTML页面
+3. 安装依赖
+```bash
+pip install -r requirements.txt
+```
 
-## 📋 快速导航
+4. 初始化数据库
+```bash
+flask db upgrade
+```
 
-| 文档类型 | 文件名 | 描述 |
-|---------|--------|------|
-| 架构图表 | architecture.md | 包含完整的Mermaid架构图 |
-| 改进计划 | improvement-plan.md | 详细的改进实施计划 |
-| 安全指南 | security.md | 安全配置和最佳实践 |
-| 性能优化 | performance.md | 性能优化建议和实施 |
+5. 运行应用
+```bash
+flask run
+```
 
-## 🔄 文档更新
+## 项目结构
 
-- **最后更新**：2024-12-19
-- **版本**：v1.0
-- **维护者**：开发团队
+```
+MyTravelPanel/
+├── App/
+│   ├── static/
+│   ├── templates/
+│   ├── routes/
+│   ├── models/
+│   └── code/
+├── migrations/
+├── requirements.txt
+└── README.md
+```
 
-## 📞 联系方式
+## 配置说明
 
-如有问题或建议，请联系开发团队。
+### 环境变量配置
+
+1. 复制 `env.example` 文件为 `.env`
+2. 修改 `.env` 文件中的配置信息，包括：
+   - 数据库连接信息
+   - 邮件服务器配置
+   - API密钥等敏感信息
+
+### 配置文件
+
+- `App/config.py` - 主配置文件（包含敏感信息，已加入.gitignore）
+- `App/config_template.py` - 配置模板文件（可安全提交到GitHub）
+
+⚠️ **重要安全提醒**：
+- 不要将包含真实密码和API密钥的配置文件提交到GitHub
+- 使用环境变量来管理敏感信息
+- 生产环境必须设置所有必需的环境变量
+
+## 贡献指南
+
+1. Fork 项目
+2. 创建功能分支
+3. 提交更改
+4. 发起 Pull Request
+
+## 许可证
+
+MIT License 

@@ -55,7 +55,7 @@ config.py
 # 排除所有txt文件，但保留重要的配置文件
 *.txt
 !requirements.txt
-!INSTALLATION.md
+!docs/INSTALLATION.md
 *.pdf
 *.doc
 *.docx

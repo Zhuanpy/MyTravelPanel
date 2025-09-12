@@ -17,7 +17,7 @@ class ProjectRefForm(FlaskForm):
     ])
     
     ref_type_id = SelectField('REF类型', [
-        DataRequired(message='请选择REF类型')
+        Optional()  # 改为可选，因为代码中会自动设置
     ], coerce=int)
     
     description = StringField('描述', [
@@ -55,6 +55,11 @@ class ProjectRefForm(FlaskForm):
         Length(max=100, message='负责人姓名不能超过100个字符')
     ])
     
+    # 出行人信息
+    passenger_names = StringField('Leader name', [
+        Length(max=500, message='Leader name不能超过500个字符')
+    ])
+    
     # 价格信息
     selling_price = DecimalField('销售价格', [
         Optional(),
@@ -67,7 +72,7 @@ class ProjectRefForm(FlaskForm):
     ], places=2)
     
     currency = SelectField('货币类型', [
-        DataRequired(message='请选择货币类型')
+        Optional()  # 改为可选，因为代码中会自动设置
     ], choices=[
         ('SGD', '新加坡元'),
         ('CNY', '人民币'),
@@ -97,16 +102,16 @@ class ProjectRefForm(FlaskForm):
     
     # 状态信息
     status = SelectField('状态', [
-        DataRequired(message='请选择状态')
+        Optional()  # 改为可选，因为代码中会自动设置
     ], choices=[
         ('draft', '草稿'),
         ('processing', '处理中'),
         ('completed', '已完成'),
         ('cancelled', '已取消')
-    ])
+    ], default='processing')
     
     payment_status = SelectField('支付状态', [
-        DataRequired(message='请选择支付状态')
+        Optional()  # 改为可选，因为代码中会自动设置
     ], choices=[
         ('unpaid', '未支付'),
         ('partial', '部分支付'),

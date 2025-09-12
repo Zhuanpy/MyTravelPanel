@@ -90,23 +90,25 @@
         border: 1px solid #ffeeba;
     }
 
-    /* 固定交易表格列宽，避免编辑时跳动（与 UOB 保持一致） */
+    /* 列宽度调整：7个字段等宽，3个字段更宽 */
     #txTable { table-layout: fixed; width: 100%; }
     #txTable th, #txTable td { text-align: center; vertical-align: middle; }
-    /* 1x: 8.333% */
+    
+    /* 等宽字段：日期、记账日期、类型、金额、余额、归属、REF/EO (7个字段，每个约9.5%) */
     #txTable th:nth-child(1), #txTable td:nth-child(1), /* 日期 */
-    #txTable th:nth-child(2), #txTable td:nth-child(2), /* 类型 */
-    #txTable th:nth-child(3), #txTable td:nth-child(3), /* 金额 */
-    #txTable th:nth-child(4), #txTable td:nth-child(4), /* 余额 */
-    #txTable th:nth-child(6), #txTable td:nth-child(6), /* 关键词 */
-    #txTable th:nth-child(7), #txTable td:nth-child(7), /* 归属 */
-    #txTable th:nth-child(8), #txTable td:nth-child(8)  /* REF/EO */
-    { width: 8.333%; }
+    #txTable th:nth-child(2), #txTable td:nth-child(2), /* 记账日期 */
+    #txTable th:nth-child(3), #txTable td:nth-child(3), /* 类型 */
+    #txTable th:nth-child(4), #txTable td:nth-child(4), /* 金额 */
+    #txTable th:nth-child(5), #txTable td:nth-child(5), /* 余额 */
+    #txTable th:nth-child(8), #txTable td:nth-child(8), /* 归属 */
+    #txTable th:nth-child(9), #txTable td:nth-child(9)  /* REF/EO */
+    { width: 9.5%; }
 
-    /* 2x: 16.666% （摘要、备注）*/
-    #txTable th:nth-child(5), #txTable td:nth-child(5),
-    #txTable th:nth-child(9), #txTable td:nth-child(9)
-    { width: 16.666%; vertical-align: top; }
+    /* 更宽字段：摘要、关键词、备注 (3个字段，每个约21.5%) */
+    #txTable th:nth-child(6), #txTable td:nth-child(6), /* 摘要 */
+    #txTable th:nth-child(7), #txTable td:nth-child(7), /* 关键词 */
+    #txTable th:nth-child(10), #txTable td:nth-child(10) /* 备注 */
+    { width: 21.5%; vertical-align: top; }
 
     /* 输入类控件占满单元格且不在 focus 时增大尺寸 */
     #txTable .tx-input,
@@ -121,8 +123,8 @@
     #txTable .tx-input:focus,
     #txTable .tx-remarks:focus { box-shadow: none; outline: 0; }
     /* 文本列保持左对齐，避免折行导致跳动 */
-    #txTable td:nth-child(5) { white-space: normal; word-break: break-word; overflow: visible; text-align: left; }
-    #txTable td:nth-child(6) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
+    #txTable td:nth-child(6) { white-space: normal; word-break: break-word; overflow: visible; text-align: left; }
+    #txTable td:nth-child(7) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
 </style>
 {% endblock %}
 
@@ -158,6 +160,56 @@
         </div>
     </div>
     
+    <!-- 对账单概览 -->
+    <div class="bank-statement-card">
+        <h2 class="bank-statement-section-title">最近对账单</h2>
+        <div class="table-responsive">
+            <table class="table table-striped table-hover">
+                <thead>
+                    <tr>
+                        <th>对账单号</th>
+                        <th>银行</th>
+                        <th>账户</th>
+                        <th>期间</th>
+                        <th>期初余额</th>
+                        <th>期末余额</th>
+                        <th>币种</th>
+                        <th>状态</th>
+                        <th>创建时间</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for s in statements %}
+                    <tr>
+                        <td>{{ s.statement_number }}</td>
+                        <td>{{ s.bank_name }}</td>
+                        <td>{{ s.account_name }}<br><small class="text-muted">{{ s.account_number }}</small></td>
+                        <td>{{ s.period_start }} ~ {{ s.period_end }}</td>
+                        <td>{{ '%.2f'|format(s.opening_balance) }}</td>
+                        <td>{{ '%.2f'|format(s.closing_balance) }}</td>
+                        <td>{{ s.currency }}</td>
+                        <td>{{ s.status }}</td>
+                        <td><small class="text-muted">{{ s.created_at.strftime('%Y-%m-%d %H:%M') if s.created_at else '' }}</small></td>
+                        <td>
+                            <form method="post" action="{{ url_for('statement_routes.delete_cmb_statement') }}" 
+                                  onsubmit="return confirm('确定要删除对账单 {{ s.statement_number }} 及其所有交易记录吗？此操作不可撤销！')" 
+                                  style="display: inline;">
+                                <input type="hidden" name="statement_number" value="{{ s.statement_number }}">
+                                <button type="submit" class="btn btn-danger btn-sm">
+                                    <i class="fas fa-trash"></i> 删除
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="10" class="text-center text-muted">暂无对账单</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
     <div class="bank-statement-card">
         <h2 class="bank-statement-section-title">交易筛选</h2>
         <form method="get" action="{{ url_for('statement_routes.cmb_bank') }}" class="mb-3">

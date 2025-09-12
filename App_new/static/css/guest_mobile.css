@@ -1,0 +1,49 @@
+/* 手机端样式：更紧凑的网格与较大的触控区域 */
+
+/* 全局基础字号稍小 */
+html, body{ font-size: 14px; }
+small, .small{ font-size: 12px; }
+
+/* 标题字号整体下调一档 */
+h1{ font-size: 1.6rem; }
+h2{ font-size: 1.25rem; }
+h3{ font-size: 1.1rem; }
+h4{ font-size: 1rem; }
+h5{ font-size: .95rem; }
+h6{ font-size: .9rem; }
+
+/* 容器边距更小，满宽显示 */
+.container{ padding-left: 12px; padding-right: 12px; }
+
+/* 网格：手机两列，卡片缩略图稍矮以减少滚动 */
+.visa-grid .visa-thumb{ height: 120px; }
+.visa-grid .visa-country{ font-size: .95rem; }
+.visa-grid .visa-meta{ font-size: .85rem; }
+
+/* 按钮与表单：触控区加大 */
+.btn, .form-control, .form-select{ min-height: 44px; font-size: .95rem; }
+
+/* 顶部英雄区：减小上下留白 */
+.hero-section{ padding: 40px 0 !important; }
+.hero-section .mb-4{ margin-bottom: .5rem !important; }
+.hero-section .display-4{ font-size: 1.4rem; }
+.hero-section .lead{ font-size: .9rem; }
+
+/* 导航与脚注文字细化 */
+.navbar .nav-link{ font-size: .95rem; }
+.footer{ font-size: .9rem; }
+
+/* 服务优势：手机端一行4个，缩小图标与文字 */
+.advantages-row{ row-gap: 8px; }
+.advantages-row .advantage-item{ flex: 0 0 25%; max-width: 25%; }
+.advantages-row .advantage-item .rounded-circle{ width: 54px !important; height: 54px !important; }
+.advantages-row h5{ font-size: .9rem; margin-top: .25rem; margin-bottom: .25rem; }
+.advantages-row p{ font-size: .75rem; margin-bottom: 0; }
+
+/* 办理流程：手机端一行4个，缩小图标与文字，与优势区一致 */
+.process-row{ row-gap: 8px; }
+.process-row .process-item{ flex: 0 0 25%; max-width: 25%; }
+.process-row .process-item .rounded-circle{ width: 54px !important; height: 54px !important; }
+.process-row h5{ font-size: .9rem; margin-top: .25rem; margin-bottom: .25rem; }
+.process-row p{ font-size: .75rem; margin-bottom: 0; }
+

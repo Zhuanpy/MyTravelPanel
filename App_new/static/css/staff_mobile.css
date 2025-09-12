@@ -1,0 +1,8 @@
+/* 员工端手机样式（紧凑、可触控） */
+html, body{ font-size: 14px; }
+.container-fluid{ padding-left: 10px; padding-right: 10px; }
+.sidebar{ display: none; }
+.breadcrumb{ font-size: .9rem; }
+.h2, h2{ font-size: 1.4rem; }
+.btn, .form-control, .form-select{ min-height: 44px; }
+

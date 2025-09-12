@@ -33,25 +33,48 @@ def create_ref(header_id):
             try:
                 # 在应用上下文中生成REF编号
                 ref_number = ProjectRef.generate_ref_number("")
+                
+                # 自动设置REF类型为"其他"
+                other_business_type = BusinessType.query.filter_by(name='其他').first()
+                if not other_business_type:
+                    # 如果"其他"类型不存在，创建一个
+                    other_business_type = BusinessType(name='其他', code='other', description='其他服务')
+                    db.session.add(other_business_type)
+                    db.session.flush()
+                
                 ref = ProjectRef(
                     header_id=header.id,
                     ref_number=ref_number,
                     name=form.name.data,
-                    ref_type_id=form.ref_type_id.data,
+                    ref_type_id=other_business_type.id,  # 强制使用"其他"类型
                     description=form.description.data,
                     supplier_id=form.supplier_id.data if form.supplier_id.data and form.supplier_id.data != 0 else None,
                     supplier_contact=form.supplier_contact.data,
                     supplier_phone=form.supplier_phone.data,
                     selling_price=form.selling_price.data,
                     cost_price=form.cost_price.data,
-                    currency=form.currency.data,
+                    currency='SGD',  # 强制使用新加坡元
                     expected_delivery_date=form.expected_delivery_date.data,
                     actual_delivery_date=form.actual_delivery_date.data,
                     remarks=form.remarks.data,
-                    status=form.status.data,
-                    payment_status=form.payment_status.data
+                    status='processing',  # 强制使用"处理中"
+                    payment_status='unpaid'  # 强制使用"未支付"
                 )
                 db.session.add(ref)
+                db.session.flush()  # 获取ref.id
+                
+                # 处理出行人信息
+                if form.passenger_names.data:
+                    from App_new.business.flight.models.flight import ProjectFlightPassenger
+                    passenger_names = [name.strip() for name in form.passenger_names.data.split(',') if name.strip()]
+                    for passenger_name in passenger_names:
+                        passenger = ProjectFlightPassenger(
+                            ref_id=ref.id,
+                            name=passenger_name,
+                            passenger_type='adult'  # 默认为成人
+                        )
+                        db.session.add(passenger)
+                
                 db.session.commit()
                 return redirect(url_for('business_projects.detail.project_detail', project_id=header.id))
             except Exception as e:
@@ -69,6 +92,11 @@ def create_ref(header_id):
         # 获取业务类型和供应商数据
         business_types = BusinessType.query.all()
         suppliers = Supplier.query.all()
+        
+        # 设置默认REF类型为"其他"
+        other_business_type = BusinessType.query.filter_by(name='其他').first()
+        if other_business_type:
+            form.ref_type_id.data = other_business_type.id
         
         return render_template('business/projects/project_ref/create_ref.html',
                            form=form, 
@@ -1769,6 +1797,22 @@ def edit_ref(ref_id):
             ref.status = request.form.get('status') or 'draft'
             ref.remarks = request.form.get('remarks', '')
             
+            # 处理出行人信息
+            passenger_names = request.form.get('passenger_names', '')
+            if passenger_names:
+                from App_new.business.flight.models.flight import ProjectFlightPassenger
+                # 删除现有乘客
+                ProjectFlightPassenger.query.filter_by(ref_id=ref.id).delete()
+                # 添加新乘客
+                passenger_list = [name.strip() for name in passenger_names.split(',') if name.strip()]
+                for passenger_name in passenger_list:
+                    passenger = ProjectFlightPassenger(
+                        ref_id=ref.id,
+                        name=passenger_name,
+                        passenger_type='adult'  # 默认为成人
+                    )
+                    db.session.add(passenger)
+            
             # 同步更新相关EO的价格
             from App_new.business.projects.models.eo import ProjectEO
             ProjectEO.sync_eo_prices_from_ref(ref.id, ref.cost_price, ref.currency)
@@ -1808,6 +1852,13 @@ def edit_ref(ref_id):
     form.status.data = ref.status
     form.payment_status.data = ref.payment_status
     form.remarks.data = ref.remarks
+    
+    # 预填充出行人姓名
+    from App_new.business.flight.models.flight import ProjectFlightPassenger
+    passengers = ProjectFlightPassenger.query.filter_by(ref_id=ref.id).all()
+    if passengers:
+        passenger_names = [p.name for p in passengers]
+        form.passenger_names.data = ', '.join(passenger_names)
     
     return render_template('business/projects/project_ref/create_ref.html', 
                          ref=ref, 

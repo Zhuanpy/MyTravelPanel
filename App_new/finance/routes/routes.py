@@ -223,6 +223,7 @@ def _upsert_cmb_statement_and_transactions(folder_path: Path):
         return None
 
     date_col = _pick(raw.columns, ['交易日期', '交易日', '交易 日期', '交易-日期', 'T-Date'])
+    post_date_col = _pick(raw.columns, ['记账日期', '记账 日期', '记账-日期', 'Post Date', 'Post-Date'])
     desc_col = _pick(raw.columns, ['Description', '摘要', '说明'])
     amount_col = _pick(raw.columns, ['Amount-CNY', '金额', '交易地金额', '交易金额'])
     card_col = _pick(raw.columns, ['Card', '卡号', '卡末四位'])
@@ -231,11 +232,13 @@ def _upsert_cmb_statement_and_transactions(folder_path: Path):
         # 关键列缺失
         return 0, 0
 
-    df = raw[[col for col in [date_col, desc_col, amount_col, card_col] if col is not None]].copy()
+    df = raw[[col for col in [date_col, post_date_col, desc_col, amount_col, card_col] if col is not None]].copy()
     # 统一为标准列名
     rename_map = {}
     if date_col:
         rename_map[date_col] = 'T-Date'
+    if post_date_col:
+        rename_map[post_date_col] = 'Post-Date'
     if desc_col:
         rename_map[desc_col] = 'Description'
     rename_map[amount_col] = 'Amount'
@@ -292,6 +295,8 @@ def _upsert_cmb_statement_and_transactions(folder_path: Path):
             return None
 
     df['T-Date'] = df['T-Date'].apply(_parse_cmb_date)
+    if 'Post-Date' in df.columns:
+        df['Post-Date'] = df['Post-Date'].apply(_parse_cmb_date)
     df['Amount'] = df['Amount'].apply(_normalize_float).fillna(0.0)
 
     # 期间
@@ -352,9 +357,15 @@ def _upsert_cmb_statement_and_transactions(folder_path: Path):
                 updated += 1
             continue
 
+        # 获取记账日期
+        post_date = None
+        if 'Post-Date' in df.columns:
+            post_date = row.get('Post-Date')
+        
         bt = BankTransaction(
             statement_id=statement.id,
             transaction_date=t_date,
+            post_date=post_date,
             transaction_id=None,
             transaction_type=transaction_type,
             amount=amount,
@@ -1631,6 +1642,39 @@ def cmb_to_company():
         return redirect(url_for('statement_routes.cmb_bank'))
     folder_path = Path(Config.BILLING_DATA_PATH) / "CMB"
     flash('招商银行公司账单生成功能尚未实现')
+    return redirect(url_for('statement_routes.cmb_bank'))
+
+
+@statement_blue.route('/delete_cmb_statement', methods=['POST'])
+@csrf.exempt
+def delete_cmb_statement():
+    """删除招商银行对账单及其所有交易记录"""
+    try:
+        statement_number = request.form.get('statement_number')
+        if not statement_number:
+            flash('对账单号不能为空', 'error')
+            return redirect(url_for('statement_routes.cmb_bank'))
+        
+        # 查找对账单
+        statement = BankStatement.query.filter_by(statement_number=statement_number).first()
+        if not statement:
+            flash(f'未找到对账单：{statement_number}', 'error')
+            return redirect(url_for('statement_routes.cmb_bank'))
+        
+        # 删除关联的交易记录（由于外键约束，会自动删除）
+        transaction_count = BankTransaction.query.filter_by(statement_id=statement.id).count()
+        
+        # 删除对账单
+        db.session.delete(statement)
+        db.session.commit()
+        
+        flash(f'成功删除对账单 {statement_number} 及其 {transaction_count} 条交易记录', 'success')
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"删除招商银行对账单失败: {str(e)}")
+        flash(f'删除失败：{str(e)}', 'error')
+    
     return redirect(url_for('statement_routes.cmb_bank'))
 
 

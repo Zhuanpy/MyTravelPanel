@@ -177,7 +177,8 @@ def create_todo():
             title=data.get('title'),
             description=data.get('description'),
             priority=int(data.get('priority', 2)),
-            due_date=data.get('due_date')
+            due_date=data.get('due_date'),
+            category=data.get('category')
         )
         
         return jsonify({
@@ -222,7 +223,8 @@ def update_todo():
             'description': data.get('description'),
             'priority': int(data.get('priority', 2)),
             'is_completed': data.get('is_completed'),
-            'due_date': due_date
+            'due_date': due_date,
+            'category': data.get('category')
         })
         
         if not todo:
@@ -296,6 +298,7 @@ def get_todo(todo_id):
                 'is_completed': todo.is_completed,
                 'due_date': todo.due_date.isoformat() if todo.due_date else None,
                 'priority': todo.priority,
+                'category': todo.category,
                 'created_at': todo.created_at.isoformat(),
                 'updated_at': todo.updated_at.isoformat()
             }

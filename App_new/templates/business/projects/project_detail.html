@@ -634,7 +634,13 @@
                             {% endif %}
                         </td>
                         <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ ref.ref_type.name if ref.ref_type else '未分类' }}</td>
-                        <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ ref.leader_name or '-' }}">{{ ref.leader_name or '-' }}</td>
+                        <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{% if ref.flight_passengers %}{{ ref.flight_passengers | map(attribute='name') | join(', ') }}{% else %}{{ ref.leader_name or '-' }}{% endif %}">
+                            {% if ref.flight_passengers %}
+                                {{ ref.flight_passengers | map(attribute='name') | join(', ') }}
+                            {% else %}
+                                {{ ref.leader_name or '-' }}
+                            {% endif %}
+                        </td>
                         <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ ref.name or ref.description }}">{{ ref.name or ref.description }}</td>
                         <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                             {% if ref.eos %}

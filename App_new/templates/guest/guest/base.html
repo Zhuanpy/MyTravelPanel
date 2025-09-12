@@ -11,9 +11,10 @@
     
     <style>
         :root {
-            --primary-color: #007bff;
-            --secondary-color: #28a745;
-            --accent-color: #ffc107;
+            --primary-color: #7ecf8e;   /* 浅绿色 */
+            --secondary-color: #ffa45b; /* 橘色 */
+            --accent-color: #ff7f50;    /* 珊瑚橘，作为强调色 */
+            --primary-dark: #48b968;    /* 主色加深，用于渐变 */
             --text-dark: #333;
             --text-light: #666;
             --bg-light: #f8f9fa;
@@ -27,7 +28,7 @@
 
         /* 导航栏样式 */
         .navbar {
-            background: linear-gradient(135deg, var(--primary-color) 0%, #0056b3 100%);
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
 
@@ -48,7 +49,7 @@
 
         /* 英雄区域样式 */
         .hero-section {
-            background: linear-gradient(135deg, var(--primary-color) 0%, #0056b3 100%);
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
             color: white;
             padding: 100px 0;
             position: relative;
@@ -171,7 +172,7 @@
 
         /* 自定义按钮样式 */
         .btn-custom {
-            background: linear-gradient(135deg, var(--primary-color) 0%, #0056b3 100%);
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
             border: none;
             color: white;
             padding: 12px 30px;
@@ -182,10 +183,30 @@
 
         .btn-custom:hover {
             transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(0,123,255,0.4);
+            box-shadow: 0 5px 15px rgba(72,185,104,0.35);
             color: white;
         }
+
+        /* Bootstrap 主题色覆盖为浅绿色 */
+        .bg-primary { background-color: var(--primary-color) !important; }
+        .text-primary { color: var(--primary-color) !important; }
+        .btn-primary {
+            background-color: var(--primary-color) !important;
+            border-color: var(--primary-color) !important;
+        }
+        .btn-primary:hover {
+            background-color: var(--primary-dark) !important;
+            border-color: var(--primary-dark) !important;
+        }
+
+        /* 橘色强调 */
+        .text-accent { color: var(--accent-color) !important; }
+        .bg-accent { background-color: var(--accent-color) !important; }
     </style>
+    <!-- 分设备样式：全局与模块分别加载 -->
+    {% from 'shared/_css_pair.html' import css_pair %}
+    {{ css_pair('app') }}
+    {{ css_pair('guest') }}
     
     {% block extra_css %}{% endblock %}
 </head>

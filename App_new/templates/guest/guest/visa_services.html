@@ -15,115 +15,28 @@
     </div>
 </section>
 
-<!-- 服务优势 -->
-<section class="py-5 bg-light">
-    <div class="container">
-        <div class="row text-center mb-5">
-            <div class="col-12">
-                <h2 class="fw-bold mb-3">为什么选择我们的签证服务？</h2>
-                <p class="text-muted lead">专业团队，丰富经验，让您的签证申请更加顺利</p>
-            </div>
-        </div>
-        
-        <div class="row g-4">
-            <div class="col-md-3">
-                <div class="text-center">
-                    <div class="bg-primary text-white rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
-                        <i class="fas fa-clock fa-2x"></i>
-                    </div>
-                    <h5>快速办理</h5>
-                    <p class="text-muted">最快3个工作日出签</p>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="text-center">
-                    <div class="bg-success text-white rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
-                        <i class="fas fa-percentage fa-2x"></i>
-                    </div>
-                    <h5>高成功率</h5>
-                    <p class="text-muted">签证通过率达95%以上</p>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="text-center">
-                    <div class="bg-warning text-white rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
-                        <i class="fas fa-headset fa-2x"></i>
-                    </div>
-                    <h5>专业服务</h5>
-                    <p class="text-muted">一对一专业顾问服务</p>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="text-center">
-                    <div class="bg-info text-white rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
-                        <i class="fas fa-shield-alt fa-2x"></i>
-                    </div>
-                    <h5>安全保障</h5>
-                    <p class="text-muted">信息安全，隐私保护</p>
-                </div>
-            </div>
-        </div>
-    </div>
-</section>
 
-<!-- 签证服务列表 -->
-<section class="py-5">
+<!-- 签证服务列表（仿截图卡片栅格） -->
+<section class="py-4">
     <div class="container">
-        <div class="row text-center mb-5">
+        <div class="row mb-3">
             <div class="col-12">
-                <h2 class="fw-bold mb-3">热门签证服务</h2>
-                <p class="text-muted lead">我们提供多个国家的签证办理服务</p>
+                <h5 class="mb-0">热门目的地</h5>
             </div>
         </div>
-        
+
         {% if visa_services %}
-        <div class="row g-4">
+        <div class="row g-3 visa-grid">
             {% for service in visa_services %}
-            <div class="col-lg-4 col-md-6">
-                <div class="service-card h-100">
-                    <div class="service-card-body">
-                        <div class="d-flex align-items-center mb-3">
-                            <div class="bg-primary text-white rounded-circle me-3 d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
-                                <i class="fas fa-flag"></i>
-                            </div>
-                            <div>
-                                <h4 class="mb-1">{{ service.country }}</h4>
-                                <small class="text-muted">{{ service.country_en }}</small>
-                            </div>
-                        </div>
-                        
-                        <div class="mb-3">
-                            <h6 class="text-primary mb-2">
-                                <i class="fas fa-list me-1"></i>签证类型
-                            </h6>
-                            <div class="d-flex flex-wrap gap-1">
-                                {% for visa_type in service.services %}
-                                <span class="badge bg-light text-dark">{{ visa_type }}</span>
-                                {% endfor %}
-                            </div>
-                        </div>
-                        
-                        <div class="row text-center">
-                            <div class="col-6">
-                                <div class="border-end">
-                                    <i class="fas fa-clock text-primary mb-1 d-block"></i>
-                                    <small class="text-muted">办理时间</small>
-                                    <div class="fw-bold">{{ service.processing_time }}</div>
-                                </div>
-                            </div>
-                            <div class="col-6">
-                                <i class="fas fa-dollar-sign text-success mb-1 d-block"></i>
-                                <small class="text-muted">价格范围</small>
-                                <div class="fw-bold text-success">{{ service.price_range }}</div>
-                            </div>
-                        </div>
-                        
-                        <div class="mt-3">
-                            <a href="{{ url_for('guest.visa_services_by_country', country_name=service.country) }}" 
-                               class="btn btn-custom w-100">
-                                <i class="fas fa-info-circle me-1"></i>查看详情
-                            </a>
-                        </div>
+            <div class="col-6 col-sm-4 col-md-3 col-lg-3">
+                <div class="visa-card position-relative h-100">
+                    <a class="stretched-link" href="{{ url_for('guest.visa_services_by_country', country_name=service.country) }}"></a>
+                    <div class="visa-thumb">
+                        <div class="visa-country">{{ service.country }}</div>
+                    </div>
+                    <div class="visa-meta px-2 py-2 d-flex align-items-center justify-content-between">
+                        <div class="visa-price text-accent fw-bold">{{ service.price_range }} <small class="text-muted">起</small></div>
+                        <i class="fas fa-chevron-right text-muted small"></i>
                     </div>
                 </div>
             </div>
@@ -131,15 +44,15 @@
         </div>
         {% else %}
         <div class="row justify-content-center">
-            <div class="col-lg-6 text-center">
-                <div class="py-5">
-                    <i class="fas fa-passport text-muted" style="font-size: 4rem;"></i>
-                    <h4 class="mt-3 text-muted">暂无签证服务信息</h4>
-                    <p class="text-muted">我们正在努力为您提供更多的签证服务，请稍后再来查看。</p>
-                </div>
-            </div>
+            <div class="col-lg-6 text-center py-5 text-muted">暂无签证服务信息</div>
         </div>
         {% endif %}
+
+        <div class="text-center mt-3">
+            <a href="{{ url_for('guest.visa_services') }}" class="text-primary text-decoration-none">
+                查看全部国家和地区 <i class="fas fa-arrow-right"></i>
+            </a>
+        </div>
     </div>
 </section>
 
@@ -153,8 +66,8 @@
             </div>
         </div>
         
-        <div class="row g-4">
-            <div class="col-lg-3 col-md-6">
+        <div class="row g-4 process-row">
+            <div class="col-lg-3 col-md-6 process-item">
                 <div class="text-center">
                     <div class="bg-primary text-white rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
                         <span class="fs-3 fw-bold">1</span>
@@ -163,7 +76,7 @@
                     <p class="text-muted">联系我们的专业顾问，选择适合的签证类型</p>
                 </div>
             </div>
-            <div class="col-lg-3 col-md-6">
+            <div class="col-lg-3 col-md-6 process-item">
                 <div class="text-center">
                     <div class="bg-success text-white rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
                         <span class="fs-3 fw-bold">2</span>
@@ -172,7 +85,7 @@
                     <p class="text-muted">根据清单准备所需文件，我们协助审核</p>
                 </div>
             </div>
-            <div class="col-lg-3 col-md-6">
+            <div class="col-lg-3 col-md-6 process-item">
                 <div class="text-center">
                     <div class="bg-warning text-white rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
                         <span class="fs-3 fw-bold">3</span>
@@ -181,7 +94,7 @@
                     <p class="text-muted">我们代为提交申请并跟踪办理进度</p>
                 </div>
             </div>
-            <div class="col-lg-3 col-md-6">
+            <div class="col-lg-3 col-md-6 process-item">
                 <div class="text-center">
                     <div class="bg-info text-white rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
                         <span class="fs-3 fw-bold">4</span>
@@ -193,6 +106,59 @@
         </div>
     </div>
 </section>
+
+
+<!-- 服务优势 -->
+<section class="py-5 bg-light">
+    <div class="container">
+        <div class="row text-center mb-5">
+            <div class="col-12">
+                <h2 class="fw-bold mb-3">为什么选择我们的签证服务？</h2>
+                <!-- <p class="text-muted lead">专业团队，丰富经验，让您的签证申请更加顺利</p> -->
+            </div>
+        </div>
+        
+        <div class="row g-4 advantages-row">
+            <div class="col-md-3 advantage-item">
+                <div class="text-center">
+                    <div class="bg-primary text-white rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
+                        <i class="fas fa-clock fa-2x"></i>
+                    </div>
+                    <h5>快速办理</h5>
+                    <p class="text-muted">高效流程，及时出签</p>
+                </div>
+            </div>
+            <div class="col-md-3 advantage-item">
+                <div class="text-center">
+                    <div class="bg-success text-white rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
+                        <i class="fas fa-percentage fa-2x"></i>
+                    </div>
+                    <h5>高成功率</h5>
+                    <p class="text-muted">签证顺利，安心无忧</p>
+                </div>
+            </div>
+            <div class="col-md-3 advantage-item">
+                <div class="text-center">
+                    <div class="bg-warning text-white rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
+                        <i class="fas fa-headset fa-2x"></i>
+                    </div>
+                    <h5>专业服务</h5>
+                    <p class="text-muted">一对一指导，全程支持</p>
+                </div>
+            </div>
+            <div class="col-md-3 advantage-item">
+                <div class="text-center">
+                    <div class="bg-info text-white rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
+                        <i class="fas fa-shield-alt fa-2x"></i>
+                    </div>
+                    <h5>安全保障</h5>
+                    <p class="text-muted">严格保密，信息安全</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
 
 <!-- 联系咨询 -->
 <section class="py-5 bg-primary text-white">
@@ -228,6 +194,40 @@
     
     .badge {
         font-size: 0.75rem;
+    }
+
+    /* 新增：仿小程序卡片样式 */
+    .visa-grid .visa-card{
+        border-radius: 10px;
+        overflow: hidden;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+        background: #fff;
+        transition: transform .2s ease, box-shadow .2s ease;
+    }
+    .visa-grid .visa-card:hover{
+        transform: translateY(-2px);
+        box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+    }
+    .visa-grid .visa-thumb{
+        height: 110px;
+        background: linear-gradient(135deg, rgba(52,199,89,0.25), rgba(255,138,0,0.25));
+        display: flex;
+        align-items: flex-end;
+        padding: 8px 10px;
+        position: relative;
+    }
+    .visa-grid .visa-country{
+        color: #fff;
+        font-weight: 700;
+        text-shadow: 0 2px 6px rgba(0,0,0,0.25);
+    }
+    .visa-grid .visa-meta{
+        background: #fff;
+    }
+    .visa-grid .visa-price{ color: var(--accent-color); }
+
+    @media (min-width: 992px){
+        .visa-grid .visa-thumb{ height: 130px; }
     }
 </style>
 {% endblock %}

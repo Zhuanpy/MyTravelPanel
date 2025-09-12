@@ -548,6 +548,195 @@ def delete_header_receipt(header_id, receipt_id):
     
     return redirect(url_for('business_projects.project_receipt.header_receipts', header_id=header_id))
 
+
+@project_receipt.route('/list', methods=['GET'])
+@login_required
+@staff_only
+def receipt_list():
+    """收据列表 - 参考 REF 列表，实现筛选、搜索与分页"""
+    try:
+        from sqlalchemy import and_, or_, desc, asc
+        from datetime import datetime, timedelta, date
+
+        # 筛选参数
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 25, type=int)
+        status = request.args.get('status', '').strip()
+        payment_method = request.args.get('payment_method', '').strip()
+        currency = request.args.get('currency', '').strip()
+        header_id = request.args.get('header_id', None, type=int)
+        ref_id = request.args.get('ref_id', None, type=int)
+        date_range = request.args.get('date_range', '').strip()
+        start_date = request.args.get('start_date', '').strip()
+        end_date = request.args.get('end_date', '').strip()
+        min_amount = request.args.get('min_amount', None, type=float)
+        max_amount = request.args.get('max_amount', None, type=float)
+        keyword = request.args.get('keyword', '').strip()
+        sort_by = request.args.get('sort_by', 'payment_date').strip()
+        sort_order = request.args.get('sort_order', 'desc').strip()
+
+        # 构建查询
+        query = db.session.query(
+            ProjectReceipt,
+            ProjectHeader.hid.label('project_hid'),
+            ProjectHeader.desc.label('project_name'),
+            ProjectRef.ref_number.label('ref_number')
+        ).join(
+            ProjectHeader, ProjectReceipt.header_id == ProjectHeader.id, isouter=True
+        ).join(
+            ProjectRef, ProjectReceipt.ref_id == ProjectRef.id, isouter=True
+        )
+
+        filters = []
+        if status:
+            filters.append(ProjectReceipt.status == status)
+        if payment_method:
+            filters.append(ProjectReceipt.payment_method == payment_method)
+        if currency:
+            filters.append(ProjectReceipt.currency == currency)
+        if header_id:
+            filters.append(ProjectReceipt.header_id == header_id)
+        if ref_id:
+            filters.append(ProjectReceipt.ref_id == ref_id)
+
+        # 日期区间（优先精确起止，其次快捷范围）
+        if start_date:
+            try:
+                sd = datetime.strptime(start_date, '%Y-%m-%d').date()
+                filters.append(ProjectReceipt.payment_date >= sd)
+            except Exception:
+                pass
+        if end_date:
+            try:
+                ed = datetime.strptime(end_date, '%Y-%m-%d').date()
+                filters.append(ProjectReceipt.payment_date <= ed)
+            except Exception:
+                pass
+        if (not start_date and not end_date) and date_range:
+            today = date.today()
+            if date_range == 'today':
+                filters.append(and_(ProjectReceipt.payment_date >= today, ProjectReceipt.payment_date < today + timedelta(days=1)))
+            elif date_range == 'week':
+                start = today - timedelta(days=today.weekday())
+                end = start + timedelta(days=7)
+                filters.append(and_(ProjectReceipt.payment_date >= start, ProjectReceipt.payment_date < end))
+            elif date_range == 'month':
+                start = today.replace(day=1)
+                end = start.replace(year=start.year + 1, month=1, day=1) if start.month == 12 else start.replace(month=start.month + 1, day=1)
+                filters.append(and_(ProjectReceipt.payment_date >= start, ProjectReceipt.payment_date < end))
+            elif date_range == 'quarter':
+                q = (today.month - 1) // 3
+                start = today.replace(month=q * 3 + 1, day=1)
+                end = start.replace(year=start.year + 1, month=1, day=1) if q == 3 else start.replace(month=q * 3 + 4, day=1)
+                filters.append(and_(ProjectReceipt.payment_date >= start, ProjectReceipt.payment_date < end))
+            elif date_range == 'year':
+                start = today.replace(month=1, day=1)
+                end = start.replace(year=start.year + 1)
+                filters.append(and_(ProjectReceipt.payment_date >= start, ProjectReceipt.payment_date < end))
+
+        if min_amount is not None and min_amount > 0:
+            filters.append(ProjectReceipt.amount >= float(min_amount))
+        if max_amount is not None and max_amount > 0:
+            filters.append(ProjectReceipt.amount <= float(max_amount))
+
+        if keyword:
+            kw = f"%{keyword}%"
+            filters.append(or_(
+                ProjectReceipt.receipt_number.ilike(kw),
+                ProjectReceipt.payer_name.ilike(kw),
+                ProjectReceipt.payer_company.ilike(kw),
+                ProjectReceipt.bank_name.ilike(kw),
+                ProjectReceipt.account_number.ilike(kw),
+                ProjectReceipt.transaction_id.ilike(kw),
+                ProjectReceipt.remarks.ilike(kw),
+                ProjectHeader.hid.ilike(kw),
+                ProjectHeader.desc.ilike(kw),
+                ProjectRef.ref_number.ilike(kw)
+            ))
+
+        if filters:
+            query = query.filter(and_(*filters))
+
+        # 排序
+        if sort_by == 'payment_date':
+            order_col = ProjectReceipt.payment_date
+        elif sort_by == 'amount':
+            order_col = ProjectReceipt.amount
+        elif sort_by == 'created_at':
+            order_col = ProjectReceipt.created_at
+        else:
+            order_col = ProjectReceipt.payment_date
+        query = query.order_by(asc(order_col) if sort_order == 'asc' else desc(order_col))
+
+        # 分页
+        pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+
+        # 组织数据
+        items = []
+        for r, project_hid, project_name, ref_number in pagination.items:
+            items.append({
+                'id': r.id,
+                'receipt_number': r.receipt_number,
+                'project_hid': project_hid,
+                'project_name': project_name,
+                'ref_number': ref_number,
+                'amount': float(r.amount) if r.amount is not None else 0,
+                'currency': r.currency,
+                'payment_method': r.payment_method,
+                'payment_method_display': r.payment_method_display,
+                'payment_date': r.payment_date,
+                'payer_name': r.payer_name,
+                'payer_company': r.payer_company,
+                'status': r.status,
+                'status_display': r.status_display,
+                'transaction_id': r.transaction_id,
+                'remarks': r.remarks,
+                'created_at': r.created_at
+            })
+
+        payment_methods = [
+            ('', '全部'),
+            ('cash', '现金'),
+            ('bank_transfer', '银行转账'),
+            ('credit_card', '信用卡'),
+            ('cheque', '支票'),
+            ('other', '其他')
+        ]
+        statuses = [
+            ('', '全部'),
+            ('pending', '待确认'),
+            ('confirmed', '已确认'),
+            ('cancelled', '已取消')
+        ]
+
+        return render_template(
+            'business/projects/project_receipt/receipt_list.html',
+            receipts=items,
+            pagination=pagination,
+            payment_methods=payment_methods,
+            statuses=statuses,
+            current_filters={
+                'status': status,
+                'payment_method': payment_method,
+                'currency': currency,
+                'header_id': header_id,
+                'ref_id': ref_id,
+                'date_range': date_range,
+                'start_date': start_date,
+                'end_date': end_date,
+                'min_amount': min_amount,
+                'max_amount': max_amount,
+                'keyword': keyword,
+                'sort_by': sort_by,
+                'sort_order': sort_order,
+                'per_page': per_page
+            }
+        )
+    except Exception as e:
+        db.session.rollback()
+        flash(f'收据列表加载失败：{str(e)}', 'error')
+        return redirect(url_for('business_projects.list.list_projects'))
+
 @project_receipt.route('/api/header/<int:header_id>/unpaid_refs')
 @login_required
 @staff_only

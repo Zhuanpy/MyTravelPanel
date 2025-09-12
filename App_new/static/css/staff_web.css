@@ -1,0 +1,7 @@
+/* 员工端桌面样式（布局舒展、字号稍大） */
+.sidebar{ width: 220px; }
+.sidebar .nav-link{ font-size: .95rem; padding: .5rem .75rem; }
+.breadcrumb{ font-size: .95rem; }
+.h2, h2{ font-size: 2rem; }
+
+

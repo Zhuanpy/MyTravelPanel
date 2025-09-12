@@ -1,0 +1,5 @@
+{% macro css_pair(name) -%}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/' ~ name ~ '_web.css') }}" media="(min-width: 769px)">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/' ~ name ~ '_mobile.css') }}" media="(max-width: 768px)">
+{%- endmacro %}
+

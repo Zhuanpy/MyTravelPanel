@@ -1,151 +1,214 @@
-# MyTravelPanel 项目规则
+# 项目规则文档 (PROJECT RULES)
 
-## 测试文件管理规则
+## 📁 项目结构规范
 
-### 1. 测试文件存放位置
-**所有测试文件必须放置在 `scripts/` 目录中**
+### 1. 脚本文件管理
+- **所有脚本文件必须放在 `scripts/` 文件夹中**
+- 禁止在根目录或其他目录中放置独立的脚本文件
+- 脚本文件命名规范：`功能描述_版本.py`
 
-- ✅ **正确**: `scripts/test_flight_conversion.py`
-- ✅ **正确**: `scripts/debug_account_management.py`
-- ✅ **正确**: `scripts/test_visa_api.py`
-- ❌ **错误**: `App/tests/test_flight.py`
-- ❌ **错误**: `test_something.py` (根目录)
-- ❌ **错误**: `App/utils/test_cache.py`
+### 2. 脚本文件分类
 
-### 2. 测试文件命名规范
+#### 2.1 数据库维护脚本
+- 位置：`scripts/database/`
+- 用途：数据库初始化、数据修复、数据迁移
+- 示例：`create_auth_tables.sql`, `fix_passwords_final.sql`
 
-#### 2.1 功能测试文件
-- 格式: `test_<功能模块>_<具体功能>.py`
-- 示例:
-  - `test_flight_conversion.py`
-  - `test_account_management.py`
-  - `test_visa_api.py`
-  - `test_package_budget.py`
+#### 2.2 测试脚本
+- 位置：`scripts/testing/`
+- 用途：功能测试、性能测试、调试
+- 示例：`test_login.py`, `test_auth_system.py`
 
-#### 2.2 调试文件
-- 格式: `debug_<问题描述>.py`
-- 示例:
-  - `debug_flight_500_error.py`
-  - `debug_cache_issue.py`
-  - `debug_database_connection.py`
+#### 2.3 数据更新脚本
+- 位置：`scripts/data_update/`
+- 用途：批量数据更新、数据标准化
+- 示例：`update_flight_ref_names_direct.py`
 
-#### 2.3 数据检查文件
-- 格式: `check_<检查内容>.py`
-- 示例:
-  - `check_database_tables.py`
-  - `check_flight_data.py`
-  - `check_visa_types.py`
+#### 2.4 管理脚本
+- 位置：`scripts/admin/`
+- 用途：系统管理、用户管理、权限管理
+- 示例：`create_admin.py`, `init_auth_system.py`
 
-### 3. 测试文件内容规范
+### 3. 文件命名规范
 
-#### 3.1 文件头部注释
+#### 3.1 Python脚本
+```
+功能描述_版本.py
+示例：
+- update_flight_ref_names_direct.py
+- test_login_direct.py
+- create_admin.py
+```
+
+#### 3.2 SQL脚本
+```
+功能描述_版本.sql
+示例：
+- create_auth_tables.sql
+- fix_passwords_final.sql
+```
+
+#### 3.3 文档文件
+```
+功能描述_版本.md
+示例：
+- manual_fix_guide.md
+```
+
+### 4. 脚本开发规范
+
+#### 4.1 脚本头部注释
 ```python
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
-测试文件: test_flight_conversion.py
-功能: 测试航班行程转换功能
-作者: [开发者姓名]
-创建时间: 2025-01-XX
-最后修改: 2025-01-XX
+脚本名称：update_flight_ref_names_direct.py
+功能描述：批量更新机票REF名称标准化
+创建日期：2024-01-XX
+作者：[作者名]
+版本：1.0
 """
 
-# 导入必要的模块
 import sys
 import os
+# 添加项目根目录到Python路径
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from App import create_app
-from App.models.Flightmodels import FlightSchedule
-# ... 其他导入
+from App.models.projects.BookingProject import ProjectRef, ProjectFlightSegment
+from App.exts import db
 ```
 
-#### 3.2 测试函数命名
+#### 4.2 错误处理
 ```python
-def test_flight_conversion_basic():
-    """测试基本的航班转换功能"""
+try:
+    # 主要逻辑
     pass
-
-def test_flight_conversion_with_luggage():
-    """测试带行李信息的航班转换"""
-    pass
-
-def debug_flight_500_error():
-    """调试航班转换500错误"""
-    pass
+except Exception as e:
+    print(f"错误：{str(e)}")
+    sys.exit(1)
 ```
 
-### 4. 测试文件分类
+#### 4.3 日志记录
+```python
+import logging
 
-#### 4.1 按功能模块分类
-- **航班相关**: `test_flight_*.py`, `debug_flight_*.py`
-- **签证相关**: `test_visa_*.py`, `debug_visa_*.py`
-- **账号管理**: `test_account_*.py`, `debug_account_*.py`
-- **配套预算**: `test_package_*.py`, `debug_package_*.py`
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+```
 
-#### 4.2 按测试类型分类
-- **单元测试**: `test_*.py`
-- **集成测试**: `test_integration_*.py`
-- **调试脚本**: `debug_*.py`
-- **数据检查**: `check_*.py`
-- **迁移脚本**: `migrate_*.py`
+### 5. 脚本执行规范
 
-### 5. 执行测试文件
+#### 5.1 执行前检查
+- 确认数据库连接正常
+- 确认有足够的权限
+- 备份重要数据
 
-#### 5.1 在scripts目录中执行
+#### 5.2 执行方式
 ```bash
-cd scripts
-python test_flight_conversion.py
+# 在项目根目录执行
+python scripts/功能描述_版本.py
+
+# 示例
+python scripts/update_flight_ref_names_direct.py
 ```
 
-#### 5.2 从项目根目录执行
-```bash
-python scripts/test_flight_conversion.py
+### 6. 版本控制
+
+#### 6.1 Git忽略规则
+- 临时文件：`*.tmp`, `*.temp`
+- 日志文件：`*.log`
+- 缓存文件：`__pycache__/`, `*.pyc`
+
+#### 6.2 提交规范
+```
+feat: 添加新功能脚本
+fix: 修复脚本bug
+docs: 更新脚本文档
+refactor: 重构脚本代码
+test: 添加测试脚本
 ```
 
-### 6. 测试文件清理规则
+### 7. 安全规范
 
-#### 6.1 临时测试文件
-- 临时创建的测试文件应该在测试完成后删除
-- 如果测试文件包含重要信息，应该重命名为 `debug_*.py` 或 `check_*.py`
+#### 7.1 数据库操作
+- 重要操作前必须备份数据
+- 使用事务确保数据一致性
+- 敏感操作需要确认提示
 
-#### 6.2 长期保留的测试文件
-- 功能测试文件: `test_*.py`
-- 调试工具文件: `debug_*.py`
-- 数据检查文件: `check_*.py`
-- 迁移脚本: `migrate_*.py`
+#### 7.2 权限控制
+- 脚本执行需要适当的权限
+- 避免硬编码敏感信息
+- 使用环境变量管理配置
 
-### 7. Git 版本控制
+### 8. 文档维护
 
-#### 7.1 scripts 文件夹被忽略
-- `scripts/` 文件夹已添加到 `.gitignore` 中
-- 测试文件不会被提交到Git仓库
-- 这确保了仓库的整洁和安全性
+#### 8.1 脚本文档
+每个脚本都应该包含：
+- 功能描述
+- 使用方法
+- 参数说明
+- 注意事项
 
-#### 7.2 共享重要脚本
-如果某个测试脚本对团队有价值：
-1. 将文件复制到 `docs/examples/` 目录
-2. 重命名为 `shared_*.py`
-3. 手动添加到Git: `git add docs/examples/shared_*.py`
+#### 8.2 更新日志
+记录脚本的修改历史：
+- 版本号
+- 修改日期
+- 修改内容
+- 影响范围
 
-#### 7.3 使用脚本模板
-- 测试脚本模板: `docs/examples/templates/test_template.py`
-- 调试脚本模板: `docs/examples/templates/debug_template.py`
+### 9. 质量保证
 
-### 8. 违反规则的后果
+#### 9.1 代码审查
+- 所有脚本提交前需要代码审查
+- 确保代码符合项目规范
+- 测试脚本功能正常
 
-- 测试文件放在错误位置将导致:
-  - 代码审查不通过
-  - 可能被意外提交到生产环境
-  - 影响项目的整体结构
+#### 9.2 测试要求
+- 新脚本必须有对应的测试
+- 重要脚本需要集成测试
+- 定期运行测试脚本
 
-### 9. 最佳实践
+### 10. 维护责任
 
-1. **创建测试文件前先检查scripts目录**
-2. **使用描述性的文件名**
-3. **添加详细的文档注释**
-4. **测试完成后及时清理临时文件**
-5. **定期整理和归档测试文件**
-6. **重要脚本及时共享到docs/examples**
+#### 10.1 脚本维护
+- 定期检查和更新脚本
+- 删除过时的脚本
+- 保持脚本文档的更新
+
+#### 10.2 问题处理
+- 及时修复脚本问题
+- 记录问题和解决方案
+- 分享最佳实践
 
 ---
 
-**注意**: 此规则适用于所有项目成员，包括开发人员、测试人员和维护人员。 
+## 📋 检查清单
+
+### 创建新脚本时：
+- [ ] 脚本放在正确的 `scripts/` 子目录中
+- [ ] 文件名符合命名规范
+- [ ] 包含完整的头部注释
+- [ ] 有适当的错误处理
+- [ ] 包含使用说明
+- [ ] 测试脚本功能正常
+
+### 提交脚本时：
+- [ ] 代码符合项目规范
+- [ ] 通过代码审查
+- [ ] 更新相关文档
+- [ ] 记录修改日志
+
+### 维护脚本时：
+- [ ] 定期检查脚本状态
+- [ ] 更新过时的脚本
+- [ ] 删除无用的脚本
+- [ ] 保持文档同步
+
+---
+
+**最后更新：2024-01-XX**
+**维护者：[维护者姓名]** 
