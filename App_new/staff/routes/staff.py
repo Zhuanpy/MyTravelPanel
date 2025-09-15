@@ -15,6 +15,110 @@ import json
 # 这里将模板目录指向上一层的 templates，模板渲染统一使用命名空间路径 'staff/xxx.html'
 staff = Blueprint('staff', __name__, url_prefix='/staff', template_folder='../templates')
 
+# ==================== 个人资料 ====================
+@staff.route('/profile')
+@login_required
+@staff_only
+def profile():
+    """员工个人资料页面"""
+    return render_template('staff/profile.html', user=current_user)
+
+@staff.route('/profile/edit', methods=['GET', 'POST'])
+@login_required
+@staff_only
+def edit_profile():
+    """编辑员工个人资料"""
+    from ...auth.models.auth import UserProfile
+    from ...exts import db
+    
+    if request.method == 'POST':
+        try:
+            first_name = request.form.get('first_name', '').strip()
+            last_name = request.form.get('last_name', '').strip()
+            phone = request.form.get('phone', '').strip()
+            company = request.form.get('company', '').strip().upper()
+            position = request.form.get('position', '').strip()
+            address = request.form.get('address', '').strip()
+            
+            if not first_name:
+                flash('姓名不能为空', 'error')
+                return render_template('staff/edit_profile.html', user=current_user)
+            
+            # 更新用户资料
+            if current_user.profile:
+                current_user.profile.first_name = first_name
+                current_user.profile.last_name = last_name
+                current_user.profile.phone = phone
+                current_user.profile.company = company
+                current_user.profile.position = position
+                current_user.profile.address = address
+            else:
+                # 如果用户没有资料，创建新的
+                profile = UserProfile(
+                    user_id=current_user.id,
+                    first_name=first_name,
+                    last_name=last_name,
+                    phone=phone,
+                    company=company,
+                    position=position,
+                    address=address
+                )
+                db.session.add(profile)
+            
+            db.session.commit()
+            flash('资料更新成功', 'success')
+            return redirect(url_for('staff.profile'))
+            
+        except Exception as e:
+            db.session.rollback()
+            flash(f'更新失败：{str(e)}', 'error')
+    
+    return render_template('staff/edit_profile.html', user=current_user)
+
+@staff.route('/change-password', methods=['GET', 'POST'])
+@login_required
+@staff_only
+def change_password():
+    """员工修改密码"""
+    from ...exts import db
+    
+    if request.method == 'POST':
+        try:
+            current_password = request.form.get('current_password', '')
+            new_password = request.form.get('new_password', '')
+            confirm_password = request.form.get('confirm_password', '')
+            
+            if not all([current_password, new_password, confirm_password]):
+                flash('请填写所有字段', 'error')
+                return render_template('staff/change_password.html')
+            
+            # 验证当前密码
+            if not current_user.check_password(current_password):
+                flash('当前密码错误', 'error')
+                return render_template('staff/change_password.html')
+            
+            # 验证新密码
+            if new_password != confirm_password:
+                flash('两次输入的新密码不一致', 'error')
+                return render_template('staff/change_password.html')
+            
+            if len(new_password) < 6:
+                flash('新密码长度至少6位', 'error')
+                return render_template('staff/change_password.html')
+            
+            # 更新密码
+            current_user.set_password(new_password)
+            db.session.commit()
+            
+            flash('密码修改成功', 'success')
+            return redirect(url_for('staff.profile'))
+            
+        except Exception as e:
+            db.session.rollback()
+            flash(f'修改密码失败：{str(e)}', 'error')
+    
+    return render_template('staff/change_password.html')
+
 # ==================== 仪表板 ====================
 @staff.route('/dashboard')
 @login_required

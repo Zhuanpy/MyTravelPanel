@@ -243,9 +243,7 @@
     <div class="uob-section">
         <p>账单文件操作</p>
         <div class="uob-button-group">
-            <!-- <form action="{{ url_for('statement_routes.uob_bank_processing') }}" method="post">
-                <button type="submit" class="uob-button">账单整理</button>
-            </form> -->
+
             <form action="{{ url_for('statement_routes.open_uob_statement_folder') }}" method="post">
                 <button type="submit" class="uob-button folder-btn">打开文件夹</button>
             </form>
@@ -253,22 +251,9 @@
             <form action="{{ url_for('statement_routes.uob_add_original') }}" method="post">
                 <button type="submit" class="uob-button">入库最新账单</button>
             </form>
-            <!-- <form action="{{ url_for('statement_routes.uob_analyze') }}" method="post">
-                <button type="submit" class="uob-button">分析数据</button>
-            </form> -->
+
         </div>
     </div>
-
-
-    <!-- 打开项目文件 -->
-    <!-- <div class="uob-section"> 
-        <p>打开项目文件</p>
-        <div class="uob-button-group">
-            <form action="{{ url_for('statement_routes.open_uob_statement_folder') }}" method="post">
-                <button type="submit" class="uob-button folder-btn">打开文件夹</button>
-            </form>
-        </div>
-    </div> -->
 
     <!-- 对账单概览 -->
     <div class="uob-section">

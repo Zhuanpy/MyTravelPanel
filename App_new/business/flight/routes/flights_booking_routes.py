@@ -65,14 +65,29 @@ def submit_order():
         # 2. 自动生成HID和REF
         print("开始生成HID和REF...")
         
+        # 获取或创建"个人"公司记录
+        from App_new.business.projects.models.project import CustomerCompany
+        personal_company = CustomerCompany.query.filter_by(company_name='个人').first()
+        if not personal_company:
+            personal_company = CustomerCompany(
+                company_name='个人',
+                company_code='PERSONAL',
+                contact_person='系统',
+                status='active',
+                created_by='系统'
+            )
+            db.session.add(personal_company)
+            db.session.flush()  # 获取ID
+        
         # 创建项目主表（HID）
         hid = ProjectHeader.generate_hid()
         project_header = ProjectHeader(
             hid=hid,
             desc=f"机票订单 - {request.form['contact_name']} - {first_departure_airport}>{last_arrival_airport}",
+            company_id=personal_company.id,  # 自动设置为"个人"公司
             contact=request.form['contact_name'],
             staff_id=current_user.id if current_user else None,
-            staff_name=current_user.profile.first_name if current_user and current_user.profile else '系统',
+            staff_name=current_user.profile.get_full_name() if current_user and current_user.profile and current_user.profile.get_full_name() != "未设置姓名" else (current_user.profile.first_name if current_user and current_user.profile else '系统'),
             currency='SGD',  # 默认货币
             type='flight',
             status='active',

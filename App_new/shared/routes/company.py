@@ -51,7 +51,7 @@ def create_company():
     if form.validate_on_submit():
         try:
             company = CustomerCompany(
-                company_name=form.company_name.data,
+                company_name=form.company_name.data.upper() if form.company_name.data else '',
                 company_code=form.company_code.data,
                 contact_person=form.contact_person.data,
                 contact_phone=form.contact_phone.data,
@@ -105,6 +105,9 @@ def edit_company(company_id):
     if form.validate_on_submit():
         try:
             form.populate_obj(company)
+            # 确保公司名称为大写
+            if company.company_name:
+                company.company_name = company.company_name.upper()
             db.session.commit()
             flash('公司信息更新成功！', 'success')
             return redirect(url_for('company.company_detail', company_id=company.id))
@@ -277,7 +280,7 @@ def import_excel():
                 
                 # 创建公司记录
                 company = CustomerCompany(
-                    company_name=company_data['company_name'],
+                    company_name=company_data['company_name'].upper(),
                     company_code=company_data.get('company_code', ''),
                     contact_person=company_data.get('contact_person', ''),
                     contact_phone=company_data.get('contact_phone', ''),

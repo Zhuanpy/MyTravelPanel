@@ -33,6 +33,9 @@ def create_header():
             if form.company_id.data and form.company_id.data != 0:
                 company_id = form.company_id.data
             
+            # 如果负责人姓名为空，自动使用经办人姓名
+            leader_name = form.leader_name.data if form.leader_name.data else form.staff_name.data
+            
             header = ProjectHeader(
                 hid=hid,
                 desc=form.desc.data,
@@ -42,7 +45,7 @@ def create_header():
                 dept=form.dept.data,
                 staff_id=current_user.id if current_user.is_authenticated else None,
                 staff_name=form.staff_name.data,
-                leader_name=form.leader_name.data,
+                leader_name=leader_name,
                 currency=form.currency.data,
                 type=form.type.data,
                 source=form.source.data,
@@ -86,6 +89,12 @@ def create_header():
         else:
             # 如果用户资料未设置姓名，使用用户名
             form.staff_name.data = current_user.username
+    
+    # 设置默认公司为"个人"
+    form.company_id.data = 0
+    
+    # 设置默认状态为"进行中"
+    form.status.data = 'active'
     
     return render_template('business/projects/project_header/create_header.html', form=form, hid=hid)
 

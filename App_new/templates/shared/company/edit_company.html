@@ -39,7 +39,7 @@
             <div class="col-md-3">
                 <div class="mb-3">
                     {{ form.company_name.label(class="form-label") }} <span class="text-danger">*</span>
-                    {{ form.company_name(class="form-control") }}
+                    {{ form.company_name(class="form-control", oninput="this.value = this.value.toUpperCase()") }}
                     {% if form.company_name.errors %}
                         <div class="text-danger">
                             {% for error in form.company_name.errors %}

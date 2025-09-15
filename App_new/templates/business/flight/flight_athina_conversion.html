@@ -23,6 +23,14 @@
         --success-color: #059669;
         --success-hover: #047857;
     }
+    
+    /* 确保页面没有多余的边距 */
+    html, body {
+        margin: 0 !important;
+        padding: 0 !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+    }
 
     /* 主容器 */
     .athina-conversion-container {
@@ -57,7 +65,7 @@
         width: 100%;
         position: relative;
         z-index: 1;
-        min-height: 1100px;
+        min-height: auto;
     }
 
     /* 功能区域容器 */
@@ -76,7 +84,7 @@
         display: block !important;
         visibility: visible !important;
         opacity: 1 !important;
-        min-height: 1000px;
+        min-height: auto;
         box-sizing: border-box;
     }
 
@@ -94,8 +102,9 @@
 
     .section-content {
         padding: 2rem;
-        height: 1000px;
-        overflow-y: auto;
+        min-height: 200px;
+        height: auto;
+        overflow-y: visible;
     }
 
     /* 错误消息容器样式 */
@@ -691,83 +700,605 @@
     }
     
     @media (max-width: 768px) {
-        .horizontal-layout {
-            flex-direction: column !important;
-            gap: 1rem;
-            justify-content: flex-start;
-            flex-wrap: wrap;
-        }
-        
-        .function-section {
-            width: 100% !important;
-            flex: none !important;
+        /* ===== 手机版全局重置 ===== */
+        * {
+            box-sizing: border-box !important;
             max-width: 100% !important;
         }
         
+        html, body {
+            width: 100% !important;
+            max-width: 100% !important;
+            overflow-x: hidden !important;
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+        
+        /* ===== Bootstrap网格系统覆盖 ===== */
+        .container-fluid,
+        .row,
+        [class*="col-"],
+        .sidebar,
+        main {
+            width: 100% !important;
+            max-width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            display: block !important;
+            flex: none !important;
+            position: relative !important;
+            left: 0 !important;
+            right: 0 !important;
+            float: none !important;
+            clear: both !important;
+        }
+        
+        .sidebar {
+            display: none !important;
+        }
+        
+        /* ===== 主容器布局 ===== */
+        .athina-conversion-container {
+            width: 100% !important;
+            max-width: 100% !important;
+            margin: 0 !important;
+            padding: 10px !important;
+            box-sizing: border-box !important;
+            overflow-x: hidden !important;
+        }
+        
+        .horizontal-layout {
+            display: block !important;
+            width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            gap: 0 !important;
+        }
+        
+        .function-section {
+            display: block !important;
+            width: 100% !important;
+            margin: 0 0 20px 0 !important;
+            padding: 0 !important;
+            background: white !important;
+            border-radius: 12px !important;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1) !important;
+            overflow: hidden !important;
+        }
+        
+        /* ===== 区域头部 ===== */
+        .section-header {
+            display: flex !important;
+            align-items: center !important;
+            padding: 15px 20px !important;
+            margin: 0 !important;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color)) !important;
+            color: white !important;
+            font-size: 1.2rem !important;
+            font-weight: 600 !important;
+        }
+        
+        .section-header i {
+            margin-right: 10px !important;
+            font-size: 1.1rem !important;
+        }
+        
+        /* ===== 区域内容 ===== */
         .section-content {
-            height: auto;
-            overflow-y: visible;
+            padding: 20px !important;
+            margin: 0 !important;
+            background: white !important;
         }
         
-        .athina-input-group {
-            grid-template-columns: 1fr;
+        /* ===== 表单标签 ===== */
+        .flight-app-label {
+            display: flex !important;
+            align-items: center !important;
+            margin: 0 0 8px 0 !important;
+            font-weight: 600 !important;
+            font-size: 14px !important;
+            color: var(--text-color) !important;
         }
         
-        .flight-app-itinerary-container {
-            flex-direction: column;
+        .flight-app-label i {
+            margin-right: 8px !important;
+            color: var(--success-color) !important;
+            font-size: 16px !important;
         }
         
-        .flight-app-itinerary-column {
-            width: 100%;
+        /* ===== 文本域样式 ===== */
+        .flight-app-textarea,
+        .unified-textarea,
+        .athina-textarea {
+            width: 100% !important;
+            height: 300px !important;
+            min-height: 300px !important;
+            padding: 15px !important;
+            border: 2px solid var(--border-color) !important;
+            border-radius: 8px !important;
+            font-size: 14px !important;
+            font-family: 'Consolas', 'Monaco', monospace !important;
+            background-color: var(--background-color) !important;
+            resize: vertical !important;
+            transition: border-color 0.3s ease !important;
         }
         
+        .flight-app-textarea:focus,
+        .unified-textarea:focus,
+        .athina-textarea:focus {
+            outline: none !important;
+            border-color: var(--success-color) !important;
+            box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.1) !important;
+        }
+        
+        /* ===== 输入框样式 ===== */
+        .unified-input,
+        .athina-input {
+            width: 100% !important;
+            height: 50px !important;
+            min-height: 50px !important;
+            padding: 15px !important;
+            border: 2px solid var(--border-color) !important;
+            border-radius: 8px !important;
+            font-size: 16px !important;
+            background-color: var(--background-color) !important;
+            transition: border-color 0.3s ease !important;
+        }
+        
+        .unified-input:focus,
+        .athina-input:focus {
+            outline: none !important;
+            border-color: var(--success-color) !important;
+            box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.1) !important;
+        }
+        
+        /* ===== 选择框样式 ===== */
+        .unified-select {
+            width: 100% !important;
+            height: 50px !important;
+            padding: 15px !important;
+            border: 2px solid var(--border-color) !important;
+            border-radius: 8px !important;
+            font-size: 16px !important;
+            background-color: var(--background-color) !important;
+            transition: border-color 0.3s ease !important;
+        }
+        
+        .unified-select:focus {
+            outline: none !important;
+            border-color: var(--success-color) !important;
+            box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.1) !important;
+        }
+        
+        /* ===== 行李和价格区域布局 ===== */
         .flight-app-luggage-price-row {
-            flex-direction: column;
+            display: flex !important;
+            flex-direction: column !important;
+            gap: 15px !important;
+            margin: 20px 0 !important;
         }
         
         .flight-app-luggage-price-item {
-            max-width: 100%;
+            width: 100% !important;
         }
         
+        /* 行李容器内部布局 */
+        .flight-app-luggage-container {
+            display: flex !important;
+            flex-direction: row !important;
+            gap: 10px !important;
+            align-items: stretch !important;
+        }
+        
+        .flight-app-luggage-container select,
+        .flight-app-luggage-container input {
+            flex: 1 !important;
+            margin: 0 !important;
+        }
+        
+        /* ===== 控制区域布局 ===== */
         .flight-app-bottom-row {
-            flex-direction: column;
-            align-items: flex-start;
-            gap: 15px;
+            margin: 20px 0 !important;
         }
         
+        .flight-app-controls-row {
+            display: flex !important;
+            flex-direction: column !important;
+            gap: 15px !important;
+            align-items: center !important;
+        }
+        
+        /* 语言选择 */
         .flight-app-radio-group {
-            flex-direction: column;
-            align-items: flex-start;
-            gap: 10px;
+            display: flex !important;
+            flex-direction: row !important;
+            align-items: center !important;
+            gap: 20px !important;
+            justify-content: center !important;
+            padding: 15px !important;
+            background-color: var(--background-color) !important;
+            border-radius: 8px !important;
+            border: 2px solid var(--border-color) !important;
         }
         
-        .athina-conversion-container {
-            padding: 10px;
+        .flight-app-radio-item {
+            display: flex !important;
+            align-items: center !important;
+            gap: 8px !important;
+            font-size: 14px !important;
+            font-weight: 500 !important;
         }
         
-        .section-content {
-            padding: 1rem;
+        .flight-app-radio-item input[type="radio"] {
+            width: 18px !important;
+            height: 18px !important;
+            margin: 0 !important;
+        }
+        
+        /* ===== 按钮样式 ===== */
+        .unified-button,
+        .flight-app-btn,
+        .athina-button,
+        .athina-delete-btn {
+            width: auto !important;
+            min-width: 120px !important;
+            max-width: 200px !important;
+            padding: 12px 20px !important;
+            border: none !important;
+            border-radius: 8px !important;
+            font-size: 14px !important;
+            font-weight: 600 !important;
+            cursor: pointer !important;
+            transition: all 0.3s ease !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            gap: 8px !important;
+            white-space: nowrap !important;
+        }
+        
+        .flight-app-btn {
+            background-color: var(--success-color) !important;
+            color: white !important;
+            min-width: 150px !important;
+            padding: 15px 25px !important;
+            font-size: 16px !important;
+        }
+        
+        .flight-app-btn:hover {
+            background-color: var(--success-hover) !important;
+            transform: translateY(-2px) !important;
+            box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3) !important;
+        }
+        
+        .athina-delete-btn {
+            background-color: var(--danger-color) !important;
+            color: white !important;
+            min-width: 80px !important;
+        }
+        
+        .athina-delete-btn:hover {
+            background-color: var(--danger-hover) !important;
+        }
+        
+        /* 按钮容器 */
+        .flight-app-btn-container {
+            width: 100% !important;
+            display: flex !important;
+            justify-content: center !important;
+        }
+        
+        /* ===== 输出区域 ===== */
+        .flight-app-output-container {
+            position: relative !important;
+            margin: 20px 0 !important;
+        }
+        
+        .flight-app-copy-btn {
+            position: absolute !important;
+            top: 10px !important;
+            right: 10px !important;
+            z-index: 10 !important;
+            background-color: var(--success-color) !important;
+            color: white !important;
+            padding: 8px 15px !important;
+            border: none !important;
+            border-radius: 6px !important;
+            font-size: 12px !important;
+            cursor: pointer !important;
+        }
+        
+        .flight-app-copy-btn:hover {
+            background-color: var(--success-hover) !important;
+        }
+        
+        /* ===== 第二部分：预订代码生成 ===== */
+        .athina-input-container {
+            background-color: var(--background-color) !important;
+            padding: 20px !important;
+            border-radius: 8px !important;
+            margin: 20px 0 !important;
+            border: 2px solid var(--border-color) !important;
+        }
+        
+        .athina-subtitle {
+            font-size: 1.1rem !important;
+            font-weight: 600 !important;
+            color: var(--text-color) !important;
+            margin: 0 0 15px 0 !important;
+        }
+        
+        .athina-input-group {
+            display: flex !important;
+            flex-direction: row !important;
+            align-items: flex-end !important;
+            gap: 15px !important;
+            padding: 15px !important;
+            background-color: white !important;
+            border-radius: 8px !important;
+            border: 2px solid var(--border-color) !important;
+            margin-bottom: 15px !important;
+        }
+        
+        .athina-input-group label {
+            flex: 1 !important;
+            font-weight: 600 !important;
+            font-size: 14px !important;
+            color: var(--text-color) !important;
+            margin: 0 !important;
+        }
+        
+        .athina-input-group input {
+            margin-top: 5px !important;
+        }
+        
+        .athina-delete-btn {
+            flex-shrink: 0 !important;
+            margin-left: 10px !important;
+        }
+        
+        .athina-button-container {
+            display: flex !important;
+            justify-content: center !important;
+            gap: 10px !important;
+            margin: 15px 0 !important;
+        }
+        
+        .athina-output-header {
+            display: flex !important;
+            flex-direction: column !important;
+            gap: 15px !important;
+            margin-bottom: 15px !important;
+        }
+        
+        .athina-textarea-container {
+            position: relative !important;
+        }
+        
+        .athina-copy-btn {
+            position: absolute !important;
+            top: 10px !important;
+            right: 10px !important;
+            z-index: 10 !important;
+            background-color: var(--success-color) !important;
+            color: white !important;
+            padding: 8px 15px !important;
+            border: none !important;
+            border-radius: 6px !important;
+            font-size: 12px !important;
+            cursor: pointer !important;
+        }
+        
+        .athina-copy-btn:hover {
+            background-color: var(--success-hover) !important;
         }
     }
     
     @media (max-width: 480px) {
+        /* ===== 小屏幕手机版优化 ===== */
         .athina-conversion-container {
-            max-width: 100%;
-            padding: 10px;
-        }
-        
-        .section-content {
-            padding: 0.75rem;
+            padding: 8px !important;
         }
         
         .section-header {
-            padding: 1rem;
-            font-size: 1.25rem;
+            padding: 12px 15px !important;
+            font-size: 1.1rem !important;
         }
         
-        .page-title {
-            font-size: 1.5rem;
-            margin-bottom: 1.5rem;
+        .section-content {
+            padding: 15px !important;
+        }
+        
+        .athina-input-container {
+            padding: 15px !important;
+        }
+        
+        /* 文本域高度调整 */
+        .flight-app-textarea,
+        .unified-textarea,
+        .athina-textarea {
+            height: 280px !important;
+            min-height: 280px !important;
+            padding: 12px !important;
+            font-size: 14px !important;
+        }
+        
+        /* 输入框高度调整 */
+        .unified-input,
+        .athina-input {
+            height: 45px !important;
+            min-height: 45px !important;
+            padding: 12px !important;
+            font-size: 16px !important;
+        }
+        
+        /* 选择框高度调整 */
+        .unified-select {
+            height: 45px !important;
+            padding: 12px !important;
+            font-size: 16px !important;
+        }
+        
+        /* 按钮尺寸调整 */
+        .unified-button,
+        .flight-app-btn,
+        .athina-button,
+        .athina-delete-btn {
+            min-width: 100px !important;
+            max-width: 180px !important;
+            padding: 10px 15px !important;
+            font-size: 13px !important;
+        }
+        
+        .flight-app-btn {
+            min-width: 130px !important;
+            padding: 12px 20px !important;
+            font-size: 15px !important;
+        }
+        
+        /* 语言选择间距调整 */
+        .flight-app-radio-group {
+            gap: 15px !important;
+            padding: 12px !important;
+        }
+        
+        .flight-app-radio-item {
+            font-size: 13px !important;
+        }
+        
+        .flight-app-radio-item input[type="radio"] {
+            width: 16px !important;
+            height: 16px !important;
+        }
+        
+        /* 行李容器间距调整 */
+        .flight-app-luggage-container {
+            gap: 8px !important;
+        }
+        
+        /* 标签字体调整 */
+        .flight-app-label {
+            font-size: 13px !important;
+        }
+        
+        .flight-app-label i {
+            font-size: 14px !important;
+        }
+        
+        /* 副标题调整 */
+        .athina-subtitle {
+            font-size: 1rem !important;
+        }
+        
+        /* 输入组间距调整 */
+        .athina-input-group {
+            padding: 12px !important;
+            gap: 10px !important;
+            flex-direction: row !important;
+            align-items: flex-end !important;
+        }
+        
+        .athina-input-group label {
+            font-size: 13px !important;
+            flex: 1 !important;
+        }
+        
+        .athina-delete-btn {
+            flex-shrink: 0 !important;
+            min-width: 60px !important;
+            padding: 8px 12px !important;
+            font-size: 12px !important;
+        }
+    }
+    
+    /* 终极样式冲突解决方案 - 最高优先级 */
+    @media (max-width: 768px) {
+        /* 使用最高CSS优先级覆盖所有可能的样式冲突 */
+        html body div.athina-conversion-container {
+            width: 100% !important;
+            max-width: 100% !important;
+            margin: 0 !important;
+            padding: 5px !important;
+            box-sizing: border-box !important;
+            overflow-x: hidden !important;
+            position: relative !important;
+            left: 0 !important;
+            right: 0 !important;
+        }
+        
+        html body div.athina-conversion-container div.horizontal-layout {
+            display: block !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            flex-direction: unset !important;
+            flex-wrap: unset !important;
+            justify-content: unset !important;
+            align-items: unset !important;
+            gap: 0 !important;
+            position: relative !important;
+            left: 0 !important;
+            right: 0 !important;
+            clear: both !important;
+            float: none !important;
+        }
+        
+        html body div.athina-conversion-container div.horizontal-layout div.function-section {
+            display: block !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            margin: 0 0 15px 0 !important;
+            padding: 0 !important;
+            flex: none !important;
+            position: relative !important;
+            left: 0 !important;
+            right: 0 !important;
+            clear: both !important;
+            float: none !important;
+        }
+        
+        /* 强制覆盖Bootstrap的所有网格类 */
+        html body div.container-fluid {
+            width: 100% !important;
+            max-width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            display: block !important;
+        }
+        
+        html body div.container-fluid div.row {
+            width: 100% !important;
+            max-width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            display: block !important;
+            flex-direction: unset !important;
+            flex-wrap: unset !important;
+        }
+        
+        html body div.container-fluid div.row nav.col-md-2,
+        html body div.container-fluid div.row nav.col-lg-1,
+        html body div.container-fluid div.row main.col-md-10,
+        html body div.container-fluid div.row main.col-lg-11,
+        html body div.container-fluid div.row main.ms-sm-auto {
+            width: 100% !important;
+            max-width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            flex: none !important;
+            display: block !important;
+            position: relative !important;
+            left: 0 !important;
+            right: 0 !important;
+            clear: both !important;
+            float: none !important;
+        }
+        
+        /* 强制隐藏侧边栏 */
+        html body div.container-fluid div.row nav.sidebar,
+        html body nav.sidebar {
+            display: none !important;
         }
     }
 </style>
@@ -775,7 +1306,7 @@
 
 {% block content %}
 <div class="athina-conversion-container">
-    <h1 class="page-title">ATHINA 机票工具</h1>
+    <!-- <h1 class="page-title">ATHINA 机票工具</h1> -->
     
     {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}

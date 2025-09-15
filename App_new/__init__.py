@@ -52,10 +52,18 @@ def create_app():
     # /favicon.ico 兼容
     @app.route('/favicon.ico')
     def favicon():
-        # 兼容新旧命名：优先使用 favico.ico，其次 favicon.ico
-        preferred = 'favico.ico'
-        fallback = 'favicon.ico'
-        icon_file = preferred if os.path.exists(os.path.join(app.static_folder, preferred)) else fallback
+        # 兼容新旧命名：优先使用 logo.ico，其次 favico.ico，最后 favicon.ico
+        preferred = 'logo.ico'
+        fallback1 = 'favico.ico'
+        fallback2 = 'favicon.ico'
+        
+        if os.path.exists(os.path.join(app.static_folder, preferred)):
+            icon_file = preferred
+        elif os.path.exists(os.path.join(app.static_folder, fallback1)):
+            icon_file = fallback1
+        else:
+            icon_file = fallback2
+            
         return send_from_directory(app.static_folder, icon_file, mimetype='image/x-icon')
 
     @app.route('/favico.ico')

@@ -141,14 +141,14 @@
     <div class="eo-header">
         <div class="d-flex justify-content-between align-items-center">
             <div>
-                <h1 class="eo-title mb-0">创建EO子明�?/h1>
+                <h1 class="eo-title mb-0">创建EO子明�?/h1>
                 <p class="eo-subtitle mb-0">为REF {{ ref.ref_number }} 创建EO</p>
             </div>
             <div class="d-flex gap-2">
                 <a href="{{ url_for('projects.ref_detail', ref_id=ref.id) }}" class="btn btn-outline-light">
                     <i class="fas fa-arrow-left"></i> 返回REF
                 </a>
-                <a href="{{ url_for('projects.header_detail', header_id=ref.header.id) }}" class="btn btn-outline-light">
+                <a href="{{ url_for('business_projects.project_header.header_detail', header_id=ref.header.id) }}" class="btn btn-outline-light">
                     <i class="fas fa-home"></i> 返回HID
                 </a>
             </div>
@@ -167,30 +167,30 @@
             </div>
             <div class="ref-info-item">
                 <div class="ref-info-label">REF名称</div>
-                <div class="ref-info-value">{{ ref.name or ref.description or '未设�? }}</div>
+                <div class="ref-info-value">{{ ref.name or ref.description or '未设�? }}</div>
             </div>
             <div class="ref-info-item">
                 <div class="ref-info-label">REF类型</div>
-                <div class="ref-info-value">{{ ref.ref_type.name if ref.ref_type else '未设�? }}</div>
+                <div class="ref-info-value">{{ ref.ref_type.name if ref.ref_type else '未设�? }}</div>
             </div>
             <div class="ref-info-item">
-                <div class="ref-info-label">供应�?/div>
-                <div class="ref-info-value">{{ ref.supplier.name if ref.supplier else '未设�? }}</div>
+                <div class="ref-info-label">供应�?/div>
+                <div class="ref-info-value">{{ ref.supplier.name if ref.supplier else '未设�? }}</div>
             </div>
             <div class="ref-info-item">
                 <div class="ref-info-label">售价</div>
-                <div class="ref-info-value">{{ ref.currency }} {{ "%.2f"|format(ref.selling_price) if ref.selling_price else '未设�? }}</div>
+                <div class="ref-info-value">{{ ref.currency }} {{ "%.2f"|format(ref.selling_price) if ref.selling_price else '未设�? }}</div>
             </div>
             <div class="ref-info-item">
                 <div class="ref-info-label">成本</div>
-                <div class="ref-info-value">{{ ref.currency }} {{ "%.2f"|format(ref.cost_price) if ref.cost_price else '未设�? }}</div>
+                <div class="ref-info-value">{{ ref.currency }} {{ "%.2f"|format(ref.cost_price) if ref.cost_price else '未设�? }}</div>
             </div>
             <div class="ref-info-item">
                 <div class="ref-info-label">货币</div>
                 <div class="ref-info-value">{{ ref.currency or 'SGD' }}</div>
             </div>
             <div class="ref-info-item">
-                <div class="ref-info-label">状�?/div>
+                <div class="ref-info-label">状�?/div>
                 <div class="ref-info-value">
                     <span class="badge bg-{{ 'success' if ref.status == 'completed' else 'warning' if ref.status == 'processing' else 'secondary' }}">
                         {{ ref.status }}
@@ -200,10 +200,10 @@
         </div>
     </div>
     
-    <!-- 预填充提�?-->
+    <!-- 预填充提�?-->
     <div class="prefill-hint">
         <i class="fas fa-lightbulb"></i>
-        <strong>提示�?/strong>以下字段已从REF信息中自动预填充，您可以根据需要修改�?
+        <strong>提示�?/strong>以下字段已从REF信息中自动预填充，您可以根据需要修改�?
     </div>
     
     <!-- 错误提示 -->
@@ -233,7 +233,7 @@
                     <div class="mb-3">
                         {{ form.eo_number.label(class="form-label") }}
                         {{ form.eo_number(class="form-control readonly-field", readonly=true) }}
-                        <small class="text-muted">EO编号将自动生�?/small>
+                        <small class="text-muted">EO编号将自动生�?/small>
                         {% if form.eo_number.errors %}
                             <div class="text-danger mt-1">
                                 {% for error in form.eo_number.errors %}
@@ -334,17 +334,17 @@
             </div>
         </div>
         
-        <!-- 状态信�?-->
+        <!-- 状态信�?-->
         <div class="form-section">
             <h4 class="section-title">
-                <i class="fas fa-toggle-on text-warning"></i> 状态信�?
+                <i class="fas fa-toggle-on text-warning"></i> 状态信�?
             </h4>
             <div class="row">
                 <div class="col-md-6">
                     <div class="mb-3">
                         {{ form.status.label(class="form-label") }}
                         {{ form.status(class="form-select") }}
-                        <small class="text-muted">默认为已确认状�?/small>
+                        <small class="text-muted">默认为已确认状�?/small>
                         {% if form.status.errors %}
                             <div class="text-danger mt-1">
                                 {% for error in form.status.errors %}
@@ -366,7 +366,7 @@
                 <div class="col-md-4">
                     <div class="mb-3">
                         {{ form.external_system.label(class="form-label") }}
-                        {{ form.external_system(class="form-control", placeholder="如：供应商系统、第三方平台�?) }}
+                        {{ form.external_system(class="form-control", placeholder="如：供应商系统、第三方平台�?) }}
                         {% if form.external_system.errors %}
                             <div class="text-danger mt-1">
                                 {% for error in form.external_system.errors %}
@@ -379,7 +379,7 @@
                 <div class="col-md-4">
                     <div class="mb-3">
                         {{ form.external_status.label(class="form-label") }}
-                        {{ form.external_status(class="form-control", placeholder="如：已确认、处理中、已完成�?) }}
+                        {{ form.external_status(class="form-control", placeholder="如：已确认、处理中、已完成�?) }}
                         {% if form.external_status.errors %}
                             <div class="text-danger mt-1">
                                 {% for error in form.external_status.errors %}
@@ -412,7 +412,7 @@
             </h4>
             <div class="mb-3">
                 {{ form.remarks.label(class="form-label") }}
-                {{ form.remarks(class="form-control", rows=4, placeholder="请输入备注信�?..") }}
+                {{ form.remarks(class="form-control", rows=4, placeholder="请输入备注信�?..") }}
                 <small class="text-muted">从REF备注自动填充</small>
                 {% if form.remarks.errors %}
                     <div class="text-danger mt-1">
@@ -433,7 +433,7 @@
                 <a href="{{ url_for('projects.ref_detail', ref_id=ref.id) }}" class="btn btn-secondary">
                     <i class="fas fa-times"></i> 取消
                 </a>
-                <a href="{{ url_for('projects.header_detail', header_id=ref.header.id) }}" class="btn btn-outline-secondary">
+                <a href="{{ url_for('business_projects.project_header.header_detail', header_id=ref.header.id) }}" class="btn btn-outline-secondary">
                     <i class="fas fa-home"></i> 返回HID
                 </a>
             </div>
@@ -447,7 +447,7 @@ document.addEventListener('DOMContentLoaded', function() {
     let autoSaveTimer;
     const form = document.querySelector('form');
     
-    // 监听表单变化，自动保存草�?
+    // 监听表单变化，自动保存草�?
     form.addEventListener('change', function() {
         clearTimeout(autoSaveTimer);
         autoSaveTimer = setTimeout(function() {
@@ -456,7 +456,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 2000);
     });
     
-    // 表单提交前确�?
+    // 表单提交前确�?
     form.addEventListener('submit', function(e) {
         if (!confirm('确定要创建这个EO吗？')) {
             e.preventDefault();
@@ -470,7 +470,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (supplierTypeSelect && supplierSelect) {
         supplierTypeSelect.addEventListener('change', function() {
             // 这里可以添加根据供应商类型筛选供应商的逻辑
-            console.log('供应商类型已更改�?, this.value);
+            console.log('供应商类型已更改�?, this.value);
         });
     }
 });

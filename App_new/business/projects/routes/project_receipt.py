@@ -60,7 +60,7 @@ def create_receipt(ref_id):
             
             db.session.commit()
             
-            return redirect(url_for('project_header.header_detail', header_id=ref.header_id))
+            return redirect(url_for('business_projects.project_header.header_detail', header_id=ref.header_id))
             
         except Exception as e:
             db.session.rollback()

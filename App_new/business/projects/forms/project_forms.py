@@ -295,14 +295,14 @@ class ProjectHeaderForm(FlaskForm):
     ])
 
     company_id = SelectField('选择公司', [
-        Optional()
+        DataRequired(message='请选择公司或个人')
     ], coerce=int, choices=[])
 
     def __init__(self, *args, **kwargs):
         super(ProjectHeaderForm, self).__init__(*args, **kwargs)
         # 动态加载公司选项
         companies = CustomerCompany.query.filter_by(status='active').order_by(CustomerCompany.company_name).all()
-        self.company_id.choices = [(0, '请选择公司')] + [(c.id, c.company_name) for c in companies]
+        self.company_id.choices = [(0, '个人')] + [(c.id, c.company_name) for c in companies]
 
         # 如果是编辑模式，移除项目编号的长度验证
         if 'obj' in kwargs and kwargs['obj']:
@@ -313,6 +313,7 @@ class ProjectHeaderForm(FlaskForm):
     ])
 
     contact = StringField('联系人', [
+        DataRequired(message='联系人不能为空'),
         Length(max=50, message='联系人不能超过50个字符')
     ])
 
@@ -337,8 +338,16 @@ class ProjectHeaderForm(FlaskForm):
         ('CNY', '人民币')
     ])
 
-    type = StringField('类型', [
-        Length(max=50, message='类型不能超过50个字符')
+    type = SelectField('类型', [
+        DataRequired(message='请选择类型')
+    ], choices=[
+        ('', '请选择类型'),
+        ('comprehensive', '综合'),
+        ('flight', '机票'),
+        ('visa', '签证'),
+        ('tour', '旅游'),
+        ('hotel', '酒店'),
+        ('other', '其他')
     ])
 
     source = StringField('来源', [
@@ -356,7 +365,7 @@ class ProjectHeaderForm(FlaskForm):
         ('active', '进行中'),
         ('completed', '已完成'),
         ('cancelled', '已取消')
-    ])
+    ], default='active')
 
     remarks = TextAreaField('备注', [
         Length(max=1000, message='备注不能超过1000个字符')

@@ -71,9 +71,11 @@
         width: 100%;
         font-size: 1rem;
     }
-    /* 隐藏备注编辑区域 */
-    .edit-header-form .remarks-row {
-        display: none !important;
+    /* 备注字段只读样式 */
+    .edit-header-form .remarks-textarea {
+        background-color: #f8f9fa !important;
+        color: #6c757d !important;
+        cursor: not-allowed !important;
     }
     /* Select2 样式优化 */
     .select2-container {
@@ -143,8 +145,8 @@
         </div>
         <div class="row remarks-row">
             <div class="edit-col" style="flex: 1 0 100%; max-width: 100%;">
-                {{ form.remarks.label(class="form-label") }}
-                {{ form.remarks(class="form-control remarks-textarea", rows=4) }}
+                {{ form.remarks.label(class="form-label") }} <small class="text-muted">(不可编辑)</small>
+                {{ form.remarks(class="form-control remarks-textarea", rows=4, readonly=true) }}
             </div>
         </div>
         <div class="d-flex gap-2">

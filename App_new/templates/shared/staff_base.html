@@ -12,6 +12,85 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/staff.css') }}" rel="stylesheet">
     
+    <style>
+        /* 手机版侧边栏隐藏功能 */
+        @media (max-width: 767.98px) {
+            #sidebar {
+                position: fixed;
+                top: 56px; /* 导航栏高度 */
+                left: -100%;
+                width: 280px;
+                height: calc(100vh - 56px);
+                z-index: 1000;
+                transition: left 0.3s ease;
+                overflow-y: auto;
+                background-color: #f8f9fa;
+                box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+            }
+            
+            #sidebar.show {
+                left: 0;
+            }
+            
+            /* 当侧边栏显示时，添加遮罩层 */
+            .sidebar-overlay {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background-color: rgba(0, 0, 0, 0.5);
+                z-index: 999;
+                display: none;
+            }
+            
+            .sidebar-overlay.show {
+                display: block;
+            }
+            
+            /* 调整主内容区域 */
+            main {
+                margin-left: 0 !important;
+                width: 100% !important;
+            }
+            
+            /* 侧边栏切换按钮样式 */
+            #sidebarToggle {
+                border: 1px solid rgba(255,255,255,0.3);
+                background: transparent;
+                color: white;
+                padding: 0.375rem 0.75rem;
+                border-radius: 0.375rem;
+                transition: all 0.3s ease;
+            }
+            
+            #sidebarToggle:hover {
+                background: rgba(255,255,255,0.1);
+                border-color: rgba(255,255,255,0.5);
+            }
+        }
+        
+        /* 确保在大屏幕上侧边栏正常显示 */
+        @media (min-width: 768px) {
+            #sidebar {
+                position: relative !important;
+                left: auto !important;
+                width: auto !important;
+                height: auto !important;
+                transform: none !important;
+                box-shadow: none !important;
+            }
+            
+            #sidebarToggle {
+                display: none !important;
+            }
+            
+            .sidebar-overlay {
+                display: none !important;
+            }
+        }
+    </style>
+    
     {% block extra_css %}{% endblock %}
 </head>
 <body>
@@ -25,6 +104,11 @@
             
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
+            </button>
+            
+            <!-- 侧边栏切换按钮 -->
+            <button class="btn btn-outline-light d-md-none me-2" type="button" id="sidebarToggle">
+                <i class="fas fa-bars"></i>
             </button>
             
             <div class="collapse navbar-collapse" id="navbarNav">
@@ -282,14 +366,11 @@
                             {% endif %}
                         </a>
                         <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="{{ url_for('auth_profile.profile') }}">
+                            <li><a class="dropdown-item" href="{{ url_for('staff.profile') }}">
                                 <i class="fas fa-user me-2"></i>个人资料
                             </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('auth_profile.change_password') }}">
+                            <li><a class="dropdown-item" href="{{ url_for('staff.change_password') }}">
                                 <i class="fas fa-key me-2"></i>修改密码
-                            </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('member.dashboard') }}">
-                                <i class="fas fa-user-circle me-2"></i>会员中心
                             </a></li>
                             <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item" href="{{ url_for('auth_profile.logout') }}">
@@ -302,11 +383,14 @@
         </div>
     </nav>
 
+    <!-- 侧边栏遮罩层 -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+    
     <!-- 主要内容 -->
     <div class="container-fluid">
         <div class="row">
             <!-- 侧边栏 -->
-            <nav class="col-md-2 col-lg-1 d-md-block bg-light sidebar">
+            <nav class="col-md-2 col-lg-1 d-md-block bg-light sidebar" id="sidebar">
                 <div class="position-sticky pt-3">
                     <ul class="nav flex-column">
                         <li class="nav-item">
@@ -407,13 +491,13 @@
                 Athina机票工具
             </a>
                         </li>
-                        <li class="nav-item">
+                        <!-- <li class="nav-item">
                             <a class="nav-link {% if request.endpoint == 'flights_athina.athina_page' %}active{% endif %}" 
                                href="{{ url_for('flights_athina.athina_page') }}">
                                 <i class="fas fa-file-code me-2"></i>
                                 Athina代码
                             </a>
-                        </li>
+                        </li> -->
                         
                         <!-- 配套管理分组 -->
                         <li class="nav-item mt-3">
@@ -589,6 +673,76 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <script>
+        // 侧边栏切换功能
+        document.addEventListener('DOMContentLoaded', function() {
+            const sidebarToggle = document.getElementById('sidebarToggle');
+            const sidebar = document.getElementById('sidebar');
+            const sidebarOverlay = document.getElementById('sidebarOverlay');
+            
+            if (sidebarToggle && sidebar && sidebarOverlay) {
+                // 切换侧边栏显示/隐藏
+                sidebarToggle.addEventListener('click', function() {
+                    sidebar.classList.toggle('show');
+                    sidebarOverlay.classList.toggle('show');
+                    
+                    // 切换按钮图标
+                    const icon = sidebarToggle.querySelector('i');
+                    if (sidebar.classList.contains('show')) {
+                        icon.className = 'fas fa-times';
+                    } else {
+                        icon.className = 'fas fa-bars';
+                    }
+                });
+                
+                // 点击遮罩层关闭侧边栏
+                sidebarOverlay.addEventListener('click', function() {
+                    sidebar.classList.remove('show');
+                    sidebarOverlay.classList.remove('show');
+                    
+                    // 重置按钮图标
+                    const icon = sidebarToggle.querySelector('i');
+                    icon.className = 'fas fa-bars';
+                });
+                
+                // 点击侧边栏内的链接时关闭侧边栏（仅在手机版）
+                function bindSidebarLinkEvents() {
+                    const sidebarLinks = sidebar.querySelectorAll('.nav-link');
+                    sidebarLinks.forEach(function(link) {
+                        link.addEventListener('click', function() {
+                            if (window.innerWidth <= 767) {
+                                sidebar.classList.remove('show');
+                                sidebarOverlay.classList.remove('show');
+                                
+                                // 重置按钮图标
+                                const icon = sidebarToggle.querySelector('i');
+                                icon.className = 'fas fa-bars';
+                            }
+                        });
+                    });
+                }
+                
+                bindSidebarLinkEvents();
+                
+                // 窗口大小改变时重新绑定事件
+                window.addEventListener('resize', function() {
+                    if (window.innerWidth > 767) {
+                        // 大屏幕时关闭侧边栏
+                        sidebar.classList.remove('show');
+                        sidebarOverlay.classList.remove('show');
+                        
+                        // 重置按钮图标
+                        const icon = sidebarToggle.querySelector('i');
+                        if (icon) icon.className = 'fas fa-bars';
+                    } else {
+                        // 小屏幕时重新绑定链接事件
+                        bindSidebarLinkEvents();
+                    }
+                });
+            }
+        });
+    </script>
     
     {% block extra_js %}{% endblock %}
 </body>

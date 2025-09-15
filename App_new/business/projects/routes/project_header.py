@@ -75,7 +75,8 @@ def edit_header(header_id):
             header.dept = form.dept.data
             header.staff_id = form.staff_id.data if form.staff_id.data else None
             header.staff_name = form.staff_name.data
-            header.leader_name = form.leader_name.data
+            # 如果负责人姓名为空，自动使用经办人姓名
+            header.leader_name = form.leader_name.data if form.leader_name.data else form.staff_name.data
             header.currency = form.currency.data
             header.type = form.type.data
             header.source = form.source.data
@@ -93,7 +94,7 @@ def edit_header(header_id):
             for error in errors:
                 flash(f'{getattr(form, field).label.text}: {error}', 'error')
     
-    return render_template('business/projects/project_header/edit_header.html', form=form, header=header)
+    return render_template('business/projects/project_header/create_header.html', form=form, header=header, hid=header.hid, is_edit=True)
 
 @project_header.route('/<int:header_id>/delete', methods=['POST'])
 @csrf.exempt
