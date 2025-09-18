@@ -22,8 +22,121 @@ import hashlib
 from App_new.exts import csrf, db
 from App_new.utils.decorators import staff_only
 from App_new.finance.models.statement import BankStatement, BankTransaction
+from App_new.finance.models.bank_keywords import BankStatementKeyword
+from flask import send_file
+import io
+import csv
 
 # === UOB 入库辅助方法 ===
+def _get_keywords_from_db(bank_name: str = 'UOB') -> dict:
+    """
+    从数据库获取银行关键词，按类型分组
+    
+    Args:
+        bank_name: 银行名称，默认为'UOB'
+        
+    Returns:
+        dict: 按关键词类型分组的关键词列表
+    """
+    keywords = BankStatementKeyword.query.filter_by(
+        bank_name=bank_name,
+        is_active=True
+    ).all()
+    
+    result = {
+        'personal_business': [],
+        'business': [],
+        'personal': [],
+        'other': []
+    }
+    
+    for keyword in keywords:
+        if keyword.keyword_type in result:
+            result[keyword.keyword_type].append(keyword.keyword)
+    
+    return result
+
+def _match_keywords_to_transactions(df, keywords_dict):
+    """
+    将关键词匹配到交易数据
+    
+    Args:
+        df: 交易数据DataFrame
+        keywords_dict: 关键词字典，按类型分组
+        
+    Returns:
+        DataFrame: 添加了关键词和用户信息的DataFrame
+    """
+    import pandas as pd
+    
+    if df is None or df.empty:
+        return df
+    
+    df = df.copy()
+    
+    # 合并所有关键词
+    all_keywords = []
+    for keyword_list in keywords_dict.values():
+        all_keywords.extend(keyword_list)
+    
+    # 初始化列
+    df['Keyword'] = None
+    df['User'] = None
+    
+    # 匹配关键词
+    for _, row in df.iterrows():
+        description = str(row.get('Description', '')).upper()
+        
+        # 按优先级匹配关键词类型
+        matched_keyword = None
+        matched_type = None
+        
+        # 1. 个人商用关键词
+        for keyword in keywords_dict['personal_business']:
+            if keyword.upper() in description:
+                matched_keyword = keyword
+                matched_type = 'personal_business'
+                break
+        
+        # 2. 商业关键词
+        if not matched_keyword:
+            for keyword in keywords_dict['business']:
+                if keyword.upper() in description:
+                    matched_keyword = keyword
+                    matched_type = 'business'
+                    break
+        
+        # 3. 个人消费关键词
+        if not matched_keyword:
+            for keyword in keywords_dict['personal']:
+                if keyword.upper() in description:
+                    matched_keyword = keyword
+                    matched_type = 'personal'
+                    break
+        
+        # 4. 其他关键词
+        if not matched_keyword:
+            for keyword in keywords_dict['other']:
+                if keyword.upper() in description:
+                    matched_keyword = keyword
+                    matched_type = 'other'
+                    break
+        
+        # 设置匹配结果
+        if matched_keyword:
+            df.at[_, 'Keyword'] = matched_keyword
+            # 根据关键词类型设置用户标签
+            if matched_type == 'personal_business':
+                df.at[_, 'User'] = '个人商用'
+            elif matched_type == 'business':
+                df.at[_, 'User'] = 'LG'  # 或 'JE'，根据业务需求
+            elif matched_type == 'personal':
+                df.at[_, 'User'] = '个人消费'
+            else:
+                df.at[_, 'User'] = '其他'
+    
+    return df
+
 def _infer_owner_type(label: str) -> str:
     if not label:
         return 'other'
@@ -353,6 +466,19 @@ def _upsert_cmb_statement_and_transactions(folder_path: Path):
             if desc and (not exists.description or exists.description != desc):
                 exists.description = desc
                 changed = True
+            
+            # 关键词匹配（仅当原关键词为空时更新）
+            if desc and not exists.keyword:
+                keywords_dict = _get_keywords_from_db('CMB')
+                for keyword_type, keywords in keywords_dict.items():
+                    for keyword in keywords:
+                        if keyword.upper() in desc.upper():
+                            exists.keyword = keyword
+                            changed = True
+                            break
+                    if exists.keyword:
+                        break
+            
             if changed:
                 updated += 1
             continue
@@ -361,6 +487,18 @@ def _upsert_cmb_statement_and_transactions(folder_path: Path):
         post_date = None
         if 'Post-Date' in df.columns:
             post_date = row.get('Post-Date')
+        
+        # 关键词匹配
+        matched_keyword = None
+        if desc:
+            keywords_dict = _get_keywords_from_db('CMB')
+            for keyword_type, keywords in keywords_dict.items():
+                for keyword in keywords:
+                    if keyword.upper() in desc.upper():
+                        matched_keyword = keyword
+                        break
+                if matched_keyword:
+                    break
         
         bt = BankTransaction(
             statement_id=statement.id,
@@ -378,7 +516,7 @@ def _upsert_cmb_statement_and_transactions(folder_path: Path):
             ref_id=None,
             eo_id=None,
             accounting_ref=None,
-            keyword=None,
+            keyword=matched_keyword,
             tx_fingerprint=tx_fingerprint,
             owner_label=None,
             owner_type='other',
@@ -817,8 +955,9 @@ def uob_add_original():
         st = OriginalStatement(str(folder_path))
         # 原始数据
         original_df = st.read_original_file()
-        # 关键词与使用者识别
-        df_kw = st.key_words_data(original_df.copy()) if original_df is not None else None
+        # 从数据库获取关键词并匹配到交易
+        keywords_dict = _get_keywords_from_db('UOB')
+        df_kw = _match_keywords_to_transactions(original_df.copy(), keywords_dict) if original_df is not None else None
         created, updated = _upsert_uob_statement_and_transactions(
             df_kw,
             original_df,
@@ -846,14 +985,19 @@ def uob_analyze():
         # 仅执行最新数据整理
         latest_df = st.organized_statement_data()
         original_df = st.read_original_file()
+        
+        # 从数据库获取关键词并匹配到交易
+        keywords_dict = _get_keywords_from_db('UOB')
+        latest_df_with_keywords = _match_keywords_to_transactions(latest_df, keywords_dict) if latest_df is not None else None
+        
         created, updated = _upsert_uob_statement_and_transactions(
-            latest_df,
+            latest_df_with_keywords,
             original_df,
             bank_name='UOB',
             account_name='UOB Account',
             account_number='UOB-XXXX',
             currency='SGD'
-        ) if latest_df is not None and not latest_df.empty else 0
+        ) if latest_df_with_keywords is not None and not latest_df_with_keywords.empty else 0
         if isinstance(created, tuple):
             created, updated = created
         flash(f'分析数据完成，新建 {created or 0} 条，更新 {updated or 0} 条')
@@ -964,10 +1108,15 @@ def _upsert_ocbc_statement_and_transactions(folder_path: Path):
         w_col = _pick(raw.columns, ['Debit Amount', 'Withdrawals', 'Withdrawal', '支出', '借方'])
         d_col = _pick(raw.columns, ['Credit Amount', 'Deposits', 'Deposit', '收入', '贷方'])
         amt_col = _pick(raw.columns, ['Amount', '金额'])
-        bal_col = _pick(raw.columns, ['Ledger Balance', 'Available Balance', 'Balance', '余额'])
+        bal_col = _pick(raw.columns, ['Closing Book Balance', 'Ledger Balance', 'Available Balance', 'Balance', '余额'])
         ref_col = _pick(raw.columns, ['Ref For Account Owner', 'Ref For Account', 'Reference', 'Ref'])
+        our_ref_col = _pick(raw.columns, [
+            'Our Ref', 'OurRef', 'Our Reference', 'OurReference',
+            'Our Ref For Account', 'Our Ref For Account Owner',
+            'Our Reference No', 'Reference No'
+        ])
 
-        logger.info(f"OCBC: 选中列 -> date:{date_col}, desc:{desc_col}, w:{w_col}, d:{d_col}, amt:{amt_col}, bal:{bal_col}")
+        logger.info(f"OCBC: 选中列 -> date:{date_col}, desc:{desc_col}, w:{w_col}, d:{d_col}, amt:{amt_col}, bal:{bal_col}, ref:{ref_col}, our_ref:{our_ref_col}")
 
         if date_col is None or (amt_col is None and (w_col is None and d_col is None)):
             logger.warning(f"OCBC: 关键列缺失，跳过文件: {file_path.name}")
@@ -983,6 +1132,7 @@ def _upsert_ocbc_statement_and_transactions(folder_path: Path):
         elif amt_col:
             use_cols.append(amt_col)
         if ref_col: use_cols.append(ref_col)
+        if our_ref_col: use_cols.append(our_ref_col)
 
         df = raw[use_cols].copy()
         rename_map = {date_col: 'T-Date'}
@@ -992,6 +1142,7 @@ def _upsert_ocbc_statement_and_transactions(folder_path: Path):
         if w_col: rename_map[w_col] = 'Withdrawal'
         if d_col: rename_map[d_col] = 'Deposit'
         if ref_col: rename_map[ref_col] = 'AccountingRef'
+        if our_ref_col: rename_map[our_ref_col] = 'OurRef'
         df.rename(columns=rename_map, inplace=True)
 
         # 日期解析（支持 OCBC CSV 的 YYYYMMDD，如 20250401），并尝试 Posting Date 作为 post_date
@@ -1047,7 +1198,10 @@ def _upsert_ocbc_statement_and_transactions(folder_path: Path):
 
         period_start = df['T-Date'].min()
         period_end = df['T-Date'].max()
-        statement_number = f'OCBC-{period_start}-{period_end}'
+        # 对账单号按“月份”归并，如 OCBC-2025-03
+        _year = (period_end or period_start).year
+        _month = (period_end or period_start).month
+        statement_number = f'OCBC-{_year}-{_month:02d}'
         statement = BankStatement.query.filter_by(statement_number=statement_number).first()
         if not statement:
             statement = BankStatement(
@@ -1112,7 +1266,12 @@ def _upsert_ocbc_statement_and_transactions(folder_path: Path):
             desc = _normalize_str(row.get('Description'))
             balance = _normalize_float(row.get('Balance')) if 'Balance' in df.columns else None
             accounting_ref = _normalize_str(row.get('AccountingRef')) if 'AccountingRef' in df.columns else None
-            keyword_from_ref = accounting_ref  # OCBC: 将 Ref For Account Owner 录入 keyword
+            our_ref_value = _normalize_str(row.get('OurRef')) if 'OurRef' in df.columns else None
+            # 备注：将 Ref For Account Owner 与 Our Ref 合并到备注
+            if accounting_ref and our_ref_value:
+                remarks_combined = f"{accounting_ref} {our_ref_value}".strip()
+            else:
+                remarks_combined = accounting_ref or our_ref_value
             # 逐行确定 post_date（优先使用解析到的过账日期列，否则回退为交易日）
             post_date = None
             try:
@@ -1123,7 +1282,8 @@ def _upsert_ocbc_statement_and_transactions(folder_path: Path):
             if not post_date:
                 post_date = t_date
 
-            fp_src = f"{t_date}|{amt_raw}|{desc or ''}|OCBC"
+            # 生成更精确的指纹，包含余额信息以避免误判重复
+            fp_src = f"{t_date}|{amt_raw}|{desc or ''}|{balance or ''}|OCBC"
             tx_fingerprint = hashlib.sha1(fp_src.encode('utf-8', errors='ignore')).hexdigest()
 
             exists = BankTransaction.query.filter_by(tx_fingerprint=tx_fingerprint).first()
@@ -1135,9 +1295,23 @@ def _upsert_ocbc_statement_and_transactions(folder_path: Path):
                 if balance is not None and exists.balance is None:
                     exists.balance = float(balance)
                     changed = True
-                if keyword_from_ref and (not exists.keyword or exists.keyword != keyword_from_ref):
-                    exists.keyword = keyword_from_ref
+                # 如需要，将组合备注写入（仅当原备注为空或不同）
+                if remarks_combined and (not exists.remarks or exists.remarks != remarks_combined):
+                    exists.remarks = remarks_combined
                     changed = True
+                
+                # 关键词匹配（仅当原关键词为空时更新）
+                if desc and not exists.keyword:
+                    keywords_dict = _get_keywords_from_db('OCBC')
+                    for keyword_type, keywords in keywords_dict.items():
+                        for keyword in keywords:
+                            if keyword.upper() in desc.upper():
+                                exists.keyword = keyword
+                                changed = True
+                                break
+                        if exists.keyword:
+                            break
+                
                 # 按需求：不自动写入/更新 accounting_ref，保留为空，供手动维护
                 if changed:
                     updated += 1
@@ -1145,6 +1319,18 @@ def _upsert_ocbc_statement_and_transactions(folder_path: Path):
                 else:
                     logger.debug(f"OCBC: 跳过重复交易 指纹={tx_fingerprint}")
                 continue
+
+            # 关键词匹配
+            matched_keyword = None
+            if desc:
+                keywords_dict = _get_keywords_from_db('OCBC')
+                for keyword_type, keywords in keywords_dict.items():
+                    for keyword in keywords:
+                        if keyword.upper() in desc.upper():
+                            matched_keyword = keyword
+                            break
+                    if matched_keyword:
+                        break
 
             bt = BankTransaction(
                 statement_id=statement.id,
@@ -1156,7 +1342,7 @@ def _upsert_ocbc_statement_and_transactions(folder_path: Path):
                 description=desc,
                 post_date=post_date,
                 accounting_ref=None,
-                keyword=keyword_from_ref,
+                keyword=matched_keyword,
                 counterparty_name=None,
                 counterparty_account=None,
                 reconciliation_status='unmatched',
@@ -1164,9 +1350,9 @@ def _upsert_ocbc_statement_and_transactions(folder_path: Path):
                 ref_id=None,
                 eo_id=None,
                 tx_fingerprint=tx_fingerprint,
-                owner_label=None,
-                owner_type='other',
-                remarks=None,
+                owner_label='JE',
+                owner_type=_infer_owner_type('JE'),
+                remarks=remarks_combined,
                 extra_info=None
             )
             db.session.add(bt)
@@ -1203,6 +1389,7 @@ def ocbc_bank():
         tx_type = request.args.get('type', '').strip()
         owner = request.args.get('owner', '').strip()
         ref_query = request.args.get('ref', '').strip()
+        sort = request.args.get('sort', 'date_desc').strip()
         page = request.args.get('page', 1, type=int)
         per_page = 30
 
@@ -1254,9 +1441,17 @@ def ocbc_bank():
         if ref_query:
             tx_query = tx_query.filter(BankTransaction.accounting_ref.ilike(f"%{ref_query}%"))
 
-        pagination = tx_query.order_by(
-            BankTransaction.transaction_date.desc(), BankTransaction.id.desc()
-        ).paginate(page=page, per_page=per_page, error_out=False)
+        # 根据排序参数设置排序方式
+        if sort == 'date_asc':
+            order_by = BankTransaction.transaction_date.asc(), BankTransaction.id.asc()
+        elif sort == 'amount_desc':
+            order_by = BankTransaction.amount.desc(), BankTransaction.id.desc()
+        elif sort == 'amount_asc':
+            order_by = BankTransaction.amount.asc(), BankTransaction.id.asc()
+        else:  # date_desc (默认)
+            order_by = BankTransaction.transaction_date.desc(), BankTransaction.id.desc()
+        
+        pagination = tx_query.order_by(*order_by).paginate(page=page, per_page=per_page, error_out=False)
         transactions = pagination.items
 
         owners = (
@@ -1284,6 +1479,7 @@ def ocbc_bank():
         owner_options = []
         month = start_date_str = end_date_str = tx_type = owner = ''
         ref_query = ''
+        sort = 'date_desc'
         page = 1
         per_page = 30
 
@@ -1300,6 +1496,7 @@ def ocbc_bank():
                 'type': tx_type,
                 'owner': owner,
                 'ref': ref_query,
+                'sort': sort,
                 'page': page,
                 'per_page': per_page
             }
@@ -1319,6 +1516,7 @@ def ocbc_bank():
             'type': tx_type,
             'owner': owner,
             'ref': ref_query,
+            'sort': sort,
             'page': page,
             'per_page': per_page
         }
@@ -1404,6 +1602,79 @@ def ocbc_to_company():
     folder_path = Path(Config.BILLING_DATA_PATH) / "OCBC"
     flash('OCBC公司账单生成功能尚未实现')
     return redirect(url_for('statement_routes.ocbc_bank'))
+
+
+# === OCBC 最近对账单：删除/下载 ===
+@statement_blue.route('/delete_ocbc_statement', methods=['POST'])
+@csrf.exempt
+def delete_ocbc_statement():
+    """删除 OCBC 对账单及其所有交易记录。"""
+    try:
+        statement_number = request.form.get('statement_number')
+        if not statement_number:
+            flash('对账单号不能为空', 'error')
+            return redirect(url_for('statement_routes.ocbc_bank'))
+
+        stmt = BankStatement.query.filter_by(statement_number=statement_number, bank_name='OCBC').first()
+        if not stmt:
+            flash(f'未找到对账单：{statement_number}', 'error')
+            return redirect(url_for('statement_routes.ocbc_bank'))
+
+        tx_count = BankTransaction.query.filter_by(statement_id=stmt.id).count()
+        db.session.delete(stmt)
+        db.session.commit()
+        flash(f'成功删除对账单 {statement_number} 及其 {tx_count} 条交易记录', 'success')
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"删除OCBC对账单失败: {str(e)}")
+        flash(f'删除失败：{str(e)}', 'error')
+    return redirect(url_for('statement_routes.ocbc_bank'))
+
+
+@statement_blue.route('/download_ocbc_statement', methods=['GET'])
+@csrf.exempt
+def download_ocbc_statement():
+    """下载指定 OCBC 对账单的交易 CSV。?statement_number=OCBC-YYYY-MM"""
+    try:
+        statement_number = request.args.get('statement_number', '').strip()
+        if not statement_number:
+            flash('对账单号不能为空', 'error')
+            return redirect(url_for('statement_routes.ocbc_bank'))
+
+        stmt = BankStatement.query.filter_by(statement_number=statement_number, bank_name='OCBC').first()
+        if not stmt:
+            flash(f'未找到对账单：{statement_number}', 'error')
+            return redirect(url_for('statement_routes.ocbc_bank'))
+
+        # 导出该对账单的交易为 CSV
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow(['ID', 'StatementNumber', 'Date', 'PostDate', 'Type', 'Amount', 'Balance', 'Description', 'Keyword', 'REF/EO', 'Owner', 'Remarks'])
+        q = (BankTransaction.query
+             .filter_by(statement_id=stmt.id)
+             .order_by(BankTransaction.transaction_date.asc(), BankTransaction.id.asc()))
+        for t in q.all():
+            writer.writerow([
+                t.id,
+                stmt.statement_number,
+                t.transaction_date,
+                t.post_date,
+                t.transaction_type,
+                f"{t.amount:.2f}" if t.amount is not None else '',
+                f"{t.balance:.2f}" if t.balance is not None else '',
+                t.description or '',
+                t.keyword or '',
+                t.accounting_ref or '',
+                t.owner_label or '',
+                (t.remarks or '').replace('\n', ' ').strip(),
+            ])
+        mem = io.BytesIO(output.getvalue().encode('utf-8-sig'))
+        filename = f"{stmt.statement_number}.csv"
+        return send_file(mem, as_attachment=True, download_name=filename, mimetype='text/csv')
+    except Exception as e:
+        logger.error(f"下载OCBC对账单失败: {str(e)}")
+        flash(f'下载失败：{str(e)}', 'error')
+        return redirect(url_for('statement_routes.ocbc_bank'))
 
 
 # 招商银行相关路由

@@ -294,6 +294,27 @@
         </div>
     </div>
 
+    <!-- 关键词管理 -->
+    <div class="uob-section">
+        <p>关键词管理</p>
+        <div class="uob-button-group">
+            <a href="{{ url_for('keyword_routes.keyword_list', bank='UOB') }}" class="uob-button">
+                <i class="fas fa-tags"></i> 管理UOB关键词
+            </a>
+            
+            <a href="{{ url_for('keyword_routes.keyword_add', bank='UOB') }}" class="uob-button">
+                <i class="fas fa-plus"></i> 添加关键词
+            </a>
+            
+            <a href="{{ url_for('keyword_routes.import_keywords_txt', bank='UOB') }}" class="uob-button">
+                <i class="fas fa-file-import"></i> 导入TXT文件
+            </a>
+        </div>
+        <div class="uob-note">
+            <p><i class="fas fa-info-circle"></i> 管理UOB银行的关键词，用于自动分类交易</p>
+        </div>
+    </div>
+
     <!-- 最近交易 -->
     <div class="uob-section">
         <p>最近交易</p>

@@ -371,6 +371,30 @@
         background-color: white;
         min-width: 80px;
     }
+    
+    /* 提醒信息样式 */
+    .reminder-event {
+        color: #dc3545;
+        font-weight: 600;
+        background-color: #f8d7da;
+        padding: 2px 6px;
+        border-radius: 4px;
+        border: 1px solid #f5c6cb;
+    }
+    
+    .reminder-date {
+        color: #0d6efd;
+        font-weight: 500;
+        background-color: #cff4fc;
+        padding: 2px 6px;
+        border-radius: 4px;
+        border: 1px solid #b6effb;
+    }
+    
+    .reminder-status .badge {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.5rem;
+    }
 
     @media (max-width: 1600px) {
         .info-grid {
@@ -492,11 +516,35 @@
                              <span class="info-label">创建日期</span>
                              <span class="info-value">{{ header.created_at.strftime('%Y-%m-%d') if header.created_at else '未设置' }}</span>
                          </div>
-                         <div class="info-item">
-                             <span class="info-label">更新时间</span>
-                             <span class="info-value">{{ header.updated_at.strftime('%Y-%m-%d') if header.updated_at else '未设置' }}</span>
-                         </div>
-                     </div>
+                        <div class="info-item">
+                            <span class="info-label">更新时间</span>
+                            <span class="info-value">{{ header.updated_at.strftime('%Y-%m-%d') if header.updated_at else '未设置' }}</span>
+                        </div>
+                        {% if header.reminder_event %}
+                        <div class="info-item">
+                            <span class="info-label">提醒事件</span>
+                            <span class="info-value reminder-event">{{ header.reminder_event }}</span>
+                        </div>
+                        {% endif %}
+                        {% if header.reminder_date %}
+                        <div class="info-item">
+                            <span class="info-label">提醒日期</span>
+                            <span class="info-value reminder-date">{{ header.reminder_date.strftime('%Y-%m-%d') if header.reminder_date else '未设置' }}</span>
+                        </div>
+                        {% endif %}
+                        {% if header.reminder_event or header.reminder_date %}
+                        <div class="info-item">
+                            <span class="info-label">提醒状态</span>
+                            <span class="info-value reminder-status">
+                                {% if header.reminder_sent %}
+                                    <span class="badge bg-success">已发送</span>
+                                {% else %}
+                                    <span class="badge bg-warning">待发送</span>
+                                {% endif %}
+                            </span>
+                        </div>
+                        {% endif %}
+                    </div>
                  </div>
                  <div style="margin-top: auto; padding-top: 10px;">
                      <a href="{{ url_for('business_projects.project_header.edit_header', header_id=header.id) }}" class="btn btn-outline-primary btn-sm">

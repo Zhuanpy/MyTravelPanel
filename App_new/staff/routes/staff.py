@@ -4,16 +4,24 @@
 包含所有员工功能模块
 """
 
-from flask import Blueprint, render_template, request, flash, redirect, url_for, jsonify, current_app
+from flask import Blueprint, render_template, request, flash, redirect, url_for, jsonify, current_app, send_from_directory
 from flask_login import login_required, current_user
 from datetime import datetime, timedelta
 from ...utils.decorators import staff_only
+from werkzeug.utils import secure_filename
 import json
+import os
 
 # 创建员工蓝图
 # 注意：此文件位于 App_new/staff/routes/ 下，而模板位于 App_new/staff/templates/
 # 这里将模板目录指向上一层的 templates，模板渲染统一使用命名空间路径 'staff/xxx.html'
 staff = Blueprint('staff', __name__, url_prefix='/staff', template_folder='../templates')
+
+# ==================== 辅助函数 ====================
+def allowed_file(filename, allowed_extensions):
+    """检查文件扩展名是否允许"""
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in allowed_extensions
 
 # ==================== 个人资料 ====================
 @staff.route('/profile')
@@ -341,29 +349,54 @@ def files():
         page = request.args.get('page', 1, type=int)
         per_page = 20
         
-        # 模拟文件数据
-        all_files = [
-            {
-                'id': 1,
-                'filename': 'ABC公司签证材料.pdf',
-                'file_type': 'pdf',
-                'size': '2.5 MB',
-                'uploaded_by': current_user.username,
-                'uploaded_at': datetime(2024, 1, 15, 10, 30),
-                'project': '新加坡商务团队签证',
-                'category': 'visa'
-            },
-            {
-                'id': 2,
-                'filename': '泰国旅游报价单.xlsx',
-                'file_type': 'excel',
-                'size': '1.8 MB',
-                'uploaded_by': current_user.username,
-                'uploaded_at': datetime(2024, 1, 16, 9, 15),
-                'project': '泰国旅游团队套餐',
-                'category': 'tour'
-            }
-        ]
+        # 获取实际上传的文件
+        upload_folder = current_app.config['UPLOAD_FOLDER']
+        all_files = []
+        
+        if os.path.exists(upload_folder):
+            for filename in os.listdir(upload_folder):
+                file_path = os.path.join(upload_folder, filename)
+                if os.path.isfile(file_path):
+                    # 获取文件信息
+                    file_stat = os.stat(file_path)
+                    file_size = file_stat.st_size
+                    
+                    # 确定文件类型
+                    file_ext = filename.rsplit('.', 1)[1].lower() if '.' in filename else ''
+                    if file_ext in ['pdf']:
+                        file_type_display = 'pdf'
+                    elif file_ext in ['doc', 'docx']:
+                        file_type_display = 'document'
+                    elif file_ext in ['xls', 'xlsx']:
+                        file_type_display = 'excel'
+                    elif file_ext in ['jpg', 'jpeg', 'png', 'gif']:
+                        file_type_display = 'image'
+                    elif file_ext in ['zip', 'rar']:
+                        file_type_display = 'archive'
+                    else:
+                        file_type_display = 'document'
+                    
+                    # 格式化文件大小
+                    if file_size < 1024:
+                        size_str = f"{file_size} B"
+                    elif file_size < 1024 * 1024:
+                        size_str = f"{file_size / 1024:.1f} KB"
+                    else:
+                        size_str = f"{file_size / (1024 * 1024):.1f} MB"
+                    
+                    all_files.append({
+                        'id': len(all_files) + 1,
+                        'filename': filename,
+                        'file_type': file_type_display,
+                        'size': size_str,
+                        'uploaded_by': current_user.username,
+                        'uploaded_at': datetime.fromtimestamp(file_stat.st_mtime),
+                        'project': '未分类',
+                        'category': 'other'
+                    })
+        
+        # 按上传时间倒序排列
+        all_files.sort(key=lambda x: x['uploaded_at'], reverse=True)
         
         # 应用筛选
         filtered_files = all_files
@@ -404,22 +437,110 @@ def upload_file():
     """上传文件"""
     if request.method == 'POST':
         try:
-            # 获取表单数据
-            file_data = {
-                'filename': request.form.get('filename'),
-                'description': request.form.get('description'),
-                'category': request.form.get('category'),
-                'project': request.form.get('project'),
-                'tags': request.form.get('tags', '').split(',')
-            }
+            # 检查是否有文件
+            if 'file' not in request.files:
+                flash('没有选择文件', 'error')
+                return render_template('staff/staff_upload.html')
             
-            flash('文件上传成功！', 'success')
+            file = request.files['file']
+            if file.filename == '':
+                flash('没有选择文件', 'error')
+                return render_template('staff/staff_upload.html')
+            
+            # 获取其他表单数据
+            filename = request.form.get('filename', '').strip()
+            description = request.form.get('description', '').strip()
+            category = request.form.get('category', '')
+            project = request.form.get('project', '')
+            tags = request.form.get('tags', '').strip()
+            
+            # 基础验证
+            if not category:
+                flash('请选择文件分类', 'error')
+                return render_template('staff/staff_upload.html')
+            
+            # 检查文件类型
+            allowed_extensions = {'pdf', 'doc', 'docx', 'xls', 'xlsx', 'png', 'jpg', 'jpeg', 'gif', 'zip', 'rar'}
+            if not allowed_file(file.filename, allowed_extensions):
+                flash('不支持的文件类型', 'error')
+                return render_template('staff/staff_upload.html')
+            
+            # 确保上传目录存在
+            upload_folder = current_app.config['UPLOAD_FOLDER']
+            if not os.path.exists(upload_folder):
+                os.makedirs(upload_folder)
+            
+            # 保存文件
+            if filename:
+                # 使用用户指定的文件名，但需要添加扩展名
+                file_ext = file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else ''
+                if file_ext:
+                    filename = f"{filename}.{file_ext}"
+                else:
+                    filename = filename
+            else:
+                # 使用原始文件名
+                filename = secure_filename(file.filename)
+            
+            # 确保文件名唯一
+            file_path = os.path.join(upload_folder, filename)
+            counter = 1
+            while os.path.exists(file_path):
+                name, ext = os.path.splitext(filename)
+                filename = f"{name}_{counter}{ext}"
+                file_path = os.path.join(upload_folder, filename)
+                counter += 1
+            
+            # 保存文件
+            file.save(file_path)
+            
+            # 这里可以保存文件信息到数据库
+            # 暂时只显示成功消息
+            
+            flash(f'文件上传成功！文件名：{filename}', 'success')
             return redirect(url_for('staff.files'))
             
         except Exception as e:
             flash(f'文件上传失败：{str(e)}', 'error')
     
     return render_template('staff/staff_upload.html')
+
+@staff.route('/download/<filename>')
+@login_required
+@staff_only
+def download_file(filename):
+    """下载文件"""
+    try:
+        upload_folder = current_app.config['UPLOAD_FOLDER']
+        file_path = os.path.join(upload_folder, filename)
+        
+        if os.path.exists(file_path) and os.path.isfile(file_path):
+            return send_from_directory(upload_folder, filename, as_attachment=True)
+        else:
+            flash('文件不存在', 'error')
+            return redirect(url_for('staff.files'))
+    except Exception as e:
+        flash(f'下载文件失败：{str(e)}', 'error')
+        return redirect(url_for('staff.files'))
+
+@staff.route('/delete_file/<filename>')
+@login_required
+@staff_only
+def delete_file(filename):
+    """删除文件"""
+    try:
+        upload_folder = current_app.config['UPLOAD_FOLDER']
+        file_path = os.path.join(upload_folder, filename)
+        
+        if os.path.exists(file_path) and os.path.isfile(file_path):
+            os.remove(file_path)
+            flash(f'文件 {filename} 删除成功', 'success')
+        else:
+            flash('文件不存在', 'error')
+    except Exception as e:
+        flash(f'删除文件失败：{str(e)}', 'error')
+    
+    return redirect(url_for('staff.files'))
 
 # ==================== API 路由 ====================
 @staff.route('/api/stats')

@@ -118,17 +118,12 @@
                             </td>
                             <td>
                                 <div class="btn-group" role="group">
-                                    <a href="#" class="btn btn-sm btn-outline-primary" title="查看">
-                                        <i class="fas fa-eye"></i>
-                                    </a>
-                                    <a href="#" class="btn btn-sm btn-outline-success" title="下载">
+                                    <a href="{{ url_for('staff.download_file', filename=file.filename) }}" 
+                                       class="btn btn-sm btn-outline-success" title="下载">
                                         <i class="fas fa-download"></i>
                                     </a>
-                                    <a href="#" class="btn btn-sm btn-outline-secondary" title="编辑">
-                                        <i class="fas fa-edit"></i>
-                                    </a>
                                     <button type="button" class="btn btn-sm btn-outline-danger" title="删除"
-                                            onclick="deleteFile({{ file.id }})">
+                                            onclick="deleteFile('{{ file.filename }}')">
                                         <i class="fas fa-trash"></i>
                                     </button>
                                 </div>
@@ -286,40 +281,12 @@
 <script>
 let fileIdToDelete = null;
 
-function deleteFile(fileId) {
-    fileIdToDelete = fileId;
-    const modal = new bootstrap.Modal(document.getElementById('deleteFileModal'));
-    modal.show();
-}
-
-document.getElementById('confirmDeleteBtn').addEventListener('click', function() {
-    if (fileIdToDelete) {
-        // 这里应该发送删除请求到后端
-        fetch(`/staff/file/${fileIdToDelete}/delete`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': '{{ csrf_token() }}'
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                location.reload();
-            } else {
-                alert('删除失败：' + data.message);
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('删除失败，请重试');
-        });
+function deleteFile(filename) {
+    if (confirm(`确定要删除文件 "${filename}" 吗？\n\n注意：此操作不可撤销。`)) {
+        // 直接跳转到删除URL
+        window.location.href = `{{ url_for('staff.delete_file', filename='') }}${filename}`;
     }
-    
-    // 关闭模态框
-    const modal = bootstrap.Modal.getInstance(document.getElementById('deleteFileModal'));
-    modal.hide();
-});
+}
 
 // 文件类型图标映射
 const fileTypeIcons = {

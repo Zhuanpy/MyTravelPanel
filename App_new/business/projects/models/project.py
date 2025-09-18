@@ -122,6 +122,10 @@ class ProjectHeader(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, comment='最后更新时间')
     last_updated_by = db.Column(db.String(50), comment='最后操作人')
     remarks = db.Column(db.Text, comment='备注')
+    # 提醒相关字段
+    reminder_event = db.Column(db.String(200), comment='提醒事件描述')
+    reminder_date = db.Column(db.DateTime, comment='提醒日期')
+    reminder_sent = db.Column(db.Boolean, default=False, comment='是否已发送提醒邮件')
 
     # 关联REF明细
     refs = db.relationship('ProjectRef', backref='header', cascade='all, delete-orphan')

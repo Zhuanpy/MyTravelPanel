@@ -62,6 +62,14 @@
         border-color: #4a90e2;
         outline: none;
     }
+    /* 文本类输入显示为大写 */
+    .confirm-detail-input[type="text"],
+    .confirm-detail-input[type="search"],
+    .confirm-detail-input[type="email"],
+    .confirm-detail-input[type="tel"],
+    .confirm-detail-input[type="url"] {
+        text-transform: uppercase;
+    }
     .confirm-detail-btn {
         display: inline-block;
         padding: 8px 16px;
@@ -514,6 +522,28 @@
             document.getElementById('passportExpiry').value = '';
             docsResult.style.display = 'none';
         });
+
+        // 所有文本输入在输入时自动转为大写（同时保持光标位置）
+        const uppercaseTypes = new Set(['text', 'search', 'email', 'tel', 'url']);
+        const container = document.querySelector('.confirm-detail-container');
+        if (container) {
+            container.addEventListener('input', function(event) {
+                const target = event.target;
+                if (!target || target.tagName !== 'INPUT') return;
+                const type = (target.getAttribute('type') || 'text').toLowerCase();
+                if (!uppercaseTypes.has(type)) return;
+
+                const start = target.selectionStart;
+                const end = target.selectionEnd;
+                const upper = target.value.toUpperCase();
+                if (upper !== target.value) {
+                    target.value = upper;
+                    if (typeof start === 'number' && typeof end === 'number' && target.setSelectionRange) {
+                        try { target.setSelectionRange(start, end); } catch (e) {}
+                    }
+                }
+            });
+        }
     });
     </script>
 {% endblock %} 

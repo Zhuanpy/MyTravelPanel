@@ -13,39 +13,40 @@
     <link href="{{ url_for('static', filename='css/staff.css') }}" rel="stylesheet">
     
     <style>
-        /* 手机版侧边栏隐藏功能 */
-        @media (max-width: 767.98px) {
+        /* 小屏幕和浮动窗口侧边栏隐藏功能 */
+        @media (max-width: 991.98px) {
             #sidebar {
-                position: fixed;
-                top: 56px; /* 导航栏高度 */
-                left: -100%;
-                width: 280px;
-                height: calc(100vh - 56px);
-                z-index: 1000;
-                transition: left 0.3s ease;
-                overflow-y: auto;
-                background-color: #f8f9fa;
-                box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+                position: fixed !important;
+                top: 56px !important; /* 导航栏高度 */
+                left: -100% !important;
+                width: 280px !important;
+                height: calc(100vh - 56px) !important;
+                z-index: 1000 !important;
+                transition: left 0.3s ease !important;
+                overflow-y: auto !important;
+                background-color: #f8f9fa !important;
+                box-shadow: 2px 0 5px rgba(0,0,0,0.1) !important;
+                display: block !important;
             }
             
             #sidebar.show {
-                left: 0;
+                left: 0 !important;
             }
             
             /* 当侧边栏显示时，添加遮罩层 */
             .sidebar-overlay {
-                position: fixed;
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 100%;
-                background-color: rgba(0, 0, 0, 0.5);
-                z-index: 999;
-                display: none;
+                position: fixed !important;
+                top: 0 !important;
+                left: 0 !important;
+                width: 100% !important;
+                height: 100% !important;
+                background-color: rgba(0, 0, 0, 0.5) !important;
+                z-index: 999 !important;
+                display: none !important;
             }
             
             .sidebar-overlay.show {
-                display: block;
+                display: block !important;
             }
             
             /* 调整主内容区域 */
@@ -56,22 +57,23 @@
             
             /* 侧边栏切换按钮样式 */
             #sidebarToggle {
-                border: 1px solid rgba(255,255,255,0.3);
-                background: transparent;
-                color: white;
-                padding: 0.375rem 0.75rem;
-                border-radius: 0.375rem;
-                transition: all 0.3s ease;
+                border: 1px solid rgba(255,255,255,0.3) !important;
+                background: transparent !important;
+                color: white !important;
+                padding: 0.375rem 0.75rem !important;
+                border-radius: 0.375rem !important;
+                transition: all 0.3s ease !important;
+                display: inline-block !important;
             }
             
             #sidebarToggle:hover {
-                background: rgba(255,255,255,0.1);
-                border-color: rgba(255,255,255,0.5);
+                background: rgba(255,255,255,0.1) !important;
+                border-color: rgba(255,255,255,0.5) !important;
             }
         }
         
         /* 确保在大屏幕上侧边栏正常显示 */
-        @media (min-width: 768px) {
+        @media (min-width: 992px) {
             #sidebar {
                 position: relative !important;
                 left: auto !important;
@@ -79,6 +81,7 @@
                 height: auto !important;
                 transform: none !important;
                 box-shadow: none !important;
+                display: block !important;
             }
             
             #sidebarToggle {
@@ -107,7 +110,7 @@
             </button>
             
             <!-- 侧边栏切换按钮 -->
-            <button class="btn btn-outline-light d-md-none me-2" type="button" id="sidebarToggle">
+            <button class="btn btn-outline-light d-lg-none me-2" type="button" id="sidebarToggle">
                 <i class="fas fa-bars"></i>
             </button>
             
@@ -302,19 +305,19 @@
                             <li><a class="dropdown-item" href="/files/letter_generator">
                                 <i class="fas fa-envelope me-2"></i>信件生成器
                             </a></li>
-                            <li><a class="dropdown-item" href="/files/test_letter">
+                            <!-- <li><a class="dropdown-item" href="/files/test_letter">
                                 <i class="fas fa-vial me-2"></i>信件测试
-                            </a></li>
-                            <li><a class="dropdown-item" href="/files/test_simple_pdf">
+                            </a></li> -->
+                            <!-- <li><a class="dropdown-item" href="/files/test_simple_pdf">
                                 <i class="fas fa-eye me-2"></i>功能演示
-                            </a></li>
+                            </a></li> -->
                             <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item" href="{{ url_for('staff.tasks') }}">
                                 <i class="fas fa-list-check me-2"></i>任务中心
                             </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('utils_blue.render_pomodoro') }}">
-                                <i class="fas fa-clock me-2"></i>番茄工作法
-                            </a></li>
+                            <!-- <li><a class="dropdown-item" href="{{ url_for('staff.files') }}">
+                                <i class="fas fa-clock me-2"></i>文件管理
+                            </a></li> -->
                         </ul>
                     </li>
                     <li class="nav-item dropdown">
@@ -331,9 +334,11 @@
                             <li><a class="dropdown-item" href="{{ url_for('statement_routes.cmb_bank') }}">
                                 <i class="fas fa-university me-2"></i>招商银行
                             </a></li>
+                            <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item" href="{{ url_for('statement_routes.athina_page') }}">
                                 <i class="fas fa-file-invoice me-2"></i>Athina账单
                             </a></li>
+                            <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item" href="{{ url_for('statement_routes.company_bill') }}">
                                 <i class="fas fa-file-invoice-dollar me-2"></i>公司账单
                             </a></li>
@@ -350,6 +355,10 @@
                             <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item" href="{{ url_for('company.list_companies') }}">
                                 <i class="fas fa-building me-2"></i>客户公司管理
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{{ url_for('staff.files') }}">
+                                <i class="fas fa-building me-2"></i>文件管理
                             </a></li>
                         </ul>
                     </li>
@@ -414,13 +423,13 @@
                                 报价管理
                             </a>
                         </li>
-                        <li class="nav-item">
+                        <!-- <li class="nav-item">
                             <a class="nav-link {% if request.endpoint == 'staff.files' %}active{% endif %}" 
                                href="{{ url_for('staff.files') }}">
                                 <i class="fas fa-folder me-2"></i>
                                 文件管理
                             </a>
-                        </li>
+                        </li> -->
                         <li class="nav-item">
                             <a class="nav-link {% if request.endpoint == 'staff.tasks' %}active{% endif %}" 
                                href="{{ url_for('staff.tasks') }}">
@@ -443,13 +452,6 @@
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link {% if request.endpoint == 'flights_booking.create_order' %}active{% endif %}" 
-                               href="{{ url_for('flights_booking.create_order') }}">
-                                <i class="fas fa-plus me-2"></i>
-                                创建订单
-                            </a>
-                        </li>
-                        <li class="nav-item">
                             <a class="nav-link {% if request.endpoint == 'flights_booking.order_list' %}active{% endif %}" 
                                href="{{ url_for('flights_booking.order_list') }}">
                                 <i class="fas fa-list me-2"></i>
@@ -457,47 +459,29 @@
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link {% if request.endpoint == 'flights_schedule.input_flight_schedule' %}active{% endif %}" 
-                               href="{{ url_for('flights_schedule.input_flight_schedule') }}">
-                                <i class="fas fa-clock me-2"></i>
-                                航班时刻表
+                            <a class="nav-link {% if request.endpoint == 'flights_booking.create_order' %}active{% endif %}" 
+                               href="{{ url_for('flights_booking.create_order') }}">
+                                <i class="fas fa-plus me-2"></i>
+                                创建订单
                             </a>
                         </li>
+  
+          
                         <li class="nav-item">
-                            <a class="nav-link {% if request.endpoint == 'flights_schedule.input_airport_code_info' %}active{% endif %}" 
-                               href="{{ url_for('flights_schedule.input_airport_code_info') }}">
-                                <i class="fas fa-map-marker-alt me-2"></i>
-                                机场代码
+                            <a class="nav-link {% if request.endpoint == 'flights_athina.athina_conversion' %}active{% endif %}" 
+                               href="{{ url_for('flights_athina.athina_conversion') }}">
+                                <i class="fas fa-tools me-2"></i>
+                                Athina代码
                             </a>
                         </li>
+
                         <li class="nav-item">
                             <a class="nav-link {% if request.endpoint == 'flights_schedule.confirmation_detail_default' %}active{% endif %}" 
                                href="{{ url_for('flights_schedule.confirmation_detail_default') }}">
                                 <i class="fas fa-file-alt me-2"></i>
-                                机票确认详情
+                                确认详情
                             </a>
                         </li>
-                        
-                        <!-- Athina系统分组 -->
-                        <li class="nav-item mt-3">
-                            <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted">
-                                <span><i class="fas fa-cogs me-2"></i>Athina系统</span>
-                            </h6>
-                        </li>
-                        <li class="nav-item">
-                                        <a class="nav-link {% if request.endpoint == 'flights_athina.athina_conversion' %}active{% endif %}" 
-               href="{{ url_for('flights_athina.athina_conversion') }}">
-                <i class="fas fa-tools me-2"></i>
-                Athina机票工具
-            </a>
-                        </li>
-                        <!-- <li class="nav-item">
-                            <a class="nav-link {% if request.endpoint == 'flights_athina.athina_page' %}active{% endif %}" 
-                               href="{{ url_for('flights_athina.athina_page') }}">
-                                <i class="fas fa-file-code me-2"></i>
-                                Athina代码
-                            </a>
-                        </li> -->
                         
                         <!-- 配套管理分组 -->
                         <li class="nav-item mt-3">
@@ -706,12 +690,12 @@
                     icon.className = 'fas fa-bars';
                 });
                 
-                // 点击侧边栏内的链接时关闭侧边栏（仅在手机版）
+                // 点击侧边栏内的链接时关闭侧边栏（在小屏幕和浮动窗口时）
                 function bindSidebarLinkEvents() {
                     const sidebarLinks = sidebar.querySelectorAll('.nav-link');
                     sidebarLinks.forEach(function(link) {
                         link.addEventListener('click', function() {
-                            if (window.innerWidth <= 767) {
+                            if (window.innerWidth <= 991) {
                                 sidebar.classList.remove('show');
                                 sidebarOverlay.classList.remove('show');
                                 
@@ -727,7 +711,7 @@
                 
                 // 窗口大小改变时重新绑定事件
                 window.addEventListener('resize', function() {
-                    if (window.innerWidth > 767) {
+                    if (window.innerWidth > 991) {
                         // 大屏幕时关闭侧边栏
                         sidebar.classList.remove('show');
                         sidebarOverlay.classList.remove('show');
@@ -736,7 +720,7 @@
                         const icon = sidebarToggle.querySelector('i');
                         if (icon) icon.className = 'fas fa-bars';
                     } else {
-                        // 小屏幕时重新绑定链接事件
+                        // 小屏幕和浮动窗口时重新绑定链接事件
                         bindSidebarLinkEvents();
                     }
                 });

@@ -59,13 +59,14 @@ class Todo(db.Model):
     # 分类（类型）
     category = db.Column(db.String(50), nullable=True)
 
-    def __init__(self, title, description=None, due_date=None, priority=2, user_id=None, category=None):
+    def __init__(self, title, description=None, due_date=None, priority=2, user_id=None, category=None, is_completed=False):
         self.title = title
         self.description = description
         self.due_date = due_date
         self.priority = priority
         self.user_id = user_id
         self.category = category
+        self.is_completed = is_completed
 
     def to_dict(self):
         """将模型转换为字典"""
@@ -83,7 +84,7 @@ class Todo(db.Model):
         }
 
     @classmethod
-    def create(cls, title, description=None, due_date=None, priority=2, user_id=None, category=None):
+    def create(cls, title, description=None, due_date=None, priority=2, user_id=None, category=None, is_completed=False):
         """创建新的待办事项"""
         todo = cls(
             title=title,
@@ -91,7 +92,8 @@ class Todo(db.Model):
             due_date=due_date,
             priority=priority,
             user_id=user_id,
-            category=category
+            category=category,
+            is_completed=is_completed
         )
         db.session.add(todo)
         db.session.commit()

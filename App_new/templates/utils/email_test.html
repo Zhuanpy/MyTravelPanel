@@ -1,0 +1,235 @@
+{% extends "shared/staff_base.html" %}
+
+{% block title %}邮件功能测试 - MyTravelPanel{% endblock %}
+
+{% block page_title %}邮件功能测试{% endblock %}
+
+{% block extra_css %}
+<style>
+    .test-card {
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+        background: white;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .test-result {
+        padding: 10px;
+        border-radius: 4px;
+        margin-top: 10px;
+    }
+    
+    .test-success {
+        background-color: #d1fae5;
+        color: #065f46;
+        border: 1px solid #a7f3d0;
+    }
+    
+    .test-error {
+        background-color: #fee2e2;
+        color: #dc2626;
+        border: 1px solid #fecaca;
+    }
+    
+    .config-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 8px 0;
+        border-bottom: 1px solid #f1f5f9;
+    }
+    
+    .config-item:last-child {
+        border-bottom: none;
+    }
+    
+    .config-label {
+        font-weight: 600;
+        color: #374151;
+    }
+    
+    .config-value {
+        color: #6b7280;
+        font-family: monospace;
+    }
+    
+    .test-button {
+        margin-right: 10px;
+        margin-bottom: 10px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <h2><i class="fas fa-envelope"></i> 邮件功能测试</h2>
+            <p class="text-muted">测试系统邮件发送功能是否正常工作</p>
+        </div>
+    </div>
+
+    <!-- 配置检查 -->
+    <div class="test-card">
+        <h4><i class="fas fa-cog"></i> 邮件配置检查</h4>
+        <p>检查当前邮件服务器配置信息</p>
+        <button class="btn btn-info test-button" onclick="checkConfig()">
+            <i class="fas fa-search"></i> 检查配置
+        </button>
+        <div id="config-result"></div>
+    </div>
+
+    <!-- 连接测试 -->
+    <div class="test-card">
+        <h4><i class="fas fa-plug"></i> 邮件服务器连接测试</h4>
+        <p>测试与邮件服务器的连接是否正常</p>
+        <button class="btn btn-warning test-button" onclick="testConnection()">
+            <i class="fas fa-wifi"></i> 测试连接
+        </button>
+        <div id="connection-result"></div>
+    </div>
+
+    <!-- 发送测试 -->
+    <div class="test-card">
+        <h4><i class="fas fa-paper-plane"></i> 邮件发送测试</h4>
+        <p>发送一封测试邮件到指定邮箱</p>
+        <div class="row">
+            <div class="col-md-6">
+                <div class="form-group">
+                    <label for="test-email">收件人邮箱:</label>
+                    <input type="email" class="form-control" id="test-email" 
+                           placeholder="请输入测试邮箱地址" 
+                           value="test@example.com">
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="form-group">
+                    <label>&nbsp;</label>
+                    <div>
+                        <button class="btn btn-success test-button" onclick="sendTestEmail()">
+                            <i class="fas fa-send"></i> 发送测试邮件
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div id="send-result"></div>
+    </div>
+
+    <!-- 帮助信息 -->
+    <div class="test-card">
+        <h4><i class="fas fa-question-circle"></i> 配置帮助</h4>
+        <div class="row">
+            <div class="col-md-6">
+                <h6>Gmail 配置:</h6>
+                <ul>
+                    <li>MAIL_SERVER: smtp.gmail.com</li>
+                    <li>MAIL_PORT: 587</li>
+                    <li>需要开启两步验证</li>
+                    <li>生成应用专用密码</li>
+                </ul>
+            </div>
+            <div class="col-md-6">
+                <h6>QQ邮箱 配置:</h6>
+                <ul>
+                    <li>MAIL_SERVER: smtp.qq.com</li>
+                    <li>MAIL_PORT: 587</li>
+                    <li>需要开启SMTP服务</li>
+                    <li>获取授权码作为密码</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function checkConfig() {
+    const resultDiv = document.getElementById('config-result');
+    resultDiv.innerHTML = '<div class="text-muted">检查中...</div>';
+    
+    fetch('/utils/email-test/check-config')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                let html = '<div class="test-result test-success">';
+                html += '<h6>配置信息:</h6>';
+                for (const [key, value] of Object.entries(data.config)) {
+                    html += `<div class="config-item">
+                        <span class="config-label">${key}:</span>
+                        <span class="config-value">${value}</span>
+                    </div>`;
+                }
+                html += '</div>';
+                resultDiv.innerHTML = html;
+            } else {
+                resultDiv.innerHTML = `<div class="test-result test-error">检查失败: ${data.message}</div>`;
+            }
+        })
+        .catch(error => {
+            resultDiv.innerHTML = `<div class="test-result test-error">请求失败: ${error.message}</div>`;
+        });
+}
+
+function testConnection() {
+    const resultDiv = document.getElementById('connection-result');
+    resultDiv.innerHTML = '<div class="text-muted">测试中...</div>';
+    
+    fetch('/utils/email-test/test-config', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        }
+    })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                resultDiv.innerHTML = `<div class="test-result test-success">✅ ${data.message}</div>`;
+            } else {
+                resultDiv.innerHTML = `<div class="test-result test-error">❌ ${data.message}</div>`;
+            }
+        })
+        .catch(error => {
+            resultDiv.innerHTML = `<div class="test-result test-error">请求失败: ${error.message}</div>`;
+        });
+}
+
+function sendTestEmail() {
+    const email = document.getElementById('test-email').value;
+    const resultDiv = document.getElementById('send-result');
+    
+    if (!email) {
+        resultDiv.innerHTML = '<div class="test-result test-error">请输入收件人邮箱</div>';
+        return;
+    }
+    
+    resultDiv.innerHTML = '<div class="text-muted">发送中...</div>';
+    
+    fetch('/utils/email-test/send-test', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify({ email: email })
+    })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                resultDiv.innerHTML = `<div class="test-result test-success">✅ ${data.message}</div>`;
+            } else {
+                resultDiv.innerHTML = `<div class="test-result test-error">❌ ${data.message}</div>`;
+            }
+        })
+        .catch(error => {
+            resultDiv.innerHTML = `<div class="test-result test-error">请求失败: ${error.message}</div>`;
+        });
+}
+</script>
+{% endblock %}
+
+
+

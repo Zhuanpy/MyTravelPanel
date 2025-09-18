@@ -83,8 +83,16 @@ def edit_header(header_id):
             header.country = form.country.data
             header.status = form.status.data
             header.remarks = form.remarks.data
+            header.reminder_event = form.reminder_event.data
+            header.reminder_date = form.reminder_date.data
             
             db.session.commit()
+            
+            # 如果有提醒信息，同步到待办事项
+            if header.reminder_event and header.reminder_date:
+                from App_new.utils.reminder_utils import create_reminder_todo
+                create_reminder_todo(header)
+            
             return redirect(url_for('business_projects.detail.project_detail', project_id=header.id))
         except Exception as e:
             db.session.rollback()

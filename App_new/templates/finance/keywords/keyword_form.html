@@ -1,0 +1,261 @@
+{% extends "staff_base.html" %}
+
+{% block title %}{{ '编辑' if keyword else '添加' }}关键词 - MyTravelPanel{% endblock %}
+
+{% block page_title %}{{ '编辑' if keyword else '添加' }}关键词{% endblock %}
+
+{% block extra_css %}
+<style>
+    .keyword-form-container {
+        max-width: 600px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+    
+    .keyword-form {
+        background-color: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        padding: 30px;
+    }
+    
+    .form-section {
+        margin-bottom: 25px;
+    }
+    
+    .form-section h5 {
+        color: #495057;
+        margin-bottom: 15px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid #e9ecef;
+    }
+    
+    .keyword-badge {
+        font-size: 0.75em;
+        padding: 0.25em 0.5em;
+        border-radius: 0.25rem;
+        margin-right: 5px;
+    }
+    
+    .badge-personal_business { background-color: #17a2b8; color: white; }
+    .badge-business { background-color: #28a745; color: white; }
+    .badge-personal { background-color: #ffc107; color: #212529; }
+    .badge-other { background-color: #6c757d; color: white; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="keyword-form-container">
+    <div class="keyword-form">
+        <form method="POST" id="keywordForm">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            <div class="form-section">
+                <h5><i class="fas fa-info-circle"></i> 基本信息</h5>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label">银行名称 <span class="text-danger">*</span></label>
+                            {% if preset_bank %}
+                            <select class="form-select" name="bank_name" required>
+                                {% for code, name in bank_names.items() %}
+                                <option value="{{ code }}" {% if code == preset_bank %}selected{% endif %}>
+                                    {{ name }} ({{ code }})
+                                </option>
+                                {% endfor %}
+                            </select>
+                            {% else %}
+                            <select class="form-select" name="bank_name" required>
+                                <option value="">请选择银行</option>
+                                <option value="UOB" {% if keyword and keyword.bank_name == 'UOB' %}selected{% endif %}>UOB</option>
+                                <option value="OCBC" {% if keyword and keyword.bank_name == 'OCBC' %}selected{% endif %}>OCBC</option>
+                                <option value="CMB" {% if keyword and keyword.bank_name == 'CMB' %}selected{% endif %}>招商银行</option>
+                                <option value="DBS" {% if keyword and keyword.bank_name == 'DBS' %}selected{% endif %}>DBS</option>
+                                <option value="HSBC" {% if keyword and keyword.bank_name == 'HSBC' %}selected{% endif %}>HSBC</option>
+                            </select>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label">关键词类型 <span class="text-danger">*</span></label>
+                            <select class="form-select" name="keyword_type" required>
+                                <option value="">请选择类型</option>
+                                <option value="personal_business" {% if keyword and keyword.keyword_type == 'personal_business' %}selected{% endif %}>
+                                    个人商用
+                                </option>
+                                <option value="business" {% if keyword and keyword.keyword_type == 'business' %}selected{% endif %}>
+                                    商业
+                                </option>
+                                <option value="personal" {% if keyword and keyword.keyword_type == 'personal' %}selected{% endif %}>
+                                    个人消费
+                                </option>
+                                <option value="other" {% if keyword and keyword.keyword_type == 'other' %}selected{% endif %}>
+                                    其他
+                                </option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">关键词内容 <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" name="keyword" 
+                           value="{{ keyword.keyword if keyword else '' }}" 
+                           placeholder="输入关键词，如：PAYNOW-FAST" required>
+                    <div class="form-text">关键词用于匹配交易描述，区分大小写</div>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">描述</label>
+                    <textarea class="form-control" name="description" rows="3" 
+                              placeholder="可选，描述该关键词的用途">{{ keyword.description if keyword else '' }}</textarea>
+                </div>
+                
+                <div class="mb-3">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="is_active" value="1" 
+                               {% if not keyword or keyword.is_active %}checked{% endif %}>
+                        <label class="form-check-label">
+                            启用此关键词
+                        </label>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="form-section">
+                <h5><i class="fas fa-lightbulb"></i> 类型说明</h5>
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><span class="keyword-badge badge-personal_business">个人商用</span> 个人商业用途的消费</p>
+                        <p><span class="keyword-badge badge-business">商业</span> 公司/企业相关支出</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><span class="keyword-badge badge-personal">个人消费</span> 纯个人生活消费</p>
+                        <p><span class="keyword-badge badge-other">其他</span> 其他分类</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="d-flex justify-content-between">
+                <a href="{{ url_for('keyword_routes.keyword_list') }}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> 返回列表
+                </a>
+                <div>
+                    <button type="button" class="btn btn-outline-primary me-2" onclick="previewKeyword()">
+                        <i class="fas fa-eye"></i> 预览
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> {{ '更新' if keyword else '添加' }}关键词
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- 预览模态框 -->
+<div class="modal fade" id="previewModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">关键词预览</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="previewContent"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function previewKeyword() {
+    const form = document.getElementById('keywordForm');
+    const formData = new FormData(form);
+    
+    const bank = formData.get('bank_name');
+    const type = formData.get('keyword_type');
+    const keyword = formData.get('keyword');
+    const description = formData.get('description');
+    const isActive = formData.get('is_active') ? '启用' : '禁用';
+    
+    if (!bank || !type || !keyword) {
+        alert('请填写银行、类型和关键词');
+        return;
+    }
+    
+    const preview = `
+        <div class="row">
+            <div class="col-md-6">
+                <strong>银行：</strong> ${bank}<br>
+                <strong>类型：</strong> <span class="keyword-badge badge-${type}">${type}</span><br>
+                <strong>关键词：</strong> <code>${keyword}</code>
+            </div>
+            <div class="col-md-6">
+                <strong>描述：</strong> ${description || '无'}<br>
+                <strong>状态：</strong> ${isActive}
+            </div>
+        </div>
+        <hr>
+        <div class="alert alert-info">
+            <strong>匹配示例：</strong><br>
+            如果交易描述包含 "<code>${keyword}</code>"，将被识别为 <span class="keyword-badge badge-${type}">${type}</span> 类型
+        </div>
+    `;
+    
+    document.getElementById('previewContent').innerHTML = preview;
+    new bootstrap.Modal(document.getElementById('previewModal')).show();
+}
+
+// 表单提交处理
+document.getElementById('keywordForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const data = Object.fromEntries(formData.entries());
+    
+    // 获取CSRF token
+    const csrfToken = document.querySelector('input[name="csrf_token"]')?.value;
+    if (csrfToken) {
+        data.csrf_token = csrfToken;
+    }
+    
+    fetch(this.action || window.location.href, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken || ''
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => {
+        // 检查响应类型
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+            return response.json();
+        } else {
+            // 如果不是JSON，说明是重定向或HTML响应，直接跳转
+            window.location.href = response.url;
+            return;
+        }
+    })
+    .then(data => {
+        if (data && data.success) {
+            alert('操作成功：' + data.message);
+            window.location.href = '{{ url_for("keyword_routes.keyword_list", bank=preset_bank) }}';
+        } else if (data && !data.success) {
+            alert('操作失败：' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('请求错误:', error);
+        // 如果JSON解析失败，可能是重定向，尝试重新加载页面
+        window.location.reload();
+    });
+});
+</script>
+{% endblock %}

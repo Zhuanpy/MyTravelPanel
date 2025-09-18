@@ -5,7 +5,7 @@
 """
 
 from flask_wtf import FlaskForm
-from wtforms import DateField, DecimalField, StringField, IntegerField, SelectField, TextAreaField, SubmitField
+from wtforms import DateField, DecimalField, StringField, IntegerField, SelectField, TextAreaField, SubmitField, DateTimeField
 from wtforms.validators import DataRequired, Length, Email, Optional, ValidationError
 from App_new.business.projects.models.project import ProjectHeader
 from flask_wtf import FlaskForm
@@ -370,6 +370,15 @@ class ProjectHeaderForm(FlaskForm):
     remarks = TextAreaField('备注', [
         Length(max=1000, message='备注不能超过1000个字符')
     ])
+
+    # 提醒相关字段
+    reminder_event = StringField('提醒事件', [
+        Length(max=200, message='提醒事件不能超过200个字符')
+    ])
+    
+    reminder_date = DateField('提醒日期', [
+        Optional()
+    ], format='%Y-%m-%d')
 
     submit = SubmitField('保存项目')
     cancel = SubmitField('取消')

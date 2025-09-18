@@ -47,7 +47,7 @@ static/资源/
 # Project specific - Others
 App/static/templates/
 *.log
-.env
+scripts/.env
 config.py
 *.csv
 *.xls

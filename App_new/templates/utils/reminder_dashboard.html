@@ -1,0 +1,282 @@
+{% extends "shared/staff_base.html" %}
+
+{% block title %}提醒管理 - MyTravelPanel{% endblock %}
+
+{% block page_title %}提醒管理{% endblock %}
+
+{% block extra_css %}
+<style>
+    .reminder-card {
+        border-left: 4px solid #007bff;
+        margin-bottom: 15px;
+    }
+    
+    .reminder-card.urgent {
+        border-left-color: #dc3545;
+    }
+    
+    .reminder-card.warning {
+        border-left-color: #ffc107;
+    }
+    
+    .reminder-date {
+        font-size: 0.9rem;
+        color: #6c757d;
+    }
+    
+    .reminder-event {
+        font-weight: 600;
+        color: #495057;
+    }
+    
+    .project-info {
+        font-size: 0.85rem;
+        color: #6c757d;
+    }
+    
+    .action-buttons {
+        display: flex;
+        gap: 10px;
+        margin-top: 15px;
+    }
+    
+    .stats-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    
+    .stats-number {
+        font-size: 2rem;
+        font-weight: bold;
+        margin-bottom: 5px;
+    }
+    
+    .stats-label {
+        font-size: 0.9rem;
+        opacity: 0.9;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2><i class="fas fa-bell"></i> 提醒管理</h2>
+                <div class="action-buttons">
+                    <button class="btn btn-primary" onclick="syncReminders()">
+                        <i class="fas fa-sync"></i> 同步提醒
+                    </button>
+                    <button class="btn btn-success" onclick="sendTestReminders()">
+                        <i class="fas fa-paper-plane"></i> 发送测试邮件
+                    </button>
+                    <button class="btn btn-info" onclick="testEmailConfig()">
+                        <i class="fas fa-envelope"></i> 测试邮件配置
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 统计信息 -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="stats-card">
+                <div class="stats-number">{{ upcoming_reminders|length }}</div>
+                <div class="stats-label">即将到期提醒</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-card">
+                <div class="stats-number">{{ all_reminders|length }}</div>
+                <div class="stats-label">总提醒数量</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-card">
+                <div class="stats-number">{{ all_reminders|selectattr('reminder_sent', 'equalto', True)|list|length }}</div>
+                <div class="stats-label">已发送提醒</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-card">
+                <div class="stats-number">{{ all_reminders|selectattr('reminder_sent', 'equalto', False)|list|length }}</div>
+                <div class="stats-label">待发送提醒</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 即将到期的提醒 -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-clock"></i> 即将到期的提醒（未来7天）</h5>
+                </div>
+                <div class="card-body">
+                    {% if upcoming_reminders %}
+                        {% for reminder in upcoming_reminders %}
+                            <div class="card reminder-card {% if reminder.reminder_date.date() == (now + timedelta(days=1)).date() %}urgent{% elif reminder.reminder_date.date() <= (now + timedelta(days=3)).date() %}warning{% endif %}">
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-8">
+                                            <h6 class="reminder-event">{{ reminder.reminder_event }}</h6>
+                                            <div class="project-info">
+                                                <strong>项目:</strong> {{ reminder.hid }} - {{ reminder.desc }}<br>
+                                                <strong>联系人:</strong> {{ reminder.contact }}<br>
+                                                <strong>经办人:</strong> {{ reminder.staff_name }}<br>
+                                                <strong>公司:</strong> {{ reminder.company.company_name if reminder.company else '个人' }}
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4 text-end">
+                                            <div class="reminder-date">
+                                                <i class="fas fa-calendar-alt"></i>
+                                                {{ reminder.reminder_date.strftime('%Y-%m-%d %H:%M') }}
+                                            </div>
+                                            <div class="mt-2">
+                                                {% if reminder.reminder_sent %}
+                                                    <span class="badge bg-success">已发送</span>
+                                                {% else %}
+                                                    <span class="badge bg-warning">待发送</span>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-center text-muted py-4">
+                            <i class="fas fa-check-circle fa-3x mb-3"></i>
+                            <p>未来7天内没有即将到期的提醒</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 所有提醒列表 -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-list"></i> 所有提醒列表</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>项目编号</th>
+                                    <th>项目描述</th>
+                                    <th>提醒事件</th>
+                                    <th>提醒日期</th>
+                                    <th>联系人</th>
+                                    <th>经办人</th>
+                                    <th>状态</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for reminder in all_reminders %}
+                                <tr>
+                                    <td><strong>{{ reminder.hid }}</strong></td>
+                                    <td>{{ reminder.desc }}</td>
+                                    <td>{{ reminder.reminder_event }}</td>
+                                    <td>{{ reminder.reminder_date.strftime('%Y-%m-%d %H:%M') if reminder.reminder_date else '-' }}</td>
+                                    <td>{{ reminder.contact }}</td>
+                                    <td>{{ reminder.staff_name }}</td>
+                                    <td>
+                                        {% if reminder.reminder_sent %}
+                                            <span class="badge bg-success">已发送</span>
+                                        {% else %}
+                                            <span class="badge bg-warning">待发送</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function syncReminders() {
+    if (confirm('确定要同步项目提醒到待办事项吗？')) {
+        fetch('{{ url_for("reminder.sync_reminders") }}', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token() }}'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('同步失败：' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('同步失败，请重试');
+        });
+    }
+}
+
+function sendTestReminders() {
+    if (confirm('确定要发送测试提醒邮件吗？')) {
+        fetch('{{ url_for("reminder.send_test_reminders") }}', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token() }}'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('发送失败：' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('发送失败，请重试');
+        });
+    }
+}
+
+function testEmailConfig() {
+    fetch('{{ url_for("reminder.test_email") }}', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token() }}'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('测试失败：' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('测试失败，请重试');
+    });
+}
+</script>
+{% endblock %}
+

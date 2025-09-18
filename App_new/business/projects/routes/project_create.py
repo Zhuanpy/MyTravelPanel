@@ -51,10 +51,18 @@ def create_header():
                 source=form.source.data,
                 country=form.country.data,
                 status=form.status.data,
-                remarks=form.remarks.data
+                remarks=form.remarks.data,
+                reminder_event=form.reminder_event.data,
+                reminder_date=form.reminder_date.data
             )
             db.session.add(header)
             db.session.commit()
+            
+            # 如果有提醒信息，同步到待办事项
+            if header.reminder_event and header.reminder_date:
+                from App_new.utils.reminder_utils import create_reminder_todo
+                create_reminder_todo(header)
+            
             flash('项目主表创建成功！', 'success')
             return redirect(url_for('business_projects.detail.project_detail', project_id=header.id))
         except Exception as e:

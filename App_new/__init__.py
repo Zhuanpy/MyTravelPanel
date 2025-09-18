@@ -166,6 +166,10 @@ def create_app():
     # 财务模块
     from .finance.routes.routes import statement_blue
     app.register_blueprint(statement_blue, url_prefix='/statement')
+    
+    # 关键词管理模块
+    from .finance.routes.keyword_routes import keyword_blue
+    app.register_blueprint(keyword_blue, url_prefix='/statement')
 
     # 统一设置响应编码
     @app.after_request
@@ -201,6 +205,8 @@ def import_all_models():
         from .finance.models.statement import (
             BankStatement, BankTransaction, SupplierStatement, SupplierStatementItem
         )
+        # 银行关键词模型
+        from .finance.models.bank_keywords import BankStatementKeyword, BankKeywordCategory
         # 航班
         try:
             from .business.flight.models.flight import ProjectFlightPassenger, ProjectFlightSegment

@@ -269,6 +269,28 @@
     </div>
     
     <div class="bank-statement-card">
+        <h2 class="bank-statement-section-title">关键词管理</h2>
+        
+        <div class="bank-statement-btn-row">
+            <a href="{{ url_for('keyword_routes.keyword_list', bank='CMB') }}" class="bank-statement-btn">
+                <i class="fas fa-tags"></i> 管理招商银行关键词
+            </a>
+            
+            <a href="{{ url_for('keyword_routes.keyword_add', bank='CMB') }}" class="bank-statement-btn">
+                <i class="fas fa-plus"></i> 添加关键词
+            </a>
+            
+            <a href="{{ url_for('keyword_routes.import_keywords_txt', bank='CMB') }}" class="bank-statement-btn">
+                <i class="fas fa-file-import"></i> 导入TXT文件
+            </a>
+        </div>
+        
+        <div class="bank-statement-note">
+            <p><i class="fas fa-info-circle"></i> 管理招商银行的关键词，用于自动分类交易</p>
+        </div>
+    </div>
+    
+    <div class="bank-statement-card">
         <h2 class="bank-statement-section-title">账单分类操作</h2>
         
         <div class="bank-statement-btn-row">
