@@ -514,6 +514,8 @@
             margin: 0.5rem 0 0 0;
             font-style: italic;
         }
+
+        .document-text p {
             margin: 0 0 0.25rem 0;
             position: relative;
             padding-left: 2rem;
@@ -1455,7 +1457,7 @@
                     <!-- 未关联HID和REF，显示创建界面 -->
                     <div class="hid-ref-create">
                         <div class="hid-ref-create-info">
-                            <p>当前项目尚未关联HID和Ref编号，点击下方按钮创建新的关联。</p>
+                            <p>当前项目尚未关联HID和Ref编号，点击下方按钮创建新的关联。系统将自动使用当前登录员工的姓名作为经办人和负责人。</p>
                             {% if project.hid_or_serial %}
                             <p class="hid-ref-temp-note">临时编号: {{ project.hid_or_serial }}</p>
                             {% endif %}
@@ -1984,7 +1986,7 @@ function createProjectLinks() {
     const projectId = {{ project.id }};
     
     // 显示确认对话框
-    if (!confirm('确定要为这个签证项目创建HID和REF关联吗？')) {
+    if (!confirm('确定要为这个签证项目创建HID和REF关联吗？系统将自动使用当前登录员工的姓名作为经办人和负责人。')) {
         return;
     }
     

@@ -57,21 +57,7 @@
         position: relative;
     }
     
-    .reminder-field-group .form-control {
-        padding-right: 40px;
-    }
-    
-    .reminder-field-group::after {
-        content: "\f073";
-        font-family: "Font Awesome 5 Free";
-        font-weight: 900;
-        position: absolute;
-        right: 12px;
-        top: 50%;
-        transform: translateY(-50%);
-        color: #6c757d;
-        pointer-events: none;
-    }
+    /* 提醒相关样式已移除 */
 </style>
 {% endblock %}
 
@@ -252,45 +238,7 @@
             {{ form.dept }}
         </div>
         
-        <!-- 提醒信息 -->
-        <div class="card mb-4">
-            <div class="card-header">
-                <h5 class="mb-0"><i class="fas fa-bell"></i> 提醒信息</h5>
-            </div>
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-md-6">
-                        <div class="mb-3">
-                            {{ form.reminder_event.label(class="form-label") }} <small class="text-muted">(可选)</small>
-                            {{ form.reminder_event(class="form-control", placeholder="请输入提醒事件描述...") }}
-                            {% if form.reminder_event.errors %}
-                                <div class="text-danger">
-                                    {% for error in form.reminder_event.errors %}
-                                        <small>{{ error }}</small>
-                                    {% endfor %}
-                                </div>
-                            {% endif %}
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="mb-3">
-                            {{ form.reminder_date.label(class="form-label") }} <small class="text-muted">(可选)</small>
-                            <div class="reminder-field-group">
-                                {{ form.reminder_date(class="form-control", type="date") }}
-                            </div>
-                            {% if form.reminder_date.errors %}
-                                <div class="text-danger">
-                                    {% for error in form.reminder_date.errors %}
-                                        <small>{{ error }}</small>
-                                    {% endfor %}
-                                </div>
-                            {% endif %}
-                            <small class="form-text text-muted">设置提醒日期，系统将在提醒前一天发送邮件通知</small>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+        <!-- 提醒信息已移至项目详情页面 -->
 
         <!-- 备注信息 -->
         <div class="card mb-4">
@@ -325,77 +273,10 @@
 {% endblock %} 
 
 {% block extra_js %}
-<!-- 移除Select2，使用标准Bootstrap下拉框 -->
+<!-- 提醒功能已移至项目详情页面 -->
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // 获取提醒日期输入框
-    const reminderDateInput = document.querySelector('input[type="date"]');
-    
-    if (reminderDateInput) {
-        // 设置最小日期为今天
-        const today = new Date();
-        const year = today.getFullYear();
-        const month = String(today.getMonth() + 1).padStart(2, '0');
-        const day = String(today.getDate()).padStart(2, '0');
-        
-        const minDate = `${year}-${month}-${day}`;
-        reminderDateInput.setAttribute('min', minDate);
-        
-        // 设置默认值为明天
-        const tomorrow = new Date(today);
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        const tomorrowYear = tomorrow.getFullYear();
-        const tomorrowMonth = String(tomorrow.getMonth() + 1).padStart(2, '0');
-        const tomorrowDay = String(tomorrow.getDate()).padStart(2, '0');
-        
-        const defaultDate = `${tomorrowYear}-${tomorrowMonth}-${tomorrowDay}`;
-        
-        // 如果输入框为空，设置默认值
-        if (!reminderDateInput.value) {
-            reminderDateInput.value = defaultDate;
-        }
-        
-        // 添加输入事件监听器
-        reminderDateInput.addEventListener('change', function() {
-            const selectedDate = new Date(this.value);
-            const currentDate = new Date();
-            currentDate.setHours(0, 0, 0, 0); // 重置为当天开始时间
-            selectedDate.setHours(0, 0, 0, 0); // 重置为选择日期开始时间
-            
-            if (selectedDate < currentDate) {
-                alert('提醒日期不能早于今天！');
-                this.value = defaultDate;
-                return;
-            }
-            
-            // 计算距离提醒日期的天数
-            const timeDiff = selectedDate.getTime() - currentDate.getTime();
-            const daysDiff = Math.ceil(timeDiff / (1000 * 3600 * 24));
-            
-            // 更新提示文本
-            const helpText = this.parentNode.parentNode.querySelector('.form-text');
-            if (helpText) {
-                if (daysDiff === 1) {
-                    helpText.textContent = '设置提醒日期，系统将在提醒前一天发送邮件通知（明天提醒）';
-                } else if (daysDiff > 1) {
-                    helpText.textContent = `设置提醒日期，系统将在提醒前一天发送邮件通知（${daysDiff}天后提醒）`;
-                } else {
-                    helpText.textContent = '设置提醒日期，系统将在提醒前一天发送邮件通知';
-                }
-            }
-        });
-        
-        // 添加焦点事件监听器
-        reminderDateInput.addEventListener('focus', function() {
-            this.style.borderColor = '#80bdff';
-            this.style.boxShadow = '0 0 0 0.2rem rgba(0, 123, 255, 0.25)';
-        });
-        
-        reminderDateInput.addEventListener('blur', function() {
-            this.style.borderColor = '#ced4da';
-            this.style.boxShadow = 'none';
-        });
-    }
+    // 提醒功能已移至项目详情页面
 });
 </script>
 {% endblock %}

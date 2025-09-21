@@ -564,25 +564,71 @@ def _upsert_uob_statement_and_transactions(df, original_df, *, bank_name='UOB', 
         # 安静失败，使用默认 0 值
         pass
 
-    statement_number = f'UOB-{period_start}-{period_end}'
-
-    statement = BankStatement.query.filter_by(statement_number=statement_number).first()
-    if not statement:
-        statement = BankStatement(
-            statement_number=statement_number,
-            bank_name=bank_name,
-            account_number=account_number,
-            account_name=account_name,
-            statement_date=period_end,
-            period_start=period_start,
-            period_end=period_end,
-            opening_balance=opening_balance,
-            closing_balance=closing_balance,
-            currency=currency,
-            status='processing'
-        )
-        db.session.add(statement)
-        db.session.flush()
+    # 按月份分组创建对账单
+    # 获取期间内的所有月份
+    from datetime import date
+    import calendar
+    
+    current_date = period_start
+    monthly_statements = {}
+    
+    while current_date <= period_end:
+        year = current_date.year
+        month = current_date.month
+        
+        # 生成月份格式的对账单号
+        statement_number = f'UOB-{year}-{month:02d}'
+        
+        # 计算该月的第一天和最后一天
+        month_start = date(year, month, 1)
+        last_day = calendar.monthrange(year, month)[1]
+        month_end = date(year, month, last_day)
+        
+        # 确保不超过实际期间
+        month_start = max(month_start, period_start)
+        month_end = min(month_end, period_end)
+        
+        # 检查是否已存在该月份的对账单
+        statement = BankStatement.query.filter_by(statement_number=statement_number).first()
+        if not statement:
+            # 计算该月的期初期末余额
+            month_opening_balance = 0.0
+            month_closing_balance = 0.0
+            
+            try:
+                if original_df is not None and not original_df.empty and 'Balance' in original_df.columns:
+                    ods = original_df.copy()
+                    ods['T-Date'] = pd.to_datetime(ods['T-Date']).dt.date
+                    month_data = ods[(ods['T-Date'] >= month_start) & (ods['T-Date'] <= month_end)].sort_values(by=['T-Date'])
+                    if not month_data.empty:
+                        month_opening_balance = float(month_data.iloc[0]['Balance']) if month_data.iloc[0]['Balance'] is not None else 0.0
+                        month_closing_balance = float(month_data.iloc[-1]['Balance']) if month_data.iloc[-1]['Balance'] is not None else 0.0
+            except Exception:
+                pass
+            
+            statement = BankStatement(
+                statement_number=statement_number,
+                bank_name=bank_name,
+                account_number=account_number,
+                account_name=account_name,
+                statement_date=month_end,
+                period_start=month_start,
+                period_end=month_end,
+                opening_balance=month_opening_balance,
+                closing_balance=month_closing_balance,
+                currency=currency,
+                status='processing'
+            )
+            db.session.add(statement)
+            db.session.flush()
+        
+        monthly_statements[statement_number] = statement
+        
+        # 移动到下个月
+        if month == 12:
+            current_date = date(year + 1, 1, 1)
+        else:
+            current_date = date(year, month + 1, 1)
 
     created = 0
     updated = 0
@@ -597,8 +643,6 @@ def _upsert_uob_statement_and_transactions(df, original_df, *, bank_name='UOB', 
         keyword = _normalize_str(row.get('Keyword', None))
         owner_label = _normalize_owner_label(_normalize_str(row.get('User', None)))
         accounting_ref = _normalize_str(row.get('EO', None))
-        tx_fingerprint = _normalize_str(row.get('Id', None))
-
         # 借贷判断
         if withdrawal and float(withdrawal) != 0:
             amount = float(withdrawal)
@@ -610,19 +654,43 @@ def _upsert_uob_statement_and_transactions(df, original_df, *, bank_name='UOB', 
         if not t_date or amount == 0:
             continue
 
+        tx_fingerprint = _normalize_str(row.get('Id', None))
+        
+        # 如果Excel中没有Id字段，生成包含余额信息的指纹（参考OCBC银行做法）
+        if not tx_fingerprint:
+            import hashlib
+            fp_src = f"{t_date}|{amount}|{description or ''}|{balance or ''}|UOB"
+            tx_fingerprint = hashlib.sha1(fp_src.encode('utf-8', errors='ignore')).hexdigest()
+
+        # 确定该交易属于哪个月份的对账单
+        year = t_date.year
+        month = t_date.month
+        statement_number = f'UOB-{year}-{month:02d}'
+        
+        # 获取对应的对账单
+        if statement_number in monthly_statements:
+            current_statement = monthly_statements[statement_number]
+        else:
+            # 如果月份对账单不存在，跳过这条交易
+            continue
+
         # 指纹去重
         exists = None
         if tx_fingerprint:
             exists = BankTransaction.query.filter_by(tx_fingerprint=tx_fingerprint).first()
         if not exists and description:
-            # 备用匹配：日期+金额+描述前缀
+            # 备用匹配：日期+金额+描述前缀+余额（参考OCBC银行做法）
             desc_prefix = description[:50]
-            exists = BankTransaction.query \
-                .filter(
-                    BankTransaction.transaction_date == t_date,
-                    BankTransaction.amount == amount,
-                    BankTransaction.description.like(f"{desc_prefix}%")
-                ).first()
+            query_filters = [
+                BankTransaction.transaction_date == t_date,
+                BankTransaction.amount == amount,
+                BankTransaction.description.like(f"{desc_prefix}%")
+            ]
+            # 如果余额不为空，添加余额匹配条件
+            if balance is not None:
+                query_filters.append(BankTransaction.balance == balance)
+            
+            exists = BankTransaction.query.filter(*query_filters).first()
 
         if exists:
             changed = False
@@ -649,7 +717,7 @@ def _upsert_uob_statement_and_transactions(df, original_df, *, bank_name='UOB', 
             continue
 
         bt = BankTransaction(
-            statement_id=statement.id,
+            statement_id=current_statement.id,
             transaction_date=t_date,
             transaction_id=None,
             transaction_type=transaction_type,
@@ -673,7 +741,10 @@ def _upsert_uob_statement_and_transactions(df, original_df, *, bank_name='UOB', 
         db.session.add(bt)
         created += 1
 
-    statement.status = 'completed'
+    # 更新所有月份对账单的状态为完成
+    for statement in monthly_statements.values():
+        statement.status = 'completed'
+    
     db.session.commit()
     return created, updated
 from App_new.finance.models.statement import BankStatement, BankTransaction
@@ -706,6 +777,7 @@ def uob_bank():
         end_date_str = request.args.get('end_date', '').strip()
         tx_type = request.args.get('type', '').strip()  # 'debit' / 'credit'
         owner = request.args.get('owner', '').strip()   # owner_label
+        sort = request.args.get('sort', 'date_desc').strip()
         page = request.args.get('page', 1, type=int)
         per_page = 30
 
@@ -766,9 +838,17 @@ def uob_bank():
             else:
                 tx_query = tx_query.filter(BankTransaction.owner_label == owner)
 
-        pagination = tx_query.order_by(
-            BankTransaction.transaction_date.desc(), BankTransaction.id.desc()
-        ).paginate(page=page, per_page=per_page, error_out=False)
+        # 根据排序参数设置排序方式
+        if sort == 'date_asc':
+            order_by = BankTransaction.transaction_date.asc(), BankTransaction.id.asc()
+        elif sort == 'amount_desc':
+            order_by = BankTransaction.amount.desc(), BankTransaction.id.desc()
+        elif sort == 'amount_asc':
+            order_by = BankTransaction.amount.asc(), BankTransaction.id.asc()
+        else:  # date_desc (默认)
+            order_by = BankTransaction.transaction_date.desc(), BankTransaction.id.desc()
+        
+        pagination = tx_query.order_by(*order_by).paginate(page=page, per_page=per_page, error_out=False)
         transactions = pagination.items
 
         # 归属下拉选项（去重）
@@ -796,6 +876,7 @@ def uob_bank():
         pagination = None
         owner_options = []
         month = start_date_str = end_date_str = tx_type = owner = ''
+        sort = 'date_desc'
         page = 1
         per_page = 30
 
@@ -811,6 +892,7 @@ def uob_bank():
                 'end_date': end_date_str,
                 'type': tx_type,
                 'owner': owner,
+                'sort': sort,
                 'page': page,
                 'per_page': per_page
             }
@@ -828,10 +910,93 @@ def uob_bank():
             'end_date': end_date_str,
             'type': tx_type,
             'owner': owner,
+            'sort': sort,
             'page': page,
             'per_page': per_page
         }
     )
+
+
+@statement_blue.route('/delete_uob_statement', methods=['POST'])
+@csrf.exempt
+def delete_uob_statement():
+    """删除UOB银行对账单及其所有交易记录"""
+    try:
+        statement_number = request.form.get('statement_number')
+        if not statement_number:
+            flash('对账单号不能为空', 'error')
+            return redirect(url_for('statement_routes.uob_bank'))
+        
+        # 查找对账单
+        statement = BankStatement.query.filter_by(statement_number=statement_number).first()
+        if not statement:
+            flash(f'未找到对账单：{statement_number}', 'error')
+            return redirect(url_for('statement_routes.uob_bank'))
+        
+        # 删除关联的交易记录（由于外键约束，会自动删除）
+        transaction_count = BankTransaction.query.filter_by(statement_id=statement.id).count()
+        
+        # 删除对账单
+        db.session.delete(statement)
+        db.session.commit()
+        
+        flash(f'成功删除对账单 {statement_number} 及其 {transaction_count} 条交易记录', 'success')
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"删除UOB银行对账单失败: {str(e)}")
+        flash(f'删除失败：{str(e)}', 'error')
+    
+    return redirect(url_for('statement_routes.uob_bank'))
+
+
+@statement_blue.route('/download_uob_statement', methods=['GET'])
+@csrf.exempt
+def download_uob_statement():
+    """下载指定UOB银行对账单的交易CSV"""
+    try:
+        import io
+        import csv
+        from flask import send_file
+        
+        statement_number = request.args.get('statement_number', '').strip()
+        if not statement_number:
+            flash('对账单号不能为空', 'error')
+            return redirect(url_for('statement_routes.uob_bank'))
+
+        stmt = BankStatement.query.filter_by(statement_number=statement_number, bank_name='UOB').first()
+        if not stmt:
+            flash(f'未找到对账单：{statement_number}', 'error')
+            return redirect(url_for('statement_routes.uob_bank'))
+
+        # 导出该对账单的交易为CSV
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow(['ID', 'StatementNumber', 'Date', 'Type', 'Amount', 'Balance', 'Description', 'Keyword', 'REF/EO', 'Owner', 'Remarks'])
+        q = (BankTransaction.query
+             .filter_by(statement_id=stmt.id)
+             .order_by(BankTransaction.transaction_date.asc(), BankTransaction.id.asc()))
+        for t in q.all():
+            writer.writerow([
+                t.id,
+                stmt.statement_number,
+                t.transaction_date,
+                t.transaction_type,
+                f"{t.amount:.2f}" if t.amount is not None else '',
+                f"{t.balance:.2f}" if t.balance is not None else '',
+                t.description or '',
+                t.keyword or '',
+                t.accounting_ref or '',
+                t.owner_label or '',
+                (t.remarks or '').replace('\n', ' ').strip(),
+            ])
+        mem = io.BytesIO(output.getvalue().encode('utf-8-sig'))
+        filename = f"{stmt.statement_number}.csv"
+        return send_file(mem, as_attachment=True, download_name=filename, mimetype='text/csv')
+    except Exception as e:
+        logger.error(f"下载UOB对账单失败: {str(e)}")
+        flash(f'下载失败：{str(e)}', 'error')
+        return redirect(url_for('statement_routes.uob_bank'))
 
 
 # 行内编辑：更新交易的 REF/EO 与归属
@@ -1700,6 +1865,7 @@ def cmb_bank():
         tx_type = request.args.get('type', '').strip()  # 'debit' / 'credit'
         owner = request.args.get('owner', '').strip()   # owner_label
         ref_query = request.args.get('ref', '').strip() # accounting_ref 模糊
+        sort = request.args.get('sort', 'date_desc').strip()
         page = request.args.get('page', 1, type=int)
         per_page = 30
 
@@ -1762,9 +1928,17 @@ def cmb_bank():
         if ref_query:
             tx_query = tx_query.filter(BankTransaction.accounting_ref.ilike(f"%{ref_query}%"))
 
-        pagination = tx_query.order_by(
-            BankTransaction.transaction_date.desc(), BankTransaction.id.desc()
-        ).paginate(page=page, per_page=per_page, error_out=False)
+        # 根据排序参数设置排序方式
+        if sort == 'date_asc':
+            order_by = BankTransaction.transaction_date.asc(), BankTransaction.id.asc()
+        elif sort == 'amount_desc':
+            order_by = BankTransaction.amount.desc(), BankTransaction.id.desc()
+        elif sort == 'amount_asc':
+            order_by = BankTransaction.amount.asc(), BankTransaction.id.asc()
+        else:  # date_desc (默认)
+            order_by = BankTransaction.transaction_date.desc(), BankTransaction.id.desc()
+        
+        pagination = tx_query.order_by(*order_by).paginate(page=page, per_page=per_page, error_out=False)
         transactions = pagination.items
 
         # 归属下拉选项（去重）
@@ -1793,6 +1967,7 @@ def cmb_bank():
         owner_options = []
         month = start_date_str = end_date_str = tx_type = owner = ''
         ref_query = ''
+        sort = 'date_desc'
         page = 1
         per_page = 30
 
@@ -1810,6 +1985,7 @@ def cmb_bank():
                 'type': tx_type,
                 'owner': owner,
                 'ref': ref_query,
+                'sort': sort,
                 'page': page,
                 'per_page': per_page
             }
@@ -1829,6 +2005,7 @@ def cmb_bank():
             'type': tx_type,
             'owner': owner,
             'ref': ref_query,
+            'sort': sort,
             'page': page,
             'per_page': per_page
         }
@@ -1947,6 +2124,55 @@ def delete_cmb_statement():
         flash(f'删除失败：{str(e)}', 'error')
     
     return redirect(url_for('statement_routes.cmb_bank'))
+
+
+@statement_blue.route('/download_cmb_statement', methods=['GET'])
+@csrf.exempt
+def download_cmb_statement():
+    """下载指定招商银行对账单的交易CSV"""
+    try:
+        import io
+        import csv
+        from flask import send_file
+        
+        statement_number = request.args.get('statement_number', '').strip()
+        if not statement_number:
+            flash('对账单号不能为空', 'error')
+            return redirect(url_for('statement_routes.cmb_bank'))
+
+        stmt = BankStatement.query.filter_by(statement_number=statement_number, bank_name='CMB').first()
+        if not stmt:
+            flash(f'未找到对账单：{statement_number}', 'error')
+            return redirect(url_for('statement_routes.cmb_bank'))
+
+        # 导出该对账单的交易为CSV
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow(['ID', 'StatementNumber', 'Date', 'Type', 'Amount', 'Balance', 'Description', 'Keyword', 'REF/EO', 'Owner', 'Remarks'])
+        q = (BankTransaction.query
+             .filter_by(statement_id=stmt.id)
+             .order_by(BankTransaction.transaction_date.asc(), BankTransaction.id.asc()))
+        for t in q.all():
+            writer.writerow([
+                t.id,
+                stmt.statement_number,
+                t.transaction_date,
+                t.transaction_type,
+                f"{t.amount:.2f}" if t.amount is not None else '',
+                f"{t.balance:.2f}" if t.balance is not None else '',
+                t.description or '',
+                t.keyword or '',
+                t.accounting_ref or '',
+                t.owner_label or '',
+                (t.remarks or '').replace('\n', ' ').strip(),
+            ])
+        mem = io.BytesIO(output.getvalue().encode('utf-8-sig'))
+        filename = f"{stmt.statement_number}.csv"
+        return send_file(mem, as_attachment=True, download_name=filename, mimetype='text/csv')
+    except Exception as e:
+        logger.error(f"下载招商银行对账单失败: {str(e)}")
+        flash(f'下载失败：{str(e)}', 'error')
+        return redirect(url_for('statement_routes.cmb_bank'))
 
 
 @statement_blue.route('/athina_page')

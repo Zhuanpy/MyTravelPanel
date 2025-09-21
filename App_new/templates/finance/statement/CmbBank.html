@@ -192,6 +192,9 @@
                         <td>{{ s.status }}</td>
                         <td><small class="text-muted">{{ s.created_at.strftime('%Y-%m-%d %H:%M') if s.created_at else '' }}</small></td>
                         <td>
+                            <a class="btn btn-outline-primary btn-sm" href="{{ url_for('statement_routes.download_cmb_statement', statement_number=s.statement_number) }}">
+                                <i class="fas fa-download"></i> 下载
+                            </a>
                             <form method="post" action="{{ url_for('statement_routes.delete_cmb_statement') }}" 
                                   onsubmit="return confirm('确定要删除对账单 {{ s.statement_number }} 及其所有交易记录吗？此操作不可撤销！')" 
                                   style="display: inline;">
@@ -255,6 +258,15 @@
                 <div>
                     <label class="form-label">REF/EO</label>
                     <input type="text" class="form-control" name="ref" value="{{ filters.ref or '' }}" placeholder="输入REF或EO编号">
+                </div>
+                <div>
+                    <label class="form-label">排序</label>
+                    <select class="form-select" name="sort">
+                        <option value="date_desc" {% if filters.sort=='date_desc' %}selected{% endif %}>日期降序（最新在前）</option>
+                        <option value="date_asc" {% if filters.sort=='date_asc' %}selected{% endif %}>日期升序（最早在前）</option>
+                        <option value="amount_desc" {% if filters.sort=='amount_desc' %}selected{% endif %}>金额降序（大额在前）</option>
+                        <option value="amount_asc" {% if filters.sort=='amount_asc' %}selected{% endif %}>金额升序（小额在前）</option>
+                    </select>
                 </div>
                 <div>
                     <button type="submit" class="btn btn-primary">筛选</button>
@@ -347,6 +359,14 @@ document.addEventListener('DOMContentLoaded', function() {
     if (form) {
         form.addEventListener('submit', function(e) {
             e.preventDefault();
+            loadTable();
+        });
+    }
+
+    // 监听排序选择变化
+    const sortSelect = form ? form.querySelector('select[name="sort"]') : null;
+    if (sortSelect) {
+        sortSelect.addEventListener('change', function() {
             loadTable();
         });
     }
