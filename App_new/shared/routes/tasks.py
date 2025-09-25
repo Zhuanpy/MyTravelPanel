@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify, render_template, current_app
-from flask_login import login_required
+from flask_login import login_required, current_user
 from App_new.shared.models.Utilsmodels import Task, Todo
 from App_new.exts import db, csrf
 from App_new.utils.decorators import staff_only
@@ -128,8 +128,10 @@ def list_todos():
         priority = request.args.get('priority', '')
         status = request.args.get('status', '')
         search = request.args.get('search', '')
+        category = request.args.get('category', '')
+        project_id = request.args.get('project_id', '')
         
-        current_app.logger.info(f"查询参数: priority={priority}, status={status}, search={search}")
+        current_app.logger.info(f"查询参数: priority={priority}, status={status}, search={search}, category={category}, project_id={project_id}")
         
         # 构建查询
         query = Todo.query
@@ -141,6 +143,14 @@ def list_todos():
             query = query.filter(Todo.is_completed == (status == 'completed'))
         if search:
             query = query.filter(Todo.title.ilike(f'%{search}%'))
+        if category:
+            query = query.filter(Todo.category == category)
+        if project_id:
+            # 根据项目ID筛选，检查标题或描述中是否包含项目ID
+            query = query.filter(
+                (Todo.title.ilike(f'%项目ID: {project_id}%')) |
+                (Todo.description.ilike(f'%项目ID: {project_id}%'))
+            )
             
         # 执行查询
         todos = query.order_by(Todo.created_at.desc()).all()
@@ -173,12 +183,22 @@ def create_todo():
         data = request.get_json()
         current_app.logger.info(f"创建待办事项，数据: {data}")
         
+        # 处理日期格式
+        due_date = data.get('due_date')
+        if due_date:
+            try:
+                from datetime import datetime
+                due_date = datetime.strptime(due_date, '%Y-%m-%d').date()
+            except ValueError:
+                due_date = None
+        
         todo = Todo.create(
             title=data.get('title'),
             description=data.get('description'),
             priority=int(data.get('priority', 2)),
-            due_date=data.get('due_date'),
-            category=data.get('category')
+            due_date=due_date,
+            category=data.get('category'),
+            user_id=None  # 暂时设置为None避免外键约束问题
         )
         
         return jsonify({

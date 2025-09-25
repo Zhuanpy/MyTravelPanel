@@ -1,4 +1,4 @@
-{% extends "guest/base.html" %}
+{% extends "guest/shared/base.html" %}
 
 {% block title %}{{ country_info.country }}签证服务 - MyTravelPanel{% endblock %}
 
@@ -11,10 +11,10 @@
                 <nav aria-label="breadcrumb" class="mb-4">
                     <ol class="breadcrumb justify-content-center bg-transparent">
                         <li class="breadcrumb-item">
-                            <a href="{{ url_for('guest.index') }}" class="text-white-50">首页</a>
+                            <a href="{{ url_for('guest.main.index') }}" class="text-white-50">首页</a>
                         </li>
                         <li class="breadcrumb-item">
-                            <a href="{{ url_for('guest.visa_services') }}" class="text-white-50">签证服务</a>
+                            <a href="{{ url_for('guest.visa.visa_services') }}" class="text-white-50">签证服务</a>
                         </li>
                         <li class="breadcrumb-item active text-white" aria-current="page">{{ country_info.country }}</li>
                     </ol>
@@ -26,67 +26,60 @@
     </div>
 </section>
 
+
 <!-- 签证类型详情 -->
 <section class="py-5">
     <div class="container">
         {% if country_info.visa_types %}
         <div class="row g-4">
             {% for visa_type in country_info.visa_types %}
-            <div class="col-lg-6">
-                <div class="service-card h-100">
-                    <div class="service-card-body">
+            <div class="col-lg-6 mx-auto">
+                <div class="service-card h-100 d-flex flex-column">
+                    <div class="service-card-body d-flex flex-column">
                         <!-- 签证类型标题 -->
-                        <div class="d-flex align-items-center mb-4">
-                            <div class="bg-primary text-white rounded-circle me-3 d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
+                        <div class="d-flex align-items-center mb-3">
+                            <div class="bg-success text-white rounded-circle me-3 d-flex align-items-center justify-content-center" style="width: 50px; height: 50px;">
                                 <i class="fas fa-passport"></i>
                             </div>
                             <div>
-                                <h3 class="mb-1">{{ visa_type.name }}</h3>
-                                <p class="text-muted mb-0">{{ visa_type.description }}</p>
+                                <h4 class="mb-1 text-dark">{{ visa_type.visa_type }}</h4>
+                                <p class="text-muted mb-0 small">{{ visa_type.visa_type }}办理服务</p>
                             </div>
                         </div>
                         
-                        <!-- 签证信息 -->
-                        <div class="row mb-4">
-                            <div class="col-4 text-center">
-                                <div class="border-end">
-                                    <i class="fas fa-clock text-primary mb-2 d-block"></i>
-                                    <small class="text-muted d-block">办理时间</small>
-                                    <strong>{{ visa_type.processing_time }}</strong>
+                        <!-- 基本信息 -->
+                        <div class="flex-grow-1 mb-3">
+                            {% if visa_type.fee %}
+                            <div class="mb-2">
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-dollar-sign text-warning me-2"></i>
+                                    <span class="text-success fw-bold small">费用</span>
+                                </div>
+                                <div class="d-flex align-items-center ms-4">
+                                    <i class="fas fa-info-circle text-info me-2 small"></i>
+                                    <span class="text-dark">{{ visa_type.fee }}</span>
                                 </div>
                             </div>
-                            <div class="col-4 text-center">
-                                <div class="border-end">
-                                    <i class="fas fa-calendar text-success mb-2 d-block"></i>
-                                    <small class="text-muted d-block">有效期</small>
-                                    <strong>{{ visa_type.validity }}</strong>
+                            {% endif %}
+                            
+                            {% if visa_type.processing_time %}
+                            <div class="mb-2">
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-clock text-success me-2"></i>
+                                    <span class="text-success fw-bold small">处理时间</span>
+                                </div>
+                                <div class="d-flex align-items-center ms-4">
+                                    <i class="fas fa-info-circle text-info me-2 small"></i>
+                                    <span class="text-dark">{{ visa_type.processing_time }}</span>
                                 </div>
                             </div>
-                            <div class="col-4 text-center">
-                                <i class="fas fa-dollar-sign text-warning mb-2 d-block"></i>
-                                <small class="text-muted d-block">服务费</small>
-                                <strong class="text-primary">{{ visa_type.price }}</strong>
-                            </div>
-                        </div>
-                        
-                        <!-- 所需文件 -->
-                        <div class="mb-4">
-                            <h6 class="text-primary mb-3">
-                                <i class="fas fa-file-alt me-2"></i>所需文件清单
-                            </h6>
-                            <ul class="list-unstyled">
-                                {% for document in visa_type.required_documents %}
-                                <li class="mb-2">
-                                    <i class="fas fa-check text-success me-2"></i>{{ document }}
-                                </li>
-                                {% endfor %}
-                            </ul>
+                            {% endif %}
                         </div>
                         
                         <!-- 操作按钮 -->
-                        <div class="d-grid gap-2">
-                            <a href="{{ url_for('guest.contact') }}" class="btn btn-custom">
-                                <i class="fas fa-comments me-1"></i>立即咨询
+                        <div class="d-grid mt-auto">
+                            <a href="{{ url_for('guest.visa.visa_detail', visa_type_name=visa_type.visa_type) }}" class="btn btn-primary btn-sm">
+                                <i class="fas fa-info-circle me-1"></i>查看详情
                             </a>
                         </div>
                     </div>
@@ -101,7 +94,7 @@
                     <i class="fas fa-info-circle text-muted" style="font-size: 4rem;"></i>
                     <h4 class="mt-3 text-muted">暂无签证类型信息</h4>
                     <p class="text-muted">该国家的签证服务信息正在完善中，请联系我们获取最新信息。</p>
-                    <a href="{{ url_for('guest.contact') }}" class="btn btn-custom">
+                    <a href="{{ url_for('guest.main.contact') }}" class="btn btn-custom">
                         <i class="fas fa-phone"></i> 联系我们
                     </a>
                 </div>
@@ -111,38 +104,6 @@
     </div>
 </section>
 
-<!-- 注意事项 -->
-<section class="py-5 bg-light">
-    <div class="container">
-        <div class="row">
-            <div class="col-lg-8 mx-auto">
-                <div class="bg-white rounded-3 p-4 shadow-sm">
-                    <h5 class="text-primary mb-3">
-                        <i class="fas fa-exclamation-triangle me-2"></i>重要提示
-                    </h5>
-                    <ul class="list-unstyled mb-0">
-                        <li class="mb-2">
-                            <i class="fas fa-info-circle text-info me-2"></i>
-                            签证申请时间可能因个人情况和领事馆工作安排而有所不同
-                        </li>
-                        <li class="mb-2">
-                            <i class="fas fa-info-circle text-info me-2"></i>
-                            所有文件需提供原件和复印件，部分文件可能需要公证或认证
-                        </li>
-                        <li class="mb-2">
-                            <i class="fas fa-info-circle text-info me-2"></i>
-                            签证费用不包含领事馆收取的签证费和其他可能产生的费用
-                        </li>
-                        <li class="mb-0">
-                            <i class="fas fa-info-circle text-info me-2"></i>
-                            建议在出行前至少提前2-4周申请签证，以确保有足够的处理时间
-                        </li>
-                    </ul>
-                </div>
-            </div>
-        </div>
-    </div>
-</section>
 
 <!-- 相关服务推荐 -->
 <section class="py-5">
@@ -182,7 +143,7 @@
                     </div>
                     <h5>旅游配套</h5>
                     <p class="text-muted">精心设计的旅游路线和配套服务</p>
-                    <a href="{{ url_for('guest.tour_packages') }}" class="btn btn-outline-warning btn-sm">了解更多</a>
+                    <a href="{{ url_for('guest.tour.tour_packages') }}" class="btn btn-outline-warning btn-sm">了解更多</a>
                 </div>
             </div>
         </div>
@@ -206,5 +167,11 @@
         transform: translateY(-5px);
         box-shadow: 0 10px 30px rgba(0,0,0,0.15);
     }
+    
+    .service-card {
+        min-height: 280px;
+    }
+    
 </style>
+
 {% endblock %}

@@ -1,0 +1,88 @@
+{% extends "shared/staff_base.html" %}
+
+{% block title %}添加供应商{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">添加供应商</h4>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('supplier.add_supplier') }}">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="name" class="form-label">名称 *</label>
+                                    <input type="text" class="form-control" id="name" name="name" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="supplier_type" class="form-label">类型</label>
+                                    <select class="form-control" id="supplier_type" name="supplier_type">
+                                        {% for type_code, type_name in supplier_types %}
+                                        <option value="{{ type_code }}">{{ type_name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="contact_person" class="form-label">联系人</label>
+                                    <input type="text" class="form-control" id="contact_person" name="contact_person">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="phone" class="form-label">电话</label>
+                                    <input type="text" class="form-control" id="phone" name="phone">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="email" class="form-label">邮箱</label>
+                                    <input type="email" class="form-control" id="email" name="email">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="country" class="form-label">国家</label>
+                                    <input type="text" class="form-control" id="country" name="country">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="region" class="form-label">地区</label>
+                                    <input type="text" class="form-control" id="region" name="region">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="status" class="form-label">状态</label>
+                                    <select class="form-control" id="status" name="status">
+                                        <option value="active">活跃</option>
+                                        <option value="inactive">非活跃</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-12">
+                                <div class="mb-3">
+                                    <label for="address" class="form-label">地址</label>
+                                    <textarea class="form-control" id="address" name="address" rows="3"></textarea>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="notes" class="form-label">备注</label>
+                                    <textarea class="form-control" id="notes" name="notes" rows="3"></textarea>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-12">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save"></i> 保存
+                                </button>
+                                <a href="{{ url_for('supplier.suppliers') }}" class="btn btn-secondary">
+                                    <i class="fas fa-arrow-left"></i> 取消
+                                </a>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

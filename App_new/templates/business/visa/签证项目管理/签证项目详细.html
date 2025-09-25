@@ -1416,6 +1416,36 @@
                 </div>
     </section>
 
+    <!-- 提醒事件区域 -->
+    <section class="visa-detail-section">
+        <div class="visa-detail-section-header">
+            <h2>提醒事件</h2>
+            <div class="visa-detail-actions">
+                <button type="button" class="visa-project-btn visa-project-btn-primary" onclick="openReminderModal()">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M9 11H5a2 2 0 0 0-2 2v3c0 1.1.9 2 2 2h14a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2h-4"></path>
+                        <path d="M9 11V9a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"></path>
+                        <path d="M9 11h6"></path>
+                    </svg>
+                    添加提醒
+                </button>
+            </div>
+        </div>
+        <div class="visa-detail-content">
+            <div id="remindersContainer" class="reminders-container">
+                <div class="reminders-loading">
+                    <svg class="animate-spin" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 2v6h-6"></path>
+                        <path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path>
+                        <path d="M3 22v-6h6"></path>
+                        <path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path>
+                    </svg>
+                    加载中...
+                </div>
+            </div>
+        </div>
+    </section>
+
     <section class="visa-detail-section">
         <div class="visa-detail-section-header">
             <h2>HID和Ref编号管理</h2>
@@ -1484,7 +1514,7 @@
 </div>
 
 <!-- 添加资料模态框 -->
-<div id="addDocumentModal" class="modal">
+<div id="addDocumentModal" class="modal" style="display: none;">
     <div class="modal-content">
         <div class="modal-header">
             <h3 class="modal-title">添加资料</h3>
@@ -1516,7 +1546,7 @@
 </div>
 
 <!-- 编辑备注模态框 -->
-<div id="editNotesModal" class="modal">
+<div id="editNotesModal" class="modal" style="display: none;">
     <div class="modal-content">
         <div class="modal-header">
             <h3 class="modal-title">编辑备注</h3>
@@ -1555,7 +1585,7 @@ function updateVisaStatus(newStatus) {
             'X-Requested-With': 'XMLHttpRequest',
             'X-CSRFToken': csrfToken
         },
-        body: `project_id={{ project.id }}&status=${encodeURIComponent(newStatus)}&csrf_token=${encodeURIComponent(csrfToken)}`
+        body: `project_id={{ project.id|tojson }}&status=${encodeURIComponent(newStatus)}&csrf_token=${encodeURIComponent(csrfToken)}`
     })
     .then(response => {
         if (!response.ok) {
@@ -1579,7 +1609,7 @@ function updateVisaStatus(newStatus) {
         console.error('Error:', error);
         showMessage(error.message || '更新失败，请重试', 'error');
         const select = document.querySelector('.visa-detail-status-select');
-        select.value = '{{ project.visa_status }}';
+        select.value = {{ (project.visa_status or '')|tojson }};
     });
 }
 
@@ -1594,7 +1624,7 @@ function updateEstimatedDate(newDate) {
     const originalValue = dateInput.value;
     dateInput.disabled = true;
 
-    fetch(`/visa/project/update_estimated_date/{{ project.id }}`, {
+    fetch(`/visa/project/update_estimated_date/{{ project.id|tojson }}`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
@@ -1740,7 +1770,7 @@ function syncProjectDocuments() {
         return;
     }
 
-    fetch(`/visa/project/sync_project_documents/{{ project.id }}`, {
+    fetch(`/visa/project/sync_project_documents/{{ project.id|tojson }}`, {
         method: 'POST',
         headers: {
             'X-Requested-With': 'XMLHttpRequest'
@@ -1825,7 +1855,7 @@ if (addFormEl) addFormEl.addEventListener('submit', function(e) {
         notes: document.getElementById('documentNotes').value
     };
 
-    fetch(`/visa/project/add_custom_document/{{ project.id }}`, {
+    fetch(`/visa/project/add_custom_document/{{ project.id|tojson }}`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -1983,7 +2013,7 @@ function openVisaTypeFolder(visaType) {
 
 // 创建HID和REF关联
 function createProjectLinks() {
-    const projectId = {{ project.id }};
+    const projectId = {{ project.id|tojson }};
     
     // 显示确认对话框
     if (!confirm('确定要为这个签证项目创建HID和REF关联吗？系统将自动使用当前登录员工的姓名作为经办人和负责人。')) {
@@ -2098,27 +2128,30 @@ if (genFormEl) genFormEl.addEventListener('submit', function(e) {
 
 // HID和Ref编号管理函数
 function copyHIDRef() {
-    {% if has_header and project.header and has_ref and project.ref %}
-    const hidValue = '{{ project.header.hid }}';
-    const refValue = '{{ project.ref.ref_number }}';
+    const hasHeader = {{ has_header|tojson }};
+    const hasRef = {{ has_ref|tojson }};
     
-    const copyText = `HID: ${hidValue}\n\n{% block title %}{{ project.applicant_name }}{{ project.visa_type }}项目详情{% endblock %}\nRef: ${refValue}`;
-    
-    navigator.clipboard.writeText(copyText).then(() => {
-        showMessage('编号已复制到剪贴板', 'success');
-    }).catch(() => {
-        // 降级方案
-        const textArea = document.createElement('textarea');
-        textArea.value = copyText;
-        document.body.appendChild(textArea);
-        textArea.select();
-        document.execCommand('copy');
-        document.body.removeChild(textArea);
-        showMessage('编号已复制到剪贴板', 'success');
-    });
-    {% else %}
-    showMessage('没有可复制的编号', 'error');
-    {% endif %}
+    if (hasHeader && hasRef) {
+        const hidValue = {{ (project.header.hid if project.header else '')|tojson }};
+        const refValue = {{ (project.ref.ref_number if project.ref else '')|tojson }};
+        
+        const copyText = `HID: ${hidValue}\n\n{{ project.applicant_name|default('未知申请人') }}{{ project.visa_type|default('未知类型') }}项目详情\nRef: ${refValue}`;
+        
+        navigator.clipboard.writeText(copyText).then(() => {
+            showMessage('编号已复制到剪贴板', 'success');
+        }).catch(() => {
+            // 降级方案
+            const textArea = document.createElement('textarea');
+            textArea.value = copyText;
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
+            showMessage('编号已复制到剪贴板', 'success');
+        });
+    } else {
+        showMessage('没有可复制的编号', 'error');
+    }
 }
 
 function unlinkHIDRef() {
@@ -2147,7 +2180,7 @@ function unlinkHIDRef() {
             'X-CSRFToken': '{{ csrf_token() }}'
         },
         body: JSON.stringify({
-            project_id: {{ project.id }}
+            project_id: {{ project.id|tojson }}
         })
     })
     .then(response => response.json())
@@ -2170,5 +2203,564 @@ function unlinkHIDRef() {
         button.innerHTML = originalText;
     });
 }
+
+// 提醒模态框相关函数
+function openReminderModal() {
+    document.getElementById('reminderModal').style.display = 'flex';
+}
+
+function closeReminderModal() {
+    document.getElementById('reminderModal').style.display = 'none';
+    // 清空表单
+    document.getElementById('reminderForm').reset();
+}
+
+function submitReminder() {
+    const form = document.getElementById('reminderForm');
+    if (!form) {
+        showMessage('表单未找到', 'error');
+        return;
+    }
+    
+    const formData = new FormData(form);
+    
+    const reminderData = {
+        title: formData.get('reminder_title'),
+        description: formData.get('reminder_description'),
+        due_date: formData.get('reminder_due_date'),
+        priority: parseInt(formData.get('reminder_priority')),
+        category: 'visa_reminder'
+    };
+    
+    // 验证必填字段
+    if (!reminderData.title.trim()) {
+        showMessage('请输入提醒标题', 'error');
+        return;
+    }
+    
+    const submitBtn = document.getElementById('submitReminderBtn');
+    const originalText = submitBtn.innerHTML;
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = `
+        <svg class="animate-spin" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 2v6h-6"></path>
+            <path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path>
+            <path d="M3 22v-6h6"></path>
+            <path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path>
+        </svg>
+        创建中...
+    `;
+    
+    fetch('/utils/todos/create', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify(reminderData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showMessage('提醒已添加到任务中心', 'success');
+            closeReminderModal();
+            loadReminders(); // 重新加载提醒列表
+        } else {
+            throw new Error(data.message || '创建提醒失败');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showMessage(error.message || '创建提醒失败，请重试', 'error');
+    })
+    .finally(() => {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalText;
+    });
+}
+
+// 加载提醒事件
+function loadReminders() {
+    const container = document.getElementById('remindersContainer');
+    
+    fetch('/utils/todos/list?category=visa_reminder&project_id={{ project.id|tojson }}')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                displayReminders(data.todos || []);
+            } else {
+                throw new Error(data.message || '加载提醒失败');
+            }
+        })
+        .catch(error => {
+            console.error('Error loading reminders:', error);
+            container.innerHTML = `
+                <div class="reminders-empty">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M9 11H5a2 2 0 0 0-2 2v3c0 1.1.9 2 2 2h14a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2h-4"></path>
+                        <path d="M9 11V9a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"></path>
+                        <path d="M9 11h6"></path>
+                    </svg>
+                    <p>加载提醒失败</p>
+                </div>
+            `;
+        });
+}
+
+// 显示提醒列表
+function displayReminders(reminders) {
+    const container = document.getElementById('remindersContainer');
+    
+    if (reminders.length === 0) {
+        container.innerHTML = `
+            <div class="reminders-empty">
+                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M9 11H5a2 2 0 0 0-2 2v3c0 1.1.9 2 2 2h14a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2h-4"></path>
+                    <path d="M9 11V9a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"></path>
+                    <path d="M9 11h6"></path>
+                </svg>
+                <p>暂无提醒事件</p>
+                <p style="font-size: 0.8rem; margin-top: 0.5rem;">点击"添加提醒"按钮创建新的提醒</p>
+            </div>
+        `;
+        return;
+    }
+    
+    const remindersHtml = reminders.map(reminder => {
+        const status = getReminderStatus(reminder);
+        const dueDate = reminder.due_date ? new Date(reminder.due_date).toLocaleDateString('zh-CN') : '无截止日期';
+        const createdDate = new Date(reminder.created_at).toLocaleDateString('zh-CN');
+        
+        return `
+            <div class="reminder-item ${reminder.is_completed ? 'completed' : ''}" data-reminder-id="${reminder.id}">
+                <div class="reminder-header">
+                    <h4 class="reminder-title">${reminder.title}</h4>
+                    <span class="reminder-status ${status.class}">${status.text}</span>
+                </div>
+                ${reminder.description ? `<div class="reminder-description">${reminder.description}</div>` : ''}
+                <div class="reminder-meta">
+                    <span>创建时间: ${createdDate}</span>
+                    <span>截止时间: ${dueDate}</span>
+                </div>
+                <div class="reminder-actions">
+                    ${!reminder.is_completed ? `
+                        <button class="reminder-action-btn primary" onclick="toggleReminderStatus(${reminder.id}, true)">
+                            标记完成
+                        </button>
+                    ` : `
+                        <button class="reminder-action-btn" onclick="toggleReminderStatus(${reminder.id}, false)">
+                            标记待处理
+                        </button>
+                    `}
+                    <button class="reminder-action-btn" onclick="deleteReminder(${reminder.id})">
+                        删除
+                    </button>
+                </div>
+            </div>
+        `;
+    }).join('');
+    
+    container.innerHTML = remindersHtml;
+}
+
+// 获取提醒状态
+function getReminderStatus(reminder) {
+    if (reminder.is_completed) {
+        return { class: 'completed', text: '已完成' };
+    }
+    
+    if (reminder.due_date) {
+        const dueDate = new Date(reminder.due_date);
+        const now = new Date();
+        if (dueDate < now) {
+            return { class: 'overdue', text: '已逾期' };
+        }
+    }
+    
+    return { class: 'pending', text: '待处理' };
+}
+
+// 切换提醒状态
+function toggleReminderStatus(reminderId, isCompleted) {
+    fetch('/utils/todos/update', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify({
+            id: reminderId,
+            is_completed: isCompleted
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showMessage(isCompleted ? '提醒已标记为完成' : '提醒已标记为待处理', 'success');
+            loadReminders(); // 重新加载提醒列表
+        } else {
+            throw new Error(data.message || '更新失败');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showMessage(error.message || '更新失败，请重试', 'error');
+    });
+}
+
+// 删除提醒
+function deleteReminder(reminderId) {
+    if (!confirm('确定要删除这个提醒吗？')) {
+        return;
+    }
+    
+    fetch('/utils/todos/delete', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify({
+            id: reminderId
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showMessage('提醒已删除', 'success');
+            loadReminders(); // 重新加载提醒列表
+        } else {
+            throw new Error(data.message || '删除失败');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showMessage(error.message || '删除失败，请重试', 'error');
+    });
+}
+
+// 页面加载完成后加载提醒
+document.addEventListener('DOMContentLoaded', function() {
+    loadReminders();
+});
 </script>
+
+<!-- 提醒模态框 -->
+<div id="reminderModal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>添加提醒</h3>
+            <button type="button" class="modal-close" onclick="closeReminderModal()">&times;</button>
+        </div>
+        <form id="reminderForm" onsubmit="event.preventDefault(); submitReminder();">
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="reminder_title">提醒标题 *</label>
+                    <input type="text" id="reminder_title" name="reminder_title" required 
+                           placeholder="请输入提醒标题" 
+                           value="签证项目提醒 - {{ project.applicant_name|default('未知申请人') }} - {{ project.visa_type|default('未知类型') }}">
+                </div>
+                
+                <div class="form-group">
+                    <label for="reminder_description">提醒描述</label>
+                    <textarea id="reminder_description" name="reminder_description" rows="3" 
+                              placeholder="请输入提醒描述...">项目ID: {{ project.id }}
+申请人: {{ project.applicant_name|default('未知申请人') }}
+签证类型: {{ project.visa_type|default('未知类型') }}
+当前状态: {{ project.visa_status|default('未知状态') }}</textarea>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="reminder_due_date">提醒日期</label>
+                        <input type="date" id="reminder_due_date" name="reminder_due_date">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="reminder_priority">优先级</label>
+                        <select id="reminder_priority" name="reminder_priority">
+                            <option value="1">高</option>
+                            <option value="2" selected>中</option>
+                            <option value="3">低</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="modal-actions">
+                <button type="button" class="visa-project-btn visa-project-btn-secondary" onclick="closeReminderModal()">
+                    取消
+                </button>
+                <button type="submit" id="submitReminderBtn" class="visa-project-btn visa-project-btn-primary">
+                    创建提醒
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+/* 提醒模态框样式 */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    width: 90%;
+    max-width: 500px;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5rem;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.modal-header h3 {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #2d3748;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: #718096;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+}
+
+.modal-close:hover {
+    background-color: #f7fafc;
+    color: #2d3748;
+}
+
+.modal-body {
+    padding: 1.5rem;
+}
+
+.modal-body .form-group {
+    margin-bottom: 1rem;
+}
+
+.modal-body .form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+.modal-body label {
+    display: block;
+    font-weight: 500;
+    color: #374151;
+    margin-bottom: 0.5rem;
+    font-size: 0.875rem;
+}
+
+.modal-body input,
+.modal-body select,
+.modal-body textarea {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    transition: border-color 0.2s;
+}
+
+.modal-body input:focus,
+.modal-body select:focus,
+.modal-body textarea:focus {
+    outline: none;
+    border-color: #4299e1;
+    box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.1);
+}
+
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    padding: 1.5rem;
+    border-top: 1px solid #e2e8f0;
+}
+
+@media (max-width: 640px) {
+    .modal-body .form-row {
+        grid-template-columns: 1fr;
+    }
+    
+    .modal-actions {
+        flex-direction: column;
+    }
+    
+        .modal-actions .visa-project-btn {
+            width: 100%;
+        }
+    }
+    
+    /* 提醒事件样式 */
+    .reminders-container {
+        min-height: 100px;
+    }
+    
+    .reminders-loading {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        padding: 2rem;
+        color: #6b7280;
+        font-size: 0.875rem;
+    }
+    
+    .reminder-item {
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 0.75rem;
+        transition: all 0.2s;
+    }
+    
+    .reminder-item:hover {
+        border-color: #d1d5db;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+    
+    .reminder-item.completed {
+        background: #f9fafb;
+        border-color: #d1d5db;
+        opacity: 0.8;
+    }
+    
+    .reminder-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 0.5rem;
+    }
+    
+    .reminder-title {
+        font-weight: 600;
+        color: #111827;
+        font-size: 0.95rem;
+        margin: 0;
+    }
+    
+    .reminder-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        padding: 0.25rem 0.5rem;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        font-weight: 500;
+    }
+    
+    .reminder-status.pending {
+        background: #fef3c7;
+        color: #d97706;
+    }
+    
+    .reminder-status.completed {
+        background: #d1fae5;
+        color: #059669;
+    }
+    
+    .reminder-status.overdue {
+        background: #fee2e2;
+        color: #dc2626;
+    }
+    
+    .reminder-meta {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 0.5rem;
+        font-size: 0.8rem;
+        color: #6b7280;
+    }
+    
+    .reminder-description {
+        color: #4b5563;
+        font-size: 0.875rem;
+        line-height: 1.4;
+        margin: 0.5rem 0;
+        white-space: pre-line;
+    }
+    
+    .reminder-actions {
+        display: flex;
+        gap: 0.5rem;
+        margin-top: 0.75rem;
+    }
+    
+    .reminder-action-btn {
+        padding: 0.25rem 0.75rem;
+        border: 1px solid #d1d5db;
+        background: #fff;
+        color: #374151;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    
+    .reminder-action-btn:hover {
+        background: #f9fafb;
+        border-color: #9ca3af;
+    }
+    
+    .reminder-action-btn.primary {
+        background: #3b82f6;
+        color: white;
+        border-color: #3b82f6;
+    }
+    
+    .reminder-action-btn.primary:hover {
+        background: #2563eb;
+        border-color: #2563eb;
+    }
+    
+    .reminders-empty {
+        text-align: center;
+        padding: 2rem;
+        color: #6b7280;
+    }
+    
+    .reminders-empty svg {
+        width: 48px;
+        height: 48px;
+        margin-bottom: 1rem;
+        opacity: 0.5;
+    }
+</style>
+
 {% endblock %} 

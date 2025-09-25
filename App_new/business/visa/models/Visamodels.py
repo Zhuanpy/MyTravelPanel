@@ -250,6 +250,71 @@ class VisaDocuments(db.Model):
         return result
 
     @classmethod
+    def get_applicant_documents(cls, visa_type_id, singapore_identity_id):
+        """获取申请人准备的文档资料（responsible_party='FOR_APPLICATION'）"""
+        print(f"DEBUG: 查询申请人资料 - visa_type_id: {visa_type_id}, singapore_identity_id: {singapore_identity_id}")
+        
+        # 获取SHARE身份记录
+        share_identity = VisaSingaporeIdentity.query.filter_by(identity_zh='SHARE').first()
+        share_identity_id = share_identity.id if share_identity else None
+        
+        # 获取SHARE共用资料
+        share_doc = cls.query.filter_by(
+            visa_type_id=visa_type_id,
+            singapore_identity_id=share_identity_id
+        ).first()
+        
+        # 获取特定身份资料
+        specific_doc = None
+        if singapore_identity_id and singapore_identity_id != share_identity_id:
+            specific_doc = cls.query.filter_by(
+                visa_type_id=visa_type_id,
+                singapore_identity_id=singapore_identity_id
+            ).first()
+        
+        # 收集申请人准备的文档
+        applicant_documents = []
+        
+        # 处理SHARE共用资料中的申请人文档
+        if share_doc:
+            for doc_association in share_doc.selected_documents:
+                # 查询关联表中的responsible_party
+                association = db.session.query(visa_document_documents).filter_by(
+                    visa_document_id=share_doc.id,
+                    document_id=doc_association.id,
+                    responsible_party='FOR_APPLICATION'
+                ).first()
+                if association:
+                    applicant_documents.append(doc_association)
+        
+        # 处理特定身份资料中的申请人文档
+        if specific_doc:
+            for doc_association in specific_doc.selected_documents:
+                # 查询关联表中的responsible_party
+                association = db.session.query(visa_document_documents).filter_by(
+                    visa_document_id=specific_doc.id,
+                    document_id=doc_association.id,
+                    responsible_party='FOR_APPLICATION'
+                ).first()
+                if association:
+                    applicant_documents.append(doc_association)
+        
+        # 格式化文档信息
+        document_info = []
+        if applicant_documents:
+            for doc in applicant_documents:
+                document_info.append(f"• {doc.name}")
+        else:
+            document_info.append("• 暂无申请人准备资料")
+        
+        result = {
+            'document_info': "\n".join(document_info),
+            'additional_info': ""  # 不显示补充信息
+        }
+        print(f"DEBUG: 申请人资料返回结果: {result}")
+        return result
+
+    @classmethod
     def insert_data(cls, visa_type_id, singapore_identity_id, additional_info=None):
         """插入或更新签证文档信息"""
         # 检查是否已存在相同记录

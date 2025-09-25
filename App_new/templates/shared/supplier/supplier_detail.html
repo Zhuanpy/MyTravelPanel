@@ -1,0 +1,309 @@
+{% extends "shared/staff_base.html" %}
+
+{% block title %}供应商介绍{% endblock %}
+
+{% block extra_css %}
+<style>
+    .supplier-detail-container {
+        max-width: 900px;
+        margin: 2rem auto;
+        padding: 0 15px;
+    }
+    
+    .supplier-card {
+        background: #fff;
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        overflow: hidden;
+        border: 1px solid #e9ecef;
+    }
+    
+    .supplier-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 2rem;
+        text-align: center;
+    }
+    
+    .supplier-header h2 {
+        margin: 0;
+        font-size: 2rem;
+        font-weight: 600;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    }
+    
+    .supplier-body {
+        padding: 2rem;
+    }
+    
+    .info-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+    
+    .info-item {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 1.25rem;
+        border-left: 4px solid #667eea;
+        transition: all 0.3s ease;
+    }
+    
+    .info-item:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        border-left-color: #764ba2;
+    }
+    
+    .info-label {
+        font-weight: 600;
+        color: #495057;
+        font-size: 0.875rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 0.5rem;
+        display: block;
+    }
+    
+    .info-value {
+        color: #212529;
+        font-size: 1rem;
+        font-weight: 500;
+        line-height: 1.4;
+    }
+    
+    .info-value.empty {
+        color: #6c757d;
+        font-style: italic;
+    }
+    
+    .action-buttons {
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+        flex-wrap: wrap;
+        margin-top: 2rem;
+        padding-top: 2rem;
+        border-top: 1px solid #e9ecef;
+    }
+    
+    .btn-custom {
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
+        font-weight: 500;
+        text-decoration: none;
+        transition: all 0.3s ease;
+        border: none;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .btn-primary-custom {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+    }
+    
+    .btn-primary-custom:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        color: white;
+    }
+    
+    .btn-secondary-custom {
+        background: #6c757d;
+        color: white;
+    }
+    
+    .btn-secondary-custom:hover {
+        background: #5a6268;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(108, 117, 125, 0.4);
+        color: white;
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 3rem;
+        color: #6c757d;
+    }
+    
+    .empty-state h3 {
+        color: #495057;
+        margin-bottom: 1rem;
+    }
+    
+    .back-button {
+        margin-bottom: 1.5rem;
+    }
+    
+    @media (max-width: 768px) {
+        .supplier-detail-container {
+            margin: 1rem auto;
+            padding: 0 10px;
+        }
+        
+        .supplier-header {
+            padding: 1.5rem 1rem;
+        }
+        
+        .supplier-header h2 {
+            font-size: 1.5rem;
+        }
+        
+        .supplier-body {
+            padding: 1.5rem 1rem;
+        }
+        
+        .info-grid {
+            grid-template-columns: 1fr;
+            gap: 1rem;
+        }
+        
+        .action-buttons {
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .btn-custom {
+            width: 100%;
+            max-width: 200px;
+            justify-content: center;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="supplier-detail-container">
+    <div class="back-button">
+        <a href="{{ url_for('supplier.suppliers') }}" class="btn btn-secondary-custom">
+            <i class="fas fa-arrow-left"></i> 返回列表
+        </a>
+    </div>
+    
+    {% if supplier %}
+    <div class="supplier-card">
+        <div class="supplier-header">
+            <h2>{{ supplier.name }}</h2>
+        </div>
+        
+        <div class="supplier-body">
+            <div class="info-grid">
+                <div class="info-item">
+                    <span class="info-label">供应商类型</span>
+                    <span class="info-value {% if not supplier.supplier_type_display %}empty{% endif %}">
+                        {{ supplier.supplier_type_display or '未设置' }}
+                    </span>
+                </div>
+                
+                <div class="info-item">
+                    <span class="info-label">联系人</span>
+                    <span class="info-value {% if not supplier.contact_person %}empty{% endif %}">
+                        {{ supplier.contact_person or '未设置' }}
+                    </span>
+                </div>
+                
+                <div class="info-item">
+                    <span class="info-label">联系电话</span>
+                    <span class="info-value {% if not supplier.phone %}empty{% endif %}">
+                        {{ supplier.phone or '未设置' }}
+                    </span>
+                </div>
+                
+                <div class="info-item">
+                    <span class="info-label">邮箱地址</span>
+                    <span class="info-value {% if not supplier.email %}empty{% endif %}">
+                        {{ supplier.email or '未设置' }}
+                    </span>
+                </div>
+                
+                <div class="info-item">
+                    <span class="info-label">所在国家</span>
+                    <span class="info-value {% if not supplier.country %}empty{% endif %}">
+                        {{ supplier.country or '未设置' }}
+                    </span>
+                </div>
+                
+                <div class="info-item">
+                    <span class="info-label">所在地区</span>
+                    <span class="info-value {% if not supplier.region %}empty{% endif %}">
+                        {{ supplier.region or '未设置' }}
+                    </span>
+                </div>
+                
+                <div class="info-item">
+                    <span class="info-label">状态</span>
+                    <span class="info-value {% if not supplier.status %}empty{% endif %}">
+                        {{ supplier.status or '未设置' }}
+                    </span>
+                </div>
+                
+                <div class="info-item">
+                    <span class="info-label">创建时间</span>
+                    <span class="info-value {% if not supplier.created_at %}empty{% endif %}">
+                        {{ supplier.created_at.strftime('%Y-%m-%d %H:%M') if supplier.created_at else '未设置' }}
+                    </span>
+                </div>
+            </div>
+            
+            {% if supplier.address %}
+            <div class="info-item" style="grid-column: 1 / -1;">
+                <span class="info-label">详细地址</span>
+                <span class="info-value">{{ supplier.address }}</span>
+            </div>
+            {% endif %}
+            
+            {% if supplier.notes %}
+            <div class="info-item" style="grid-column: 1 / -1;">
+                <span class="info-label">备注信息</span>
+                <span class="info-value">{{ supplier.notes }}</span>
+            </div>
+            {% endif %}
+            
+            <div class="action-buttons">
+                <a href="{{ url_for('supplier.edit_supplier', supplier_id=supplier.supplier_id) }}" class="btn-custom btn-primary-custom">
+                    <i class="fas fa-edit"></i> 编辑信息
+                </a>
+                <a href="{{ url_for('supplier.suppliers') }}" class="btn-custom btn-secondary-custom">
+                    <i class="fas fa-list"></i> 返回列表
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    {% elif supplier_name %}
+    <div class="supplier-card">
+        <div class="supplier-body">
+            <div class="empty-state">
+                <h3>未找到供应商信息</h3>
+                <p>未找到供应商 "<strong>{{ supplier_name }}</strong>" 的相关信息。</p>
+                <div class="action-buttons">
+                    <a href="{{ url_for('supplier.add_supplier') }}" class="btn-custom btn-primary-custom">
+                        <i class="fas fa-plus"></i> 添加供应商
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    {% else %}
+    <div class="supplier-card">
+        <div class="supplier-body">
+            <div class="empty-state">
+                <h3>供应商信息</h3>
+                <p>请输入供应商名称以查看详细信息。</p>
+                <div class="action-buttons">
+                    <a href="{{ url_for('supplier.suppliers') }}" class="btn-custom btn-primary-custom">
+                        <i class="fas fa-list"></i> 查看所有供应商
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -574,6 +574,13 @@
 
     // 初始化页面
     document.addEventListener('DOMContentLoaded', function() {
+        // 初始时禁用保存按钮
+        const saveButton = document.querySelector('.save-button');
+        if (saveButton) {
+            saveButton.disabled = true;
+            saveButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 加载中...';
+        }
+        
         loadAllDocuments();
         setupEventListeners();
         if (currentVisaType) {
@@ -686,14 +693,35 @@
                 } else {
                     showMessage('开始配置新的签证类型文档', 'info');
                 }
+                
+                // 启用保存按钮
+                const saveButton = document.querySelector('.save-button');
+                if (saveButton) {
+                    saveButton.disabled = false;
+                    saveButton.innerHTML = '<i class="fas fa-save"></i> 保存全部';
+                }
             } else {
                 showMessage('加载配置失败: ' + data.message, 'error');
                 renderEmptyConfig();
+                
+                // 保持保存按钮禁用状态
+                const saveButton = document.querySelector('.save-button');
+                if (saveButton) {
+                    saveButton.disabled = true;
+                    saveButton.innerHTML = '<i class="fas fa-exclamation-triangle"></i> 加载失败';
+                }
             }
         } catch (error) {
             console.error('加载配置失败:', error);
             showMessage('加载配置失败', 'error');
             renderEmptyConfig();
+            
+            // 保持保存按钮禁用状态
+            const saveButton = document.querySelector('.save-button');
+            if (saveButton) {
+                saveButton.disabled = true;
+                saveButton.innerHTML = '<i class="fas fa-exclamation-triangle"></i> 加载失败';
+            }
         }
     }
 
@@ -865,9 +893,6 @@
                         </div>
                         <div style="display: flex; align-items: center; gap: 10px;">
                             <span class="identity-badge">${selectedDocIds.length} 个文档</span>
-                            <button class="save-identity-button" onclick="saveIdentityConfig('${identityId}')" style="background: var(--color-success); color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; cursor: pointer;">
-                                <i class="fas fa-save"></i> 保存
-                            </button>
                         </div>
                     </div>
                     <div class="document-selection">
@@ -1061,6 +1086,12 @@
             return;
         }
         
+        // 检查数据是否已加载
+        if (!currentIdentities || currentIdentities.length === 0) {
+            showMessage('数据正在加载中，请稍后再试', 'error');
+            return;
+        }
+        
         const saveButton = document.querySelector('.save-button');
         const originalText = saveButton.innerHTML;
         
@@ -1089,12 +1120,23 @@
                         .map(cb => parseInt(cb.id.split('_')[1]));
                     const additionalInfo = identityConfig.querySelector('textarea').value;
                     
+                    // 收集准备方信息
+                    const documentsWithResponsibleParty = [];
+                    selectedDocIds.forEach(docId => {
+                        const responsibleRadio = identityConfig.querySelector(`input[name="responsible_${docId}_${identity.id}"]:checked`);
+                        const responsibleParty = responsibleRadio ? responsibleRadio.value : 'FOR_APPLICATION';
+                        documentsWithResponsibleParty.push({
+                            document_id: docId,
+                            responsible_party: responsibleParty
+                        });
+                    });
+                    
                     // 对于SHARE身份，发送'SHARE'作为identity_id
                     const identityId = identity.identity_zh === 'SHARE' ? 'SHARE' : identity.id.toString();
                     
                     identityConfigs.push({
                         identity_id: identityId,
-                        document_ids: selectedDocIds,
+                        documents: documentsWithResponsibleParty,
                         additional_info: additionalInfo
                     });
                     
@@ -1154,78 +1196,9 @@
         }
     }
 
-    // 保存单个身份配置
-    async function saveIdentityConfig(identityId) {
-        const identityConfig = document.querySelector(`.identity-config[data-identity-id="${identityId}"]`);
-        if (!identityConfig) {
-            showMessage('找不到身份配置', 'error');
-            return;
-        }
-        
-        const saveButton = identityConfig.querySelector('.save-identity-button');
-        const originalText = saveButton.innerHTML;
-        
-        // 显示保存中状态
-        saveButton.disabled = true;
-        saveButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 保存中...';
-        
-        try {
-            // 收集选中的文档和准备方信息
-            const selectedDocuments = [];
-            identityConfig.querySelectorAll('input[type="checkbox"]:checked').forEach(checkbox => {
-                const docId = parseInt(checkbox.id.split('_')[1]);
-                const responsibleRadio = document.querySelector(`input[name="responsible_${docId}_${identityId}"]:checked`);
-                const responsibleParty = responsibleRadio ? responsibleRadio.value : 'FOR_APPLICATION';
-                
-                selectedDocuments.push({
-                    document_id: docId,
-                    responsible_party: responsibleParty
-                });
-            });
-            
-            const additionalInfo = identityConfig.querySelector('textarea').value;
-            
-            const requestData = {
-                documents: selectedDocuments,
-                additional_info: additionalInfo
-            };
-            
-            console.log('DEBUG: 保存身份配置数据:', requestData);
-            
-            // 从meta标签获取CSRF令牌
-            const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-            
-            const response = await fetch(`/visa/basic/api/update_identity_documents/${encodeURIComponent(currentVisaType)}/${identityId}`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': csrfToken
-                },
-                body: JSON.stringify(requestData)
-            });
-            
-            const data = await response.json();
-            
-            if (data.success) {
-                showMessage('身份配置已保存', 'success');
-                // 更新身份徽章
-                const badge = identityConfig.querySelector('.identity-badge');
-                badge.textContent = `${selectedDocuments.length} 个文档`;
-            } else {
-                showMessage('保存失败: ' + data.message, 'error');
-            }
-        } catch (error) {
-            console.error('保存失败:', error);
-            showMessage('保存失败，请重试', 'error');
-        } finally {
-            // 恢复按钮状态
-            saveButton.disabled = false;
-            saveButton.innerHTML = originalText;
-        }
-    }
 
     // 更新准备方
-    async function updateResponsibleParty(docId, identityId, responsibleParty) {
+    function updateResponsibleParty(docId, identityId, responsibleParty) {
         try {
             console.log(`DEBUG: 更新准备方 - 文档ID: ${docId}, 身份ID: ${identityId}, 准备方: ${responsibleParty}`);
             
@@ -1251,8 +1224,8 @@
                 });
             }
             
-            // 自动保存到后端
-            await saveIdentityConfig(identityId);
+            // 显示提示信息
+            showMessage('准备方已更新，请点击"保存全部"保存更改', 'info');
             
         } catch (error) {
             console.error('更新准备方失败:', error);
@@ -1293,6 +1266,18 @@
         const selectedDocIdsNum = selectedDocIds.map(id => parseInt(id));
         console.log('DEBUG: 转换后的数字ID数组:', selectedDocIdsNum);
         
+        // 从currentConfig中获取准备方信息
+        const responsibleParties = {};
+        if (currentConfig && currentConfig.documents) {
+            const identityConfig = currentConfig.documents.find(doc => doc.singapore_identity_id === identityId);
+            if (identityConfig && identityConfig.selected_documents) {
+                identityConfig.selected_documents.forEach(doc => {
+                    responsibleParties[doc.id] = doc.responsible_party || 'FOR_APPLICATION';
+                });
+            }
+        }
+        console.log('DEBUG: 准备方信息映射:', responsibleParties);
+        
         // 按分类组织文档
         const categories = {};
         allDocuments.forEach(doc => {
@@ -1325,11 +1310,8 @@
                             
                             // 获取准备方信息
                             let responsibleParty = 'FOR_APPLICATION';
-                            if (isSelected && selectedDocIds && selectedDocIds.length > 0) {
-                                const selectedDoc = selectedDocIds.find(d => d.id === docIdNum);
-                                if (selectedDoc && selectedDoc.responsible_party) {
-                                    responsibleParty = selectedDoc.responsible_party;
-                                }
+                            if (isSelected) {
+                                responsibleParty = responsibleParties[docIdNum] || 'FOR_APPLICATION';
                             }
                             
                             console.log(`DEBUG: 文档 ${doc.name} (ID: ${doc.id}, 数字ID: ${docIdNum}) - 选中状态: ${isSelected}, 准备方: ${responsibleParty}, selectedDocIdsNum: [${selectedDocIdsNum.join(', ')}]`);

@@ -1,0 +1,224 @@
+{% extends "shared/staff_base.html" %}
+
+{% block title %}供应商列表{% endblock %}
+
+{% block extra_css %}
+<style>
+    .supplier-list-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0 15px;
+    }
+    
+    .table th {
+        white-space: nowrap;
+        vertical-align: middle;
+    }
+    
+    .table td {
+        vertical-align: middle;
+    }
+    
+    .badge {
+        font-size: 0.75em;
+    }
+    
+    .btn-group-sm .btn {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.75rem;
+    }
+    
+    .filter-section {
+        background: #f8f9fa;
+        padding: 1.5rem;
+        border-radius: 8px;
+        margin-bottom: 1.5rem;
+        border: 1px solid #e9ecef;
+    }
+    
+    .table-responsive {
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    
+    .table-striped > tbody > tr:nth-of-type(odd) > td,
+    .table-striped > tbody > tr:nth-of-type(odd) > th {
+        background-color: rgba(0,0,0,.02);
+    }
+    
+    .table-hover > tbody > tr:hover > td,
+    .table-hover > tbody > tr:hover > th {
+        background-color: rgba(0,0,0,.075);
+    }
+    
+    @media (max-width: 768px) {
+        .supplier-list-container {
+            padding: 0 10px;
+        }
+        
+        .filter-section .row > div {
+            margin-bottom: 1rem;
+        }
+        
+        .table-responsive {
+            font-size: 0.875rem;
+        }
+        
+        .btn-group-sm .btn {
+            padding: 0.2rem 0.4rem;
+            font-size: 0.7rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // 筛选功能
+    function filterTable() {
+        const countryFilter = document.getElementById('countryFilter').value.toLowerCase();
+        const regionFilter = document.getElementById('regionFilter').value.toLowerCase();
+        const typeFilter = document.getElementById('typeFilter').value.toLowerCase();
+        const rows = document.querySelectorAll('tbody tr');
+
+        rows.forEach(row => {
+            const country = row.cells[0].textContent.toLowerCase();
+            const region = row.cells[1].textContent.toLowerCase();
+            const type = row.cells[2].textContent.toLowerCase();
+
+            if ((country.includes(countryFilter) || countryFilter === '') &&
+                (region.includes(regionFilter) || regionFilter === '') &&
+                (type.includes(typeFilter) || typeFilter === '')) {
+                row.style.display = ''; // 显示该行
+            } else {
+                row.style.display = 'none'; // 隐藏该行
+            }
+        });
+    }
+    
+    // 清除所有筛选
+    function clearFilters() {
+        document.getElementById('countryFilter').value = '';
+        document.getElementById('regionFilter').value = '';
+        document.getElementById('typeFilter').value = '';
+        filterTable();
+    }
+</script>
+{% endblock %}
+
+{% block content %}
+<div class="supplier-list-container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="mb-0">
+            <i class="fas fa-building me-2"></i>供应商管理
+        </h1>
+        <a href="{{ url_for('supplier.add_supplier') }}" class="btn btn-primary">
+            <i class="fas fa-plus me-2"></i>添加供应商
+        </a>
+    </div>
+
+    <!-- 筛选区域 -->
+    <div class="filter-section">
+        <h5 class="mb-3">
+            <i class="fas fa-filter me-2"></i>筛选条件
+        </h5>
+        <div class="row">
+            <div class="col-md-3">
+                <label for="countryFilter" class="form-label">国家</label>
+                <select id="countryFilter" class="form-select" onchange="filterTable()">
+                    <option value="">所有国家</option>
+                    {% for supplier in suppliers %}
+                        {% if supplier.country %}
+                        <option value="{{ supplier.country }}">{{ supplier.country }}</option>
+                        {% endif %}
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label for="regionFilter" class="form-label">地区</label>
+                <select id="regionFilter" class="form-select" onchange="filterTable()">
+                    <option value="">所有地区</option>
+                    {% for supplier in suppliers %}
+                        {% if supplier.region %}
+                        <option value="{{ supplier.region }}">{{ supplier.region }}</option>
+                        {% endif %}
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label for="typeFilter" class="form-label">类型</label>
+                <select id="typeFilter" class="form-select" onchange="filterTable()">
+                    <option value="">所有类型</option>
+                    {% for type_code, type_name in supplier_types %}
+                    <option value="{{ type_name }}">{{ type_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">&nbsp;</label>
+                <button type="button" class="btn btn-outline-secondary d-block w-100" onclick="clearFilters()">
+                    <i class="fas fa-times me-2"></i>清除筛选
+                </button>
+            </div>
+        </div>
+    </div>
+
+        <!-- 供应商表格 -->
+        <div class="table-responsive">
+            <table class="table table-bordered table-striped table-hover">
+                <thead class="table-dark">
+                    <tr>
+                        <th>国家</th>
+                        <th>地区</th>
+                        <th>类型</th>
+                        <th>供应商名称</th>
+                        <th>联系人</th>
+                        <th>电话</th>
+                        <th>邮箱</th>
+                        <th>状态</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for supplier in suppliers %}
+                        <tr>
+                            <td>{{ supplier.country or '-' }}</td>
+                            <td>{{ supplier.region or '-' }}</td>
+                            <td>
+                                <span class="badge bg-info">
+                                    {{ supplier.supplier_type_display or '其他' }}
+                                </span>
+                            </td>
+                            <td>
+                                <a href="{{ url_for('supplier.view_supplier', supplier_id=supplier.supplier_id) }}" class="text-decoration-none fw-bold">
+                                    {{ supplier.name }}
+                                </a>
+                            </td>
+                            <td>{{ supplier.contact_person or '-' }}</td>
+                            <td>{{ supplier.phone or '-' }}</td>
+                            <td>{{ supplier.email or '-' }}</td>
+                            <td>
+                                {% if supplier.status == 'active' %}
+                                    <span class="badge bg-success">活跃</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">非活跃</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <a href="{{ url_for('supplier.edit_supplier', supplier_id=supplier.supplier_id) }}" class="btn btn-outline-warning" title="编辑">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <a href="{{ url_for('supplier.delete_supplier', supplier_id=supplier.supplier_id) }}" class="btn btn-outline-danger" title="删除" onclick="return confirm('确定删除供应商 \'{{ supplier.name }}\' 吗？')">
+                                        <i class="fas fa-trash"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+{% endblock %}

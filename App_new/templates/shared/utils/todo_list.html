@@ -307,6 +307,7 @@
             <option value="个人事务">个人事务</option>
             <option value="产品报价">产品报价</option>
             <option value="项目提醒">项目提醒</option>
+            <option value="visa_reminder">签证提醒</option>
         </select>
         <input type="text" class="form-control" id="searchInput" placeholder="搜索待办事项...">
     </div>
@@ -380,6 +381,7 @@
                                     <option value="个人事务">个人事务</option>
                                     <option value="产品报价">产品报价</option>
                                     <option value="项目提醒">项目提醒</option>
+                                    <option value="visa_reminder">签证提醒</option>
                                 </select>
                             </div>
                         </div>
@@ -565,7 +567,7 @@ function loadTodos() {
                     </td>
                     <td>${todo.title || '无标题'}</td>
                     <td class="todo-desc-cell">${todo.description ? todo.description : ''}</td>
-                    <td>${todo.category ? todo.category : ''}</td>
+                    <td>${getCategoryDisplayName(todo.category)}</td>
                     <td style="text-align:center;">
                         <span class="todo-priority priority-${getPriorityClass(todo.priority)}">${getPriorityText(todo.priority)}</span>
                     </td>
@@ -715,6 +717,20 @@ function getPriorityText(priority) {
         case 3: return '低优先级';
         default: return '未知';
     }
+}
+
+function getCategoryDisplayName(category) {
+    if (!category) return '';
+    
+    const categoryMap = {
+        'visa_reminder': '签证提醒',
+        '公司日常': '公司日常',
+        '个人事务': '个人事务',
+        '产品报价': '产品报价',
+        '项目提醒': '项目提醒'
+    };
+    
+    return categoryMap[category] || category;
 }
 
 function getPriorityClass(priority) {

@@ -52,7 +52,7 @@
                         <p class="card-text text-muted">{{ country.country_name_EN }}</p>
                         
                         <div class="mt-3">
-                            <a href="{{ url_for('guest.visa_services_by_country', country_name=country.country_name_CN) }}" 
+                            <a href="{{ url_for('guest.visa.visa_services_by_country', country_name=country.country_name_CN) }}" 
                                class="btn btn-outline-primary btn-sm">
                                 <i class="fas fa-eye me-1"></i> 查看签证类型
                             </a>
@@ -188,7 +188,7 @@
                 <h4 class="mb-3">需要帮助？</h4>
                 <p class="mb-4">我们的专业团队随时为您提供签证咨询服务</p>
                 <div class="d-flex justify-content-center gap-3">
-                    <a href="{{ url_for('guest.contact') }}" class="btn btn-light">
+                    <a href="{{ url_for('guest.main.contact') }}" class="btn btn-light">
                         <i class="fas fa-envelope me-2"></i>联系我们
                     </a>
                     <a href="#" onclick="alert('注册功能即将上线')" class="btn btn-outline-light">

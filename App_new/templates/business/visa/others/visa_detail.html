@@ -181,16 +181,16 @@
         <nav aria-label="breadcrumb" class="mb-4">
             <ol class="breadcrumb">
                 <li class="breadcrumb-item">
-                    <a href="{{ url_for('guest.index') }}">
+                    <a href="{{ url_for('guest.main.index') }}">
                         <i class="fas fa-home me-1"></i>首页
                     </a>
                 </li>
                 <li class="breadcrumb-item">
-                    <a href="{{ url_for('guest.visa_services') }}">签证服务</a>
+                    <a href="{{ url_for('guest.visa.visa_services') }}">签证服务</a>
                 </li>
                 {% if visa_type.country %}
                 <li class="breadcrumb-item">
-                                            <a href="{{ url_for('guest.visa_services_by_country', country_name=visa_type.country.country_name_CN) }}">
+                                            <a href="{{ url_for('guest.visa.visa_services_by_country', country_name=visa_type.country.country_name_CN) }}">
                         {{ visa_type.country.country_name_CN }}
                     </a>
                 </li>
@@ -403,7 +403,7 @@
                         <a href="{{ url_for('auth.register') }}" class="btn btn-light btn-lg">
                             <i class="fas fa-edit me-2"></i>立即申请
                         </a>
-                        <a href="{{ url_for('guest.contact') }}" class="btn btn-outline-light">
+                        <a href="{{ url_for('guest.main.contact') }}" class="btn btn-outline-light">
                             <i class="fas fa-phone me-2"></i>免费咨询
                         </a>
                     </div>
@@ -452,7 +452,7 @@
                     </div>
                     <div class="card-body">
                         <p class="text-muted mb-3">
-                            <a href="{{ url_for('guest.visa_services_by_country', country_name=visa_type.country.country_name_CN) }}" 
+                            <a href="{{ url_for('guest.visa.visa_services_by_country', country_name=visa_type.country.country_name_CN) }}" 
                                class="text-decoration-none">
                                 查看更多{{ visa_type.country.country_name_CN }}签证 <i class="fas fa-arrow-right ms-1"></i>
                             </a>

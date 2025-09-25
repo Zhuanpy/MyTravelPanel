@@ -256,7 +256,7 @@
         <!-- 新功能入口网格 -->
         <div class="portal-grid">
             <!-- 访客服务入口 -->
-            <a href="{{ url_for('guest.index') }}" class="portal-card public fade-in-up stagger-1">
+            <a href="{{ url_for('guest.main.index') }}" class="portal-card public fade-in-up stagger-1">
                 <div class="portal-status status-open">公开访问</div>
                 <div class="portal-icon">
                     <i class="fas fa-globe"></i>
@@ -337,8 +337,8 @@
             <p>
                 <small>
                     MyTravelPanel v1.0.0 | 
-                    <a href="{{ url_for('guest.about') }}">关于我们</a> | 
-                    <a href="{{ url_for('guest.contact') }}">联系我们</a>
+                    <a href="{{ url_for('guest.main.about') }}">关于我们</a> | 
+                    <a href="{{ url_for('guest.main.contact') }}">联系我们</a>
                 </small>
             </p>
         </div>

@@ -1,0 +1,483 @@
+{% extends "guest/shared/base.html" %}
+
+{% block title %}{{ visa_type.name }} - MyTravelPanel{% endblock %}
+
+{% block content %}
+<!-- 页面标题区域 -->
+<section class="hero-section text-center" style="padding: 60px 0;">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <nav aria-label="breadcrumb" class="mb-4">
+                    <ol class="breadcrumb justify-content-center bg-transparent">
+                        <li class="breadcrumb-item">
+                            <a href="{{ url_for('guest.main.index') }}" class="text-white-50">首页</a>
+                        </li>
+                        <li class="breadcrumb-item">
+                            <a href="{{ url_for('guest.visa.visa_services') }}" class="text-white-50">签证服务</a>
+                        </li>
+                        <li class="breadcrumb-item">
+                            <a href="{{ url_for('guest.visa.visa_services_by_country', country_name=visa_type.country) }}" class="text-white-50">{{ visa_type.country }}</a>
+                        </li>
+                        <li class="breadcrumb-item active text-white" aria-current="page">{{ visa_type.name }}</li>
+                    </ol>
+                </nav>
+                <h1 class="display-4 fw-bold mb-3">{{ visa_type.name }}</h1>
+                <p class="lead">{{ visa_type.description }}</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- 签证详情内容 -->
+<section class="py-5">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-10">
+                <!-- 签证信息卡片 -->
+                <div class="visa-info-card">
+                    <!-- 签证类型标题 -->
+                    <div class="visa-header">
+                        <div class="visa-icon">
+                            <i class="fas fa-passport"></i>
+                        </div>
+                        <div>
+                            <h1 class="visa-title">{{ visa_type.name }}</h1>
+                            <p class="visa-subtitle">{{ visa_type.description }}</p>
+                        </div>
+                    </div>
+                    
+                    <!-- 费用信息 -->
+                    <div class="info-item">
+                        <div class="info-label">
+                            <i class="fas fa-dollar-sign cost-icon"></i>
+                            <span class="label-text">费用</span>
+                        </div>
+                        <div class="info-value">
+                            <i class="fas fa-info-circle"></i>
+                            <span class="value-text">{{ visa_type.fee }}</span>
+                        </div>
+                    </div>
+                    
+                    <!-- 处理时间 -->
+                    <div class="info-item">
+                        <div class="info-label">
+                            <i class="fas fa-clock time-icon"></i>
+                            <span class="label-text">处理时间</span>
+                        </div>
+                        <div class="info-value">
+                            <i class="fas fa-info-circle"></i>
+                            <span class="value-text">{{ visa_type.processing_time }}</span>
+                        </div>
+                    </div>
+                        
+                    <!-- 适用身份类型 -->
+                    {% if visa_type.identities and visa_type.identities|length > 0 %}
+                    <div class="info-item">
+                        <div class="info-label">
+                            <i class="fas fa-user-tag time-icon"></i>
+                            <span class="label-text">选择您的身份类型</span>
+                        </div>
+                        <div class="identity-buttons" id="identityButtons" 
+                             data-visa-type="{{ visa_type.name }}" 
+                             data-identities="{{ visa_type.identities | join(',') }}">
+                            {% for identity in visa_type.identities %}
+                            <button class="identity-button" data-identity="{{ identity }}" onclick="selectIdentity('{{ identity }}')">
+                                {{ identity if identity != 'SHARE' else '通用' }}
+                            </button>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- 申请人准备资料 -->
+                    <div class="info-item">
+                        <div class="info-label">
+                            <i class="fas fa-file-alt time-icon"></i>
+                            <span class="label-text">申请人准备资料</span>
+                        </div>
+                        <div id="documentContent">
+                            <div class="text-center py-4">
+                                <i class="fas fa-info-circle text-muted mb-2" style="font-size: 2rem;"></i>
+                                <p class="text-muted">请选择您的身份类型查看所需准备资料</p>
+                            </div>
+                        </div>
+                    </div>
+                        
+                        <!-- 补充信息 -->
+                        {% if visa_type.additional_info %}
+                        <div class="mb-4">
+                            <h5 class="text-info mb-3">
+                                <i class="fas fa-info-circle me-2"></i>补充信息
+                            </h5>
+                            <p class="text-muted">{{ visa_type.additional_info }}</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 重要提示 -->
+        <div class="row justify-content-center mt-5">
+            <div class="col-lg-10">
+                <div class="bg-white rounded-3 p-4 shadow-sm">
+                    <h5 class="text-primary mb-3">
+                        <i class="fas fa-exclamation-triangle me-2"></i>重要提示
+                    </h5>
+                    <ul class="list-unstyled mb-0">
+                        <li class="mb-2">
+                            <i class="fas fa-info-circle text-info me-2"></i>
+                            签证申请时间可能因个人情况和领事馆工作安排而有所不同
+                        </li>
+                        <li class="mb-2">
+                            <i class="fas fa-info-circle text-info me-2"></i>
+                            所有文件需提供原件和复印件，部分文件可能需要公证或认证
+                        </li>
+                        <li class="mb-2">
+                            <i class="fas fa-info-circle text-info me-2"></i>
+                            签证费用不包含领事馆收取的签证费和其他可能产生的费用
+                        </li>
+                        <li class="mb-0">
+                            <i class="fas fa-info-circle text-info me-2"></i>
+                            建议在出行前至少提前2-4周申请签证，以确保有足够的处理时间
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 返回按钮 -->
+        <div class="row justify-content-center mt-4">
+            <div class="col-lg-10">
+                <div class="text-center">
+                    <a href="{{ url_for('guest.visa.visa_services_by_country', country_name=visa_type.country) }}" class="btn btn-outline-primary">
+                        <i class="fas fa-arrow-left me-2"></i>返回{{ visa_type.country }}签证服务
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+{% block extra_css %}
+<style>
+    /* 签证信息卡片样式 */
+    .visa-info-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        padding: 2rem;
+        margin-bottom: 2rem;
+    }
+    
+    /* 签证类型标题区域 */
+    .visa-header {
+        display: flex;
+        align-items: center;
+        margin-bottom: 2rem;
+    }
+    
+    .visa-icon {
+        width: 60px;
+        height: 60px;
+        background: linear-gradient(135deg, #28a745, #20c997);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 1rem;
+    }
+    
+    .visa-icon i {
+        font-size: 1.5rem;
+        color: white;
+    }
+    
+    .visa-title {
+        font-size: 1.75rem;
+        font-weight: 600;
+        color: #2c3e50;
+        margin: 0;
+    }
+    
+    .visa-subtitle {
+        color: #6c757d;
+        font-size: 0.95rem;
+        margin: 0;
+        margin-top: 0.25rem;
+    }
+    
+    /* 信息项样式 */
+    .info-item {
+        margin-bottom: 1.5rem;
+    }
+    
+    .info-label {
+        display: flex;
+        align-items: center;
+        margin-bottom: 0.5rem;
+    }
+    
+    .info-label i {
+        margin-right: 0.5rem;
+        font-size: 1.1rem;
+    }
+    
+    .info-label .label-text {
+        font-weight: 600;
+        color: #28a745;
+        font-size: 0.95rem;
+    }
+    
+    .info-value {
+        display: flex;
+        align-items: center;
+        margin-left: 1.5rem;
+    }
+    
+    .info-value i {
+        margin-right: 0.5rem;
+        color: #6c757d;
+        font-size: 0.9rem;
+    }
+    
+    .info-value .value-text {
+        color: #2c3e50;
+        font-size: 0.95rem;
+    }
+    
+    /* 费用图标 */
+    .cost-icon {
+        color: #ffc107 !important;
+    }
+    
+    /* 时间图标 */
+    .time-icon {
+        color: #28a745 !important;
+    }
+    
+    /* 国家图标 */
+    .country-icon {
+        color: #007bff !important;
+    }
+    
+    /* 身份选择按钮样式 */
+    .identity-buttons {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 1rem;
+    }
+    
+    .identity-button {
+        padding: 8px 16px;
+        border: 1px solid #dee2e6;
+        background: white;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: 500;
+        color: #6c757d;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        text-decoration: none;
+        outline: none;
+    }
+    
+    .identity-button:hover {
+        border-color: #28a745;
+        color: #28a745;
+        background: #f8f9fa;
+    }
+    
+    .identity-button.active {
+        background: #28a745;
+        border-color: #28a745;
+        color: white;
+    }
+    
+    /* 文档列表样式 */
+    .document-list {
+        margin-top: 1rem;
+    }
+    
+    .document-item {
+        display: flex;
+        align-items: center;
+        margin-bottom: 0.75rem;
+        padding: 0.5rem 0;
+    }
+    
+    .document-item i {
+        color: #28a745;
+        margin-right: 0.75rem;
+        font-size: 0.9rem;
+    }
+    
+    .document-item span {
+        color: #2c3e50;
+        font-size: 0.9rem;
+    }
+    
+    /* 加载状态 */
+    .document-loading {
+        text-align: center;
+        padding: 2rem;
+    }
+    
+    .document-loading .spinner {
+        border: 3px solid #f3f3f3;
+        border-top: 3px solid #28a745;
+        border-radius: 50%;
+        width: 30px;
+        height: 30px;
+        animation: spin 1s linear infinite;
+        margin: 0 auto 1rem;
+    }
+    
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    
+    /* 响应式调整 */
+    @media (max-width: 768px) {
+        .visa-info-card {
+            padding: 1.5rem;
+        }
+        
+        .visa-header {
+            flex-direction: column;
+            text-align: center;
+        }
+        
+        .visa-icon {
+            margin-right: 0;
+            margin-bottom: 1rem;
+        }
+        
+        .identity-buttons {
+            justify-content: center;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    try {
+        // 获取身份按钮容器
+        var identityContainer = document.getElementById('identityButtons');
+        if (identityContainer) {
+            // 获取数据
+            var visaTypeName = identityContainer.getAttribute('data-visa-type');
+            var identitiesStr = identityContainer.getAttribute('data-identities');
+            
+            // 如果有身份选项，自动选择第一个
+            if (identitiesStr && identitiesStr.length > 0) {
+                var identities = identitiesStr.split(',');
+                if (identities.length > 0 && identities[0].trim()) {
+                    selectIdentity(identities[0].trim());
+                }
+            }
+        } else {
+            console.log('未找到身份按钮容器，可能没有身份选项');
+        }
+    } catch (error) {
+        console.error('初始化身份选择器时出错:', error);
+    }
+});
+
+function selectIdentity(identity) {
+    console.log('选择身份:', identity);
+    
+    // 更新按钮状态
+    var buttons = document.querySelectorAll('.identity-button');
+    for (var i = 0; i < buttons.length; i++) {
+        var btn = buttons[i];
+        btn.classList.remove('active');
+        if (btn.dataset.identity === identity) {
+            btn.classList.add('active');
+        }
+    }
+    
+    // 显示加载状态
+    var container = document.getElementById('documentContent');
+    container.innerHTML = '<div class="document-loading"><div class="spinner"></div><p class="text-muted">正在加载资料...</p></div>';
+    
+    // 获取签证类型名称
+    var identityContainer = document.getElementById('identityButtons');
+    var visaTypeName = identityContainer.getAttribute('data-visa-type');
+    
+    // 获取文档资料
+    var encodedVisaType = encodeURIComponent(visaTypeName);
+    var encodedIdentity = encodeURIComponent(identity);
+    var url = '/public/api/get_visa_documents/' + encodedVisaType + '/' + encodedIdentity;
+    
+    fetch(url)
+        .then(function(response) {
+            return response.json();
+        })
+        .then(function(data) {
+            if (data.success) {
+                renderDocuments(data.document_info, data.additional_info);
+            } else {
+                container.innerHTML = '<div class="text-center py-4"><i class="fas fa-exclamation-triangle text-warning mb-2" style="font-size: 2rem;"></i><p class="text-muted">加载资料失败，请稍后重试</p></div>';
+            }
+        })
+        .catch(function(error) {
+            console.error('加载文档失败:', error);
+            container.innerHTML = '<div class="text-center py-4"><i class="fas fa-exclamation-triangle text-danger mb-2" style="font-size: 2rem;"></i><p class="text-muted">网络错误，请检查网络连接</p></div>';
+        });
+}
+
+function renderDocuments(documentInfo, additionalInfo) {
+    var container = document.getElementById('documentContent');
+    var html = '';
+    
+    if (documentInfo && documentInfo !== '暂无文件资料') {
+        html += '<div class="document-list">';
+        
+        // 解析文档信息
+        var lines = documentInfo.split('\n');
+        
+        for (var i = 0; i < lines.length; i++) {
+            var line = lines[i];
+            if (line.trim()) {
+                if (line.startsWith('【') && line.endsWith('】')) {
+                    // 分类标题 - 在截图中没有显示分类，所以跳过
+                    continue;
+                } else if (line.startsWith('•')) {
+                    // 文档项目 - 按照截图样式显示
+                    var documentName = line.substring(1).trim();
+                    html += '<div class="document-item">';
+                    html += '<i class="fas fa-check"></i>';
+                    html += '<span>' + documentName + '</span>';
+                    html += '</div>';
+                } else if (line.trim() && !line.startsWith('【') && !line.startsWith('•')) {
+                    // 普通文档项目
+                    html += '<div class="document-item">';
+                    html += '<i class="fas fa-check"></i>';
+                    html += '<span>' + line.trim() + '</span>';
+                    html += '</div>';
+                }
+            }
+        }
+        
+        html += '</div>';
+        
+        // 添加补充信息
+        if (additionalInfo && additionalInfo !== '暂无补充信息') {
+            html += '<div class="mt-4 p-3 bg-light rounded"><h6 class="text-info mb-2"><i class="fas fa-info-circle me-2"></i>补充说明</h6><p class="text-muted mb-0">' + additionalInfo + '</p></div>';
+        }
+    } else {
+        html = '<div class="text-center py-4"><i class="fas fa-file-alt text-muted mb-2" style="font-size: 2rem;"></i><p class="text-muted">暂无文件资料</p></div>';
+    }
+    
+    container.innerHTML = html;
+}
+</script>
+{% endblock %}
+
+{% endblock %}

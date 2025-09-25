@@ -1,0 +1,285 @@
+{% extends "shared/staff_base.html" %}
+
+{% block title %}编辑供应商信息{% endblock %}
+
+{% block extra_css %}
+<style>
+    .edit-container {
+        max-width: 1000px;
+        margin: 2rem auto;
+        padding: 0 15px;
+    }
+    
+    .edit-card {
+        background: #fff;
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        overflow: hidden;
+        border: 1px solid #e9ecef;
+    }
+    
+    .edit-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 2rem;
+        text-align: center;
+    }
+    
+    .edit-header h2 {
+        margin: 0;
+        font-size: 1.75rem;
+        font-weight: 600;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    }
+    
+    .edit-body {
+        padding: 2rem;
+    }
+    
+    .form-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+    
+    .form-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1rem;
+    }
+    
+    .form-group {
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .form-group label {
+        font-weight: 600;
+        color: #495057;
+        font-size: 0.875rem;
+        margin-bottom: 0.5rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+        padding: 0.75rem;
+        border: 2px solid #e9ecef;
+        border-radius: 8px;
+        font-size: 0.95rem;
+        color: #495057;
+        transition: all 0.3s ease;
+        background: #fff;
+    }
+    
+    .form-group input:focus,
+    .form-group select:focus,
+    .form-group textarea:focus {
+        border-color: #667eea;
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+    
+    .form-group.full-width {
+        grid-column: 1 / -1;
+    }
+    
+    .action-buttons {
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+        margin-top: 2rem;
+        padding-top: 2rem;
+        border-top: 1px solid #e9ecef;
+    }
+    
+    .btn-custom {
+        padding: 0.75rem 2rem;
+        border-radius: 8px;
+        font-weight: 500;
+        text-decoration: none;
+        transition: all 0.3s ease;
+        border: none;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 1rem;
+    }
+    
+    .btn-primary-custom {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+    }
+    
+    .btn-primary-custom:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        color: white;
+    }
+    
+    .btn-secondary-custom {
+        background: #6c757d;
+        color: white;
+    }
+    
+    .btn-secondary-custom:hover {
+        background: #5a6268;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(108, 117, 125, 0.4);
+        color: white;
+    }
+    
+    .back-button {
+        margin-bottom: 1.5rem;
+    }
+    
+    @media (max-width: 768px) {
+        .edit-container {
+            margin: 1rem auto;
+            padding: 0 10px;
+        }
+        
+        .edit-header {
+            padding: 1.5rem 1rem;
+        }
+        
+        .edit-header h2 {
+            font-size: 1.5rem;
+        }
+        
+        .edit-body {
+            padding: 1.5rem 1rem;
+        }
+        
+        .form-grid {
+            grid-template-columns: 1fr;
+            gap: 1rem;
+        }
+        
+        .form-row {
+            grid-template-columns: 1fr;
+        }
+        
+        .action-buttons {
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .btn-custom {
+            width: 100%;
+            max-width: 250px;
+            justify-content: center;
+        }
+    }
+    
+    @media (max-width: 480px) {
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            padding: 0.6rem;
+            font-size: 0.9rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="edit-container">
+    <div class="back-button">
+        <a href="{{ url_for('supplier.view_supplier', supplier_id=supplier.supplier_id) }}" class="btn btn-secondary-custom">
+            <i class="fas fa-arrow-left"></i> 返回详情
+        </a>
+    </div>
+    
+    <div class="edit-card">
+        <div class="edit-header">
+            <h2>编辑供应商信息</h2>
+            <p style="margin: 0.5rem 0 0 0; opacity: 0.9;">{{ supplier.name }}</p>
+        </div>
+        
+        <div class="edit-body">
+            <form method="POST" action="{{ url_for('supplier.edit_supplier', supplier_id=supplier.supplier_id) }}">
+                <div class="form-grid">
+                    <!-- 基本信息行 -->
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="name">供应商名称 *</label>
+                            <input type="text" id="name" name="name" value="{{ supplier.name }}" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="supplier_type">供应商类型</label>
+                            <select id="supplier_type" name="supplier_type">
+                                {% for type_code, type_name in supplier_types %}
+                                <option value="{{ type_code }}" {% if supplier.supplier_type == type_code %}selected{% endif %}>
+                                    {{ type_name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <!-- 联系信息行 -->
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="contact_person">联系人</label>
+                            <input type="text" id="contact_person" name="contact_person" value="{{ supplier.contact_person }}">
+                        </div>
+                        <div class="form-group">
+                            <label for="phone">联系电话</label>
+                            <input type="text" id="phone" name="phone" value="{{ supplier.phone }}">
+                        </div>
+                        <div class="form-group">
+                            <label for="email">邮箱地址</label>
+                            <input type="email" id="email" name="email" value="{{ supplier.email }}">
+                        </div>
+                    </div>
+                    
+                    <!-- 地址信息行 -->
+                    <div class="form-group full-width">
+                        <label for="address">详细地址 *</label>
+                        <textarea id="address" name="address" rows="2" required>{{ supplier.address }}</textarea>
+                    </div>
+                    
+                    <!-- 地理信息行 -->
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="country">所在国家</label>
+                            <input type="text" id="country" name="country" value="{{ supplier.country }}">
+                        </div>
+                        <div class="form-group">
+                            <label for="region">所在地区</label>
+                            <input type="text" id="region" name="region" value="{{ supplier.region }}">
+                        </div>
+                        <div class="form-group">
+                            <label for="status">状态</label>
+                            <select id="status" name="status">
+                                <option value="active" {% if supplier.status == 'active' %}selected{% endif %}>活跃</option>
+                                <option value="inactive" {% if supplier.status == 'inactive' %}selected{% endif %}>非活跃</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <!-- 备注信息行 -->
+                    <div class="form-group full-width">
+                        <label for="notes">备注信息</label>
+                        <textarea id="notes" name="notes" rows="3" placeholder="请输入备注信息...">{{ supplier.notes }}</textarea>
+                    </div>
+                </div>
+                
+                <div class="action-buttons">
+                    <button type="submit" class="btn-custom btn-primary-custom">
+                        <i class="fas fa-save"></i> 保存修改
+                    </button>
+                    <a href="{{ url_for('supplier.view_supplier', supplier_id=supplier.supplier_id) }}" class="btn-custom btn-secondary-custom">
+                        <i class="fas fa-times"></i> 取消
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

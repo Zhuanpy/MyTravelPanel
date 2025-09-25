@@ -1,4 +1,4 @@
-{% extends "guest/base.html" %}
+{% extends "guest/shared/base.html" %}
 
 {% block title %}关于我们 - MyTravelPanel{% endblock %}
 
@@ -201,10 +201,10 @@
                 <h2 class="fw-bold mb-3">想了解更多？</h2>
                 <p class="lead mb-4">我们很乐意为您介绍更多关于我们的服务和优势</p>
                 <div>
-                    <a href="{{ url_for('guest.contact') }}" class="btn btn-light btn-lg me-3">
+                    <a href="{{ url_for('guest.main.contact') }}" class="btn btn-light btn-lg me-3">
                         <i class="fas fa-envelope"></i> 联系我们
                     </a>
-                    <a href="{{ url_for('guest.visa_services') }}" class="btn btn-outline-light btn-lg">
+                    <a href="{{ url_for('guest.visa.visa_services') }}" class="btn btn-outline-light btn-lg">
                         <i class="fas fa-passport"></i> 查看服务
                     </a>
                 </div>

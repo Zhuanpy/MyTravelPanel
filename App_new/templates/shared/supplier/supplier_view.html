@@ -1,0 +1,57 @@
+{% extends "shared/staff_base.html" %}
+
+{% block title %}供应商详情{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">{{ supplier.name }}</h4>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>类型:</strong> {{ supplier.supplier_type_display or '未提供' }}</p>
+                            <p><strong>联系人:</strong> {{ supplier.contact_person or '未提供' }}</p>
+                            <p><strong>电话:</strong> {{ supplier.phone or '未提供' }}</p>
+                            <p><strong>邮箱:</strong> {{ supplier.email or '未提供' }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>国家:</strong> {{ supplier.country or '未提供' }}</p>
+                            <p><strong>地区:</strong> {{ supplier.region or '未提供' }}</p>
+                            <p><strong>状态:</strong> {{ supplier.status or '未提供' }}</p>
+                            <p><strong>创建时间:</strong> {{ supplier.created_at.strftime('%Y-%m-%d') if supplier.created_at else '未提供' }}</p>
+                        </div>
+                    </div>
+                    {% if supplier.address %}
+                    <div class="row">
+                        <div class="col-12">
+                            <p><strong>地址:</strong> {{ supplier.address }}</p>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% if supplier.notes %}
+                    <div class="row">
+                        <div class="col-12">
+                            <p><strong>备注:</strong> {{ supplier.notes }}</p>
+                        </div>
+                    </div>
+                    {% endif %}
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <a href="{{ url_for('supplier.edit_supplier', supplier_id=supplier.supplier_id) }}" class="btn btn-warning">
+                                <i class="fas fa-edit"></i> 编辑
+                            </a>
+                            <a href="{{ url_for('supplier.suppliers') }}" class="btn btn-secondary">
+                                <i class="fas fa-list"></i> 返回列表
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -264,7 +264,7 @@ def show_supplier_info(supplier_name=None):
     supplier = None
     if supplier_name:
         supplier = SupplierData.query.filter_by(name=supplier_name).first()
-    return render_template('business/tour/package/供应商介绍.html', supplier=supplier, supplier_name=supplier_name)
+    return render_template('shared/supplier/supplier_detail.html', supplier=supplier, supplier_name=supplier_name)
 
 
 @login_required
@@ -292,7 +292,7 @@ def edit_supplier_info(supplier_name):
             db.session.rollback()
             flash(f"更新失败：{str(e)}", 'error')
             return redirect(url_for('package_routes.edit_supplier_info', supplier_name=supplier_name))
-    return render_template('business/tour/package/供应商信息编辑.html', supplier=supplier)
+    return render_template('shared/supplier/supplier_edit.html', supplier=supplier)
 
 
 @login_required
@@ -319,7 +319,7 @@ def add_supplier_info(supplier_name):
                                   region=region, rating=rating, notes=notes)
         flash('新供应商添加成功！', 'success')
         return redirect(url_for('package_routes.show_supplier_info', supplier_name=supplier_name))
-    return render_template('business/tour/package/供应商信息添加.html', supplier_name=supplier_name)
+    return render_template('shared/supplier/supplier_add.html', supplier_name=supplier_name)
 
 
 @login_required
@@ -354,7 +354,7 @@ def manage_cities():
             flash(f"发生错误：{str(e)}", "error")
         return redirect(url_for('package_routes.manage_cities'))
     cities = ProductCity.query.order_by(ProductCity.display_name).all()
-    return render_template('business/tour/package/供应商所属城市管理.html', cities=cities)
+    return render_template('shared/supplier/supplier_city_management.html', cities=cities)
 
 
 @login_required
