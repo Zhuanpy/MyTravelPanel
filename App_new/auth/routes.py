@@ -230,7 +230,7 @@ def logout():
     """用户登出"""
     logout_user()
     flash('您已成功退出登录', 'info')
-    return redirect(url_for('guest.index'))
+    return redirect(url_for('guest.main.index'))
 
 # API 路由
 @auth_bp.route('/api/check-email')

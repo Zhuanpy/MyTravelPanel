@@ -34,7 +34,8 @@ SUPPORTED_FORM_GENERATION_VISA_TYPES = [
 
 def is_visa_type_supported_for_form_generation(visa_type):
     """检查签证类型是否支持表格生成功能"""
-    return visa_type in SUPPORTED_FORM_GENERATION_VISA_TYPES
+    # 支持所有包含"韩国"的签证类型
+    return '韩国' in visa_type
 
 # 获取项目文件夹及其创建日期
 def get_project_folders_with_dates(projects_dir, excluded_folders):
@@ -2077,4 +2078,93 @@ def unlink_hid_ref():
         return jsonify({
             'success': False,
             'message': f'解除关联失败: {str(e)}'
+        }), 500
+
+@visa_project.route('/add_link/<int:project_id>', methods=['POST'])
+@login_required
+@staff_only
+@csrf.exempt
+def add_link(project_id):
+    """为项目添加相关链接"""
+    try:
+        project = VisaProject.query.get_or_404(project_id)
+        
+        # 获取表单数据
+        visa_type_id = request.form.get('visa_type_id', '').strip()
+        visa_countries_id = request.form.get('visa_countries_id', '').strip()
+        link_name = request.form.get('link_name', '').strip()
+        link_url = request.form.get('link_url', '').strip()
+        
+        if not visa_type_id or not visa_countries_id or not link_name or not link_url:
+            return jsonify({
+                'success': False,
+                'message': '请填写完整的链接信息'
+            }), 400
+        
+        # 验证URL格式
+        if not link_url.startswith(('http://', 'https://')):
+            link_url = 'https://' + link_url
+        
+        # 验证签证类型和国家ID
+        visa_type = VisaTypes.query.get(visa_type_id)
+        if not visa_type:
+            return jsonify({
+                'success': False,
+                'message': f'签证类型ID {visa_type_id} 不存在'
+            }), 400
+            
+        country = VisaCountries.query.get(visa_countries_id)
+        if not country:
+            return jsonify({
+                'success': False,
+                'message': f'国家ID {visa_countries_id} 不存在'
+            }), 400
+        
+        # 创建新链接
+        new_link = VisaLinks(
+            name=link_name,
+            link=link_url,
+            visa_type_id=int(visa_type_id),
+            visa_countries_id=int(visa_countries_id)
+        )
+        
+        db.session.add(new_link)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': '链接添加成功'
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f"添加链接时发生错误: {str(e)}")
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'message': f'添加链接失败: {str(e)}'
+        }), 500
+
+@visa_project.route('/delete_link/<int:link_id>', methods=['POST'])
+@login_required
+@staff_only
+@csrf.exempt
+def delete_link(link_id):
+    """删除相关链接"""
+    try:
+        link = VisaLinks.query.get_or_404(link_id)
+        
+        db.session.delete(link)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': '链接删除成功'
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f"删除链接时发生错误: {str(e)}")
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'message': f'删除链接失败: {str(e)}'
         }), 500

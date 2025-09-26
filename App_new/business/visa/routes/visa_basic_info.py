@@ -1637,6 +1637,160 @@ def get_all_documents():
             'message': f'获取文档列表失败: {str(e)}'
         })
 
+
+@visa_basic.route('/api/get_all_visa_types')
+def get_all_visa_types():
+    """获取所有签证类型列表"""
+    try:
+        visa_types = VisaTypes.query.order_by(VisaTypes.visa_type).all()
+        visa_types_data = []
+        for visa_type in visa_types:
+            visa_types_data.append({
+                'id': visa_type.id,
+                'visa_type': visa_type.visa_type
+            })
+        
+        return jsonify({
+            'success': True,
+            'visa_types': visa_types_data
+        })
+    except Exception as e:
+        print(f"DEBUG: 获取签证类型列表失败: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f'获取签证类型列表失败: {str(e)}'
+        }), 500
+
+
+@visa_basic.route('/api/copy_visa_documents/<visa_type>', methods=['POST'])
+@csrf.exempt  # 禁用CSRF保护
+def copy_visa_documents(visa_type):
+    """复制签证类型的文档配置"""
+    try:
+        from flask import request
+        
+        print(f"DEBUG: 复制签证配置 - 目标签证类型: {visa_type}")
+        
+        # 获取请求数据
+        data = request.get_json()
+        if not data or 'source_visa_type' not in data:
+            return jsonify({
+                'success': False,
+                'message': '缺少源签证类型参数'
+            }), 400
+        
+        source_visa_type = data['source_visa_type']
+        print(f"DEBUG: 源签证类型: {source_visa_type}")
+        
+        # 获取目标签证类型
+        target_visa_type_record = VisaTypes.query.filter_by(visa_type=visa_type).first()
+        if not target_visa_type_record:
+            return jsonify({
+                'success': False,
+                'message': f'目标签证类型不存在: {visa_type}'
+            }), 400
+        
+        # 获取源签证类型
+        source_visa_type_record = VisaTypes.query.filter_by(visa_type=source_visa_type).first()
+        if not source_visa_type_record:
+            return jsonify({
+                'success': False,
+                'message': f'源签证类型不存在: {source_visa_type}'
+            }), 400
+        
+        # 检查是否复制自己
+        if source_visa_type == visa_type:
+            return jsonify({
+                'success': False,
+                'message': '不能复制自己的配置'
+            }), 400
+        
+        print(f"DEBUG: 找到源签证类型记录 ID: {source_visa_type_record.id}")
+        print(f"DEBUG: 找到目标签证类型记录 ID: {target_visa_type_record.id}")
+        
+        # 删除目标签证类型的所有现有配置
+        existing_configs = VisaDocuments.query.filter_by(visa_type_id=target_visa_type_record.id).all()
+        print(f"DEBUG: 删除目标签证类型的 {len(existing_configs)} 个现有配置")
+        
+        for config in existing_configs:
+            # 删除关联的文档记录
+            from sqlalchemy import text
+            db.session.execute(text("DELETE FROM visa_document_documents WHERE visa_document_id = :visa_doc_id"), 
+                             {'visa_doc_id': config.id})
+            db.session.delete(config)
+        
+        # 获取源签证类型的所有配置
+        source_configs = VisaDocuments.query.filter_by(visa_type_id=source_visa_type_record.id).all()
+        print(f"DEBUG: 找到源签证类型的 {len(source_configs)} 个配置")
+        
+        if not source_configs:
+            return jsonify({
+                'success': False,
+                'message': f'源签证类型 "{source_visa_type}" 没有配置数据'
+            }), 400
+        
+        # 复制配置
+        copied_count = 0
+        for source_config in source_configs:
+            print(f"DEBUG: 复制配置 - 身份ID: {source_config.singapore_identity_id}")
+            
+            # 创建新的配置记录
+            new_config = VisaDocuments(
+                visa_type_id=target_visa_type_record.id,
+                singapore_identity_id=source_config.singapore_identity_id,
+                additional_info=source_config.additional_info
+            )
+            db.session.add(new_config)
+            db.session.flush()  # 获取新记录的ID
+            
+            # 复制关联的文档
+            if source_config.selected_documents:
+                for doc in source_config.selected_documents:
+                    # 查询原配置中该文档的准备方信息
+                    result = db.session.execute(text("""
+                        SELECT responsible_party 
+                        FROM visa_document_documents 
+                        WHERE visa_document_id = :visa_doc_id AND document_id = :doc_id
+                    """), {'visa_doc_id': source_config.id, 'doc_id': doc.id})
+                    
+                    responsible_party = 'FOR_APPLICATION'  # 默认值
+                    for row in result:
+                        responsible_party = row.responsible_party
+                        break
+                    
+                    # 插入新的关联记录
+                    db.session.execute(text("""
+                        INSERT INTO visa_document_documents (visa_document_id, document_id, responsible_party)
+                        VALUES (:visa_doc_id, :doc_id, :responsible_party)
+                    """), {
+                        'visa_doc_id': new_config.id,
+                        'doc_id': doc.id,
+                        'responsible_party': responsible_party
+                    })
+                    
+                    print(f"DEBUG: 复制文档 {doc.name} (ID: {doc.id}), 准备方: {responsible_party}")
+            
+            copied_count += 1
+        
+        # 提交事务
+        db.session.commit()
+        
+        print(f"DEBUG: 复制完成，共复制了 {copied_count} 个身份配置")
+        
+        return jsonify({
+            'success': True,
+            'message': f'成功从 "{source_visa_type}" 复制了 {copied_count} 个身份配置到 "{visa_type}"'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"DEBUG: 复制配置失败: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f'复制配置失败: {str(e)}'
+        }), 500
+
+
 @visa_basic.route('/visa/intro/<visa_type>')
 def visa_intro(visa_type):
     """签证介绍页面"""

@@ -455,6 +455,121 @@
         background: var(--color-accent);
     }
 
+    /* ========= 复制对话框样式 ========= */
+    .copy-dialog {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 2000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .copy-dialog-content {
+        background: white;
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-lg);
+        width: 90%;
+        max-width: 600px;
+        max-height: 80vh;
+        overflow-y: auto;
+    }
+
+    .copy-dialog-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 20px 24px;
+        border-bottom: 1px solid var(--color-border);
+        background: var(--color-light-bg);
+        border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    }
+
+    .copy-dialog-header h3 {
+        margin: 0;
+        color: var(--color-text-dark);
+        font-size: 1.25rem;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .close-dialog {
+        background: none;
+        border: none;
+        font-size: 1.2rem;
+        color: var(--color-text-gray);
+        cursor: pointer;
+        padding: 4px;
+        border-radius: 4px;
+        transition: background-color 0.2s;
+    }
+
+    .close-dialog:hover {
+        background: var(--color-accent-bg);
+        color: var(--color-accent);
+    }
+
+    .copy-dialog-body {
+        padding: 24px;
+    }
+
+    .copy-dialog-footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: 12px;
+        padding: 20px 24px;
+        border-top: 1px solid var(--color-border);
+        background: var(--color-light-bg);
+        border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+    }
+
+    .btn-cancel {
+        background: var(--color-text-gray);
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: var(--radius);
+        cursor: pointer;
+        font-weight: 500;
+        transition: background-color 0.2s;
+    }
+
+    .btn-cancel:hover {
+        background: #5a6c7d;
+    }
+
+    .btn-copy {
+        background: var(--color-accent);
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: var(--radius);
+        cursor: pointer;
+        font-weight: 500;
+        transition: background-color 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .btn-copy:hover:not(:disabled) {
+        background: var(--color-primary-hover);
+    }
+
+    .btn-copy:disabled {
+        background: #ccc;
+        cursor: not-allowed;
+    }
+
+    .copy-button:hover {
+        background: var(--color-primary-hover);
+    }
+
     /* ========= 响应式设计 ========= */
     @media (max-width: 1024px) {
         .manager-content {
@@ -515,6 +630,44 @@
 
     <!-- 状态消息 -->
     <div id="statusMessage" class="status-message" style="display: none;"></div>
+
+    <!-- 复制配置对话框 -->
+    <div id="copyDialog" class="copy-dialog" style="display: none;">
+        <div class="copy-dialog-content">
+            <div class="copy-dialog-header">
+                <h3><i class="fas fa-copy"></i> 复制签证配置</h3>
+                <button class="close-dialog" onclick="hideCopyDialog()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="copy-dialog-body">
+                <p style="margin-bottom: 20px; color: var(--color-text-gray);">
+                    选择要复制配置的源签证类型，当前签证类型的所有配置将被覆盖。
+                </p>
+                <div class="source-visa-selector">
+                    <label for="sourceVisaType" style="display: block; margin-bottom: 8px; font-weight: 600; color: var(--color-text-dark);">
+                        选择源签证类型：
+                    </label>
+                    <select id="sourceVisaType" style="width: 100%; padding: 10px; border: 1px solid var(--color-border); border-radius: var(--radius); font-size: 1rem;">
+                        <option value="">请选择要复制的签证类型...</option>
+                    </select>
+                </div>
+                <div class="copy-preview" id="copyPreview" style="margin-top: 20px; padding: 15px; background: var(--color-light-bg); border-radius: var(--radius); border: 1px solid var(--color-border); display: none;">
+                    <h4 style="margin: 0 0 10px 0; color: var(--color-text-dark);">
+                        <i class="fas fa-eye"></i> 配置预览
+                    </h4>
+                    <div id="previewContent"></div>
+                </div>
+            </div>
+            <div class="copy-dialog-footer">
+                <button class="btn-cancel" onclick="hideCopyDialog()">取消</button>
+                <button class="btn-copy" onclick="executeCopy()" disabled>
+                    <i class="fas fa-copy"></i>
+                    确认复制
+                </button>
+            </div>
+        </div>
+    </div>
 
     <!-- 主要内容区域 -->
     <div class="manager-content">
@@ -740,6 +893,10 @@
                 </h2>
                 <div style="display: flex; align-items: center; gap: 10px;">
                     <span style="color: var(--color-text-gray); font-size: 0.9rem;">每个身份可单独保存</span>
+                    <button class="copy-button" onclick="showCopyDialog()" style="background: var(--color-accent); color: white; border: none; padding: 10px 20px; border-radius: var(--radius); cursor: pointer; font-weight: 500; transition: background-color 0.2s; display: flex; align-items: center; gap: 6px;">
+                        <i class="fas fa-copy"></i>
+                        复制配置
+                    </button>
                     <button class="save-button" onclick="saveConfiguration()">
                         <i class="fas fa-save"></i>
                         保存全部
@@ -1244,6 +1401,176 @@
         setTimeout(() => {
             statusMessage.style.display = 'none';
         }, 3000);
+    }
+
+    // 显示复制对话框
+    async function showCopyDialog() {
+        const dialog = document.getElementById('copyDialog');
+        const sourceSelect = document.getElementById('sourceVisaType');
+        const copyButton = document.querySelector('.btn-copy');
+        
+        // 清空选择器
+        sourceSelect.innerHTML = '<option value="">请选择要复制的签证类型...</option>';
+        
+        try {
+            // 获取所有签证类型
+            const response = await fetch('/visa/basic/api/get_all_visa_types');
+            const data = await response.json();
+            
+            if (data.success) {
+                // 排除当前签证类型
+                const otherTypes = data.visa_types.filter(type => type.visa_type !== currentVisaType);
+                
+                otherTypes.forEach(type => {
+                    const option = document.createElement('option');
+                    option.value = type.visa_type;
+                    option.textContent = type.visa_type;
+                    sourceSelect.appendChild(option);
+                });
+                
+                if (otherTypes.length === 0) {
+                    showMessage('没有其他签证类型可以复制', 'warning');
+                    return;
+                }
+            } else {
+                showMessage('获取签证类型列表失败', 'error');
+                return;
+            }
+        } catch (error) {
+            console.error('获取签证类型失败:', error);
+            showMessage('获取签证类型列表失败', 'error');
+            return;
+        }
+        
+        // 设置选择事件监听器
+        sourceSelect.onchange = function() {
+            if (this.value) {
+                loadSourceConfigPreview(this.value);
+                copyButton.disabled = false;
+            } else {
+                document.getElementById('copyPreview').style.display = 'none';
+                copyButton.disabled = true;
+            }
+        };
+        
+        // 显示对话框
+        dialog.style.display = 'flex';
+        copyButton.disabled = true;
+    }
+
+    // 隐藏复制对话框
+    function hideCopyDialog() {
+        const dialog = document.getElementById('copyDialog');
+        dialog.style.display = 'none';
+        
+        // 重置状态
+        document.getElementById('sourceVisaType').value = '';
+        document.getElementById('copyPreview').style.display = 'none';
+        document.querySelector('.btn-copy').disabled = true;
+    }
+
+    // 加载源配置预览
+    async function loadSourceConfigPreview(sourceVisaType) {
+        const previewDiv = document.getElementById('copyPreview');
+        const previewContent = document.getElementById('previewContent');
+        
+        try {
+            const response = await fetch(`/visa/basic/api/get_visa_documents/${encodeURIComponent(sourceVisaType)}`);
+            const data = await response.json();
+            
+            if (data.success) {
+                const config = data.data;
+                let previewHtml = `
+                    <div style="margin-bottom: 15px;">
+                        <strong>源签证类型：</strong> ${sourceVisaType}
+                    </div>
+                    <div style="margin-bottom: 15px;">
+                        <strong>身份配置：</strong>
+                        <ul style="margin: 8px 0 0 20px; padding: 0;">
+                `;
+                
+                config.documents.forEach(doc => {
+                    const identityName = doc.identity_name === 'SHARE' ? '共用文档' : doc.identity_name;
+                    const docCount = doc.selected_documents ? doc.selected_documents.length : 0;
+                    previewHtml += `<li>${identityName}: ${docCount} 个文档</li>`;
+                });
+                
+                previewHtml += `
+                        </ul>
+                    </div>
+                    <div style="color: var(--color-warning); font-weight: 500;">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        注意：复制后将覆盖当前签证类型的所有配置！
+                    </div>
+                `;
+                
+                previewContent.innerHTML = previewHtml;
+                previewDiv.style.display = 'block';
+            } else {
+                previewContent.innerHTML = '<div style="color: var(--color-danger);">无法加载源配置预览</div>';
+                previewDiv.style.display = 'block';
+            }
+        } catch (error) {
+            console.error('加载配置预览失败:', error);
+            previewContent.innerHTML = '<div style="color: var(--color-danger);">加载配置预览失败</div>';
+            previewDiv.style.display = 'block';
+        }
+    }
+
+    // 执行复制操作
+    async function executeCopy() {
+        const sourceVisaType = document.getElementById('sourceVisaType').value;
+        const copyButton = document.querySelector('.btn-copy');
+        const originalText = copyButton.innerHTML;
+        
+        if (!sourceVisaType) {
+            showMessage('请选择源签证类型', 'warning');
+            return;
+        }
+        
+        // 确认对话框
+        if (!confirm(`确定要将 "${sourceVisaType}" 的配置复制到 "${currentVisaType}" 吗？\n\n此操作将覆盖当前签证类型的所有配置！`)) {
+            return;
+        }
+        
+        // 显示加载状态
+        copyButton.disabled = true;
+        copyButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 复制中...';
+        
+        try {
+            // 从meta标签获取CSRF令牌
+            const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+            
+            const response = await fetch(`/visa/basic/api/copy_visa_documents/${encodeURIComponent(currentVisaType)}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
+                body: JSON.stringify({
+                    source_visa_type: sourceVisaType
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                showMessage(data.message, 'success');
+                hideCopyDialog();
+                
+                // 重新加载当前配置
+                await selectVisaType(currentVisaType);
+            } else {
+                showMessage('复制失败: ' + data.message, 'error');
+            }
+        } catch (error) {
+            console.error('复制失败:', error);
+            showMessage('复制失败，请重试', 'error');
+        } finally {
+            // 恢复按钮状态
+            copyButton.disabled = false;
+            copyButton.innerHTML = originalText;
+        }
     }
 
     // 渲染文档分类

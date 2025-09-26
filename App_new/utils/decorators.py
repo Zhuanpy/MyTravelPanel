@@ -26,7 +26,7 @@ def guest_only(f):
                 elif current_user.role.name == 'admin':
                     return redirect(url_for('admin.dashboard'))
             # 默认重定向到首页
-            return redirect(url_for('guest.index'))
+            return redirect(url_for('guest.main.index'))
         return f(*args, **kwargs)
     return decorated_function
 
@@ -59,7 +59,7 @@ def role_required(role_name):
             
             if not hasattr(current_user, 'role') or current_user.role.name != role_name:
                 flash('您没有权限访问此页面', 'error')
-                return redirect(url_for('guest.index'))
+                return redirect(url_for('guest.main.index'))
             
             return f(*args, **kwargs)
         return decorated_function
@@ -95,7 +95,7 @@ def permission_required(permission):
             
             if not hasattr(current_user, 'has_permission') or not current_user.has_permission(permission):
                 flash('您没有权限执行此操作', 'error')
-                return redirect(request.referrer or url_for('guest.index'))
+                return redirect(request.referrer or url_for('guest.main.index'))
             
             return f(*args, **kwargs)
         return decorated_function

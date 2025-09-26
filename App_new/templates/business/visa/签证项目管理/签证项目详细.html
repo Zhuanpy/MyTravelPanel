@@ -1093,6 +1093,193 @@
             margin-top: 1.5rem;
         }
 
+        /* 签证链接管理页面样式 */
+        .visa-modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+        }
+
+        .visa-modal {
+            position: relative;
+            background-color: white;
+            margin: 5% auto;
+            padding: 0;
+            width: 90%;
+            max-width: 600px;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+        }
+
+        .visa-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 24px;
+            border-bottom: 1px solid #e2e8f0;
+            background-color: #f8f9fa;
+            border-radius: 8px 8px 0 0;
+        }
+
+        .visa-modal-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #2d3748;
+            margin: 0;
+        }
+
+        .visa-modal-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            color: #6b7280;
+            cursor: pointer;
+            padding: 0;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        .visa-modal-close:hover {
+            background-color: #e5e7eb;
+            color: #374151;
+        }
+
+        .visa-modal-body {
+            padding: 24px;
+        }
+
+        .visa-modal-alert {
+            padding: 12px 16px;
+            margin-bottom: 16px;
+            border-radius: 6px;
+            font-size: 0.875rem;
+        }
+
+        .visa-modal-alert.alert-success {
+            background-color: #d1fae5;
+            color: #065f46;
+            border: 1px solid #a7f3d0;
+        }
+
+        .visa-modal-alert.alert-error {
+            background-color: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #fca5a5;
+        }
+
+        .visa-form-container {
+            margin-bottom: 20px;
+        }
+
+        .visa-form-entry {
+            position: relative;
+        }
+
+        .visa-form-row {
+            display: grid;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+
+        .visa-form-row.two-columns {
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .visa-form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .visa-form-group label {
+            font-weight: 500;
+            color: #374151;
+            margin-bottom: 6px;
+            font-size: 0.875rem;
+        }
+
+        .visa-form-control {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            color: #374151;
+            background-color: white;
+            transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+        }
+
+        .visa-form-control:focus {
+            outline: none;
+            border-color: #4299e1;
+            box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.1);
+        }
+
+        .visa-form-actions {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 12px;
+            padding-top: 16px;
+            border-top: 1px solid #e5e7eb;
+        }
+
+        .visa-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 8px 16px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            border-radius: 6px;
+            border: 1px solid transparent;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-decoration: none;
+        }
+
+        .visa-btn-primary {
+            background-color: #4299e1;
+            color: white;
+            border-color: #4299e1;
+        }
+
+        .visa-btn-primary:hover {
+            background-color: #3182ce;
+            border-color: #3182ce;
+        }
+
+        .visa-btn-secondary {
+            background-color: white;
+            color: #6b7280;
+            border-color: #d1d5db;
+        }
+
+        .visa-btn-secondary:hover {
+            background-color: #f9fafb;
+            color: #374151;
+        }
+
+        @media (max-width: 768px) {
+            .visa-modal {
+                margin: 10% auto;
+                width: 95%;
+            }
+            
+            .visa-form-row.two-columns {
+                grid-template-columns: 1fr;
+            }
+        }
+
         .document-item-info-row {
             font-weight: 500;
             color: #2d3748;
@@ -1239,6 +1426,13 @@
     <section class="visa-project-section-card">
         <div class="visa-project-section-header">
             <h2>相关链接</h2>
+            <button type="button" class="visa-project-btn visa-project-btn-primary" onclick="showAddLinkModal()">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+                添加链接
+            </button>
         </div>
         {% if links %}
             <ul class="visa-project-list">
@@ -1314,7 +1508,7 @@
                     <span class="visa-detail-info-label">创建时间</span>
                     <span class="visa-detail-info-value">{{ project.created_date.strftime('%Y-%m-%d') }}</span>
                 </div>
-                {% if project.visa_type in ['韩国签证', '韩国旅游签证', '韩国商务签证'] %}
+                {% if '韩国' in project.visa_type %}
                 <div class="visa-detail-info-item">
                     <span class="visa-detail-info-label">生成表格</span>
                     <form id="generateFormForm" action="{{ url_for('visa_project.generate_form_for_project', project_id=project.id) }}" method="post" class="visa-detail-info-value form-container">
@@ -1570,6 +1764,59 @@
     </div>
 </div>
 
+<!-- 添加链接模态框 -->
+<div id="addLinkModal" class="visa-modal-overlay" style="display: none;">
+    <div class="visa-modal">
+        <div class="visa-modal-header">
+            <h3 class="visa-modal-title">添加相关链接</h3>
+            <button type="button" class="visa-modal-close" onclick="closeModal('addLinkModal')">&times;</button>
+        </div>
+        <div class="visa-modal-body">
+            <div id="addLinkAlert" class="visa-modal-alert" style="display: none;"></div>
+            
+            <form id="addLinkForm">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="visa-form-container">
+                    <div class="visa-form-entry">
+                        <div class="visa-form-row two-columns">
+                            <div class="visa-form-group">
+                                <label for="linkVisaType">签证类型：</label>
+                                <select id="linkVisaType" name="visa_type_id" class="visa-form-control" required>
+                                    <option value="">请选择签证类型</option>
+                                    <option value="{{ types_info.id }}" selected>{{ project.visa_type }}</option>
+                                </select>
+                            </div>
+                            <div class="visa-form-group">
+                                <label for="linkCountry">国家：</label>
+                                <select id="linkCountry" name="visa_countries_id" class="visa-form-control" required>
+                                    <option value="">请选择国家</option>
+                                    <option value="{{ types_info.country.id }}" selected>{{ types_info.country.country_name_CN }}</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="visa-form-row two-columns">
+                            <div class="visa-form-group">
+                                <label for="linkName">链接名称：</label>
+                                <input type="text" id="linkName" name="link_name" class="visa-form-control" required>
+                            </div>
+                            <div class="visa-form-group">
+                                <label for="linkUrl">链接地址：</label>
+                                <input type="url" id="linkUrl" name="link_url" class="visa-form-control" required placeholder="https://example.com">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="visa-form-actions">
+                    <div>
+                        <button type="button" class="visa-btn visa-btn-secondary" onclick="closeModal('addLinkModal')">取消</button>
+                        <button type="submit" class="visa-btn visa-btn-primary">保存链接</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block extra_js %}
@@ -1797,6 +2044,10 @@ function showAddDocumentModal() {
     document.getElementById('addDocumentModal').style.display = 'block';
 }
 
+function showAddLinkModal() {
+    document.getElementById('addLinkModal').style.display = 'block';
+}
+
 function closeModal(modalId) {
     document.getElementById(modalId).style.display = 'none';
 }
@@ -1928,6 +2179,7 @@ window.onclick = function(event) {
     });
 }
 
+
 function showMessage(message, type) {
     const toastContainer = document.querySelector('.toast-container');
     if (!toastContainer) {
@@ -1960,6 +2212,71 @@ function showMessage(message, type) {
     toast.addEventListener('hidden.bs.toast', () => {
         toast.remove();
     });
+}
+
+// 添加链接表单提交处理
+document.getElementById('addLinkForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const visaTypeId = formData.get('visa_type_id');
+    const visaCountriesId = formData.get('visa_countries_id');
+    const linkName = formData.get('link_name');
+    const linkUrl = formData.get('link_url');
+    
+    if (!visaTypeId || !visaCountriesId || !linkName || !linkUrl) {
+        showAlert('请填写完整的链接信息', 'error');
+        return;
+    }
+    
+    // 显示加载状态
+    const submitBtn = this.querySelector('button[type="submit"]');
+    const originalText = submitBtn.textContent;
+    submitBtn.disabled = true;
+    submitBtn.textContent = '保存中...';
+    
+    fetch(`/visa/project/add_link/{{ project.id|tojson }}`, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': document.querySelector('meta[name=csrf-token]').getAttribute('content')
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert(data.message, 'success');
+            closeModal('addLinkModal');
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+        } else {
+            throw new Error(data.message || '添加链接失败');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showAlert(error.message || '添加链接失败，请重试', 'error');
+    })
+    .finally(() => {
+        // 恢复按钮状态
+        submitBtn.disabled = false;
+        submitBtn.textContent = originalText;
+    });
+});
+
+// 显示模态框内警告信息
+function showAlert(message, type) {
+    const alertDiv = document.getElementById('addLinkAlert');
+    alertDiv.textContent = message;
+    alertDiv.className = `visa-modal-alert alert-${type}`;
+    alertDiv.style.display = 'block';
+    
+    // 3秒后自动隐藏
+    setTimeout(() => {
+        alertDiv.style.display = 'none';
+    }, 3000);
 }
 
 function openProjectFolder(folderName, visaType) {
