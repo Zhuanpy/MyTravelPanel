@@ -165,13 +165,16 @@ def get_visa_documents(visa_type, identity):
         return jsonify({
             'success': True,
             'document_info': documents_info.get('document_info', '暂无文件资料'),
-            'additional_info': documents_info.get('additional_info', '暂无补充信息')
+            'additional_info': documents_info.get('additional_info', '暂无补充信息'),
+            'applicant_additional_info': documents_info.get('applicant_additional_info', '暂无申请人补充信息')
         })
     except Exception as e:
         current_app.logger.error(f"获取签证文档失败: {e}")
+        import traceback
+        current_app.logger.error(f"详细错误信息: {traceback.format_exc()}")
         return jsonify({
             'success': False,
-            'message': '获取数据失败'
+            'message': f'获取数据失败: {str(e)}'
         }), 500
 
 @api_bp.route('/api/tour-packages')

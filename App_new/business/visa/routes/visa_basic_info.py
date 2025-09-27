@@ -182,11 +182,54 @@ def manage_countries():
                 flash('该国家已存在！', 'error')
                 return redirect(url_for('visa_basic.manage_countries'))
 
+            # 处理国旗文件上传
+            flag_file = None
+            print(f"DEBUG: 添加国家 - 检查文件上传 - request.files: {list(request.files.keys())}")
+            if 'flag_file' in request.files:
+                flag_file_obj = request.files['flag_file']
+                print(f"DEBUG: 添加国家 - 文件对象存在 - filename: {flag_file_obj.filename}")
+                if flag_file_obj and flag_file_obj.filename:
+                    # 获取文件扩展名
+                    import os
+                    from werkzeug.utils import secure_filename
+                    
+                    # 直接从原始文件名获取扩展名，避免secure_filename处理中文文件名的问题
+                    original_filename = flag_file_obj.filename
+                    file_ext = os.path.splitext(original_filename)[1].lower()
+                    print(f"DEBUG: 添加国家 - 文件信息 - original: {original_filename}, ext: {file_ext}")
+                    
+                    # 检查文件类型
+                    allowed_extensions = {'.png', '.jpg', '.jpeg', '.gif', '.svg'}
+                    if file_ext in allowed_extensions:
+                        # 生成新的文件名：国家代码 + 扩展名
+                        new_filename = f"{country_code.lower()}{file_ext}"
+                        print(f"DEBUG: 添加国家 - 新文件名 - {new_filename}")
+                        
+                        # 确保上传目录存在 - 使用Flask应用的静态文件夹路径
+                        from flask import current_app
+                        upload_dir = os.path.join(current_app.static_folder, 'images', 'flags')
+                        os.makedirs(upload_dir, exist_ok=True)
+                        print(f"DEBUG: 添加国家 - 上传目录 - {upload_dir}")
+                        
+                        # 保存文件
+                        file_path = os.path.join(upload_dir, new_filename)
+                        print(f"DEBUG: 添加国家 - 保存文件到 - {file_path}")
+                        flag_file_obj.save(file_path)
+                        flag_file = new_filename
+                        print(f"DEBUG: 添加国家 - 国旗文件名 - {flag_file}")
+                    else:
+                        print(f"DEBUG: 添加国家 - 文件类型不支持 - {file_ext}")
+                else:
+                    print("DEBUG: 添加国家 - 文件对象为空或文件名为空")
+            else:
+                print("DEBUG: 添加国家 - 没有找到flag_file字段")
+
             # 创建新国家
             new_country = VisaCountries(
                 country_name_CN=country_name_CN,
                 country_name_EN=country_name_EN,
-                country_code=country_code
+                country_code=country_code,
+                flag_file=flag_file
             )
 
             db.session.add(new_country)
@@ -259,6 +302,55 @@ def edit_country(country_id):
                         flash(error_msg, 'error')
                         return redirect(url_for('visa_basic.manage_countries'))
                 
+                # 处理国旗文件上传
+                print(f"DEBUG: 检查文件上传 - request.files: {list(request.files.keys())}")
+                if 'flag_file' in request.files:
+                    flag_file_obj = request.files['flag_file']
+                    print(f"DEBUG: 文件对象存在 - filename: {flag_file_obj.filename}")
+                    if flag_file_obj and flag_file_obj.filename:
+                        # 获取文件扩展名
+                        import os
+                        from werkzeug.utils import secure_filename
+                        
+                        # 直接从原始文件名获取扩展名，避免secure_filename处理中文文件名的问题
+                        original_filename = flag_file_obj.filename
+                        file_ext = os.path.splitext(original_filename)[1].lower()
+                        print(f"DEBUG: 文件信息 - original: {original_filename}, ext: {file_ext}")
+                        
+                        # 检查文件类型
+                        allowed_extensions = {'.png', '.jpg', '.jpeg', '.gif', '.svg'}
+                        if file_ext in allowed_extensions:
+                            # 删除旧的国旗文件
+                            if country.flag_file:
+                                from flask import current_app
+                                old_file_path = os.path.join(current_app.static_folder, 'images', 'flags', country.flag_file)
+                                print(f"DEBUG: 删除旧文件 - {old_file_path}")
+                                if os.path.exists(old_file_path):
+                                    os.remove(old_file_path)
+                            
+                            # 生成新的文件名：国家代码 + 扩展名
+                            new_filename = f"{country_code.lower()}{file_ext}"
+                            print(f"DEBUG: 新文件名 - {new_filename}")
+                            
+                            # 确保上传目录存在 - 使用Flask应用的静态文件夹路径
+                            from flask import current_app
+                            upload_dir = os.path.join(current_app.static_folder, 'images', 'flags')
+                            os.makedirs(upload_dir, exist_ok=True)
+                            print(f"DEBUG: 上传目录 - {upload_dir}")
+                            
+                            # 保存文件
+                            file_path = os.path.join(upload_dir, new_filename)
+                            print(f"DEBUG: 保存文件到 - {file_path}")
+                            flag_file_obj.save(file_path)
+                            country.flag_file = new_filename
+                            print(f"DEBUG: 国旗文件名已更新 - {country.flag_file}")
+                        else:
+                            print(f"DEBUG: 文件类型不支持 - {file_ext}")
+                    else:
+                        print("DEBUG: 文件对象为空或文件名为空")
+                else:
+                    print("DEBUG: 没有找到flag_file字段")
+                
                 # 更新数据
                 country.country_name_CN = country_name_CN
                 country.country_name_EN = country_name_EN
@@ -293,7 +385,8 @@ def edit_country(country_id):
                     'id': country.id,
                     'country_name_CN': country.country_name_CN,
                     'country_name_EN': country.country_name_EN,
-                    'country_code': country.country_code
+                    'country_code': country.country_code,
+                    'flag_file': country.flag_file
                 }
             }
             print(f"DEBUG: 返回国家数据 - {data}")
@@ -371,6 +464,7 @@ def add_visa_type():
             visa_type = request.form.get('visa_type')
             processing_time = request.form.get('processing_time')
             fee = request.form.get('fee')
+            introduction = request.form.get('introduction')
             country_id = request.form.get('country_id')
             identity_ids = request.form.getlist('identity_ids')  # 获取多个身份ID
 
@@ -379,6 +473,7 @@ def add_visa_type():
                 visa_type=visa_type,
                 processing_time=processing_time,
                 fee=fee,
+                introduction=introduction,
                 country_id=country_id
             )
 
@@ -451,6 +546,7 @@ def copy_visa_type():
             new_visa_type = request.form.get('new_visa_type')
             processing_time = request.form.get('processing_time')
             fee = request.form.get('fee')
+            introduction = request.form.get('introduction')
             country_id = request.form.get('country_id')
             identity_ids = request.form.getlist('identity_ids')
             
@@ -471,6 +567,7 @@ def copy_visa_type():
                 visa_type=new_visa_type,
                 processing_time=processing_time,
                 fee=fee,
+                introduction=introduction,
                 country_id=country_id
             )
             
@@ -547,6 +644,7 @@ def get_visa_type_data(visa_type):
                 'visa_type': visa_type_record.visa_type,
                 'processing_time': visa_type_record.processing_time,
                 'fee': visa_type_record.fee,
+                'introduction': visa_type_record.introduction,
                 'country_id': visa_type_record.country_id,
                 'identities': identities
             }
@@ -785,6 +883,11 @@ def edit_visa_type_all(visa_type):
                     visa_type_record.processing_time = new_processing_time
                     print(f"DEBUG: 更新处理时间为: {new_processing_time}")
                 
+                # 处理签证说明更新
+                new_introduction = request.form.get('introduction')
+                visa_type_record.introduction = new_introduction
+                print(f"DEBUG: 更新签证说明为: {new_introduction}")
+                
                 # 处理身份选项更新
                 selected_identities = request.form.getlist('identities')
                 print(f"DEBUG: 选择的身份: {selected_identities}")
@@ -809,31 +912,47 @@ def edit_visa_type_all(visa_type):
                     print(f"DEBUG: 更新visa_type_identities表时出错: {str(e)}")
                     raise e
                 
-                # 2. 更新 VisaDocuments 表
+                # 2. 更新 VisaDocuments 表（智能更新，不删除已有配置）
                 try:
-                    # 删除现有的身份文档
-                    docs_to_delete = VisaDocuments.query.filter_by(visa_type_id=visa_type_record.id).all()
-                    print(f"DEBUG: 找到 {len(docs_to_delete)} 个要删除的文档")
+                    # 获取现有的文档记录
+                    existing_docs = VisaDocuments.query.filter_by(visa_type_id=visa_type_record.id).all()
+                    existing_identity_ids = {doc.singapore_identity_id for doc in existing_docs}
+                    print(f"DEBUG: 现有文档记录: {len(existing_docs)} 个")
                     
-                    for doc in docs_to_delete:
-                        db.session.delete(doc)
-                        print(f"DEBUG: 删除文档 ID: {doc.id}")
+                    # 获取SHARE身份ID
+                    share_identity = VisaSingaporeIdentity.query.filter_by(identity_zh='SHARE').first()
+                    share_identity_id = share_identity.id if share_identity else None
                     
-                    # 添加新的身份文档
+                    # 构建新的身份ID集合
+                    new_identity_ids = set()
+                    for identity_name in selected_identities:
+                        if identity_name == 'SHARE':
+                            new_identity_ids.add(share_identity_id)
+                        else:
+                            identity = VisaSingaporeIdentity.query.filter_by(identity_zh=identity_name).first()
+                            if identity:
+                                new_identity_ids.add(identity.id)
+                    
+                    # 删除不再需要的身份文档
+                    for doc in existing_docs:
+                        if doc.singapore_identity_id not in new_identity_ids:
+                            print(f"DEBUG: 删除不再需要的文档 ID: {doc.id}, 身份ID: {doc.singapore_identity_id}")
+                            db.session.delete(doc)
+                    
+                    # 添加新的身份文档（只添加不存在的）
                     for identity_name in selected_identities:
                         try:
                             if identity_name == 'SHARE':
-                                # 对于SHARE身份，创建singapore_identity_id为None的记录
-                                new_doc = VisaDocuments(
-                                    visa_type_id=visa_type_record.id,
-                                    singapore_identity_id=None
-                                )
-                                db.session.add(new_doc)
-                                print(f"DEBUG: 添加SHARE文档")
+                                if share_identity_id not in existing_identity_ids:
+                                    new_doc = VisaDocuments(
+                                        visa_type_id=visa_type_record.id,
+                                        singapore_identity_id=share_identity_id
+                                    )
+                                    db.session.add(new_doc)
+                                    print(f"DEBUG: 添加SHARE文档")
                             else:
-                                # 对于其他身份，创建对应的文档记录
                                 identity = VisaSingaporeIdentity.query.filter_by(identity_zh=identity_name).first()
-                                if identity:
+                                if identity and identity.id not in existing_identity_ids:
                                     new_doc = VisaDocuments(
                                         visa_type_id=visa_type_record.id,
                                         singapore_identity_id=identity.id
@@ -1196,6 +1315,7 @@ def get_visa_documents(visa_type):
             
             selected_documents = []
             additional_info = ""
+            applicant_additional_info = ""
             
             for vd in identity_docs:
                 print(f"DEBUG: 处理配置记录 ID: {vd.id}")
@@ -1225,12 +1345,14 @@ def get_visa_documents(visa_type):
                 else:
                     print(f"DEBUG: 该配置没有选中文档")
                 additional_info = vd.additional_info or ""
+                applicant_additional_info = vd.applicant_additional_info or ""
             
             config_data['documents'].append({
                 'singapore_identity_id': identity.id,
                 'identity_name': identity.identity_zh,
                 'selected_documents': selected_documents,
-                'additional_info': additional_info
+                'additional_info': additional_info,
+                'applicant_additional_info': applicant_additional_info
             })
             print(f"DEBUG: 身份 {identity.identity_zh} 配置完成，选中文档数: {len(selected_documents)}")
         
@@ -1321,6 +1443,7 @@ def save_visa_documents(visa_type):
             identity_id = config.get('identity_id')
             documents_data = config.get('documents', [])
             additional_info = config.get('additional_info', '')
+            applicant_additional_info = config.get('applicant_additional_info', '')
             
             # 兼容旧的数据结构
             if not documents_data and 'document_ids' in config:
@@ -1373,13 +1496,15 @@ def save_visa_documents(visa_type):
                 # 更新现有记录
                 visa_doc = existing_configs_dict[processed_identity_id]
                 visa_doc.additional_info = additional_info
+                visa_doc.applicant_additional_info = applicant_additional_info
                 print(f"DEBUG: 更新现有配置 - ID: {visa_doc.id}")
             else:
                 # 创建新记录
                 visa_doc = VisaDocuments(
                     visa_type_id=visa_type_record.id,
                     singapore_identity_id=processed_identity_id,
-                    additional_info=additional_info
+                    additional_info=additional_info,
+                    applicant_additional_info=applicant_additional_info
                 )
                 db.session.add(visa_doc)
                 db.session.flush()  # 获取ID
@@ -2165,7 +2290,7 @@ def get_visa_templates():
             return jsonify({'success': False, 'message': '签证类型不存在'})
         
         # 获取模板文件
-        from App.models.Product.Visamodels import VisaTemplateFiles
+        from App_new.business.visa.models.Visamodels import VisaTemplateFiles
         templates = VisaTemplateFiles.get_templates_by_visa_type(visa_type_record.id, identity_id)
         
         # 按类型分组
@@ -2251,7 +2376,7 @@ def upload_visa_template():
         file.save(str(file_path))
         
         # 保存到数据库
-        from App.models.Product.Visamodels import VisaTemplateFiles
+        from App_new.business.visa.models.Visamodels import VisaTemplateFiles
         
         template_file = VisaTemplateFiles(
             visa_type_id=visa_type_id,
@@ -2283,7 +2408,7 @@ def upload_visa_template():
 def delete_visa_template(template_id):
     """删除签证模板文件"""
     try:
-        from App.models.Product.Visamodels import VisaTemplateFiles
+        from App_new.business.visa.models.Visamodels import VisaTemplateFiles
         
         template = VisaTemplateFiles.query.get(template_id)
         if not template:
@@ -2313,7 +2438,7 @@ def delete_visa_template(template_id):
 def download_visa_template(template_id):
     """下载签证模板文件"""
     try:
-        from App.models.Product.Visamodels import VisaTemplateFiles
+        from App_new.business.visa.models.Visamodels import VisaTemplateFiles
         
         template = VisaTemplateFiles.query.get(template_id)
         if not template:
@@ -2346,13 +2471,146 @@ def download_visa_template(template_id):
 def get_template_types():
     """获取所有模板类型"""
     try:
-        from App.models.Product.Visamodels import VisaTemplateFiles
+        from App_new.business.visa.models.Visamodels import VisaTemplateFiles
         template_types = VisaTemplateFiles.get_template_types()
         types_list = [t[0] for t in template_types if t[0]]
         return jsonify({'success': True, 'template_types': types_list})
     except Exception as e:
         return jsonify({'success': False, 'message': f'获取模板类型失败: {str(e)}'})
 
+
+@visa_basic.route('/document_order_manager/<visa_type>')
+def document_order_manager(visa_type):
+    """文档顺序管理页面"""
+    try:
+        from urllib.parse import unquote
+        import html
+        
+        # URL解码参数
+        decoded_visa_type = unquote(visa_type)
+        decoded_visa_type = html.unescape(decoded_visa_type)
+        
+        # 获取签证类型
+        visa_type_record = VisaTypes.query.filter_by(visa_type=decoded_visa_type).first()
+        if not visa_type_record:
+            flash('签证类型不存在', 'error')
+            return redirect(url_for('visa_basic.visa_type_list'))
+        
+        # 获取国家信息
+        country = VisaCountries.query.get(visa_type_record.country_id)
+        
+        # 获取身份选项
+        identities = []
+        if visa_type_record.identities:
+            identities = [identity.identity_zh for identity in visa_type_record.identities]
+        
+        # 导入必要的模型
+        from App_new.business.visa.models.Visamodels import visa_document_documents, VisaDocumentsList
+        
+        # 获取所有申请人准备的文档（合并去重）
+        all_documents = {}  # {document_id: {document_info, associations}}
+        
+        # 获取SHARE身份记录
+        share_identity = VisaSingaporeIdentity.query.filter_by(identity_zh='SHARE').first()
+        share_identity_id = share_identity.id if share_identity else None
+        
+        # 获取SHARE共用资料
+        share_doc = VisaDocuments.query.filter_by(
+            visa_type_id=visa_type_record.id,
+            singapore_identity_id=share_identity_id
+        ).first()
+        
+        if share_doc:
+            try:
+                share_associations = db.session.query(visa_document_documents).filter_by(
+                    visa_document_id=share_doc.id,
+                    responsible_party='FOR_APPLICATION'
+                ).order_by(visa_document_documents.c.display_order.asc()).all()
+            except Exception:
+                # 如果display_order字段不存在，使用原来的方法
+                share_associations = db.session.query(visa_document_documents).filter_by(
+                    visa_document_id=share_doc.id,
+                    responsible_party='FOR_APPLICATION'
+                ).all()
+            
+            for association in share_associations:
+                doc = VisaDocumentsList.query.get(association.document_id)
+                if doc and doc.id not in all_documents:
+                    all_documents[doc.id] = {
+                        'document': doc,
+                        'associations': []
+                    }
+                
+                if doc and doc.id in all_documents:
+                    all_documents[doc.id]['associations'].append({
+                        'visa_document_id': share_doc.id,
+                        'identity_type': 'SHARE',
+                        'display_order': getattr(association, 'display_order', 0) or 0
+                    })
+        
+        # 获取其他身份的文档
+        for identity in visa_type_record.identities:
+            if identity.identity_zh != 'SHARE':
+                specific_doc = VisaDocuments.query.filter_by(
+                    visa_type_id=visa_type_record.id,
+                    singapore_identity_id=identity.id
+                ).first()
+                
+                if specific_doc:
+                    try:
+                        specific_associations = db.session.query(visa_document_documents).filter_by(
+                            visa_document_id=specific_doc.id,
+                            responsible_party='FOR_APPLICATION'
+                        ).order_by(visa_document_documents.c.display_order.asc()).all()
+                    except Exception:
+                        # 如果display_order字段不存在，使用原来的方法
+                        specific_associations = db.session.query(visa_document_documents).filter_by(
+                            visa_document_id=specific_doc.id,
+                            responsible_party='FOR_APPLICATION'
+                        ).all()
+                    
+                    for association in specific_associations:
+                        doc = VisaDocumentsList.query.get(association.document_id)
+                        if doc and doc.id not in all_documents:
+                            all_documents[doc.id] = {
+                                'document': doc,
+                                'associations': []
+                            }
+                        
+                        if doc and doc.id in all_documents:
+                            # 检查是否已经存在相同的visa_document_id关联
+                            existing_assoc = next((a for a in all_documents[doc.id]['associations'] 
+                                                 if a['visa_document_id'] == specific_doc.id), None)
+                            if not existing_assoc:
+                                all_documents[doc.id]['associations'].append({
+                                    'visa_document_id': specific_doc.id,
+                                    'identity_type': identity.identity_zh,
+                                    'display_order': getattr(association, 'display_order', 0) or 0
+                                })
+        
+        # 转换为列表格式，按当前的最大display_order排序
+        documents_list = []
+        for doc_id, doc_data in all_documents.items():
+            # 获取该文档在所有身份中的最大display_order作为排序依据
+            max_order = max([assoc['display_order'] for assoc in doc_data['associations']], default=0)
+            documents_list.append({
+                'document': doc_data['document'],
+                'associations': doc_data['associations'],
+                'current_order': max_order
+            })
+        
+        # 按current_order排序
+        documents_list.sort(key=lambda x: x['current_order'])
+        
+        return render_template('business/visa/签证类型管理/document_order_manager.html',
+                             visa_type=visa_type_record,
+                             country=country,
+                             identities=identities,
+                             documents=documents_list)
+        
+    except Exception as e:
+        flash(f'加载文档顺序管理页面时出错: {str(e)}', 'error')
+        return redirect(url_for('visa_basic.visa_type_list'))
 
 @visa_basic.route('/visa_type_detail/<visa_type>')
 def visa_type_detail(visa_type):
@@ -2369,7 +2627,7 @@ def visa_type_detail(visa_type):
         visa_type_record.actual_identities = actual_identities
         
         # 获取文档配置信息
-        from App.models.Product.Visamodels import VisaDocuments, VisaDocumentsList
+        from App_new.business.visa.models.Visamodels import VisaDocuments, VisaDocumentsList
         document_data = {}
         
         # 获取共用资料
@@ -2382,9 +2640,13 @@ def visa_type_detail(visa_type):
             document_data[identity.identity_zh] = info
         
         # 获取模板文件
-        from App.models.Product.Visamodels import VisaTemplateFiles
-        template_files = VisaTemplateFiles.get_templates_by_visa_type(visa_type_record.id)
-        template_files = [template.to_dict() for template in template_files]
+        try:
+            from App_new.business.visa.models.Visamodels import VisaTemplateFiles
+            template_files = VisaTemplateFiles.get_templates_by_visa_type(visa_type_record.id)
+            template_files = [template.to_dict() for template in template_files]
+        except Exception as e:
+            print(f"获取模板文件时出错: {str(e)}")
+            template_files = []
         
         # 获取统计信息
         # 文档统计 - 计算文档信息中的项目数量
@@ -2402,7 +2664,7 @@ def visa_type_detail(visa_type):
         
         # 项目统计（如果有项目相关的模型）
         try:
-            from App.models.Product.Visamodels import VisaProject
+            from App_new.business.visa.models.Visamodels import VisaProject
             total_projects = VisaProject.query.filter_by(visa_type=visa_type).count()
         except:
             total_projects = 0
@@ -2424,6 +2686,164 @@ def visa_type_detail(visa_type):
         flash(f'加载签证类型详情时出错: {str(e)}', 'error')
         return redirect(url_for('visa_basic.visa_type_list'))
 
+
+@visa_basic.route('/api/get_all_documents_for_sorting/<int:visa_type_id>')
+def get_all_documents_for_sorting(visa_type_id):
+    """获取所有身份的资料并合并去重，用于统一排序"""
+    try:
+        from App_new.business.visa.models.Visamodels import VisaTypes, VisaDocuments, VisaSingaporeIdentity, visa_document_documents, VisaDocumentsList
+        
+        # 验证签证类型是否存在
+        visa_type = VisaTypes.query.get(visa_type_id)
+        if not visa_type:
+            return jsonify({'success': False, 'message': '签证类型不存在'}), 404
+        
+        # 获取SHARE身份记录
+        share_identity = VisaSingaporeIdentity.query.filter_by(identity_zh='SHARE').first()
+        share_identity_id = share_identity.id if share_identity else None
+        
+        # 收集所有申请人准备的文档，按文档ID去重
+        all_documents = {}  # {document_id: {document_info, associations}}
+        
+        # 获取SHARE共用资料
+        share_doc = VisaDocuments.query.filter_by(
+            visa_type_id=visa_type_id,
+            singapore_identity_id=share_identity_id
+        ).first()
+        
+        if share_doc:
+            share_associations = db.session.query(visa_document_documents).filter_by(
+                visa_document_id=share_doc.id,
+                responsible_party='FOR_APPLICATION'
+            ).all()
+            
+            for association in share_associations:
+                doc = VisaDocumentsList.query.get(association.document_id)
+                if doc and doc.id not in all_documents:
+                    all_documents[doc.id] = {
+                        'document': {
+                            'id': doc.id,
+                            'name': doc.name
+                        },
+                        'associations': []
+                    }
+                
+                if doc and doc.id in all_documents:
+                    all_documents[doc.id]['associations'].append({
+                        'visa_document_id': share_doc.id,
+                        'identity_type': 'SHARE',
+                        'display_order': association.display_order or 0
+                    })
+        
+        # 获取其他身份的文档
+        for identity in visa_type.identities:
+            if identity.identity_zh != 'SHARE':
+                specific_doc = VisaDocuments.query.filter_by(
+                    visa_type_id=visa_type_id,
+                    singapore_identity_id=identity.id
+                ).first()
+                
+                if specific_doc:
+                    specific_associations = db.session.query(visa_document_documents).filter_by(
+                        visa_document_id=specific_doc.id,
+                        responsible_party='FOR_APPLICATION'
+                    ).all()
+                    
+                    for association in specific_associations:
+                        doc = VisaDocumentsList.query.get(association.document_id)
+                        if doc and doc.id not in all_documents:
+                            all_documents[doc.id] = {
+                                'document': {
+                                    'id': doc.id,
+                                    'name': doc.name
+                                },
+                                'associations': []
+                            }
+                        
+                        if doc and doc.id in all_documents:
+                            # 检查是否已经存在相同的visa_document_id关联
+                            existing_assoc = next((a for a in all_documents[doc.id]['associations'] 
+                                                 if a['visa_document_id'] == specific_doc.id), None)
+                            if not existing_assoc:
+                                all_documents[doc.id]['associations'].append({
+                                    'visa_document_id': specific_doc.id,
+                                    'identity_type': identity.identity_zh,
+                                    'display_order': association.display_order or 0
+                                })
+        
+        # 转换为列表格式，按当前的最大display_order排序
+        documents_list = []
+        for doc_id, doc_data in all_documents.items():
+            # 获取该文档在所有身份中的最大display_order作为排序依据
+            max_order = max([assoc['display_order'] for assoc in doc_data['associations']], default=0)
+            documents_list.append({
+                'document': doc_data['document'],
+                'associations': doc_data['associations'],
+                'current_order': max_order
+            })
+        
+        # 按current_order排序
+        documents_list.sort(key=lambda x: x['current_order'])
+        
+        return jsonify({
+            'success': True, 
+            'data': {
+                'documents': documents_list,
+                'visa_type_id': visa_type_id
+            }
+        })
+        
+    except Exception as e:
+        print(f"获取所有文档失败: {str(e)}")
+        import traceback
+        print(f"详细错误信息: {traceback.format_exc()}")
+        return jsonify({'success': False, 'message': f'获取失败: {str(e)}'}), 500
+
+@visa_basic.route('/api/update_all_documents_order/<int:visa_type_id>', methods=['POST'])
+@csrf.exempt
+def update_all_documents_order(visa_type_id):
+    """更新所有文档的显示顺序，应用到所有相关的visa_document_documents记录"""
+    try:
+        data = request.get_json()
+        if not data or 'document_orders' not in data:
+            return jsonify({'success': False, 'message': '缺少必要参数'}), 400
+        
+        document_orders = data['document_orders']  # 格式: [{'document_id': 1, 'new_order': 0}, ...]
+        
+        # 验证签证类型是否存在
+        visa_type = VisaTypes.query.get(visa_type_id)
+        if not visa_type:
+            return jsonify({'success': False, 'message': '签证类型不存在'}), 404
+        
+        # 更新文档顺序
+        from sqlalchemy import text
+        for order_item in document_orders:
+            document_id = order_item.get('document_id')
+            new_order = order_item.get('new_order')
+            
+            if document_id is None or new_order is None:
+                continue
+            
+            # 更新该文档在所有visa_document_documents记录中的display_order
+            update_sql = text("""
+                UPDATE visa_document_documents 
+                SET display_order = :new_order 
+                WHERE document_id = :document_id
+                AND responsible_party = 'FOR_APPLICATION'
+            """)
+            
+            db.session.execute(update_sql, {
+                'new_order': new_order,
+                'document_id': document_id
+            })
+        
+        db.session.commit()
+        return jsonify({'success': True, 'message': '文档顺序更新成功'})
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"更新文档顺序时出错: {str(e)}")
+        return jsonify({'success': False, 'message': f'更新失败: {str(e)}'}), 500
 
 def format_file_size(size_bytes):
     """格式化文件大小"""
@@ -2477,7 +2897,7 @@ def get_template_preview():
         identities = [identity.identity_zh for identity in visa_type_record.identities]
         
         # 获取文档配置数量
-        from App.models.Product.Visamodels import VisaDocuments
+        from App_new.business.visa.models.Visamodels import VisaDocuments
         document_count = 0
         # 计算共用资料
         share_info = VisaDocuments.get_document_info(visa_type_record.id, None)
@@ -2497,7 +2917,7 @@ def get_template_preview():
                         document_count += 1
         
         # 获取模板文件数量
-        from App.models.Product.Visamodels import VisaTemplateFiles
+        from App_new.business.visa.models.Visamodels import VisaTemplateFiles
         template_count = VisaTemplateFiles.query.filter_by(visa_type_id=visa_type_record.id, is_active=True).count()
         
         return jsonify({
@@ -2532,7 +2952,7 @@ def apply_template():
         if not target_record or not template_record:
             return jsonify({'success': False, 'message': '签证类型不存在'})
         
-        from App.models.Product.Visamodels import VisaDocuments, VisaTemplateFiles
+        from App_new.business.visa.models.Visamodels import VisaDocuments, VisaTemplateFiles
         
         # 复制身份配置
         if copy_identities:

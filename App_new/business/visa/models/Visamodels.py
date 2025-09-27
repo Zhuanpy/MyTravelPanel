@@ -18,6 +18,9 @@ class VisaCountries(db.Model):
 
     # 国家代码（3个字母代码），确保唯一且不可为空
     country_code = db.Column(db.String(3), unique=True, nullable=False)
+    
+    # 国旗文件名
+    flag_file = db.Column(db.String(255), nullable=True, comment='国旗文件名')
 
     # 添加与VisaTypes的关系
     visa_types = db.relationship('VisaTypes', back_populates='country')
@@ -84,6 +87,9 @@ class VisaTypes(db.Model):
 
     # 申请费用
     fee = db.Column(db.String(200), nullable=False)
+    
+    # 签证说明
+    introduction = db.Column(db.Text, nullable=True)
 
     # 外键关系 - 国家
     country_id = db.Column(db.Integer, db.ForeignKey('visa_countries.id'), nullable=False)
@@ -119,6 +125,7 @@ class VisaTypes(db.Model):
             'visa_type': self.visa_type,
             'processing_time': self.processing_time,
             'fee': self.fee,
+            'introduction': self.introduction,
             'country_id': self.country_id,
             'country_name': self.country.country_name_CN if self.country else None,
             'identities': [identity.to_dict() for identity in self.identities],
@@ -130,7 +137,8 @@ class VisaTypes(db.Model):
 visa_document_documents = db.Table('visa_document_documents',
     db.Column('visa_document_id', db.Integer, db.ForeignKey('visa_documents_request.id', ondelete='CASCADE'), primary_key=True),
     db.Column('document_id', db.Integer, db.ForeignKey('visa_documents_list.id', ondelete='CASCADE'), primary_key=True),
-    db.Column('responsible_party', db.String(20), default='FOR_APPLICATION', comment='资料准备方：FOR_APPLICATION(申请人准备)/FOR_AGENT(旅行社准备)')
+    db.Column('responsible_party', db.String(20), default='FOR_APPLICATION', comment='资料准备方：FOR_APPLICATION(申请人准备)/FOR_AGENT(旅行社准备)'),
+    db.Column('display_order', db.Integer, default=0, comment='显示顺序')
 )
 
 
@@ -141,7 +149,8 @@ class VisaDocuments(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     visa_type_id = db.Column(db.Integer, db.ForeignKey('visa_types.id', ondelete='CASCADE'), nullable=False)
     singapore_identity_id = db.Column(db.Integer, db.ForeignKey('visa_singapore_identity.id', ondelete='CASCADE'), nullable=True)  # 允许为空，表示共用资料
-    additional_info = db.Column(db.Text, nullable=True)
+    additional_info = db.Column(db.Text, nullable=True)  # 旅行社补充信息
+    applicant_additional_info = db.Column(db.Text, nullable=True)  # 申请人补充信息
     
     # 关系定义
     visa_type = db.relationship('VisaTypes', backref=db.backref('visa_documents', lazy='dynamic'))
@@ -235,16 +244,26 @@ class VisaDocuments(db.Model):
         
         # 合并补充信息
         additional_info = []
+        applicant_additional_info = []
+        
         if share_doc and share_doc.additional_info and share_doc.additional_info != '待输入':
             additional_info.append(share_doc.additional_info)
         if specific_doc and specific_doc.additional_info and specific_doc.additional_info != 'None':
             if additional_info:
                 additional_info.append("\n")
             additional_info.append(specific_doc.additional_info)
+            
+        if share_doc and share_doc.applicant_additional_info and share_doc.applicant_additional_info != '待输入':
+            applicant_additional_info.append(share_doc.applicant_additional_info)
+        if specific_doc and specific_doc.applicant_additional_info and specific_doc.applicant_additional_info != 'None':
+            if applicant_additional_info:
+                applicant_additional_info.append("\n")
+            applicant_additional_info.append(specific_doc.applicant_additional_info)
         
         result = {
             'document_info': "\n".join(document_info) if document_info else "暂无文件资料",
-            'additional_info': "\n".join(additional_info) if additional_info else "暂无补充信息"
+            'additional_info': "\n".join(additional_info) if additional_info else "暂无补充信息",
+            'applicant_additional_info': "\n".join(applicant_additional_info) if applicant_additional_info else "暂无申请人补充信息"
         }
         print(f"DEBUG: 返回结果: {result}")
         return result
@@ -272,32 +291,93 @@ class VisaDocuments(db.Model):
                 singapore_identity_id=singapore_identity_id
             ).first()
         
-        # 收集申请人准备的文档
-        applicant_documents = []
+        # 收集申请人准备的文档，按display_order统一排序
+        document_associations = []
         
         # 处理SHARE共用资料中的申请人文档
         if share_doc:
-            for doc_association in share_doc.selected_documents:
-                # 查询关联表中的responsible_party
-                association = db.session.query(visa_document_documents).filter_by(
+            try:
+                # 尝试按display_order排序（如果字段存在）
+                share_associations = db.session.query(visa_document_documents).filter_by(
                     visa_document_id=share_doc.id,
-                    document_id=doc_association.id,
                     responsible_party='FOR_APPLICATION'
-                ).first()
-                if association:
-                    applicant_documents.append(doc_association)
+                ).order_by(visa_document_documents.c.display_order.asc()).all()
+                
+                for association in share_associations:
+                    doc = VisaDocumentsList.query.get(association.document_id)
+                    if doc:
+                        document_associations.append({
+                            'doc': doc,
+                            'display_order': association.display_order or 0,
+                            'visa_document_id': share_doc.id,
+                            'identity_type': 'SHARE'
+                        })
+                        
+            except Exception:
+                # 如果display_order字段不存在，使用原来的方法
+                for doc_association in share_doc.selected_documents:
+                    association = db.session.query(visa_document_documents).filter_by(
+                        visa_document_id=share_doc.id,
+                        document_id=doc_association.id,
+                        responsible_party='FOR_APPLICATION'
+                    ).first()
+                    if association:
+                        document_associations.append({
+                            'doc': doc_association,
+                            'display_order': 0,  # 默认顺序
+                            'visa_document_id': share_doc.id,
+                            'identity_type': 'SHARE'
+                        })
         
         # 处理特定身份资料中的申请人文档
         if specific_doc:
-            for doc_association in specific_doc.selected_documents:
-                # 查询关联表中的responsible_party
-                association = db.session.query(visa_document_documents).filter_by(
+            try:
+                # 尝试按display_order排序（如果字段存在）
+                specific_associations = db.session.query(visa_document_documents).filter_by(
                     visa_document_id=specific_doc.id,
-                    document_id=doc_association.id,
                     responsible_party='FOR_APPLICATION'
-                ).first()
-                if association:
-                    applicant_documents.append(doc_association)
+                ).order_by(visa_document_documents.c.display_order.asc()).all()
+                
+                for association in specific_associations:
+                    doc = VisaDocumentsList.query.get(association.document_id)
+                    if doc:
+                        # 检查是否已经存在相同的文档（避免重复）
+                        existing_doc = next((item for item in document_associations 
+                                           if item['doc'].id == doc.id), None)
+                        if not existing_doc:
+                            document_associations.append({
+                                'doc': doc,
+                                'display_order': association.display_order or 0,
+                                'visa_document_id': specific_doc.id,
+                                'identity_type': specific_doc.singapore_identity.identity_zh if specific_doc.singapore_identity else 'UNKNOWN'
+                            })
+                        else:
+                            # 如果文档已存在，更新display_order为更大的值（优先级更高）
+                            existing_doc['display_order'] = max(existing_doc['display_order'], association.display_order or 0)
+                            
+            except Exception:
+                # 如果display_order字段不存在，使用原来的方法
+                for doc_association in specific_doc.selected_documents:
+                    association = db.session.query(visa_document_documents).filter_by(
+                        visa_document_id=specific_doc.id,
+                        document_id=doc_association.id,
+                        responsible_party='FOR_APPLICATION'
+                    ).first()
+                    if association:
+                        # 检查是否已经存在相同的文档
+                        existing_doc = next((item for item in document_associations 
+                                           if item['doc'].id == doc_association.id), None)
+                        if not existing_doc:
+                            document_associations.append({
+                                'doc': doc_association,
+                                'display_order': 0,  # 默认顺序
+                                'visa_document_id': specific_doc.id,
+                                'identity_type': specific_doc.singapore_identity.identity_zh if specific_doc.singapore_identity else 'UNKNOWN'
+                            })
+        
+        # 按display_order排序，然后提取文档列表
+        document_associations.sort(key=lambda x: x['display_order'])
+        applicant_documents = [item['doc'] for item in document_associations]
         
         # 格式化文档信息
         document_info = []
@@ -307,15 +387,38 @@ class VisaDocuments(db.Model):
         else:
             document_info.append("• 暂无申请人准备资料")
         
+        # 收集补充信息
+        additional_info = []
+        applicant_additional_info = []
+        
+        # 收集旅行社补充信息
+        share_additional = share_doc and share_doc.additional_info and share_doc.additional_info != '待输入'
+        specific_additional = specific_doc and specific_doc.additional_info and specific_doc.additional_info != 'None'
+        
+        if share_additional:
+            additional_info.append(share_doc.additional_info)
+        if specific_additional:
+            additional_info.append(specific_doc.additional_info)
+            
+        # 收集申请人补充信息
+        share_applicant = share_doc and share_doc.applicant_additional_info and share_doc.applicant_additional_info != '待输入'
+        specific_applicant = specific_doc and specific_doc.applicant_additional_info and specific_doc.applicant_additional_info != 'None'
+        
+        if share_applicant:
+            applicant_additional_info.append(share_doc.applicant_additional_info)
+        if specific_applicant:
+            applicant_additional_info.append(specific_doc.applicant_additional_info)
+
         result = {
             'document_info': "\n".join(document_info),
-            'additional_info': ""  # 不显示补充信息
+            'additional_info': "\n".join(additional_info) if additional_info else "暂无补充信息",
+            'applicant_additional_info': "\n".join(applicant_additional_info) if applicant_additional_info else "暂无申请人补充信息"
         }
         print(f"DEBUG: 申请人资料返回结果: {result}")
         return result
 
     @classmethod
-    def insert_data(cls, visa_type_id, singapore_identity_id, additional_info=None):
+    def insert_data(cls, visa_type_id, singapore_identity_id, additional_info=None, applicant_additional_info=None):
         """插入或更新签证文档信息"""
         # 检查是否已存在相同记录
         existing_doc = cls.query.filter_by(
@@ -326,12 +429,14 @@ class VisaDocuments(db.Model):
         if existing_doc:
             # 更新现有记录
             existing_doc.additional_info = additional_info
+            existing_doc.applicant_additional_info = applicant_additional_info
         else:
             # 创建新记录
             new_doc = cls(
                 visa_type_id=visa_type_id,
                 singapore_identity_id=singapore_identity_id,
-                additional_info=additional_info
+                additional_info=additional_info,
+                applicant_additional_info=applicant_additional_info
             )
             db.session.add(new_doc)
         

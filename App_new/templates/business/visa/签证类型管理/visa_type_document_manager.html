@@ -838,7 +838,8 @@
                 // 检查是否有已保存的数据
                 const hasExistingData = currentConfig.documents.some(doc => 
                     (doc.selected_documents && doc.selected_documents.length > 0) || 
-                    (doc.additional_info && doc.additional_info.trim() !== '')
+                    (doc.additional_info && doc.additional_info.trim() !== '') ||
+                    (doc.applicant_additional_info && doc.applicant_additional_info.trim() !== '')
                 );
                 
                 if (hasExistingData) {
@@ -962,8 +963,9 @@
         currentConfig.documents.forEach(doc => {
             const hasDocuments = doc.selected_documents && doc.selected_documents.length > 0;
             const hasAdditionalInfo = doc.additional_info && doc.additional_info.trim() !== '';
+            const hasApplicantAdditionalInfo = doc.applicant_additional_info && doc.applicant_additional_info.trim() !== '';
             
-            if (hasDocuments || hasAdditionalInfo) {
+            if (hasDocuments || hasAdditionalInfo || hasApplicantAdditionalInfo) {
                 configuredIdentities++;
             }
             
@@ -1032,7 +1034,7 @@
                 return d.singapore_identity_id === identity.id; 
             });
             const selectedDocIds = existingConfig ? (existingConfig.selected_documents.map(function(d) { return d.id; })) : [];
-            const hasExistingData = existingConfig && (selectedDocIds.length > 0 || (existingConfig.additional_info && existingConfig.additional_info.trim() !== ''));
+            const hasExistingData = existingConfig && (selectedDocIds.length > 0 || (existingConfig.additional_info && existingConfig.additional_info.trim() !== '') || (existingConfig.applicant_additional_info && existingConfig.applicant_additional_info.trim() !== ''));
             const statusText = hasExistingData ? '已配置' : '未配置';
             const statusColor = hasExistingData ? 'var(--color-success)' : 'var(--color-text-gray)';
             const identityName = identity.identity_zh === 'SHARE' ? '共用文档' : identity.identity_zh;
@@ -1060,7 +1062,18 @@
                     </div>
                     <div class="additional-info">
                         <h4>补充信息</h4>
-                        <textarea id="additional_${identityId}" placeholder="输入补充信息...">${existingConfig ? (existingConfig.additional_info || '') : ''}</textarea>
+                        <div style="margin-bottom: 12px;">
+                            <label style="display: block; margin-bottom: 4px; font-weight: 600; color: var(--color-text-dark);">
+                                <i class="fas fa-building"></i> 旅行社补充信息
+                            </label>
+                            <textarea id="additional_${identityId}" placeholder="输入旅行社补充信息...">${existingConfig ? (existingConfig.additional_info || '') : ''}</textarea>
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 4px; font-weight: 600; color: var(--color-text-dark);">
+                                <i class="fas fa-user"></i> 申请人补充信息
+                            </label>
+                            <textarea id="applicant_additional_${identityId}" placeholder="输入申请人补充信息...">${existingConfig ? (existingConfig.applicant_additional_info || '') : ''}</textarea>
+                        </div>
                     </div>
                 </div>
             `;
@@ -1080,7 +1093,8 @@
             });
             const hasExistingData = existingConfig && (
                 (existingConfig.selected_documents && existingConfig.selected_documents.length > 0) || 
-                (existingConfig.additional_info && existingConfig.additional_info.trim() !== '')
+                (existingConfig.additional_info && existingConfig.additional_info.trim() !== '') ||
+                (existingConfig.applicant_additional_info && existingConfig.applicant_additional_info.trim() !== '')
             );
             const statusIcon = hasExistingData ? 'fa-check-circle' : 'fa-circle';
             const statusColor = hasExistingData ? 'var(--color-success)' : 'var(--color-text-gray)';
@@ -1275,7 +1289,8 @@
                 if (identityConfig) {
                     const selectedDocIds = Array.from(identityConfig.querySelectorAll('input[type="checkbox"]:checked'))
                         .map(cb => parseInt(cb.id.split('_')[1]));
-                    const additionalInfo = identityConfig.querySelector('textarea').value;
+                    const additionalInfo = identityConfig.querySelector('#additional_' + identity.id).value;
+                    const applicantAdditionalInfo = identityConfig.querySelector('#applicant_additional_' + identity.id).value;
                     
                     // 收集准备方信息
                     const documentsWithResponsibleParty = [];
@@ -1294,7 +1309,8 @@
                     identityConfigs.push({
                         identity_id: identityId,
                         documents: documentsWithResponsibleParty,
-                        additional_info: additionalInfo
+                        additional_info: additionalInfo,
+                        applicant_additional_info: applicantAdditionalInfo
                     });
                     
                     const identityName = identity.identity_zh === 'SHARE' ? '共用文档' : identity.identity_zh;
@@ -1302,7 +1318,8 @@
                     console.log(`DEBUG: 收集身份 ${identityName} 的配置:`, {
                         identity_id: identityId,
                         document_ids: selectedDocIds,
-                        additional_info: additionalInfo
+                        additional_info: additionalInfo,
+                        applicant_additional_info: applicantAdditionalInfo
                     });
                 } else {
                     console.warn(`DEBUG: 找不到身份 ${identity.identity_zh} 的配置元素`);
@@ -1311,7 +1328,8 @@
                     identityConfigs.push({
                         identity_id: identityId,
                         document_ids: [],
-                        additional_info: ''
+                        additional_info: '',
+                        applicant_additional_info: ''
                     });
                 }
             });

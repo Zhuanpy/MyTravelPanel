@@ -331,6 +331,7 @@
                     <th>中文名称</th>
                     <th>英文名称</th>
                     <th>国家代码</th>
+                    <th style="text-align: center; width: 80px;">国旗</th>
                     <th style="text-align: center; width: 200px;">操作</th>
                 </tr>
             </thead>
@@ -340,6 +341,16 @@
                     <td>{{ country.country_name_CN }}</td>
                     <td>{{ country.country_name_EN }}</td>
                     <td>{{ country.country_code }}</td>
+                    <td style="text-align: center;">
+                        {% if country.flag_file %}
+                        <img src="{{ url_for('static', filename='images/flags/' + country.flag_file) }}" 
+                             alt="{{ country.country_name_CN }} 国旗" 
+                             style="width: 32px; height: 24px; object-fit: cover; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.2);"
+                             onerror="this.style.display='none'">
+                        {% else %}
+                        <span style="color: #999; font-size: 12px;">无国旗</span>
+                        {% endif %}
+                    </td>
                     <td>
                         <div class="country-actions">
                             <button onclick="editCountry({{ country.id }})" class="country-btn country-btn-edit">
@@ -378,7 +389,7 @@
         <div class="country-modal-body">
             <div id="addModalAlert" class="country-alert" style="display: none;"></div>
             
-            <form method="POST" id="addCountryForm">
+            <form method="POST" id="addCountryForm" enctype="multipart/form-data">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 
                 <div class="country-form-row">
@@ -395,6 +406,17 @@
                 <div class="country-form-group">
                     <label class="country-form-label">国家代码</label>
                     <input type="text" name="country_code" class="country-form-control" required placeholder="请输入国家代码">
+                </div>
+                
+                <div class="country-form-group">
+                    <label class="country-form-label">国旗图片</label>
+                    <input type="file" name="flag_file" id="addFlagFile" class="country-form-control" accept=".png,.jpg,.jpeg,.gif,.svg">
+                    <small style="color: #666; font-size: 12px; margin-top: 4px; display: block;">
+                        支持 PNG、JPG、JPEG、GIF、SVG 格式，建议尺寸 64x64px
+                    </small>
+                    <div id="addFlagPreview" style="margin-top: 8px; display: none;">
+                        <img id="addFlagPreviewImg" style="width: 64px; height: 48px; object-fit: cover; border-radius: 4px; border: 1px solid #ddd;">
+                    </div>
                 </div>
             </form>
         </div>
@@ -415,7 +437,7 @@
         <div class="country-modal-body">
             <div id="editModalAlert" class="country-alert" style="display: none;"></div>
             
-            <form method="POST" id="editCountryForm">
+            <form method="POST" id="editCountryForm" enctype="multipart/form-data">
                 <input type="hidden" name="country_id" id="editCountryId">
                 
                 <div class="country-form-row">
@@ -432,6 +454,22 @@
                 <div class="country-form-group">
                     <label class="country-form-label">国家代码</label>
                     <input type="text" name="country_code" id="editCountryCode" class="country-form-control" required placeholder="请输入国家代码">
+                </div>
+                
+                <div class="country-form-group">
+                    <label class="country-form-label">国旗图片</label>
+                    <div id="editCurrentFlag" style="margin-bottom: 8px;">
+                        <img id="editCurrentFlagImg" style="width: 64px; height: 48px; object-fit: cover; border-radius: 4px; border: 1px solid #ddd; display: none;">
+                        <span id="editNoFlagText" style="color: #999; font-size: 12px;">当前无国旗</span>
+                    </div>
+                    <input type="file" name="flag_file" id="editFlagFile" class="country-form-control" accept=".png,.jpg,.jpeg,.gif,.svg">
+                    <small style="color: #666; font-size: 12px; margin-top: 4px; display: block;">
+                        支持 PNG、JPG、JPEG、GIF、SVG 格式，建议尺寸 64x64px
+                    </small>
+                    <div id="editFlagPreview" style="margin-top: 8px; display: none;">
+                        <img id="editFlagPreviewImg" style="width: 64px; height: 48px; object-fit: cover; border-radius: 4px; border: 1px solid #ddd;">
+                        <span style="color: #666; font-size: 12px; margin-left: 8px;">新国旗预览</span>
+                    </div>
                 </div>
             </form>
         </div>
@@ -454,6 +492,7 @@ function closeAddModal() {
     document.body.style.overflow = '';
     document.getElementById('addCountryForm').reset();
     document.getElementById('addModalAlert').style.display = 'none';
+    document.getElementById('addFlagPreview').style.display = 'none';
 }
 
 function showEditModal() {
@@ -466,6 +505,7 @@ function closeEditModal() {
     document.body.style.overflow = '';
     document.getElementById('editCountryForm').reset();
     document.getElementById('editModalAlert').style.display = 'none';
+    document.getElementById('editFlagPreview').style.display = 'none';
 }
 
 // 点击弹窗外部关闭
@@ -598,6 +638,18 @@ function editCountry(id) {
             document.getElementById('editCountryNameEN').value = data.data.country_name_EN;
             document.getElementById('editCountryCode').value = data.data.country_code;
             
+            // 填充国旗数据
+            const currentFlagImg = document.getElementById('editCurrentFlagImg');
+            const noFlagText = document.getElementById('editNoFlagText');
+            if (data.data.flag_file) {
+                currentFlagImg.src = `/static/images/flags/${data.data.flag_file}`;
+                currentFlagImg.style.display = 'block';
+                noFlagText.style.display = 'none';
+            } else {
+                currentFlagImg.style.display = 'none';
+                noFlagText.style.display = 'block';
+            }
+            
             // 显示编辑弹窗
             showEditModal();
         } else {
@@ -633,5 +685,40 @@ function deleteCountry(id) {
         });
     }
 }
+
+// 文件预览功能
+document.getElementById('addFlagFile').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    const preview = document.getElementById('addFlagPreview');
+    const previewImg = document.getElementById('addFlagPreviewImg');
+    
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            previewImg.src = e.target.result;
+            preview.style.display = 'block';
+        };
+        reader.readAsDataURL(file);
+    } else {
+        preview.style.display = 'none';
+    }
+});
+
+document.getElementById('editFlagFile').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    const preview = document.getElementById('editFlagPreview');
+    const previewImg = document.getElementById('editFlagPreviewImg');
+    
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            previewImg.src = e.target.result;
+            preview.style.display = 'block';
+        };
+        reader.readAsDataURL(file);
+    } else {
+        preview.style.display = 'none';
+    }
+});
 </script>
 {% endblock %} 

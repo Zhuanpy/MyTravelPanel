@@ -47,6 +47,17 @@
                         </div>
                     </div>
                     
+                    <!-- 签证说明 -->
+                    <div class="info-item">
+                        <div class="info-label">
+                            <i class="fas fa-file-alt time-icon"></i>
+                            <span class="label-text">签证说明</span>
+                        </div>
+                        <div class="visa-introduction">
+                            <p class="introduction-text">{{ visa_type.introduction or '请咨询' }}</p>
+                        </div>
+                    </div>
+                    
                     <!-- 费用信息 -->
                     <div class="info-item">
                         <div class="info-label">
@@ -103,6 +114,7 @@
                             </div>
                         </div>
                     </div>
+                        
                         
                         <!-- 补充信息 -->
                         {% if visa_type.additional_info %}
@@ -299,24 +311,48 @@
     /* 文档列表样式 */
     .document-list {
         margin-top: 1rem;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
     }
     
     .document-item {
-        display: flex;
+        display: inline-flex;
         align-items: center;
-        margin-bottom: 0.4rem;
-        padding: 0.3rem 0;
+        padding: 0.4rem 0.8rem;
+        background: #f8f9fa;
+        border: 1px solid #e9ecef;
+        border-radius: 16px;
+        font-size: 0.85rem;
+        transition: all 0.2s ease;
+        margin-bottom: 0.5rem;
+    }
+    
+    .document-item:hover {
+        background: #e9ecef;
+        border-color: #28a745;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
     
     .document-item i {
         color: #28a745;
-        margin-right: 0.75rem;
-        font-size: 0.9rem;
+        margin-right: 0.5rem;
+        font-size: 0.8rem;
     }
     
     .document-item span {
         color: #2c3e50;
-        font-size: 0.9rem;
+        font-size: 0.85rem;
+        white-space: nowrap;
+    }
+    
+    .document-item .document-number {
+        color: #28a745;
+        font-weight: bold;
+        margin-right: 0.5rem;
+        min-width: 1.5rem;
+        text-align: center;
     }
     
     /* 加载状态 */
@@ -338,6 +374,46 @@
     @keyframes spin {
         0% { transform: rotate(0deg); }
         100% { transform: rotate(360deg); }
+    }
+    
+    /* 签证介绍样式 */
+    .visa-introduction {
+        margin-left: 1.5rem;
+    }
+    
+    .introduction-text {
+        color: #2c3e50;
+        font-size: 0.95rem;
+        line-height: 1.6;
+        margin: 0;
+        white-space: pre-line;
+    }
+    
+    /* 签证说明样式 */
+    .visa-details {
+        margin-left: 1.5rem;
+    }
+    
+    .detail-row {
+        display: flex;
+        align-items: center;
+        margin-bottom: 0.5rem;
+    }
+    
+    .detail-row:last-child {
+        margin-bottom: 0;
+    }
+    
+    .detail-label {
+        font-weight: 500;
+        color: #6c757d;
+        min-width: 80px;
+        font-size: 0.9rem;
+    }
+    
+    .detail-value {
+        color: #2c3e50;
+        font-size: 0.9rem;
     }
     
     /* 响应式调整 */
@@ -421,7 +497,7 @@ function selectIdentity(identity) {
         })
         .then(function(data) {
             if (data.success) {
-                renderDocuments(data.document_info, data.additional_info);
+                renderDocuments(data.document_info, data.additional_info, data.applicant_additional_info);
             } else {
                 container.innerHTML = '<div class="text-center py-4"><i class="fas fa-exclamation-triangle text-warning mb-2" style="font-size: 2rem;"></i><p class="text-muted">加载资料失败，请稍后重试</p></div>';
             }
@@ -432,7 +508,7 @@ function selectIdentity(identity) {
         });
 }
 
-function renderDocuments(documentInfo, additionalInfo) {
+function renderDocuments(documentInfo, additionalInfo, applicantAdditionalInfo) {
     var container = document.getElementById('documentContent');
     var html = '';
     
@@ -441,6 +517,7 @@ function renderDocuments(documentInfo, additionalInfo) {
         
         // 解析文档信息
         var lines = documentInfo.split('\n');
+        var documentIndex = 1; // 文档序号计数器
         
         for (var i = 0; i < lines.length; i++) {
             var line = lines[i];
@@ -449,27 +526,33 @@ function renderDocuments(documentInfo, additionalInfo) {
                     // 分类标题 - 在截图中没有显示分类，所以跳过
                     continue;
                 } else if (line.startsWith('•')) {
-                    // 文档项目 - 按照截图样式显示
+                    // 文档项目 - 按照截图样式显示，添加序号
                     var documentName = line.substring(1).trim();
                     html += '<div class="document-item">';
+                    html += '<span class="document-number">' + documentIndex + '.</span>';
                     html += '<i class="fas fa-check"></i>';
                     html += '<span>' + documentName + '</span>';
                     html += '</div>';
+                    documentIndex++;
                 } else if (line.trim() && !line.startsWith('【') && !line.startsWith('•')) {
-                    // 普通文档项目
+                    // 普通文档项目，添加序号
                     html += '<div class="document-item">';
+                    html += '<span class="document-number">' + documentIndex + '.</span>';
                     html += '<i class="fas fa-check"></i>';
                     html += '<span>' + line.trim() + '</span>';
                     html += '</div>';
+                    documentIndex++;
                 }
             }
         }
         
         html += '</div>';
         
-        // 添加补充信息
-        if (additionalInfo && additionalInfo !== '暂无补充信息') {
-            html += '<div class="mt-4 p-3 bg-light rounded"><h6 class="text-info mb-2"><i class="fas fa-info-circle me-2"></i>补充说明</h6><p class="text-muted mb-0">' + additionalInfo + '</p></div>';
+        // 添加申请人补充信息（公开页面不显示旅行社补充信息）
+        if (applicantAdditionalInfo && applicantAdditionalInfo !== '暂无申请人补充信息') {
+            // 将换行符转换为HTML换行
+            var formattedInfo = applicantAdditionalInfo.replace(/\n/g, '<br>');
+            html += '<div class="mt-4 p-3 bg-light rounded"><h6 class="text-info mb-2"><i class="fas fa-info-circle me-2"></i>补充信息</h6><p class="text-muted mb-0">' + formattedInfo + '</p></div>';
         }
     } else {
         html = '<div class="text-center py-4"><i class="fas fa-file-alt text-muted mb-2" style="font-size: 2rem;"></i><p class="text-muted">暂无文件资料</p></div>';

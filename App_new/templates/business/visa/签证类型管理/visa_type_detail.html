@@ -132,6 +132,18 @@
         transform: translateY(-2px);
     }
 
+    .action-button.sort {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        color: white;
+        border: none;
+        cursor: pointer;
+    }
+
+    .action-button.sort:hover {
+        background: linear-gradient(135deg, #059669 0%, #047857 100%);
+        transform: translateY(-2px);
+    }
+
     /* ========= 信息卡片网格 ========= */
     .info-grid {
         display: grid;
@@ -441,6 +453,38 @@
         font-weight: 500;
     }
 
+    /* ========= 文档排序样式 ========= */
+    .sortable-document-list {
+        margin-top: 1rem;
+    }
+    
+    .sortable-item {
+        transition: all 0.2s ease;
+    }
+    
+    .sortable-item:hover {
+        transform: translateY(-1px);
+        box-shadow: var(--shadow-md);
+    }
+    
+    .sortable-item.dragging {
+        opacity: 0.5;
+        transform: rotate(2deg);
+    }
+    
+    .sortable-list {
+        min-height: 100px;
+    }
+    
+    .sortable-item:last-child {
+        margin-bottom: 0;
+    }
+    
+    .document-header {
+        border-bottom: 1px solid var(--color-border);
+        padding-bottom: 0.5rem;
+    }
+
     /* ========= 响应式设计 ========= */
     @media (max-width: 768px) {
         .header-content {
@@ -504,6 +548,10 @@
                 </div>
             </div>
             <div class="header-actions">
+                <a href="{{ url_for('visa_basic.document_order_manager', visa_type=visa_type.visa_type) }}" class="action-button sort">
+                    <i class="fas fa-sort"></i>
+                    调整顺序
+                </a>
                 <button onclick="openTemplateModal()" class="action-button template">
                     <i class="fas fa-copy"></i>
                     套用模板
@@ -645,7 +693,18 @@
             <div id="documents-share" class="documents-list">
                 {% if document_data.SHARE and document_data.SHARE.document_info %}
                     <div class="document-info-display">
-                        <pre style="white-space: pre-wrap; font-family: inherit; margin: 0; padding: 1rem; background: var(--color-light-bg); border-radius: var(--radius); border: 1px solid var(--color-border);">{{ document_data.SHARE.document_info }}</pre>
+                        <div class="document-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                            <h5 style="margin: 0; color: var(--color-text-dark);">申请人准备资料</h5>
+                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="toggleDocumentOrder('share')">
+                                <i class="fas fa-sort"></i> 调整顺序
+                            </button>
+                        </div>
+                        <div id="document-list-share" class="sortable-document-list">
+                            <!-- 文档列表将通过JavaScript动态加载 -->
+                        </div>
+                        <div id="document-display-share" class="document-info-display" style="display: none;">
+                            <pre style="white-space: pre-wrap; font-family: inherit; margin: 0; padding: 1rem; background: var(--color-light-bg); border-radius: var(--radius); border: 1px solid var(--color-border);">{{ document_data.SHARE.document_info }}</pre>
+                        </div>
                     </div>
                 {% else %}
                     <div class="loading" style="text-align: center; padding: 2rem; color: var(--color-text-gray);">暂无共用资料配置</div>
@@ -656,7 +715,18 @@
                 <div id="documents-{{ identity }}" class="documents-list" style="display: none;">
                     {% if document_data[identity] and document_data[identity].document_info %}
                         <div class="document-info-display">
-                            <pre style="white-space: pre-wrap; font-family: inherit; margin: 0; padding: 1rem; background: var(--color-light-bg); border-radius: var(--radius); border: 1px solid var(--color-border);">{{ document_data[identity].document_info }}</pre>
+                            <div class="document-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                                <h5 style="margin: 0; color: var(--color-text-dark);">{{ identity }}身份申请人准备资料</h5>
+                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="toggleDocumentOrder('{{ identity }}')">
+                                    <i class="fas fa-sort"></i> 调整顺序
+                                </button>
+                            </div>
+                            <div id="document-list-{{ identity }}" class="sortable-document-list">
+                                <!-- 文档列表将通过JavaScript动态加载 -->
+                            </div>
+                            <div id="document-display-{{ identity }}" class="document-info-display" style="display: none;">
+                                <pre style="white-space: pre-wrap; font-family: inherit; margin: 0; padding: 1rem; background: var(--color-light-bg); border-radius: var(--radius); border: 1px solid var(--color-border);">{{ document_data[identity].document_info }}</pre>
+                            </div>
                         </div>
                     {% else %}
                         <div class="loading" style="text-align: center; padding: 2rem; color: var(--color-text-gray);">暂无{{ identity }}身份文档配置</div>
@@ -738,7 +808,7 @@
                         {% endif %}
                     </div>
                     <div class="template-actions">
-                        <button class="template-action download" onclick="downloadTemplate({{ template.id }})">
+                        <button class="template-action download" data-template-id="{{ template.id }}" onclick="downloadTemplate(this.dataset.templateId)">
                             <i class="fas fa-download"></i> 下载
                         </button>
                     </div>
@@ -1097,6 +1167,241 @@
         }
     }
 
+    // ========== 文档排序功能 ==========
+    let sortableMode = {};
+    
+    function toggleDocumentOrder(identityType) {
+        const listContainer = document.getElementById(`document-list-${identityType}`);
+        const displayContainer = document.getElementById(`document-display-${identityType}`);
+        const button = document.querySelector(`button[onclick="toggleDocumentOrder('${identityType}')"]`);
+        
+        if (sortableMode[identityType]) {
+            // 退出排序模式
+            sortableMode[identityType] = false;
+            listContainer.style.display = 'none';
+            displayContainer.style.display = 'block';
+            button.innerHTML = '<i class="fas fa-sort"></i> 调整顺序';
+            button.classList.remove('btn-success');
+            button.classList.add('btn-outline-primary');
+        } else {
+            // 进入排序模式
+            sortableMode[identityType] = true;
+            loadDocumentListForSorting(identityType);
+            listContainer.style.display = 'block';
+            displayContainer.style.display = 'none';
+            button.innerHTML = '<i class="fas fa-check"></i> 完成排序';
+            button.classList.remove('btn-outline-primary');
+            button.classList.add('btn-success');
+        }
+    }
+    
+    function loadDocumentListForSorting(identityType) {
+        const container = document.getElementById(`document-list-${identityType}`);
+        
+        // 从后端API获取文档详情
+        const visaTypeId = parseInt('{{ visa_type.id }}');
+        fetch(`/visa/basic/api/get_document_details/${visaTypeId}`)
+            .then(response => response.json())
+            .then(result => {
+                if (result.success) {
+                    let documents = [];
+                    let visaDocumentId = 0;
+                    
+                    if (identityType === 'SHARE' && result.data.share_doc) {
+                        documents = result.data.share_doc.documents;
+                        visaDocumentId = result.data.share_doc.visa_document_id;
+                    } else if (result.data.specific_docs[identityType]) {
+                        documents = result.data.specific_docs[identityType].documents;
+                        visaDocumentId = result.data.specific_docs[identityType].visa_document_id;
+                    }
+                    
+                    if (documents.length === 0) {
+                        container.innerHTML = '<div class="text-center py-4"><p class="text-muted">暂无文档</p></div>';
+                        return;
+                    }
+                    
+                    generateSortableList(container, documents, visaDocumentId, identityType);
+                } else {
+                    container.innerHTML = '<div class="text-center py-4"><p class="text-danger">加载文档失败: ' + result.message + '</p></div>';
+                }
+            })
+            .catch(error => {
+                console.error('获取文档详情失败:', error);
+                container.innerHTML = '<div class="text-center py-4"><p class="text-danger">加载文档失败</p></div>';
+            });
+    }
+    
+    function generateSortableList(container, documents, visaDocumentId, identityType) {
+        // 生成可排序的列表
+        let html = '<div class="sortable-list">';
+        documents.forEach((doc, index) => {
+            html += `
+                <div class="sortable-item" 
+                     data-index="${index}" 
+                     data-document-id="${doc.id}" 
+                     data-visa-document-id="${visaDocumentId}"
+                     style="
+                        display: flex;
+                        align-items: center;
+                        padding: 0.75rem;
+                        margin-bottom: 0.5rem;
+                        background: white;
+                        border: 1px solid var(--color-border);
+                        border-radius: var(--radius);
+                        cursor: move;
+                        transition: all 0.2s ease;
+                    ">
+                    <i class="fas fa-grip-vertical" style="color: var(--color-text-gray); margin-right: 0.75rem;"></i>
+                    <span style="flex: 1; color: var(--color-text-dark);">${doc.name}</span>
+                    <span class="order-number" style="
+                        background: var(--color-accent);
+                        color: white;
+                        padding: 0.25rem 0.5rem;
+                        border-radius: 50%;
+                        font-size: 0.8rem;
+                        min-width: 1.5rem;
+                        text-align: center;
+                    ">${index + 1}</span>
+                </div>
+            `;
+        });
+        html += '</div>';
+        
+        // 添加操作按钮
+        html += `
+            <div style="margin-top: 1rem; text-align: center;">
+                <button type="button" class="btn btn-primary" onclick="saveDocumentOrder('${identityType}')">
+                    <i class="fas fa-save"></i> 保存顺序
+                </button>
+                <button type="button" class="btn btn-secondary ml-2" onclick="toggleDocumentOrder('${identityType}')">
+                    <i class="fas fa-times"></i> 取消
+                </button>
+            </div>
+        `;
+        
+        container.innerHTML = html;
+        
+        // 启用拖拽排序
+        enableDragSort(container);
+    }
+    
+    function enableDragSort(container) {
+        const sortableList = container.querySelector('.sortable-list');
+        if (!sortableList) return;
+        
+        // 改进的拖拽排序实现
+        let draggedElement = null;
+        let draggedIndex = -1;
+        
+        const items = sortableList.querySelectorAll('.sortable-item');
+        items.forEach((item, index) => {
+            item.draggable = true;
+            
+            item.addEventListener('dragstart', function(e) {
+                draggedElement = this;
+                draggedIndex = index;
+                this.style.opacity = '0.5';
+                e.dataTransfer.effectAllowed = 'move';
+            });
+            
+            item.addEventListener('dragend', function(e) {
+                this.style.opacity = '1';
+                draggedElement = null;
+                draggedIndex = -1;
+            });
+            
+            item.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+            });
+            
+            item.addEventListener('drop', function(e) {
+                e.preventDefault();
+                if (draggedElement && draggedElement !== this) {
+                    const targetIndex = Array.from(sortableList.children).indexOf(this);
+                    
+                    // 使用更安全的方法重新排序
+                    if (draggedIndex < targetIndex) {
+                        // 向下移动
+                        sortableList.insertBefore(draggedElement, this.nextSibling);
+                    } else {
+                        // 向上移动
+                        sortableList.insertBefore(draggedElement, this);
+                    }
+                    
+                    updateOrderNumbers();
+                }
+            });
+        });
+    }
+    
+    function updateOrderNumbers() {
+        // 只更新当前排序容器中的项目编号
+        const activeSortableList = document.querySelector('.sortable-list');
+        if (!activeSortableList) return;
+        
+        const items = activeSortableList.querySelectorAll('.sortable-item');
+        items.forEach((item, index) => {
+            const orderNumber = item.querySelector('.order-number');
+            if (orderNumber) {
+                orderNumber.textContent = index + 1;
+            }
+        });
+    }
+    
+    function saveDocumentOrder(identityType) {
+        // 只获取当前排序容器中的项目
+        const activeSortableList = document.querySelector('.sortable-list');
+        if (!activeSortableList) {
+            alert('没有找到可排序的文档列表');
+            return;
+        }
+        
+        const items = activeSortableList.querySelectorAll('.sortable-item');
+        const orders = [];
+        
+        items.forEach((item, index) => {
+            const visaDocumentId = parseInt(item.dataset.visaDocumentId);
+            const documentId = parseInt(item.dataset.documentId);
+            orders.push({
+                visa_document_id: visaDocumentId,
+                document_id: documentId,
+                order: index
+            });
+        });
+        
+        // 发送到后端保存
+        const visaTypeId = parseInt('{{ visa_type.id }}');
+        const data = {
+            identity_type: identityType,
+            document_orders: orders
+        };
+        
+        fetch(`/visa/basic/api/update_document_order/${visaTypeId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token() }}'
+            },
+            body: JSON.stringify(data)
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                alert('文档顺序保存成功！');
+                toggleDocumentOrder(identityType);
+                // 刷新页面以显示新的顺序
+                window.location.reload();
+            } else {
+                alert('保存失败: ' + result.message);
+            }
+        })
+        .catch(error => {
+            console.error('保存文档顺序失败:', error);
+            alert('保存失败，请稍后重试');
+        });
+    }
+
     // 点击模态框外部关闭
     window.onclick = function(event) {
         const modal = document.getElementById('templateModal');
@@ -1104,5 +1409,6 @@
             closeTemplateModal();
         }
     }
+
 </script>
 {% endblock %} 

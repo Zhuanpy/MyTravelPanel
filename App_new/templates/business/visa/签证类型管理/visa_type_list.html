@@ -192,6 +192,10 @@
                 <input type="text" name="fee" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
             </div>
             <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 8px; font-weight: 500;">签证说明：</label>
+                <textarea name="introduction" rows="4" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;" placeholder="请输入签证说明，包括有效期、停留期、入境次数等信息"></textarea>
+            </div>
+            <div style="margin-bottom: 20px;">
                 <label style="display: block; margin-bottom: 8px; font-weight: 500;">新加坡身份：</label>
                 <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; max-height: 200px; overflow-y: auto;">
                     {% for identity in singapore_identities %}
@@ -240,6 +244,10 @@
                 <input type="text" name="fee" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;" placeholder="请输入申请费用">
             </div>
             <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 8px; font-weight: 500;">签证说明：</label>
+                <textarea name="introduction" rows="4" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;" placeholder="请输入签证说明，包括有效期、停留期、入境次数等信息"></textarea>
+            </div>
+            <div style="margin-bottom: 20px;">
                 <label style="display: block; margin-bottom: 8px; font-weight: 500;">新加坡身份：</label>
                 <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; max-height: 200px; overflow-y: auto;">
                     {% for identity in singapore_identities %}
@@ -286,6 +294,10 @@
             <div style="margin-bottom: 20px;">
                 <label style="display: block; margin-bottom: 8px; font-weight: 500;">申请费用：</label>
                 <input type="text" id="editFee" name="fee" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;" placeholder="请输入申请费用">
+            </div>
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 8px; font-weight: 500;">签证说明：</label>
+                <textarea id="editIntroduction" name="introduction" rows="4" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;" placeholder="请输入签证说明，包括有效期、停留期、入境次数等信息"></textarea>
             </div>
             <div style="margin-bottom: 20px;">
                 <label style="display: block; margin-bottom: 8px; font-weight: 500;">新加坡身份：</label>
@@ -489,6 +501,9 @@ function openCopyModal(visaType) {
                 // 预填充申请费用
                 document.querySelector('input[name="fee"]').value = visaData.fee || '';
                 
+                // 预填充签证说明
+                document.querySelector('textarea[name="introduction"]').value = visaData.introduction || '';
+                
                 // 预填充国家
                 document.querySelector('select[name="country_id"]').value = visaData.country_id || '';
                 
@@ -537,7 +552,10 @@ function openEditAllModal(visaType, fee, processingTime) {
     feeInput.value = fee || '';
     processingTimeInput.value = processingTime || '';
     
-    // 获取签证类型数据并预填充国家信息
+    // 获取签证说明字段
+    const introductionInput = document.getElementById('editIntroduction');
+    
+    // 获取签证类型数据并预填充国家信息和签证说明
     fetch(`/visa/basic/api/get_visa_type_data/${encodeURIComponent(visaType)}`)
         .then(response => response.json())
         .then(data => {
@@ -546,6 +564,10 @@ function openEditAllModal(visaType, fee, processingTime) {
                 // 预填充国家
                 if (countryIdInput) {
                     countryIdInput.value = visaData.country_id || '';
+                }
+                // 预填充签证说明
+                if (introductionInput) {
+                    introductionInput.value = visaData.introduction || '';
                 }
             }
         })

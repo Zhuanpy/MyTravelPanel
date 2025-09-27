@@ -1,0 +1,537 @@
+{% extends "staff_base.html" %}
+
+{% block page_title %}Document Order Manager{% endblock %}
+
+{% block extra_css %}
+<!-- FontAwesome 6.5.0 -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" integrity="sha512-Avb2QiuDEEvB4bZJYdft2mNjVShBftLdPG8FJ0V7irTLQ8Uo0qcPxh4Plq7G5tGm0rU+1SPhVotteLpBERwTkw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+<style>
+    /* ========= 全局变量定义 ========= */
+    :root {
+        --color-primary: #2a5298;
+        --color-primary-hover: #1a365d;
+        --color-accent: #3a6ea5;
+        --color-accent-bg: #eaf1fb;
+        --color-accent-bg-hover: #d2e6fa;
+        --color-text-dark: #2d3a4b;
+        --color-text-gray: #6c7a89;
+        --color-border: #e2e8f0;
+        --color-light-bg: #f8f9fa;
+        --color-success: #10b981;
+        --color-warning: #f59e0b;
+        --color-danger: #ef4444;
+        --radius: 8px;
+        --radius-lg: 12px;
+        --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+        --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.1);
+        --shadow-lg: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    /* ========= 基础容器 ========= */
+    .order-container {
+        max-width: 1000px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+
+    /* ========= 页面头部 ========= */
+    .order-header {
+        background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+        padding: 2rem;
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-md);
+        margin-bottom: 2rem;
+        position: relative;
+        border: 1px solid var(--color-border);
+    }
+
+    .header-content {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+
+    .header-info h1 {
+        margin: 0;
+        color: var(--color-text-dark);
+        font-size: 1.8rem;
+        font-weight: 700;
+    }
+
+    .country {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        color: var(--color-text-gray);
+        font-size: 1rem;
+        margin-top: 0.5rem;
+    }
+
+    .header-actions {
+        display: flex;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+    }
+
+    .action-button {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.75rem 1.5rem;
+        border-radius: var(--radius);
+        text-decoration: none;
+        font-weight: 500;
+        font-size: 0.9rem;
+        transition: all 0.2s ease;
+        border: none;
+        cursor: pointer;
+        box-shadow: var(--shadow-sm);
+    }
+
+    .action-button:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+        text-decoration: none;
+    }
+
+    .action-button.primary {
+        background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-hover) 100%);
+        color: white;
+    }
+
+    .action-button.primary:hover {
+        background: linear-gradient(135deg, var(--color-primary-hover) 0%, #0f172a 100%);
+        color: white;
+    }
+
+    .action-button.back {
+        background: var(--color-light-bg);
+        color: var(--color-text-gray);
+        border: 1px solid var(--color-border);
+    }
+
+    .action-button.back:hover {
+        background: var(--color-border);
+        color: var(--color-text-dark);
+    }
+
+    .action-button.save {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        color: white;
+    }
+
+    .action-button.save:hover {
+        background: linear-gradient(135deg, #059669 0%, #047857 100%);
+        color: white;
+    }
+
+    /* ========= 文档列表 ========= */
+    .documents-section {
+        background: white;
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-md);
+        padding: 2rem;
+        margin-bottom: 2rem;
+    }
+
+    .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+        padding-bottom: 1rem;
+        border-bottom: 2px solid var(--color-border);
+    }
+
+    .section-title {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        font-size: 1.3rem;
+        font-weight: 600;
+        color: var(--color-text-dark);
+        margin: 0;
+    }
+
+    .section-info {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        font-size: 0.9rem;
+        color: var(--color-text-gray);
+    }
+
+    .documents-list {
+        min-height: 200px;
+    }
+
+    .document-item {
+        display: flex;
+        align-items: center;
+        padding: 1.25rem;
+        margin-bottom: 0.75rem;
+        background: white;
+        border: 2px solid var(--color-border);
+        border-radius: var(--radius);
+        cursor: move;
+        transition: all 0.3s ease;
+        box-shadow: var(--shadow-sm);
+        position: relative;
+    }
+
+    .document-item:hover {
+        border-color: var(--color-accent);
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+    }
+
+    .document-item.dragging {
+        opacity: 0.6;
+        transform: rotate(2deg);
+        box-shadow: var(--shadow-lg);
+    }
+
+    .drag-handle {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 2rem;
+        height: 2rem;
+        color: var(--color-text-gray);
+        font-size: 1.2rem;
+        margin-right: 1rem;
+        cursor: grab;
+    }
+
+    .drag-handle:active {
+        cursor: grabbing;
+    }
+
+    .document-info {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+
+    .document-name {
+        font-weight: 600;
+        color: var(--color-text-dark);
+        font-size: 1rem;
+        margin: 0;
+    }
+
+    .document-identities {
+        font-size: 0.85rem;
+        color: var(--color-text-gray);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .identity-tag {
+        background: var(--color-accent-bg);
+        color: var(--color-accent);
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        font-weight: 500;
+    }
+
+    .order-number {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 2.5rem;
+        height: 2.5rem;
+        background: linear-gradient(135deg, var(--color-accent) 0%, var(--color-primary) 100%);
+        color: white;
+        border-radius: 50%;
+        font-weight: 700;
+        font-size: 1rem;
+        margin-left: 1rem;
+        box-shadow: var(--shadow-sm);
+    }
+
+    /* ========= 空状态 ========= */
+    .empty-state {
+        text-align: center;
+        padding: 3rem 2rem;
+        color: var(--color-text-gray);
+    }
+
+    .empty-state i {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        color: var(--color-border);
+    }
+
+    .empty-state h3 {
+        margin-bottom: 0.5rem;
+        color: var(--color-text-dark);
+    }
+
+    .empty-state p {
+        margin-bottom: 1.5rem;
+    }
+
+    /* ========= 操作按钮 ========= */
+    .action-buttons {
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+        margin-top: 2rem;
+        padding-top: 2rem;
+        border-top: 1px solid var(--color-border);
+    }
+
+    /* ========= 响应式设计 ========= */
+    @media (max-width: 768px) {
+        .order-container {
+            padding: 1rem;
+        }
+        
+        .order-header {
+            padding: 1.5rem;
+        }
+        
+        .header-content {
+            flex-direction: column;
+            align-items: stretch;
+        }
+        
+        .header-actions {
+            justify-content: center;
+        }
+        
+        .documents-section {
+            padding: 1.5rem;
+        }
+        
+        .document-item {
+            padding: 1rem;
+        }
+        
+        .document-info {
+            font-size: 0.9rem;
+        }
+    }
+
+    /* ========= 加载状态 ========= */
+    .loading-state {
+        text-align: center;
+        padding: 3rem 2rem;
+    }
+
+    .spinner-border {
+        width: 3rem;
+        height: 3rem;
+        border-width: 0.3rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="order-container">
+    <!-- 页面头部 -->
+    <div class="order-header">
+        <div class="header-content">
+            <div class="header-info">
+                <h1>
+                    <i class="fas fa-sort me-2"></i>
+                    文档顺序管理
+                </h1>
+                <div class="country">
+                    <i class="fas fa-flag"></i>
+                    {{ visa_type.visa_type }} - {{ country.country_name_CN if country else '未知国家' }}
+                </div>
+            </div>
+            <div class="header-actions">
+                <button type="button" class="action-button save" onclick="saveDocumentOrder()">
+                    <i class="fas fa-save"></i>
+                    保存顺序
+                </button>
+                <a href="{{ url_for('visa_basic.visa_type_detail', visa_type=visa_type.visa_type) }}" class="action-button back">
+                    <i class="fas fa-arrow-left"></i>
+                    返回详情
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- 文档列表 -->
+    <div class="documents-section">
+        <div class="section-header">
+            <h2 class="section-title">
+                <i class="fas fa-list-ol"></i>
+                申请人准备资料
+            </h2>
+            <div class="section-info">
+                <span><i class="fas fa-info-circle"></i> 共 {{ documents|length }} 个文档</span>
+                <span><i class="fas fa-users"></i> 已合并去重</span>
+            </div>
+        </div>
+
+        <div class="documents-list" id="documentsList">
+            {% if documents %}
+                {% for doc_data in documents %}
+                <div class="document-item" 
+                     data-document-id="{{ doc_data.document.id }}" 
+                     draggable="true">
+                    <div class="drag-handle">
+                        <i class="fas fa-grip-vertical"></i>
+                    </div>
+                    <div class="document-info">
+                        <div class="document-name">{{ doc_data.document.name }}</div>
+                        <div class="document-identities">
+                            <i class="fas fa-users"></i>
+                            适用身份:
+                            {% for assoc in doc_data.associations %}
+                                <span class="identity-tag">{{ assoc.identity_type }}</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    <div class="order-number">{{ loop.index }}</div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="empty-state">
+                    <i class="fas fa-file-alt"></i>
+                    <h3>暂无文档</h3>
+                    <p>该签证类型还没有配置申请人准备资料</p>
+                    <a href="{{ url_for('visa_basic.visa_type_document_manager') }}?visa_type={{ visa_type.visa_type }}" class="action-button primary">
+                        <i class="fas fa-cogs"></i>
+                        去配置文档
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+
+        {% if documents %}
+        <div class="action-buttons">
+            <button type="button" class="action-button save" onclick="saveDocumentOrder()">
+                <i class="fas fa-save"></i>
+                保存顺序
+            </button>
+            <a href="{{ url_for('visa_basic.visa_type_detail', visa_type=visa_type.visa_type) }}" class="action-button back">
+                <i class="fas fa-arrow-left"></i>
+                返回详情
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+    // ========== 拖拽排序功能 ==========
+    let draggedElement = null;
+    let draggedIndex = -1;
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const documentItems = document.querySelectorAll('.document-item');
+        
+        documentItems.forEach((item, index) => {
+            item.addEventListener('dragstart', function(e) {
+                draggedElement = this;
+                draggedIndex = index;
+                this.classList.add('dragging');
+                e.dataTransfer.effectAllowed = 'move';
+            });
+            
+            item.addEventListener('dragend', function(e) {
+                this.classList.remove('dragging');
+                draggedElement = null;
+                draggedIndex = -1;
+            });
+            
+            item.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+            });
+            
+            item.addEventListener('drop', function(e) {
+                e.preventDefault();
+                if (draggedElement && draggedElement !== this) {
+                    const targetIndex = Array.from(document.getElementById('documentsList').children).indexOf(this);
+                    
+                    if (draggedIndex < targetIndex) {
+                        document.getElementById('documentsList').insertBefore(draggedElement, this.nextSibling);
+                    } else {
+                        document.getElementById('documentsList').insertBefore(draggedElement, this);
+                    }
+                    
+                    updateOrderNumbers();
+                }
+            });
+        });
+    });
+
+    function updateOrderNumbers() {
+        const items = document.querySelectorAll('.document-item');
+        items.forEach((item, index) => {
+            const orderNumber = item.querySelector('.order-number');
+            if (orderNumber) {
+                orderNumber.textContent = index + 1;
+            }
+        });
+    }
+
+    function saveDocumentOrder() {
+        const items = document.querySelectorAll('.document-item');
+        const orders = [];
+        
+        items.forEach((item, index) => {
+            const documentId = parseInt(item.dataset.documentId);
+            orders.push({
+                document_id: documentId,
+                new_order: index
+            });
+        });
+        
+        const visaTypeId = {{ visa_type.id }};
+        const data = {
+            document_orders: orders
+        };
+        
+        // 显示加载状态
+        const saveButtons = document.querySelectorAll('.action-button.save');
+        saveButtons.forEach(btn => {
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 保存中...';
+            btn.disabled = true;
+        });
+        
+        fetch(`/visa/basic/api/update_all_documents_order/${visaTypeId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token() }}'
+            },
+            body: JSON.stringify(data)
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                alert('文档顺序保存成功！');
+                // 刷新页面以显示新的顺序
+                window.location.reload();
+            } else {
+                alert('保存失败: ' + result.message);
+            }
+        })
+        .catch(error => {
+            console.error('保存文档顺序失败:', error);
+            alert('保存失败，请稍后重试');
+        })
+        .finally(() => {
+            // 恢复按钮状态
+            saveButtons.forEach(btn => {
+                btn.innerHTML = '<i class="fas fa-save"></i> 保存顺序';
+                btn.disabled = false;
+            });
+        });
+    }
+</script>
+{% endblock %}

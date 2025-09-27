@@ -14,7 +14,7 @@
     
     <style>
         /* 小屏幕和浮动窗口侧边栏隐藏功能 */
-        @media (max-width: 991.98px) {
+        @media (max-width: 1899.98px) {
             #sidebar {
                 position: fixed !important;
                 top: 56px !important; /* 导航栏高度 */
@@ -73,7 +73,7 @@
         }
         
         /* 确保在大屏幕上侧边栏正常显示 */
-        @media (min-width: 992px) {
+        @media (min-width: 1900px) {
             #sidebar {
                 position: relative !important;
                 left: auto !important;
@@ -110,7 +110,7 @@
             </button>
             
             <!-- 侧边栏切换按钮 -->
-            <button class="btn btn-outline-light d-lg-none me-2" type="button" id="sidebarToggle">
+            <button class="btn btn-outline-light d-none" type="button" id="sidebarToggle">
                 <i class="fas fa-bars"></i>
             </button>
             
@@ -671,6 +671,23 @@
             const sidebar = document.getElementById('sidebar');
             const sidebarOverlay = document.getElementById('sidebarOverlay');
             
+            // 控制侧边栏切换按钮的显示
+            function toggleSidebarButton() {
+                if (window.innerWidth <= 1899) {
+                    sidebarToggle.classList.remove('d-none');
+                    sidebarToggle.classList.add('d-inline-block');
+                } else {
+                    sidebarToggle.classList.add('d-none');
+                    sidebarToggle.classList.remove('d-inline-block');
+                }
+            }
+            
+            // 初始检查
+            toggleSidebarButton();
+            
+            // 窗口大小改变时检查
+            window.addEventListener('resize', toggleSidebarButton);
+            
             if (sidebarToggle && sidebar && sidebarOverlay) {
                 // 切换侧边栏显示/隐藏
                 sidebarToggle.addEventListener('click', function() {
@@ -701,7 +718,7 @@
                     const sidebarLinks = sidebar.querySelectorAll('.nav-link');
                     sidebarLinks.forEach(function(link) {
                         link.addEventListener('click', function() {
-                            if (window.innerWidth <= 991) {
+                            if (window.innerWidth <= 1899) {
                                 sidebar.classList.remove('show');
                                 sidebarOverlay.classList.remove('show');
                                 
@@ -717,7 +734,7 @@
                 
                 // 窗口大小改变时重新绑定事件
                 window.addEventListener('resize', function() {
-                    if (window.innerWidth > 991) {
+                    if (window.innerWidth > 1899) {
                         // 大屏幕时关闭侧边栏
                         sidebar.classList.remove('show');
                         sidebarOverlay.classList.remove('show');

@@ -117,7 +117,7 @@ def visa_services():
                     else:
                         price_range = f'SGD {int(min_fee)}-{int(max_fee)}'
                 else:
-                    price_range = '价格面议'
+                    price_range = None
                 
                 # 构建处理时间
                 if processing_times:
@@ -133,6 +133,7 @@ def visa_services():
                     'country': country.country_name_CN,
                     'country_en': country.country_name_EN,
                     'country_code': country.country_code,
+                    'flag_file': country.flag_file,
                     'services': services,
                     'processing_time': processing_time,
                     'price_range': price_range,
@@ -298,9 +299,10 @@ def visa_detail(visa_type_name):
                 'description': f'{visa_type_record.visa_type}签证办理服务',
                 'processing_time': visa_type_record.processing_time or '3-5个工作日',
                 'fee': visa_type_record.fee or '请咨询',
+                'introduction': visa_type_record.introduction or '',
                 'required_documents': applicant_documents,
                 'identities': identities,
-                'additional_info': '请根据您的身份类型准备相应材料，如有疑问请联系我们。'
+                'additional_info': ''
             }
             current_app.logger.info(f"构建签证详情信息成功: {visa_detail_info['name']}")
         except Exception as ve:

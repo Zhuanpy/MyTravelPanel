@@ -109,7 +109,10 @@
             <div class="col-6 col-sm-4 col-md-3 col-lg-3">
                 <div class="visa-card position-relative h-100">
                     <a class="stretched-link" href="{{ url_for('guest.visa.visa_services_by_country', country_name=service.country) }}"></a>
-                    <div class="visa-thumb">
+                    <div class="visa-thumb" {% if service.flag_file %}style="background-image: url('{{ url_for('static', filename='images/flags/' + service.flag_file) }}'); background-size: cover; background-position: center; background-repeat: no-repeat;"{% endif %}>
+                        {% if service.flag_file %}
+                        <div class="visa-flag-overlay"></div>
+                        {% endif %}
                         <div class="visa-country">{{ service.country }}</div>
                         <div class="visa-country-en">{{ service.country_en }}</div>
                         {% if service.visa_count %}
@@ -345,27 +348,44 @@
         justify-content: flex-end;
         padding: 12px 10px 8px;
         position: relative;
+        border-radius: 8px 8px 0 0;
+        overflow: hidden;
+    }
+    .visa-grid .visa-flag-overlay{
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.3);
+        z-index: 1;
+    }
+    .visa-grid .visa-thumb > div:not(.visa-flag-overlay){
+        position: relative;
+        z-index: 2;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.7);
     }
     .visa-grid .visa-country{
         color: #fff;
         font-weight: 700;
         font-size: 1.1rem;
-        text-shadow: 0 2px 6px rgba(0,0,0,0.25);
+        text-shadow: 0 2px 8px rgba(0,0,0,0.8);
         margin-bottom: 2px;
     }
     .visa-grid .visa-country-en{
-        color: rgba(255,255,255,0.8);
+        color: rgba(255,255,255,0.95);
         font-size: 0.8rem;
-        text-shadow: 0 1px 3px rgba(0,0,0,0.25);
+        text-shadow: 0 2px 6px rgba(0,0,0,0.8);
         margin-bottom: 4px;
     }
     .visa-grid .visa-count{
-        color: rgba(255,255,255,0.9);
+        color: rgba(255,255,255,0.95);
         font-size: 0.75rem;
-        background: rgba(0,0,0,0.2);
+        background: rgba(0,0,0,0.4);
         padding: 2px 6px;
         border-radius: 10px;
         display: inline-block;
+        text-shadow: 0 1px 3px rgba(0,0,0,0.8);
     }
     .visa-grid .visa-meta{
         background: #fff;
