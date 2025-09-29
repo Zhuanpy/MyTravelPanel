@@ -105,7 +105,7 @@ def create_app():
 
     # 项目管理（新架构）
     from .business.projects import projects_bp
-    app.register_blueprint(projects_bp, url_prefix='/projects')
+    app.register_blueprint(projects_bp)
 
     # 航班模块
     from .business.flight.routes.flight_routes import flight_routes
@@ -164,8 +164,16 @@ def create_app():
     app.register_blueprint(supplier, url_prefix='/supplier')
 
     # 财务模块
-    from .finance.routes.routes import statement_blue
+    from .finance.routes.statement import statement_blue
     app.register_blueprint(statement_blue, url_prefix='/statement')
+    
+    # Athina 模块
+    from .finance.routes.athina_routes import athina_blue
+    app.register_blueprint(athina_blue, url_prefix='/statement')
+    
+    # SOA 模块
+    from .finance.routes.athina_routes_soa import soa_blue
+    app.register_blueprint(soa_blue, url_prefix='/statement')
     
     # 关键词管理模块
     from .finance.routes.keyword_routes import keyword_blue
@@ -207,6 +215,8 @@ def import_all_models():
         )
         # 银行关键词模型
         from .finance.models.bank_keywords import BankStatementKeyword, BankKeywordCategory
+        # Athina账单模型
+        from .finance.models.athina_booking import AthinaBookingHeader, AthinaBookingDetail
         # 航班
         try:
             from .business.flight.models.flight import ProjectFlightPassenger, ProjectFlightSegment

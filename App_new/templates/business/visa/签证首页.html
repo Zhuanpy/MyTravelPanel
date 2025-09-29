@@ -1,4 +1,4 @@
-{% extends "staff_base.html" %}
+{% extends "shared/staff_base.html" %}
 
 {% block title %}签证管理 - MyTravelPanel{% endblock %}
 
@@ -9,543 +9,362 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" integrity="sha512-Avb2QiuDEEvB4bZJYdft2mNjVShBftLdPG8FJ0V7irTLQ8Uo0qcPxh4Plq7G5tGm0rU+1SPhVotteLpBERwTkw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
 
 <style>
-    /* ========= 全局变量定义 ========= */
-:root {
-    --color-primary: #2a5298;
-    --color-primary-hover: #1a365d;
-    --color-accent: #3a6ea5;
-    --color-accent-bg: #eaf1fb;
-    --color-accent-bg-hover: #d2e6fa;
-    --color-text-dark: #2d3a4b;
-    --color-text-gray: #6c7a89;
-    --color-border: #e2e8f0;
-    --color-light-bg: #f8f9fa;
-    --radius: 8px;
-    --radius-lg: 12px;
-    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
-    --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.1);
-    --shadow-lg: 0 4px 6px rgba(0, 0, 0, 0.1);
-        }
-
-/* ========= 基础容器 ========= */
-    .visa-home-container {
-    max-width: 1200px;
-        margin: 0 auto;
-    padding: 20px;
-    }
-    
-/* ========= 页面头部 ========= */
-.visa-home-header {
-    background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
-    padding: 2.5rem 2rem 2rem 2rem;
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-md);
-    margin-bottom: 2.5rem;
-    text-align: center;
-    position: relative;
-    border: 1px solid var(--color-border);
+/* 参考 public/visa-services 的样式 */
+.visa-country-card {
+    background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+    border: 2px solid transparent;
+    transition: all 0.3s ease;
+    border-radius: 10px;
     overflow: hidden;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
 }
 
-.visa-home-header::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="25" cy="25" r="1" fill="%23ffffff" opacity="0.1"/><circle cx="75" cy="75" r="1" fill="%23ffffff" opacity="0.1"/><circle cx="50" cy="10" r="0.5" fill="%23ffffff" opacity="0.1"/><circle cx="10" cy="60" r="0.5" fill="%23ffffff" opacity="0.1"/><circle cx="90" cy="40" r="0.5" fill="%23ffffff" opacity="0.1"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>');
-    pointer-events: none;
+.visa-country-card:hover {
+    border-color: #007bff;
+    background: linear-gradient(135deg, #e3f2fd, #bbdefb);
+    transform: translateY(-5px);
+    box-shadow: 0 5px 20px rgba(0,0,0,0.15);
 }
 
-.visa-home-title {
-    font-size: 2.5rem;
-    font-weight: 800;
-    color: var(--color-text-dark);
-    margin-bottom: 1.5rem;
-    letter-spacing: 1.5px;
-    text-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    position: relative;
-    z-index: 1;
-}
-
-.visa-home-subtitle {
-    margin-top: 1.5rem;
-    font-size: 1.2rem;
-    color: var(--color-text-gray);
-    letter-spacing: 0.5px;
-    font-weight: 500;
-    position: relative;
-    z-index: 1;
-}
-
-/* ========= 链接按钮 ========= */
-.text-link {
-    display: inline-flex;
-    align-items: center;
-    margin: 0 12px 12px 0;
-    padding: 12px 20px;
-    font-size: 0.95rem;
-    font-weight: 500;
-    color: var(--color-primary);
+.search-box {
     background: white;
-    border-radius: var(--radius);
-    text-decoration: none;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: var(--shadow-sm);
-    border: 2px solid var(--color-border);
-    position: relative;
-    overflow: hidden;
+    border-radius: 25px;
+    padding: 0.5rem 1rem;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    border: 2px solid transparent;
+    transition: all 0.3s ease;
 }
 
-.text-link::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(42, 82, 152, 0.1), transparent);
-    transition: left 0.5s;
+.search-box:focus {
+    border-color: #007bff;
+    box-shadow: 0 2px 15px rgba(0,123,255,0.3);
 }
 
-.text-link:hover::before {
-    left: 100%;
+.btn {
+    border-radius: 25px;
+    font-weight: 500;
+    padding: 0.5rem 1.5rem;
+    transition: all 0.3s ease;
 }
 
-.text-link i {
-    margin-right: 8px;
-    font-size: 1.1em;
-    transition: transform 0.3s ease;
+.btn-primary {
+    background: linear-gradient(135deg, #007bff, #0056b3);
+    border: none;
 }
 
-.text-link:hover {
-    background: var(--color-primary);
-    color: white;
-    border-color: var(--color-primary);
-    box-shadow: var(--shadow-lg);
+.btn-primary:hover {
+    background: linear-gradient(135deg, #0056b3, #004085);
     transform: translateY(-2px);
 }
 
-.text-link:hover i {
-    transform: scale(1.1);
-}
-
-.text-link:active {
-    transform: translateY(0);
-    box-shadow: var(--shadow-md);
-}
-
-.text-link[disabled],
-.text-link.disabled {
-    pointer-events: none;
-    color: #aaa;
-    background: #f5f5f5;
-    border-color: #e0e0e0;
-    box-shadow: none;
-}
-    
-/* ========= 国家卡片网格 ========= */
-.countries-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 2rem;
-    margin-top: 2rem;
-}
-
-.country-card {
-    background: white;
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-md);
-    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-    cursor: pointer;
-    overflow: hidden;
-    position: relative;
-    border: 1px solid var(--color-border);
-}
-
-.country-card::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 4px;
-    background: linear-gradient(90deg, var(--color-primary), var(--color-accent));
-    transform: scaleX(0);
-    transition: transform 0.3s ease;
-}
-
-.country-card:hover::before {
-    transform: scaleX(1);
-}
-
-.country-card:hover {
-    transform: translateY(-8px) scale(1.02);
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
-}
-
-.country-card:active {
-    transform: translateY(-4px) scale(1.01);
-}
-
-.country-card-header {
-    padding: 1.75rem;
-    background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-accent) 100%);
-    color: white;
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    position: relative;
-    overflow: hidden;
-}
-
-.country-card-header::after {
-    content: '';
-    position: absolute;
-    top: -50%;
-    right: -50%;
-    width: 200%;
-    height: 200%;
-    background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
-    transition: transform 0.3s ease;
-}
-
-.country-card:hover .country-card-header::after {
-    transform: scale(1.2);
-}
-
-.country-card-header i {
-    font-size: 1.75rem;
-    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
-}
-
-.country-card-title {
-    font-size: 1.35rem;
-    font-weight: 700;
-    margin: 0;
-    text-shadow: 0 2px 4px rgba(0,0,0,0.2);
-}
-
-.country-card-body {
-    padding: 1.75rem;
-    background: linear-gradient(180deg, #f8fafc 0%, white 100%);
-}
-
-.country-card-info {
-    color: var(--color-text-gray);
-    font-size: 0.95rem;
+.btn-outline-primary {
+    border-radius: 25px;
     font-weight: 500;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
+    padding: 0.5rem 1.5rem;
+    transition: all 0.3s ease;
 }
 
-.country-card-info::before {
-    content: '📋';
-    font-size: 1.1em;
+.badge {
+    border-radius: 15px;
+    padding: 0.5rem 1rem;
+    font-weight: 500;
 }
 
-/* ========= 弹窗 Modal ========= */
 .modal {
     display: none;
     position: fixed;
-    top: 0; left: 0;
-    width: 100%; height: 100%;
-    background: rgba(0, 0, 0, 0.6);
     z-index: 1000;
-    backdrop-filter: blur(4px);
-    animation: fadeIn 0.3s ease;
-}
-
-@keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.5);
 }
 
 .modal-content {
-    position: relative;
-    background: white;
+    background-color: #fefefe;
+    margin: 5% auto;
+    padding: 0;
+    border-radius: 15px;
     width: 90%;
-    max-width: 900px;
-    margin: 30px auto;
-    border-radius: var(--radius-lg);
-    box-shadow: 0 25px 50px rgba(0, 0, 0, 0.25);
-    max-height: 85vh;
-    overflow-y: auto;
-    animation: slideIn 0.3s ease;
-    border: 1px solid var(--color-border);
-}
-
-@keyframes slideIn {
-    from { 
-        transform: translateY(-50px) scale(0.95);
-        opacity: 0;
-    }
-    to { 
-        transform: translateY(0) scale(1);
-        opacity: 1;
-    }
+    max-width: 600px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    overflow: hidden;
 }
 
 .modal-header {
-    padding: 2rem 2rem 1.5rem 2rem;
-    border-bottom: 1px solid var(--color-border);
+    background: linear-gradient(135deg, #007bff, #0056b3);
+    color: white;
+    padding: 1rem 1.5rem;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
-    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
 }
 
 .modal-title {
-    font-size: 1.75rem;
-    font-weight: 700;
-    color: var(--color-text-dark);
     margin: 0;
+    font-size: 1.25rem;
+    font-weight: 600;
 }
 
 .close-modal {
     background: none;
     border: none;
-    font-size: 1.75rem;
-    color: var(--color-text-gray);
+    color: white;
+    font-size: 1.5rem;
     cursor: pointer;
-    padding: 0.75rem;
-    border-radius: 50%;
-    transition: all 0.3s ease;
-    width: 50px;
-    height: 50px;
+    padding: 0;
+    width: 30px;
+    height: 30px;
     display: flex;
     align-items: center;
     justify-content: center;
 }
 
 .close-modal:hover {
-    background: rgba(0, 0, 0, 0.1);
-    color: var(--color-text-dark);
-    transform: rotate(90deg);
+    opacity: 0.7;
 }
 
 .modal-body {
-    padding: 2rem;
+    padding: 1.5rem;
 }
-        
-/* ========= 签证类型列表 ========= */
+
 .visa-list {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-    gap: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
 }
 
 .visa-item {
+    border: 1px solid #e9ecef;
+    border-radius: 10px;
+    padding: 1rem;
     background: white;
-    border-radius: var(--radius);
-    padding: 1.5rem;
-    border: 2px solid var(--color-border);
-    transition: all 0.3s ease;
-    position: relative;
-    overflow: hidden;
-}
-
-.visa-item::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 4px;
-    height: 100%;
-    background: linear-gradient(180deg, var(--color-primary), var(--color-accent));
-    transform: scaleY(0);
-    transition: transform 0.3s ease;
-}
-
-.visa-item:hover::before {
-    transform: scaleY(1);
-}
-
-.visa-item:hover {
-    border-color: var(--color-primary);
-    box-shadow: var(--shadow-lg);
-    transform: translateY(-2px);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
 }
 
 .visa-item-header {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
-    margin-bottom: 1rem;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
 }
 
 .visa-item-title {
-    font-weight: 700;
-    color: var(--color-text-dark);
+    margin: 0;
     font-size: 1.1rem;
+    font-weight: 600;
+    color: #333;
 }
 
 .visa-item-info {
-    display: grid;
-    gap: 0.75rem;
-    margin-bottom: 1.25rem;
+    margin-bottom: 1rem;
 }
 
 .visa-item-info-row {
     display: flex;
     justify-content: space-between;
-    align-items: center;
-    font-size: 0.9rem;
-    padding: 0.5rem 0;
-    border-bottom: 1px solid #f1f5f9;
-}
-
-.visa-item-info-row:last-child {
-    border-bottom: none;
+    margin-bottom: 0.25rem;
 }
 
 .visa-item-label {
-    color: var(--color-text-gray);
     font-weight: 500;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.visa-item-label::before {
-    content: '•';
-    color: var(--color-primary);
-    font-weight: bold;
+    color: #666;
 }
 
 .visa-item-value {
-    color: var(--color-text-dark);
-    font-weight: 600;
-    text-align: right;
+    color: #333;
 }
-    
-/* ========= 按钮 ========= */
+
+.visa-item-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
 .visa-btn {
-    display: inline-block;
     padding: 0.5rem 1rem;
-    border-radius: 4px;
+    border-radius: 5px;
     text-decoration: none;
+    font-size: 0.9rem;
     font-weight: 500;
-    transition: background-color 0.2s;
-        }
-        
+    transition: all 0.3s ease;
+    border: none;
+    cursor: pointer;
+}
+
 .visa-btn-primary {
-    background: var(--color-primary);
-            color: white;
-        }
-        
+    background: #007bff;
+    color: white;
+}
+
 .visa-btn-primary:hover {
-    background: var(--color-primary-hover);
-    }
-    
-/* ========= 响应式 ========= */
-@media (max-width: 600px) {
-    .visa-home-header {
-        padding: 18px 6px 12px 6px;
-    }
+    background: #0056b3;
+    color: white;
+}
 
-        .visa-home-title {
-        font-size: 1.3rem;
-        }
+.visa-btn-secondary {
+    background: #6c757d;
+    color: white;
+}
 
-    .visa-home-subtitle {
-        font-size: 0.98rem;
-        }
+.visa-btn-secondary:hover {
+    background: #545b62;
+    color: white;
+}
 
-    .text-link {
-            font-size: 0.9rem;
-        padding: 6px 10px;
-        margin: 0 4px 8px 0;
-        }
+.visa-btn-info {
+    background: #17a2b8;
+    color: white;
+}
 
-    .visa-list {
-        grid-template-columns: 1fr;
-        }
-
-    .countries-grid {
-        grid-template-columns: 1fr;
-    }
-    }
+.visa-btn-info:hover {
+    background: #138496;
+    color: white;
+}
 </style>
+
 {% endblock %}
 
 {% block content %}
-    <div class="visa-home-container">
-        <div class="visa-home-header">
-            <h1 class="visa-home-title">签证服务</h1>
-                
-            <a href="{{ url_for('visa_project.show_current_all_projects') }}" class="text-link">
-                    <i class="fas fa-project-diagram"></i> 项目管理
-                </a>
-   
-
-            <a href="{{ url_for('visa_documents_list.documents_list') }}" class="text-link">
-                <i class="fas fa-database"></i> 文档资料管理
-                </a>
-  
-            <a href="{{ url_for('visa_basic.visa_type_document_manager') }}" class="text-link">
-                <i class="fas fa-cogs"></i> 签证文档配置
-                </a>
-            <a href="{{ url_for('visa_links.visa_link_page') }}" class="text-link">
-                <i class="fas fa-link"></i> 签证链接管理
-                </a>
-            <a href="{{ url_for('visa_basic.visa_type_management') }}" class="text-link">
-                <i class="fas fa-plus"></i> 签证类型管理
-                </a>
-            <a href="{{ url_for('visa_basic.manage_identities') }}" class="text-link"> <i class="fas fa-user"></i>新加坡身份管理
-
-            </a>
-            
-            <a href="{{ url_for('visa_basic.manage_countries') }}" class="text-link">
-                <i class="fas fa-flag"></i> 签证国家管理
-                </a>
-
-            <a href="{{ url_for('visa_basic.visa_document_relations_manager') }}" class="text-link">
-                <i class="fas fa-link"></i> 文档关联管理
-                </a>
-
-            <a href="javascript:void(0);" onclick="openVisaRootFolder()" class="text-link">
-                    <i class="fas fa-folder"></i> 资源文件夹
-                </a>
+<!-- 页面标题 -->
+<section class="py-4 bg-light">
+    <div class="container">
+        <div class="row">
+            <div class="col-12">
+                <h1 class="fw-bold mb-2">
+                    <i class="fas fa-passport text-primary me-3"></i>签证管理
+                </h1>
+                <p class="text-muted">选择国家查看可办理的签证类型</p>
+            </div>
         </div>
-        
-        <h2 class="visa-home-subtitle">选择国家查看可办理的签证类型</h2>
+    </div>
+</section>
 
-        <div class="countries-grid">
+<!-- 管理功能链接 -->
+<section class="py-3 bg-white border-bottom">
+    <div class="container">
+        <div class="row">
+            <div class="col-12">
+                <div class="d-flex flex-wrap gap-2 justify-content-center">
+                    <a href="{{ url_for('visa_project.show_current_all_projects') }}" class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-project-diagram me-1"></i> 项目管理
+                    </a>
+                    <a href="{{ url_for('visa_documents_list.documents_list') }}" class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-database me-1"></i> 文档资料管理
+                    </a>
+                    <a href="{{ url_for('visa_basic.visa_type_document_manager') }}" class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-cogs me-1"></i> 签证文档配置
+                    </a>
+                    <a href="{{ url_for('visa_links.visa_link_page') }}" class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-link me-1"></i> 签证链接管理
+                    </a>
+                    <a href="{{ url_for('visa_basic.visa_type_management') }}" class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-plus me-1"></i> 签证类型管理
+                    </a>
+                    <a href="{{ url_for('visa_basic.manage_identities') }}" class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-user me-1"></i> 新加坡身份管理
+                    </a>
+                    <a href="{{ url_for('visa_basic.manage_countries') }}" class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-flag me-1"></i> 签证国家管理
+                    </a>
+                    <a href="{{ url_for('visa_basic.visa_document_relations_manager') }}" class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-link me-1"></i> 文档关联管理
+                    </a>
+                    <a href="javascript:void(0);" onclick="openVisaRootFolder()" class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-folder me-1"></i> 资源文件夹
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- 搜索框 -->
+<section class="py-4">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-6">
+                <div class="input-group">
+                    <input type="text" class="form-control search-box" id="searchCountry" 
+                           placeholder="搜索国家或签证类型...">
+                    <button class="btn btn-primary" type="button" id="searchBtn">
+                        <i class="fas fa-search"></i> 搜索
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- 签证国家列表 -->
+<section class="py-4">
+    <div class="container">
+        <div class="row" id="countriesList">
             {% for country, visas in visas_by_country.items() %}
                 {% if visas %}
-                    <div class="country-card" 
-                         data-country="{{ country|e }}"
-                         data-visa-types='{{ visas|map(attribute="visa_type")|list|tojson }}'
-                         data-processing-times='{{ visas|map(attribute="processing_time")|list|tojson }}'
-                         data-fees='{{ visas|map(attribute="fee")|list|tojson }}'>
-                        <div class="country-card-header">
-                            <i class="fas fa-flag"></i>
-                            <h3 class="country-card-title">{{ country|e }}</h3>
-                        </div>
-                        <div class="country-card-body">
-                            <div class="country-card-info">
-                                可办理 {{ visas|length }} 种签证类型
+                    {% set flag_file = visas[0].country.flag_file if visas and visas[0].country and visas[0].country.flag_file else None %}
+                    <div class="col-md-6 col-lg-4 mb-4 country-item" data-country="{{ country|e }}">
+                        <div class="card visa-country-card h-100" 
+                             {% if flag_file %}style="background-image: url('{{ url_for('static', filename='images/flags/' + flag_file) }}'); background-size: cover; background-position: center; background-repeat: no-repeat;"{% endif %}>
+                            <div class="card-body" style="position: relative; z-index: 2;">
+                                <!-- 背景遮罩 -->
+                                {% if flag_file %}
+                                <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.3); z-index: -1; border-radius: 10px;"></div>
+                                {% endif %}
+                                
+                                <div class="d-flex justify-content-between align-items-start mb-3">
+                                    <h5 class="card-title mb-0 text-white">
+                                        <i class="fas fa-flag me-2"></i>
+                                        {{ country|e }}
+                                    </h5>
+                                    <span class="badge bg-primary">{{ visas|length }} 种签证</span>
+                                </div>
+                                
+                                <p class="card-text text-white-50">
+                                    {% if visas[0].country and visas[0].country.country_name_EN %}
+                                        {{ visas[0].country.country_name_EN }}
+                                    {% endif %}
+                                </p>
+                                
+                                <div class="mt-3">
+                                    <a href="javascript:void(0)" 
+                                       class="btn btn-light btn-sm country-card"
+                                       data-country="{{ country|e }}"
+                                       data-visa-types='{{ visas|map(attribute="visa_type")|list|tojson }}'
+                                       data-processing-times='{{ visas|map(attribute="processing_time")|list|tojson }}'
+                                       data-fees='{{ visas|map(attribute="fee")|list|tojson }}'>
+                                        <i class="fas fa-eye me-1"></i> 点击查看可办理类型
+                                    </a>
+                                </div>
                             </div>
                         </div>
                     </div>
                 {% endif %}
-                    {% endfor %}
-                </div>
-    </div>
-
-    <!-- Visa Modal -->
-    <div id="visaModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 class="modal-title" id="modalTitle"></h2>
-                <button class="close-modal" onclick="closeVisaModal()">&times;</button>
+            {% endfor %}
+        </div>
+        
+        <!-- 无数据提示 -->
+        {% if not visas_by_country %}
+        <div class="row">
+            <div class="col-12 text-center py-5">
+                <i class="fas fa-search" style="font-size: 4rem; color: #ccc;"></i>
+                <h4 class="mt-3 text-muted">暂无签证服务</h4>
+                <p class="text-muted">请稍后再来查看</p>
             </div>
-            <div class="modal-body">
-                <div id="visaList" class="visa-list"></div>
+        </div>
+        {% endif %}
+    </div>
+</section>
+
+<!-- Visa Modal -->
+<div id="visaModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 class="modal-title" id="modalTitle"></h2>
+            <button class="close-modal" onclick="closeVisaModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div id="visaList" class="visa-list"></div>
         </div>
     </div>
 </div>
@@ -630,6 +449,9 @@
                     <a href="{{ url_for('visa_basic.visa_intro', visa_type='') }}${encodeURIComponent(visaTypes[i] || '')}" class="visa-btn visa-btn-secondary" style="background: #718096; color: white; margin-left: 8px;">
                         签证介绍
                     </a>
+                    <a href="{{ url_for('visa_basic.visa_type_detail', visa_type='') }}${encodeURIComponent(visaTypes[i] || '')}" class="visa-btn visa-btn-info" style="background: #17a2b8; color: white; margin-left: 8px;">
+                        签证详细
+                    </a>
                 </div>
             `;
             visaList.appendChild(visaItem);
@@ -678,6 +500,59 @@
         .catch(error => {
             alert("请求失败: " + error);
         });
-}
+    }
+
+    // 搜索功能
+    document.getElementById('searchBtn').addEventListener('click', function() {
+        performSearch();
+    });
+
+    document.getElementById('searchCountry').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            performSearch();
+        }
+    });
+
+    function performSearch() {
+        const searchTerm = document.getElementById('searchCountry').value.toLowerCase();
+        const countryItems = document.querySelectorAll('.country-item');
+        
+        countryItems.forEach(item => {
+            const countryName = item.getAttribute('data-country').toLowerCase();
+            if (countryName.includes(searchTerm)) {
+                item.style.display = 'block';
+            } else {
+                item.style.display = 'none';
+            }
+        });
+        
+        // 检查是否有显示的项目
+        const visibleItems = document.querySelectorAll('.country-item[style="display: block;"]');
+        if (visibleItems.length === 0 && searchTerm !== '') {
+            // 显示无结果提示
+            const noResults = document.createElement('div');
+            noResults.className = 'col-12 text-center py-5';
+            noResults.innerHTML = `
+                <i class="fas fa-search" style="font-size: 4rem; color: #ccc;"></i>
+                <h4 class="mt-3 text-muted">未找到相关国家</h4>
+                <p class="text-muted">请尝试其他搜索关键词</p>
+            `;
+            
+            // 移除之前的无结果提示
+            const existingNoResults = document.querySelector('.no-results');
+            if (existingNoResults) {
+                existingNoResults.remove();
+            }
+            
+            noResults.classList.add('no-results');
+            document.getElementById('countriesList').appendChild(noResults);
+        } else {
+            // 移除无结果提示
+            const existingNoResults = document.querySelector('.no-results');
+            if (existingNoResults) {
+                existingNoResults.remove();
+            }
+        }
+    }
 </script>
-{% endblock %} 
+{% endblock %}

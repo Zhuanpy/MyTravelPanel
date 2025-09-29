@@ -17,398 +17,13 @@
 </div>
 {% endblock %}
 
+{% block extra_css %}
+<link href="{{ url_for('static', filename='css/project_detail.css') }}" rel="stylesheet">
+{% endblock %}
+
 {% block content %}
-<style>
-    .project-header {
-        background: white;
-        color: #198754;
-        padding: 1rem 2rem;
-        border-radius: 8px;
-        margin-bottom: 1.5rem;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        border: 1px solid #198754;
-        min-height: 60px;
-    }
-    
-    .project-title {
-        font-size: 1.5rem;
-        font-weight: 700;
-        margin-bottom: 0.25rem;
-    }
-    
-    .project-subtitle {
-        font-size: 0.9rem;
-        font-weight: 600;
-        opacity: 0.9;
-        margin-bottom: 0;
-    }
-    
-         .info-card {
-         background: white;
-         border-radius: 8px;
-         padding: 0.75rem;
-         margin-bottom: 1.5rem;
-         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-         border: 1px solid #e9ecef;
-         overflow: hidden; /* 隐藏溢出内容 */
-     }
-     
-     /* 项目详情布局容器 */
-     .project-detail-layout {
-         display: flex;
-         gap: 20px;
-         align-items: stretch; /* 拉伸对齐 */
-         height: 300px; /* 固定高度 */
-     }
-     
-     .project-left-sidebar {
-         flex: 2;
-         display: flex;
-         flex-direction: column;
-         gap: 20px;
-         height: 100%;
-     }
-     
-     .project-right-sidebar {
-         flex: 1;
-         min-width: 0;
-         display: flex;
-         flex-direction: column;
-         height: 100%;
-     }
-     
-     /* 项目信息卡片样式 - 确保高度一致 */
-     .project-info-card {
-         display: flex;
-         flex-direction: column;
-         height: 100%;
-     }
-     
-     /* 备注信息卡片样式 - 确保高度一致 */
-     .remarks-info-card {
-         display: flex;
-         flex-direction: column;
-         height: 100%;
-     }
-     
-     /* 确保项目详情卡片高度一致 */
-     .project-left-sidebar .info-card,
-     .project-right-sidebar .info-card {
-         display: flex !important;
-         flex-direction: column !important;
-         height: 100% !important;
-     }
-     
-     /* 确保内容区域能够正确填充 */
-     .project-info-container,
-     #existing-remarks {
-         flex: 1 !important;
-         overflow-y: auto !important;
-         min-height: 0 !important;
-     }
-    
-    .info-grid {
-        display: grid;
-        grid-template-columns: repeat(8, 1fr);
-        gap: 12px 18px;
-        margin-bottom: 10px;
-    }
-    
-    .info-grid-compact {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-        gap: 0.25rem 0.5rem;
-        margin-bottom: 0.5rem;
-    }
-    
-         .project-info-grid {
-         display: grid;
-         grid-template-columns: repeat(10, 1fr);
-         gap: 0.8rem;
-         align-items: start;
-         position: relative; /* 相对定位 */
-     }
-    
-         /* 项目信息容器的滚动条样式 */
-     .project-info-container {
-         overflow-y: auto; /* 垂直滚动 */
-         overflow-x: hidden; /* 水平隐藏 */
-         padding-right: 5px; /* 为滚动条留出空间 */
-     }
-    
-    /* 自定义滚动条样式 */
-    .project-info-container::-webkit-scrollbar {
-        width: 6px;
-    }
-    
-    .project-info-container::-webkit-scrollbar-track {
-        background: #f1f1f1;
-        border-radius: 3px;
-    }
-    
-    .project-info-container::-webkit-scrollbar-thumb {
-        background: #c1c1c1;
-        border-radius: 3px;
-    }
-    
-    .project-info-container::-webkit-scrollbar-thumb:hover {
-        background: #a8a8a8;
-    }
-    
-    .info-item {
-        display: flex;
-        flex-direction: column;
-        align-items: flex-start;
-        padding: 1px 0;
-        min-width: 0;
-        word-break: break-all;
-        max-height: 100%; /* 限制每个项目的高度 */
-        overflow: hidden; /* 隐藏溢出内容 */
-    }
-    
-    .info-label {
-        font-size: 0.8em;
-        color: #888;
-        margin-bottom: 0px;
-        line-height: 1.1;
-        white-space: nowrap; /* 标签不换行 */
-        overflow: hidden; /* 隐藏溢出内容 */
-        text-overflow: ellipsis; /* 显示省略号 */
-    }
-    
-    .info-value {
-        font-size: 0.95em;
-        color: #222;
-        font-weight: 500;
-        line-height: 1.2;
-        max-height: 2.4em; /* 限制为2行高度 */
-        overflow: hidden; /* 隐藏溢出内容 */
-        text-overflow: ellipsis; /* 显示省略号 */
-        display: -webkit-box;
-        -webkit-line-clamp: 2; /* 限制为2行 */
-        -webkit-box-orient: vertical;
-        word-wrap: break-word; /* 允许单词换行 */
-    }
-    
-    .status-badge {
-        display: inline-block;
-        padding: 0.25rem 0.75rem;
-        border-radius: 20px;
-        font-size: 0.875rem;
-        font-weight: 500;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }
-    
-    .status-draft { background-color: #fff3cd; color: #856404; }
-    .status-active { background-color: #d1ecf1; color: #0c5460; }
-    .status-completed { background-color: #d4edda; color: #155724; }
-    .status-cancelled { background-color: #f8d7da; color: #721c24; }
-    
-    .action-buttons {
-        display: flex;
-        gap: 0.5rem;
-    }
-    
-    .ref-number-link {
-        color: #007bff;
-        text-decoration: none;
-        transition: all 0.2s ease;
-        border-radius: 4px;
-        padding: 2px 4px;
-    }
-    
-    .ref-number-link:hover {
-        color: #0056b3;
-        background-color: #f8f9fa;
-        text-decoration: none;
-        transform: translateY(-1px);
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    }
-    
-    .ref-number-link:active {
-        transform: translateY(0);
-        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-    }
-    
-    .eo-number-link {
-        text-decoration: none;
-        transition: all 0.2s ease;
-        border-radius: 4px;
-        display: inline-block;
-    }
-    
-    .eo-number-link:hover {
-        text-decoration: none;
-        transform: scale(1.05);
-        box-shadow: 0 2px 8px rgba(0, 123, 255, 0.3);
-    }
-    
-    .eo-number-link:active {
-        transform: scale(1.02);
-        box-shadow: 0 1px 4px rgba(0, 123, 255, 0.2);
-    }
-    
-    .action-buttons {
-        flex-wrap: wrap;
-    }
-    
-    .btn-group-vertical {
-        display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
-    }
-    
-    .ref-section {
-        background: white;
-        border-radius: 8px;
-        padding: 1.5rem;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        border: 1px solid #e9ecef;
-    }
-    
-    .section-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 1.5rem;
-        padding-bottom: 1rem;
-        border-bottom: 2px solid #f8f9fa;
-    }
-    
-    .section-title {
-        font-size: 1.5rem;
-        font-weight: 600;
-        color: #212529;
-        margin: 0;
-    }
-    
-    .add-ref-buttons {
-        display: flex;
-        gap: 0.5rem;
-        flex-wrap: wrap;
-    }
-    
-    .table-responsive {
-        border-radius: 8px;
-        overflow: hidden;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    }
-    
-    .table th {
-        background-color: #f8f9fa;
-        border-bottom: 2px solid #dee2e6;
-        font-weight: 600;
-        color: #495057;
-        text-transform: uppercase;
-        font-size: 0.875rem;
-        letter-spacing: 0.5px;
-    }
-    
-    .table td {
-        vertical-align: middle;
-    }
-    
-    .navigation-info {
-        background: rgba(255, 255, 255, 0.1);
-        padding: 0.5rem 1rem;
-        border-radius: 20px;
-        font-size: 0.875rem;
-    }
-    
-    .payment-status-summary {
-        background: #f8f9fa;
-        padding: 1.5rem;
-        border-radius: 8px;
-        border: 1px solid #e9ecef;
-    }
-    
-    .status-item {
-        margin-bottom: 1rem;
-    }
-    
-    .status-label {
-        font-size: 0.875rem;
-        color: #495057;
-        font-weight: 500;
-    }
-    
-    .status-count {
-        font-size: 0.875rem;
-        font-weight: 600;
-        color: #212529;
-        background: white;
-        padding: 0.25rem 0.5rem;
-        border-radius: 12px;
-        min-width: 30px;
-        text-align: center;
-    }
-    
-    .progress {
-        background-color: #e9ecef;
-        border-radius: 3px;
-    }
-    
-    .progress-bar {
-        border-radius: 3px;
-    }
-    
-    /* REF状态编辑样式 */
-    .status-badge {
-        transition: all 0.2s ease;
-    }
-    
-    .status-badge:hover {
-        transform: scale(1.05);
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-    }
-    
-    .ref-status-select {
-        border: 1px solid #007bff;
-        border-radius: 20px;
-        padding: 0.25rem 0.5rem;
-        font-size: 0.875rem;
-        background-color: white;
-        min-width: 80px;
-    }
-    
-    /* 提醒信息样式 */
-    .reminder-event {
-        color: #dc3545;
-        font-weight: 600;
-        background-color: #f8d7da;
-        padding: 2px 6px;
-        border-radius: 4px;
-        border: 1px solid #f5c6cb;
-    }
-    
-    .reminder-date {
-        color: #0d6efd;
-        font-weight: 500;
-        background-color: #cff4fc;
-        padding: 2px 6px;
-        border-radius: 4px;
-        border: 1px solid #b6effb;
-    }
-    
-    .reminder-status .badge {
-        font-size: 0.75rem;
-        padding: 0.25rem 0.5rem;
-    }
 
-    @media (max-width: 1600px) {
-        .info-grid {
-            grid-template-columns: repeat(4, 1fr);
-        }
-    }
-    @media (max-width: 900px) {
-        .info-grid {
-            grid-template-columns: repeat(2, 1fr);
-        }
-    }
-</style>
-
-<div class="container-fluid">
+<div class="container-fluid tw-px-2" style="max-width: 1400px;">
          <!-- 项目详情布局 -->
      <div class="project-detail-layout">
          
@@ -416,15 +31,15 @@
          <div class="project-left-sidebar">
              
              <!-- 项目头部 (占1/4高度) -->
-             <div class="project-header" style="height: 25%; display: flex; flex-direction: column;">
-                 <div class="d-flex justify-content-between align-items-center" style="flex: 1;">
-                     <div class="d-flex align-items-center gap-3">
-                         <h1 class="project-title mb-0">{{ header.hid }}</h1>
-                         <span class="project-subtitle mb-0">| {{ header.desc }}</span>
+            <div class="project-header tw:bg-white tw-text-green-700 tw-border tw-border-green-600 tw-rounded-lg tw-shadow tw-px-4 tw-py-3" style="display: flex; flex-direction: column;">
+                <div class="d-flex justify-content-between align-items-center tw-items-center tw-justify-between" style="flex: 1;">
+                    <div class="d-flex align-items-center gap-3 tw-flex tw-items-center tw-gap-3">
+                        <h1 class="project-title mb-0 tw-text-2xl tw-font-bold">{{ header.hid }}</h1>
+                        <span class="project-subtitle mb-0 tw-text-sm tw-font-semibold tw-opacity-90">| {{ header.desc }}</span>
                      </div>
-                     <div class="d-flex align-items-center gap-3">
+                    <div class="d-flex align-items-center gap-3 tw-flex tw-items-center tw-gap-3">
                          <!-- 导航按钮 -->
-                         <div class="d-flex align-items-center gap-2">
+                        <div class="d-flex align-items-center gap-2 tw-flex tw-items-center tw-gap-2">
                                                           {% if prev_header %}
                                   <a href="{{ url_for('business_projects.detail.project_detail', project_id=prev_header.id) }}" 
                                      class="btn btn-outline-success btn-sm" title="上一个项目: {{ prev_header.hid }}">
@@ -436,7 +51,7 @@
                                   </button>
                               {% endif %}
                              
-                             <span class="navigation-info">
+                            <span class="navigation-info d-none d-md-inline">
                                  {% if prev_header and next_header %}
                                      {{ prev_header.hid }} ← {{ header.hid }} → {{ next_header.hid }}
                                  {% elif prev_header %}
@@ -448,7 +63,7 @@
                                  {% endif %}
                              </span>
                              
-                                                          {% if next_header %}
+                                {% if next_header %}
                                   <a href="{{ url_for('business_projects.detail.project_detail', project_id=next_header.id) }}" 
                                      class="btn btn-outline-success btn-sm" title="下一个项目: {{ next_header.hid }}">
                                       <i class="fas fa-chevron-right"></i>
@@ -466,12 +81,16 @@
              </div>
              
              <!-- 项目信息 (占3/4高度) -->
-             <div class="info-card project-info-card" style="height: 75%; display: flex; flex-direction: column;">
-                 <div style="margin-bottom: 15px;">
-                     <h3 class="section-title" style="font-size: 1.3rem; margin: 0;">项目信息</h3>
+            <div class="info-card project-info-card tw:bg-white tw-rounded-lg tw-shadow tw-p-3" style="display: flex; flex-direction: column;">
+                 <div style="margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">
+                    <h3 class="section-title tw-text-lg tw-font-semibold" style="font-size: 1.3rem; margin: 0;">项目信息</h3>
+                    <a href="{{ url_for('business_projects.project_header.edit_header', header_id=header.id) }}" class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-edit"></i> 编辑HID
+                    </a>
                  </div>
                  <div class="project-info-container" style="flex: 1; overflow-y: auto;">
-                     <div class="project-info-grid">
+                     <!-- 基本信息行 -->
+                     <div class="project-info-grid basic-info-row">
                          <div class="info-item">
                              <span class="info-label">经办人</span>
                              <span class="info-value">{{ header.staff_name or '未设置' }}</span>
@@ -511,98 +130,98 @@
                              <span class="info-value" id="contact-span" data-header-id="{{ header.id }}" style="cursor: pointer;">{{ header.contact or '未设置' }}</span>
                              <input type="text" id="contact-input" style="display: none; width: 60%;" />
                          </div>
-
                          <div class="info-item">
                              <span class="info-label">创建日期</span>
                              <span class="info-value">{{ header.created_at.strftime('%Y-%m-%d') if header.created_at else '未设置' }}</span>
                          </div>
-                        <div class="info-item">
-                            <span class="info-label">更新时间</span>
-                            <span class="info-value">{{ header.updated_at.strftime('%Y-%m-%d') if header.updated_at else '未设置' }}</span>
-                        </div>
-                        {% if header.reminder_event %}
-                        <div class="info-item">
-                            <span class="info-label">提醒事件</span>
-                            <span class="info-value reminder-event">{{ header.reminder_event }}</span>
-                        </div>
-                        {% endif %}
-                        {% if header.reminder_event %}
-                        <div class="info-item">
-                            <span class="info-label">提醒日期</span>
-                            <span class="info-value reminder-date">{{ header.reminder_date.strftime('%Y-%m-%d') if header.reminder_date else '未设置' }}</span>
-                        </div>
-                        <div class="info-item">
-                            <span class="info-label">提醒状态</span>
-                            <span class="info-value reminder-status">
-                                {% if header.reminder_sent %}
-                                    <span class="badge bg-success">已发送</span>
-                                {% else %}
-                                    <span class="badge bg-warning">待发送</span>
-                                {% endif %}
-                            </span>
-                        </div>
-                        {% endif %}
-                        
-                        <!-- 添加提醒按钮 -->
-                        <div class="info-item">
-                            <span class="info-label">提醒管理</span>
-                            <span class="info-value">
-                                {% if header.reminder_event and header.reminder_date %}
-                                    <button type="button" class="btn btn-outline-warning btn-sm" onclick="editReminder()">
-                                        <i class="fas fa-edit"></i> 编辑提醒
-                                    </button>
-                                    <button type="button" class="btn btn-outline-danger btn-sm ms-2" onclick="deleteReminder()">
-                                        <i class="fas fa-trash"></i> 删除提醒
-                                    </button>
-                                {% else %}
-                                    <button type="button" class="btn btn-outline-primary btn-sm" onclick="addReminder()">
-                                        <i class="fas fa-bell"></i> 添加提醒
-                                    </button>
-                                {% endif %}
-                            </span>
-                        </div>
-                    </div>
-                 </div>
-                 <div style="margin-top: auto; padding-top: 10px;">
-                     <a href="{{ url_for('business_projects.project_header.edit_header', header_id=header.id) }}" class="btn btn-outline-primary btn-sm">
-                         <i class="fas fa-edit"></i> 编辑HID
-                     </a>
+                         <div class="info-item">
+                             <span class="info-label">更新时间</span>
+                             <span class="info-value">{{ header.updated_at.strftime('%Y-%m-%d') if header.updated_at else '未设置' }}</span>
+                         </div>
+                     </div>
+                     
+                     <!-- 提醒事件行 -->
+                     <div class="project-info-grid reminder-info-row">
+                         {% if header.reminder_event %}
+                         <div class="info-item">
+                             <span class="info-label">提醒事件</span>
+                             <span class="info-value reminder-event">{{ header.reminder_event }}</span>
+                         </div>
+                         <div class="info-item">
+                             <span class="info-label">提醒日期</span>
+                             <span class="info-value reminder-date">{{ header.reminder_date.strftime('%Y-%m-%d') if header.reminder_date else '未设置' }}</span>
+                         </div>
+                         <div class="info-item">
+                             <span class="info-label">提醒状态</span>
+                             <span class="info-value reminder-status">
+                                 {% if header.reminder_sent %}
+                                     <span class="badge bg-success">已发送</span>
+                                 {% else %}
+                                     <span class="badge bg-warning">待发送</span>
+                                 {% endif %}
+                             </span>
+                         </div>
+                         <div class="info-item">
+                             <span class="info-label">提醒管理</span>
+                             <span class="info-value">
+                                 <button type="button" class="btn btn-outline-warning btn-sm" data-action="edit-reminder">
+                                     <i class="fas fa-edit"></i> 编辑提醒
+                                 </button>
+                                 <button type="button" class="btn btn-outline-danger btn-sm ms-2" data-action="delete-reminder">
+                                     <i class="fas fa-trash"></i> 删除提醒
+                                 </button>
+                             </span>
+                         </div>
+                         {% else %}
+                         <div class="info-item">
+                             <span class="info-label">提醒管理</span>
+                             <span class="info-value">
+                                 <button type="button" class="btn btn-outline-primary btn-sm" data-action="add-reminder">
+                                     <i class="fas fa-bell"></i> 添加提醒
+                                 </button>
+                             </span>
+                         </div>
+                         {% endif %}
+                     </div>
                  </div>
              </div>
          </div>
          
           <!-- 右侧边栏：备注信息 -->
-          <div class="project-right-sidebar">
-            <div class="info-card remarks-info-card" style="height: 100%; display: flex; flex-direction: column;">
+         <div class="project-right-sidebar">
+           <div class="info-card remarks-info-card tw:bg-white tw-rounded-lg tw-shadow tw-p-3">
                   <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px;">
-                      <h3 class="section-title" style="font-size: 1.3rem; margin: 0;">备注信息</h3>
+                     <h3 class="section-title tw-text-lg tw-font-semibold" style="font-size: 1.3rem; margin: 0;">备注信息</h3>
                       <button type="button" class="btn btn-outline-primary btn-sm" onclick="showNewRemarksInput()" id="add-remarks-btn">
                           <i class="fas fa-plus"></i> 新增备注
                       </button>
                   </div>
                   
                   <!-- 显示已有备注 -->
-                  <div id="existing-remarks" style="height: 200px; display: flex; flex-direction: column; overflow-y: auto;">
+                  <div id="existing-remarks">
                       {% if header.remarks %}
-                          <div style="background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 4px; padding: 15px; font-size: 0.9rem; line-height: 1.6; color: #495057; height: 100%; overflow-y: auto; white-space: pre-wrap; text-align: left; word-wrap: break-word; text-indent: 0;" id="remarks-display">
+                          <div style="background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 4px; padding: 15px; font-size: 0.9rem; line-height: 1.6; color: #495057; min-height: 200px; overflow-y: auto; white-space: pre-wrap; text-align: left; word-wrap: break-word; text-indent: 0;" id="remarks-display">
                               {{ header.remarks | trim }}
                           </div>
                       {% else %}
-                          <div style="color: #6c757d; font-style: italic; font-size: 0.9rem; padding: 15px; text-align: center; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 4px; height: 100%; display: flex; align-items: center; justify-content: center;">
+                          <div style="color: #6c757d; font-style: italic; font-size: 0.9rem; padding: 15px; text-align: center; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 4px; min-height: 200px; display: flex; align-items: center; justify-content: center;">
                               暂无备注信息
                           </div>
                       {% endif %}
                   </div>
                   
                   <!-- 新增备注输入框 -->
-                  <div id="new-remarks-section" style="display: none; margin-top: 15px;">
-                      <textarea id="new-remarks-input" placeholder="输入新的备注信息...
-  支持多行输入，每条备注会自动添加时间戳" style="width: 100%; min-height: 120px; max-height: 300px; border: 1px solid #ced4da; border-radius: 4px; padding: 12px; font-size: 0.9rem; resize: vertical; box-sizing: border-box; margin-bottom: 10px; line-height: 1.5;"></textarea>
-                      <div style="text-align: right;">
-                          <button type="button" class="btn btn-secondary btn-sm" onclick="cancelNewRemarks()" style="margin-right: 5px;">
+                  <div id="new-remarks-section" style="display: none; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: white; z-index: 10; padding: 15px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+                      <div style="margin-bottom: 10px;">
+                          <label style="font-weight: 600; color: #333; margin-bottom: 5px; display: block;">新增备注</label>
+                          <textarea id="new-remarks-input" placeholder="输入新的备注信息...
+  支持多行输入，每条备注会自动添加时间戳" style="width: 100%; min-height: 120px; max-height: 300px; border: 1px solid #ced4da; border-radius: 4px; padding: 12px; font-size: 0.9rem; resize: vertical; box-sizing: border-box; line-height: 1.5;"></textarea>
+                      </div>
+                      <div style="text-align: right; position: absolute; bottom: 15px; right: 15px; left: 15px;">
+                          <button type="button" class="btn btn-secondary btn-sm" id="cancel-remarks-btn" style="margin-right: 5px;">
                               <i class="fas fa-times"></i> 取消
                           </button>
-                          <button type="button" class="btn btn-primary btn-sm" onclick="submitNewRemarks()">
+                          <button type="button" class="btn btn-primary btn-sm" id="submit-remarks-btn">
                               <i class="fas fa-save"></i> 提交备注
                           </button>
                       </div>
@@ -614,9 +233,9 @@
 
     <!-- REF列表 -->
     <div class="ref-section">
-        <div class="section-header">
-            <h3 class="section-title">REF明细列表</h3>
-            <div class="add-ref-buttons">
+        <div class="section-header tw:flex tw:flex-col md:tw:flex-row tw:items-start md:tw:items-center tw:justify-between tw:gap-2">
+            <h3 class="section-title tw:text-lg tw:font-semibold tw:w-full md:tw:w-auto">REF明细列表</h3>
+            <div class="add-ref-buttons tw:flex tw:flex-wrap tw:gap-2 tw:w-full md:tw:w-auto tw:mt-1 md:tw:mt-0">
                 <a href="{{ url_for('business_projects.project_ref.create_flight_ref', header_id=header.id) }}" class="btn btn-success btn-sm">
                     <i class="fas fa-plane"></i> 机票
                 </a>
@@ -643,27 +262,27 @@
         
         {% if header.refs %}
         <div class="table-responsive">
-            <table class="table table-hover mb-0" style="table-layout: fixed; width: 100%;">
+            <table class="table table-hover mb-0 tw:text-sm" style="width: 100%;">
                 <thead>
                     <tr>
-                        <th style="width: 100px;">REF编号</th>
-                        <th style="width: 60px;">类型</th>
-                        <th style="width: 150px;">出行人</th>
-                        <th style="width: 200px;">名称</th>
-                        <th style="width: 100px;">EO编号</th>
-                        <th style="width: 100px;">售价</th>
-                        <th style="width: 100px;">成本</th>
-                        <th style="width: 120px;">利润</th>
-                        <th style="width: 100px;">未付款</th>
-                        <th style="width: 150px;">供应商</th>
-                        <th style="width: 80px;">状态</th>
-                        <th style="width: 200px;">操作</th>
+                        <th class="tw-min-w-[90px]">REF编号</th>
+                        <th class="tw-min-w-[64px]">类型</th>
+                        <th class="tw-min-w-[160px]">出行人</th>
+                        <th class="tw-min-w-[200px]">名称</th>
+                        <th class="tw-min-w-[110px]">EO编号</th>
+                        <th class="tw-min-w-[100px]">售价</th>
+                        <th class="tw-min-w-[100px]">成本</th>
+                        <th class="tw-min-w-[120px]">利润</th>
+                        <th class="tw-min-w-[110px]">未付款</th>
+                        <th class="tw-min-w-[160px]">供应商</th>
+                        <th class="tw-min-w-[80px]">状态</th>
+                        <th class="tw-min-w-[200px]">操作</th>
                     </tr>
                 </thead>
                 <tbody>
                 {% for ref in header.refs %}
                     <tr>
-                        <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                        <td class="tw-max-w-[140px]" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                             {% if ref.ref_type and ref.ref_type.name == '机票' %}
                                 <a href="{{ url_for('business_projects.project_ref.edit_flight_ref', ref_id=ref.id) }}" class="ref-number-link" title="点击编辑机票REF">
                                     <strong>{{ ref.ref_number }}</strong>
@@ -698,15 +317,15 @@
                                 </a>
                             {% endif %}
                         </td>
-                        <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ ref.ref_type.name if ref.ref_type else '未分类' }}</td>
-                        <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{% if ref.flight_passengers %}{{ ref.flight_passengers | map(attribute='name') | join(', ') }}{% else %}{{ ref.leader_name or '-' }}{% endif %}">
+                        <td class="tw-max-w-[100px]" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ ref.ref_type.name if ref.ref_type else '未分类' }}</td>
+                        <td class="tw-max-w-[220px]" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{% if ref.flight_passengers %}{{ ref.flight_passengers | map(attribute='name') | join(', ') }}{% else %}{{ ref.leader_name or '-' }}{% endif %}">
                             {% if ref.flight_passengers %}
                                 {{ ref.flight_passengers | map(attribute='name') | join(', ') }}
                             {% else %}
                                 {{ ref.leader_name or '-' }}
                             {% endif %}
                         </td>
-                        <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ ref.name or ref.description }}">{{ ref.name or ref.description }}</td>
+                        <td class="tw-max-w-[260px]" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ ref.name or ref.description }}">{{ ref.name or ref.description }}</td>
                         <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                             {% if ref.eos %}
                                 <a href="{{ url_for('business_projects.project_eo.eo_detail', eo_id=ref.eos.id) }}" 
@@ -716,7 +335,8 @@
                                 </a>
                             {% else %}
                                 <button type="button" class="btn btn-sm btn-outline-success" 
-                                        onclick="quickCreateEO({{ ref.id }})" 
+                                        data-action="quick-create-eo" 
+                                        data-ref-id="{{ ref.id }}"
                                         title="快速生成EO编号">
                                     <i class="fas fa-plus"></i>
                                 </button>
@@ -767,8 +387,7 @@
                             <span class="status-badge status-{{ ref.status }}" 
                                   id="ref-status-{{ ref.id }}" 
                                   data-ref-id="{{ ref.id }}" 
-                                  style="cursor: pointer;" 
-                                  onclick="editRefStatus({{ ref.id }})">
+                                  style="cursor: pointer;">
                                 {% if ref.status == 'draft' %}草稿
                                 {% elif ref.status == 'processing' %}处理中
                                 {% elif ref.status == 'completed' %}已完成
@@ -777,8 +396,7 @@
                             </span>
                             <select class="form-select form-select-sm ref-status-select" 
                                     id="ref-status-select-{{ ref.id }}" 
-                                    style="display: none;"
-                                    onchange="saveRefStatus({{ ref.id }})">
+                                    style="display: none;">
                                 <option value="draft" {% if ref.status == 'draft' %}selected{% endif %}>草稿</option>
                                 <option value="processing" {% if ref.status == 'processing' %}selected{% endif %}>处理中</option>
                                 <option value="completed" {% if ref.status == 'completed' %}selected{% endif %}>已完成</option>
@@ -977,500 +595,21 @@
 {% endblock %} 
 {% block extra_js %}
 {{ super() }}
-
+<script src="{{ url_for('static', filename='js/project_detail.js') }}"></script>
 <script>
-// 键盘导航功能
-var prevHeaderUrl = {% if prev_header %}'{{ url_for("business_projects.detail.project_detail", project_id=prev_header.id) }}'{% else %}null{% endif %};
-var nextHeaderUrl = {% if next_header %}'{{ url_for("business_projects.detail.project_detail", project_id=next_header.id) }}'{% else %}null{% endif %};
-document.addEventListener('keydown', function(event) {
-    if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA' || event.target.tagName === 'SELECT') {
-        return;
-    }
-    switch(event.key) {
-        case 'ArrowLeft':
-            if (prevHeaderUrl) {
-                event.preventDefault();
-                window.location.href = prevHeaderUrl;
-            }
-            break;
-        case 'ArrowRight':
-            if (nextHeaderUrl) {
-                event.preventDefault();
-                window.location.href = nextHeaderUrl;
-            }
-            break;
-        case 'l':
-        case 'L':
-            event.preventDefault();
-            window.location.href = '{{ url_for("business_projects.list.list_projects") }}';
-            break;
-    }
-});
+// 设置全局变量供JavaScript模块使用
+window.prevHeaderUrl = {% if prev_header %}'{{ url_for("business_projects.detail.project_detail", project_id=prev_header.id) }}'{% else %}null{% endif %};
+window.nextHeaderUrl = {% if next_header %}'{{ url_for("business_projects.detail.project_detail", project_id=next_header.id) }}'{% else %}null{% endif %};
+window.listUrl = '{{ url_for("business_projects.list.list_projects") }}';
+window.headerId = {{ header.id }};
+window.headerReminderEvent = '{{ header.reminder_event or "" }}';
+window.headerReminderDate = '{{ header.reminder_date.strftime("%Y-%m-%d") if header.reminder_date else "" }}';
 
-// 5秒后自动隐藏键盘提示
-setTimeout(function() {
-    const alert = document.querySelector('.alert');
-    if (alert) {
-        const bsAlert = new bootstrap.Alert(alert);
-        bsAlert.close();
-    }
-}, 5000);
-
+// 清理备注显示
 document.addEventListener('DOMContentLoaded', function() {
-    const descSpan = document.getElementById('project-desc');
-    const descInput = document.getElementById('project-desc-input');
-    if (!descSpan || !descInput) return;
-
-    descSpan.addEventListener('click', function() {
-        descInput.value = descSpan.textContent.trim();
-        descSpan.style.display = 'none';
-        descInput.style.display = 'inline-block';
-        descInput.style.width = '60%';
-        descInput.focus();
-        descInput.select();
-    });
-
-    function saveDesc() {
-        const newDesc = descInput.value.trim();
-        const headerId = descSpan.getAttribute('data-header-id');
-        if (!headerId) return;
-        if (newDesc === '') {
-            alert('项目描述不能为空');
-            return;
-        }
-        fetch('{{ url_for("business_projects.project_header.update_header_desc") }}', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': '{{ csrf_token() }}'
-            },
-            body: JSON.stringify({ header_id: headerId, desc: newDesc })
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data.success) {
-                descSpan.textContent = newDesc;
-            } else {
-                alert(data.message || '保存失败');
-            }
-            descSpan.style.display = '';
-            descInput.style.display = 'none';
-        })
-        .catch(() => {
-            alert('网络错误，保存失败');
-            descSpan.style.display = '';
-            descInput.style.display = 'none';
-        });
-    }
-
-    descInput.addEventListener('blur', saveDesc);
-    descInput.addEventListener('keydown', function(e) {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            saveDesc();
-        }
-        if (e.key === 'Escape') {
-            descSpan.style.display = '';
-            descInput.style.display = 'none';
-        }
-    });
-
-    // 公司选择逻辑
-    const companySpan = document.getElementById('company-name-span');
-    const companySelect = document.getElementById('company-select');
-    if (companySpan && companySelect) {
-        companySpan.addEventListener('click', function() {
-            companySpan.style.display = 'none';
-            companySelect.style.display = 'inline-block';
-            companySelect.style.width = '70%';
-            companySelect.focus();
-        });
-        companySelect.addEventListener('change', function() {
-            const headerId = companySpan.getAttribute('data-header-id');
-            const companyId = companySelect.value;
-            fetch('{{ url_for("business_projects.project_header.update_header_company") }}', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': '{{ csrf_token() }}'
-                },
-                body: JSON.stringify({ header_id: headerId, company_id: companyId })
-            })
-            .then(res => res.json())
-            .then(data => {
-                if (data.success) {
-                    companySpan.textContent = companySelect.options[companySelect.selectedIndex].text;
-                } else {
-                    alert(data.message || '保存失败');
-                }
-                companySpan.style.display = '';
-                companySelect.style.display = 'none';
-            })
-            .catch(() => {
-                alert('网络错误，保存失败');
-                companySpan.style.display = '';
-                companySelect.style.display = 'none';
-            });
-        });
-        companySelect.addEventListener('blur', function() {
-            companySpan.style.display = '';
-            companySelect.style.display = 'none';
-        });
-    }
-
-    // 状态选择逻辑
-    const statusSpan = document.getElementById('status-span');
-    const statusSelect = document.getElementById('status-select');
-    if (statusSpan && statusSelect) {
-        statusSpan.addEventListener('click', function() {
-            statusSpan.style.display = 'none';
-            statusSelect.style.display = 'inline-block';
-            statusSelect.style.width = '90%';
-            statusSelect.focus();
-        });
-        statusSelect.addEventListener('change', function() {
-            const headerId = statusSpan.getAttribute('data-header-id');
-            const status = statusSelect.value;
-            fetch('{{ url_for("business_projects.project_header.update_header_status") }}', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': '{{ csrf_token() }}'
-                },
-                body: JSON.stringify({ header_id: headerId, status: status })
-            })
-            .then(res => res.json())
-            .then(data => {
-                if (data.success) {
-                    // 更新显示的文本
-                    const statusText = statusSelect.options[statusSelect.selectedIndex].text;
-                    statusSpan.textContent = statusText;
-                    // 更新CSS类
-                    statusSpan.className = `status-badge status-${status}`;
-                } else {
-                    alert(data.message || '保存失败');
-                }
-                statusSpan.style.display = '';
-                statusSelect.style.display = 'none';
-            })
-            .catch(() => {
-                alert('网络错误，保存失败');
-                statusSpan.style.display = '';
-                statusSelect.style.display = 'none';
-            });
-        });
-        statusSelect.addEventListener('blur', function() {
-            statusSpan.style.display = '';
-            statusSelect.style.display = 'none';
-        });
-    }
-
-    // 联系人编辑逻辑
-    const contactSpan = document.getElementById('contact-span');
-    const contactInput = document.getElementById('contact-input');
-    if (contactSpan && contactInput) {
-        contactSpan.addEventListener('click', function() {
-            const currentValue = contactSpan.textContent.trim();
-            contactInput.value = currentValue === 'N/A' ? '' : currentValue;
-            contactSpan.style.display = 'none';
-            contactInput.style.display = 'inline-block';
-            contactInput.style.width = '60%';
-            contactInput.focus();
-            contactInput.select();
-        });
-
-        function saveContact() {
-            const newContact = contactInput.value.trim();
-            const headerId = contactSpan.getAttribute('data-header-id');
-            if (!headerId) return;
-            
-            fetch('{{ url_for("business_projects.project_header.update_header_contact") }}', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': '{{ csrf_token() }}'
-                },
-                body: JSON.stringify({ header_id: headerId, contact: newContact })
-            })
-            .then(res => res.json())
-            .then(data => {
-                if (data.success) {
-                    contactSpan.textContent = newContact || 'N/A';
-                } else {
-                    alert(data.message || '保存失败');
-                }
-                contactSpan.style.display = '';
-                contactInput.style.display = 'none';
-            })
-            .catch(() => {
-                alert('网络错误，保存失败');
-                contactSpan.style.display = '';
-                contactInput.style.display = 'none';
-            });
-        }
-
-        contactInput.addEventListener('blur', saveContact);
-        contactInput.addEventListener('keydown', function(e) {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                saveContact();
-            }
-            if (e.key === 'Escape') {
-                contactSpan.style.display = '';
-                contactInput.style.display = 'none';
-            }
-        });
-    }
-    
-    // 快速消失的flash消息处理
-    const flashMessages = document.querySelectorAll('.alert');
-    flashMessages.forEach(function(alert) {
-        // 检查是否是机票REF保存成功的消息
-        const messageText = alert.textContent || alert.innerText;
-        if (messageText.includes('机票REF保存成功')) {
-            // 立即隐藏机票REF保存成功的消息
-            alert.style.display = 'none';
-        }
-    });
-    
-    // 确保新增备注按钮正常工作
-    const addRemarksBtn = document.getElementById('add-remarks-btn');
-    if (addRemarksBtn) {
-        addRemarksBtn.addEventListener('click', function(e) {
-            console.log('Add remarks button clicked via event listener');
-            showNewRemarksInput();
-        });
-    }
-    
-    // 显示新增备注输入框
-    function showNewRemarksInput() {
-        console.log('showNewRemarksInput function called');
-        const newRemarksSection = document.getElementById('new-remarks-section');
-        const newRemarksInput = document.getElementById('new-remarks-input');
-        
-        if (newRemarksSection && newRemarksInput) {
-            newRemarksSection.style.display = 'block';
-            newRemarksInput.focus();
-            console.log('New remarks section displayed');
-        } else {
-            console.error('Could not find new-remarks-section or new-remarks-input elements');
-        }
-    }
-    
-    // 取消新增备注
-    function cancelNewRemarks() {
-        document.getElementById('new-remarks-section').style.display = 'none';
-        document.getElementById('new-remarks-input').value = '';
-    }
-    
-    // 将函数绑定到全局作用域，以便onclick事件可以访问
-    window.showNewRemarksInput = showNewRemarksInput;
-    window.cancelNewRemarks = cancelNewRemarks;
-    window.submitNewRemarks = submitNewRemarks;
-});
-
-// 全局函数定义，确保onclick事件可以访问
-window.showNewRemarksInput = function() {
-    console.log('showNewRemarksInput function called');
-    const newRemarksSection = document.getElementById('new-remarks-section');
-    const newRemarksInput = document.getElementById('new-remarks-input');
-    
-    if (newRemarksSection && newRemarksInput) {
-        newRemarksSection.style.display = 'block';
-        newRemarksInput.focus();
-        console.log('New remarks section displayed');
-    } else {
-        console.error('Could not find new-remarks-section or new-remarks-input elements');
-    }
-};
-
-window.cancelNewRemarks = function() {
-    document.getElementById('new-remarks-section').style.display = 'none';
-    document.getElementById('new-remarks-input').value = '';
-};
-
-window.submitNewRemarks = function() {
-    const remarksInput = document.getElementById('new-remarks-input');
-    const newRemarks = remarksInput.value.trim();
-    
-    if (!newRemarks) {
-        alert('请输入备注信息');
-        return;
-    }
-    
-    // 获取当前时间
-    const now = new Date();
-    const timestamp = now.getFullYear() + '-' + 
-                     String(now.getMonth() + 1).padStart(2, '0') + '-' + 
-                     String(now.getDate()).padStart(2, '0') + ' ' + 
-                     String(now.getHours()).padStart(2, '0') + ':' + 
-                     String(now.getMinutes()).padStart(2, '0') + ':' + 
-                     String(now.getSeconds()).padStart(2, '0');
-    
-    // 获取现有备注
-    const existingRemarks = `{{ header.remarks or "" | replace('\n', '\\n') | replace("'", "\\'") | replace('"', '\\"') }}`.trim();
-    
-    // 清理没有时间戳的旧备注
-    let cleanedRemarks = '';
-    if (existingRemarks) {
-        const lines = existingRemarks.split('\n');
-        const validLines = lines.filter(line => {
-            // 保留有时间戳的行（格式：[YYYY-MM-DD HH:MM:SS]）
-            return line.trim().match(/^\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\]/);
-        });
-        // 确保每行都有内容，避免空行导致的对齐问题，并去除每行前后的空格
-        cleanedRemarks = validLines
-            .filter(line => line.trim() !== '')
-            .map(line => line.trim())  // 去除每行前后的空格
-            .join('\n');
-    }
-    
-    // 组合备注（只保留有时间戳的备注，然后添加新备注）
-    let combinedRemarks = cleanedRemarks ? 
-        cleanedRemarks + '\n\n[' + timestamp + '] ' + newRemarks : 
-        '[' + timestamp + '] ' + newRemarks;
-    
-    // 彻底清理备注内容：去除所有前导空格、尾随空格和空行
-    combinedRemarks = combinedRemarks
-        .replace(/\r\n/g, '\n')  // 统一换行符
-        .replace(/\r/g, '\n')    // 处理回车符
-        .split('\n')
-        .map(line => line.trim())
-        .filter(line => line !== '')
-        .join('\n')
-        .replace(/\n\s*\n/g, '\n')  // 去除多余的空行
-        .replace(/^\s+|\s+$/g, '')  // 去除首尾空白
-        .trim();
-    
-    // 直接提交，不需要二次确认
-    fetch('{{ url_for("business_projects.project_header.update_header_remarks") }}', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': '{{ csrf_token() }}'
-        },
-        body: JSON.stringify({ 
-            header_id: {{ header.id }}, 
-            remarks: combinedRemarks 
-        })
-    })
-    .then(res => res.json())
-    .then(data => {
-        if (data.success) {
-            // 提交成功后刷新页面
-            window.location.reload();
-        } else {
-            alert(data.message || '备注提交失败');
-        }
-    })
-    .catch(() => {
-        alert('网络错误，备注提交失败');
-    });
-};
-
-// 快速创建EO函数
-function quickCreateEO(refId) {
-    if (confirm('确定要为这个REF快速生成EO编号吗？')) {
-        fetch('{{ url_for("business_projects.project_eo.quick_create_eo", ref_id=0) }}'.replace('/0', '/' + refId), {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': '{{ csrf_token() }}'
-            }
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data.success) {
-                // 刷新页面以显示新生成的EO编号
-                location.reload();
-            } else {
-                alert(data.message || '生成EO编号失败');
-            }
-        })
-        .catch(() => {
-            alert('网络错误，生成EO编号失败');
-        });
-    }
-}
-
-// REF状态编辑函数
-function editRefStatus(refId) {
-    const statusSpan = document.getElementById('ref-status-' + refId);
-    const statusSelect = document.getElementById('ref-status-select-' + refId);
-    
-    if (statusSpan && statusSelect) {
-        statusSpan.style.display = 'none';
-        statusSelect.style.display = 'inline-block';
-        statusSelect.focus();
-        
-        // 添加ESC键监听
-        statusSelect.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape') {
-                statusSpan.style.display = 'inline-block';
-                statusSelect.style.display = 'none';
-            }
-        });
-        
-        // 添加失去焦点监听
-        statusSelect.addEventListener('blur', function(e) {
-            // 延迟执行，避免与onchange冲突
-            setTimeout(() => {
-                if (statusSelect.style.display !== 'none') {
-                    statusSpan.style.display = 'inline-block';
-                    statusSelect.style.display = 'none';
-                }
-            }, 100);
-        });
-    }
-}
-
-// 保存REF状态函数
-function saveRefStatus(refId) {
-    const statusSpan = document.getElementById('ref-status-' + refId);
-    const statusSelect = document.getElementById('ref-status-select-' + refId);
-    
-    if (!statusSpan || !statusSelect) return;
-    
-    const newStatus = statusSelect.value;
-    const statusText = statusSelect.options[statusSelect.selectedIndex].text;
-    
-    fetch('{{ url_for("business_projects.project_ref.update_ref_status") }}', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': '{{ csrf_token() }}'
-        },
-        body: JSON.stringify({ ref_id: refId, status: newStatus })
-    })
-    .then(res => res.json())
-    .then(data => {
-        if (data.success) {
-            // 更新显示的文本和样式
-            statusSpan.textContent = statusText;
-            statusSpan.className = `status-badge status-${newStatus}`;
-            statusSpan.style.display = 'inline-block';
-            statusSelect.style.display = 'none';
-        } else {
-            alert(data.message || '保存失败');
-            // 恢复原来的显示
-            statusSpan.style.display = 'inline-block';
-            statusSelect.style.display = 'none';
-        }
-    })
-    .catch(() => {
-        alert('网络错误，保存失败');
-        // 恢复原来的显示
-        statusSpan.style.display = 'inline-block';
-        statusSelect.style.display = 'none';
-    });
-}
-
-// 清理备注显示函数
-function cleanRemarksDisplay() {
     const remarksDisplay = document.getElementById('remarks-display');
     if (remarksDisplay) {
         let content = remarksDisplay.textContent || remarksDisplay.innerText;
-        // 清理内容
         content = content
             .replace(/\r\n/g, '\n')
             .replace(/\r/g, '\n')
@@ -1482,148 +621,12 @@ function cleanRemarksDisplay() {
         
         remarksDisplay.textContent = content;
     }
-}
-
-// 页面加载完成后清理备注显示
-document.addEventListener('DOMContentLoaded', function() {
-    cleanRemarksDisplay();
+    
+    // 初始化项目详情管理器
+    if (typeof ProjectDetailManager !== 'undefined') {
+        window.projectDetailManager = new ProjectDetailManager();
+    }
 });
-
-// 提醒管理功能
-function addReminder() {
-    document.getElementById('reminderEvent').value = '';
-    document.getElementById('reminderDate').value = '';
-    document.getElementById('reminderModalTitle').textContent = '添加提醒';
-    document.getElementById('reminderForm').setAttribute('data-action', 'add');
-    document.getElementById('reminderModal').style.display = 'block';
-}
-
-function editReminder() {
-    document.getElementById('reminderEvent').value = '{{ header.reminder_event or "" }}';
-    document.getElementById('reminderDate').value = '{{ header.reminder_date.strftime("%Y-%m-%d") if header.reminder_date else "" }}';
-    document.getElementById('reminderModalTitle').textContent = '编辑提醒';
-    document.getElementById('reminderForm').setAttribute('data-action', 'edit');
-    document.getElementById('reminderModal').style.display = 'block';
-}
-
-function deleteReminder() {
-    if (confirm('确定要删除这个提醒吗？')) {
-        fetch(`/projects/detail/header/{{ header.id }}/reminder`, {
-            method: 'DELETE',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest',
-                'X-CSRFToken': '{{ csrf_token() }}'
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                showMessage('提醒删除成功', 'success');
-                setTimeout(() => {
-                    window.location.reload();
-                }, 1000);
-            } else {
-                showMessage('删除失败: ' + data.message, 'error');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            showMessage('删除失败，请重试', 'error');
-        });
-    }
-}
-
-function closeReminderModal() {
-    document.getElementById('reminderModal').style.display = 'none';
-}
-
-function saveReminder() {
-    const action = document.getElementById('reminderForm').getAttribute('data-action');
-    const reminderEvent = document.getElementById('reminderEvent').value.trim();
-    const reminderDate = document.getElementById('reminderDate').value;
-    
-    if (!reminderEvent) {
-        showMessage('请输入提醒事件', 'error');
-        return;
-    }
-    
-    if (!reminderDate) {
-        showMessage('请选择提醒日期', 'error');
-        return;
-    }
-    
-    // 检查日期不能早于今天
-    const today = new Date();
-    const selectedDate = new Date(reminderDate);
-    if (selectedDate < today) {
-        showMessage('提醒日期不能早于今天', 'error');
-        return;
-    }
-    
-    const url = action === 'add' 
-        ? `/projects/detail/header/{{ header.id }}/reminder`
-        : `/projects/detail/header/{{ header.id }}/reminder`;
-    
-    const method = action === 'add' ? 'POST' : 'PUT';
-    
-    fetch(url, {
-        method: method,
-        headers: {
-            'Content-Type': 'application/json',
-            'X-Requested-With': 'XMLHttpRequest',
-            'X-CSRFToken': '{{ csrf_token() }}'
-        },
-        body: JSON.stringify({
-            reminder_event: reminderEvent,
-            reminder_date: reminderDate
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            showMessage(data.message, 'success');
-            closeReminderModal();
-            setTimeout(() => {
-                window.location.reload();
-            }, 1000);
-        } else {
-            showMessage('保存失败: ' + data.message, 'error');
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        showMessage('保存失败，请重试', 'error');
-    });
-}
-
-function showMessage(message, type) {
-    // 创建提示元素
-    const toast = document.createElement('div');
-    toast.className = `alert alert-${type === 'error' ? 'danger' : type} alert-dismissible fade show position-fixed`;
-    toast.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
-    toast.innerHTML = `
-        ${message}
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    `;
-    
-    document.body.appendChild(toast);
-    
-    // 3秒后自动消失
-    setTimeout(() => {
-        if (toast.parentNode) {
-            toast.remove();
-        }
-    }, 3000);
-}
-
-// 点击模态框外部关闭
-window.onclick = function(event) {
-    const modal = document.getElementById('reminderModal');
-    if (event.target === modal) {
-        closeReminderModal();
-    }
-}
 </script>
 
 <!-- 提醒管理模态框 -->
@@ -1631,7 +634,7 @@ window.onclick = function(event) {
     <div class="modal-content">
         <div class="modal-header">
             <h5 class="modal-title" id="reminderModalTitle">添加提醒</h5>
-            <span class="close" onclick="closeReminderModal()">&times;</span>
+            <span class="close" data-action="close-reminder-modal">&times;</span>
         </div>
         <div class="modal-body">
             <form id="reminderForm">
@@ -1647,8 +650,8 @@ window.onclick = function(event) {
             </form>
         </div>
         <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" onclick="closeReminderModal()">取消</button>
-            <button type="button" class="btn btn-primary" onclick="saveReminder()">保存</button>
+            <button type="button" class="btn btn-secondary" data-action="close-reminder-modal">取消</button>
+            <button type="button" class="btn btn-primary" data-action="save-reminder">保存</button>
         </div>
     </div>
 </div>

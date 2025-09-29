@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Statement of Account - {{ header.corporate_name or 'N/A' }}</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .soa-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        .header {
+            text-align: center;
+            border-bottom: 2px solid #333;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+        .company-info {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 30px;
+        }
+        .company-details, .soa-details {
+            flex: 1;
+        }
+        .company-details h3, .soa-details h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        .summary-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 30px;
+        }
+        .summary-table th, .summary-table td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+        .summary-table th {
+            background-color: #f8f9fa;
+            font-weight: bold;
+        }
+        .summary-table .amount {
+            text-align: right;
+        }
+        .details-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 30px;
+        }
+        .details-table th, .details-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+            font-size: 12px;
+        }
+        .details-table th {
+            background-color: #f8f9fa;
+            font-weight: bold;
+        }
+        .details-table .amount {
+            text-align: right;
+        }
+        .details-table .subtotal-row {
+            background-color: #f0f0f0;
+            font-weight: bold;
+        }
+        .footer {
+            margin-top: 40px;
+            text-align: center;
+            font-size: 12px;
+            color: #666;
+        }
+        .print-button {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .print-button:hover {
+            background: #0056b3;
+        }
+        @media print {
+            .print-button {
+                display: none;
+            }
+            body {
+                background: white;
+            }
+            .soa-container {
+                box-shadow: none;
+                margin: 0;
+                padding: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <button class="print-button" onclick="window.print()">打印/保存PDF</button>
+    
+    <div class="soa-container">
+        <div class="header">
+            <h1>Statement of Account</h1>
+            <h2>对账单</h2>
+        </div>
+        
+        <div class="company-info">
+            <div class="company-details">
+                <h3>客户信息 / Client Information</h3>
+                <p><strong>公司名称 / Company Name:</strong> {{ header.corporate_name or 'N/A' }}</p>
+                <p><strong>预订编号 / Booking ID:</strong> {{ header.booking_header_id }}</p>
+                <p><strong>预订日期 / Booking Date:</strong> {{ header.book_date.strftime('%Y-%m-%d') if header.book_date else 'N/A' }}</p>
+                <p><strong>顾问 / Consultant:</strong> {{ header.consultant or 'N/A' }}</p>
+                <p><strong>销售顾问 / Sales Consultant:</strong> {{ header.sales_consultant or 'N/A' }}</p>
+            </div>
+            
+            <div class="soa-details">
+                <h3>账单信息 / Statement Information</h3>
+                <p><strong>发票号 / Invoice No:</strong> {{ header.invoice_no or 'N/A' }}</p>
+                <p><strong>发票日期 / Invoice Date:</strong> {{ header.invoice_date.strftime('%Y-%m-%d') if header.invoice_date else 'N/A' }}</p>
+                <p><strong>生成日期 / Generated Date:</strong> {{ current_date }}</p>
+                <p><strong>币种 / Currency:</strong> SGD</p>
+            </div>
+        </div>
+        
+        <h3>财务汇总 / Financial Summary</h3>
+        <table class="summary-table">
+            <tr>
+                <th>项目 / Item</th>
+                <th class="amount">金额 / Amount (SGD)</th>
+            </tr>
+            <tr>
+                <td>总金额 / Gross Amount</td>
+                <td class="amount">{{ "%.2f"|format(header.sub_total_gross or 0) }}</td>
+            </tr>
+            <tr>
+                <td>税额 / Tax</td>
+                <td class="amount">{{ "%.2f"|format(header.sub_total_tax or 0) }}</td>
+            </tr>
+            <tr>
+                <td>折扣 / Discount</td>
+                <td class="amount">{{ "%.2f"|format(header.sub_total_discount or 0) }}</td>
+            </tr>
+            <tr>
+                <td>本地总金额 / Local Gross</td>
+                <td class="amount">{{ "%.2f"|format(header.sub_total_local_gross or 0) }}</td>
+            </tr>
+            <tr>
+                <td>成本 / Cost</td>
+                <td class="amount">{{ "%.2f"|format(header.sub_total_cost or 0) }}</td>
+            </tr>
+            <tr>
+                <td>盈亏 / Profit/Loss</td>
+                <td class="amount">{{ "%.2f"|format(header.sub_total_pl or 0) }}</td>
+            </tr>
+            <tr>
+                <td>利润率 / Margin</td>
+                <td class="amount">{{ "%.2f"|format(header.sub_total_margin or 0) }}%</td>
+            </tr>
+            <tr style="background-color: #e9ecef; font-weight: bold;">
+                <td>余额 / Balance</td>
+                <td class="amount">{{ "%.2f"|format(header.sub_total_balance or 0) }}</td>
+            </tr>
+        </table>
+        
+        <h3>明细记录 / Transaction Details</h3>
+        <table class="details-table">
+            <tr>
+                <th>客户名称 / Client Name</th>
+                <th>预订参考 / Booking Ref</th>
+                <th>类型 / Type</th>
+                <th>出发日期 / Dep Date</th>
+                <th>行程描述 / Description</th>
+                <th class="amount">金额 / Amount</th>
+                <th class="amount">成本 / Cost</th>
+                <th class="amount">盈亏 / P&L</th>
+            </tr>
+            {% for detail in details %}
+            <tr {% if detail.is_subtotal %}class="subtotal-row"{% endif %}>
+                <td>{{ detail.client_name or 'N/A' }}</td>
+                <td>{{ detail.booking_ref or 'N/A' }}</td>
+                <td>{{ detail.book_type or 'N/A' }}</td>
+                <td>{{ detail.dep_date.strftime('%Y-%m-%d') if detail.dep_date else 'N/A' }}</td>
+                <td>{{ detail.itin_desc or 'N/A' }}</td>
+                <td class="amount">{{ "%.2f"|format(detail.gross_amount or 0) }}</td>
+                <td class="amount">{{ "%.2f"|format(detail.local_cost or 0) }}</td>
+                <td class="amount">{{ "%.2f"|format(detail.profit_loss or 0) }}</td>
+            </tr>
+            {% endfor %}
+        </table>
+        
+        <div class="footer">
+            <p>此对账单由系统自动生成 / This statement is automatically generated by the system</p>
+            <p>如有疑问，请联系我们的客服团队 / For any inquiries, please contact our customer service team</p>
+            <p>生成时间 / Generated at: {{ current_datetime }}</p>
+        </div>
+    </div>
+</body>
+</html>

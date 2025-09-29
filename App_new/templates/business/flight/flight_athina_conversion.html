@@ -16,13 +16,109 @@
         --secondary-color: #047857;
         --danger-color: #dc2626;
         --danger-hover: #b91c1c;
+        --warning-color: #d97706;
+        --warning-hover: #b45309;
         --background-color: #f3f4f6;
         --card-background: #ffffff;
         --border-color: #e5e7eb;
+        --border-hover: #d1d5db;
         --text-color: #1f2937;
+        --text-secondary: #6b7280;
         --success-color: #059669;
         --success-hover: #047857;
+        --font-family-mono: 'Consolas', 'Monaco', monospace;
+        --font-family-sans: 'Inter', 'Segoe UI', sans-serif;
+        --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+        --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+        --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
     }
+    
+    /* 统一字体设置 */
+    body {
+        font-family: var(--font-family-sans);
+    }
+    
+    /* 统一textarea基类 */
+    .textarea-base {
+        width: 100%;
+        min-height: 250px;
+        padding: 12px;
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        font-size: 14px;
+        resize: vertical;
+        font-family: var(--font-family-mono);
+        line-height: 1.5;
+        background-color: var(--background-color);
+        transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+    
+    .textarea-base:focus {
+        outline: none;
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.1);
+    }
+    
+    /* 继承基类的textarea样式 - 现在直接使用textarea-base类 */
+    
+    /* 统一按钮基类 */
+    .btn-base {
+        padding: 0.75rem 1.25rem;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        border: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        transition: all 0.2s ease;
+        text-decoration: none;
+        font-family: var(--font-family-sans);
+        background-color: var(--success-color);
+        color: #fff;
+    }
+    
+    .btn-base:hover {
+        background-color: var(--success-hover);
+        transform: translateY(-1px);
+        box-shadow: var(--shadow-md);
+        text-decoration: none;
+        color: #fff;
+    }
+    
+    .btn-base:active {
+        transform: translateY(0);
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    }
+    
+    /* 按钮修饰符 */
+    .btn-base.btn-danger {
+        background-color: var(--danger-color);
+    }
+    
+    .btn-base.btn-danger:hover {
+        background-color: var(--danger-hover);
+    }
+    
+    .btn-base.btn-warning {
+        background-color: var(--warning-color);
+    }
+    
+    .btn-base.btn-warning:hover {
+        background-color: var(--warning-hover);
+    }
+    
+    .btn-base.btn-secondary {
+        background-color: var(--border-color);
+        color: var(--text-color);
+    }
+    
+    .btn-base.btn-secondary:hover {
+        background-color: var(--border-hover);
+    }
+    
+    /* 保持向后兼容 - 这些样式现在由基类处理 */
     
     /* 确保页面没有多余的边距 */
     html, body {
@@ -33,14 +129,86 @@
     }
 
     /* 主容器 */
+    .container-fluid {
+        padding: 0;
+        margin: 0;
+        width: 100%;
+        max-width: 100%;
+    }
+    
     .athina-conversion-container {
-        max-width: 1800px;
+        max-width: 1100px;
         margin: 0 auto;
         padding: 20px;
         width: 100%;
         overflow: visible;
         min-width: 320px;
         box-sizing: border-box;
+    }
+
+    /* 工具切换按钮容器 */
+    .tool-switch-container {
+        display: flex;
+        justify-content: flex-start;
+        margin-bottom: 2rem;
+        gap: 1rem;
+    }
+
+    /* 工具切换按钮样式 */
+    .tool-switch-btn {
+        background-color: var(--card-background);
+        color: var(--text-color);
+        border: 2px solid var(--border-color);
+        padding: 1rem 2rem;
+        border-radius: 12px;
+        cursor: pointer;
+        font-size: 1.1rem;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        min-width: 200px;
+        justify-content: center;
+    }
+
+    .tool-switch-btn:hover {
+        background-color: var(--background-color);
+        border-color: var(--primary-color);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .tool-switch-btn.active {
+        background-color: var(--primary-color);
+        color: white;
+        border-color: var(--primary-color);
+        box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3);
+    }
+
+    .tool-switch-btn.active:hover {
+        background-color: var(--secondary-color);
+        border-color: var(--secondary-color);
+    }
+
+    /* 工具内容容器 */
+    .tool-content-container {
+        position: relative;
+        min-height: 600px;
+        width: 100%;
+        max-width: 100%;
+    }
+
+    /* 工具区域样式 */
+    .tool-section {
+        display: none;
+        width: 100%;
+        max-width: 100%;
+        margin: 0 auto;
+    }
+
+    .tool-section.active {
+        display: block;
     }
 
     /* 页面标题 */
@@ -54,31 +222,15 @@
         border-bottom: 2px solid var(--border-color);
     }
 
-    /* 水平布局容器 */
-    .horizontal-layout {
-        display: flex !important;
-        gap: 2rem;
-        margin-bottom: 2rem;
-        justify-content: space-between;
-        align-items: flex-start;
-        flex-wrap: nowrap;
-        width: 100%;
-        position: relative;
-        z-index: 1;
-        min-height: auto;
-    }
-
-    /* 功能区域容器 */
+    /* 功能区域容器 - 单网格设计 */
     .function-section {
         background-color: var(--card-background);
         border-radius: 12px;
         box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
         margin-bottom: 2rem;
         overflow: hidden;
-        flex: 1 1 0 !important;
-        min-width: 0;
-        max-width: calc(50% - 1rem) !important;
-        width: calc(50% - 1rem) !important;
+        width: 100%;
+        max-width: 100%;
         position: relative;
         z-index: 2;
         display: block !important;
@@ -209,47 +361,10 @@
         flex: 1;
     }
     
-    /* 统一的textarea样式 */
-    .unified-textarea {
-        width: 100%;
-        height: 250px;
-        padding: 12px;
-        border: 1px solid var(--border-color);
-        border-radius: 8px;
-        font-size: 14px;
-        resize: none;
-        display: block;
-        background-color: var(--background-color);
-        font-family: 'Consolas', 'Monaco', monospace;
-        line-height: 1.5;
-    }
+    /* 统一的textarea样式 - 现在由基类处理 */
     
-    .unified-textarea:focus {
-        outline: none;
-        border-color: var(--success-color);
-        box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.1);
-    }
-    
-    /* 统一的输入框样式 */
-    .unified-input {
-        width: 100%;
-        padding: 12px;
-        border: 1px solid var(--border-color);
-        border-radius: 8px;
-        font-size: 14px;
-        display: block;
-        background-color: var(--background-color);
-        transition: border-color 0.15s ease, box-shadow 0.15s ease;
-    }
-    
-    .unified-input:focus {
-        outline: none;
-        border-color: var(--success-color);
-        box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.1);
-    }
-    
-    /* 统一的选择框样式 */
-    .unified-select {
+    /* 统一输入框基类 */
+    .input-base {
         width: 100%;
         padding: 12px;
         border: 1px solid var(--border-color);
@@ -259,95 +374,26 @@
         transition: border-color 0.15s ease, box-shadow 0.15s ease;
     }
     
-    .unified-select:focus {
+    .input-base:focus {
         outline: none;
-        border-color: var(--success-color);
+        border-color: var(--primary-color);
         box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.1);
     }
     
-    /* 统一的按钮样式 */
-    .unified-button {
-        background-color: var(--success-color);
-        color: white;
-        border: none;
-        padding: 12px 20px;
-        border-radius: 8px;
-        cursor: pointer;
-        font-size: 14px;
-        font-weight: 500;
-        transition: all 0.15s ease;
-        display: inline-flex;
-        align-items: center;
-        gap: 0.5rem;
-        text-decoration: none;
+    /* 继承基类的输入框样式 */
+    .unified-input,
+    .unified-select,
+    .flight-app-input,
+    .flight-app-select,
+    .athina-input {
+        /* 继承基类样式 */
     }
     
-    .unified-button:hover {
-        background-color: var(--success-hover);
-        transform: translateY(-1px);
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-        text-decoration: none;
-        color: white;
-    }
+    /* 保持向后兼容 - 这些样式现在由基类处理 */
     
-    .unified-button:active {
-        transform: translateY(0);
-        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
-    }
+    /* 统一的按钮样式 - 现在由基类处理 */
     
-    /* 危险按钮样式 */
-    .unified-button.danger {
-        background-color: var(--danger-color);
-    }
-    
-    .unified-button.danger:hover {
-        background-color: var(--danger-hover);
-    }
-    
-    /* 次要按钮样式 */
-    .unified-button.secondary {
-        background-color: var(--secondary-color);
-    }
-    
-    .unified-button.secondary:hover {
-        background-color: var(--success-hover);
-    }
-    
-    /* 保持向后兼容 */
-    .flight-app-textarea {
-        width: 100%;
-        height: 250px;
-        padding: 12px;
-        border: 1px solid var(--border-color);
-        border-radius: 8px;
-        font-size: 14px;
-        resize: none;
-        display: block;
-        background-color: var(--background-color);
-        font-family: 'Consolas', 'Monaco', monospace;
-        line-height: 1.5;
-    }
-    
-    .flight-app-textarea:focus {
-        outline: none;
-        border-color: var(--success-color);
-        box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.1);
-    }
-    
-    .flight-app-input {
-        width: 100%;
-        padding: 8px 12px;
-        border: 1px solid var(--border-color);
-        border-radius: 6px;
-        font-size: 14px;
-        display: block;
-    }
-    
-    .flight-app-input:focus {
-        outline: none;
-        border-color: var(--success-color);
-        box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.1);
-    }
+    /* 保持向后兼容 - 这些样式现在由基类处理 */
     
     .flight-app-luggage-price-row {
         display: flex;
@@ -373,7 +419,6 @@
         border: 1px solid var(--border-color);
         border-radius: 6px;
         font-size: 14px;
-        background-color: var(--background-color);
     }
     
     .flight-app-select:focus {
@@ -549,26 +594,7 @@
         color: white;
     }
 
-    /* 保持向后兼容 */
-    .athina-textarea {
-        width: 100%;
-        padding: 12px;
-        border: 1px solid var(--border-color);
-        border-radius: 8px;
-        background-color: var(--background-color);
-        resize: none;
-        height: 250px;
-        font-family: 'Consolas', 'Monaco', monospace;
-        font-size: 14px;
-        line-height: 1.5;
-        white-space: pre;
-    }
-
-    .athina-textarea:focus {
-        outline: none;
-        border-color: var(--success-color);
-        box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.1);
-    }
+    /* 保持向后兼容 - 这些样式现在由基类处理 */
 
     .athina-textarea-container {
         position: relative;
@@ -660,27 +686,6 @@
         opacity: 1;
     }
 
-    /* 强制覆盖任何可能的Bootstrap样式 */
-    .horizontal-layout * {
-        box-sizing: border-box !important;
-    }
-    
-    /* 确保flex布局正确工作 */
-    .horizontal-layout > .function-section {
-        flex: 1 1 0 !important;
-        min-width: 0 !important;
-        max-width: calc(50% - 1rem) !important;
-        width: calc(50% - 1rem) !important;
-        box-sizing: border-box !important;
-    }
-    
-    /* 强制确保两个部分都显示 */
-    .horizontal-layout > .function-section:nth-child(1),
-    .horizontal-layout > .function-section:nth-child(2) {
-        display: block !important;
-        visibility: visible !important;
-        opacity: 1 !important;
-    }
 
     /* 响应式设计 */
     @media (max-width: 1200px) {
@@ -689,17 +694,27 @@
             padding: 15px;
         }
         
-        .horizontal-layout {
-            gap: 1.5rem;
-        }
-        
-        .function-section {
-            max-width: calc(50% - 0.75rem) !important;
-            width: calc(50% - 0.75rem) !important;
+        .tool-switch-btn {
+            min-width: 180px;
+            padding: 0.8rem 1.5rem;
+            font-size: 1rem;
         }
     }
     
     @media (max-width: 768px) {
+        /* 工具切换按钮响应式 */
+        .tool-switch-container {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.5rem;
+        }
+        
+        .tool-switch-btn {
+            width: 100%;
+            max-width: 300px;
+            min-width: auto;
+        }
+        
         /* ===== 手机版全局重置 ===== */
         * {
             box-sizing: border-box !important;
@@ -738,6 +753,14 @@
         }
         
         /* ===== 主容器布局 ===== */
+        .container-fluid {
+            width: 100% !important;
+            max-width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            box-sizing: border-box !important;
+        }
+        
         .athina-conversion-container {
             width: 100% !important;
             max-width: 100% !important;
@@ -747,12 +770,18 @@
             overflow-x: hidden !important;
         }
         
-        .horizontal-layout {
-            display: block !important;
+        .tool-content-container {
             width: 100% !important;
+            max-width: 100% !important;
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+        
+        .tool-section {
+            width: 100% !important;
+            max-width: 100% !important;
             margin: 0 !important;
             padding: 0 !important;
-            gap: 0 !important;
         }
         
         .function-section {
@@ -807,8 +836,8 @@
         }
         
         /* ===== 文本域样式 ===== */
+        .textarea-base,
         .flight-app-textarea,
-        .unified-textarea,
         .athina-textarea {
             width: 100% !important;
             height: 300px !important;
@@ -823,8 +852,8 @@
             transition: border-color 0.3s ease !important;
         }
         
+        .textarea-base:focus,
         .flight-app-textarea:focus,
-        .unified-textarea:focus,
         .athina-textarea:focus {
             outline: none !important;
             border-color: var(--success-color) !important;
@@ -936,7 +965,7 @@
         }
         
         /* ===== 按钮样式 ===== */
-        .unified-button,
+        .btn-base,
         .flight-app-btn,
         .athina-button,
         .athina-delete-btn {
@@ -1114,8 +1143,8 @@
         }
         
         /* 文本域高度调整 */
+        .textarea-base,
         .flight-app-textarea,
-        .unified-textarea,
         .athina-textarea {
             height: 280px !important;
             min-height: 280px !important;
@@ -1140,7 +1169,7 @@
         }
         
         /* 按钮尺寸调整 */
-        .unified-button,
+        .btn-base,
         .flight-app-btn,
         .athina-button,
         .athina-delete-btn {
@@ -1226,37 +1255,6 @@
             right: 0 !important;
         }
         
-        html body div.athina-conversion-container div.horizontal-layout {
-            display: block !important;
-            width: 100% !important;
-            max-width: 100% !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            flex-direction: unset !important;
-            flex-wrap: unset !important;
-            justify-content: unset !important;
-            align-items: unset !important;
-            gap: 0 !important;
-            position: relative !important;
-            left: 0 !important;
-            right: 0 !important;
-            clear: both !important;
-            float: none !important;
-        }
-        
-        html body div.athina-conversion-container div.horizontal-layout div.function-section {
-            display: block !important;
-            width: 100% !important;
-            max-width: 100% !important;
-            margin: 0 0 15px 0 !important;
-            padding: 0 !important;
-            flex: none !important;
-            position: relative !important;
-            left: 0 !important;
-            right: 0 !important;
-            clear: both !important;
-            float: none !important;
-        }
         
         /* 强制覆盖Bootstrap的所有网格类 */
         html body div.container-fluid {
@@ -1305,8 +1303,17 @@
 {% endblock %}
 
 {% block content %}
-<div class="athina-conversion-container">
-    <!-- <h1 class="page-title">ATHINA 机票工具</h1> -->
+<div class="container-fluid">
+    <div class="athina-conversion-container">
+    <!-- 工具切换按钮 -->
+    <div class="tool-switch-container">
+        <button id="itineraryBtn" class="tool-switch-btn active" onclick="switchTool('itinerary')">
+            <i class="fas fa-exchange-alt"></i> 机票行程转换
+        </button>
+        <button id="athinaBtn" class="tool-switch-btn" onclick="switchTool('athina')">
+            <i class="fas fa-code"></i> ATHINA代码生成
+        </button>
+    </div>
     
     {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
@@ -1318,14 +1325,15 @@
         {% endif %}
     {% endwith %}
     
-    <!-- 水平布局容器 -->
-    <div class="horizontal-layout">
-        <!-- 第一部分：行程转换 -->
-        <div class="function-section">
-            <h2 class="section-header">
-                <i class="fas fa-exchange-alt"></i>
-                机票行程转换
-            </h2>
+    <!-- 工具内容容器 -->
+    <div class="tool-content-container">
+        <!-- 机票行程转换工具 -->
+        <div id="itineraryTool" class="tool-section active">
+            <div class="function-section">
+                <h2 class="section-header">
+                    <i class="fas fa-exchange-alt"></i>
+                    机票行程转换
+                </h2>
             <div class="section-content">
                 <div class="flight-app">
                     <div class="flight-app-container">
@@ -1337,7 +1345,7 @@
                                         <i class="fas fa-plane-departure"></i> 输入行程：
                                     </label>
                                     <div class="flight-app-input-wrapper">
-                                        <textarea id="input_text" name="input_text" class="flight-app-textarea unified-textarea" placeholder="请输入需要转换的行程数据...">{{ request.form.get('input_text', '') }}</textarea>
+                                        <textarea id="input_text" name="input_text" class="textarea-base" placeholder="请输入需要转换的行程数据...">{{ request.form.get('input_text', '') }}</textarea>
                                     </div>
                                 </div>
                                 
@@ -1390,9 +1398,9 @@
                                     </div>
                                     
                                     <div class="flight-app-btn-container">
-                                                                                 <button type="submit" class="flight-app-btn unified-button">
-                                             <i class="fas fa-sync-alt"></i> 开始转换
-                                         </button>
+                                        <button type="submit" class="btn-base">
+                                            <i class="fas fa-sync-alt"></i> 开始转换
+                                        </button>
                                     </div>
                                 </div>
                             </div>
@@ -1403,10 +1411,10 @@
                                         <i class="fas fa-plane-arrival"></i> 输出行程：
                                     </label>
                                     <div class="flight-app-input-wrapper flight-app-output-container">
-                                                                                 <button type="button" class="flight-app-copy-btn unified-button" onclick="copyOutputText()">
-                                             <i class="fas fa-copy"></i> 复制
-                                         </button>
-                                        <textarea id="output_text" name="output_text" class="flight-app-textarea unified-textarea" placeholder="转换后的行程将显示在这里...">{{ output_text }}</textarea>
+                                        <button type="button" class="btn-base btn-secondary" onclick="copyOutputText()">
+                                            <i class="fas fa-copy"></i> 复制
+                                        </button>
+                                        <textarea id="output_text" name="output_text" class="textarea-base" placeholder="转换后的行程将显示在这里...">{{ output_text }}</textarea>
                                     </div>
                                 </div>
                             </div>
@@ -1415,13 +1423,15 @@
                 </div>
             </div>
         </div>
+        </div>
 
-        <!-- 第二部分：预订代码生成 -->
-        <div class="function-section">
-            <h2 class="section-header">
-                <i class="fas fa-code"></i>
-                ATHINA 预订代码生成器
-            </h2>
+        <!-- ATHINA 预订代码生成器工具 -->
+        <div id="athinaTool" class="tool-section">
+            <div class="function-section">
+                <h2 class="section-header">
+                    <i class="fas fa-code"></i>
+                    ATHINA 预订代码生成器
+                </h2>
             <div class="section-content">
                 <div class="athina-input-container">
                     <h3 class="athina-subtitle">航班信息输入</h3>
@@ -1437,11 +1447,11 @@
                                 <input type="text" class="flightNumber athina-input unified-input" placeholder="例如: TR 898" 
                                        onblur="saveInput(this)" ondblclick="showDropdown(this)">
                             </label>
-                            <button class="athina-delete-btn unified-button danger" onclick="removeInput(this)">删除</button>
+                            <button class="btn-base btn-danger" onclick="removeInput(this)">删除</button>
                         </div>
                     </div>
                     <div class="athina-button-container">
-                        <button class="athina-button unified-button" onclick="addInput()">
+                        <button class="btn-base" onclick="addInput()">
                             <i class="fas fa-plus"></i> 添加航班
                         </button>
                     </div>
@@ -1451,17 +1461,17 @@
                     <div class="athina-output-header">
                         <h3 class="athina-subtitle">行程代码输出</h3>
                         <div class="athina-button-container" style="margin:0;">
-                            <button class="athina-button unified-button" onclick="sendData()">
+                            <button class="btn-base" onclick="sendData()">
                                 <i class="fas fa-magic"></i> 生成代码
                             </button>
-                            <a id="addScheduleBtn" href="{{ url_for('flights_schedule.input_flight_schedule') }}" class="athina-button unified-button secondary" style="display: none;">
+                            <a id="addScheduleBtn" href="{{ url_for('flights_schedule.input_flight_schedule') }}" class="btn-base btn-secondary" style="display: none;">
                                 <i class="fas fa-plus-circle"></i> 添加航班时刻
                             </a>
                         </div>
                     </div>
                     <div class="athina-textarea-container">
-                        <textarea id="itinerary" class="athina-textarea unified-textarea" placeholder="生成的行程代码将显示在这里..."></textarea>
-                        <button id="copyBtn" class="athina-copy-btn unified-button" onclick="copyToClipboard()" title="复制到剪贴板">
+                        <textarea id="itinerary" class="textarea-base" placeholder="生成的行程代码将显示在这里..."></textarea>
+                        <button id="copyBtn" class="btn-base btn-secondary" onclick="copyToClipboard()" title="复制到剪贴板">
                             <i class="fas fa-copy"></i> 复制
                         </button>
                     </div>
@@ -1469,6 +1479,8 @@
                 </div>
             </div>
         </div>
+        </div>
+    </div>
     </div>
 </div>
 
@@ -1478,6 +1490,30 @@
 
 {% block extra_js %}
 <script>
+    // 工具切换功能
+    function switchTool(toolName) {
+        // 移除所有按钮的active类
+        document.querySelectorAll('.tool-switch-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        
+        // 隐藏所有工具区域
+        document.querySelectorAll('.tool-section').forEach(section => {
+            section.classList.remove('active');
+        });
+        
+        // 激活选中的按钮
+        document.getElementById(toolName + 'Btn').classList.add('active');
+        
+        // 显示选中的工具区域
+        document.getElementById(toolName + 'Tool').classList.add('active');
+    }
+
+    // 页面加载时默认显示机票行程转换工具
+    document.addEventListener('DOMContentLoaded', function() {
+        switchTool('itinerary');
+    });
+
     // 行程转换相关功能
     // 包含"未知机场"错误处理功能：
     // - 当转换过程中遇到"未知机场"错误时，会显示一个特殊的错误消息容器
@@ -1553,7 +1589,7 @@
                                  // 创建添加机场信息按钮
                                  const addAirportBtn = document.createElement('button');
                                  addAirportBtn.textContent = '添加机场信息';
-                                 addAirportBtn.className = 'unified-button';
+                                 addAirportBtn.className = 'btn-base';
                                  addAirportBtn.style.marginRight = '10px';
                                 addAirportBtn.onclick = function() {
                                     // 获取CSRF token
@@ -1612,7 +1648,7 @@
                                  // 创建添加机场信息按钮
                                  const addAirportBtn = document.createElement('button');
                                  addAirportBtn.textContent = '添加机场信息';
-                                 addAirportBtn.className = 'unified-button';
+                                 addAirportBtn.className = 'btn-base';
                                  addAirportBtn.style.marginRight = '10px';
                                 addAirportBtn.onclick = function() {
                                     // 获取CSRF token
@@ -1852,7 +1888,7 @@
                  <input type="text" class="flightNumber athina-input unified-input" placeholder="例如: TR 898" 
                         onblur="saveInput(this)" ondblclick="showDropdown(this)">
              </label>
-             <button class="athina-delete-btn unified-button danger" onclick="removeInput(this)">删除</button>
+             <button class="btn-base btn-danger" onclick="removeInput(this)">删除</button>
          `;
         container.appendChild(inputGroup);
         

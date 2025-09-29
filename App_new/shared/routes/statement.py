@@ -290,7 +290,7 @@ def cmb_to_company():
 @login_required
 @staff_only
 def athina_page():
-    return render_template('statement/athina.html')
+    return render_template('statement/athina/athina.html')
 
 
 @statement_blue.route('/athina_processing', methods=['GET', 'POST'])

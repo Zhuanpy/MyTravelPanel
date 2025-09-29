@@ -13,7 +13,28 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/admin.css') }}" rel="stylesheet">
     
+    <!-- Tailwind CSS CDN (tw- 前缀，关闭 preflight，增量迁移) -->
+    <script>
+        tailwind = window.tailwind || {};
+        tailwind.config = {
+            prefix: 'tw-',
+            corePlugins: { preflight: false },
+            darkMode: 'class'
+        };
+    </script>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,typography,aspect-ratio"></script>
+    
     {% block extra_css %}{% endblock %}
+    <style>
+        /* 全局移动端字体缩放 */
+        @media (max-width: 768px) {
+            html { font-size: 14px; }
+            body { line-height: 1.4; }
+        }
+        @media (max-width: 360px) {
+            html { font-size: 13px; }
+        }
+    </style>
 </head>
 <body>
     <!-- 导航栏 -->

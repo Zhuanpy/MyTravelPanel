@@ -12,9 +12,159 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/staff.css') }}" rel="stylesheet">
     
+    <!-- Tailwind CSS CDN (tw- 前缀，关闭 preflight，增量迁移) -->
+    <script>
+        tailwind = window.tailwind || {};
+        tailwind.config = {
+            prefix: 'tw-',
+            corePlugins: { preflight: false },
+            darkMode: 'class'
+        };
+    </script>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,typography,aspect-ratio"></script>
+    
     <style>
+        /* Logo样式 */
+        .logo-container {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        
+        .logo-container img {
+            height: 40px;
+            width: auto;
+        }
+        
+        .logo-text {
+            display: flex;
+            flex-direction: column;
+            line-height: 1.2;
+        }
+        
+        .logo-english {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: white;
+            margin: 0;
+        }
+        
+        .logo-chinese {
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: rgba(255,255,255,0.9);
+            margin: 0;
+        }
+        
         /* 小屏幕和浮动窗口侧边栏隐藏功能 */
-        @media (max-width: 1899.98px) {
+        /* 全局移动端字体缩放 */
+        /* 确保导航栏在桌面端显示 */
+        .navbar-collapse {
+            display: flex !important;
+        }
+        
+        /* 导航栏基础样式 */
+        .navbar {
+            position: relative !important;
+        }
+        
+        .navbar-toggler {
+            border: none !important;
+            padding: 4px 8px !important;
+        }
+        
+        .navbar-toggler:focus {
+            box-shadow: none !important;
+        }
+        
+        /* 桌面端导航栏样式 */
+        @media (min-width: 769px) {
+            .navbar-collapse {
+                display: flex !important;
+            }
+            
+            .navbar-toggler {
+                display: none !important;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            html { font-size: 14px; }
+            body { line-height: 1.4; }
+            
+            /* 移动端导航栏切换按钮 */
+            .navbar-toggler {
+                display: block !important;
+                border: 1px solid rgba(255,255,255,0.3) !important;
+                background: transparent !important;
+                color: white !important;
+                padding: 4px 8px !important;
+                border-radius: 4px !important;
+            }
+            
+            .navbar-toggler:focus {
+                box-shadow: none !important;
+            }
+            
+            /* 移动端导航栏折叠内容 */
+            .navbar-collapse {
+                position: absolute !important;
+                top: 100% !important;
+                left: 0 !important;
+                right: 0 !important;
+                background-color: #198754 !important;
+                z-index: 1000 !important;
+                padding: 15px !important;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.1) !important;
+            }
+            
+            .navbar-collapse.collapse {
+                display: none !important;
+            }
+            
+            .navbar-collapse.collapse.show {
+                display: flex !important;
+                flex-direction: column !important;
+                width: 100% !important;
+            }
+            
+            .navbar-nav {
+                flex-direction: column !important;
+                width: 100% !important;
+            }
+            
+            .nav-item {
+                width: 100% !important;
+                margin-bottom: 5px !important;
+            }
+            
+            .nav-link {
+                padding: 10px 15px !important;
+                text-align: left !important;
+                width: 100% !important;
+                color: white !important;
+            }
+            
+            .nav-link:hover {
+                background-color: rgba(255,255,255,0.1) !important;
+                border-radius: 4px !important;
+            }
+            
+            /* 移动端侧边栏隐藏 */
+            #sidebar {
+                left: -100% !important;
+            }
+            
+            /* 移动端主内容区域全宽 */
+            main {
+                margin-left: 0 !important;
+            }
+        }
+        @media (max-width: 360px) {
+            html { font-size: 13px; }
+        }
+
+        @media (max-width: 1849px) {
             #sidebar {
                 position: fixed !important;
                 top: 56px !important; /* 导航栏高度 */
@@ -31,6 +181,11 @@
             
             #sidebar.show {
                 left: 0 !important;
+            }
+            
+            /* 确保侧边栏在1850px以下时默认隐藏 */
+            #sidebar:not(.show) {
+                left: -100% !important;
             }
             
             /* 当侧边栏显示时，添加遮罩层 */
@@ -55,25 +210,15 @@
                 width: 100% !important;
             }
             
-            /* 侧边栏切换按钮样式 */
+            /* 侧边栏切换按钮样式 - 完全隐藏避免功能重复 */
             #sidebarToggle {
-                border: 1px solid rgba(255,255,255,0.3) !important;
-                background: transparent !important;
-                color: white !important;
-                padding: 0.375rem 0.75rem !important;
-                border-radius: 0.375rem !important;
-                transition: all 0.3s ease !important;
-                display: inline-block !important;
+                display: none !important;
             }
             
-            #sidebarToggle:hover {
-                background: rgba(255,255,255,0.1) !important;
-                border-color: rgba(255,255,255,0.5) !important;
-            }
         }
         
         /* 确保在大屏幕上侧边栏正常显示 */
-        @media (min-width: 1900px) {
+        @media (min-width: 1850px) {
             #sidebar {
                 position: relative !important;
                 left: auto !important;
@@ -101,11 +246,17 @@
     <nav class="navbar navbar-expand-lg navbar-dark bg-success">
         <div class="container-fluid">
             <a class="navbar-brand" href="{{ url_for('guest.main.index') }}">
-                <i class="fas fa-plane"></i> MyTravelPanel
+                <div class="logo-container">
+                    <img src="{{ url_for('static', filename='JE/LOGO.png') }}" alt="悦行假期" height="40">
+                    <div class="logo-text">
+                        <div class="logo-english">JOYFUL ESCAPES</div>
+                        <div class="logo-chinese">悦行假期</div>
+                    </div>
+                </div>
                 <span class="badge bg-light text-success ms-2">员工版</span>
             </a>
             
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
                 <span class="navbar-toggler-icon"></span>
             </button>
             
@@ -114,33 +265,92 @@
                 <i class="fas fa-bars"></i>
             </button>
             
-            <div class="collapse navbar-collapse" id="navbarNav">
+            <div class="navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('staff.dashboard') }}">
                             <i class="fas fa-tachometer-alt"></i> 工作台
                         </a>
                     </li>
-<!--                    <li class="nav-item">-->
-<!--                        <a class="nav-link" href="{{ url_for('business_projects.list.list_projects') }}">-->
-<!--                            <i class="fas fa-project-diagram"></i> 项目管理-->
-<!--                        </a>-->
-<!--                    </li>-->
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('staff.quotes') }}">
-                            <i class="fas fa-file-invoice-dollar"></i> 报价管理
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="projectDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-project-diagram"></i> 项目管理
                         </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{{ url_for('business_projects.list.list_projects') }}">
+                                <i class="fas fa-list me-2"></i>项目列表
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('business_projects.project_create.create_header') }}">
+                                <i class="fas fa-plus me-2"></i>创建项目
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><h6 class="dropdown-header">REF管理</h6></li>
+                            <li><a class="dropdown-item" href="{{ url_for('business_projects.project_ref.create_ref', header_id=0) }}">
+                                <i class="fas fa-file-alt me-2"></i>创建REF
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('business_projects.project_ref.create_flight_ref', header_id=0) }}">
+                                <i class="fas fa-plane me-2"></i>机票REF
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('business_projects.project_ref.create_hotel_ref', header_id=0) }}">
+                                <i class="fas fa-bed me-2"></i>酒店REF
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('business_projects.project_ref.create_visa_ref', header_id=0) }}">
+                                <i class="fas fa-passport me-2"></i>签证REF
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><h6 class="dropdown-header">EO管理</h6></li>
+                            <li><a class="dropdown-item" href="{{ url_for('business_projects.project_eo.eo_list') }}">
+                                <i class="fas fa-list-alt me-2"></i>EO列表
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><h6 class="dropdown-header">项目管理</h6></li>
+                            <li><a class="dropdown-item" href="{{ url_for('business_projects.project_header.create_header') }}">
+                                <i class="fas fa-edit me-2"></i>编辑HID
+                            </a></li>
+                        </ul>
                     </li>
-<!--                    <li class="nav-item">-->
-<!--                        <a class="nav-link" href="{{ url_for('staff.files') }}">-->
-<!--                            <i class="fas fa-folder"></i> 文件管理-->
-<!--                        </a>-->
-<!--                    </li>-->
-<!--                    <li class="nav-item">-->
-<!--                        <a class="nav-link" href="{{ url_for('staff.tasks') }}">-->
-<!--                            <i class="fas fa-tasks"></i> 任务中心-->
-<!--                        </a>-->
-<!--                    </li>-->
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="visaDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-passport"></i> 签证管理
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{{ url_for('visa_basic.visa_home') }}">
+                                <i class="fas fa-home me-2"></i>签证首页
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><h6 class="dropdown-header">项目管理</h6></li>
+                            <li><a class="dropdown-item" href="{{ url_for('visa_project.show_current_all_projects') }}">
+                                <i class="fas fa-list me-2"></i>项目列表
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('visa_project.visa_processing', visa_type='all') }}">
+                                <i class="fas fa-cogs me-2"></i>项目处理
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><h6 class="dropdown-header">类型管理</h6></li>
+                            <li><a class="dropdown-item" href="{{ url_for('visa_basic.visa_type_list') }}">
+                                <i class="fas fa-tags me-2"></i>签证类型列表
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('visa_basic.add_visa_type') }}">
+                                <i class="fas fa-plus me-2"></i>添加签证类型
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><h6 class="dropdown-header">文档管理</h6></li>
+                            <li><a class="dropdown-item" href="{{ url_for('visa_basic.visa_type_document_manager') }}">
+                                <i class="fas fa-file-alt me-2"></i>文档管理器
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('visa_basic.visa_template_manager') }}">
+                                <i class="fas fa-file-code me-2"></i>模板管理器
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><h6 class="dropdown-header">基础管理</h6></li>
+                            <li><a class="dropdown-item" href="{{ url_for('visa_basic.manage_countries') }}">
+                                <i class="fas fa-globe me-2"></i>管理国家信息
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('visa_basic.manage_identities') }}">
+                                <i class="fas fa-users me-2"></i>管理身份信息
+                            </a></li>
+                        </ul>
+                    </li>
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="flightDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                             <i class="fas fa-plane"></i> 机票管理
@@ -219,77 +429,6 @@
                         </ul>
                     </li>
                     <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="projectDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                            <i class="fas fa-project-diagram"></i> 项目管理
-                        </a>
-                        <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="{{ url_for('business_projects.list.list_projects') }}">
-                                <i class="fas fa-list me-2"></i>项目列表
-                            </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('business_projects.project_create.create_header') }}">
-                                <i class="fas fa-plus me-2"></i>创建项目
-                            </a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><h6 class="dropdown-header">REF管理</h6></li>
-                            <li><a class="dropdown-item" href="{{ url_for('business_projects.project_ref.ref_list') }}">
-                                <i class="fas fa-list-alt me-2"></i>REF列表
-                            </a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><h6 class="dropdown-header">EO管理</h6></li>
-                            <li><a class="dropdown-item" href="{{ url_for('business_projects.project_eo.eo_list') }}">
-                                <i class="fas fa-file-invoice me-2"></i>EO列表
-                            </a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><h6 class="dropdown-header">收据管理</h6></li>
-                            <li><a class="dropdown-item" href="{{ url_for('business_projects.project_receipt.receipt_list') }}">
-                                <i class="fas fa-receipt me-2"></i>收据列表
-                            </a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><h6 class="dropdown-header">签证项目</h6></li>
-                            <li><a class="dropdown-item" href="{{ url_for('visa_project.show_current_all_projects') }}">
-                                <i class="fas fa-passport me-2"></i>项目列表
-                            </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('visa_home.home') }}">
-                                <i class="fas fa-home me-2"></i>签证首页
-                            </a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><h6 class="dropdown-header">旅游项目</h6></li>
-                            <li><a class="dropdown-item" href="{{ url_for('tour_projects.manage_tour_projects') }}">
-                                <i class="fas fa-suitcase me-2"></i>旅游项目列表
-                            </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('tour_projects.create_tour_project') }}">
-                                <i class="fas fa-plus-circle me-2"></i>创建旅游项目
-                            </a></li>
-                        </ul>
-                    </li>
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="visaDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                            <i class="fas fa-passport"></i> 签证管理
-                        </a>
-                        <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="{{ url_for('visa_home.home') }}">
-                                <i class="fas fa-home me-2"></i>签证首页
-                            </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('visa_project.show_current_all_projects') }}">
-                                <i class="fas fa-list me-2"></i>签证项目列表
-                            </a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><h6 class="dropdown-header">签证管理</h6></li>
-                            <li><a class="dropdown-item" href="{{ url_for('visa_documents.manage_visas') }}">
-                                <i class="fas fa-file-alt me-2"></i>资料管理
-                            </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('visa_links.visa_link_page') }}">
-                                <i class="fas fa-link me-2"></i>链接管理
-                            </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('visa_basic.manage_countries') }}">
-                                <i class="fas fa-globe me-2"></i>国家管理
-                            </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('visa_basic.manage_identities') }}">
-                                <i class="fas fa-id-card me-2"></i>身份管理
-                            </a></li>
-                        </ul>
-                    </li>
-                    <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="utilsDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                             <i class="fas fa-tools"></i> 文件处理
                         </a>
@@ -335,8 +474,17 @@
                                 <i class="fas fa-university me-2"></i>招商银行
                             </a></li>
                             <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="{{ url_for('statement_routes.athina_page') }}">
-                                <i class="fas fa-file-invoice me-2"></i>Athina账单
+                            <li><a class="dropdown-item" href="{{ url_for('athina_routes.athina_import') }}">
+                                <i class="fas fa-upload me-2"></i>Athina数据录入
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('athina_routes.athina_analysis') }}">
+                                <i class="fas fa-chart-bar me-2"></i>Athina分析报表
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('athina_routes.athina_data') }}">
+                                <i class="fas fa-table me-2"></i>Athina数据查看
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('soa_routes.soa_list') }}">
+                                <i class="fas fa-file-invoice me-2"></i>SOA对账单
                             </a></li>
                             <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item" href="{{ url_for('statement_routes.company_bill') }}">
@@ -626,7 +774,7 @@
             </nav>
 
             <!-- 主内容区域 -->
-            <main class="col-md-10 ms-sm-auto col-lg-11 px-md-4">
+            <main class="col-md-10 ms-sm-auto col-lg-11 px-md-4" style="margin-left: 280px;">
                 <!-- 面包屑导航 -->
                 <nav aria-label="breadcrumb" class="pt-3">
                     <ol class="breadcrumb">
@@ -665,89 +813,118 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
     <script>
-        // 侧边栏切换功能
+        // 导航栏响应式控制
         document.addEventListener('DOMContentLoaded', function() {
-            const sidebarToggle = document.getElementById('sidebarToggle');
-            const sidebar = document.getElementById('sidebar');
-            const sidebarOverlay = document.getElementById('sidebarOverlay');
+            const navbarCollapse = document.querySelector('.navbar-collapse');
             
-            // 控制侧边栏切换按钮的显示
-            function toggleSidebarButton() {
-                if (window.innerWidth <= 1899) {
-                    sidebarToggle.classList.remove('d-none');
-                    sidebarToggle.classList.add('d-inline-block');
+            function updateNavbarState() {
+                if (window.innerWidth <= 768) {
+                    // 移动端：添加collapse类，让Bootstrap控制折叠
+                    navbarCollapse.classList.add('collapse');
                 } else {
-                    sidebarToggle.classList.add('d-none');
-                    sidebarToggle.classList.remove('d-inline-block');
+                    // 桌面端：移除collapse类，直接显示
+                    navbarCollapse.classList.remove('collapse');
+                    navbarCollapse.classList.add('show');
                 }
             }
             
-            // 初始检查
-            toggleSidebarButton();
+            // 初始设置
+            updateNavbarState();
             
-            // 窗口大小改变时检查
-            window.addEventListener('resize', toggleSidebarButton);
+            // 窗口大小改变时更新
+            window.addEventListener('resize', updateNavbarState);
+        });
+        
+        // 统一的侧边栏控制器
+        class SidebarController {
+            constructor() {
+                this.sidebarToggle = document.getElementById('sidebarToggle');
+                this.sidebar = document.getElementById('sidebar');
+                this.sidebarOverlay = document.getElementById('sidebarOverlay');
+                this.breakpoint = 1849; // 使用1850px断点
+                
+                this.init();
+            }
             
-            if (sidebarToggle && sidebar && sidebarOverlay) {
-                // 切换侧边栏显示/隐藏
-                sidebarToggle.addEventListener('click', function() {
-                    sidebar.classList.toggle('show');
-                    sidebarOverlay.classList.toggle('show');
-                    
-                    // 切换按钮图标
-                    const icon = sidebarToggle.querySelector('i');
-                    if (sidebar.classList.contains('show')) {
-                        icon.className = 'fas fa-times';
-                    } else {
-                        icon.className = 'fas fa-bars';
-                    }
-                });
+            init() {
+                if (!this.sidebarToggle || !this.sidebar || !this.sidebarOverlay) return;
                 
-                // 点击遮罩层关闭侧边栏
-                sidebarOverlay.addEventListener('click', function() {
-                    sidebar.classList.remove('show');
-                    sidebarOverlay.classList.remove('show');
-                    
-                    // 重置按钮图标
-                    const icon = sidebarToggle.querySelector('i');
-                    icon.className = 'fas fa-bars';
-                });
+                this.bindEvents();
+                this.updateSidebarState();
+                this.toggleSidebarButton();
+            }
+            
+            bindEvents() {
+                // 切换按钮点击事件
+                this.sidebarToggle.addEventListener('click', () => this.toggleSidebar());
                 
-                // 点击侧边栏内的链接时关闭侧边栏（在小屏幕和浮动窗口时）
-                function bindSidebarLinkEvents() {
-                    const sidebarLinks = sidebar.querySelectorAll('.nav-link');
-                    sidebarLinks.forEach(function(link) {
-                        link.addEventListener('click', function() {
-                            if (window.innerWidth <= 1899) {
-                                sidebar.classList.remove('show');
-                                sidebarOverlay.classList.remove('show');
-                                
-                                // 重置按钮图标
-                                const icon = sidebarToggle.querySelector('i');
-                                icon.className = 'fas fa-bars';
-                            }
-                        });
+                // 遮罩层点击事件
+                this.sidebarOverlay.addEventListener('click', () => this.hideSidebar());
+                
+                // 窗口大小改变事件
+                window.addEventListener('resize', () => this.handleResize());
+                
+                // 侧边栏链接点击事件
+                this.bindSidebarLinkEvents();
+            }
+            
+            toggleSidebar() {
+                this.sidebar.classList.toggle('show');
+                this.sidebarOverlay.classList.toggle('show');
+                this.updateToggleIcon();
+            }
+            
+            hideSidebar() {
+                this.sidebar.classList.remove('show');
+                this.sidebarOverlay.classList.remove('show');
+                this.updateToggleIcon();
+            }
+            
+            updateToggleIcon() {
+                const icon = this.sidebarToggle.querySelector('i');
+                if (icon) {
+                    icon.className = this.sidebar.classList.contains('show') ? 'fas fa-times' : 'fas fa-bars';
+                }
+            }
+            
+            updateSidebarState() {
+                if (window.innerWidth <= this.breakpoint) {
+                    this.hideSidebar();
+                } else {
+                    this.sidebar.classList.add('show');
+                }
+            }
+            
+            toggleSidebarButton() {
+                // 在1850px以下时隐藏切换按钮，避免功能重复
+                this.sidebarToggle.classList.add('d-none');
+                this.sidebarToggle.classList.remove('d-inline-block');
+            }
+            
+            bindSidebarLinkEvents() {
+                const sidebarLinks = this.sidebar.querySelectorAll('.nav-link');
+                sidebarLinks.forEach(link => {
+                    link.addEventListener('click', () => {
+                        if (window.innerWidth <= this.breakpoint) {
+                            this.hideSidebar();
+                        }
                     });
-                }
-                
-                bindSidebarLinkEvents();
-                
-                // 窗口大小改变时重新绑定事件
-                window.addEventListener('resize', function() {
-                    if (window.innerWidth > 1899) {
-                        // 大屏幕时关闭侧边栏
-                        sidebar.classList.remove('show');
-                        sidebarOverlay.classList.remove('show');
-                        
-                        // 重置按钮图标
-                        const icon = sidebarToggle.querySelector('i');
-                        if (icon) icon.className = 'fas fa-bars';
-                    } else {
-                        // 小屏幕和浮动窗口时重新绑定链接事件
-                        bindSidebarLinkEvents();
-                    }
                 });
             }
+            
+            handleResize() {
+                this.updateSidebarState();
+                this.toggleSidebarButton();
+                
+                if (window.innerWidth <= this.breakpoint) {
+                    this.bindSidebarLinkEvents();
+                }
+            }
+        }
+        
+        // 初始化侧边栏控制器
+        document.addEventListener('DOMContentLoaded', function() {
+            new SidebarController();
         });
     </script>
     

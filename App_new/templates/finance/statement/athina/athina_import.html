@@ -1,0 +1,617 @@
+{% extends "staff_base.html" %}
+
+{% block title %}Athina数据录入 - MyTravelPanel{% endblock %}
+
+{% block page_title %}Athina数据录入{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* 全局样式 */
+    .athina-container {
+        max-width: 1200px;
+        margin: 20px auto;
+        padding: 20px;
+        background-color: #ffffff;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+    }
+
+    .athina-header {
+        width: 100%;
+        margin-bottom: 30px;
+        text-align: center;
+        position: relative;
+    }
+
+    .athina-header h1 {
+        color: #2E7D32;
+        font-size: 28px;
+        margin-bottom: 8px;
+        position: relative;
+        display: inline-block;
+    }
+
+    .athina-header h1:after {
+        content: '';
+        position: absolute;
+        bottom: -6px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 80px;
+        height: 3px;
+        background-color: #4CAF50;
+        border-radius: 2px;
+    }
+
+    .athina-header p {
+        color: #666;
+        font-size: 16px;
+        margin-top: 10px;
+    }
+
+    /* 功能区域样式 */
+    .function-sections {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 30px;
+        margin-top: 30px;
+    }
+
+    .function-section {
+        background-color: #f8f9fa;
+        padding: 25px;
+        border-radius: 8px;
+        border: 1px solid #e9ecef;
+        transition: all 0.3s ease;
+    }
+
+    .function-section:hover {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        transform: translateY(-2px);
+    }
+
+    .section-title {
+        font-size: 20px;
+        margin-bottom: 20px;
+        color: #2E7D32;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+    }
+
+    .section-title i {
+        margin-right: 10px;
+        font-size: 24px;
+    }
+
+    /* 文件上传区域 */
+    .upload-area {
+        border: 2px dashed #4CAF50;
+        border-radius: 8px;
+        padding: 30px;
+        text-align: center;
+        background-color: #f8fff8;
+        transition: all 0.3s ease;
+        margin-bottom: 20px;
+    }
+
+    .upload-area:hover {
+        border-color: #2E7D32;
+        background-color: #f0fff0;
+    }
+
+    .upload-area.dragover {
+        border-color: #2E7D32;
+        background-color: #e8f5e8;
+    }
+
+    .upload-icon {
+        font-size: 48px;
+        color: #4CAF50;
+        margin-bottom: 15px;
+    }
+
+    .upload-text {
+        font-size: 16px;
+        color: #666;
+        margin-bottom: 15px;
+    }
+
+    .file-input {
+        display: none;
+    }
+
+    .upload-btn {
+        background-color: #4CAF50;
+        color: white;
+        border: none;
+        padding: 12px 24px;
+        font-size: 16px;
+        font-weight: 500;
+        cursor: pointer;
+        border-radius: 6px;
+        transition: all 0.3s ease;
+        margin: 10px;
+    }
+
+    .upload-btn:hover {
+        background-color: #2E7D32;
+        transform: translateY(-1px);
+    }
+
+    /* 文件信息显示 */
+    .file-info {
+        background-color: #e3f2fd;
+        border: 1px solid #2196F3;
+        border-radius: 6px;
+        padding: 15px;
+        margin: 15px 0;
+        display: none;
+    }
+
+    .file-info.show {
+        display: block;
+    }
+
+    .file-info h4 {
+        color: #1976D2;
+        margin: 0 0 10px 0;
+        font-size: 16px;
+    }
+
+    .file-info p {
+        margin: 5px 0;
+        color: #424242;
+        font-size: 14px;
+    }
+
+    /* 导入按钮 */
+    .import-btn {
+        background-color: #FF9800;
+        color: white;
+        border: none;
+        padding: 15px 30px;
+        font-size: 18px;
+        font-weight: 600;
+        cursor: pointer;
+        border-radius: 8px;
+        transition: all 0.3s ease;
+        width: 100%;
+        margin-top: 20px;
+    }
+
+    .import-btn:hover {
+        background-color: #F57C00;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(255, 152, 0, 0.3);
+    }
+
+    .import-btn:disabled {
+        background-color: #ccc;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+    }
+
+    /* 结果显示区域 */
+    .result-display {
+        background-color: #fff;
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        padding: 20px;
+        margin-top: 20px;
+        min-height: 100px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        font-size: 16px;
+        color: #666;
+    }
+
+    .result-success {
+        background-color: #e8f5e8;
+        border-color: #4CAF50;
+        color: #2E7D32;
+    }
+
+    .result-error {
+        background-color: #ffebee;
+        border-color: #f44336;
+        color: #c62828;
+    }
+
+    .result-loading {
+        background-color: #e3f2fd;
+        border-color: #2196F3;
+        color: #1976D2;
+    }
+
+    /* 数据管理区域 */
+    .data-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+
+    .stat-card {
+        background-color: #fff;
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        padding: 20px;
+        text-align: center;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .stat-number {
+        font-size: 32px;
+        font-weight: bold;
+        color: #4CAF50;
+        margin-bottom: 5px;
+    }
+
+    .stat-label {
+        font-size: 14px;
+        color: #666;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+
+    /* 操作按钮区域 */
+    .action-buttons {
+        display: flex;
+        gap: 15px;
+        margin-top: 20px;
+        flex-wrap: wrap;
+    }
+
+    .action-btn {
+        background-color: #2196F3;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        border-radius: 6px;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+    }
+
+    .action-btn:hover {
+        background-color: #1976D2;
+        transform: translateY(-1px);
+        text-decoration: none;
+        color: white;
+    }
+
+    .action-btn i {
+        margin-right: 8px;
+    }
+
+    /* 响应式布局 */
+    @media (max-width: 768px) {
+        .athina-container {
+            padding: 15px;
+            margin: 10px;
+        }
+
+        .function-sections {
+            grid-template-columns: 1fr;
+            gap: 20px;
+        }
+
+        .athina-header h1 {
+            font-size: 24px;
+        }
+
+        .data-stats {
+            grid-template-columns: 1fr;
+        }
+
+        .action-buttons {
+            flex-direction: column;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="athina-container">
+    <div class="athina-header">
+        <h1><i class="fas fa-file-import"></i> Athina数据录入</h1>
+        <p>上传并导入 Reservation Listing Report CSV 文件到数据库</p>
+    </div>
+
+    <!-- 数据统计 -->
+    <div class="data-stats">
+        <div class="stat-card">
+            <div class="stat-number" id="total-headers">-</div>
+            <div class="stat-label">预订头部</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number" id="total-details">-</div>
+            <div class="stat-label">明细记录</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number" id="last-import">-</div>
+            <div class="stat-label">最后导入</div>
+        </div>
+    </div>
+
+    <div class="function-sections">
+        <!-- 文件上传区域 -->
+        <div class="function-section">
+            <div class="section-title">
+                <i class="fas fa-upload"></i>
+                文件上传
+            </div>
+            
+            <div class="upload-area" id="uploadArea">
+                <div class="upload-icon">
+                    <i class="fas fa-cloud-upload-alt"></i>
+                </div>
+                <div class="upload-text">
+                    拖拽CSV文件到此处，或点击选择文件
+                </div>
+                <input type="file" id="csvFileInput" class="file-input" accept=".csv" />
+                <button class="upload-btn" onclick="document.getElementById('csvFileInput').click()">
+                    <i class="fas fa-folder-open"></i> 选择文件
+                </button>
+                <div class="file-info" id="fileInfo">
+                    <h4>文件信息</h4>
+                    <p><strong>文件名:</strong> <span id="fileName">-</span></p>
+                    <p><strong>文件大小:</strong> <span id="fileSize">-</span></p>
+                    <p><strong>文件类型:</strong> <span id="fileType">-</span></p>
+                </div>
+            </div>
+
+            <button class="import-btn" id="importBtn" onclick="importCsvFile()" disabled>
+                <i class="fas fa-database"></i> 导入到数据库
+            </button>
+
+            <div class="result-display" id="resultDisplay">
+                请选择CSV文件开始导入
+            </div>
+        </div>
+
+        <!-- 数据管理区域 -->
+        <div class="function-section">
+            <div class="section-title">
+                <i class="fas fa-database"></i>
+                数据管理
+            </div>
+            
+            <div class="action-buttons">
+                <a href="/statement/athina_data" class="action-btn">
+                    <i class="fas fa-table"></i> 查看数据
+                </a>
+                <button class="action-btn" onclick="refreshStats()">
+                    <i class="fas fa-sync-alt"></i> 刷新统计
+                </button>
+                <button class="action-btn" onclick="clearData()">
+                    <i class="fas fa-trash"></i> 清空数据
+                </button>
+                <button class="action-btn" onclick="recalculateSubtotals()">
+                    <i class="fas fa-calculator"></i> 重新计算
+                </button>
+                <a href="/statement/athina_analysis" class="action-btn">
+                    <i class="fas fa-chart-bar"></i> 分析报表
+                </a>
+            </div>
+
+            <div style="margin-top: 20px; padding: 15px; background-color: #f0f8ff; border-radius: 6px; border-left: 4px solid #2196F3;">
+                <h5 style="margin: 0 0 10px 0; color: #1976D2;">📋 支持的文件格式</h5>
+                <ul style="margin: 0; padding-left: 20px; color: #424242; font-size: 14px;">
+                    <li>Reservation Listing Report.csv</li>
+                    <li>包含预订头部和明细数据</li>
+                    <li>支持DD/MM/YYYY日期格式</li>
+                    <li>自动识别Booking Header和Sub Total行</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let selectedFile = null;
+
+    // 页面加载时获取统计数据
+    document.addEventListener('DOMContentLoaded', function() {
+        refreshStats();
+        setupFileUpload();
+    });
+
+    // 设置文件上传功能
+    function setupFileUpload() {
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('csvFileInput');
+        const fileInfo = document.getElementById('fileInfo');
+        const importBtn = document.getElementById('importBtn');
+
+        // 点击上传区域选择文件
+        uploadArea.addEventListener('click', function() {
+            fileInput.click();
+        });
+
+        // 文件选择事件
+        fileInput.addEventListener('change', function(e) {
+            handleFileSelect(e.target.files[0]);
+        });
+
+        // 拖拽事件
+        uploadArea.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', function(e) {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', function(e) {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            handleFileSelect(e.dataTransfer.files[0]);
+        });
+    }
+
+    // 处理文件选择
+    function handleFileSelect(file) {
+        if (!file) return;
+
+        if (!file.name.toLowerCase().endsWith('.csv')) {
+            alert('请选择CSV格式的文件');
+            return;
+        }
+
+        selectedFile = file;
+        
+        // 显示文件信息
+        document.getElementById('fileName').textContent = file.name;
+        document.getElementById('fileSize').textContent = formatFileSize(file.size);
+        document.getElementById('fileType').textContent = file.type || 'text/csv';
+        document.getElementById('fileInfo').classList.add('show');
+        
+        // 启用导入按钮
+        document.getElementById('importBtn').disabled = false;
+        
+        // 更新上传区域显示
+        document.querySelector('.upload-text').textContent = '文件已选择，点击导入按钮开始导入';
+    }
+
+    // 格式化文件大小
+    function formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    // 导入CSV文件
+    function importCsvFile() {
+        if (!selectedFile) {
+            alert('请先选择CSV文件');
+            return;
+        }
+
+        const resultDisplay = document.getElementById('resultDisplay');
+        const importBtn = document.getElementById('importBtn');
+        
+        // 显示加载状态
+        resultDisplay.className = 'result-display result-loading';
+        resultDisplay.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 正在导入文件，请稍候...';
+        importBtn.disabled = true;
+
+        // 创建FormData对象
+        const formData = new FormData();
+        formData.append('file', selectedFile);
+
+        fetch('/statement/athina_import_csv', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                resultDisplay.className = 'result-display result-success';
+                resultDisplay.innerHTML = 
+                    '<div><i class="fas fa-check-circle"></i> ' + data.message + '</div>' +
+                    '<div style="margin-top: 10px; font-size: 14px;">' +
+                    '导入的预订头部: <strong>' + data.imported_headers + '</strong><br>' +
+                    '导入的明细记录: <strong>' + data.imported_details + '</strong>' +
+                    '</div>';
+                
+                // 刷新统计数据
+                refreshStats();
+            } else {
+                resultDisplay.className = 'result-display result-error';
+                resultDisplay.innerHTML = '<i class="fas fa-exclamation-circle"></i> ' + data.message;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            resultDisplay.className = 'result-display result-error';
+            resultDisplay.innerHTML = '<i class="fas fa-times-circle"></i> 导入失败: ' + error.message;
+        })
+        .finally(() => {
+            importBtn.disabled = false;
+        });
+    }
+
+    // 刷新统计数据
+    function refreshStats() {
+        fetch('/statement/athina_stats')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('total-headers').textContent = data.total_headers || 0;
+                document.getElementById('total-details').textContent = data.total_details || 0;
+                document.getElementById('last-import').textContent = data.last_import || '-';
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching stats:', error);
+        });
+    }
+
+    // 清空数据
+    function clearData() {
+        if (!confirm('确定要清空所有Athina数据吗？此操作不可恢复！')) {
+            return;
+        }
+
+        fetch('/statement/athina_clear_data', {
+            method: 'POST'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('数据已清空');
+                refreshStats();
+            } else {
+                alert('清空失败: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('清空失败: ' + error.message);
+        });
+    }
+
+    function recalculateSubtotals() {
+        if (!confirm('确定要重新计算所有Sub Total数据吗？')) {
+            return;
+        }
+
+        fetch('/statement/athina_recalculate_subtotals', {
+            method: 'POST'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('重新计算完成: ' + data.message);
+                refreshStats();
+            } else {
+                alert('重新计算失败: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('重新计算失败: ' + error.message);
+        });
+    }
+</script>
+{% endblock %}

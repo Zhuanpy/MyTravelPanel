@@ -1,0 +1,569 @@
+{% extends "shared/staff_base.html" %}
+
+{% block title %}SOA 对账单管理{% endblock %}
+
+{% block extra_css %}
+<style>
+    .soa-container {
+        padding: 20px;
+    }
+    .page-header {
+        margin-bottom: 30px;
+        padding-bottom: 15px;
+        border-bottom: 2px solid #e9ecef;
+    }
+    .search-section {
+        background: #f8f9fa;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+    }
+    .table-container {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        overflow: hidden;
+    }
+    .table {
+        margin-bottom: 0;
+    }
+    .table th {
+        background-color: #f8f9fa;
+        border-top: none;
+        font-weight: 600;
+        color: #495057;
+    }
+    .btn-group .btn {
+        margin-right: 5px;
+    }
+    .btn-sm {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.875rem;
+    }
+    .pagination {
+        margin-top: 20px;
+    }
+    .no-data {
+        text-align: center;
+        padding: 40px;
+        color: #6c757d;
+    }
+    .loading {
+        text-align: center;
+        padding: 20px;
+    }
+    .spinner-border-sm {
+        width: 1rem;
+        height: 1rem;
+    }
+    /* 月份选择器样式 */
+    #monthFilter {
+        cursor: pointer;
+    }
+    #monthFilter::-webkit-calendar-picker-indicator {
+        cursor: pointer;
+        color: #007bff;
+    }
+    #monthFilter::-webkit-calendar-picker-indicator:hover {
+        color: #0056b3;
+    }
+    .input-group-append .btn {
+        border-left: 0;
+    }
+    .input-group-append .btn:hover {
+        background-color: #e9ecef;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="soa-container">
+    <div class="page-header">
+        <h1 class="h3 mb-0">SOA 对账单管理</h1>
+        <p class="text-muted">生成和下载客户对账单</p>
+    </div>
+
+    <!-- 搜索区域 -->
+    <div class="search-section">
+        <div class="row">
+            <div class="col-md-3">
+                <div class="input-group">
+                    <input type="text" class="form-control" id="searchInput" placeholder="搜索公司名称或预订编号...">
+                    <div class="input-group-append">
+                        <button class="btn btn-outline-primary" type="button" id="searchBtn">
+                            <i class="fas fa-search"></i> 搜索
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="input-group">
+                    <input type="month" class="form-control" id="monthFilter" placeholder="选择月份">
+                    <div class="input-group-append">
+                        <button class="btn btn-outline-secondary" type="button" id="clearMonthBtn" title="清除月份筛选">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <select class="form-control" id="companyFilter">
+                    <option value="">所有公司</option>
+                </select>
+            </div>
+            <div class="col-md-4 text-right">
+                <button class="btn btn-success" id="batchDownloadBtn" style="display: none;">
+                    <i class="fas fa-file-excel"></i> 下载Excel表格
+                </button>
+                <button class="btn btn-danger" id="batchDownloadPdfBtn" style="display: none;">
+                    <i class="fas fa-file-pdf"></i> 下载PDF文件
+                </button>
+                <button class="btn btn-primary" id="refreshBtn">
+                    <i class="fas fa-sync-alt"></i> 刷新
+                </button>
+                <button class="btn btn-outline-secondary" id="clearFiltersBtn">
+                    <i class="fas fa-times"></i> 清除筛选
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 数据表格 -->
+    <div class="table-container">
+        <div class="loading" id="loadingDiv">
+            <div class="spinner-border spinner-border-sm" role="status">
+                <span class="sr-only">加载中...</span>
+            </div>
+            <span class="ml-2">加载数据中...</span>
+        </div>
+        
+        <div id="noDataDiv" class="no-data" style="display: none;">
+            <i class="fas fa-inbox fa-3x mb-3"></i>
+            <h5>暂无数据</h5>
+            <p>没有找到符合条件的对账单数据</p>
+        </div>
+
+        <div id="tableDiv" style="display: none;">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>HID</th>
+                        <th>COMPANY</th>
+                        <th>BK.DATE</th>
+                        <th>CLIENT NAME</th>
+                        <th>DP.DATE</th>
+                        <th>ITIN DESCRIPTION</th>
+                        <th>货币</th>
+                        <th>BAL</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="dataTableBody">
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- 分页 -->
+    <nav id="paginationNav" style="display: none;">
+        <ul class="pagination justify-content-center" id="paginationList">
+        </ul>
+    </nav>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+class SOAManager {
+    constructor() {
+        this.currentPage = 1;
+        this.perPage = 20;
+        this.searchTerm = '';
+        this.monthFilter = '';
+        this.companyFilter = '';
+        this.init();
+    }
+
+    init() {
+        this.populateMonthFilter();
+        this.populateCompanyFilter();
+        this.bindEvents();
+        this.loadData();
+    }
+
+    populateMonthFilter() {
+        // 月份选择器使用HTML5的month input，不需要动态生成选项
+        // 设置默认值为当前月份
+        const monthFilter = document.getElementById('monthFilter');
+        const currentDate = new Date();
+        const currentYear = currentDate.getFullYear();
+        const currentMonth = (currentDate.getMonth() + 1).toString().padStart(2, '0');
+        monthFilter.value = `${currentYear}-${currentMonth}`;
+    }
+
+    async populateCompanyFilter() {
+        const companyFilter = document.getElementById('companyFilter');
+        
+        try {
+            // 获取所有公司列表
+            const response = await fetch('/statement/soa_companies');
+            const data = await response.json();
+            
+            if (data.success !== false && data.companies) {
+                // 按公司名称排序
+                data.companies.sort((a, b) => a.localeCompare(b));
+                
+                data.companies.forEach(company => {
+                    const option = document.createElement('option');
+                    option.value = company;
+                    option.textContent = company;
+                    companyFilter.appendChild(option);
+                });
+            }
+        } catch (error) {
+            console.error('获取公司列表失败:', error);
+        }
+    }
+
+    bindEvents() {
+        // 搜索按钮
+        document.getElementById('searchBtn').addEventListener('click', () => {
+            this.searchTerm = document.getElementById('searchInput').value;
+            this.monthFilter = document.getElementById('monthFilter').value;
+            this.companyFilter = document.getElementById('companyFilter').value;
+            this.currentPage = 1;
+            this.loadData();
+        });
+
+        // 回车搜索
+        document.getElementById('searchInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                this.searchTerm = e.target.value;
+                this.monthFilter = document.getElementById('monthFilter').value;
+                this.companyFilter = document.getElementById('companyFilter').value;
+                this.currentPage = 1;
+                this.loadData();
+            }
+        });
+
+        // 月份过滤变化
+        document.getElementById('monthFilter').addEventListener('change', () => {
+            this.monthFilter = document.getElementById('monthFilter').value;
+            this.currentPage = 1;
+            this.loadData();
+        });
+
+        // 公司过滤变化
+        document.getElementById('companyFilter').addEventListener('change', () => {
+            this.companyFilter = document.getElementById('companyFilter').value;
+            this.currentPage = 1;
+            this.loadData();
+        });
+
+        // 刷新按钮
+        document.getElementById('refreshBtn').addEventListener('click', () => {
+            this.searchTerm = '';
+            this.monthFilter = '';
+            this.companyFilter = '';
+            document.getElementById('searchInput').value = '';
+            document.getElementById('monthFilter').value = '';
+            document.getElementById('companyFilter').value = '';
+            this.currentPage = 1;
+            this.loadData();
+        });
+
+        // 清除筛选按钮
+        document.getElementById('clearFiltersBtn').addEventListener('click', () => {
+            this.searchTerm = '';
+            this.monthFilter = '';
+            this.companyFilter = '';
+            document.getElementById('searchInput').value = '';
+            document.getElementById('monthFilter').value = '';
+            document.getElementById('companyFilter').value = '';
+            this.currentPage = 1;
+            this.loadData();
+        });
+
+        // 清除月份按钮
+        document.getElementById('clearMonthBtn').addEventListener('click', () => {
+            document.getElementById('monthFilter').value = '';
+            this.monthFilter = '';
+            this.currentPage = 1;
+            this.loadData();
+        });
+
+        // 批量下载Excel按钮
+        document.getElementById('batchDownloadBtn').addEventListener('click', () => {
+            this.batchDownload();
+        });
+
+        // 批量下载PDF按钮
+        document.getElementById('batchDownloadPdfBtn').addEventListener('click', () => {
+            this.batchDownloadPdf();
+        });
+    }
+
+    async loadData() {
+        this.showLoading();
+        
+        try {
+            const params = new URLSearchParams({
+                page: this.currentPage,
+                per_page: this.perPage,
+                search: this.searchTerm,
+                month: this.monthFilter,
+                company: this.companyFilter
+            });
+
+            const response = await fetch(`/statement/soa_data?${params}`);
+            const data = await response.json();
+
+            if (data.success !== false) {
+                this.renderData(data);
+            } else {
+                this.showError(data.message || '加载数据失败');
+            }
+        } catch (error) {
+            console.error('加载数据失败:', error);
+            this.showError('网络错误，请稍后重试');
+        }
+    }
+
+    renderData(data) {
+        const tbody = document.getElementById('dataTableBody');
+        tbody.innerHTML = '';
+
+        if (!data.headers || data.headers.length === 0) {
+            this.showNoData();
+            return;
+        }
+
+        data.headers.forEach(header => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${header.booking_header_id}</td>
+                <td>${header.corporate_name || 'N/A'}</td>
+                <td>${header.book_date || 'N/A'}</td>
+                <td>${header.client_name || 'N/A'}</td>
+                <td>${header.dep_date || 'N/A'}</td>
+                <td>${header.itin_desc || 'N/A'}</td>
+                <td>SGD</td>
+                <td class="text-right">$${header.sub_total_balance.toFixed(2)}</td>
+                <td>
+                    <div class="btn-group" role="group">
+                        <button class="btn btn-sm btn-outline-info" onclick="soaManager.previewSOA(${header.id})" title="预览">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-primary" onclick="soaManager.downloadPDF(${header.id})" title="下载PDF">
+                            <i class="fas fa-file-pdf"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-success" onclick="soaManager.downloadHTML(${header.id})" title="下载HTML">
+                            <i class="fas fa-file-code"></i>
+                        </button>
+                    </div>
+                </td>
+            `;
+            tbody.appendChild(row);
+        });
+
+        this.showTable();
+        this.renderPagination(data);
+        this.updateBatchDownloadButton();
+    }
+
+    renderPagination(data) {
+        const paginationList = document.getElementById('paginationList');
+        paginationList.innerHTML = '';
+
+        if (data.pages <= 1) {
+            document.getElementById('paginationNav').style.display = 'none';
+            return;
+        }
+
+        document.getElementById('paginationNav').style.display = 'block';
+
+        // 上一页
+        const prevLi = document.createElement('li');
+        prevLi.className = `page-item ${data.current_page === 1 ? 'disabled' : ''}`;
+        prevLi.innerHTML = `<a class="page-link" href="#" onclick="soaManager.goToPage(${data.current_page - 1})">上一页</a>`;
+        paginationList.appendChild(prevLi);
+
+        // 页码
+        const startPage = Math.max(1, data.current_page - 2);
+        const endPage = Math.min(data.pages, data.current_page + 2);
+
+        for (let i = startPage; i <= endPage; i++) {
+            const li = document.createElement('li');
+            li.className = `page-item ${i === data.current_page ? 'active' : ''}`;
+            li.innerHTML = `<a class="page-link" href="#" onclick="soaManager.goToPage(${i})">${i}</a>`;
+            paginationList.appendChild(li);
+        }
+
+        // 下一页
+        const nextLi = document.createElement('li');
+        nextLi.className = `page-item ${data.current_page === data.pages ? 'disabled' : ''}`;
+        nextLi.innerHTML = `<a class="page-link" href="#" onclick="soaManager.goToPage(${data.current_page + 1})">下一页</a>`;
+        paginationList.appendChild(nextLi);
+    }
+
+    goToPage(page) {
+        if (page < 1) return;
+        this.currentPage = page;
+        this.loadData();
+    }
+
+    previewSOA(headerId) {
+        window.open(`/statement/soa_preview/${headerId}`, '_blank');
+    }
+
+    downloadPDF(headerId) {
+        window.location.href = `/statement/soa_download/${headerId}`;
+    }
+
+    downloadHTML(headerId) {
+        window.location.href = `/statement/soa_download_html/${headerId}`;
+    }
+
+    updateBatchDownloadButton() {
+        const batchBtn = document.getElementById('batchDownloadBtn');
+        const batchPdfBtn = document.getElementById('batchDownloadPdfBtn');
+        const hasFilters = this.companyFilter || this.monthFilter;
+        batchBtn.style.display = hasFilters ? 'inline-block' : 'none';
+        batchPdfBtn.style.display = hasFilters ? 'inline-block' : 'none';
+    }
+
+    async batchDownload() {
+        if (!this.companyFilter && !this.monthFilter) {
+            alert('请先选择公司或月份进行筛选');
+            return;
+        }
+
+        if (confirm('确定要下载当前筛选条件下的所有数据到Excel表格吗？')) {
+            try {
+                const params = new URLSearchParams({
+                    company: this.companyFilter,
+                    month: this.monthFilter,
+                    format: 'excel'
+                });
+
+                const response = await fetch(`/statement/soa_batch_download?${params}`);
+                
+                if (response.ok) {
+                    // 检查响应类型
+                    const contentType = response.headers.get('content-type');
+                    if (contentType && contentType.includes('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')) {
+                        // 是Excel文件
+                        const blob = await response.blob();
+                        const url = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        
+                        const filename = `SOA_${this.companyFilter || 'All'}_${this.monthFilter || 'All'}_${new Date().toISOString().slice(0, 10)}.xlsx`;
+                        a.download = filename;
+                        document.body.appendChild(a);
+                        a.click();
+                        window.URL.revokeObjectURL(url);
+                        document.body.removeChild(a);
+                    } else {
+                        // 可能是错误信息
+                        const errorData = await response.json();
+                        alert(`下载失败: ${errorData.message || '未知错误'}`);
+                    }
+                } else {
+                    // 处理错误响应
+                    try {
+                        const errorData = await response.json();
+                        alert(`下载失败: ${errorData.message || '服务器错误'}`);
+                    } catch (e) {
+                        alert('下载Excel表格失败，请稍后重试');
+                    }
+                }
+            } catch (error) {
+                console.error('下载Excel表格失败:', error);
+                alert('下载Excel表格失败，请稍后重试');
+            }
+        }
+    }
+
+    async batchDownloadPdf() {
+        if (!this.companyFilter && !this.monthFilter) {
+            alert('请先选择公司或月份进行筛选');
+            return;
+        }
+
+        if (confirm('确定要下载当前筛选条件下的所有数据到PDF文件吗？')) {
+            try {
+                const params = new URLSearchParams({
+                    company: this.companyFilter,
+                    month: this.monthFilter
+                });
+
+                const response = await fetch(`/statement/soa_batch_download_pdf?${params}`);
+                
+                if (response.ok) {
+                    // 检查响应类型
+                    const contentType = response.headers.get('content-type');
+                    if (contentType && contentType.includes('application/pdf')) {
+                        // 是PDF文件
+                        const blob = await response.blob();
+                        const url = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        
+                        const filename = `SOA_${this.companyFilter || 'All'}_${this.monthFilter || 'All'}_${new Date().toISOString().slice(0, 10)}.pdf`;
+                        a.download = filename;
+                        document.body.appendChild(a);
+                        a.click();
+                        window.URL.revokeObjectURL(url);
+                        document.body.removeChild(a);
+                    } else {
+                        // 可能是错误信息
+                        const errorData = await response.json();
+                        alert(`下载失败: ${errorData.message || '未知错误'}`);
+                    }
+                } else {
+                    // 处理错误响应
+                    try {
+                        const errorData = await response.json();
+                        alert(`下载失败: ${errorData.message || '服务器错误'}`);
+                    } catch (e) {
+                        alert('下载PDF文件失败，请稍后重试');
+                    }
+                }
+            } catch (error) {
+                console.error('下载PDF文件失败:', error);
+                alert('下载PDF文件失败，请稍后重试');
+            }
+        }
+    }
+
+    showLoading() {
+        document.getElementById('loadingDiv').style.display = 'block';
+        document.getElementById('tableDiv').style.display = 'none';
+        document.getElementById('noDataDiv').style.display = 'none';
+        document.getElementById('paginationNav').style.display = 'none';
+    }
+
+    showTable() {
+        document.getElementById('loadingDiv').style.display = 'none';
+        document.getElementById('tableDiv').style.display = 'block';
+        document.getElementById('noDataDiv').style.display = 'none';
+    }
+
+    showNoData() {
+        document.getElementById('loadingDiv').style.display = 'none';
+        document.getElementById('tableDiv').style.display = 'none';
+        document.getElementById('noDataDiv').style.display = 'block';
+        document.getElementById('paginationNav').style.display = 'none';
+    }
+
+    showError(message) {
+        alert('错误: ' + message);
+        this.showNoData();
+    }
+}
+
+// 初始化
+const soaManager = new SOAManager();
+</script>
+{% endblock %}

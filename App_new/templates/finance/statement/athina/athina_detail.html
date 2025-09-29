@@ -1,0 +1,390 @@
+{% extends "staff_base.html" %}
+
+{% block title %}Athina预订详情 - MyTravelPanel{% endblock %}
+
+{% block page_title %}Athina预订详情{% endblock %}
+
+{% block extra_css %}
+<style>
+    .detail-container {
+        max-width: 1400px;
+        margin: 20px auto;
+        padding: 20px;
+        background-color: #ffffff;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+    }
+
+    .detail-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 30px;
+        padding-bottom: 20px;
+        border-bottom: 2px solid #e9ecef;
+    }
+
+    .detail-header h1 {
+        color: #2E7D32;
+        font-size: 28px;
+        margin: 0;
+        display: flex;
+        align-items: center;
+    }
+
+    .detail-header h1 i {
+        margin-right: 10px;
+    }
+
+    .back-btn {
+        background-color: #6c757d;
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+    }
+
+    .back-btn:hover {
+        background-color: #5a6268;
+        text-decoration: none;
+        color: white;
+    }
+
+    .header-info {
+        background-color: #f8f9fa;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 30px;
+    }
+
+    .header-info h3 {
+        color: #2E7D32;
+        margin-bottom: 15px;
+    }
+
+    .info-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 15px;
+    }
+
+    .info-item {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .info-label {
+        font-weight: 600;
+        color: #666;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-bottom: 5px;
+    }
+
+    .info-value {
+        font-size: 14px;
+        color: #333;
+    }
+
+    .details-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+        background-color: white;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .details-table th {
+        background-color: #2E7D32;
+        color: white;
+        padding: 15px 10px;
+        text-align: left;
+        font-weight: 600;
+        font-size: 14px;
+    }
+
+    .details-table td {
+        padding: 12px 10px;
+        border-bottom: 1px solid #e9ecef;
+        font-size: 13px;
+        vertical-align: top;
+    }
+
+    .details-table tr:hover {
+        background-color: #f8f9fa;
+    }
+
+    .details-table tr:nth-child(even) {
+        background-color: #f8f9fa;
+    }
+
+    .details-table tr:nth-child(even):hover {
+        background-color: #e9ecef;
+    }
+
+    .amount {
+        text-align: right;
+        font-weight: 500;
+    }
+
+    .amount.positive {
+        color: #28a745;
+    }
+
+    .amount.negative {
+        color: #dc3545;
+    }
+
+    .subtotal-row {
+        background-color: #e3f2fd !important;
+        font-weight: 600;
+    }
+
+    .pagination {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin-top: 30px;
+        gap: 10px;
+    }
+
+    .pagination a, .pagination span {
+        padding: 8px 12px;
+        border: 1px solid #ddd;
+        text-decoration: none;
+        color: #333;
+        border-radius: 4px;
+        transition: all 0.3s ease;
+    }
+
+    .pagination a:hover {
+        background-color: #4CAF50;
+        color: white;
+        border-color: #4CAF50;
+    }
+
+    .pagination .current {
+        background-color: #4CAF50;
+        color: white;
+        border-color: #4CAF50;
+    }
+
+    .pagination .disabled {
+        color: #ccc;
+        cursor: not-allowed;
+    }
+
+    .no-data {
+        text-align: center;
+        padding: 50px;
+        color: #666;
+        font-size: 16px;
+    }
+
+    .no-data i {
+        font-size: 48px;
+        color: #ddd;
+        margin-bottom: 20px;
+    }
+
+    @media (max-width: 768px) {
+        .detail-container {
+            padding: 15px;
+            margin: 10px;
+        }
+
+        .detail-header {
+            flex-direction: column;
+            gap: 15px;
+            align-items: stretch;
+        }
+
+        .info-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .details-table {
+            font-size: 12px;
+        }
+
+        .details-table th,
+        .details-table td {
+            padding: 8px 5px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="detail-container">
+    <div class="detail-header">
+        <h1><i class="fas fa-eye"></i> 预订详情 - {{ header.booking_header_id }}</h1>
+        <a href="/statement/athina_data" class="back-btn">
+            <i class="fas fa-arrow-left"></i> 返回列表
+        </a>
+    </div>
+
+    <!-- 预订头部信息 -->
+    <div class="header-info">
+        <h3><i class="fas fa-info-circle"></i> 预订头部信息</h3>
+        <div class="info-grid">
+            <div class="info-item">
+                <div class="info-label">预订头部ID</div>
+                <div class="info-value">{{ header.booking_header_id }}</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">客户名称</div>
+                <div class="info-value">{{ header.client_name or '-' }}</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">公司名称</div>
+                <div class="info-value">{{ header.corporate_name or '-' }}</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">预订参考号</div>
+                <div class="info-value">{{ header.booking_ref or '-' }}</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">预订类型</div>
+                <div class="info-value">{{ header.book_type or '-' }}</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">预订日期</div>
+                <div class="info-value">{{ header.book_date.strftime('%Y-%m-%d') if header.book_date else '-' }}</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">出发日期</div>
+                <div class="info-value">{{ header.dep_date.strftime('%Y-%m-%d') if header.dep_date else '-' }}</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">总金额</div>
+                <div class="info-value amount {{ 'positive' if header.gross_amount and header.gross_amount > 0 else '' }}">
+                    {{ "%.2f"|format(header.gross_amount) if header.gross_amount else '0.00' }} {{ header.gross_curr or 'SGD' }}
+                </div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">利润率</div>
+                <div class="info-value amount">
+                    {{ "%.2f"|format(header.margin) if header.margin else '0.00' }}%
+                </div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">供应商</div>
+                <div class="info-value">{{ header.supplier or '-' }}</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">顾问</div>
+                <div class="info-value">{{ header.consultant or '-' }}</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">销售顾问</div>
+                <div class="info-value">{{ header.sales_consultant or '-' }}</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">发票号</div>
+                <div class="info-value">{{ header.invoice_no or '-' }}</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">发票日期</div>
+                <div class="info-value">{{ header.invoice_date.strftime('%Y-%m-%d') if header.invoice_date else '-' }}</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 明细记录 -->
+    <h3><i class="fas fa-list"></i> 明细记录 ({{ pagination.total }} 条)</h3>
+    
+    {% if details %}
+    <table class="details-table">
+        <thead>
+            <tr>
+                <th>类型</th>
+                <th>客户名称</th>
+                <th>预订参考号</th>
+                <th>预订类型</th>
+                <th>预订日期</th>
+                <th>出发日期</th>
+                <th>行程描述</th>
+                <th>总金额</th>
+                <th>利润率</th>
+                <th>供应商</th>
+                <th>发票号</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for detail in details %}
+            <tr class="{{ 'subtotal-row' if detail.is_subtotal else '' }}">
+                <td>
+                    {% if detail.is_subtotal %}
+                        <span style="color: #1976D2; font-weight: bold;">小计</span>
+                    {% else %}
+                        <span style="color: #666;">明细</span>
+                    {% endif %}
+                </td>
+                <td>{{ detail.client_name or '-' }}</td>
+                <td>{{ detail.booking_ref or '-' }}</td>
+                <td>{{ detail.book_type or '-' }}</td>
+                <td>{{ detail.book_date.strftime('%Y-%m-%d') if detail.book_date else '-' }}</td>
+                <td>{{ detail.dep_date.strftime('%Y-%m-%d') if detail.dep_date else '-' }}</td>
+                <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ detail.itin_desc or '' }}">
+                    {{ detail.itin_desc or '-' }}
+                </td>
+                <td class="amount {{ 'positive' if detail.gross_amount and detail.gross_amount > 0 else '' }}">
+                    {{ "%.2f"|format(detail.gross_amount) if detail.gross_amount else '0.00' }}
+                </td>
+                <td class="amount">
+                    {{ "%.2f"|format(detail.margin) if detail.margin else '0.00' }}%
+                </td>
+                <td>{{ detail.supplier or '-' }}</td>
+                <td>{{ detail.invoice_no or '-' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- 分页 -->
+    {% if pagination.pages > 1 %}
+    <div class="pagination">
+        {% if pagination.has_prev %}
+            <a href="?page={{ pagination.prev_num }}">上一页</a>
+        {% else %}
+            <span class="disabled">上一页</span>
+        {% endif %}
+
+        {% for page_num in pagination.iter_pages() %}
+            {% if page_num %}
+                {% if page_num != pagination.page %}
+                    <a href="?page={{ page_num }}">{{ page_num }}</a>
+                {% else %}
+                    <span class="current">{{ page_num }}</span>
+                {% endif %}
+            {% else %}
+                <span>...</span>
+            {% endif %}
+        {% endfor %}
+
+        {% if pagination.has_next %}
+            <a href="?page={{ pagination.next_num }}">下一页</a>
+        {% else %}
+            <span class="disabled">下一页</span>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    {% else %}
+    <div class="no-data">
+        <i class="fas fa-list"></i>
+        <h3>暂无明细记录</h3>
+        <p>此预订头部没有关联的明细记录。</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

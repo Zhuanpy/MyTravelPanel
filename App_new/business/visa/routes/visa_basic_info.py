@@ -2612,6 +2612,91 @@ def document_order_manager(visa_type):
         flash(f'加载文档顺序管理页面时出错: {str(e)}', 'error')
         return redirect(url_for('visa_basic.visa_type_list'))
 
+@visa_basic.route('/api/get_document_details/<int:visa_type_id>')
+def get_document_details(visa_type_id):
+    """获取签证类型的文档详情"""
+    try:
+        from App_new.business.visa.models.Visamodels import VisaTypes, VisaDocuments, VisaDocumentsList
+        
+        # 获取签证类型
+        visa_type_record = VisaTypes.query.get(visa_type_id)
+        if not visa_type_record:
+            return jsonify({
+                'success': False,
+                'message': '签证类型不存在'
+            }), 404
+        
+        # 获取SHARE身份
+        share_identity = VisaSingaporeIdentity.query.filter_by(identity_zh='SHARE').first()
+        if not share_identity:
+            return jsonify({
+                'success': False,
+                'message': '未找到SHARE身份记录'
+            }), 404
+        
+        # 获取所有关联身份
+        linked_identities = visa_type_record.identities
+        all_identities = [share_identity] + [identity for identity in linked_identities if identity.id != share_identity.id]
+        
+        result_data = {
+            'share_doc': None,
+            'specific_docs': {}
+        }
+        
+        # 处理SHARE身份
+        share_docs = VisaDocuments.query.filter_by(
+            visa_type_id=visa_type_id, 
+            singapore_identity_id=share_identity.id
+        ).first()
+        
+        if share_docs:
+            documents = []
+            if share_docs.selected_documents:
+                for doc in share_docs.selected_documents:
+                    documents.append({
+                        'id': doc.id,
+                        'name': doc.name,
+                        'category': doc.category
+                    })
+            result_data['share_doc'] = {
+                'visa_document_id': share_docs.id,
+                'documents': documents
+            }
+        
+        # 处理其他身份
+        for identity in linked_identities:
+            if identity.id != share_identity.id:
+                identity_docs = VisaDocuments.query.filter_by(
+                    visa_type_id=visa_type_id,
+                    singapore_identity_id=identity.id
+                ).first()
+                
+                if identity_docs:
+                    documents = []
+                    if identity_docs.selected_documents:
+                        for doc in identity_docs.selected_documents:
+                            documents.append({
+                                'id': doc.id,
+                                'name': doc.name,
+                                'category': doc.category
+                            })
+                    result_data['specific_docs'][identity.identity_zh] = {
+                        'visa_document_id': identity_docs.id,
+                        'documents': documents
+                    }
+        
+        return jsonify({
+            'success': True,
+            'data': result_data
+        })
+        
+    except Exception as e:
+        print(f"获取文档详情失败: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f'获取文档详情失败: {str(e)}'
+        }), 500
+
 @visa_basic.route('/visa_type_detail/<visa_type>')
 def visa_type_detail(visa_type):
     """签证类型详细页面"""

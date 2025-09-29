@@ -18,7 +18,7 @@ from App_new.utils.report_utils import (
     compare_profit_columns,
     add_comparison_column
 )
-from App_new.config import safe_json
+# safe_json 已从 Config 类中移除，不再需要
 
 # 配置日志
 logger = logging.getLogger(__name__)
@@ -314,89 +314,7 @@ def cmb_to_company():
     return redirect(url_for('statement_routes.cmb_bank'))
 
 
-@statement_blue.route('/athina_page')
-@login_required
-@staff_only
-def athina_page():
-    return render_template('finance/statement/athina.html')
-
-
-@statement_blue.route('/athina_processing', methods=['GET', 'POST'])
-@csrf.exempt
-def process_all_invoices():
-    try:
-        folder_path = Config.BILLING_DATA_PATH / "BOOKING"
-        
-        # 检查文件夹是否存在
-        if not folder_path.exists():
-            return jsonify({'error': f'账单文件夹不存在: {folder_path}'}), 404
-        
-        count = CountHid(str(folder_path))
-        profits, pre_sum = count.find_no_inv_booking()
-        
-        r = f'全部未结算总额：SGD {int(profits)};'
-        return jsonify({'result': r})
-        
-    except Exception as e:
-        logger.error(f"处理全部订单失败: {e}")
-        return jsonify({'error': f'处理失败: {str(e)}'}), 500
-
-
-@statement_blue.route('/athina_processing_month', methods=['POST'])
-@csrf.exempt
-def process_month_invoice():
-    try:
-        folder_path = Config.BILLING_DATA_PATH / "BOOKING"
-        
-        # 检查文件夹是否存在
-        if not folder_path.exists():
-            return jsonify({'error': f'账单文件夹不存在: {folder_path}'}), 404
-        
-        data = request.get_json()
-        if not data:
-            return jsonify({'error': '未提供月份数据'}), 400
-        
-        month = data.get('month')
-        if not month:
-            return jsonify({'error': '月份参数不能为空'}), 400
-        
-        # 验证月份格式
-        import re
-        if not re.match(r'^\d{4}-\d{2}$', month):
-            return jsonify({'error': '月份格式错误，请使用YYYY-MM格式'}), 400
-        
-        count = CountHid(str(folder_path))
-        profits, pre_sum = count.find_no_inv_booking(pre_month=month)
-        
-        results = f'截至{month[:4]}年{month[-2:]}月的未结算总额: SGD {int(pre_sum)}'
-        return jsonify({'result': results})
-        
-    except Exception as e:
-        logger.error(f"处理指定月份订单失败: {e}")
-        return jsonify({'error': f'处理失败: {str(e)}'}), 500
-
-
-@statement_blue.route('/open_athina_statement_folder', methods=['GET', 'POST'])
-@csrf.exempt
-def open_athina_statement_folder():
-    folder_path = Config.BILLING_DATA_PATH / "BOOKING"
-    
-    # 如果文件夹不存在，则创建它
-    if not folder_path.exists():
-        try:
-            folder_path.mkdir(parents=True, exist_ok=True)
-            flash('文件夹不存在，已自动创建', 'info')
-        except Exception as e:
-            flash(f'创建文件夹失败：{str(e)}', 'error')
-            return redirect(url_for("statement_routes.athina_page"))
-    
-    try:
-        os.startfile(str(folder_path))
-        flash('成功打开BOOKING文件夹', 'success')
-    except Exception as e:
-        flash(f'打开文件夹失败：{str(e)}', 'error')
-    
-    return redirect(url_for("statement_routes.athina_page"))
+# Athina 相关路由已移动到 athina_routes.py
 
 @statement_blue.route('/statement/company_bill', methods=['GET', 'POST'])
 @login_required
@@ -965,10 +883,10 @@ def batch_compare_reports():
         
         return jsonify({
             'success': True,
-            'summary': safe_json(results['summary']),
-            'differences': safe_json(results['differences']),
-            'missing_hids': safe_json(missing_hids),
-            'detailed_differences': safe_json(detailed_differences)
+            'summary': Config.safe_json(results['summary']),
+            'differences': Config.safe_json(results['differences']),
+            'missing_hids': Config.safe_json(missing_hids),
+            'detailed_differences': Config.safe_json(detailed_differences)
         })
         
     except Exception as e:

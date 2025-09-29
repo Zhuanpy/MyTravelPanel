@@ -1,0 +1,659 @@
+# -*- coding: utf-8 -*-
+"""Athina 相关路由"""
+
+from flask import Blueprint, render_template, jsonify, request, url_for, redirect, flash
+from flask_login import login_required
+from App_new.exts import csrf, db
+from App_new.utils.decorators import staff_only
+from App_new.finance.models.athina_booking import AthinaBookingHeader, AthinaBookingDetail
+from App_new.utils.report_utils import get_report_headers_string
+from App_new.finance.services.soa_service import SOAService
+import os
+import tempfile
+import pandas as pd
+
+# 创建 Athina 蓝图
+athina_blue = Blueprint('athina_routes', __name__)
+
+
+@athina_blue.route('/athina_page')
+@login_required
+@staff_only
+def athina_page():
+    """Athina 主页面"""
+    return render_template('statement/athina/athina.html')
+
+
+@athina_blue.route('/athina_import')
+@login_required
+@staff_only
+def athina_import():
+    """Athina数据录入页面"""
+    return render_template('statement/athina/athina_import.html')
+
+
+@athina_blue.route('/athina_analysis')
+@login_required
+@staff_only
+def athina_analysis():
+    """Athina分析报表页面"""
+    return render_template('statement/athina/athina_analysis.html')
+
+
+@athina_blue.route('/athina_import_csv', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def athina_import_csv():
+    """导入Athina CSV文件"""
+    try:
+        from App_new.finance.services.athina_import_service import AthinaImportService
+        
+        if 'file' not in request.files:
+            return jsonify({
+                'success': False,
+                'message': '没有选择文件'
+            }), 400
+        
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({
+                'success': False,
+                'message': '没有选择文件'
+            }), 400
+        
+        if not file.filename.lower().endswith('.csv'):
+            return jsonify({
+                'success': False,
+                'message': '请选择CSV格式的文件'
+            }), 400
+        
+        # 保存临时文件
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.csv') as tmp_file:
+            file.save(tmp_file.name)
+            tmp_file_path = tmp_file.name
+        
+        try:
+            # 导入CSV文件
+            import_service = AthinaImportService()
+            result = import_service.import_csv_file(tmp_file_path)
+            
+            return jsonify(result)
+            
+        finally:
+            # 清理临时文件
+            if os.path.exists(tmp_file_path):
+                os.unlink(tmp_file_path)
+        
+    except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"Athina导入错误: {str(e)}")
+        print(f"错误详情: {error_details}")
+        return jsonify({
+            'success': False,
+            'message': f'导入失败: {str(e)}',
+            'error_details': error_details
+        }), 500
+
+
+@athina_blue.route('/athina_stats')
+@login_required
+@staff_only
+def athina_stats():
+    """获取Athina数据统计"""
+    try:
+        total_headers = AthinaBookingHeader.query.count()
+        total_details = AthinaBookingDetail.query.count()
+        
+        # 获取最后导入时间
+        last_header = AthinaBookingHeader.query.order_by(AthinaBookingHeader.created_at.desc()).first()
+        last_import = last_header.created_at.strftime('%Y-%m-%d %H:%M') if last_header else '-'
+        
+        return jsonify({
+            'success': True,
+            'total_headers': total_headers,
+            'total_details': total_details,
+            'last_import': last_import
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'获取统计失败: {str(e)}'
+        }), 500
+
+
+@athina_blue.route('/athina_data')
+@login_required
+@staff_only
+def athina_data():
+    """Athina数据查看页面"""
+    try:
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 20, type=int)
+        search = request.args.get('search', '')
+        
+        # 构建查询
+        query = AthinaBookingHeader.query
+        
+        if search:
+            query = query.filter(
+                db.or_(
+                    AthinaBookingHeader.booking_header_id.contains(search),
+                    AthinaBookingHeader.client_name.contains(search),
+                    AthinaBookingHeader.booking_ref.contains(search),
+                    AthinaBookingHeader.supplier.contains(search)
+                )
+            )
+        
+        query = query.order_by(AthinaBookingHeader.created_at.desc())
+        
+        pagination = query.paginate(
+            page=page,
+            per_page=per_page,
+            error_out=False
+        )
+        
+        return render_template('statement/athina/athina_data.html', 
+                             headers=pagination.items,
+                             pagination=pagination,
+                             search=search)
+        
+    except Exception as e:
+        flash(f'加载数据失败: {str(e)}', 'error')
+        return redirect(url_for('athina_routes.athina_import'))
+
+
+@athina_blue.route('/athina_clear_data', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def athina_clear_data():
+    """清空Athina数据"""
+    try:
+        # 删除所有数据
+        AthinaBookingDetail.query.delete()
+        AthinaBookingHeader.query.delete()
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': '数据已清空'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'message': f'清空失败: {str(e)}'
+        }), 500
+
+
+@athina_blue.route('/athina_recalculate_subtotals', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def athina_recalculate_subtotals():
+    """重新计算所有Sub Total数据"""
+    try:
+        from App_new.finance.services.athina_import_service import AthinaImportService
+        
+        service = AthinaImportService()
+        result = service.recalculate_all_subtotals()
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'重新计算失败: {str(e)}'
+        }), 500
+
+
+@athina_blue.route('/athina_delete_header/<int:header_id>', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def athina_delete_header(header_id):
+    """删除单个Athina预订头部及其明细"""
+    try:
+        header = AthinaBookingHeader.query.get_or_404(header_id)
+        db.session.delete(header)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'预订头部 {header_id} 及其明细已删除'
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'message': f'删除失败: {str(e)}'
+        }), 500
+
+
+@athina_blue.route('/athina_detail/<int:header_id>')
+@login_required
+@staff_only
+def athina_detail(header_id):
+    """Athina预订详情页面"""
+    try:
+        # 获取预订头部信息
+        header = AthinaBookingHeader.query.get_or_404(header_id)
+        
+        # 获取明细记录
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 50, type=int)
+        
+        details_query = AthinaBookingDetail.query.filter_by(header_id=header_id)
+        details_query = details_query.order_by(AthinaBookingDetail.id.asc())
+        
+        pagination = details_query.paginate(
+            page=page,
+            per_page=per_page,
+            error_out=False
+        )
+        
+        return render_template('statement/athina/athina_detail.html', 
+                             header=header,
+                             details=pagination.items,
+                             pagination=pagination)
+        
+    except Exception as e:
+        flash(f'加载详情失败: {str(e)}', 'error')
+        return redirect(url_for('athina_routes.athina_data'))
+
+
+@athina_blue.route('/athina_processing', methods=['GET', 'POST'])
+@csrf.exempt
+def process_all_invoices():
+    """处理全部订单"""
+    try:
+        # 暂时注释掉，因为依赖旧的App模块
+        return jsonify({'error': 'Athina账单处理功能暂时不可用，正在开发中...'}), 503
+        
+    except Exception as e:
+        return jsonify({'error': f'处理失败: {str(e)}'}), 500
+
+
+@athina_blue.route('/athina_processing_month', methods=['POST'])
+@csrf.exempt
+def process_month_invoice():
+    """处理指定月份订单"""
+    try:
+        # 暂时注释掉，因为依赖旧的App模块
+        return jsonify({'error': 'Athina月份账单处理功能暂时不可用，正在开发中...'}), 503
+        
+    except Exception as e:
+        return jsonify({'error': f'处理失败: {str(e)}'}), 500
+
+
+@athina_blue.route('/open_athina_statement_folder', methods=['GET', 'POST'])
+@csrf.exempt
+def open_athina_statement_folder():
+    """打开Athina账单文件夹"""
+    from App_new.config import Config
+    from pathlib import Path
+    
+    folder_path = Path(Config.BILLING_DATA_PATH) / "BOOKING"
+    
+    # 如果文件夹不存在，则创建它
+    if not folder_path.exists():
+        try:
+            folder_path.mkdir(parents=True, exist_ok=True)
+            flash('文件夹不存在，已自动创建', 'info')
+        except Exception as e:
+            flash(f'创建文件夹失败：{str(e)}', 'error')
+            return redirect(url_for("athina_routes.athina_page"))
+    
+    try:
+        os.startfile(str(folder_path))
+        flash('成功打开BOOKING文件夹', 'success')
+    except Exception as e:
+        flash(f'打开文件夹失败：{str(e)}', 'error')
+    
+    return redirect(url_for("athina_routes.athina_page"))
+
+
+@athina_blue.route('/compare_reports', methods=['POST'])
+@csrf.exempt
+def compare_reports():
+    """对比两个报表的利润列数据"""
+    try:
+        print("=== 开始处理报表对比请求 ===")
+        
+        # 获取上传的文件
+        report_a = request.files.get('report_a')
+        report_b = request.files.get('report_b')
+        profit_column = request.form.get('profit_column', '').strip()
+        header_setting = request.form.get('header_setting', 'default')
+        custom_headers = request.form.get('custom_headers', '').strip()
+        
+        # 如果没有提供自定义表头，使用config中的默认表头
+        if not custom_headers:
+            custom_headers = get_report_headers_string('order_report')
+        
+        print(f"Debug: report_a filename = {report_a.filename if report_a else 'None'}")
+        print(f"Debug: report_b filename = {report_b.filename if report_b else 'None'}")
+        print(f"Debug: profit_column = {profit_column}")
+        print(f"Debug: header_setting = {header_setting}")
+        print(f"Debug: custom_headers = {custom_headers}")
+        
+        # 检查请求参数
+        print(f"Debug: request.files keys = {list(request.files.keys())}")
+        print(f"Debug: request.form keys = {list(request.form.keys())}")
+        
+        if not report_a or not report_b:
+            return jsonify({'success': False, 'error': '请选择两个报表文件'})
+        
+        # 读取报表文件
+        def read_report_file(file, header_setting, custom_headers=None):
+            """读取Excel或CSV文件"""
+            try:
+                print(f"Debug: 读取文件 {file.filename}, header_setting={header_setting}")
+                
+                if file.filename.lower().endswith('.csv'):
+                    if header_setting == 'none':
+                        # 无表头，第一行是数据
+                        df = pd.read_csv(file, encoding='utf-8', header=None)
+                    elif header_setting == 'custom' and custom_headers:
+                        # 使用自定义表头
+                        headers = [h.strip() for h in custom_headers.split(',')]
+                        df = pd.read_csv(file, encoding='utf-8', header=None, names=headers)
+                    else:
+                        # 使用默认表头（第一行作为表头）
+                        df = pd.read_csv(file, encoding='utf-8')
+                else:
+                    # 处理Excel文件（.xlsx, .xls）
+                    if header_setting == 'custom' and custom_headers:
+                        # 使用自定义表头
+                        headers = [h.strip() for h in custom_headers.split(',')]
+                        print(f"Debug: 使用自定义表头: {headers}")
+                        # 尝试不同的引擎
+                        try:
+                            df = pd.read_excel(file, header=None, names=headers, engine='openpyxl')
+                        except:
+                            try:
+                                df = pd.read_excel(file, header=None, names=headers, engine='xlrd')
+                            except:
+                                # 最后尝试不指定引擎
+                                df = pd.read_excel(file, header=None, names=headers)
+                    else:
+                        # 使用默认表头（第一行作为表头）
+                        try:
+                            df = pd.read_excel(file, engine='openpyxl')
+                        except:
+                            try:
+                                df = pd.read_excel(file, engine='xlrd')
+                            except:
+                                # 最后尝试不指定引擎
+                                df = pd.read_excel(file)
+                return df
+            except Exception as e:
+                print(f"Debug: 文件读取最终失败: {str(e)}")
+                raise Exception(f"读取文件失败: {str(e)}")
+        
+        # 读取两个报表
+        print(f"Debug: 开始读取报表A...")
+        df_a = read_report_file(report_a, header_setting, custom_headers)
+        print(f"Debug: 报表A读取成功，列数: {len(df_a.columns)}, 行数: {len(df_a)}")
+        print(f"Debug: 报表A列名: {list(df_a.columns)}")
+        
+        print(f"Debug: 开始读取报表B...")
+        df_b = read_report_file(report_b, header_setting, custom_headers)
+        print(f"Debug: 报表B读取成功，列数: {len(df_b.columns)}, 行数: {len(df_b)}")
+        print(f"Debug: 报表B列名: {list(df_b.columns)}")
+        
+        # 检查利润列是否存在
+        if profit_column not in df_a.columns:
+            return jsonify({'success': False, 'error': f'报表A中未找到列: {profit_column}'})
+        
+        if profit_column not in df_b.columns:
+            return jsonify({'success': False, 'error': f'报表B中未找到列: {profit_column}'})
+        
+        # 获取项目标识列（假设第一列是项目标识）
+        id_column_a = df_a.columns[0]
+        id_column_b = df_b.columns[0]
+        
+        # 创建数据字典，以项目标识为键
+        data_a = {}
+        data_b = {}
+        
+        # 处理报表A
+        for _, row in df_a.iterrows():
+            item_id = str(row[id_column_a]).strip()
+            profit_value = row[profit_column]
+            if pd.notna(profit_value):  # 排除空值
+                try:
+                    # 尝试转换为浮点数
+                    float_value = float(profit_value)
+                    data_a[item_id] = float_value
+                except (ValueError, TypeError):
+                    # 如果转换失败，记录警告并跳过
+                    print(f"警告：报表A中项目 {item_id} 的利润值 '{profit_value}' 无法转换为数字，已跳过")
+                    continue
+        
+        # 处理报表B
+        for _, row in df_b.iterrows():
+            item_id = str(row[id_column_b]).strip()
+            profit_value = row[profit_column]
+            if pd.notna(profit_value):  # 排除空值
+                try:
+                    # 尝试转换为浮点数
+                    float_value = float(profit_value)
+                    data_b[item_id] = float_value
+                except (ValueError, TypeError):
+                    # 如果转换失败，记录警告并跳过
+                    print(f"警告：报表B中项目 {item_id} 的利润值 '{profit_value}' 无法转换为数字，已跳过")
+                    continue
+        
+        # 找出不同的数据
+        differences = []
+        all_items = set(data_a.keys()) | set(data_b.keys())
+        
+        for item in all_items:
+            value_a = data_a.get(item, 0)
+            value_b = data_b.get(item, 0)
+            
+            if abs(value_a - value_b) > 0.01:  # 允许0.01的误差
+                differences.append({
+                    'item': item,
+                    'value_a': f"{value_a:.2f}",
+                    'value_b': f"{value_b:.2f}",
+                    'difference': round(value_b - value_a, 2)
+                })
+        
+        # 为两个报表添加对比列
+        # 为报表A添加对比列
+        df_a['数据一致性'] = '否'  # 默认设为否
+        for idx, row in df_a.iterrows():
+            item_id = str(row[id_column_a]).strip()
+            value_a = data_a.get(item_id, 0)
+            value_b = data_b.get(item_id, 0)
+            if abs(value_a - value_b) <= 0.01:  # 如果差异小于等于0.01，认为相同
+                df_a.at[idx, '数据一致性'] = '是'
+        
+        # 为报表B添加对比列
+        df_b['数据一致性'] = '否'  # 默认设为否
+        for idx, row in df_b.iterrows():
+            item_id = str(row[id_column_b]).strip()
+            value_a = data_a.get(item_id, 0)
+            value_b = data_b.get(item_id, 0)
+            if abs(value_a - value_b) <= 0.01:  # 如果差异小于等于0.01，认为相同
+                df_b.at[idx, '数据一致性'] = '是'
+        
+        # 保存带有对比结果的报表到临时目录
+        temp_dir = tempfile.mkdtemp()
+        report_a_filename = f'报表A_对比结果_{os.path.basename(report_a.filename)}'
+        report_b_filename = f'报表B_对比结果_{os.path.basename(report_b.filename)}'
+        report_a_path = os.path.join(temp_dir, report_a_filename)
+        report_b_path = os.path.join(temp_dir, report_b_filename)
+        
+        # 根据原文件格式保存
+        if report_a.filename.lower().endswith('.csv'):
+            df_a.to_csv(report_a_path, index=False, encoding='utf-8-sig')
+        else:
+            # 保存为Excel文件
+            try:
+                df_a.to_excel(report_a_path, index=False, engine='openpyxl')
+            except:
+                try:
+                    df_a.to_excel(report_a_path, index=False, engine='xlwt')
+                except:
+                    # 最后尝试不指定引擎
+                    df_a.to_excel(report_a_path, index=False)
+            
+        if report_b.filename.lower().endswith('.csv'):
+            df_b.to_csv(report_b_path, index=False, encoding='utf-8-sig')
+        else:
+            # 保存为Excel文件
+            try:
+                df_b.to_excel(report_b_path, index=False, engine='openpyxl')
+            except:
+                try:
+                    df_b.to_excel(report_b_path, index=False, engine='xlwt')
+                except:
+                    # 最后尝试不指定引擎
+                    df_b.to_excel(report_b_path, index=False)
+        
+        # 将文件路径存储到session中供下载使用
+        from flask import session
+        session['report_a_path'] = report_a_path
+        session['report_b_path'] = report_b_path
+        session['report_a_filename'] = report_a_filename
+        session['report_b_filename'] = report_b_filename
+        
+        # 统计信息
+        summary = {
+            'total_a': len(data_a),
+            'total_b': len(data_b),
+            'matched': len(all_items) - len(differences),
+            'differences': len(differences)
+        }
+        
+        # 添加处理信息
+        processed_info = {
+            'total_rows_a': len(df_a),
+            'total_rows_b': len(df_b),
+            'valid_profit_a': len(data_a),
+            'valid_profit_b': len(data_b),
+            'skipped_a': len(df_a) - len(data_a),
+            'skipped_b': len(df_b) - len(data_b)
+        }
+        
+        return jsonify({
+            'success': True,
+            'differences': differences,
+            'summary': summary,
+            'processed_info': processed_info
+        })
+        
+    except Exception as e:
+        print(f"Debug: 最终错误: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@athina_blue.route('/download_report/<report_type>', methods=['GET'])
+@csrf.exempt
+def download_report(report_type):
+    """下载带有对比结果的报表文件"""
+    try:
+        from flask import session, send_file
+        
+        if report_type == 'A':
+            file_path = session.get('report_a_path')
+            filename = session.get('report_a_filename', '报表A_对比结果.xlsx')
+        elif report_type == 'B':
+            file_path = session.get('report_b_path')
+            filename = session.get('report_b_filename', '报表B_对比结果.xlsx')
+        else:
+            return jsonify({'success': False, 'error': '无效的报表类型'})
+        
+        if not file_path or not os.path.exists(file_path):
+            return jsonify({'success': False, 'error': '文件不存在，请重新进行对比'})
+        
+        return send_file(
+            file_path,
+            as_attachment=True,
+            download_name=filename,
+            mimetype='application/octet-stream'
+        )
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@athina_blue.route('/batch_compare_reports', methods=['POST'])
+@csrf.exempt
+def batch_compare_reports():
+    """批量对比两个文件夹中的报表"""
+    try:
+        print("=== 开始处理批量报表对比请求 ===")
+        
+        # 获取上传的文件
+        folder_a_files = request.files.getlist('folder_a_files')
+        folder_b_files = request.files.getlist('folder_b_files')
+        
+        print(f"Debug: 文件夹A文件数量 = {len(folder_a_files)}")
+        print(f"Debug: 文件夹B文件数量 = {len(folder_b_files)}")
+        
+        if not folder_a_files:
+            return jsonify({'success': False, 'error': '请选择文件夹A的文件'})
+        
+        if not folder_b_files:
+            return jsonify({'success': False, 'error': '请选择文件夹B的文件'})
+        
+        # 过滤出Excel和CSV文件
+        def filter_report_files(files):
+            return [f for f in files if f.filename.lower().endswith(('.xlsx', '.xls', '.csv'))]
+        
+        folder_a_files = filter_report_files(folder_a_files)
+        folder_b_files = filter_report_files(folder_b_files)
+        
+        print(f"Debug: 过滤后文件夹A文件数量 = {len(folder_a_files)}")
+        print(f"Debug: 过滤后文件夹B文件数量 = {len(folder_b_files)}")
+        
+        if not folder_a_files:
+            return jsonify({'success': False, 'error': '文件夹A中没有有效的报表文件'})
+        
+        if not folder_b_files:
+            return jsonify({'success': False, 'error': '文件夹B中没有有效的报表文件'})
+        
+        return jsonify({
+            'success': False,
+            'error': '批量报表对比功能暂时不可用，正在开发中...'
+        })
+        
+    except Exception as e:
+        print(f"Debug: 批量对比最终错误: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@athina_blue.route('/download_batch_report', methods=['GET'])
+@csrf.exempt
+def download_batch_report():
+    """下载批量对比汇总报告"""
+    try:
+        from flask import session, send_file
+        
+        file_path = session.get('batch_report_path')
+        filename = session.get('batch_report_filename', '批量报表对比报告.xlsx')
+        
+        if not file_path or not os.path.exists(file_path):
+            return jsonify({'success': False, 'error': '报告文件不存在，请重新进行批量对比'})
+        
+        return send_file(
+            file_path,
+            as_attachment=True,
+            download_name=filename,
+            mimetype='application/octet-stream'
+        )
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})

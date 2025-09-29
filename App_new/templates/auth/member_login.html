@@ -1,30 +1,38 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>会员登录 - MyTravelPanel</title>
-    
-    <!-- CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    
-    <style>
-        :root {
-            --member-primary: #28a745;
-            --member-secondary: #34ce57;
-            --member-light: rgba(40, 167, 69, 0.1);
-            --member-gradient: linear-gradient(135deg, #28a745 0%, #34ce57 100%);
-        }
+{% extends "guest/shared/base.html" %}
 
+{% block title %}会员登录 - 悦行假期{% endblock %}
+
+{% block extra_css %}
+    <style>
+        /* 重置body样式，避免与base模板冲突 */
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: var(--member-gradient);
-            min-height: 100vh;
+            background: linear-gradient(135deg, #28a745 0%, #34ce57 100%) !important;
+            min-height: 100vh !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
+        }
+        
+        /* 只隐藏页脚，保留导航栏 */
+        .footer {
+            display: none !important;
+        }
+        
+        /* 调整导航栏样式 */
+        .navbar {
+            position: relative !important;
+            z-index: 30 !important;
+        }
+        
+        /* 登录页面容器 */
+        .login-page {
+            min-height: calc(100vh - 56px); /* 减去导航栏高度 */
             display: flex;
             align-items: center;
             justify-content: center;
             padding: 2rem 0;
+            position: relative;
+            margin-top: 56px; /* 为导航栏留出空间 */
         }
 
         .auth-container {
@@ -32,6 +40,7 @@
             width: 100%;
             margin: 0 auto;
             padding: 0 1rem;
+            z-index: 10;
         }
 
         .auth-card {
@@ -42,6 +51,8 @@
             text-align: center;
             position: relative;
             overflow: hidden;
+            width: 100%;
+            box-sizing: border-box;
         }
 
         .auth-card::before {
@@ -51,7 +62,7 @@
             left: 0;
             right: 0;
             height: 4px;
-            background: var(--member-gradient);
+            background: linear-gradient(135deg, #28a745 0%, #34ce57 100%);
         }
 
         .auth-header {
@@ -61,7 +72,7 @@
         .auth-icon {
             width: 80px;
             height: 80px;
-            background: var(--member-gradient);
+            background: linear-gradient(135deg, #28a745 0%, #34ce57 100%);
             border-radius: 50%;
             display: flex;
             align-items: center;
@@ -112,13 +123,13 @@
         }
 
         .form-control:focus {
-            border-color: var(--member-primary);
+            border-color: #28a745;
             box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.25);
             outline: none;
         }
 
         .btn-member {
-            background: var(--member-gradient);
+            background: linear-gradient(135deg, #28a745 0%, #34ce57 100%);
             border: none;
             border-radius: 12px;
             padding: 0.75rem 2rem;
@@ -140,8 +151,8 @@
         }
 
         .form-check-input:checked {
-            background-color: var(--member-primary);
-            border-color: var(--member-primary);
+            background-color: #28a745;
+            border-color: #28a745;
         }
 
         .form-check-input:focus {
@@ -154,14 +165,14 @@
         }
 
         .auth-links a {
-            color: var(--member-primary);
+            color: #28a745;
             text-decoration: none;
             font-weight: 500;
             transition: all 0.3s ease;
         }
 
         .auth-links a:hover {
-            color: var(--member-secondary);
+            color: #34ce57;
             text-decoration: underline;
         }
 
@@ -190,12 +201,13 @@
 
         .back-link {
             position: absolute;
-            top: 2rem;
+            top: 1rem;
             left: 2rem;
             color: white;
             text-decoration: none;
             font-size: 1.1rem;
             transition: all 0.3s ease;
+            z-index: 20;
         }
 
         .back-link:hover {
@@ -210,7 +222,7 @@
 
         .alert-success {
             background-color: rgba(40, 167, 69, 0.1);
-            border-color: var(--member-primary);
+            border-color: #28a745;
             color: #155724;
         }
 
@@ -246,21 +258,56 @@
         .fade-in-up {
             animation: fadeInUp 0.6s ease-out;
         }
+        
+        /* 确保页面内容始终可见 */
+        .auth-card {
+            opacity: 1 !important;
+            visibility: visible !important;
+            display: block !important;
+        }
+        
+        /* 防止页面闪烁 */
+        .login-page {
+            opacity: 1 !important;
+            visibility: visible !important;
+        }
+        
+        /* 重置所有可能冲突的样式 */
+        * {
+            box-sizing: border-box;
+        }
+        
+        .login-page * {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
+        }
+        
+        /* 确保表单元素正常显示 */
+        .form-control {
+            width: 100% !important;
+            display: block !important;
+        }
+        
+        .btn-member {
+            width: 100% !important;
+            display: block !important;
+        }
     </style>
-</head>
-<body>
-    <a href="{{ url_for('shared.portal') }}" class="back-link">
-        <i class="fas fa-arrow-left me-2"></i>返回首页
-    </a>
+{% endblock %}
 
-    <div class="auth-container">
-        <div class="auth-card fade-in-up">
+{% block content %}
+    <div class="login-page">
+        <!-- <a href="{{ url_for('guest.main.index') }}" class="back-link">
+            <i class="fas fa-arrow-left me-2"></i>返回首页
+        </a> -->
+
+        <div class="auth-container">
+            <div class="auth-card">
             <div class="auth-header">
                 <div class="auth-icon">
                     <i class="fas fa-user-circle"></i>
                 </div>
                 <h1 class="auth-title">会员登录</h1>
-                <p class="auth-subtitle">欢迎回来！登录您的会员账户</p>
+                <p class="auth-subtitle">欢迎回来！登录您的悦行假期会员账户</p>
             </div>
 
             <!-- 显示消息 -->
@@ -315,11 +362,12 @@
                     <i class="fas fa-user-plus me-2"></i>立即注册会员账户
                 </a>
             </div>
+            </div>
         </div>
     </div>
+{% endblock %}
 
-    <!-- JavaScript -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+{% block extra_js %}
     <script>
         // 页面加载动画
         document.addEventListener('DOMContentLoaded', function() {
@@ -339,5 +387,4 @@
             });
         });
     </script>
-</body>
-</html> 
+{% endblock %} 
