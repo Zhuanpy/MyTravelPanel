@@ -14,9 +14,26 @@
     }
     .search-section {
         background: #f8f9fa;
-        padding: 20px;
+        padding: 15px;
         border-radius: 8px;
         margin-bottom: 20px;
+    }
+    
+    .search-section .row {
+        margin: 0;
+    }
+    
+    .search-section .col-md-2,
+    .search-section .col-md-6 {
+        padding: 0 8px;
+    }
+    
+    .search-section .btn-group .btn {
+        margin-left: 2px;
+    }
+    
+    .search-section .btn-group .btn:first-child {
+        margin-left: 0;
     }
     .table-container {
         background: white;
@@ -85,45 +102,40 @@
 
     <!-- 搜索区域 -->
     <div class="search-section">
-        <div class="row">
-            <div class="col-md-3">
-                <div class="input-group">
-                    <input type="text" class="form-control" id="searchInput" placeholder="搜索公司名称或预订编号...">
-                    <div class="input-group-append">
-                        <button class="btn btn-outline-primary" type="button" id="searchBtn">
-                            <i class="fas fa-search"></i> 搜索
-                        </button>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="input-group">
-                    <input type="month" class="form-control" id="monthFilter" placeholder="选择月份">
-                    <div class="input-group-append">
-                        <button class="btn btn-outline-secondary" type="button" id="clearMonthBtn" title="清除月份筛选">
-                            <i class="fas fa-times"></i>
-                        </button>
-                    </div>
-                </div>
+        <div class="row align-items-center">
+            <div class="col-md-2">
+                <input type="month" class="form-control form-control-sm" id="monthFilter" placeholder="选择月份">
             </div>
             <div class="col-md-2">
-                <select class="form-control" id="companyFilter">
+                <select class="form-control form-control-sm" id="companyFilter">
                     <option value="">所有公司</option>
                 </select>
             </div>
-            <div class="col-md-4 text-right">
-                <button class="btn btn-success" id="batchDownloadBtn" style="display: none;">
-                    <i class="fas fa-file-excel"></i> 下载Excel表格
-                </button>
-                <button class="btn btn-danger" id="batchDownloadPdfBtn" style="display: none;">
-                    <i class="fas fa-file-pdf"></i> 下载PDF文件
-                </button>
-                <button class="btn btn-primary" id="refreshBtn">
-                    <i class="fas fa-sync-alt"></i> 刷新
-                </button>
-                <button class="btn btn-outline-secondary" id="clearFiltersBtn">
-                    <i class="fas fa-times"></i> 清除筛选
-                </button>
+            <div class="col-md-2">
+                <div class="input-group input-group-sm">
+                    <input type="text" class="form-control" id="searchInput" placeholder="搜索...">
+                    <div class="input-group-append">
+                        <button class="btn btn-outline-primary" type="button" id="searchBtn">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 text-right">
+                <div class="btn-group btn-group-sm" role="group">
+                    <button class="btn btn-success" id="batchDownloadBtn" style="display: none;" title="下载Excel">
+                        <i class="fas fa-file-excel"></i>
+                    </button>
+                    <button class="btn btn-danger" id="batchDownloadPdfBtn" style="display: none;" title="下载PDF">
+                        <i class="fas fa-file-pdf"></i>
+                    </button>
+                    <button class="btn btn-primary" id="refreshBtn" title="刷新">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                    <button class="btn btn-outline-secondary" id="clearFiltersBtn" title="清除筛选">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -227,16 +239,21 @@ class SOAManager {
 
     bindEvents() {
         // 搜索按钮
-        document.getElementById('searchBtn').addEventListener('click', () => {
+        const searchBtn = document.getElementById('searchBtn');
+        if (searchBtn) {
+            searchBtn.addEventListener('click', () => {
             this.searchTerm = document.getElementById('searchInput').value;
             this.monthFilter = document.getElementById('monthFilter').value;
             this.companyFilter = document.getElementById('companyFilter').value;
             this.currentPage = 1;
             this.loadData();
-        });
+            });
+        }
 
         // 回车搜索
-        document.getElementById('searchInput').addEventListener('keypress', (e) => {
+        const searchInput = document.getElementById('searchInput');
+        if (searchInput) {
+            searchInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
                 this.searchTerm = e.target.value;
                 this.monthFilter = document.getElementById('monthFilter').value;
@@ -244,17 +261,23 @@ class SOAManager {
                 this.currentPage = 1;
                 this.loadData();
             }
-        });
+            });
+        }
 
         // 月份过滤变化
-        document.getElementById('monthFilter').addEventListener('change', () => {
+        const monthFilter = document.getElementById('monthFilter');
+        if (monthFilter) {
+            monthFilter.addEventListener('change', () => {
             this.monthFilter = document.getElementById('monthFilter').value;
             this.currentPage = 1;
             this.loadData();
-        });
+            });
+        }
 
         // 公司过滤变化
-        document.getElementById('companyFilter').addEventListener('change', () => {
+        const companyFilter = document.getElementById('companyFilter');
+        if (companyFilter) {
+            companyFilter.addEventListener('change', () => {
             this.companyFilter = document.getElementById('companyFilter').value;
             this.currentPage = 1;
             this.loadData();
@@ -270,37 +293,49 @@ class SOAManager {
             document.getElementById('companyFilter').value = '';
             this.currentPage = 1;
             this.loadData();
-        });
+            });
+        }
 
-        // 清除筛选按钮
-        document.getElementById('clearFiltersBtn').addEventListener('click', () => {
-            this.searchTerm = '';
-            this.monthFilter = '';
-            this.companyFilter = '';
-            document.getElementById('searchInput').value = '';
-            document.getElementById('monthFilter').value = '';
-            document.getElementById('companyFilter').value = '';
-            this.currentPage = 1;
-            this.loadData();
-        });
-
-        // 清除月份按钮
-        document.getElementById('clearMonthBtn').addEventListener('click', () => {
-            document.getElementById('monthFilter').value = '';
-            this.monthFilter = '';
-            this.currentPage = 1;
-            this.loadData();
-        });
+        // 清除月份按钮已移除，功能合并到清除筛选按钮中
 
         // 批量下载Excel按钮
-        document.getElementById('batchDownloadBtn').addEventListener('click', () => {
+        const batchDownloadBtn = document.getElementById('batchDownloadBtn');
+        if (batchDownloadBtn) {
+            batchDownloadBtn.addEventListener('click', () => {
             this.batchDownload();
-        });
+            });
+        }
 
         // 批量下载PDF按钮
-        document.getElementById('batchDownloadPdfBtn').addEventListener('click', () => {
+        const batchDownloadPdfBtn = document.getElementById('batchDownloadPdfBtn');
+        if (batchDownloadPdfBtn) {
+            batchDownloadPdfBtn.addEventListener('click', () => {
             this.batchDownloadPdf();
-        });
+            });
+        }
+
+        // 刷新按钮
+        const refreshBtn = document.getElementById('refreshBtn');
+        if (refreshBtn) {
+            refreshBtn.addEventListener('click', () => {
+                this.loadData();
+            });
+        }
+
+        // 清除筛选按钮
+        const clearFiltersBtn = document.getElementById('clearFiltersBtn');
+        if (clearFiltersBtn) {
+            clearFiltersBtn.addEventListener('click', () => {
+                this.searchTerm = '';
+                this.monthFilter = '';
+                this.companyFilter = '';
+                document.getElementById('searchInput').value = '';
+                document.getElementById('monthFilter').value = '';
+                document.getElementById('companyFilter').value = '';
+                this.currentPage = 1;
+                this.loadData();
+            });
+        }
     }
 
     async loadData() {

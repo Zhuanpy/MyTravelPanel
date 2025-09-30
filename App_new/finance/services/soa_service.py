@@ -10,7 +10,7 @@ from App_new.finance.models.athina_booking import AthinaBookingHeader, AthinaBoo
 from flask import render_template, make_response
 import io
 import base64
-from reportlab.lib.pagesizes import letter, A4
+from reportlab.lib.pagesizes import letter, A4, landscape
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
@@ -30,7 +30,7 @@ class SOAService:
             # 获取头部信息
             header = AthinaBookingHeader.query.get(header_id)
             if not header:
-                return None, "预订头部记录不存在"
+                return None, "Booking header record not found"
             
             # 获取明细记录
             details = AthinaBookingDetail.query.filter_by(header_id=header_id).order_by(
@@ -51,7 +51,7 @@ class SOAService:
             ), None
             
         except Exception as e:
-            return None, f"生成SOA时出错: {str(e)}"
+            return None, f"Error generating SOA: {str(e)}"
     
     def generate_soa_pdf(self, header_id):
         """生成PDF格式的SOA"""
@@ -59,7 +59,7 @@ class SOAService:
             # 获取头部信息
             header = AthinaBookingHeader.query.get(header_id)
             if not header:
-                return None, "预订头部记录不存在"
+                return None, "Booking header record not found"
             
             # 获取明细记录
             details = AthinaBookingDetail.query.filter_by(header_id=header_id).order_by(
@@ -69,7 +69,7 @@ class SOAService:
             
             # 创建PDF
             buffer = io.BytesIO()
-            doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=72, leftMargin=72, topMargin=72, bottomMargin=18)
+            doc = SimpleDocTemplate(buffer, pagesize=landscape(A4), rightMargin=72, leftMargin=72, topMargin=72, bottomMargin=18)
             
             # 获取样式
             styles = getSampleStyleSheet()
@@ -86,104 +86,143 @@ class SOAService:
             
             # 标题
             story.append(Paragraph("Statement of Account", title_style))
-            story.append(Paragraph("对账单", styles['Heading2']))
             story.append(Spacer(1, 20))
             
             # 公司信息
             company_info = [
-                ['客户信息 / Client Information', '账单信息 / Statement Information'],
-                [f'公司名称: {header.corporate_name or "N/A"}', f'发票号: {header.invoice_no or "N/A"}'],
-                [f'预订编号: {header.booking_header_id}', f'发票日期: {header.invoice_date.strftime("%Y-%m-%d") if header.invoice_date else "N/A"}'],
-                [f'预订日期: {header.book_date.strftime("%Y-%m-%d") if header.book_date else "N/A"}', f'生成日期: {datetime.now().strftime("%Y-%m-%d")}'],
-                [f'顾问: {header.consultant or "N/A"}', f'币种: SGD'],
-                [f'销售顾问: {header.sales_consultant or "N/A"}', '']
+                ['Client Information', 'Statement Information'],
+                [f'Company Name: {header.corporate_name or "N/A"}', f'Invoice No: {header.invoice_no or "N/A"}'],
+                [f'Booking Ref: {header.booking_header_id}', f'Invoice Date: {header.invoice_date.strftime("%Y-%m-%d") if header.invoice_date else "N/A"}'],
+                [f'Booking Date: {header.book_date.strftime("%Y-%m-%d") if header.book_date else "N/A"}', f'Generated Date: {datetime.now().strftime("%Y-%m-%d")}'],
+                [f'Consultant: {header.consultant or "N/A"}', f'Currency: SGD'],
+                [f'Sales Consultant: {header.sales_consultant or "N/A"}', '']
             ]
             
-            company_table = Table(company_info, colWidths=[3*inch, 3*inch])
+            # 优化公司信息表格列宽以匹配横版A4
+            company_table = Table(company_info, colWidths=[4.5*inch, 4.5*inch])
             company_table.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
-                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#28a745')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
                 ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
                 ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
                 ('FONTSIZE', (0, 0), (-1, 0), 12),
+                ('FONTSIZE', (0, 1), (-1, -1), 11),
                 ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-                ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
-                ('GRID', (0, 0), (-1, -1), 1, colors.black)
+                ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#f8f9fa')),
+                ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#CCCCCC'))
             ]))
             
             story.append(company_table)
             story.append(Spacer(1, 20))
             
             # 财务汇总
-            story.append(Paragraph("财务汇总 / Financial Summary", styles['Heading2']))
+            story.append(Paragraph("Financial Summary", styles['Heading2']))
             
             summary_data = [
-                ['项目 / Item', '金额 / Amount (SGD)'],
-                ['总金额 / Gross Amount', f"{header.sub_total_gross or 0:.2f}"],
-                ['税额 / Tax', f"{header.sub_total_tax or 0:.2f}"],
-                ['折扣 / Discount', f"{header.sub_total_discount or 0:.2f}"],
-                ['本地总金额 / Local Gross', f"{header.sub_total_local_gross or 0:.2f}"],
-                ['成本 / Cost', f"{header.sub_total_cost or 0:.2f}"],
-                ['盈亏 / Profit/Loss', f"{header.sub_total_pl or 0:.2f}"],
-                ['利润率 / Margin', f"{header.sub_total_margin or 0:.2f}%"],
-                ['余额 / Balance', f"{header.sub_total_balance or 0:.2f}"]
+                ['Item', 'Amount (SGD)'],
+                ['Gross Amount', f"{header.sub_total_gross or 0:.2f}"],
+                ['Tax', f"{header.sub_total_tax or 0:.2f}"],
+                ['Discount', f"{header.sub_total_discount or 0:.2f}"],
+                ['Local Gross', f"{header.sub_total_local_gross or 0:.2f}"],
+                ['Cost', f"{header.sub_total_cost or 0:.2f}"],
+                ['Profit/Loss', f"{header.sub_total_pl or 0:.2f}"],
+                ['Margin', f"{header.sub_total_margin or 0:.2f}%"],
+                ['Balance', f"{header.sub_total_balance or 0:.2f}"]
             ]
             
-            summary_table = Table(summary_data, colWidths=[4*inch, 2*inch])
+            # 优化财务汇总表格列宽以匹配横版A4
+            summary_table = Table(summary_data, colWidths=[5.5*inch, 3.5*inch])
             summary_table.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
-                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-                ('ALIGN', (0, 0), (0, -1), 'LEFT'),
-                ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#28a745')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
                 ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                ('FONTSIZE', (0, 0), (-1, -1), 10),
+                ('FONTSIZE', (0, 0), (-1, 0), 10),
+                ('FONTSIZE', (0, 1), (-1, -1), 9),
                 ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-                ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
-                ('BACKGROUND', (0, -1), (-1, -1), colors.lightgrey),
+                ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#f8f9fa')),
+                ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#e8f5e8')),
                 ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
-                ('GRID', (0, 0), (-1, -1), 1, colors.black)
+                ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#CCCCCC'))
             ]))
             
             story.append(summary_table)
             story.append(Spacer(1, 20))
             
             # 明细记录
-            story.append(Paragraph("明细记录 / Transaction Details", styles['Heading2']))
+            story.append(Paragraph("Transaction Details", styles['Heading2']))
             
-            detail_data = [['客户名称', '预订参考', '类型', '出发日期', '行程描述', '金额', '成本', '盈亏']]
+            # 创建换行样式
+            wrap_style = ParagraphStyle(
+                'WrapStyle',
+                parent=getSampleStyleSheet()['Normal'],
+                fontSize=7,
+                leading=8,
+                leftIndent=0,
+                rightIndent=0,
+                spaceBefore=0,
+                spaceAfter=0
+            )
+            
+            detail_data = [
+                [Paragraph('Client Name', wrap_style), 
+                 Paragraph('Booking Ref', wrap_style), 
+                 Paragraph('Type', wrap_style), 
+                 Paragraph('Departure Date', wrap_style), 
+                 Paragraph('Itinerary Description', wrap_style), 
+                 Paragraph('Amount', wrap_style), 
+                 Paragraph('Cost', wrap_style), 
+                 Paragraph('Profit/Loss', wrap_style)]
+            ]
             
             for detail in details:
                 detail_data.append([
-                    detail.client_name or 'N/A',
-                    detail.booking_ref or 'N/A',
-                    detail.book_type or 'N/A',
-                    detail.dep_date.strftime('%Y-%m-%d') if detail.dep_date else 'N/A',
-                    (detail.itin_desc or 'N/A')[:30] + '...' if detail.itin_desc and len(detail.itin_desc) > 30 else (detail.itin_desc or 'N/A'),
-                    f"{detail.gross_amount or 0:.2f}",
-                    f"{detail.local_cost or 0:.2f}",
-                    f"{detail.profit_loss or 0:.2f}"
+                    Paragraph(detail.client_name or 'N/A', wrap_style),
+                    Paragraph(detail.booking_ref or 'N/A', wrap_style),
+                    Paragraph(detail.book_type or 'N/A', wrap_style),
+                    Paragraph(detail.dep_date.strftime('%Y-%m-%d') if detail.dep_date else 'N/A', wrap_style),
+                    Paragraph(detail.itin_desc or 'N/A', wrap_style),
+                    Paragraph(f"{detail.gross_amount or 0:.2f}", wrap_style),
+                    Paragraph(f"{detail.local_cost or 0:.2f}", wrap_style),
+                    Paragraph(f"{detail.profit_loss or 0:.2f}", wrap_style)
                 ])
             
-            detail_table = Table(detail_data, colWidths=[1*inch, 0.8*inch, 0.6*inch, 0.8*inch, 1.5*inch, 0.6*inch, 0.6*inch, 0.6*inch])
+            # 优化列宽以匹配横版A4 (总宽度约10.5英寸)
+            detail_table = Table(detail_data, colWidths=[0.8*inch, 1.85*inch, 0.7*inch, 1.0*inch, 1.85*inch, 0.8*inch, 0.8*inch, 0.8*inch])
             detail_table.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
-                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                ('ALIGN', (4, 0), (4, -1), 'LEFT'),
-                ('ALIGN', (5, 0), (-1, -1), 'RIGHT'),
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#28a745')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                ('VALIGN', (0, 0), (-1, -1), 'TOP'),
                 ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                ('FONTSIZE', (0, 0), (-1, -1), 8),
+                ('FONTSIZE', (0, 0), (-1, 0), 8),
+                ('FONTSIZE', (0, 1), (-1, -1), 7),
                 ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-                ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
-                ('GRID', (0, 0), (-1, -1), 1, colors.black)
+                ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#f8f9fa')),
+                ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#CCCCCC'))
             ]))
             
             story.append(detail_table)
             story.append(Spacer(1, 20))
             
+            # Company Bank Information - Left aligned below table
+            bank_style = ParagraphStyle(
+                'BankStyle',
+                parent=getSampleStyleSheet()['Normal'],
+                fontSize=10,
+                leading=12,
+                leftIndent=0,
+                alignment=TA_LEFT
+            )
+            
+            story.append(Paragraph("<b>JOYFUL ESCAPES PTE. LTD Bank Details:</b>", bank_style))
+            story.append(Paragraph("• OCBC Bank Singapore, AC No.: 5956-7793-1001", bank_style))
+            story.append(Paragraph("• PayNow UEN: 202337627W", bank_style))
+            story.append(Spacer(1, 20))
+            
             # 页脚
-            story.append(Paragraph("此对账单由系统自动生成 / This statement is automatically generated by the system", styles['Normal']))
-            story.append(Paragraph(f"生成时间 / Generated at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", styles['Normal']))
+            story.append(Paragraph("This statement is automatically generated by the system", styles['Normal']))
+            story.append(Paragraph(f"Generated at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", styles['Normal']))
             
             # 构建PDF
             doc.build(story)
@@ -192,7 +231,7 @@ class SOAService:
             return buffer.getvalue(), None
             
         except Exception as e:
-            return None, f"生成PDF时出错: {str(e)}"
+            return None, f"Error generating PDF: {str(e)}"
     
     def get_soa_list(self, page=1, per_page=20, search=None, month=None, company=None):
         """获取可生成SOA的头部列表"""
@@ -274,7 +313,7 @@ class SOAService:
         except Exception as e:
             return {
                 'success': False,
-                'message': f'获取SOA列表失败: {str(e)}'
+                'message': f'Failed to get SOA list: {str(e)}'
             }
     
     def get_company_list(self):
@@ -297,7 +336,7 @@ class SOAService:
         except Exception as e:
             return {
                 'success': False,
-                'message': f'获取公司列表失败: {str(e)}'
+                'message': f'Failed to get company list: {str(e)}'
             }
     
     def batch_download_soa(self, company=None, month=None, format='excel'):
@@ -338,7 +377,7 @@ class SOAService:
             headers = query.all()
             
             if not headers:
-                return None, "没有找到符合条件的SOA数据"
+                return None, "No SOA data found matching the criteria"
             
             # 准备Excel数据 - 只包含指定字段，每个HID只取第一个ref的详细信息
             excel_data = []
@@ -357,7 +396,7 @@ class SOAService:
                     'CLIENT NAME': first_detail.client_name or '' if first_detail else '',
                     'DP.DATE': first_detail.dep_date.strftime('%Y-%m-%d') if first_detail and first_detail.dep_date else '',
                     'ITIN DESCRIPTION': first_detail.itin_desc or '' if first_detail else '',
-                    '货币': 'SGD',
+                    'CCY': 'SGD',
                     'BAL': float(header.sub_total_balance) if header.sub_total_balance else 0
                 }
                 
@@ -377,7 +416,7 @@ class SOAService:
                 'CLIENT NAME': '',
                 'DP.DATE': '',
                 'ITIN DESCRIPTION': 'TOTAL',
-                '货币': '',
+                'CCY': '',
                 'BAL': total_balance
             }
             
@@ -388,10 +427,10 @@ class SOAService:
             excel_buffer = io.BytesIO()
             
             with pd.ExcelWriter(excel_buffer, engine='openpyxl') as writer:
-                df.to_excel(writer, sheet_name='SOA数据', index=False)
+                df.to_excel(writer, sheet_name='SOA Data', index=False)
                 
                 # 获取工作表对象以进行格式化
-                worksheet = writer.sheets['SOA数据']
+                worksheet = writer.sheets['SOA Data']
                 
                 # 设置列宽
                 column_widths = {
@@ -401,7 +440,7 @@ class SOAService:
                     'D': 25,  # CLIENT NAME
                     'E': 12,  # DP.DATE
                     'F': 30,  # ITIN DESCRIPTION
-                    'G': 8,   # 货币
+                    'G': 8,   # CCY
                     'H': 12   # BAL
                 }
                 
@@ -425,9 +464,9 @@ class SOAService:
                 currency_style.number_format = '$#,##0.00'
                 
                 for row in worksheet.iter_rows(min_row=2):
-                    # 设置BAL列的货币格式 (H列: BAL)
+                    # Set BAL column currency format (H column: BAL)
                     if len(row) > 7:  # 确保H列存在
-                        row[7].number_format = '$#,##0.00'  # H列 (索引7)
+                        row[7].number_format = '$#,##0.00'  # H column (index 7)
                 
                 # 设置总计行样式
                 # 获取总行数（包括表头）
@@ -453,7 +492,7 @@ class SOAService:
             return excel_buffer.getvalue(), None
             
         except Exception as e:
-            return None, f"生成Excel文件失败: {str(e)}"
+            return None, f"Error generating Excel file: {str(e)}"
     
     def batch_download_soa_pdf(self, company=None, month=None):
         """批量下载SOA - 生成PDF文件"""
@@ -489,7 +528,7 @@ class SOAService:
             headers = query.all()
             
             if not headers:
-                return None, "没有找到符合条件的SOA数据"
+                return None, "No SOA data found matching the criteria"
             
             # 准备PDF数据 - 与Excel保持一致
             pdf_data = []
@@ -500,16 +539,28 @@ class SOAService:
                     AthinaBookingDetail.is_subtotal == False
                 ).order_by(AthinaBookingDetail.id.asc()).first()
                 
+                # 创建批量PDF换行样式
+                batch_wrap_style = ParagraphStyle(
+                    'BatchWrapStyle',
+                    parent=getSampleStyleSheet()['Normal'],
+                    fontSize=8,
+                    leading=9,
+                    leftIndent=0,
+                    rightIndent=0,
+                    spaceBefore=0,
+                    spaceAfter=0
+                )
+                
                 # 构建PDF行数据
                 row_data = [
-                    header.booking_header_id or '',
-                    header.corporate_name or '',
-                    first_detail.book_date.strftime('%Y-%m-%d') if first_detail and first_detail.book_date else '',
-                    first_detail.client_name or '' if first_detail else '',
-                    first_detail.dep_date.strftime('%Y-%m-%d') if first_detail and first_detail.dep_date else '',
-                    first_detail.itin_desc or '' if first_detail else '',
-                    'SGD',
-                    f"${float(header.sub_total_balance):,.2f}" if header.sub_total_balance else '$0.00'
+                    Paragraph(header.booking_header_id or '', batch_wrap_style),
+                    Paragraph(header.corporate_name or '', batch_wrap_style),
+                    Paragraph(first_detail.book_date.strftime('%Y-%m-%d') if first_detail and first_detail.book_date else '', batch_wrap_style),
+                    Paragraph(first_detail.client_name or '' if first_detail else '', batch_wrap_style),
+                    Paragraph(first_detail.dep_date.strftime('%Y-%m-%d') if first_detail and first_detail.dep_date else '', batch_wrap_style),
+                    Paragraph(first_detail.itin_desc or '' if first_detail else '', batch_wrap_style),
+                    Paragraph('SGD', batch_wrap_style),
+                    Paragraph(f"${float(header.sub_total_balance):,.2f}" if header.sub_total_balance else '$0.00', batch_wrap_style)
                 ]
                 
                 pdf_data.append(row_data)
@@ -518,12 +569,32 @@ class SOAService:
             total_balance = sum(float(header.sub_total_balance) if header.sub_total_balance else 0 for header in headers)
             
             # 添加总计行
-            total_row = ['', '', '', '', '', 'TOTAL', '', f"${total_balance:,.2f}"]
+            total_wrap_style = ParagraphStyle(
+                'TotalWrapStyle',
+                parent=getSampleStyleSheet()['Normal'],
+                fontSize=8,
+                leading=9,
+                leftIndent=0,
+                rightIndent=0,
+                spaceBefore=0,
+                spaceAfter=0
+            )
+            
+            total_row = [
+                Paragraph('', total_wrap_style),
+                Paragraph('', total_wrap_style),
+                Paragraph('', total_wrap_style),
+                Paragraph('', total_wrap_style),
+                Paragraph('', total_wrap_style),
+                Paragraph('TOTAL', total_wrap_style),
+                Paragraph('', total_wrap_style),
+                Paragraph(f"${total_balance:,.2f}", total_wrap_style)
+            ]
             pdf_data.append(total_row)
             
             # 生成PDF
             pdf_buffer = io.BytesIO()
-            doc = SimpleDocTemplate(pdf_buffer, pagesize=A4, rightMargin=72, leftMargin=72, topMargin=72, bottomMargin=18)
+            doc = SimpleDocTemplate(pdf_buffer, pagesize=landscape(A4), rightMargin=72, leftMargin=72, topMargin=72, bottomMargin=18)
             
             # 创建样式
             styles = getSampleStyleSheet()
@@ -543,43 +614,63 @@ class SOAService:
             story.append(Spacer(1, 12))
             
             # 筛选条件说明
-            filter_text = "筛选条件: "
+            filter_text = ""
             if company:
-                filter_text += f"公司: {company} "
-            if month:
-                filter_text += f"月份: {month} "
-            if not company and not month:
-                filter_text += "全部数据"
+                filter_text = f"Company: {company}"
+            elif month:
+                filter_text = f"Month: {month}"
+            else:
+                filter_text = "All Data"
             
             story.append(Paragraph(filter_text, styles['Normal']))
             story.append(Spacer(1, 12))
             
-            # 创建表格
-            table_data = [
-                ['HID', 'COMPANY', 'BK.DATE', 'CLIENT NAME', 'DP.DATE', 'ITIN DESCRIPTION', '货币', 'BAL']
-            ] + pdf_data
+            # 创建批量PDF表头换行样式
+            batch_header_style = ParagraphStyle(
+                'BatchHeaderStyle',
+                parent=getSampleStyleSheet()['Normal'],
+                fontSize=10,
+                leading=12,
+                leftIndent=0,
+                rightIndent=0,
+                spaceBefore=0,
+                spaceAfter=0
+            )
             
             # 创建表格
-            table = Table(table_data, colWidths=[0.8*inch, 1.2*inch, 0.8*inch, 1.2*inch, 0.8*inch, 1.5*inch, 0.5*inch, 0.8*inch])
+            table_data = [
+                [Paragraph('HID', batch_header_style),
+                 Paragraph('COMPANY', batch_header_style),
+                 Paragraph('BK.DATE', batch_header_style),
+                 Paragraph('CLIENT NAME', batch_header_style),
+                 Paragraph('DP.DATE', batch_header_style),
+                 Paragraph('ITIN DESCRIPTION', batch_header_style),
+                 Paragraph('CCY', batch_header_style),
+                 Paragraph('BAL', batch_header_style)]
+            ] + pdf_data
+            
+            # 创建表格 - 优化列宽以匹配横版A4
+            table = Table(table_data, colWidths=[0.6*inch, 1.85*inch, 0.8*inch, 1.5*inch, 0.8*inch, 1.85*inch, 0.6*inch, 0.8*inch])
             
             # 设置表格样式
             table_style = TableStyle([
                 # 表头样式
-                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#366092')),
-                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#28a745')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                ('VALIGN', (0, 0), (-1, -1), 'TOP'),
                 ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
                 ('FONTSIZE', (0, 0), (-1, 0), 10),
                 ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
                 
                 # 数据行样式
-                ('BACKGROUND', (0, 1), (-1, -2), colors.beige),
+                ('BACKGROUND', (0, 1), (-1, -2), colors.HexColor('#f8f9fa')),
                 ('FONTNAME', (0, 1), (-1, -2), 'Helvetica'),
-                ('FONTSIZE', (0, 1), (-1, -2), 9),
-                ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                ('FONTSIZE', (0, 1), (-1, -2), 8),
+                ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#dee2e6')),
                 
                 # 总计行样式
-                ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#E6F3FF')),
+                ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#e8f5e8')),
                 ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
                 ('FONTSIZE', (0, -1), (-1, -1), 10),
                 ('TEXTCOLOR', (0, -1), (-1, -1), colors.HexColor('#000080')),
@@ -588,6 +679,22 @@ class SOAService:
             table.setStyle(table_style)
             story.append(table)
             
+            # Company Bank Information - Left aligned below table
+            batch_bank_style = ParagraphStyle(
+                'BatchBankStyle',
+                parent=getSampleStyleSheet()['Normal'],
+                fontSize=9,
+                leading=11,
+                leftIndent=0,
+                alignment=TA_LEFT
+            )
+            
+            story.append(Spacer(1, 20))
+            story.append(Paragraph("<b>JOYFUL ESCAPES PTE. LTD Bank Details:</b>", batch_bank_style))
+            story.append(Paragraph("• OCBC Bank Singapore, AC No.: 5956-7793-1001", batch_bank_style))
+            story.append(Paragraph("• PayNow UEN: 202337627W", batch_bank_style))
+            story.append(Spacer(1, 20))
+            
             # 生成PDF
             doc.build(story)
             pdf_buffer.seek(0)
@@ -595,4 +702,4 @@ class SOAService:
             return pdf_buffer.getvalue(), None
             
         except Exception as e:
-            return None, f"生成PDF文件失败: {str(e)}"
+            return None, f"Error generating PDF file: {str(e)}"
