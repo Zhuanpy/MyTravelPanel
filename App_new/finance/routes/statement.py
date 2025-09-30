@@ -4,13 +4,14 @@ from App_new.utils.Statement import OriginalStatement
 from App_new.utils.Invoice import CountHid
 from App_new.exts import db
 from App_new.finance.models.statement import BankStatement, BankTransaction
+from App_new.finance.models.bank_keywords import BankStatementKeyword
 import os
 import logging
 from App_new.config import Config
 import subprocess
 import pandas as pd
 import tempfile
-from datetime import datetime
+from datetime import datetime, timedelta
 from App_new.exts import csrf
 from App_new.utils.decorators import staff_only
 from sqlalchemy import desc
@@ -50,7 +51,6 @@ def uob_bank():
             month_param = f"{latest_date.year}-{latest_date.month:02d}"
         else:
             # 如果没有交易记录，使用当前月份
-            from datetime import datetime
             now = datetime.now()
             month_param = f"{now.year}-{now.month:02d}"
     
@@ -61,6 +61,7 @@ def uob_bank():
         'type': request.args.get('type', ''),
         'owner': request.args.get('owner', ''),
         'ref': request.args.get('ref', ''),
+        'operation_status': request.args.get('operation_status', ''),
         'sort': request.args.get('sort', 'date_desc')
     }
     
@@ -112,6 +113,16 @@ def uob_bank():
         transactions_query = transactions_query.filter(
             BankTransaction.accounting_ref.like(f'%{filters["ref"]}%')
         )
+    
+    if filters['operation_status']:
+        if filters['operation_status'] == 'confirmed':
+            transactions_query = transactions_query.filter(
+                BankTransaction.is_confirmed == True
+            )
+        elif filters['operation_status'] == 'unconfirmed':
+            transactions_query = transactions_query.filter(
+                BankTransaction.is_confirmed == False
+            )
     
     # 应用排序
     if filters['sort'] == 'date_desc':
@@ -480,6 +491,745 @@ def uob_bank_processing():
     st.statement_process()
     flash('账单整理完成')
     return redirect(url_for('statement_routes.uob_bank'))
+
+
+@statement_blue.route('/uob_preview_data', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def uob_preview_data():
+    """预览和分析UOB银行Excel文件数据结构"""
+    try:
+        if 'file' not in request.files:
+            return jsonify({'success': False, 'message': '没有选择文件'})
+        
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({'success': False, 'message': '没有选择文件'})
+        
+        if not file.filename.lower().endswith(('.xls', '.xlsx')):
+            return jsonify({'success': False, 'message': '只支持XLS/XLSX格式的文件'})
+        
+        # 读取Excel文件
+        import pandas as pd
+        import io
+        
+        # 读取文件内容到内存
+        file_content = file.read()
+        
+        # 尝试读取Excel文件
+        df = None
+        error_messages = []
+        
+        # UOB银行账单第8行是header，所以跳过前7行
+        target_skiprows = 7
+        
+        try:
+            # 首先尝试openpyxl引擎
+            df = pd.read_excel(io.BytesIO(file_content), sheet_name=0, skiprows=target_skiprows, engine='openpyxl')
+            print(f"使用openpyxl引擎，跳过{target_skiprows}行读取成功")
+        except Exception as e1:
+            try:
+                # 如果openpyxl失败，尝试xlrd引擎
+                df = pd.read_excel(io.BytesIO(file_content), sheet_name=0, skiprows=target_skiprows, engine='xlrd')
+                print(f"使用xlrd引擎，跳过{target_skiprows}行读取成功")
+            except Exception as e2:
+                # 如果还是失败，尝试不指定引擎
+                try:
+                    df = pd.read_excel(io.BytesIO(file_content), sheet_name=0, skiprows=target_skiprows)
+                    print(f"使用默认引擎，跳过{target_skiprows}行读取成功")
+                except Exception as e3:
+                    print(f"所有引擎都失败: openpyxl={e1}, xlrd={e2}, default={e3}")
+                    # 最后尝试其他skiprows值
+                    for skiprows in [0, 1, 2, 3, 4, 5, 6, 8, 9, 10]:
+                        try:
+                            df = pd.read_excel(io.BytesIO(file_content), sheet_name=0, skiprows=skiprows, engine='openpyxl')
+                            if df is not None and not df.empty and df.shape[1] > 3:
+                                print(f"备用方案：跳过{skiprows}行读取成功")
+                                break
+                        except:
+                            continue
+        
+        if df is None or df.empty:
+            return jsonify({'success': False, 'message': '无法读取Excel文件，请检查文件格式'})
+        
+        # 分析数据结构
+        analysis_result = analyze_excel_structure(df)
+        
+        return jsonify({
+            'success': True,
+            'data': analysis_result
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'分析失败：{str(e)}'})
+
+
+def analyze_excel_structure(df):
+    """分析Excel文件结构"""
+    # 标准化列名
+    df.columns = df.columns.astype(str)
+    all_columns = list(df.columns)
+    
+    # 识别关键列
+    identified_columns = {}
+    date_col = None
+    desc_col = None
+    amount_col = None
+    balance_col = None
+    
+    for col in df.columns:
+        col_lower = str(col).lower().strip()
+        
+        if any(keyword in col_lower for keyword in ['date', '日期', 'transaction date', 't-date']):
+            date_col = col
+        elif any(keyword in col_lower for keyword in ['description', '描述', 'transaction description', 'desc']):
+            desc_col = col
+        elif any(keyword in col_lower for keyword in ['amount', '金额', 'withdrawal', 'deposit', 'debit', 'credit']):
+            amount_col = col
+        elif any(keyword in col_lower for keyword in ['balance', '余额', 'available balance', 'bal']):
+            balance_col = col
+    
+    # 按位置猜测
+    if not date_col and len(df.columns) > 0:
+        date_col = df.columns[0]
+    if not desc_col and len(df.columns) > 1:
+        desc_col = df.columns[1]
+    if not amount_col and len(df.columns) > 2:
+        for col in df.columns[2:]:
+            if df[col].dtype in ['int64', 'float64'] or any(pd.notna(val) and str(val).replace('.', '').replace('-', '').isdigit() for val in df[col].head(10)):
+                amount_col = col
+                break
+    
+    identified_columns = {
+        'date': date_col,
+        'description': desc_col,
+        'amount': amount_col,
+        'balance': balance_col
+    }
+    
+    # 数据质量分析
+    data_issues = []
+    recommendations = []
+    
+    # 检查空值
+    null_counts = df.isnull().sum()
+    for col, count in null_counts.items():
+        if count > 0:
+            data_issues.append(f"列 '{col}' 有 {count} 个空值")
+    
+    # 检查日期列
+    if date_col:
+        try:
+            date_parsed = pd.to_datetime(df[date_col], errors='coerce')
+            invalid_dates = date_parsed.isnull().sum()
+            if invalid_dates > 0:
+                data_issues.append(f"日期列 '{date_col}' 有 {invalid_dates} 个无效日期")
+        except:
+            data_issues.append(f"日期列 '{date_col}' 格式无法解析")
+    else:
+        data_issues.append("未找到日期列")
+    
+    # 检查描述列
+    if not desc_col:
+        data_issues.append("未找到描述列")
+    
+    # 检查金额列
+    if not amount_col:
+        data_issues.append("未找到金额列")
+        recommendations.append("建议手动指定包含交易金额的列")
+    
+    # 生成建议
+    if len(data_issues) == 0:
+        recommendations.append("数据结构良好，可以导入")
+    else:
+        recommendations.append("建议检查并修复数据问题后再导入")
+    
+    if len(all_columns) > 6:
+        recommendations.append("文件包含较多列，建议确认是否需要所有列")
+    
+    # 准备预览数据（前10行）
+    preview_data = []
+    for index, row in df.head(10).iterrows():
+        row_data = {}
+        for col in all_columns:
+            value = row[col]
+            if pd.isna(value):
+                row_data[col] = ''
+            else:
+                row_data[col] = str(value)
+        preview_data.append(row_data)
+    
+    return {
+        'total_rows': len(df),
+        'total_columns': len(all_columns),
+        'valid_rows': len(df.dropna(subset=[date_col, desc_col]) if date_col and desc_col else df),
+        'all_columns': all_columns,
+        'identified_columns': identified_columns,
+        'preview_data': preview_data,
+        'data_issues': data_issues,
+        'recommendations': recommendations
+    }
+
+
+@statement_blue.route('/uob_upload_file', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def uob_upload_file():
+    """处理UOB银行XLS文件上传"""
+    try:
+        if 'file' not in request.files:
+            return jsonify({'success': False, 'message': '没有选择文件'})
+        
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({'success': False, 'message': '没有选择文件'})
+        
+        if not file.filename.lower().endswith(('.xls', '.xlsx')):
+            return jsonify({'success': False, 'message': '只支持XLS/XLSX格式的文件'})
+        
+        # 读取Excel文件
+        import pandas as pd
+        import io
+        from datetime import datetime
+        
+        # 读取文件内容到内存
+        file_content = file.read()
+        
+        # 使用pandas读取Excel
+        try:
+            # UOB银行账单第8行是header，所以跳过前7行
+            target_skiprows = 7
+            
+            try:
+                # 首先尝试openpyxl引擎
+                df = pd.read_excel(io.BytesIO(file_content), sheet_name=0, skiprows=target_skiprows, engine='openpyxl')
+                print(f"使用openpyxl引擎，跳过{target_skiprows}行读取成功")
+            except Exception as e1:
+                try:
+                    # 如果openpyxl失败，尝试xlrd引擎
+                    df = pd.read_excel(io.BytesIO(file_content), sheet_name=0, skiprows=target_skiprows, engine='xlrd')
+                    print(f"使用xlrd引擎，跳过{target_skiprows}行读取成功")
+                except Exception as e2:
+                    try:
+                        # 如果还是失败，尝试不指定引擎
+                        df = pd.read_excel(io.BytesIO(file_content), sheet_name=0, skiprows=target_skiprows)
+                        print(f"使用默认引擎，跳过{target_skiprows}行读取成功")
+                    except Exception as e3:
+                        print(f"所有引擎都失败: openpyxl={e1}, xlrd={e2}, default={e3}")
+                        # 最后尝试其他skiprows值
+                        for skiprows in [0, 1, 2, 3, 4, 5, 6, 8, 9, 10]:
+                            try:
+                                df = pd.read_excel(io.BytesIO(file_content), sheet_name=0, skiprows=skiprows, engine='openpyxl')
+                                if df is not None and not df.empty and df.shape[1] > 3:
+                                    print(f"备用方案：跳过{skiprows}行读取成功")
+                                    break
+                            except:
+                                continue
+            
+            if df is None or df.empty:
+                return jsonify({
+                    'success': False, 
+                    'message': '无法读取Excel文件。请确保文件格式正确，UOB银行账单第8行应该是标题行。'
+                })
+            
+            # 标准化列名
+            df.columns = df.columns.astype(str)
+            
+            # 查找包含日期、描述、金额等关键信息的列
+            date_col = None
+            desc_col = None
+            amount_col = None
+            balance_col = None
+            
+            # 调试信息：显示所有列名
+            print(f"Excel文件列名: {list(df.columns)}")
+            print(f"Excel文件形状: {df.shape}")
+            print(f"前几行数据:\n{df.head()}")
+            
+            for col in df.columns:
+                col_lower = str(col).lower().strip()
+                print(f"检查列: '{col}' -> '{col_lower}'")
+                
+                if any(keyword in col_lower for keyword in ['date', '日期', 'transaction date', 't-date']):
+                    date_col = col
+                    print(f"找到日期列: {col}")
+                elif any(keyword in col_lower for keyword in ['description', '描述', 'transaction description', 'desc']):
+                    desc_col = col
+                    print(f"找到描述列: {col}")
+                elif any(keyword in col_lower for keyword in ['withdrawal', 'deposit']):
+                    amount_col = col
+                    print(f"找到金额列: {col}")
+                elif any(keyword in col_lower for keyword in ['available balance', 'balance', '余额']):
+                    balance_col = col
+                    print(f"找到余额列: {col}")
+            
+            # 如果没有找到明确的列，尝试按位置猜测
+            if not date_col and len(df.columns) > 0:
+                # 假设第一列是日期
+                date_col = df.columns[0]
+                print(f"按位置猜测日期列: {date_col}")
+            
+            if not desc_col and len(df.columns) > 1:
+                # 假设第二列是描述
+                desc_col = df.columns[1]
+                print(f"按位置猜测描述列: {desc_col}")
+            
+            if not amount_col and len(df.columns) > 2:
+                # 查找包含数字的列
+                for col in df.columns[2:]:
+                    if df[col].dtype in ['int64', 'float64'] or any(pd.notna(val) and str(val).replace('.', '').replace('-', '').isdigit() for val in df[col].head(10)):
+                        amount_col = col
+                        print(f"按数字类型猜测金额列: {col}")
+                        break
+            
+            print(f"最终识别的列 - 日期: {date_col}, 描述: {desc_col}, 金额: {amount_col}, 余额: {balance_col}")
+            
+            if not date_col or not desc_col:
+                return jsonify({
+                    'success': False, 
+                    'message': f'Excel文件格式不正确，无法识别必要的列。\n文件列名: {list(df.columns)}\n请确保文件包含日期和描述列。'
+                })
+            
+            # 重命名列 - 针对UOB银行账单结构
+            column_mapping = {}
+            if date_col:
+                column_mapping[date_col] = 'T-Date'
+            if desc_col:
+                column_mapping[desc_col] = 'Description'
+            
+            # UOB银行账单已经有Withdrawal和Deposit列，不需要重命名
+            # 只需要重命名余额列
+            if balance_col:
+                column_mapping[balance_col] = 'Balance'
+            
+            df = df.rename(columns=column_mapping)
+            
+            # 确保Withdrawal和Deposit列存在
+            if 'Withdrawal' not in df.columns:
+                print("警告: 未找到Withdrawal列")
+            if 'Deposit' not in df.columns:
+                print("警告: 未找到Deposit列")
+            if 'Balance' not in df.columns:
+                print("警告: 未找到Balance列")
+            
+            # 数据清洗
+            print(f"清洗前数据形状: {df.shape}")
+            
+            # 只删除日期和描述都为空的行
+            df = df.dropna(subset=['T-Date', 'Description'])
+            print(f"删除空值后数据形状: {df.shape}")
+            
+            # 处理日期 - 更加灵活
+            try:
+                df['T-Date'] = pd.to_datetime(df['T-Date'], errors='coerce').dt.date
+                # 删除日期解析失败的行
+                df = df.dropna(subset=['T-Date'])
+                print(f"日期处理后数据形状: {df.shape}")
+            except Exception as e:
+                print(f"日期处理错误: {e}")
+                return jsonify({'success': False, 'message': f'日期格式处理失败: {str(e)}'})
+            
+            # 创建唯一ID - 包含日期、描述、金额、余额来确保唯一性
+            try:
+                # 确保所有列都是字符串类型
+                df['Description'] = df['Description'].astype(str)
+                
+                # 处理金额列
+                withdrawal_str = df['Withdrawal'].fillna(0).astype(str) if 'Withdrawal' in df.columns else '0'
+                deposit_str = df['Deposit'].fillna(0).astype(str) if 'Deposit' in df.columns else '0'
+                
+                # 处理余额列
+                if 'Balance' in df.columns:
+                    balance_str = df['Balance'].fillna('0').astype(str)
+                else:
+                    balance_str = '0'
+                
+                # 将T-Date转换为字符串用于ID创建
+                df['T-Date-Str'] = df['T-Date'].astype(str)
+                
+                # 创建复合唯一ID：日期+描述+Withdrawal+Deposit+余额
+                df['Id'] = (df['T-Date-Str'] + '|' + df['Description'] + '|' + 
+                           withdrawal_str + '|' + deposit_str + '|' + balance_str)
+                df['Id'] = df['Id'].str.replace('[\s\.\\/]', '', regex=True).str[-50:].str.lower()
+                
+                print(f"ID创建后数据形状: {df.shape}")
+                print(f"示例ID: {df['Id'].head().tolist()}")
+            except Exception as e:
+                print(f"ID创建错误: {e}")
+                return jsonify({'success': False, 'message': f'创建唯一ID失败: {str(e)}'})
+            
+            # 去除重复数据
+            df = df.drop_duplicates(subset=['Id']).reset_index(drop=True)
+            print(f"去重后数据形状: {df.shape}")
+            
+            if df.empty:
+                return jsonify({'success': False, 'message': '没有有效的数据可以导入'})
+            
+            print(f"最终处理的数据样本:\n{df.head()}")
+            
+            # 按月份分组创建对账单
+            # 确保T-Date是datetime类型，如果不是则重新转换
+            if df['T-Date'].dtype == 'object':
+                df['T-Date'] = pd.to_datetime(df['T-Date'], errors='coerce')
+            
+            df['Month'] = df['T-Date'].apply(lambda x: x.strftime('%Y-%m') if pd.notna(x) else 'Unknown')
+            monthly_groups = df.groupby('Month')
+            
+            print(f"数据按月份分组: {list(monthly_groups.groups.keys())}")
+            
+            total_processed_count = 0
+            statement_numbers = []
+            updated_statements = []  # 记录更新的对账单
+            
+            # 总体关键字统计
+            total_keyword_stats = {
+                'personal': 0,
+                'business': 0,
+                'personal_business': 0,
+                'no_match': 0,
+                'total_keywords_matched': 0
+            }
+            
+            for month, month_data in monthly_groups:
+                print(f"处理月份: {month}, 数据行数: {len(month_data)}")
+                
+                # 检查该月份是否已有对账单 - 使用更精确的月份匹配
+                # 构造该月份的对账单号格式: UOB-2025-09
+                month_year = month  # 例如: "2025-09"
+                expected_statement_number = f"UOB-{month_year}"
+                
+                existing_statement = BankStatement.query.filter(
+                    BankStatement.bank_name == 'UOB',
+                    BankStatement.statement_number == expected_statement_number
+                ).first()
+                
+                if existing_statement:
+                    print(f"月份 {month} 已存在对账单: {existing_statement.statement_number}")
+                    
+                    # 更新对账单的期间，确保覆盖所有数据
+                    new_period_start = month_data['T-Date'].min()
+                    new_period_end = month_data['T-Date'].max()
+                    
+                    # 转换为date对象以便比较
+                    if hasattr(new_period_start, 'date'):
+                        new_period_start = new_period_start.date()
+                    if hasattr(new_period_end, 'date'):
+                        new_period_end = new_period_end.date()
+                    
+                    # 如果新数据的开始日期更早，更新period_start
+                    if new_period_start < existing_statement.period_start:
+                        existing_statement.period_start = new_period_start
+                        print(f"更新对账单开始日期: {new_period_start}")
+                    
+                    # 如果新数据的结束日期更晚，更新period_end
+                    if new_period_end > existing_statement.period_end:
+                        existing_statement.period_end = new_period_end
+                        print(f"更新对账单结束日期: {new_period_end}")
+                    
+                    # 更新对账单的statement_date为当前日期
+                    existing_statement.statement_date = datetime.now().date()
+                    print(f"更新对账单日期: {existing_statement.statement_date}")
+                    
+                    # 记录更新的对账单信息
+                    updated_statements.append({
+                        'statement_number': existing_statement.statement_number,
+                        'period_start': existing_statement.period_start,
+                        'period_end': existing_statement.period_end,
+                        'updated': True
+                    })
+                    
+                    statement_id = existing_statement.id
+                else:
+                    # 创建新的对账单记录
+                    statement_number = expected_statement_number
+                    # 计算该月的开始和结束日期
+                    month_start = month_data['T-Date'].min()
+                    month_end = month_data['T-Date'].max()
+                    
+                    # 设置该月的第一天和最后一天
+                    year, month_num = month.split('-')
+                    month_start = datetime(int(year), int(month_num), 1).date()
+                    
+                    # 计算该月的最后一天
+                    if int(month_num) == 12:
+                        next_month = datetime(int(year) + 1, 1, 1).date()
+                    else:
+                        next_month = datetime(int(year), int(month_num) + 1, 1).date()
+                    
+                    month_end = next_month - timedelta(days=1)
+                    
+                    bank_statement = BankStatement(
+                        statement_number=statement_number,
+                        bank_name='UOB',
+                        account_number='UPLOAD',
+                        account_name='上传文件',
+                        statement_date=datetime.now().date(),
+                        period_start=month_start,
+                        period_end=month_end,
+                        opening_balance=0.00,
+                        closing_balance=0.00,
+                        currency='SGD',
+                        status='draft',
+                        created_by='upload'
+                    )
+                    
+                    db.session.add(bank_statement)
+                    db.session.flush()  # 获取ID
+                    statement_id = bank_statement.id
+                    statement_numbers.append(statement_number)
+                    
+                    # 记录新创建的对账单信息
+                    updated_statements.append({
+                        'statement_number': statement_number,
+                        'period_start': month_start,
+                        'period_end': month_end,
+                        'updated': False
+                    })
+                    
+                    print(f"创建新对账单: {statement_number}, 期间: {month_start} 到 {month_end}")
+                
+                # 处理该月份的交易记录
+                month_result = process_monthly_transactions(month_data, statement_id, month)
+                month_processed_count = month_result['processed_count']
+                month_keyword_stats = month_result['keyword_stats']
+                
+                total_processed_count += month_processed_count
+                
+                # 累计关键字统计
+                for key in total_keyword_stats:
+                    total_keyword_stats[key] += month_keyword_stats[key]
+            
+            db.session.commit()
+            
+            return jsonify({
+                'success': True, 
+                'message': f'文件上传成功！',
+                'processed_count': total_processed_count,
+                'statement_numbers': statement_numbers,
+                'months_processed': list(monthly_groups.groups.keys()),
+                'keyword_stats': total_keyword_stats,
+                'statement_updates': updated_statements
+            })
+            
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'success': False, 'message': f'处理Excel文件时出错：{str(e)}'})
+            
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'上传失败：{str(e)}'})
+
+
+def apply_keyword_matching(description, bank_name='UOB'):
+    """根据交易描述应用关键字匹配，设置owner标签和关键词"""
+    try:
+        # 从数据库获取关键字
+        keywords = BankStatementKeyword.query.filter(
+            BankStatementKeyword.bank_name == bank_name
+        ).all()
+        
+        matched_keywords = []
+        owner_label = ''
+        
+        description_lower = str(description).lower()
+        
+        for keyword in keywords:
+            if keyword.keyword.lower() in description_lower:
+                matched_keywords.append(keyword.keyword)
+                
+                # 根据关键字类型设置owner标签
+                if keyword.keyword_type == 'personal':
+                    owner_label = '个人消费'
+                elif keyword.keyword_type == 'business':
+                    owner_label = 'Business'
+                elif keyword.keyword_type == 'personal_business':
+                    owner_label = '个人商用'
+                else:
+                    owner_label = 'Business'  # 默认
+        
+        # 如果没有匹配到关键字，设置默认值
+        if not matched_keywords:
+            owner_label = 'Business'
+        
+        return {
+            'owner_label': owner_label,
+            'matched_keywords': ','.join(matched_keywords) if matched_keywords else '',
+            'keyword_count': len(matched_keywords)
+        }
+        
+    except Exception as e:
+        print(f"关键字匹配错误: {e}")
+        return {
+            'owner_label': 'Business',
+            'matched_keywords': '',
+            'keyword_count': 0
+        }
+
+
+def process_monthly_transactions(month_data, statement_id, month):
+    """处理单个月份的交易记录"""
+    processed_count = 0
+    error_count = 0
+    duplicate_count = 0
+    
+    # 关键字匹配统计
+    keyword_stats = {
+        'personal': 0,
+        'business': 0,
+        'personal_business': 0,
+        'no_match': 0,
+        'total_keywords_matched': 0
+    }
+    
+    print(f"开始处理月份 {month} 的交易记录，共 {len(month_data)} 条")
+    
+    for index, row in month_data.iterrows():
+        try:
+            # 检查是否已存在相同的交易记录
+            existing_transaction = BankTransaction.query.filter(
+                BankTransaction.tx_fingerprint == row['Id']
+            ).first()
+            
+            if existing_transaction:
+                duplicate_count += 1
+                print(f"跳过重复记录 {index}: {row['Id']}")
+                continue
+            
+            # 确定交易类型和金额 - 针对UOB银行账单结构
+            transaction_type = 'debit'
+            amount = 0.00
+            amount_found = False
+            
+            # UOB银行账单有Withdrawal和Deposit两列，需要分别处理
+            withdrawal_amount = 0.00
+            deposit_amount = 0.00
+            
+            # 获取Withdrawal金额
+            if 'Withdrawal' in row and pd.notna(row['Withdrawal']):
+                try:
+                    withdrawal_amount = float(row['Withdrawal'])
+                except (ValueError, TypeError):
+                    withdrawal_amount = 0.00
+            
+            # 获取Deposit金额
+            if 'Deposit' in row and pd.notna(row['Deposit']):
+                try:
+                    deposit_amount = float(row['Deposit'])
+                except (ValueError, TypeError):
+                    deposit_amount = 0.00
+            
+            # 确定交易类型和金额
+            if withdrawal_amount > 0 and deposit_amount == 0:
+                # 只有Withdrawal有值，这是借记交易
+                amount = withdrawal_amount
+                transaction_type = 'debit'
+                amount_found = True
+                print(f"记录 {index}: Withdrawal = {withdrawal_amount}, 借记交易")
+            elif deposit_amount > 0 and withdrawal_amount == 0:
+                # 只有Deposit有值，这是贷记交易
+                amount = deposit_amount
+                transaction_type = 'credit'
+                amount_found = True
+                print(f"记录 {index}: Deposit = {deposit_amount}, 贷记交易")
+            elif withdrawal_amount > 0 and deposit_amount > 0:
+                # 两列都有值，这是异常情况，取较大的值
+                if withdrawal_amount >= deposit_amount:
+                    amount = withdrawal_amount
+                    transaction_type = 'debit'
+                else:
+                    amount = deposit_amount
+                    transaction_type = 'credit'
+                amount_found = True
+                print(f"记录 {index}: 异常情况 Withdrawal={withdrawal_amount}, Deposit={deposit_amount}")
+            else:
+                # 两列都没有值，跳过这条记录
+                print(f"跳过记录 {index}: Withdrawal={withdrawal_amount}, Deposit={deposit_amount}, 无有效金额")
+                continue
+            
+            # 获取余额 - 优先使用Available Balance列
+            balance = 0.00
+            balance_col_name = None
+            
+            # 查找余额列
+            for col in ['Available Balance', 'Balance']:
+                if col in row and pd.notna(row[col]):
+                    balance_col_name = col
+                    break
+            
+            if balance_col_name:
+                try:
+                    balance = float(row[balance_col_name])
+                    print(f"记录 {index}: 从列 '{balance_col_name}' 获取余额 = {balance}")
+                except (ValueError, TypeError):
+                    balance = 0.00
+                    print(f"记录 {index}: 余额列 '{balance_col_name}' 值转换失败: {row[balance_col_name]}")
+            else:
+                print(f"记录 {index}: 未找到余额列")
+            
+            # 应用关键字匹配，设置owner标签
+            keyword_result = apply_keyword_matching(row['Description'], 'UOB')
+            owner_label = keyword_result['owner_label']
+            matched_keywords = keyword_result['matched_keywords']
+            
+            print(f"记录 {index}: 描述='{row['Description'][:50]}...', 匹配关键字={matched_keywords}, Owner={owner_label}")
+            
+            # 统计关键字匹配结果
+            if matched_keywords:
+                keyword_stats['total_keywords_matched'] += keyword_result['keyword_count']
+                if owner_label == '个人消费':
+                    keyword_stats['personal'] += 1
+                elif owner_label == 'Business':
+                    keyword_stats['business'] += 1
+                elif owner_label == '个人商用':
+                    keyword_stats['personal_business'] += 1
+            else:
+                keyword_stats['no_match'] += 1
+            
+            # 创建交易记录
+            transaction = BankTransaction(
+                statement_id=statement_id,
+                transaction_date=row['T-Date'],
+                post_date=row['T-Date'],
+                transaction_id=row['Id'],
+                transaction_type=transaction_type,
+                amount=amount,
+                balance=balance,
+                description=str(row['Description']),
+                counterparty_name='',
+                reconciliation_status='unmatched',
+                is_confirmed=False,
+                owner_label=owner_label,  # 使用关键字匹配结果
+                accounting_ref='',
+                remarks='',
+                keyword=matched_keywords,  # 设置匹配的关键字
+                tx_fingerprint=row['Id'],  # 使用复合ID作为指纹
+                created_at=datetime.utcnow()
+            )
+            
+            db.session.add(transaction)
+            processed_count += 1
+            
+        except Exception as e:
+            error_count += 1
+            print(f"处理记录 {index} 时出错: {e}")
+            continue
+    
+    print(f"月份 {month} 处理完成:")
+    print(f"  - 成功处理: {processed_count} 条")
+    print(f"  - 跳过重复: {duplicate_count} 条") 
+    print(f"  - 处理错误: {error_count} 条")
+    print(f"关键字匹配统计:")
+    print(f"  - 个人消费: {keyword_stats['personal']} 条")
+    print(f"  - 商业用途: {keyword_stats['business']} 条")
+    print(f"  - 个人商用: {keyword_stats['personal_business']} 条")
+    print(f"  - 无匹配: {keyword_stats['no_match']} 条")
+    print(f"  - 总匹配关键字: {keyword_stats['total_keywords_matched']} 个")
+    
+    return {
+        'processed_count': processed_count,
+        'keyword_stats': keyword_stats
+    }
 
 
 @statement_blue.route('/uob_original_processing', methods=['GET', 'POST'])

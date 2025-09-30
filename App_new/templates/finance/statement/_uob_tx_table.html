@@ -1,6 +1,6 @@
 {% set endpoint = page_endpoint|default('statement_routes.uob_bank') %}
 {% macro page_url(p) -%}
-{{ url_for(endpoint, page=p, month=filters.month, start_date=filters.start_date, end_date=filters.end_date, type=filters.type, owner=filters.owner, ref=filters.ref, sort=filters.sort, partial='table') }}
+{{ url_for(endpoint, page=p, month=filters.month, start_date=filters.start_date, end_date=filters.end_date, type=filters.type, owner=filters.owner, ref=filters.ref, operation_status=filters.operation_status, sort=filters.sort, partial='table') }}
 {%- endmacro %}
 
 <!-- 表格头部控制区域 -->

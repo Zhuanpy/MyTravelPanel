@@ -310,15 +310,117 @@
             font-size: 14px;
         }
 
-        .uob-button-group {
-            gap: 10px;
-        }
+    .uob-button-group {
+        gap: 10px;
     }
+}
+
+/* 银行选择器样式 */
+.bank-selector .card {
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.bank-selector .card-header {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #e9ecef;
+    padding: 12px 16px;
+}
+
+.bank-selector .card-body {
+    padding: 16px;
+    text-align: left;
+}
+
+.bank-selector .d-flex {
+    justify-content: flex-start !important;
+    align-items: flex-start !important;
+}
+
+.bank-selector .card-body .d-flex {
+    justify-content: flex-start !important;
+    text-align: left !important;
+}
+
+/* 强制银行按钮容器左对齐 */
+.bank-selector .card .card-body > div {
+    justify-content: flex-start !important;
+    align-items: flex-start !important;
+    text-align: left !important;
+}
+
+.bank-btn {
+    min-width: 120px;
+    padding: 10px 16px;
+    border-radius: 6px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.bank-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    text-decoration: none;
+}
+
+.bank-btn.active {
+    background-color: #007bff;
+    border-color: #007bff;
+    color: white;
+}
+
+.bank-btn.active:hover {
+    background-color: #0056b3;
+    border-color: #0056b3;
+    color: white;
+}
+
+.bank-btn:not(.active):hover {
+    background-color: #007bff;
+    border-color: #007bff;
+    color: white;
+}
+
+@media (max-width: 768px) {
+    .bank-selector .d-flex {
+        flex-direction: column;
+    }
+    
+    .bank-btn {
+        width: 100%;
+        margin-bottom: 8px;
+    }
+}
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="uob-container">
+    <!-- 银行选择区域 -->
+    <div class="mb-4" style="width: 100%; text-align: left !important;">
+        <div style="background: #f8f9fa; border: 1px solid #e9ecef; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+            <h5 style="margin: 0 0 16px 0; font-weight: 600; color: #495057;">
+                <i class="fas fa-university me-2"></i>选择银行
+            </h5>
+            <div style="display: flex !important; gap: 12px !important; flex-wrap: wrap !important; justify-content: flex-start !important; align-items: flex-start !important; text-align: left !important; width: 100% !important;">
+                <a href="{{ url_for('statement_routes.uob_bank') }}" class="btn btn-primary bank-btn active" id="uob-btn" style="text-align: left !important;">
+                    <i class="fas fa-building me-2"></i>UOB银行
+                </a>
+                <a href="{{ url_for('statement_routes.ocbc_bank') }}" class="btn btn-outline-primary bank-btn" id="ocbc-btn" style="text-align: left !important;">
+                    <i class="fas fa-building me-2"></i>OCBC银行
+                </a>
+                <a href="{{ url_for('statement_routes.cmb_bank') }}" class="btn btn-outline-primary bank-btn" id="cmb-btn" style="text-align: left !important;">
+                    <i class="fas fa-building me-2"></i>招商银行
+                </a>
+            </div>
+        </div>
+    </div>
+
     <div class="uob-header">
         <h1 class="uob-title">UOB账单处理</h1>
     </div>
@@ -333,19 +435,24 @@
         {% endif %}
     {% endwith %}
 
-    <!-- 完整进程 -->
+    <!-- 账单文件上传 -->
     <div class="uob-section">
         <p>账单文件操作</p>
         <div class="uob-button-group">
-
-            <form action="{{ url_for('statement_routes.open_uob_statement_folder') }}" method="post">
-                <button type="submit" class="uob-button folder-btn">打开文件夹</button>
+            <!-- 文件上传表单 -->
+            <form id="uob-upload-form" enctype="multipart/form-data" style="display: flex; gap: 10px; align-items: center;">
+                <input type="file" id="uob-file-input" accept=".xls,.xlsx" style="display: none;">
+                <button type="button" id="uob-select-file-btn" class="uob-button folder-btn">
+                    <i class="fas fa-file-excel me-2"></i>选择XLS文件
+                </button>
+                <button type="button" id="uob-upload-btn" class="uob-button" disabled>
+                    <i class="fas fa-upload me-2"></i>入库账单数据
+                </button>
+                <span id="uob-file-info" style="color: #666; font-size: 14px;"></span>
             </form>
-            
-            <form action="{{ url_for('statement_routes.uob_original_processing') }}" method="post">
-                <button type="submit" class="uob-button">入库最新账单</button>
-            </form>
-
+        </div>
+        <div class="uob-note">
+            <p><i class="fas fa-info-circle"></i> 支持上传XLS/XLSX格式的UOB银行账单文件</p>
         </div>
     </div>
 
@@ -461,6 +568,14 @@
                 <div class="col-auto">
                     <label class="form-label">REF/EO</label>
                     <input type="text" class="form-control" name="ref" value="{{ filters.ref or '' }}" placeholder="输入REF或EO编号">
+                </div>
+                <div class="col-auto">
+                    <label class="form-label">操作状态</label>
+                    <select class="form-select" name="operation_status">
+                        <option value="">全部</option>
+                        <option value="confirmed" {% if filters.operation_status=='confirmed' %}selected{% endif %}>已确认</option>
+                        <option value="unconfirmed" {% if filters.operation_status=='unconfirmed' %}selected{% endif %}>未确认</option>
+                    </select>
                 </div>
                 <div class="col-auto">
                     <label class="form-label">排序</label>
@@ -589,11 +704,6 @@
         const txId = confirmBtn.getAttribute('data-tx-id');
         if (!txId) return;
         
-        // 确认对话框
-        if (!confirm('确定要确认此交易记录吗？确认后将无法再编辑归属、REF/EO和备注信息。')) {
-            return;
-        }
-        
         try {
             // 显示加载状态
             const originalText = confirmBtn.innerHTML;
@@ -609,8 +719,8 @@
             const result = await response.json();
             
             if (result.success) {
-                // 成功确认，刷新页面以显示更新后的状态
-                window.location.reload();
+                // 成功确认，只刷新表格部分以保持筛选状态
+                refreshTableOnly();
             } else {
                 // 显示错误信息
                 alert('确认失败：' + (result.message || '未知错误'));
@@ -696,10 +806,6 @@
                     return;
                 }
                 
-                if (!confirm(`确定要批量确认 ${transactionIds.length} 个交易记录吗？`)) {
-                    return;
-                }
-                
                 (async () => {
                     try {
                         const originalText = e.target.innerHTML;
@@ -716,7 +822,10 @@
                         
                         if (result.success) {
                             alert(`成功确认 ${result.confirmed_count} 个交易记录`);
-                            window.location.reload();
+                            // 只刷新表格部分以保持筛选状态
+                            if (window.refreshTableOnly) {
+                                window.refreshTableOnly();
+                            }
                         } else {
                             alert(`批量确认失败: ${result.message}`);
                         }
@@ -776,6 +885,9 @@
         };
         btn.addEventListener('click', function(e){ e.preventDefault(); loadTable(); });
         
+        // 创建全局的refreshTableOnly函数
+        window.refreshTableOnly = loadTable;
+        
         // 监听排序选择变化
         const sortSelect = form.querySelector('select[name="sort"]');
         if (sortSelect) {
@@ -783,6 +895,138 @@
                 loadTable();
             });
         }
+        
+        // 处理分页链接点击 - 使用事件委托处理动态生成的分页链接
+        document.addEventListener('click', function(e) {
+            if (e.target && e.target.classList.contains('page-link') && e.target.href) {
+                e.preventDefault();
+                
+                // 从分页链接URL中提取page参数
+                const url = new URL(e.target.href);
+                const page = url.searchParams.get('page');
+                
+                if (page) {
+                    // 构建包含当前筛选条件的URL
+                    const params = new URLSearchParams(new FormData(form));
+                    params.set('page', page);
+                    params.set('partial', 'table');
+                    
+                    const newUrl = baseUrl + (baseUrl.includes('?') ? '&' : '?') + params.toString();
+                    
+                    // 使用AJAX加载新页面
+                    (async () => {
+                        try {
+                            const res = await fetch(newUrl, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+                            const html = await res.text();
+                            container.innerHTML = html;
+                        } catch (err) {
+                            console.warn('分页加载失败');
+                        }
+                    })();
+                }
+            }
+        });
+    })();
+
+    // UOB文件上传功能
+    (function(){
+        const fileInput = document.getElementById('uob-file-input');
+        const selectBtn = document.getElementById('uob-select-file-btn');
+        const uploadBtn = document.getElementById('uob-upload-btn');
+        const fileInfo = document.getElementById('uob-file-info');
+        
+        if (!fileInput || !selectBtn || !uploadBtn || !fileInfo) return;
+        
+        // 选择文件按钮点击事件
+        selectBtn.addEventListener('click', function() {
+            fileInput.click();
+        });
+        
+        // 文件选择事件
+        fileInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                // 检查文件类型
+                const allowedTypes = ['.xls', '.xlsx'];
+                const fileExt = '.' + file.name.split('.').pop().toLowerCase();
+                
+                if (!allowedTypes.includes(fileExt)) {
+                    alert('请选择XLS或XLSX格式的文件！');
+                    fileInput.value = '';
+                    uploadBtn.disabled = true;
+                    fileInfo.textContent = '';
+                    return;
+                }
+                
+                // 更新UI
+                fileInfo.textContent = `已选择: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`;
+                uploadBtn.disabled = false;
+            } else {
+                uploadBtn.disabled = true;
+                fileInfo.textContent = '';
+            }
+        });
+        
+        // 上传按钮点击事件
+        uploadBtn.addEventListener('click', async function() {
+            const file = fileInput.files[0];
+            if (!file) {
+                alert('请先选择文件！');
+                return;
+            }
+            
+            // 创建FormData
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            // 显示加载状态
+            const originalText = uploadBtn.innerHTML;
+            uploadBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>处理中...';
+            uploadBtn.disabled = true;
+            
+            try {
+                const response = await fetch('/statement/uob_upload_file', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    let message = `上传成功！\n处理了 ${result.processed_count || 0} 条交易记录\n\n处理的月份: ${result.months_processed ? result.months_processed.join(', ') : 'N/A'}\n\n对账单号:\n${result.statement_numbers ? result.statement_numbers.join('\n') : 'N/A'}`;
+                    
+                    // 如果有关键字匹配信息，添加到消息中
+                    if (result.keyword_stats) {
+                        message += `\n\n关键字匹配统计:\n个人消费: ${result.keyword_stats.personal || 0} 条\n商业用途: ${result.keyword_stats.business || 0} 条\n个人商用: ${result.keyword_stats.personal_business || 0} 条\n无匹配: ${result.keyword_stats.no_match || 0} 条`;
+                    }
+                    
+                    // 如果有关键字匹配信息，添加到消息中
+                    if (result.statement_updates && result.statement_updates.length > 0) {
+                        message += `\n\n对账单处理情况:`;
+                        result.statement_updates.forEach(stmt => {
+                            if (stmt.updated) {
+                                message += `\n更新: ${stmt.statement_number} (${stmt.period_start} ~ ${stmt.period_end})`;
+                            } else {
+                                message += `\n新建: ${stmt.statement_number} (${stmt.period_start} ~ ${stmt.period_end})`;
+                            }
+                        });
+                    }
+                    
+                    alert(message);
+                    // 刷新页面或重新加载数据
+                    location.reload();
+                } else {
+                    alert(`上传失败：${result.message}`);
+                }
+            } catch (error) {
+                console.error('上传错误:', error);
+                alert('上传失败，请重试！');
+            } finally {
+                // 恢复按钮状态
+                uploadBtn.innerHTML = originalText;
+                uploadBtn.disabled = false;
+            }
+        });
     })();
 
     // 无刷新分页：拦截分页链接点击
