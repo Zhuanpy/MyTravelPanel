@@ -111,7 +111,7 @@
                     <option value="">所有公司</option>
                 </select>
             </div>
-            <div class="col-md-2">
+            <div class="col-md-1">
                 <div class="input-group input-group-sm">
                     <input type="text" class="form-control" id="searchInput" placeholder="搜索...">
                     <div class="input-group-append">
@@ -119,6 +119,14 @@
                             <i class="fas fa-search"></i>
                         </button>
                     </div>
+                </div>
+            </div>
+            <div class="col-md-1">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="balanceFilter">
+                    <label class="form-check-label" for="balanceFilter" title="只显示余额大于0的记录">
+                        余额>0
+                    </label>
                 </div>
             </div>
             <div class="col-md-6 text-right">
@@ -134,6 +142,9 @@
                     </button>
                     <button class="btn btn-outline-secondary" id="clearFiltersBtn" title="清除筛选">
                         <i class="fas fa-times"></i>
+                    </button>
+                    <button class="btn btn-outline-warning" id="resetBtn" title="重置所有筛选条件">
+                        <i class="fas fa-undo"></i>
                     </button>
                 </div>
             </div>
@@ -193,6 +204,7 @@ class SOAManager {
         this.searchTerm = '';
         this.monthFilter = '';
         this.companyFilter = '';
+        this.balanceFilter = false;
         this.init();
     }
 
@@ -245,6 +257,7 @@ class SOAManager {
             this.searchTerm = document.getElementById('searchInput').value;
             this.monthFilter = document.getElementById('monthFilter').value;
             this.companyFilter = document.getElementById('companyFilter').value;
+            this.balanceFilter = document.getElementById('balanceFilter').checked;
             this.currentPage = 1;
             this.loadData();
             });
@@ -258,6 +271,7 @@ class SOAManager {
                 this.searchTerm = e.target.value;
                 this.monthFilter = document.getElementById('monthFilter').value;
                 this.companyFilter = document.getElementById('companyFilter').value;
+                this.balanceFilter = document.getElementById('balanceFilter').checked;
                 this.currentPage = 1;
                 this.loadData();
             }
@@ -269,6 +283,7 @@ class SOAManager {
         if (monthFilter) {
             monthFilter.addEventListener('change', () => {
             this.monthFilter = document.getElementById('monthFilter').value;
+            this.balanceFilter = document.getElementById('balanceFilter').checked;
             this.currentPage = 1;
             this.loadData();
             });
@@ -279,21 +294,53 @@ class SOAManager {
         if (companyFilter) {
             companyFilter.addEventListener('change', () => {
             this.companyFilter = document.getElementById('companyFilter').value;
+            this.balanceFilter = document.getElementById('balanceFilter').checked;
             this.currentPage = 1;
             this.loadData();
         });
 
-        // 刷新按钮
-        document.getElementById('refreshBtn').addEventListener('click', () => {
-            this.searchTerm = '';
-            this.monthFilter = '';
-            this.companyFilter = '';
-            document.getElementById('searchInput').value = '';
-            document.getElementById('monthFilter').value = '';
-            document.getElementById('companyFilter').value = '';
+        // 余额过滤变化
+        const balanceFilter = document.getElementById('balanceFilter');
+        if (balanceFilter) {
+            balanceFilter.addEventListener('change', () => {
+            this.balanceFilter = document.getElementById('balanceFilter').checked;
             this.currentPage = 1;
             this.loadData();
             });
+        }
+
+        // 刷新按钮
+        const refreshBtn = document.getElementById('refreshBtn');
+        if (refreshBtn) {
+            refreshBtn.addEventListener('click', () => {
+                this.loadData();
+            });
+        }
+
+        // 清除筛选按钮
+        const clearFiltersBtn = document.getElementById('clearFiltersBtn');
+        if (clearFiltersBtn) {
+            clearFiltersBtn.addEventListener('click', () => {
+                this.searchTerm = '';
+                this.monthFilter = '';
+                this.companyFilter = '';
+                this.balanceFilter = false;
+                document.getElementById('searchInput').value = '';
+                document.getElementById('monthFilter').value = '';
+                document.getElementById('companyFilter').value = '';
+                document.getElementById('balanceFilter').checked = false;
+                this.currentPage = 1;
+                this.loadData();
+            });
+        }
+
+        // 重置按钮
+        const resetBtn = document.getElementById('resetBtn');
+        if (resetBtn) {
+            resetBtn.addEventListener('click', () => {
+                this.resetAllFilters();
+            });
+        }
         }
 
         // 清除月份按钮已移除，功能合并到清除筛选按钮中
@@ -322,20 +369,31 @@ class SOAManager {
             });
         }
 
-        // 清除筛选按钮
-        const clearFiltersBtn = document.getElementById('clearFiltersBtn');
-        if (clearFiltersBtn) {
-            clearFiltersBtn.addEventListener('click', () => {
-                this.searchTerm = '';
-                this.monthFilter = '';
-                this.companyFilter = '';
-                document.getElementById('searchInput').value = '';
-                document.getElementById('monthFilter').value = '';
-                document.getElementById('companyFilter').value = '';
-                this.currentPage = 1;
-                this.loadData();
-            });
-        }
+    }
+
+    resetAllFilters() {
+        // 重置所有筛选条件到默认状态
+        this.searchTerm = '';
+        this.monthFilter = '';
+        this.companyFilter = '';
+        this.balanceFilter = false;
+        this.currentPage = 1;
+        
+        // 重置UI控件
+        document.getElementById('searchInput').value = '';
+        document.getElementById('companyFilter').value = '';
+        document.getElementById('balanceFilter').checked = false;
+        
+        // 设置月份为当前月份
+        const monthFilter = document.getElementById('monthFilter');
+        const currentDate = new Date();
+        const currentYear = currentDate.getFullYear();
+        const currentMonth = (currentDate.getMonth() + 1).toString().padStart(2, '0');
+        monthFilter.value = `${currentYear}-${currentMonth}`;
+        this.monthFilter = monthFilter.value;
+        
+        // 重新加载数据
+        this.loadData();
     }
 
     async loadData() {
@@ -347,7 +405,8 @@ class SOAManager {
                 per_page: this.perPage,
                 search: this.searchTerm,
                 month: this.monthFilter,
-                company: this.companyFilter
+                company: this.companyFilter,
+                balance_positive: this.balanceFilter
             });
 
             const response = await fetch(`/statement/soa_data?${params}`);

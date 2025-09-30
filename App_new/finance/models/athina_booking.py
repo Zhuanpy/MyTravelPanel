@@ -51,7 +51,7 @@ class AthinaBookingDetail(db.Model):
     # 业务信息
     corporate_name = db.Column(db.String(200), nullable=True, comment='公司名称')
     client_name = db.Column(db.String(200), nullable=True, comment='客户名称')
-    booking_ref = db.Column(db.String(100), nullable=True, comment='预订参考号')
+    booking_ref = db.Column(db.Integer, nullable=True, unique=True, comment='预订参考号')
     book_type = db.Column(db.String(50), nullable=True, comment='预订类型')
     book_date = db.Column(db.Date, nullable=True, comment='预订日期')
     dep_date = db.Column(db.Date, nullable=True, comment='出发日期')

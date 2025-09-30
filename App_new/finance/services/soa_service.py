@@ -233,7 +233,7 @@ class SOAService:
         except Exception as e:
             return None, f"Error generating PDF: {str(e)}"
     
-    def get_soa_list(self, page=1, per_page=20, search=None, month=None, company=None):
+    def get_soa_list(self, page=1, per_page=20, search=None, month=None, company=None, balance_positive=False):
         """获取可生成SOA的头部列表"""
         try:
             query = AthinaBookingHeader.query
@@ -274,6 +274,10 @@ class SOAService:
                 except (ValueError, TypeError):
                     # 如果月份格式不正确，忽略过滤
                     pass
+            
+            # 余额过滤 - 只显示余额大于0的记录
+            if balance_positive:
+                query = query.filter(AthinaBookingHeader.sub_total_balance > 0)
             
             pagination = query.paginate(
                 page=page, per_page=per_page, error_out=False

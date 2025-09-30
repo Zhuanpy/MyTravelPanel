@@ -188,6 +188,21 @@ class AthinaImportService:
             return None
         return str(value).strip()
     
+    def parse_integer(self, value):
+        """解析整数值"""
+        if pd.isna(value) or value is None:
+            return None
+        
+        cleaned = str(value).strip()
+        if cleaned == '' or cleaned.lower() == 'nan':
+            return None
+        
+        try:
+            # 尝试转换为整数
+            return int(float(cleaned))
+        except (ValueError, TypeError):
+            return None
+    
     def parse_date(self, value):
         """解析日期"""
         if pd.isna(value) or value is None or str(value).strip() == 'nan':
@@ -227,6 +242,20 @@ class AthinaImportService:
             return Decimal(cleaned)
         except (ValueError, TypeError):
             return None
+    
+    def is_empty_row(self, row_values):
+        """检查是否为空白行或无效行"""
+        if not row_values or len(row_values) == 0:
+            return True
+        
+        # 检查所有列是否都为空、None、'nan'或只包含空白字符
+        for cell in row_values:
+            if cell is not None:
+                cell_str = str(cell).strip()
+                if cell_str and cell_str.lower() not in ['nan', 'null', '']:
+                    return False
+        
+        return True
     
     def is_subtotal(self, row):
         """判断是否为小计行"""
@@ -269,7 +298,11 @@ class AthinaImportService:
             
             # 开始导入
             imported_headers = 0
+            updated_headers = 0
             imported_details = 0
+            updated_details = 0
+            skipped_empty_rows = 0
+            skipped_invalid_refs = 0
             current_header = None
             
             for index, row in df.iterrows():
@@ -304,6 +337,24 @@ class AthinaImportService:
                         db.session.flush()
                         imported_headers += 1
                         print(f"创建新头部: {booking_header_id}, 公司: {header.corporate_name}")
+                    else:
+                        # 头部记录已存在，更新基本信息（如果新数据不为空）
+                        corporate_name = self.clean_string(row_values[1]) if len(row_values) > 1 else None
+                        book_date = self.parse_date(row_values[5]) if len(row_values) > 5 else None
+                        
+                        if corporate_name and corporate_name != header.corporate_name:
+                            header.corporate_name = corporate_name
+                            print(f"更新头部公司名称: {booking_header_id}, 新公司: {corporate_name}")
+                        
+                        if book_date and book_date != header.book_date:
+                            header.book_date = book_date
+                            print(f"更新头部预订日期: {booking_header_id}, 新日期: {book_date}")
+                        
+                        # 更新updated_at时间戳
+                        header.updated_at = datetime.utcnow()
+                        
+                        updated_headers += 1
+                        print(f"更新现有头部: {booking_header_id}, 公司: {header.corporate_name}")
                     current_header = header
                 
                 # 检查是否为小计行
@@ -330,10 +381,11 @@ class AthinaImportService:
                     if not current_header.invoice_date:
                         current_header.invoice_date = self.parse_date(row_values[21]) if len(row_values) > 21 else None  # Invoice Date
                     
-                    # 创建小计明细记录
+                    # 创建小计明细记录（小计行不需要booking_ref，但我们需要特殊处理）
                     detail = AthinaBookingDetail(
                         header_id=current_header.id,
                         is_subtotal=True,
+                        booking_ref=None,  # 小计行明确设置为None
                         gross_amount=current_header.sub_total_gross,
                         gross_tax=current_header.sub_total_tax,
                         discount=current_header.sub_total_discount,
@@ -349,70 +401,159 @@ class AthinaImportService:
                 
                 # 普通明细行
                 else:
+                    # 检查是否为空白行或无效行
+                    if self.is_empty_row(row_values):
+                        print(f"第{index}行是空白行，跳过")
+                        skipped_empty_rows += 1
+                        continue
+                    
+                    # 首先检查booking_ref是否有效（这是必需的）
+                    booking_ref = self.parse_integer(row_values[3]) if len(row_values) > 3 else None
+                    
+                    # 如果booking_ref为空或无效，跳过此记录
+                    if booking_ref is None:
+                        print(f"第{index}行booking_ref为空或无效，跳过")
+                        skipped_invalid_refs += 1
+                        continue
+                    
                     # 检查是否包含有效业务数据
                     has_client_name = any(cell and str(cell).strip() and str(cell).strip() != 'nan' 
                                         for cell in row_values[2:4])
-                    has_booking_ref = any(cell and str(cell).strip() and str(cell).strip() != 'nan' 
-                                        for cell in row_values[3:5])
+                    has_other_data = any(cell and str(cell).strip() and str(cell).strip() != 'nan' 
+                                       for cell in row_values[4:8])  # 检查其他业务字段
                     
-                    if has_client_name or has_booking_ref:
-                        # 创建明细记录，包含所有业务和财务数据
-                        # 预处理后的列结构：第1列=booking_header_id, 第2列=Corporate Name, 第3列=Client Name, 第4列=Booking Ref, 第5列=Book Type, 第6列=Book Date, 第7列=Dep Date, 第8列=Itin Desc, 第9列=Gross Curr, 第10列=Gross, 第11列=Gross Tax, 第12列=Disc, 第13列=Local Gross, 第14列=Local Cost, 第15列=PL, 第16列=Marg, 第17列=Balance, 第18列=Supplier, 第19列=Consultant, 第20列=Sales Consultant, 第21列=Invoice No, 第22列=Invoice Date
-                        detail = AthinaBookingDetail(
-                            header_id=current_header.id,
-                            # 业务信息
-                            corporate_name=self.clean_string(row_values[1]) if len(row_values) > 1 else None,  # Corporate Name
-                            client_name=self.clean_string(row_values[2]) if len(row_values) > 2 else None,  # Client Name
-                            booking_ref=self.clean_string(row_values[3]) if len(row_values) > 3 else None,  # Booking Ref
-                            book_type=self.clean_string(row_values[4]) if len(row_values) > 4 else None,  # Book Type
-                            book_date=self.parse_date(row_values[5]) if len(row_values) > 5 else None,  # Book Date
-                            dep_date=self.parse_date(row_values[6]) if len(row_values) > 6 else None,  # Dep Date
-                            itin_desc=self.clean_string(row_values[7]) if len(row_values) > 7 else None,  # Itin Desc
-                            # 财务信息
-                            gross_curr=self.clean_string(row_values[8]) if len(row_values) > 8 else None,  # Gross Curr
-                            gross_amount=self.parse_decimal(row_values[9]) if len(row_values) > 9 else None,  # Gross
-                            gross_tax=self.parse_decimal(row_values[10]) if len(row_values) > 10 else None,  # Gross Tax
-                            discount=self.parse_decimal(row_values[11]) if len(row_values) > 11 else None,  # Disc
-                            local_gross=self.parse_decimal(row_values[12]) if len(row_values) > 12 else None,  # Local Gross
-                            local_cost=self.parse_decimal(row_values[13]) if len(row_values) > 13 else None,  # Local Cost
-                            profit_loss=self.parse_decimal(row_values[14]) if len(row_values) > 14 else None,  # PL
-                            margin=self.parse_percentage(row_values[15]) if len(row_values) > 15 else None,  # Marg
-                            balance=self.parse_decimal(row_values[16]) if len(row_values) > 16 else None,  # Balance
-                            # 供应商信息
-                            supplier=self.clean_string(row_values[17]) if len(row_values) > 17 else None,  # Supplier
-                            consultant=self.clean_string(row_values[18]) if len(row_values) > 18 else None,  # Consultant
-                            sales_consultant=self.clean_string(row_values[19]) if len(row_values) > 19 else None,  # Sales Consultant
-                            # 发票信息
-                            invoice_no=self.clean_string(row_values[20]) if len(row_values) > 20 else None,  # Invoice No
-                            invoice_date=self.parse_date(row_values[21]) if len(row_values) > 21 else None,  # Invoice Date
-                            # 特殊标记
-                            is_subtotal=False
-                        )
-                        db.session.add(detail)
-                        imported_details += 1
-                        print(f"创建明细记录，header_id: {current_header.id}, 客户: {detail.client_name}")
+                    if has_client_name or has_other_data:
+                        
+                        # 基于booking_ref查找现有记录
+                        existing_detail = AthinaBookingDetail.query.filter_by(booking_ref=booking_ref).first()
+                        
+                        if existing_detail:
+                            # 更新现有明细记录
+                            print(f"更新现有明细记录，booking_ref: {booking_ref}")
+                            
+                            # 更新业务信息（如果新数据不为空）
+                            if len(row_values) > 1 and self.clean_string(row_values[1]):
+                                existing_detail.corporate_name = self.clean_string(row_values[1])
+                            if len(row_values) > 2 and self.clean_string(row_values[2]):
+                                existing_detail.client_name = self.clean_string(row_values[2])
+                            if len(row_values) > 4 and self.clean_string(row_values[4]):
+                                existing_detail.book_type = self.clean_string(row_values[4])
+                            if len(row_values) > 5 and self.parse_date(row_values[5]):
+                                existing_detail.book_date = self.parse_date(row_values[5])
+                            if len(row_values) > 6 and self.parse_date(row_values[6]):
+                                existing_detail.dep_date = self.parse_date(row_values[6])
+                            if len(row_values) > 7 and self.clean_string(row_values[7]):
+                                existing_detail.itin_desc = self.clean_string(row_values[7])
+                            
+                            # 更新财务信息
+                            if len(row_values) > 8 and self.clean_string(row_values[8]):
+                                existing_detail.gross_curr = self.clean_string(row_values[8])
+                            if len(row_values) > 9 and self.parse_decimal(row_values[9]) is not None:
+                                existing_detail.gross_amount = self.parse_decimal(row_values[9])
+                            if len(row_values) > 10 and self.parse_decimal(row_values[10]) is not None:
+                                existing_detail.gross_tax = self.parse_decimal(row_values[10])
+                            if len(row_values) > 11 and self.parse_decimal(row_values[11]) is not None:
+                                existing_detail.discount = self.parse_decimal(row_values[11])
+                            if len(row_values) > 12 and self.parse_decimal(row_values[12]) is not None:
+                                existing_detail.local_gross = self.parse_decimal(row_values[12])
+                            if len(row_values) > 13 and self.parse_decimal(row_values[13]) is not None:
+                                existing_detail.local_cost = self.parse_decimal(row_values[13])
+                            if len(row_values) > 14 and self.parse_decimal(row_values[14]) is not None:
+                                existing_detail.profit_loss = self.parse_decimal(row_values[14])
+                            if len(row_values) > 15 and self.parse_percentage(row_values[15]) is not None:
+                                existing_detail.margin = self.parse_percentage(row_values[15])
+                            if len(row_values) > 16 and self.parse_decimal(row_values[16]) is not None:
+                                existing_detail.balance = self.parse_decimal(row_values[16])
+                            
+                            # 更新供应商信息
+                            if len(row_values) > 17 and self.clean_string(row_values[17]):
+                                existing_detail.supplier = self.clean_string(row_values[17])
+                            if len(row_values) > 18 and self.clean_string(row_values[18]):
+                                existing_detail.consultant = self.clean_string(row_values[18])
+                            if len(row_values) > 19 and self.clean_string(row_values[19]):
+                                existing_detail.sales_consultant = self.clean_string(row_values[19])
+                            
+                            # 更新发票信息
+                            if len(row_values) > 20 and self.clean_string(row_values[20]):
+                                existing_detail.invoice_no = self.clean_string(row_values[20])
+                            if len(row_values) > 21 and self.parse_date(row_values[21]):
+                                existing_detail.invoice_date = self.parse_date(row_values[21])
+                            
+                            # 更新updated_at时间戳
+                            existing_detail.updated_at = datetime.utcnow()
+                            
+                            # 确保header_id正确
+                            if existing_detail.header_id != current_header.id:
+                                existing_detail.header_id = current_header.id
+                            
+                            updated_details += 1
+                            print(f"更新明细记录，booking_ref: {booking_ref}, 客户: {existing_detail.client_name}")
+                        else:
+                            # 创建新的明细记录
+                            # 预处理后的列结构：第1列=booking_header_id, 第2列=Corporate Name, 第3列=Client Name, 第4列=Booking Ref, 第5列=Book Type, 第6列=Book Date, 第7列=Dep Date, 第8列=Itin Desc, 第9列=Gross Curr, 第10列=Gross, 第11列=Gross Tax, 第12列=Disc, 第13列=Local Gross, 第14列=Local Cost, 第15列=PL, 第16列=Marg, 第17列=Balance, 第18列=Supplier, 第19列=Consultant, 第20列=Sales Consultant, 第21列=Invoice No, 第22列=Invoice Date
+                            detail = AthinaBookingDetail(
+                                header_id=current_header.id,
+                                # 业务信息
+                                corporate_name=self.clean_string(row_values[1]) if len(row_values) > 1 else None,  # Corporate Name
+                                client_name=self.clean_string(row_values[2]) if len(row_values) > 2 else None,  # Client Name
+                                booking_ref=self.parse_integer(row_values[3]) if len(row_values) > 3 else None,  # Booking Ref
+                                book_type=self.clean_string(row_values[4]) if len(row_values) > 4 else None,  # Book Type
+                                book_date=self.parse_date(row_values[5]) if len(row_values) > 5 else None,  # Book Date
+                                dep_date=self.parse_date(row_values[6]) if len(row_values) > 6 else None,  # Dep Date
+                                itin_desc=self.clean_string(row_values[7]) if len(row_values) > 7 else None,  # Itin Desc
+                                # 财务信息
+                                gross_curr=self.clean_string(row_values[8]) if len(row_values) > 8 else None,  # Gross Curr
+                                gross_amount=self.parse_decimal(row_values[9]) if len(row_values) > 9 else None,  # Gross
+                                gross_tax=self.parse_decimal(row_values[10]) if len(row_values) > 10 else None,  # Gross Tax
+                                discount=self.parse_decimal(row_values[11]) if len(row_values) > 11 else None,  # Disc
+                                local_gross=self.parse_decimal(row_values[12]) if len(row_values) > 12 else None,  # Local Gross
+                                local_cost=self.parse_decimal(row_values[13]) if len(row_values) > 13 else None,  # Local Cost
+                                profit_loss=self.parse_decimal(row_values[14]) if len(row_values) > 14 else None,  # PL
+                                margin=self.parse_percentage(row_values[15]) if len(row_values) > 15 else None,  # Marg
+                                balance=self.parse_decimal(row_values[16]) if len(row_values) > 16 else None,  # Balance
+                                # 供应商信息
+                                supplier=self.clean_string(row_values[17]) if len(row_values) > 17 else None,  # Supplier
+                                consultant=self.clean_string(row_values[18]) if len(row_values) > 18 else None,  # Consultant
+                                sales_consultant=self.clean_string(row_values[19]) if len(row_values) > 19 else None,  # Sales Consultant
+                                # 发票信息
+                                invoice_no=self.clean_string(row_values[20]) if len(row_values) > 20 else None,  # Invoice No
+                                invoice_date=self.parse_date(row_values[21]) if len(row_values) > 21 else None,  # Invoice Date
+                                # 特殊标记
+                                is_subtotal=False
+                            )
+                            db.session.add(detail)
+                            imported_details += 1
+                            print(f"创建新明细记录，header_id: {current_header.id}, booking_ref: {booking_ref}, 客户: {detail.client_name}")
                         
                         # 同时更新头部的顾问和发票信息（如果头部还没有这些信息）
-                        if not current_header.consultant and detail.consultant:
-                            current_header.consultant = detail.consultant
-                        if not current_header.sales_consultant and detail.sales_consultant:
-                            current_header.sales_consultant = detail.sales_consultant
-                        if not current_header.invoice_no and detail.invoice_no:
-                            current_header.invoice_no = detail.invoice_no
-                        if not current_header.invoice_date and detail.invoice_date:
-                            current_header.invoice_date = detail.invoice_date
+                        detail_to_check = existing_detail if existing_detail else detail
+                        if not current_header.consultant and detail_to_check.consultant:
+                            current_header.consultant = detail_to_check.consultant
+                        if not current_header.sales_consultant and detail_to_check.sales_consultant:
+                            current_header.sales_consultant = detail_to_check.sales_consultant
+                        if not current_header.invoice_no and detail_to_check.invoice_no:
+                            current_header.invoice_no = detail_to_check.invoice_no
+                        if not current_header.invoice_date and detail_to_check.invoice_date:
+                            current_header.invoice_date = detail_to_check.invoice_date
                     else:
                         print(f"第{index}行不包含有效业务数据，跳过")
             
             # 提交所有更改
             db.session.commit()
-            print(f"导入成功！共导入 {imported_headers} 个预订头部，{imported_details} 个明细记录")
+            print(f"导入完成！新增 {imported_headers} 个预订头部，{imported_details} 个明细记录；更新 {updated_headers} 个预订头部，{updated_details} 个明细记录；跳过 {skipped_empty_rows} 个空白行，{skipped_invalid_refs} 个无效引用")
             
             return {
                 'success': True,
-                'message': f'导入成功！共导入 {imported_headers} 个预订头部，{imported_details} 个明细记录',
+                'message': f'导入完成！新增 {imported_headers} 个预订头部，{imported_details} 个明细记录；更新 {updated_headers} 个预订头部，{updated_details} 个明细记录；跳过 {skipped_empty_rows} 个空白行，{skipped_invalid_refs} 个无效引用',
                 'imported_headers': imported_headers,
-                'imported_details': imported_details
+                'updated_headers': updated_headers,
+                'imported_details': imported_details,
+                'updated_details': updated_details,
+                'skipped_empty_rows': skipped_empty_rows,
+                'skipped_invalid_refs': skipped_invalid_refs,
+                'total_headers': imported_headers + updated_headers,
+                'total_details': imported_details + updated_details,
+                'total_processed': imported_headers + updated_headers + imported_details + updated_details + skipped_empty_rows + skipped_invalid_refs
             }
             
         except Exception as e:

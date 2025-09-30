@@ -105,6 +105,12 @@
         background-color: #e8f5e8;
     }
 
+    .upload-area.file-selected {
+        border-color: #2196F3;
+        background-color: #e3f2fd;
+        transform: scale(1.02);
+    }
+
     .upload-icon {
         font-size: 48px;
         color: #4CAF50;
@@ -434,8 +440,14 @@
         const fileInfo = document.getElementById('fileInfo');
         const importBtn = document.getElementById('importBtn');
 
-        // 点击上传区域选择文件
-        uploadArea.addEventListener('click', function() {
+        // 点击上传区域选择文件（排除按钮和文件信息区域）
+        uploadArea.addEventListener('click', function(e) {
+            // 如果点击的是按钮、文件信息区域或其他交互元素，不触发文件选择
+            if (e.target.closest('.upload-btn') || 
+                e.target.closest('#fileInfo') ||
+                e.target.closest('#importBtn')) {
+                return;
+            }
             fileInput.click();
         });
 
@@ -468,6 +480,8 @@
 
         if (!file.name.toLowerCase().endsWith('.csv')) {
             alert('请选择CSV格式的文件');
+            // 清空文件输入
+            document.getElementById('csvFileInput').value = '';
             return;
         }
 
@@ -484,6 +498,13 @@
         
         // 更新上传区域显示
         document.querySelector('.upload-text').textContent = '文件已选择，点击导入按钮开始导入';
+        
+        // 添加成功选择的视觉反馈
+        const uploadArea = document.getElementById('uploadArea');
+        uploadArea.classList.add('file-selected');
+        setTimeout(() => {
+            uploadArea.classList.remove('file-selected');
+        }, 1000);
     }
 
     // 格式化文件大小
@@ -536,6 +557,11 @@
                 
                 // 刷新统计数据
                 refreshStats();
+                
+                // 重置文件选择状态
+                setTimeout(() => {
+                    resetFileSelection();
+                }, 2000); // 2秒后重置，让用户看到成功信息
             } else {
                 resultDisplay.className = 'result-display result-error';
                 resultDisplay.innerHTML = '<i class="fas fa-exclamation-circle"></i> ' + data.message;
@@ -549,6 +575,18 @@
         .finally(() => {
             importBtn.disabled = false;
         });
+    }
+
+    // 重置文件选择状态
+    function resetFileSelection() {
+        selectedFile = null;
+        document.getElementById('csvFileInput').value = '';
+        document.getElementById('fileName').textContent = '-';
+        document.getElementById('fileSize').textContent = '-';
+        document.getElementById('fileType').textContent = '-';
+        document.getElementById('fileInfo').classList.remove('show');
+        document.getElementById('importBtn').disabled = true;
+        document.querySelector('.upload-text').textContent = '拖拽CSV文件到此处，或点击选择文件';
     }
 
     // 刷新统计数据

@@ -34,9 +34,10 @@ def soa_data():
         search = request.args.get('search', '')
         month = request.args.get('month', '')
         company = request.args.get('company', '')
+        balance_positive = request.args.get('balance_positive', 'false').lower() == 'true'
         
         soa_service = SOAService()
-        result = soa_service.get_soa_list(page=page, per_page=per_page, search=search, month=month, company=company)
+        result = soa_service.get_soa_list(page=page, per_page=per_page, search=search, month=month, company=company, balance_positive=balance_positive)
         
         return jsonify(result)
         
