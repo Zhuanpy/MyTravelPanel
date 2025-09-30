@@ -150,6 +150,7 @@
                                 <th>行业</th>
                                 <th>规模</th>
                                 <th>状态</th>
+                                <th>点击次数</th>
                                 <th>创建时间</th>
                                 <th>操作</th>
                             </tr>
@@ -159,7 +160,8 @@
                             <tr>
                                 <td>
                                     <a href="{{ url_for('company.company_detail', company_id=company.id) }}" 
-                                       class="text-decoration-none">
+                                       class="text-decoration-none company-link" 
+                                       data-company-id="{{ company.id }}">
                                         {{ company.company_name }}
                                     </a>
                                 </td>
@@ -206,6 +208,16 @@
                                         <span class="badge bg-secondary">非活跃</span>
                                     {% elif company.status == 'suspended' %}
                                         <span class="badge bg-warning">暂停</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="click-count badge bg-info" data-company-id="{{ company.id }}">
+                                        {{ company.click_count or 0 }}
+                                    </span>
+                                    {% if company.last_clicked_at %}
+                                        <small class="text-muted d-block">
+                                            {{ company.last_clicked_at.strftime('%m-%d %H:%M') }}
+                                        </small>
                                     {% endif %}
                                 </td>
                                 <td>{{ company.created_at.strftime('%Y-%m-%d') if company.created_at else '-' }}</td>
@@ -670,6 +682,145 @@ document.getElementById('uploadModal').addEventListener('hidden.bs.modal', funct
     const alerts = document.querySelectorAll('#uploadModal .alert');
     alerts.forEach(alert => alert.remove());
 });
+
+// 公司点击次数追踪
+document.addEventListener('DOMContentLoaded', function() {
+    // 检查是否是从详情页面返回的
+    const returnFromDetail = sessionStorage.getItem('company_return_from_detail');
+    if (returnFromDetail === 'true') {
+        // 显示返回成功提示
+        const returnToast = document.createElement('div');
+        returnToast.className = 'position-fixed top-0 end-0 p-3';
+        returnToast.style.zIndex = '9999';
+        returnToast.innerHTML = `
+            <div class="toast show" role="alert">
+                <div class="toast-header bg-primary text-white">
+                    <strong class="me-auto">排序已更新</strong>
+                    <button type="button" class="btn-close btn-close-white" onclick="this.parentElement.parentElement.remove()"></button>
+                </div>
+                <div class="toast-body">
+                    公司列表已按最新访问次数重新排序
+                </div>
+            </div>
+        `;
+        document.body.appendChild(returnToast);
+        
+        // 3秒后自动移除提示
+        setTimeout(() => {
+            if (returnToast.parentNode) {
+                returnToast.remove();
+            }
+        }, 3000);
+        
+        // 清除标识
+        sessionStorage.removeItem('company_return_from_detail');
+    }
+    const companyLinks = document.querySelectorAll('.company-link');
+    
+    companyLinks.forEach(link => {
+        link.addEventListener('click', function(e) {
+            const companyId = this.getAttribute('data-company-id');
+            
+            // 异步记录点击次数
+            fetch(`/company/api/click/${companyId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // 显示点击成功的提示
+                    showClickSuccess(companyId, data.click_count);
+                    
+                    // 延迟1秒后重新加载页面以更新排序
+                    setTimeout(() => {
+                        // 保存当前的搜索和筛选参数
+                        const currentUrl = new URL(window.location);
+                        const searchParams = currentUrl.search;
+                        
+                        // 重新加载页面
+                        window.location.href = currentUrl.pathname + searchParams;
+                    }, 1000);
+                }
+            })
+            .catch(error => {
+                console.error('记录点击次数失败:', error);
+                showClickError();
+            });
+        });
+    });
+});
+
+// 显示点击成功提示
+function showClickSuccess(companyId, clickCount) {
+    const clickCountElement = document.querySelector(`.click-count[data-company-id="${companyId}"]`);
+    if (clickCountElement) {
+        // 更新点击次数显示
+        clickCountElement.textContent = clickCount;
+        
+        // 添加成功动画效果
+        clickCountElement.classList.add('animate__animated', 'animate__pulse');
+        clickCountElement.style.backgroundColor = '#28a745'; // 临时变为绿色
+        
+        // 显示成功提示
+        const successToast = document.createElement('div');
+        successToast.className = 'position-fixed top-0 end-0 p-3';
+        successToast.style.zIndex = '9999';
+        successToast.innerHTML = `
+            <div class="toast show" role="alert">
+                <div class="toast-header bg-success text-white">
+                    <strong class="me-auto">点击记录成功</strong>
+                    <button type="button" class="btn-close btn-close-white" onclick="this.parentElement.parentElement.remove()"></button>
+                </div>
+                <div class="toast-body">
+                    点击次数已更新为 <strong>${clickCount}</strong>，页面将自动刷新以更新排序
+                </div>
+            </div>
+        `;
+        document.body.appendChild(successToast);
+        
+        // 3秒后自动移除提示
+        setTimeout(() => {
+            if (successToast.parentNode) {
+                successToast.remove();
+            }
+        }, 3000);
+        
+        // 恢复原来的样式
+        setTimeout(() => {
+            clickCountElement.classList.remove('animate__animated', 'animate__pulse');
+            clickCountElement.style.backgroundColor = '#0dcaf0'; // 恢复蓝色
+        }, 600);
+    }
+}
+
+// 显示点击错误提示
+function showClickError() {
+    const errorToast = document.createElement('div');
+    errorToast.className = 'position-fixed top-0 end-0 p-3';
+    errorToast.style.zIndex = '9999';
+    errorToast.innerHTML = `
+        <div class="toast show" role="alert">
+            <div class="toast-header bg-danger text-white">
+                <strong class="me-auto">点击记录失败</strong>
+                <button type="button" class="btn-close btn-close-white" onclick="this.parentElement.parentElement.remove()"></button>
+            </div>
+            <div class="toast-body">
+                无法记录点击次数，请稍后重试
+            </div>
+        </div>
+    `;
+    document.body.appendChild(errorToast);
+    
+    // 3秒后自动移除提示
+    setTimeout(() => {
+        if (errorToast.parentNode) {
+            errorToast.remove();
+        }
+    }, 3000);
+}
 </script>
 
 <!-- 引入XLSX库 -->

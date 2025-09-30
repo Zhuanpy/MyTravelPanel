@@ -1,7 +1,8 @@
 from flask_wtf import FlaskForm
-from wtforms import StringField, TextAreaField, SelectField, DecimalField, SubmitField
+from wtforms import StringField, TextAreaField, SelectField, DecimalField, SubmitField, DateField
 from wtforms.validators import DataRequired, Length, Optional, NumberRange
 import re
+from datetime import date
 
 def validate_email_with_special_values(form, field):
     """自定义邮箱验证器，允许特殊值如N/A、NONE等"""
@@ -106,6 +107,10 @@ class CustomerCompanyForm(FlaskForm):
     
     remarks = TextAreaField('备注', [
         Length(max=1000, message='备注不能超过1000个字符')
+    ])
+    
+    created_at = DateField('创建时间', [
+        Optional()
     ])
     
     submit = SubmitField('保存公司')

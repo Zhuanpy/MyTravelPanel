@@ -1,281 +1,193 @@
 {% extends "shared/staff_base.html" %}
-
-{% block title %}添加供应商信息{% endblock %}
-
-{% block extra_css %}
+{% block title %}新增供应商 - MyTravelPanel{% endblock %}
+{% block head %}
 <style>
-    .add-container {
-        max-width: 1000px;
-        margin: 2rem auto;
-        padding: 0 15px;
+    .card {
+        border-radius: 0.5rem;
+        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
     }
     
-    .add-card {
-        background: #fff;
-        border-radius: 12px;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-        overflow: hidden;
-        border: 1px solid #e9ecef;
-    }
-    
-    .add-header {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        padding: 2rem;
-        text-align: center;
-    }
-    
-    .add-header h2 {
-        margin: 0;
-        font-size: 1.75rem;
-        font-weight: 600;
-        text-shadow: 0 2px 4px rgba(0,0,0,0.3);
-    }
-    
-    .add-body {
-        padding: 2rem;
-    }
-    
-    .form-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-        gap: 1.5rem;
-        margin-bottom: 2rem;
-    }
-    
-    .form-row {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-        gap: 1rem;
-    }
-    
-    .form-group {
-        display: flex;
-        flex-direction: column;
-    }
-    
-    .form-group label {
-        font-weight: 600;
-        color: #495057;
-        font-size: 0.875rem;
-        margin-bottom: 0.5rem;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }
-    
-    .form-group input,
-    .form-group select,
-    .form-group textarea {
-        padding: 0.75rem;
-        border: 2px solid #e9ecef;
-        border-radius: 8px;
-        font-size: 0.95rem;
-        color: #495057;
-        transition: all 0.3s ease;
-        background: #fff;
-    }
-    
-    .form-group input:focus,
-    .form-group select:focus,
-    .form-group textarea:focus {
-        border-color: #667eea;
-        outline: none;
-        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-    }
-    
-    .form-group.full-width {
-        grid-column: 1 / -1;
-    }
-    
-    .action-buttons {
-        display: flex;
-        gap: 1rem;
-        justify-content: center;
-        margin-top: 2rem;
-        padding-top: 2rem;
-        border-top: 1px solid #e9ecef;
-    }
-    
-    .btn-custom {
-        padding: 0.75rem 2rem;
-        border-radius: 8px;
-        font-weight: 500;
-        text-decoration: none;
-        transition: all 0.3s ease;
+    .alert {
+        border-radius: 0.375rem;
         border: none;
-        cursor: pointer;
-        display: inline-flex;
-        align-items: center;
-        gap: 0.5rem;
-        font-size: 1rem;
     }
     
-    .btn-primary-custom {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
+    .alert-info {
+        background-color: #d1ecf1;
+        color: #0c5460;
     }
     
-    .btn-primary-custom:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-        color: white;
+    .alert-warning {
+        background-color: #fff3cd;
+        color: #856404;
     }
     
-    .btn-secondary-custom {
-        background: #6c757d;
-        color: white;
+    .alert-danger {
+        background-color: #f8d7da;
+        color: #721c24;
     }
     
-    .btn-secondary-custom:hover {
-        background: #5a6268;
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(108, 117, 125, 0.4);
-        color: white;
+    .alert-success {
+        background-color: #d4edda;
+        color: #155724;
     }
     
-    .back-button {
-        margin-bottom: 1.5rem;
+    .form-label {
+        font-weight: 600;
+        color: #495057;
     }
     
-    @media (max-width: 768px) {
-        .add-container {
-            margin: 1rem auto;
-            padding: 0 10px;
-        }
-        
-        .add-header {
-            padding: 1.5rem 1rem;
-        }
-        
-        .add-header h2 {
-            font-size: 1.5rem;
-        }
-        
-        .add-body {
-            padding: 1.5rem 1rem;
-        }
-        
-        .form-grid {
-            grid-template-columns: 1fr;
-            gap: 1rem;
-        }
-        
-        .form-row {
-            grid-template-columns: 1fr;
-        }
-        
-        .action-buttons {
-            flex-direction: column;
-            align-items: center;
-        }
-        
-        .btn-custom {
-            width: 100%;
-            max-width: 250px;
-            justify-content: center;
-        }
+    .form-control, .form-select {
+        border-radius: 0.375rem;
+        border: 1px solid #ced4da;
     }
     
-    @media (max-width: 480px) {
-        .form-group input,
-        .form-group select,
-        .form-group textarea {
-            padding: 0.6rem;
-            font-size: 0.9rem;
-        }
+    .form-control:focus, .form-select:focus {
+        border-color: #80bdff;
+        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+    }
+    
+    .btn {
+        border-radius: 0.375rem;
     }
 </style>
 {% endblock %}
-
 {% block content %}
-<div class="add-container">
-    <div class="back-button">
-        <a href="{{ url_for('supplier.suppliers') }}" class="btn btn-secondary-custom">
-            <i class="fas fa-arrow-left"></i> 返回列表
-        </a>
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0">
+                <i class="fas fa-truck text-primary"></i>
+                新增供应商
+            </h1>
+            <p class="text-muted">添加新的供应商信息</p>
+        </div>
+        <div>
+            <a href="{{ url_for('supplier.suppliers') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left"></i> 返回列表
+            </a>
+        </div>
     </div>
     
-    <div class="add-card">
-        <div class="add-header">
-            <h2>添加供应商信息</h2>
-        </div>
-        
-        <div class="add-body">
-            <form method="POST" action="{{ url_for('supplier.add_supplier') }}">
-                <div class="form-grid">
-                    <!-- 基本信息行 -->
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="name">供应商名称 *</label>
-                            <input type="text" id="name" name="name" required placeholder="请输入供应商名称">
-                        </div>
-                        <div class="form-group">
-                            <label for="supplier_type">供应商类型</label>
-                            <select id="supplier_type" name="supplier_type">
-                                {% for type_code, type_name in supplier_types %}
-                                <option value="{{ type_code }}">{{ type_name }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                    </div>
-                    
-                    <!-- 联系信息行 -->
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="contact_person">联系人</label>
-                            <input type="text" id="contact_person" name="contact_person" placeholder="请输入联系人姓名">
-                        </div>
-                        <div class="form-group">
-                            <label for="phone">联系电话</label>
-                            <input type="text" id="phone" name="phone" placeholder="请输入联系电话">
-                        </div>
-                        <div class="form-group">
-                            <label for="email">邮箱地址</label>
-                            <input type="email" id="email" name="email" placeholder="请输入邮箱地址">
-                        </div>
-                    </div>
-                    
-                    <!-- 地址信息行 -->
-                    <div class="form-group full-width">
-                        <label for="address">详细地址 *</label>
-                        <textarea id="address" name="address" rows="2" required placeholder="请输入详细地址"></textarea>
-                    </div>
-                    
-                    <!-- 地理信息行 -->
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="country">所在国家</label>
-                            <input type="text" id="country" name="country" placeholder="请输入所在国家">
-                        </div>
-                        <div class="form-group">
-                            <label for="region">所在地区</label>
-                            <input type="text" id="region" name="region" placeholder="请输入所在地区">
-                        </div>
-                        <div class="form-group">
-                            <label for="status">状态</label>
-                            <select id="status" name="status">
-                                <option value="active">活跃</option>
-                                <option value="inactive">非活跃</option>
-                            </select>
-                        </div>
-                    </div>
-                    
-                    <!-- 备注信息行 -->
-                    <div class="form-group full-width">
-                        <label for="notes">备注信息</label>
-                        <textarea id="notes" name="notes" rows="3" placeholder="请输入备注信息..."></textarea>
-                    </div>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                 </div>
-                
-                <div class="action-buttons">
-                    <button type="submit" class="btn-custom btn-primary-custom">
-                        <i class="fas fa-save"></i> 保存供应商
-                    </button>
-                    <a href="{{ url_for('supplier.suppliers') }}" class="btn-custom btn-secondary-custom">
-                        <i class="fas fa-times"></i> 取消
-                    </a>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+    
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">供应商信息</h5>
                 </div>
-            </form>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('supplier.add_supplier') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="name" class="form-label">供应商名称 *</label>
+                                    <input type="text" class="form-control" id="name" name="name" required 
+                                           placeholder="请输入供应商名称" value="{{ request.form.get('name', '') }}">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="supplier_type" class="form-label">供应商类型</label>
+                                    <select class="form-select" id="supplier_type" name="supplier_type">
+                                        {% for type_code, type_name in supplier_types %}
+                                        <option value="{{ type_code }}" 
+                                                {{ 'selected' if request.form.get('supplier_type') == type_code }}>
+                                            {{ type_name }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="contact_person" class="form-label">联系人</label>
+                                    <input type="text" class="form-control" id="contact_person" name="contact_person" 
+                                           placeholder="请输入联系人姓名" value="{{ request.form.get('contact_person', '') }}">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="phone" class="form-label">联系电话</label>
+                                    <input type="text" class="form-control" id="phone" name="phone" 
+                                           placeholder="请输入联系电话" value="{{ request.form.get('phone', '') }}">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="email" class="form-label">邮箱地址</label>
+                                    <input type="email" class="form-control" id="email" name="email" 
+                                           placeholder="请输入邮箱地址" value="{{ request.form.get('email', '') }}">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="status" class="form-label">状态</label>
+                                    <select class="form-select" id="status" name="status">
+                                        <option value="active" {{ 'selected' if request.form.get('status') == 'active' }}>活跃</option>
+                                        <option value="inactive" {{ 'selected' if request.form.get('status') == 'inactive' }}>非活跃</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="country" class="form-label">国家</label>
+                                    <input type="text" class="form-control" id="country" name="country" 
+                                           placeholder="请输入国家" value="{{ request.form.get('country', '') }}">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="region" class="form-label">地区</label>
+                                    <input type="text" class="form-control" id="region" name="region" 
+                                           placeholder="请输入地区" value="{{ request.form.get('region', '') }}">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="address" class="form-label">详细地址</label>
+                            <textarea class="form-control" id="address" name="address" rows="3" 
+                                      placeholder="请输入详细地址">{{ request.form.get('address', '') }}</textarea>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="notes" class="form-label">备注信息</label>
+                            <textarea class="form-control" id="notes" name="notes" rows="4" 
+                                      placeholder="请输入备注信息">{{ request.form.get('notes', '') }}</textarea>
+                        </div>
+                        
+                        <div class="d-flex justify-content-end gap-2">
+                            <a href="{{ url_for('supplier.suppliers') }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-times"></i> 取消
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> 保存供应商
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
         </div>
     </div>
 </div>

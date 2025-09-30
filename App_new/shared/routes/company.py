@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, flash, redirect, url_for, jsonify, send_file
 from flask_login import login_required, current_user
-from App_new.exts import db
+from App_new.exts import db, csrf
 from App_new.business.projects.models.project import CustomerCompany
 from App_new.shared.forms.company_forms import CustomerCompanyForm
 from App_new.utils.decorators import staff_only
@@ -35,11 +35,36 @@ def list_companies():
     if status:
         query = query.filter(CustomerCompany.status == status)
     
-    companies = query.order_by(CustomerCompany.created_at.desc()).paginate(
-        page=page, per_page=20, error_out=False
-    )
+    # 按点击次数降序排列，点击次数相同时按创建时间降序排列
+    companies = query.order_by(
+        CustomerCompany.click_count.desc(),
+        CustomerCompany.created_at.desc()
+    ).paginate(page=page, per_page=20, error_out=False)
     
     return render_template('company/list_companies.html', companies=companies)
+
+@company.route('/api/click/<int:company_id>', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def record_company_click(company_id):
+    """记录公司点击次数"""
+    try:
+        company = CustomerCompany.query.get_or_404(company_id)
+        company.increment_click_count()
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'click_count': company.click_count,
+            'last_clicked_at': company.last_clicked_at.isoformat() if company.last_clicked_at else None
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
 
 @company.route('/create', methods=['GET', 'POST'])
 @login_required
@@ -50,6 +75,9 @@ def create_company():
     
     if form.validate_on_submit():
         try:
+            # 设置创建时间：如果表单中有值则使用表单值，否则使用当前时间
+            created_at = form.created_at.data if form.created_at.data else datetime.utcnow()
+            
             company = CustomerCompany(
                 company_name=form.company_name.data.upper() if form.company_name.data else '',
                 company_code=form.company_code.data,
@@ -63,6 +91,7 @@ def create_company():
                 currency=form.currency.data,
                 status=form.status.data,
                 remarks=form.remarks.data,
+                created_at=created_at,
                 created_by=current_user.username if current_user.is_authenticated else 'system'
             )
             db.session.add(company)
@@ -92,6 +121,11 @@ def create_company():
 def company_detail(company_id):
     """公司详情"""
     company = CustomerCompany.query.get_or_404(company_id)
+    
+    # 记录访问详情页面的点击次数
+    company.increment_click_count()
+    db.session.commit()
+    
     return render_template('company/company_detail.html', company=company)
 
 @company.route('/<int:company_id>/edit', methods=['GET', 'POST'])
@@ -108,6 +142,11 @@ def edit_company(company_id):
             # 确保公司名称为大写
             if company.company_name:
                 company.company_name = company.company_name.upper()
+            
+            # 如果没有设置创建时间，自动设置为今天
+            if not company.created_at:
+                company.created_at = datetime.utcnow()
+            
             db.session.commit()
             flash('公司信息更新成功！', 'success')
             return redirect(url_for('company.company_detail', company_id=company.id))

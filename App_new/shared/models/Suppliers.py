@@ -28,6 +28,7 @@ class Supplier(db.Model):
     status = db.Column(db.Enum('active', 'inactive'), default='active')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     last_updated = db.Column(db.DateTime, default=datetime.utcnow)
+    click_count = db.Column(db.Integer, default=0, comment='点击次数')
     notes = db.Column(db.Text)
 
     # 关联关系
@@ -51,6 +52,7 @@ class Supplier(db.Model):
             'status': self.status,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'last_updated': self.last_updated.isoformat() if self.last_updated else None,
+            'click_count': self.click_count,
             'notes': self.notes
         }
 

@@ -22,6 +22,8 @@ class CustomerCompany(db.Model):
     currency = db.Column(db.String(10), default='SGD', comment='币种')
     status = db.Column(db.Enum('active', 'inactive', 'suspended'), default='active', comment='状态')
     remarks = db.Column(db.Text, nullable=True, comment='备注')
+    click_count = db.Column(db.Integer, default=0, comment='点击次数')
+    last_clicked_at = db.Column(db.DateTime, nullable=True, comment='最后点击时间')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     created_by = db.Column(db.String(50), nullable=True, comment='创建人')
@@ -32,6 +34,12 @@ class CustomerCompany(db.Model):
 
     def __repr__(self):
         return f'<CustomerCompany {self.company_name}>'
+    
+    def increment_click_count(self):
+        """增加点击次数"""
+        self.click_count = (self.click_count or 0) + 1
+        self.last_clicked_at = datetime.utcnow()
+        self.updated_at = datetime.utcnow()
 
     def to_dict(self):
         """转换为字典格式"""
@@ -49,6 +57,8 @@ class CustomerCompany(db.Model):
             'currency': self.currency,
             'status': self.status,
             'remarks': self.remarks,
+            'click_count': self.click_count,
+            'last_clicked_at': self.last_clicked_at.isoformat() if self.last_clicked_at else None,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
             'created_by': self.created_by

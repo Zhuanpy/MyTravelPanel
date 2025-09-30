@@ -200,7 +200,24 @@
             </div>
         </div>
         
-        <!-- 第五行：备注 -->
+        <!-- 第五行：创建时间 -->
+        <div class="row">
+            <div class="col-md-6">
+                <div class="mb-3">
+                    {{ form.created_at.label(class="form-label") }} <small class="text-muted">(可选，留空将自动设置为今天)</small>
+                    {{ form.created_at(class="form-control") }}
+                    {% if form.created_at.errors %}
+                        <div class="text-danger">
+                            {% for error in form.created_at.errors %}
+                                <small>{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- 第六行：备注 -->
         <div class="row">
             <div class="col-12">
                 <div class="mb-3">

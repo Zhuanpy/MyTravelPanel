@@ -14,7 +14,7 @@
             <a href="{{ url_for('company.edit_company', company_id=company.id) }}" class="btn btn-warning">
                 <i class="fas fa-edit"></i> 编辑
             </a>
-            <a href="{{ url_for('company.list_companies') }}" class="btn btn-outline-secondary">
+            <a href="{{ url_for('company.list_companies') }}" class="btn btn-outline-secondary" onclick="returnToList()">
                 <i class="fas fa-arrow-left"></i> 返回列表
             </a>
         </div>
@@ -96,6 +96,12 @@
                                     <span class="badge bg-warning">暂停</span>
                                 {% endif %}
                             </p>
+                            <p><strong>访问次数：</strong>
+                                <span class="badge bg-info">{{ company.click_count or 0 }}</span>
+                                {% if company.last_clicked_at %}
+                                    <small class="text-muted">（最后访问：{{ company.last_clicked_at.strftime('%Y-%m-%d %H:%M') }}）</small>
+                                {% endif %}
+                            </p>
                         </div>
                     </div>
                     
@@ -153,4 +159,47 @@
         </div>
     </div>
 </div>
+
+<script>
+// 返回列表页面，保持排序状态
+function returnToList() {
+    // 使用sessionStorage保存返回标识
+    sessionStorage.setItem('company_return_from_detail', 'true');
+    
+    // 正常跳转到列表页面
+    window.location.href = "{{ url_for('company.list_companies') }}";
+}
+
+// 页面加载时显示访问成功提示
+document.addEventListener('DOMContentLoaded', function() {
+    // 检查是否是从列表页面跳转过来的
+    const referrer = document.referrer;
+    if (referrer.includes('/company/') && !referrer.includes('/company/{{ company.id }}')) {
+        // 显示访问成功提示
+        const successToast = document.createElement('div');
+        successToast.className = 'position-fixed top-0 end-0 p-3';
+        successToast.style.zIndex = '9999';
+        successToast.innerHTML = `
+            <div class="toast show" role="alert">
+                <div class="toast-header bg-success text-white">
+                    <strong class="me-auto">访问记录成功</strong>
+                    <button type="button" class="btn-close btn-close-white" onclick="this.parentElement.parentElement.remove()"></button>
+                </div>
+                <div class="toast-body">
+                    访问次数已更新为 <strong>{{ company.click_count }}</strong>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(successToast);
+        
+        // 3秒后自动移除提示
+        setTimeout(() => {
+            if (successToast.parentNode) {
+                successToast.remove();
+            }
+        }, 3000);
+    }
+});
+</script>
+
 {% endblock %} 
