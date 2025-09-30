@@ -1,7 +1,9 @@
-from flask import Blueprint, render_template, jsonify, request, url_for, redirect, flash
+from flask import Blueprint, render_template, jsonify, request, url_for, redirect, flash, send_file
 from flask_login import login_required
 from App_new.utils.Statement import OriginalStatement
 from App_new.utils.Invoice import CountHid
+from App_new.exts import db
+from App_new.finance.models.statement import BankStatement, BankTransaction
 import os
 import logging
 from App_new.config import Config
@@ -11,6 +13,7 @@ import tempfile
 from datetime import datetime
 from App_new.exts import csrf
 from App_new.utils.decorators import staff_only
+from sqlalchemy import desc
 from App_new.utils.report_utils import (
     get_report_headers_string,
     read_excel_file,
@@ -31,8 +34,415 @@ statement_blue = Blueprint('statement_routes', __name__)
 @login_required
 @staff_only
 def uob_bank():
-    # 只渲染UOB银行账单页面，不执行任何操作
-    return render_template('finance/statement/UobBank.html')
+    # 获取筛选参数
+    month_param = request.args.get('month', '')
+    
+    # 如果没有指定月份，默认使用最新一个月
+    if not month_param:
+        # 查询UOB银行最新的交易记录，获取最新的月份
+        latest_transaction = BankTransaction.query.join(BankStatement).filter(
+            BankStatement.bank_name == 'UOB'
+        ).order_by(desc(BankTransaction.transaction_date)).first()
+        
+        if latest_transaction:
+            # 使用最新交易记录的年份和月份
+            latest_date = latest_transaction.transaction_date
+            month_param = f"{latest_date.year}-{latest_date.month:02d}"
+        else:
+            # 如果没有交易记录，使用当前月份
+            from datetime import datetime
+            now = datetime.now()
+            month_param = f"{now.year}-{now.month:02d}"
+    
+    filters = {
+        'month': month_param,
+        'start_date': request.args.get('start_date', ''),
+        'end_date': request.args.get('end_date', ''),
+        'type': request.args.get('type', ''),
+        'owner': request.args.get('owner', ''),
+        'ref': request.args.get('ref', ''),
+        'sort': request.args.get('sort', 'date_desc')
+    }
+    
+    # 获取UOB银行的对账单数据，按创建时间降序排列
+    statements = BankStatement.query.filter(
+        BankStatement.bank_name == 'UOB'
+    ).order_by(desc(BankStatement.created_at)).limit(10).all()
+    
+    # 获取UOB银行的交易数据
+    transactions_query = BankTransaction.query.join(BankStatement).filter(
+        BankStatement.bank_name == 'UOB'
+    )
+    
+    # 应用筛选条件
+    if filters['month']:
+        # 月份筛选：格式为 YYYY-MM
+        year, month = filters['month'].split('-')
+        transactions_query = transactions_query.filter(
+            db.func.extract('year', BankTransaction.transaction_date) == int(year),
+            db.func.extract('month', BankTransaction.transaction_date) == int(month)
+        )
+    
+    if filters['start_date']:
+        transactions_query = transactions_query.filter(
+            BankTransaction.transaction_date >= datetime.strptime(filters['start_date'], '%Y-%m-%d').date()
+        )
+    
+    if filters['end_date']:
+        transactions_query = transactions_query.filter(
+            BankTransaction.transaction_date <= datetime.strptime(filters['end_date'], '%Y-%m-%d').date()
+        )
+    
+    if filters['type']:
+        transactions_query = transactions_query.filter(
+            BankTransaction.transaction_type == filters['type']
+        )
+    
+    if filters['owner']:
+        if filters['owner'] == '__blank__':
+            transactions_query = transactions_query.filter(
+                db.or_(BankTransaction.owner_label == None, BankTransaction.owner_label == '')
+            )
+        else:
+            transactions_query = transactions_query.filter(
+                BankTransaction.owner_label == filters['owner']
+            )
+    
+    if filters['ref']:
+        transactions_query = transactions_query.filter(
+            BankTransaction.accounting_ref.like(f'%{filters["ref"]}%')
+        )
+    
+    # 应用排序
+    if filters['sort'] == 'date_desc':
+        transactions_query = transactions_query.order_by(desc(BankTransaction.transaction_date))
+    elif filters['sort'] == 'date_asc':
+        transactions_query = transactions_query.order_by(BankTransaction.transaction_date)
+    elif filters['sort'] == 'amount_desc':
+        transactions_query = transactions_query.order_by(desc(BankTransaction.amount))
+    elif filters['sort'] == 'amount_asc':
+        transactions_query = transactions_query.order_by(BankTransaction.amount)
+    else:
+        transactions_query = transactions_query.order_by(desc(BankTransaction.transaction_date))
+    
+    # 分页参数
+    page = request.args.get('page', 1, type=int)
+    per_page = 30  # 每页显示30条记录
+    
+    # 获取分页数据
+    transactions_pagination = transactions_query.paginate(
+        page=page, 
+        per_page=per_page, 
+        error_out=False
+    )
+    
+    transactions = transactions_pagination.items
+    pagination = transactions_pagination
+    
+    # 获取可用的归属选项（从数据库或其他来源获取）
+    owner_options = ['Business', 'LG', 'JE', '个人消费', '个人商用']
+    
+    # 检查是否是部分请求（AJAX筛选）
+    if request.args.get('partial') == 'table':
+        return render_template('finance/statement/_uob_tx_table.html', 
+                             transactions=transactions,
+                             filters=filters,
+                             owner_options=owner_options,
+                             pagination=pagination)
+    
+    return render_template('finance/statement/UobBank.html', 
+                         statements=statements, 
+                         transactions=transactions,
+                         filters=filters,
+                         owner_options=owner_options,
+                         pagination=pagination)
+
+
+@statement_blue.route('/download_uob_statement/<statement_number>', methods=['GET'])
+@login_required
+@staff_only
+def download_uob_statement(statement_number):
+    """下载UOB对账单"""
+    try:
+        # 查找对账单
+        statement = BankStatement.query.filter_by(
+            statement_number=statement_number,
+            bank_name='UOB'
+        ).first()
+        
+        if not statement:
+            flash(f'对账单 {statement_number} 不存在', 'error')
+            return redirect(url_for('statement_routes.uob_bank'))
+        
+        # 这里应该生成对账单文件，暂时返回提示
+        flash('对账单下载功能正在开发中', 'info')
+        return redirect(url_for('statement_routes.uob_bank'))
+        
+    except Exception as e:
+        flash(f'下载对账单失败: {str(e)}', 'error')
+        return redirect(url_for('statement_routes.uob_bank'))
+
+
+@statement_blue.route('/delete_uob_statement', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def delete_uob_statement():
+    """删除UOB对账单"""
+    try:
+        statement_number = request.form.get('statement_number')
+        
+        if not statement_number:
+            flash('对账单号不能为空', 'error')
+            return redirect(url_for('statement_routes.uob_bank'))
+        
+        # 查找对账单
+        statement = BankStatement.query.filter_by(
+            statement_number=statement_number,
+            bank_name='UOB'
+        ).first()
+        
+        if not statement:
+            flash(f'对账单 {statement_number} 不存在', 'error')
+            return redirect(url_for('statement_routes.uob_bank'))
+        
+        # 删除对账单（关联的交易记录会自动删除）
+        db.session.delete(statement)
+        db.session.commit()
+        
+        flash(f'对账单 {statement_number} 已成功删除', 'success')
+        return redirect(url_for('statement_routes.uob_bank'))
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'删除对账单失败: {str(e)}', 'error')
+        return redirect(url_for('statement_routes.uob_bank'))
+
+
+@statement_blue.route('/uob_tx_update', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def uob_tx_update():
+    """更新UOB银行交易记录"""
+    try:
+        data = request.get_json()
+        
+        if not data or 'id' not in data:
+            return jsonify({'success': False, 'message': '缺少交易记录ID'})
+        
+        transaction_id = data['id']
+        
+        # 查找交易记录
+        transaction = BankTransaction.query.get(transaction_id)
+        
+        if not transaction:
+            return jsonify({'success': False, 'message': '交易记录不存在'})
+        
+        # 更新字段
+        if 'counterparty_name' in data:
+            transaction.counterparty_name = data['counterparty_name']
+        
+        if 'remarks' in data:
+            transaction.remarks = data['remarks']
+        
+        if 'owner_label' in data:
+            transaction.owner_label = data['owner_label']
+        
+        if 'accounting_ref' in data:
+            transaction.accounting_ref = data['accounting_ref']
+        
+        if 'keyword' in data:
+            transaction.keyword = data['keyword']
+        
+        # 保存更改
+        db.session.commit()
+        
+        return jsonify({'success': True, 'message': '交易记录更新成功'})
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'更新失败: {str(e)}'}), 500
+
+
+@statement_blue.route('/uob_tx_confirm', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def uob_tx_confirm():
+    """确认UOB银行交易记录"""
+    try:
+        data = request.get_json()
+        
+        if not data or 'id' not in data:
+            return jsonify({'success': False, 'message': '缺少交易记录ID'})
+        
+        transaction_id = data['id']
+        
+        # 查找交易记录
+        transaction = BankTransaction.query.get(transaction_id)
+        
+        if not transaction:
+            return jsonify({'success': False, 'message': '交易记录不存在'})
+        
+        # 确认交易记录
+        transaction.is_confirmed = True
+        transaction.confirmed_at = datetime.utcnow()
+        transaction.confirmed_by = 'staff'  # 这里可以改为当前用户信息
+        
+        # 保存更改
+        db.session.commit()
+        
+        return jsonify({
+            'success': True, 
+            'message': '交易记录确认成功',
+            'confirmed_at': transaction.confirmed_at.isoformat(),
+            'confirmed_by': transaction.confirmed_by
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'确认失败: {str(e)}'}), 500
+
+
+@statement_blue.route('/uob_batch_confirm', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def uob_batch_confirm():
+    """批量确认UOB银行交易记录"""
+    try:
+        data = request.get_json()
+        
+        if not data or 'transaction_ids' not in data:
+            return jsonify({'success': False, 'message': '缺少交易记录ID列表'})
+        
+        transaction_ids = data['transaction_ids']
+        
+        if not isinstance(transaction_ids, list) or len(transaction_ids) == 0:
+            return jsonify({'success': False, 'message': '交易记录ID列表不能为空'})
+        
+        # 查找所有交易记录
+        transactions = BankTransaction.query.filter(
+            BankTransaction.id.in_(transaction_ids),
+            BankTransaction.is_confirmed == False  # 只处理未确认的交易
+        ).all()
+        
+        if not transactions:
+            return jsonify({'success': False, 'message': '没有找到需要确认的交易记录'})
+        
+        # 批量确认交易记录
+        confirmed_count = 0
+        for transaction in transactions:
+            transaction.is_confirmed = True
+            transaction.confirmed_at = datetime.utcnow()
+            transaction.confirmed_by = 'staff'  # 这里可以改为当前用户信息
+            confirmed_count += 1
+        
+        # 保存更改
+        db.session.commit()
+        
+        return jsonify({
+            'success': True, 
+            'message': f'成功确认 {confirmed_count} 个交易记录',
+            'confirmed_count': confirmed_count
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'批量确认失败: {str(e)}'}), 500
+
+
+@statement_blue.route('/uob_create_test_data', methods=['GET'])
+@login_required
+@staff_only
+def uob_create_test_data():
+    """创建UOB测试数据"""
+    try:
+        from datetime import date, datetime
+        
+        # 创建测试对账单
+        test_statement = BankStatement(
+            statement_number='UOB-TEST-001',
+            bank_name='UOB',
+            account_number='1234567890',
+            account_name='TEST ACCOUNT',
+            statement_date=date.today(),
+            period_start=date(2024, 1, 1),
+            period_end=date(2024, 1, 31),
+            opening_balance=1000.00,
+            closing_balance=1200.00,
+            currency='SGD',
+            status='draft',
+            created_by='test'
+        )
+        
+        db.session.add(test_statement)
+        db.session.flush()  # 获取ID
+        
+        # 创建测试交易记录（确保有未确认的交易用于测试）
+        test_transactions = [
+            BankTransaction(
+                statement_id=test_statement.id,
+                transaction_date=date(2024, 1, 15),
+                post_date=date(2024, 1, 15),
+                transaction_id='TXN001',
+                transaction_type='debit',
+                amount=100.00,
+                balance=900.00,
+                description='Test transaction 1 - 未确认',
+                counterparty_name='Test Counterparty 1',
+                is_confirmed=False,
+                owner_label='Business',
+                accounting_ref='REF001',
+                remarks='这是一个测试交易，用于测试确认功能'
+            ),
+            BankTransaction(
+                statement_id=test_statement.id,
+                transaction_date=date(2024, 1, 20),
+                post_date=date(2024, 1, 20),
+                transaction_id='TXN002',
+                transaction_type='credit',
+                amount=300.00,
+                balance=1200.00,
+                description='Test transaction 2 - 已确认',
+                counterparty_name='Test Counterparty 2',
+                is_confirmed=True,
+                confirmed_at=datetime.utcnow(),
+                confirmed_by='test',
+                owner_label='个人商用',
+                accounting_ref='EO002',
+                remarks='这是一个已确认的测试交易'
+            ),
+            BankTransaction(
+                statement_id=test_statement.id,
+                transaction_date=date(2024, 1, 25),
+                post_date=date(2024, 1, 25),
+                transaction_id='TXN003',
+                transaction_type='debit',
+                amount=50.00,
+                balance=1150.00,
+                description='Test transaction 3 - 未确认',
+                counterparty_name='Test Counterparty 3',
+                is_confirmed=False,
+                owner_label='',
+                accounting_ref='',
+                remarks=''
+            )
+        ]
+        
+        for transaction in test_transactions:
+            db.session.add(transaction)
+        
+        db.session.commit()
+        
+        flash('UOB测试数据创建成功！', 'success')
+        return redirect(url_for('statement_routes.uob_bank'))
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'创建测试数据失败: {str(e)}', 'error')
+        return redirect(url_for('statement_routes.uob_bank'))
 
 
 @statement_blue.route('/open_uob_statement_folder', methods=['GET', 'POST'])

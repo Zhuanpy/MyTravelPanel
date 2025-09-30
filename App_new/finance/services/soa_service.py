@@ -43,7 +43,7 @@ class SOAService:
             current_datetime = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             
             return render_template(
-                'finance/statement/athina/soa_template.html',
+                'finance/athina/soa_template.html',
                 header=header,
                 details=details,
                 current_date=current_date,

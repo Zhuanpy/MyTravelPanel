@@ -21,7 +21,7 @@ athina_blue = Blueprint('athina_routes', __name__)
 @staff_only
 def athina_page():
     """Athina 主页面"""
-    return render_template('statement/athina/athina.html')
+    return render_template('finance/athina/athina.html')
 
 
 @athina_blue.route('/athina_import')
@@ -29,7 +29,7 @@ def athina_page():
 @staff_only
 def athina_import():
     """Athina数据录入页面"""
-    return render_template('statement/athina/athina_import.html')
+    return render_template('finance/athina/athina_import.html')
 
 
 @athina_blue.route('/athina_analysis')
@@ -37,7 +37,7 @@ def athina_import():
 @staff_only
 def athina_analysis():
     """Athina分析报表页面"""
-    return render_template('statement/athina/athina_analysis.html')
+    return render_template('finance/athina/athina_analysis.html')
 
 
 @athina_blue.route('/athina_import_csv', methods=['POST'])
@@ -155,7 +155,7 @@ def athina_data():
             error_out=False
         )
         
-        return render_template('statement/athina/athina_data.html', 
+        return render_template('finance/athina/athina_data.html', 
                              headers=pagination.items,
                              pagination=pagination,
                              search=search)
@@ -256,7 +256,7 @@ def athina_detail(header_id):
             error_out=False
         )
         
-        return render_template('statement/athina/athina_detail.html', 
+        return render_template('finance/athina/athina_detail.html', 
                              header=header,
                              details=pagination.items,
                              pagination=pagination)

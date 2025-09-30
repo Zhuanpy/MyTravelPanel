@@ -20,7 +20,7 @@ soa_blue = Blueprint('soa_routes', __name__)
 @staff_only
 def soa_list():
     """SOA列表页面"""
-    return render_template('finance/statement/athina/soa_list.html')
+    return render_template('finance/athina/soa_list.html')
 
 
 @soa_blue.route('/soa_data')

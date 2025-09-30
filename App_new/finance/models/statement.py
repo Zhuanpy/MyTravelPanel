@@ -122,6 +122,11 @@ class BankTransaction(db.Model):
     remarks = db.Column(db.Text, nullable=True, comment='备注')
     extra_info = db.Column(db.Text, nullable=True, comment='额外信息(JSON)')
     
+    # 确认状态
+    is_confirmed = db.Column(db.Boolean, default=False, nullable=False, comment='确认状态')
+    confirmed_at = db.Column(db.DateTime, nullable=True, comment='确认时间')
+    confirmed_by = db.Column(db.String(50), nullable=True, comment='确认人')
+    
     # 时间信息
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -157,6 +162,9 @@ class BankTransaction(db.Model):
             'owner_type': self.owner_type,
             'remarks': self.remarks,
             'extra_info': json.loads(self.extra_info) if self.extra_info else None,
+            'is_confirmed': self.is_confirmed,
+            'confirmed_at': self.confirmed_at.isoformat() if self.confirmed_at else None,
+            'confirmed_by': self.confirmed_by,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }

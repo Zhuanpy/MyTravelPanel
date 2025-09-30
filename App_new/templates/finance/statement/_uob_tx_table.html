@@ -3,6 +3,36 @@
 {{ url_for(endpoint, page=p, month=filters.month, start_date=filters.start_date, end_date=filters.end_date, type=filters.type, owner=filters.owner, ref=filters.ref, sort=filters.sort, partial='table') }}
 {%- endmacro %}
 
+<!-- 表格头部控制区域 -->
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <!-- 左侧：调试信息 -->
+    <div class="debug-info" style="background-color: #e9ecef; padding: 8px; border-radius: 4px; font-size: 12px;">
+        <strong>调试信息:</strong> 
+        当前页交易数: {{ transactions|length }} | 
+        未确认交易数: {{ transactions|selectattr('is_confirmed', 'equalto', False)|list|length }} | 
+        已确认交易数: {{ transactions|selectattr('is_confirmed', 'equalto', True)|list|length }}
+        {% if pagination %}
+        | 第 {{ pagination.page }} 页 / 共 {{ pagination.pages }} 页 | 总计 {{ pagination.total }} 条记录
+        {% endif %}
+    </div>
+    
+    <!-- 右侧：批量操作控制区域 -->
+    <div class="batch-controls">
+        <div class="d-flex align-items-center gap-2">
+            <button class="btn btn-outline-primary btn-sm" id="selectAllBtn" title="选择所有未确认的交易">
+                <i class="fas fa-check-square"></i> 一键选择
+            </button>
+            <button class="btn btn-success btn-sm" id="batchConfirmBtn" title="确认所有选中的交易">
+                <i class="fas fa-check-double"></i> 一键确认
+            </button>
+            <button class="btn btn-outline-secondary btn-sm" id="clearSelectionBtn" title="清除所有选择">
+                <i class="fas fa-times"></i> 重置选择
+            </button>
+            <span class="text-muted ms-2" id="selectedCount">已选择 0 个交易</span>
+        </div>
+    </div>
+</div>
+
 <div class="table-responsive">
     <table class="table table-striped table-hover" id="txTable">
         <thead>
@@ -17,6 +47,7 @@
                 <th>归属</th>
                 <th>REF/EO</th>
                 <th>备注</th>
+                <th>操作</th>
             </tr>
         </thead>
         <tbody>
@@ -30,27 +61,67 @@
                 <td class="summary-cell" title="点击查看/关闭全文" data-full="{{ t.description or '' }}">{{ (t.description or '')[:40] }}{% if t.description and t.description|length>40 %}...{% endif %}</td>
                 <td style="text-align:left; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ t.keyword or '-' }}</td>
                 <td>
-                    <select class="form-select form-select-sm tx-input" data-tx-id="{{ t.id }}" data-field="owner_label">
-                        <option value="" {% if not t.owner_label %}selected{% endif %}></option>
-                        <option value="Business" {% if t.owner_label=='Business' %}selected{% endif %}>Business</option>
-                        <option value="LG" {% if t.owner_label=='LG' %}selected{% endif %}>LG</option>
-                        <option value="JE" {% if t.owner_label=='JE' %}selected{% endif %}>JE</option>
-                        <option value="个人消费" {% if t.owner_label=='个人消费' %}selected{% endif %}>个人消费</option>
-                        <option value="个人商用" {% if t.owner_label=='个人商用' %}selected{% endif %}>个人商用</option>
-                    </select>
+                    {% if t.is_confirmed %}
+                        <span class="badge bg-success">{{ t.owner_label or '未设置' }}</span>
+                    {% else %}
+                        <select class="form-select form-select-sm tx-input" data-tx-id="{{ t.id }}" data-field="owner_label">
+                            <option value="" {% if not t.owner_label %}selected{% endif %}></option>
+                            <option value="Business" {% if t.owner_label=='Business' %}selected{% endif %}>Business</option>
+                            <option value="LG" {% if t.owner_label=='LG' %}selected{% endif %}>LG</option>
+                            <option value="JE" {% if t.owner_label=='JE' %}selected{% endif %}>JE</option>
+                            <option value="个人消费" {% if t.owner_label=='个人消费' %}selected{% endif %}>个人消费</option>
+                            <option value="个人商用" {% if t.owner_label=='个人商用' %}selected{% endif %}>个人商用</option>
+                        </select>
+                    {% endif %}
                 </td>
                 <td>
-                    <input type="text" class="form-control form-control-sm tx-input" data-tx-id="{{ t.id }}" data-field="accounting_ref" value="{{ t.accounting_ref or '' }}" placeholder="填写REF/EO">
+                    {% if t.is_confirmed %}
+                        <span class="text-muted">{{ t.accounting_ref or '未设置' }}</span>
+                    {% else %}
+                        <input type="text" class="form-control form-control-sm tx-input" data-tx-id="{{ t.id }}" data-field="accounting_ref" value="{{ t.accounting_ref or '' }}" placeholder="填写REF/EO">
+                    {% endif %}
                 </td>
                 <td>
-                    <textarea class="form-control form-control-sm tx-remarks" data-tx-id="{{ t.id }}" data-field="remarks" placeholder="填写备注">{{ t.remarks or '' }}</textarea>
+                    {% if t.is_confirmed %}
+                        <span class="text-muted">{{ t.remarks or '无备注' }}</span>
+                    {% else %}
+                        <textarea class="form-control form-control-sm tx-remarks" data-tx-id="{{ t.id }}" data-field="remarks" placeholder="填写备注">{{ t.remarks or '' }}</textarea>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if not t.is_confirmed %}
+                        <div class="d-flex align-items-center gap-2">
+                            <input type="checkbox" class="transaction-checkbox" data-tx-id="{{ t.id }}" title="选择此交易">
+                            <button class="btn btn-primary btn-sm confirm-btn" data-tx-id="{{ t.id }}" title="确认此交易记录">
+                                确认
+                            </button>
+                        </div>
+                    {% else %}
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="text-muted">✓</span>
+                            <span class="badge bg-success">
+                                <i class="fas fa-check-circle"></i> 已确认
+                            </span>
+                        </div>
+                        {% if t.confirmed_at %}
+                            <br><small class="text-muted">{{ t.confirmed_at.strftime('%m-%d %H:%M') }}</small>
+                        {% endif %}
+                    {% endif %}
                 </td>
             </tr>
             {% else %}
-            <tr><td colspan="10" class="text-center text-muted">暂无交易</td></tr>
+            <tr><td colspan="11" class="text-center text-muted">暂无交易</td></tr>
             {% endfor %}
         </tbody>
     </table>
+</div>
+
+<!-- 批量操作状态区域 -->
+<div class="batch-actions mt-2" id="batchActions" style="display: none;">
+    <div class="alert alert-info d-flex align-items-center">
+        <i class="fas fa-info-circle me-2"></i>
+        <span id="batchStatus">准备批量操作...</span>
+    </div>
 </div>
 
 {% if pagination %}

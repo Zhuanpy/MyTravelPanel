@@ -271,10 +271,25 @@ def keyword_from_txt():
         # 去重
         keywords = list(set(keywords))
         
-        # 批量插入
+        # 批量插入，处理重复关键词
         imported_count = 0
+        skipped_count = 0
+        skipped_keywords = []
+        
         for keyword_text in keywords:
             try:
+                # 检查是否已存在相同的关键词
+                existing = BankStatementKeyword.query.filter_by(
+                    bank_name=bank_name,
+                    keyword=keyword_text
+                ).first()
+                
+                if existing:
+                    skipped_count += 1
+                    skipped_keywords.append(keyword_text)
+                    logger.info(f"跳过已存在的关键词: {keyword_text}")
+                    continue
+                
                 keyword = BankStatementKeyword(
                     bank_name=bank_name,
                     keyword_type=keyword_type,
@@ -284,12 +299,25 @@ def keyword_from_txt():
                 )
                 db.session.add(keyword)
                 imported_count += 1
+                
             except Exception as e:
-                logger.warning(f"跳过重复关键词: {keyword_text}")
+                skipped_count += 1
+                skipped_keywords.append(keyword_text)
+                logger.warning(f"跳过关键词 {keyword_text}: {str(e)}")
                 continue
         
         db.session.commit()
-        return jsonify({'success': True, 'message': f'成功从txt导入 {imported_count} 个关键词'})
+        
+        # 构建返回消息
+        message = f'成功导入 {imported_count} 个关键词'
+        if skipped_count > 0:
+            message += f'，跳过 {skipped_count} 个重复或无效关键词'
+            if len(skipped_keywords) <= 5:
+                message += f'：{", ".join(skipped_keywords)}'
+            else:
+                message += f'：{", ".join(skipped_keywords[:5])} 等'
+        
+        return jsonify({'success': True, 'message': message, 'imported_count': imported_count, 'skipped_count': skipped_count})
         
     except Exception as e:
         db.session.rollback()

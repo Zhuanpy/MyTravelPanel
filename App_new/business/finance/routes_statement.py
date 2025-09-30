@@ -59,7 +59,7 @@ def statement_to_company():
 
 @statement_blue.route('/athina_page')
 def athina_page():
-    return render_template('statement/athina/athina.html')
+    return render_template('finance/athina/athina.html')
 
 
 @statement_blue.route('/athina_processing', methods=['GET'])

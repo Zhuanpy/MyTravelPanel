@@ -61,11 +61,17 @@
         resize: vertical;
     }
 
-    /* 列宽度调整：7个字段等宽，3个字段更宽 */
-    #txTable { table-layout: fixed; width: 100%; }
+    /* 列宽度调整：1个选择列，7个字段等宽，3个字段更宽，1个操作列 */
+    #txTable { table-layout: fixed; width: 100%; min-width: 1300px; }
     #txTable th, #txTable td { text-align: center; vertical-align: middle; }
     
-    /* 等宽字段：日期、记账日期、类型、金额、余额、归属、REF/EO (7个字段，每个约9.5%) */
+    /* 确保表格容器可以水平滚动 */
+    .table-responsive {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    /* 等宽字段：日期、记账日期、类型、金额、余额、归属、REF/EO (7个字段，每个约8%) */
     #txTable th:nth-child(1), #txTable td:nth-child(1), /* 日期 */
     #txTable th:nth-child(2), #txTable td:nth-child(2), /* 记账日期 */
     #txTable th:nth-child(3), #txTable td:nth-child(3), /* 类型 */
@@ -73,13 +79,101 @@
     #txTable th:nth-child(5), #txTable td:nth-child(5), /* 余额 */
     #txTable th:nth-child(8), #txTable td:nth-child(8), /* 归属 */
     #txTable th:nth-child(9), #txTable td:nth-child(9)  /* REF/EO */
-    { width: 9.5%; }
+    { width: 8%; }
 
-    /* 更宽字段：摘要、关键词、备注 (3个字段，每个约21.5%) */
+    /* 更宽字段：摘要、关键词、备注 (3个字段，每个约18%) */
     #txTable th:nth-child(6), #txTable td:nth-child(6), /* 摘要 */
     #txTable th:nth-child(7), #txTable td:nth-child(7), /* 关键词 */
     #txTable th:nth-child(10), #txTable td:nth-child(10) /* 备注 */
-    { width: 21.5%; vertical-align: top; }
+    { width: 18%; vertical-align: top; }
+    
+    /* 操作列：固定宽度 */
+    #txTable th:nth-child(11), #txTable td:nth-child(11) /* 操作 */
+    { width: 10%; min-width: 100px; }
+    
+    /* 操作列按钮样式 */
+    #txTable .confirm-btn {
+        white-space: nowrap;
+        font-size: 12px;
+        padding: 4px 8px;
+        background-color: #007bff !important;
+        border-color: #007bff !important;
+        color: white !important;
+        font-weight: 500;
+    }
+    
+    #txTable .confirm-btn:hover {
+        background-color: #0056b3 !important;
+        border-color: #0056b3 !important;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(0,123,255,0.3);
+    }
+    
+    /* 已确认标签样式 */
+    #txTable .badge.bg-success {
+        font-size: 11px;
+        white-space: nowrap;
+        background-color: #28a745 !important;
+        color: white !important;
+        font-weight: 500;
+        padding: 4px 8px;
+        border-radius: 4px;
+    }
+    
+    /* 批量操作区域样式 */
+    .batch-actions {
+        background-color: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 12px 16px;
+        margin-top: 15px;
+    }
+    
+    .batch-actions .btn {
+        margin-right: 8px;
+    }
+    
+    /* 操作列中的复选框和按钮样式 */
+    #txTable .d-flex.align-items-center.gap-2 {
+        justify-content: flex-start;
+    }
+    
+    #txTable input[type="checkbox"] {
+        transform: scale(1.1);
+        cursor: pointer;
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        margin-right: 4px;
+    }
+    
+    /* 表格头部控制区域样式 */
+    .d-flex.justify-content-between.align-items-center {
+        background-color: #ffffff;
+        border: 1px solid #e9ecef;
+        border-radius: 8px;
+        padding: 12px 16px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    /* 调试信息样式 */
+    .debug-info {
+        font-size: 11px;
+        color: #6c757d;
+    }
+    
+    /* 批量操作控制区域样式 */
+    .batch-controls .btn {
+        font-size: 12px;
+        padding: 4px 8px;
+        border-radius: 4px;
+    }
+    
+    .batch-controls #selectedCount {
+        font-weight: 500;
+        color: #495057;
+        font-size: 12px;
+    }
 
     /* 摘要列多行换行显示且内容居左 */
     #txTable td:nth-child(6) { white-space: normal; word-break: break-word; overflow: visible; text-align: left; }
@@ -247,8 +341,8 @@
             <form action="{{ url_for('statement_routes.open_uob_statement_folder') }}" method="post">
                 <button type="submit" class="uob-button folder-btn">打开文件夹</button>
             </form>
-
-            <form action="{{ url_for('statement_routes.uob_add_original') }}" method="post">
+            
+            <form action="{{ url_for('statement_routes.uob_original_processing') }}" method="post">
                 <button type="submit" class="uob-button">入库最新账单</button>
             </form>
 
@@ -359,11 +453,8 @@
                     <select class="form-select" name="owner">
                         <option value="">全部</option>
                         <option value="__blank__" {% if filters.owner=='__blank__' %}selected{% endif %}>空白/未设置</option>
-                        <option value="Business" {% if filters.owner=='Business' %}selected{% endif %}>Business</option>
                         {% for o in owner_options %}
-                        {% if o != 'Business' %}
-                        <option value="{{ o }}" {% if filters.owner==o %}selected{% endif %}>{{ '个人商用' if o=='个人商务' else o }}</option>
-                        {% endif %}
+                        <option value="{{ o }}" {% if filters.owner==o %}selected{% endif %}>{{ o }}</option>
                         {% endfor %}
                     </select>
                 </div>
@@ -424,7 +515,7 @@
         const counterpartyInput = row.querySelector('[data-field="counterparty_name"]');
         const remarksInput = row.querySelector('textarea[data-field="remarks"]');
         const payload = {
-            tx_id: txId,
+            id: txId,
             accounting_ref: refInput ? refInput.value.trim() : '',
             owner_label: ownerInput ? ownerInput.value.trim() : '',
             counterparty_name: counterpartyInput ? counterpartyInput.value.trim() : '',
@@ -487,6 +578,179 @@
             ta.blur();
         }
     });
+
+    // 确认按钮点击事件
+    document.addEventListener('click', async function(e) {
+        const confirmBtn = e.target.closest('.confirm-btn');
+        if (!confirmBtn) return;
+        
+        e.preventDefault();
+        
+        const txId = confirmBtn.getAttribute('data-tx-id');
+        if (!txId) return;
+        
+        // 确认对话框
+        if (!confirm('确定要确认此交易记录吗？确认后将无法再编辑归属、REF/EO和备注信息。')) {
+            return;
+        }
+        
+        try {
+            // 显示加载状态
+            const originalText = confirmBtn.innerHTML;
+            confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 确认中...';
+            confirmBtn.disabled = true;
+            
+            const response = await fetch("{{ url_for('statement_routes.uob_tx_confirm') }}", {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: parseInt(txId) })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                // 成功确认，刷新页面以显示更新后的状态
+                window.location.reload();
+            } else {
+                // 显示错误信息
+                alert('确认失败：' + (result.message || '未知错误'));
+                confirmBtn.innerHTML = originalText;
+                confirmBtn.disabled = false;
+            }
+        } catch (error) {
+            console.error('确认交易失败:', error);
+            alert('确认失败，请稍后重试');
+            confirmBtn.innerHTML = originalText;
+            confirmBtn.disabled = false;
+        }
+    });
+
+    // 批量操作功能 - 使用事件委托处理动态加载的元素
+    (function(){
+        // 更新选择计数和批量操作区域显示
+        function updateSelection() {
+            const checkedBoxes = document.querySelectorAll('.transaction-checkbox:checked');
+            const count = checkedBoxes.length;
+            
+            const selectedCount = document.getElementById('selectedCount');
+            const batchActions = document.getElementById('batchActions');
+            const batchStatus = document.getElementById('batchStatus');
+            
+            if (selectedCount) selectedCount.textContent = `已选择 ${count} 个交易`;
+            if (batchActions) batchActions.style.display = count > 0 ? 'block' : 'none';
+            
+            if (batchStatus) {
+                if (count > 0) {
+                    batchStatus.textContent = `已选择 ${count} 个交易，点击"一键确认"进行批量操作`;
+                } else {
+                    batchStatus.textContent = '准备批量操作...';
+                }
+            }
+        }
+        
+        // 使用事件委托处理批量操作按钮点击
+        document.addEventListener('click', function(e) {
+            // 一键选择按钮
+            if (e.target && e.target.id === 'selectAllBtn') {
+                console.log('Debug: 一键选择按钮被点击');
+                
+                const transactionCheckboxes = document.querySelectorAll('.transaction-checkbox');
+                console.log('Debug: 找到的复选框数量:', transactionCheckboxes.length);
+                
+                if (transactionCheckboxes.length === 0) {
+                    alert('当前没有可选择的交易记录（所有交易可能都已确认）');
+                    return;
+                }
+                
+                let selectedCount = 0;
+                transactionCheckboxes.forEach(checkbox => {
+                    checkbox.checked = true;
+                    selectedCount++;
+                });
+                
+                console.log('Debug: 已选择复选框数量:', selectedCount);
+                updateSelection();
+                
+                // 显示成功提示
+                if (selectedCount > 0) {
+                    const originalText = e.target.innerHTML;
+                    e.target.innerHTML = '<i class="fas fa-check"></i> 已选择';
+                    e.target.classList.add('btn-success');
+                    e.target.classList.remove('btn-outline-primary');
+                    
+                    setTimeout(() => {
+                        e.target.innerHTML = originalText;
+                        e.target.classList.remove('btn-success');
+                        e.target.classList.add('btn-outline-primary');
+                    }, 1500);
+                }
+            }
+            
+            // 一键确认按钮
+            else if (e.target && e.target.id === 'batchConfirmBtn') {
+                const checkedBoxes = document.querySelectorAll('.transaction-checkbox:checked');
+                const transactionIds = Array.from(checkedBoxes).map(cb => parseInt(cb.dataset.txId));
+                
+                if (transactionIds.length === 0) {
+                    alert('请先选择要确认的交易记录');
+                    return;
+                }
+                
+                if (!confirm(`确定要批量确认 ${transactionIds.length} 个交易记录吗？`)) {
+                    return;
+                }
+                
+                (async () => {
+                    try {
+                        const originalText = e.target.innerHTML;
+                        e.target.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 确认中...';
+                        e.target.disabled = true;
+                        
+                        const response = await fetch("{{ url_for('statement_routes.uob_batch_confirm') }}", {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ transaction_ids: transactionIds })
+                        });
+                        
+                        const result = await response.json();
+                        
+                        if (result.success) {
+                            alert(`成功确认 ${result.confirmed_count} 个交易记录`);
+                            window.location.reload();
+                        } else {
+                            alert(`批量确认失败: ${result.message}`);
+                        }
+                        
+                    } catch (error) {
+                        console.error('批量确认错误:', error);
+                        alert('批量确认失败，请重试');
+                    } finally {
+                        e.target.innerHTML = originalText;
+                        e.target.disabled = false;
+                    }
+                })();
+            }
+            
+            // 重置选择按钮
+            else if (e.target && e.target.id === 'clearSelectionBtn') {
+                const transactionCheckboxes = document.querySelectorAll('.transaction-checkbox');
+                transactionCheckboxes.forEach(checkbox => {
+                    checkbox.checked = false;
+                });
+                updateSelection();
+            }
+        });
+        
+        // 使用事件委托处理复选框变化
+        document.addEventListener('change', function(e) {
+            if (e.target && e.target.classList.contains('transaction-checkbox')) {
+                updateSelection();
+            }
+        });
+        
+        // 初始化选择状态
+        setTimeout(updateSelection, 100);
+    })();
 
     // 无刷新筛选提交
     (function(){
