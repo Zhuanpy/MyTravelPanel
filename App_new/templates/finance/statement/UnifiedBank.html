@@ -1,0 +1,713 @@
+{% extends "staff_base.html" %}
+
+{% block title %}{{ bank_name }}银行账单 - MyTravelPanel{% endblock %}
+
+{% block page_title %}{{ bank_name }}银行账单{% endblock %}
+
+{% block extra_css %}
+<style>
+    .bank-statement-container { width: 100%; max-width: none; margin: 0; padding: 20px; }
+    .table-responsive { overflow-x: auto; }
+    /* 列宽度调整：7个字段等宽，3个字段更宽，1个操作列 */
+    #txTable { table-layout: fixed; width: 100%; min-width: 1200px; }
+    #txTable th, #txTable td { text-align: center; vertical-align: middle; }
+    
+    /* 等宽字段：日期、记账日期、类型、金额、余额、归属、REF/EO (7个字段，每个约7%) */
+    #txTable th:nth-child(1), #txTable td:nth-child(1), /* 日期 */
+    #txTable th:nth-child(2), #txTable td:nth-child(2), /* 记账日期 */
+    #txTable th:nth-child(3), #txTable td:nth-child(3), /* 类型 */
+    #txTable th:nth-child(4), #txTable td:nth-child(4), /* 金额 */
+    #txTable th:nth-child(5), #txTable td:nth-child(5), /* 余额 */
+    #txTable th:nth-child(8), #txTable td:nth-child(8), /* 归属 */
+    #txTable th:nth-child(9), #txTable td:nth-child(9)  /* REF/EO */
+    { width: 7%; }
+
+    /* 更宽字段：摘要、关键词、备注 (3个字段，每个约16%) */
+    #txTable th:nth-child(6), #txTable td:nth-child(6), /* 摘要 */
+    #txTable th:nth-child(7), #txTable td:nth-child(7), /* 关键词 */
+    #txTable th:nth-child(10), #txTable td:nth-child(10) /* 备注 */
+    { width: 16%; vertical-align: top; }
+    
+    /* 操作列 (第11列，宽度约11%) */
+    #txTable th:nth-child(11), #txTable td:nth-child(11) /* 操作 */
+    { 
+        width: 11%; 
+        min-width: 120px; 
+        white-space: nowrap;
+        text-align: center;
+    }
+    #txTable .tx-input, #txTable .tx-remarks, #txTable select.tx-input { width: 100%; min-width: 0; max-width: 100%; box-sizing: border-box; }
+    #txTable .tx-remarks { height: 48px; resize: vertical; }
+
+    /* 操作列样式 */
+    .confirm-btn {
+        background-color: #007bff;
+        color: white;
+        border: none;
+        padding: 4px 8px;
+        border-radius: 3px;
+        font-size: 12px;
+        cursor: pointer;
+        transition: background-color 0.2s;
+    }
+    .confirm-btn:hover {
+        background-color: #0056b3;
+    }
+    .badge.bg-success {
+        background-color: #28a745 !important;
+        color: white;
+        padding: 4px 8px;
+        border-radius: 3px;
+        font-size: 12px;
+    }
+
+    /* 银行选择器样式 */
+    .bank-selector {
+        margin-bottom: 20px;
+    }
+    .bank-btn {
+        margin-right: 10px;
+        padding: 8px 16px;
+        border: 2px solid #dee2e6;
+        border-radius: 5px;
+        text-decoration: none;
+        color: #495057;
+        background-color: white;
+        transition: all 0.2s;
+    }
+    .bank-btn:hover {
+        border-color: #007bff;
+        color: #007bff;
+        text-decoration: none;
+    }
+    .bank-btn.active {
+        background-color: #007bff;
+        color: white;
+        border-color: #007bff;
+    }
+
+    /* 筛选表单：放大 日期 与 类型 输入宽度 */
+    .form-control[name="month"] { width: 180px; }
+    .form-control[name="start_date"], .form-control[name="end_date"] { width: 150px; }
+    .form-select[name="type"], .form-select[name="owner"] { width: 120px; }
+    .form-control[name="ref"] { width: 150px; }
+    .form-select[name="operation_status"] { width: 120px; }
+    .form-select[name="sort"] { width: 180px; }
+
+    /* 文件上传区域 */
+    .upload-area {
+        border: 2px dashed #dee2e6;
+        border-radius: 5px;
+        padding: 20px;
+        text-align: center;
+        margin: 20px 0;
+        background-color: #f8f9fa;
+    }
+    .upload-area:hover {
+        border-color: #007bff;
+        background-color: #e3f2fd;
+    }
+
+    /* 页脚样式 */
+    .bank-footer {
+        text-align: center;
+        padding: 20px;
+        color: #6c757d;
+        border-top: 1px solid #dee2e6;
+        margin-top: 40px;
+    }
+
+    /* 响应式设计 */
+    @media (max-width: 768px) {
+        .bank-statement-container { padding: 10px; }
+        .form-control, .form-select { width: 100% !important; margin-bottom: 10px; }
+        #txTable { font-size: 12px; }
+        .bank-btn { margin-bottom: 10px; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="bank-statement-container">
+    <!-- 银行选择器 -->
+    <div class="bank-selector mb-4">
+        <div style="text-align: left !important; display: flex !important; justify-content: flex-start !important;">
+            <a href="{{ url_for('uob_routes.uob_bank') }}" class="bank-btn {{ 'active' if bank_name == 'UOB' else '' }}">UOB银行</a>
+            <a href="{{ url_for('ocbc_routes.ocbc_bank') }}" class="bank-btn {{ 'active' if bank_name == 'OCBC' else '' }}">OCBC银行</a>
+            <a href="{{ url_for('cmb_routes.cmb_bank') }}" class="bank-btn {{ 'active' if bank_name == 'CMB' else '' }}">招商银行</a>
+        </div>
+    </div>
+
+    <!-- 最近对账单 -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">最近对账单</h5>
+        </div>
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div>
+                    {% if bank_name == 'UOB' %}
+                    <form action="{{ url_for('uob_routes.open_uob_statement_folder') }}" method="post">
+                    {% elif bank_name == 'OCBC' %}
+                    <form action="{{ url_for('ocbc_routes.open_ocbc_statement_folder') }}" method="post">
+                    {% elif bank_name == 'CMB' %}
+                    <form action="{{ url_for('cmb_routes.open_cmb_statement_folder') }}" method="post">
+                    {% endif %}
+                        <button type="submit" class="btn btn-outline-primary btn-sm">
+                            <i class="fas fa-folder-open"></i> 打开{{ bank_name }}文件夹
+                        </button>
+                    </form>
+                </div>
+            </div>
+            
+            {% if statements %}
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>对账单号</th>
+                                <th>账户名称</th>
+                                <th>对账日期</th>
+                                <th>期间开始</th>
+                                <th>期间结束</th>
+                                <th>状态</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for s in statements %}
+                            <tr>
+                                <td>{{ s.statement_number }}</td>
+                                <td>{{ s.account_name }}</td>
+                                <td>{{ s.statement_date.strftime('%Y-%m-%d') if s.statement_date else '' }}</td>
+                                <td>{{ s.period_start.strftime('%Y-%m-%d') if s.period_start else '' }}</td>
+                                <td>{{ s.period_end.strftime('%Y-%m-%d') if s.period_end else '' }}</td>
+                                <td>
+                                    <span class="badge {{ 'bg-success' if s.status == 'completed' else 'bg-warning' }}">
+                                        {{ '已完成' if s.status == 'completed' else '草稿' }}
+                                    </span>
+                                </td>
+                                <td>
+                                    {% if bank_name == 'UOB' %}
+                                    <a class="btn btn-outline-primary btn-sm" href="{{ url_for('uob_routes.download_uob_statement', statement_number=s.statement_number) }}">
+                                    {% elif bank_name == 'OCBC' %}
+                                    <a class="btn btn-outline-primary btn-sm" href="{{ url_for('ocbc_routes.download_ocbc_statement', statement_number=s.statement_number) }}">
+                                    {% elif bank_name == 'CMB' %}
+                                    <a class="btn btn-outline-primary btn-sm" href="{{ url_for('cmb_routes.download_cmb_statement', statement_number=s.statement_number) }}">
+                                    {% endif %}
+                                        <i class="fas fa-download"></i> 下载
+                                    </a>
+                                    {% if bank_name == 'UOB' %}
+                                    <form method="post" action="{{ url_for('uob_routes.delete_uob_statement') }}"
+                                    {% elif bank_name == 'OCBC' %}
+                                    <form method="post" action="{{ url_for('ocbc_routes.delete_ocbc_statement') }}"
+                                    {% elif bank_name == 'CMB' %}
+                                    <form method="post" action="{{ url_for('cmb_routes.delete_cmb_statement') }}"
+                                    {% endif %} 
+                                          style="display: inline;" 
+                                          onsubmit="return confirm('确定要删除对账单 {{ s.statement_number }} 吗？这将删除所有相关的交易记录。');">
+                                        <input type="hidden" name="statement_number" value="{{ s.statement_number }}">
+                                        <button type="submit" class="btn btn-outline-danger btn-sm">
+                                            <i class="fas fa-trash"></i> 删除
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <p class="text-muted">暂无对账单数据</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- 数据导入 -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">{{ bank_name }}账单数据导入</h5>
+        </div>
+        <div class="card-body">
+
+            <!-- 文件上传区域 -->
+            <div class="upload-area">
+                <form id="{{ bank_name.lower() }}-upload-form" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label class="form-label">上传Excel文件</label>
+                        <div class="d-flex gap-2">
+                            <input type="file" id="{{ bank_name.lower() }}-file-input" accept=".xls,.xlsx" style="display: none;">
+                            <button type="button" id="{{ bank_name.lower() }}-select-file-btn" class="btn btn-outline-secondary">选择XLS文件</button>
+                            <button type="button" id="{{ bank_name.lower() }}-upload-btn" class="btn btn-success" disabled>入库账单数据</button>
+                        </div>
+                        <div id="{{ bank_name.lower() }}-file-info" class="mt-2 text-muted"></div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- 筛选表单 -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">交易记录筛选</h5>
+        </div>
+        <div class="card-body">
+            {% if bank_name == 'UOB' %}
+            <form method="get" action="{{ url_for('uob_routes.uob_bank') }}" class="mb-3">
+            {% elif bank_name == 'OCBC' %}
+            <form method="get" action="{{ url_for('ocbc_routes.ocbc_bank') }}" class="mb-3">
+            {% elif bank_name == 'CMB' %}
+            <form method="get" action="{{ url_for('cmb_routes.cmb_bank') }}" class="mb-3">
+            {% endif %}
+                <div class="row g-3 align-items-end">
+                    <div class="col-auto">
+                        <label class="form-label">月份</label>
+                        <input type="month" class="form-control" name="month" value="{{ filters.month or '' }}">
+                    </div>
+                    <div class="col-auto">
+                        <label class="form-label">开始日期</label>
+                        <input type="date" class="form-control" name="start_date" value="{{ filters.start_date or '' }}">
+                    </div>
+                    <div class="col-auto">
+                        <label class="form-label">结束日期</label>
+                        <input type="date" class="form-control" name="end_date" value="{{ filters.end_date or '' }}">
+                    </div>
+                    <div class="col-auto">
+                        <label class="form-label">类型</label>
+                        <select class="form-select" name="type">
+                            <option value="">全部</option>
+                            <option value="debit" {% if filters.type=='debit' %}selected{% endif %}>支出</option>
+                            <option value="credit" {% if filters.type=='credit' %}selected{% endif %}>收入</option>
+                        </select>
+                    </div>
+                    <div class="col-auto">
+                        <label class="form-label">归属</label>
+                        <select class="form-select" name="owner">
+                            <option value="">全部</option>
+                            <option value="__blank__" {% if filters.owner=='__blank__' %}selected{% endif %}>空白/未设置</option>
+                            <option value="Business" {% if filters.owner=='Business' %}selected{% endif %}>Business</option>
+                            {% for o in owner_options %}
+                            <option value="{{ o }}" {% if filters.owner==o %}selected{% endif %}>{{ '个人商用' if o=='个人商务' else o }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-auto">
+                        <label class="form-label">REF/EO</label>
+                        <input type="text" class="form-control" name="ref" value="{{ filters.ref or '' }}" placeholder="输入REF或EO编号">
+                    </div>
+                    <div class="col-auto">
+                        <label class="form-label">操作状态</label>
+                        <select class="form-select" name="operation_status">
+                            <option value="">全部</option>
+                            <option value="confirmed" {% if filters.operation_status=='confirmed' %}selected{% endif %}>已确认</option>
+                            <option value="unconfirmed" {% if filters.operation_status=='unconfirmed' %}selected{% endif %}>未确认</option>
+                        </select>
+                    </div>
+                    <div class="col-auto">
+                        <label class="form-label">排序</label>
+                        <select class="form-select" name="sort">
+                            <option value="date_desc" {% if filters.sort=='date_desc' %}selected{% endif %}>日期降序（最新在前）</option>
+                            <option value="date_asc" {% if filters.sort=='date_asc' %}selected{% endif %}>日期升序（最早在前）</option>
+                            <option value="amount_desc" {% if filters.sort=='amount_desc' %}selected{% endif %}>金额降序（大额在前）</option>
+                            <option value="amount_asc" {% if filters.sort=='amount_asc' %}selected{% endif %}>金额升序（小额在前）</option>
+                        </select>
+                    </div>
+                    <div class="col-auto">
+                        <button type="button" id="{{ bank_name.lower() }}-filter-submit" class="btn btn-primary">筛选</button>
+                    </div>
+                    <div class="col-auto">
+                        {% if bank_name == 'UOB' %}
+                        <a href="{{ url_for('uob_routes.uob_bank') }}" class="btn btn-secondary">重置</a>
+                        {% elif bank_name == 'OCBC' %}
+                        <a href="{{ url_for('ocbc_routes.ocbc_bank') }}" class="btn btn-secondary">重置</a>
+                        {% elif bank_name == 'CMB' %}
+                        <a href="{{ url_for('cmb_routes.cmb_bank') }}" class="btn btn-secondary">重置</a>
+                        {% endif %}
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 交易记录表格 -->
+    {% if bank_name == 'UOB' %}
+    <div id="{{ bank_name.lower() }}-tx-table" data-partial-url="{{ url_for('uob_routes.uob_bank', partial='table') }}">
+    {% elif bank_name == 'OCBC' %}
+    <div id="{{ bank_name.lower() }}-tx-table" data-partial-url="{{ url_for('ocbc_routes.ocbc_bank', partial='table') }}">
+    {% elif bank_name == 'CMB' %}
+    <div id="{{ bank_name.lower() }}-tx-table" data-partial-url="{{ url_for('cmb_routes.cmb_bank', partial='table') }}">
+    {% endif %}
+        {% include 'finance/statement/_' + bank_name.lower() + '_tx_table.html' %}
+    </div>
+
+    <!-- 关键词管理 -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">{{ bank_name }}关键词管理</h5>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <a href="{{ url_for('keyword_routes.keyword_list', bank=bank_name) }}" class="btn btn-outline-primary w-100">
+                        <i class="fas fa-tags"></i> 管理{{ bank_name }}关键词
+                    </a>
+                </div>
+                <div class="col-md-4">
+                    <a href="{{ url_for('keyword_routes.keyword_add', bank=bank_name) }}" class="btn btn-outline-success w-100">
+                        <i class="fas fa-plus"></i> 添加关键词
+                    </a>
+                </div>
+                <div class="col-md-4">
+                    <a href="{{ url_for('keyword_routes.import_keywords_txt', bank=bank_name) }}" class="btn btn-outline-info w-100">
+                        <i class="fas fa-file-import"></i> 导入TXT文件
+                    </a>
+                </div>
+            </div>
+            <div class="mt-3">
+                <p class="text-muted mb-0">
+                    <i class="fas fa-info-circle"></i> 管理{{ bank_name }}银行的关键词，用于自动分类交易记录
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 账单处理功能 -->
+    <div class="card mt-4">
+        <div class="card-header">
+            <h5 class="mb-0">{{ bank_name }}账单处理</h5>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    {% if bank_name == 'UOB' %}
+                    <form action="{{ url_for('uob_routes.uob_to_company') }}" method="post">
+                    {% elif bank_name == 'OCBC' %}
+                    <form action="{{ url_for('ocbc_routes.ocbc_to_company') }}" method="post">
+                    {% elif bank_name == 'CMB' %}
+                    <form action="{{ url_for('cmb_routes.cmb_to_company') }}" method="post">
+                    {% endif %}
+                        <button type="submit" class="btn btn-info w-100">
+                            <i class="fas fa-building"></i> 生成公司账单
+                        </button>
+                    </form>
+                </div>
+                <div class="col-md-4">
+                    {% if bank_name == 'UOB' %}
+                    <form action="{{ url_for('uob_routes.uob_latest_company_statement') }}" method="post">
+                    {% elif bank_name == 'OCBC' %}
+                    <form action="{{ url_for('ocbc_routes.ocbc_latest_company_statement') }}" method="post">
+                    {% elif bank_name == 'CMB' %}
+                    <form action="{{ url_for('cmb_routes.cmb_latest_company_statement') }}" method="post">
+                    {% endif %}
+                        <button type="submit" class="btn btn-warning w-100">
+                            <i class="fas fa-file-alt"></i> 最新公司账单
+                        </button>
+                    </form>
+                </div>
+                <div class="col-md-4">
+                    {% if bank_name == 'UOB' %}
+                    <form action="{{ url_for('uob_routes.uob_latest_self_statement') }}" method="post">
+                    {% elif bank_name == 'OCBC' %}
+                    <form action="{{ url_for('ocbc_routes.ocbc_latest_self_statement') }}" method="post">
+                    {% elif bank_name == 'CMB' %}
+                    <form action="{{ url_for('cmb_routes.cmb_latest_self_statement') }}" method="post">
+                    {% endif %}
+                        <button type="submit" class="btn btn-secondary w-100">
+                            <i class="fas fa-user"></i> 最新个人账单
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 页脚 -->
+<div class="bank-footer">
+    &copy; 2024 <span>{{ bank_name }}账单处理系统</span>
+</div>
+
+<!-- JavaScript -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // 文件上传功能
+    (function(){
+        const bankName = '{{ bank_name.lower() }}';
+        const fileInput = document.getElementById(bankName + '-file-input');
+        const selectBtn = document.getElementById(bankName + '-select-file-btn');
+        const uploadBtn = document.getElementById(bankName + '-upload-btn');
+        const fileInfo = document.getElementById(bankName + '-file-info');
+        
+        if (!fileInput || !selectBtn || !uploadBtn || !fileInfo) return;
+        
+        selectBtn.addEventListener('click', function() {
+            fileInput.click();
+        });
+        
+        fileInput.addEventListener('change', function() {
+            if (this.files.length > 0) {
+                const file = this.files[0];
+                const isValidType = file.name.toLowerCase().endsWith('.xls') || file.name.toLowerCase().endsWith('.xlsx');
+                
+                if (isValidType) {
+                    fileInfo.textContent = `已选择: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`;
+                    uploadBtn.disabled = false;
+                } else {
+                    fileInfo.textContent = '请选择Excel文件 (.xls 或 .xlsx)';
+                    uploadBtn.disabled = true;
+                }
+            } else {
+                fileInfo.textContent = '';
+                uploadBtn.disabled = true;
+            }
+        });
+        
+        uploadBtn.addEventListener('click', async function() {
+            if (!fileInput.files.length) {
+                alert('请先选择文件');
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+            
+            try {
+                uploadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 上传中...';
+                uploadBtn.disabled = true;
+                
+                const response = await fetch('/statement/' + bankName + '_upload_file', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    let message = `上传成功！\n处理了 ${result.processed_count || 0} 条交易记录\n\n处理的月份: ${result.months_processed ? result.months_processed.join(', ') : 'N/A'}\n\n对账单号:\n${result.statement_numbers ? result.statement_numbers.join('\n') : 'N/A'}`;
+                    
+                    if (result.keyword_stats) {
+                        message += `\n\n关键字匹配统计:\n个人消费: ${result.keyword_stats.personal || 0} 条\n商业用途: ${result.keyword_stats.business || 0} 条\n个人商用: ${result.keyword_stats.personal_business || 0} 条\n无匹配: ${result.keyword_stats.no_match || 0} 条`;
+                    }
+                    
+                    if (result.statement_updates && result.statement_updates.length > 0) {
+                        message += `\n\n对账单处理情况:`;
+                        result.statement_updates.forEach(stmt => {
+                            if (stmt.updated) {
+                                message += `\n更新: ${stmt.statement_number} (${stmt.period_start} ~ ${stmt.period_end})`;
+                            } else {
+                                message += `\n新建: ${stmt.statement_number} (${stmt.period_start} ~ ${stmt.period_end})`;
+                            }
+                        });
+                    }
+                    
+                    alert(message);
+                    location.reload();
+                } else {
+                    alert(`上传失败：${result.message}`);
+                }
+            } catch (error) {
+                console.error('上传错误:', error);
+                alert('上传失败，请重试！');
+            } finally {
+                uploadBtn.innerHTML = '入库账单数据';
+                uploadBtn.disabled = false;
+            }
+        });
+    })();
+
+    // 无刷新筛选提交
+    (function(){
+        const bankName = '{{ bank_name.lower() }}';
+        const btn = document.getElementById(bankName + '-filter-submit');
+        const container = document.getElementById(bankName + '-tx-table');
+        if (!btn || !container) return;
+        const form = btn.closest('form');
+        const baseUrl = container.getAttribute('data-partial-url');
+        const buildUrl = () => {
+            const params = new URLSearchParams(new FormData(form));
+            params.set('partial', 'table');
+            return baseUrl + (baseUrl.includes('?') ? '&' : '?') + params.toString();
+        };
+        const loadTable = async () => {
+            try {
+                const url = buildUrl();
+                const res = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+                const html = await res.text();
+                container.innerHTML = html;
+            } catch (err) {
+                console.warn('筛选加载失败');
+            }
+        };
+        btn.addEventListener('click', function(e){ e.preventDefault(); loadTable(); });
+        
+        // 创建全局的refreshTableOnly函数
+        window.refreshTableOnly = loadTable;
+        
+        // 监听排序选择变化
+        const sortSelect = form.querySelector('select[name="sort"]');
+        if (sortSelect) {
+            sortSelect.addEventListener('change', function() {
+                loadTable();
+            });
+        }
+        
+        // 处理分页链接点击 - 使用事件委托处理动态生成的分页链接
+        document.addEventListener('click', function(e) {
+            if (e.target && e.target.classList.contains('page-link') && e.target.href) {
+                e.preventDefault();
+                
+                // 从分页链接URL中提取page参数
+                const url = new URL(e.target.href);
+                const page = url.searchParams.get('page');
+                
+                if (page) {
+                    // 构建包含当前筛选条件的URL
+                    const params = new URLSearchParams(new FormData(form));
+                    params.set('page', page);
+                    params.set('partial', 'table');
+                    
+                    const newUrl = baseUrl + (baseUrl.includes('?') ? '&' : '?') + params.toString();
+                    
+                    // 使用AJAX加载新页面
+                    (async () => {
+                        try {
+                            const res = await fetch(newUrl, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+                            const html = await res.text();
+                            container.innerHTML = html;
+                        } catch (err) {
+                            console.warn('分页加载失败');
+                        }
+                    })();
+                }
+            }
+        });
+    })();
+
+    // 批量操作功能 - 使用事件委托处理动态加载的元素
+    (function(){
+        // 更新选择计数和批量操作区域显示
+        function updateSelection() {
+            const checkedBoxes = document.querySelectorAll('.transaction-checkbox:checked');
+            const count = checkedBoxes.length;
+            
+            const selectedCount = document.getElementById('selectedCount');
+            const batchActions = document.getElementById('batchActions');
+            const batchStatus = document.getElementById('batchStatus');
+            
+            if (selectedCount) selectedCount.textContent = `已选择 ${count} 个交易`;
+            if (batchActions) batchActions.style.display = count > 0 ? 'block' : 'none';
+            
+            if (batchStatus) {
+                if (count > 0) {
+                    batchStatus.textContent = `已选择 ${count} 个交易，点击"一键确认"进行批量操作`;
+                } else {
+                    batchStatus.textContent = '准备批量操作...';
+                }
+            }
+        }
+        
+        // 使用事件委托处理所有批量操作按钮
+        document.addEventListener('click', function(e) {
+            // 一键选择按钮
+            if (e.target && e.target.id === 'selectAllBtn') {
+                const checkboxes = document.querySelectorAll('.transaction-checkbox');
+                const checkedCount = document.querySelectorAll('.transaction-checkbox:checked').length;
+                
+                if (checkboxes.length === 0) {
+                    alert('当前页面没有可选择的交易记录');
+                    return;
+                }
+                
+                // 如果全部已选中，则取消选择；否则全选
+                const shouldCheck = checkedCount < checkboxes.length;
+                checkboxes.forEach(checkbox => {
+                    checkbox.checked = shouldCheck;
+                });
+                
+                // 更新全选按钮状态
+                const selectAllBtn = e.target;
+                if (shouldCheck) {
+                    selectAllBtn.textContent = '取消全选';
+                    selectAllBtn.classList.remove('btn-outline-primary');
+                    selectAllBtn.classList.add('btn-primary');
+                } else {
+                    selectAllBtn.textContent = '一键选择';
+                    selectAllBtn.classList.remove('btn-primary');
+                    selectAllBtn.classList.add('btn-outline-primary');
+                }
+                
+                updateSelection();
+            }
+            // 一键确认按钮
+            else if (e.target && e.target.id === 'batchConfirmBtn') {
+                const checkedBoxes = document.querySelectorAll('.transaction-checkbox:checked');
+                const transactionIds = Array.from(checkedBoxes).map(cb => parseInt(cb.dataset.txId));
+                
+                if (transactionIds.length === 0) {
+                    alert('请先选择要确认的交易记录');
+                    return;
+                }
+                
+                (async () => {
+                    try {
+                        const originalText = e.target.innerHTML;
+                        e.target.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 确认中...';
+                        e.target.disabled = true;
+                        
+                        {% if bank_name == 'UOB' %}
+                        const response = await fetch("{{ url_for('uob_routes.uob_batch_confirm') }}", {
+                        {% elif bank_name == 'OCBC' %}
+                        const response = await fetch("{{ url_for('ocbc_routes.ocbc_batch_confirm') }}", {
+                        {% elif bank_name == 'CMB' %}
+                        const response = await fetch("{{ url_for('cmb_routes.cmb_batch_confirm') }}", {
+                        {% endif %}
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ transaction_ids: transactionIds })
+                        });
+                        
+                        const result = await response.json();
+                        
+                        if (result.success) {
+                            alert(`成功确认 ${result.confirmed_count} 个交易记录`);
+                            if (window.refreshTableOnly) {
+                                window.refreshTableOnly();
+                            }
+                        } else {
+                            alert(`批量确认失败: ${result.message}`);
+                        }
+                        
+                    } catch (error) {
+                        console.error('批量确认错误:', error);
+                        alert('批量确认失败，请重试');
+                    } finally {
+                        e.target.innerHTML = originalText;
+                        e.target.disabled = false;
+                    }
+                })();
+            }
+            
+            // 重置选择按钮
+            else if (e.target && e.target.id === 'clearSelectionBtn') {
+                const transactionCheckboxes = document.querySelectorAll('.transaction-checkbox');
+                transactionCheckboxes.forEach(checkbox => {
+                    checkbox.checked = false;
+                });
+                updateSelection();
+            }
+        });
+        
+        // 使用事件委托处理复选框变化
+        document.addEventListener('change', function(e) {
+            if (e.target && e.target.classList.contains('transaction-checkbox')) {
+                updateSelection();
+            }
+        });
+        
+        // 初始化选择状态
+        setTimeout(updateSelection, 100);
+    })();
+});
+</script>
+{% endblock %}

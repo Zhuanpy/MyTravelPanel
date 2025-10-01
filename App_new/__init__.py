@@ -163,9 +163,15 @@ def create_app():
     app.register_blueprint(business_types, url_prefix='/business_types')
     app.register_blueprint(supplier, url_prefix='/supplier')
 
-    # 财务模块
-    from .finance.routes.statement import statement_blue
-    app.register_blueprint(statement_blue, url_prefix='/statement')
+    # 财务模块 - 银行对账单路由
+    from .finance.routes.uob_routes import uob_blue
+    from .finance.routes.ocbc_routes import ocbc_blue
+    from .finance.routes.cmb_routes import cmb_blue
+    from .finance.routes.statement_common import statement_common_blue
+    app.register_blueprint(uob_blue, url_prefix='/statement')
+    app.register_blueprint(ocbc_blue, url_prefix='/statement')
+    app.register_blueprint(cmb_blue, url_prefix='/statement')
+    app.register_blueprint(statement_common_blue, url_prefix='/statement')
     
     # Athina 模块
     from .finance.routes.athina_routes import athina_blue
