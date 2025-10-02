@@ -342,19 +342,23 @@ class AthinaImportService:
                         corporate_name = self.clean_string(row_values[1]) if len(row_values) > 1 else None
                         book_date = self.parse_date(row_values[5]) if len(row_values) > 5 else None
                         
+                        header_updated = False
+                        
                         if corporate_name and corporate_name != header.corporate_name:
                             header.corporate_name = corporate_name
+                            header_updated = True
                             print(f"更新头部公司名称: {booking_header_id}, 新公司: {corporate_name}")
                         
                         if book_date and book_date != header.book_date:
                             header.book_date = book_date
+                            header_updated = True
                             print(f"更新头部预订日期: {booking_header_id}, 新日期: {book_date}")
                         
-                        # 更新updated_at时间戳
-                        header.updated_at = datetime.utcnow()
-                        
-                        updated_headers += 1
-                        print(f"更新现有头部: {booking_header_id}, 公司: {header.corporate_name}")
+                        # 如果有任何更新，更新时间戳
+                        if header_updated:
+                            header.updated_at = datetime.utcnow()
+                            updated_headers += 1
+                            print(f"更新现有头部: {booking_header_id}, 公司: {header.corporate_name}")
                     current_header = header
                 
                 # 检查是否为小计行
@@ -362,24 +366,71 @@ class AthinaImportService:
                     print(f"发现小计行: {row_values}")
                     # 更新头部的小计数据
                     # 预处理后的列结构：第1列=booking_header_id, 第2列=Corporate Name, 第3列=Client Name, 第4列=Booking Ref, 第5列=Book Type, 第6列=Book Date, 第7列=Dep Date, 第8列=Itin Desc, 第9列=Gross Curr, 第10列=Gross, 第11列=Gross Tax, 第12列=Disc, 第13列=Local Gross, 第14列=Local Cost, 第15列=PL, 第16列=Marg, 第17列=Balance, 第18列=Supplier, 第19列=Consultant, 第20列=Sales Consultant, 第21列=Invoice No, 第22列=Invoice Date
-                    current_header.sub_total_gross = self.parse_decimal(row_values[9]) if len(row_values) > 9 else None  # Gross
-                    current_header.sub_total_cost = self.parse_decimal(row_values[13]) if len(row_values) > 13 else None  # Local Cost
-                    current_header.sub_total_pl = self.parse_decimal(row_values[14]) if len(row_values) > 14 else None  # PL
-                    current_header.sub_total_balance = self.parse_decimal(row_values[16]) if len(row_values) > 16 else None  # Balance
-                    current_header.sub_total_tax = self.parse_decimal(row_values[10]) if len(row_values) > 10 else None  # Gross Tax
-                    current_header.sub_total_discount = self.parse_decimal(row_values[11]) if len(row_values) > 11 else None  # Disc
-                    current_header.sub_total_local_gross = self.parse_decimal(row_values[12]) if len(row_values) > 12 else None  # Local Gross
-                    current_header.sub_total_margin = self.parse_percentage(row_values[15]) if len(row_values) > 15 else None  # Marg
                     
-                    # 同时更新头部的顾问和发票信息（如果存在）
+                    subtotal_updated = False
+                    
+                    # 更新财务数据（总是更新，因为小计行是最新的汇总数据）
+                    new_gross = self.parse_decimal(row_values[9]) if len(row_values) > 9 else None
+                    new_cost = self.parse_decimal(row_values[13]) if len(row_values) > 13 else None
+                    new_pl = self.parse_decimal(row_values[14]) if len(row_values) > 14 else None
+                    new_balance = self.parse_decimal(row_values[16]) if len(row_values) > 16 else None
+                    new_tax = self.parse_decimal(row_values[10]) if len(row_values) > 10 else None
+                    new_discount = self.parse_decimal(row_values[11]) if len(row_values) > 11 else None
+                    new_local_gross = self.parse_decimal(row_values[12]) if len(row_values) > 12 else None
+                    new_margin = self.parse_percentage(row_values[15]) if len(row_values) > 15 else None
+                    
+                    # 检查是否有变化，如果有则更新
+                    if new_gross is not None and new_gross != current_header.sub_total_gross:
+                        current_header.sub_total_gross = new_gross
+                        subtotal_updated = True
+                    if new_cost is not None and new_cost != current_header.sub_total_cost:
+                        current_header.sub_total_cost = new_cost
+                        subtotal_updated = True
+                    if new_pl is not None and new_pl != current_header.sub_total_pl:
+                        current_header.sub_total_pl = new_pl
+                        subtotal_updated = True
+                    if new_balance is not None and new_balance != current_header.sub_total_balance:
+                        current_header.sub_total_balance = new_balance
+                        subtotal_updated = True
+                    if new_tax is not None and new_tax != current_header.sub_total_tax:
+                        current_header.sub_total_tax = new_tax
+                        subtotal_updated = True
+                    if new_discount is not None and new_discount != current_header.sub_total_discount:
+                        current_header.sub_total_discount = new_discount
+                        subtotal_updated = True
+                    if new_local_gross is not None and new_local_gross != current_header.sub_total_local_gross:
+                        current_header.sub_total_local_gross = new_local_gross
+                        subtotal_updated = True
+                    if new_margin is not None and new_margin != current_header.sub_total_margin:
+                        current_header.sub_total_margin = new_margin
+                        subtotal_updated = True
+                    
+                    # 更新顾问和发票信息（如果存在且为空）
                     if not current_header.consultant:
-                        current_header.consultant = self.clean_string(row_values[18]) if len(row_values) > 18 else None  # Consultant
+                        consultant = self.clean_string(row_values[18]) if len(row_values) > 18 else None
+                        if consultant:
+                            current_header.consultant = consultant
+                            subtotal_updated = True
                     if not current_header.sales_consultant:
-                        current_header.sales_consultant = self.clean_string(row_values[19]) if len(row_values) > 19 else None  # Sales Consultant
+                        sales_consultant = self.clean_string(row_values[19]) if len(row_values) > 19 else None
+                        if sales_consultant:
+                            current_header.sales_consultant = sales_consultant
+                            subtotal_updated = True
                     if not current_header.invoice_no:
-                        current_header.invoice_no = self.clean_string(row_values[20]) if len(row_values) > 20 else None  # Invoice No
+                        invoice_no = self.clean_string(row_values[20]) if len(row_values) > 20 else None
+                        if invoice_no:
+                            current_header.invoice_no = invoice_no
+                            subtotal_updated = True
                     if not current_header.invoice_date:
-                        current_header.invoice_date = self.parse_date(row_values[21]) if len(row_values) > 21 else None  # Invoice Date
+                        invoice_date = self.parse_date(row_values[21]) if len(row_values) > 21 else None
+                        if invoice_date:
+                            current_header.invoice_date = invoice_date
+                            subtotal_updated = True
+                    
+                    # 如果有任何更新，更新时间戳
+                    if subtotal_updated:
+                        current_header.updated_at = datetime.utcnow()
+                        updated_headers += 1
                     
                     # 创建小计明细记录（小计行不需要booking_ref，但我们需要特殊处理）
                     detail = AthinaBookingDetail(
@@ -431,63 +482,122 @@ class AthinaImportService:
                             # 更新现有明细记录
                             print(f"更新现有明细记录，booking_ref: {booking_ref}")
                             
-                            # 更新业务信息（如果新数据不为空）
-                            if len(row_values) > 1 and self.clean_string(row_values[1]):
-                                existing_detail.corporate_name = self.clean_string(row_values[1])
-                            if len(row_values) > 2 and self.clean_string(row_values[2]):
-                                existing_detail.client_name = self.clean_string(row_values[2])
-                            if len(row_values) > 4 and self.clean_string(row_values[4]):
-                                existing_detail.book_type = self.clean_string(row_values[4])
-                            if len(row_values) > 5 and self.parse_date(row_values[5]):
-                                existing_detail.book_date = self.parse_date(row_values[5])
-                            if len(row_values) > 6 and self.parse_date(row_values[6]):
-                                existing_detail.dep_date = self.parse_date(row_values[6])
-                            if len(row_values) > 7 and self.clean_string(row_values[7]):
-                                existing_detail.itin_desc = self.clean_string(row_values[7])
+                            detail_updated = False
                             
-                            # 更新财务信息
-                            if len(row_values) > 8 and self.clean_string(row_values[8]):
-                                existing_detail.gross_curr = self.clean_string(row_values[8])
-                            if len(row_values) > 9 and self.parse_decimal(row_values[9]) is not None:
-                                existing_detail.gross_amount = self.parse_decimal(row_values[9])
-                            if len(row_values) > 10 and self.parse_decimal(row_values[10]) is not None:
-                                existing_detail.gross_tax = self.parse_decimal(row_values[10])
-                            if len(row_values) > 11 and self.parse_decimal(row_values[11]) is not None:
-                                existing_detail.discount = self.parse_decimal(row_values[11])
-                            if len(row_values) > 12 and self.parse_decimal(row_values[12]) is not None:
-                                existing_detail.local_gross = self.parse_decimal(row_values[12])
-                            if len(row_values) > 13 and self.parse_decimal(row_values[13]) is not None:
-                                existing_detail.local_cost = self.parse_decimal(row_values[13])
-                            if len(row_values) > 14 and self.parse_decimal(row_values[14]) is not None:
-                                existing_detail.profit_loss = self.parse_decimal(row_values[14])
-                            if len(row_values) > 15 and self.parse_percentage(row_values[15]) is not None:
-                                existing_detail.margin = self.parse_percentage(row_values[15])
-                            if len(row_values) > 16 and self.parse_decimal(row_values[16]) is not None:
-                                existing_detail.balance = self.parse_decimal(row_values[16])
+                            # 更新业务信息（如果新数据不为空且与现有数据不同）
+                            new_corporate_name = self.clean_string(row_values[1]) if len(row_values) > 1 else None
+                            if new_corporate_name and new_corporate_name != existing_detail.corporate_name:
+                                existing_detail.corporate_name = new_corporate_name
+                                detail_updated = True
+                            
+                            new_client_name = self.clean_string(row_values[2]) if len(row_values) > 2 else None
+                            if new_client_name and new_client_name != existing_detail.client_name:
+                                existing_detail.client_name = new_client_name
+                                detail_updated = True
+                            
+                            new_book_type = self.clean_string(row_values[4]) if len(row_values) > 4 else None
+                            if new_book_type and new_book_type != existing_detail.book_type:
+                                existing_detail.book_type = new_book_type
+                                detail_updated = True
+                            
+                            new_book_date = self.parse_date(row_values[5]) if len(row_values) > 5 else None
+                            if new_book_date and new_book_date != existing_detail.book_date:
+                                existing_detail.book_date = new_book_date
+                                detail_updated = True
+                            
+                            new_dep_date = self.parse_date(row_values[6]) if len(row_values) > 6 else None
+                            if new_dep_date and new_dep_date != existing_detail.dep_date:
+                                existing_detail.dep_date = new_dep_date
+                                detail_updated = True
+                            
+                            new_itin_desc = self.clean_string(row_values[7]) if len(row_values) > 7 else None
+                            if new_itin_desc and new_itin_desc != existing_detail.itin_desc:
+                                existing_detail.itin_desc = new_itin_desc
+                                detail_updated = True
+                            
+                            # 更新财务信息（如果新数据不为空且与现有数据不同）
+                            new_gross_curr = self.clean_string(row_values[8]) if len(row_values) > 8 else None
+                            if new_gross_curr and new_gross_curr != existing_detail.gross_curr:
+                                existing_detail.gross_curr = new_gross_curr
+                                detail_updated = True
+                            
+                            new_gross_amount = self.parse_decimal(row_values[9]) if len(row_values) > 9 else None
+                            if new_gross_amount is not None and new_gross_amount != existing_detail.gross_amount:
+                                existing_detail.gross_amount = new_gross_amount
+                                detail_updated = True
+                            
+                            new_gross_tax = self.parse_decimal(row_values[10]) if len(row_values) > 10 else None
+                            if new_gross_tax is not None and new_gross_tax != existing_detail.gross_tax:
+                                existing_detail.gross_tax = new_gross_tax
+                                detail_updated = True
+                            
+                            new_discount = self.parse_decimal(row_values[11]) if len(row_values) > 11 else None
+                            if new_discount is not None and new_discount != existing_detail.discount:
+                                existing_detail.discount = new_discount
+                                detail_updated = True
+                            
+                            new_local_gross = self.parse_decimal(row_values[12]) if len(row_values) > 12 else None
+                            if new_local_gross is not None and new_local_gross != existing_detail.local_gross:
+                                existing_detail.local_gross = new_local_gross
+                                detail_updated = True
+                            
+                            new_local_cost = self.parse_decimal(row_values[13]) if len(row_values) > 13 else None
+                            if new_local_cost is not None and new_local_cost != existing_detail.local_cost:
+                                existing_detail.local_cost = new_local_cost
+                                detail_updated = True
+                            
+                            new_profit_loss = self.parse_decimal(row_values[14]) if len(row_values) > 14 else None
+                            if new_profit_loss is not None and new_profit_loss != existing_detail.profit_loss:
+                                existing_detail.profit_loss = new_profit_loss
+                                detail_updated = True
+                            
+                            new_margin = self.parse_percentage(row_values[15]) if len(row_values) > 15 else None
+                            if new_margin is not None and new_margin != existing_detail.margin:
+                                existing_detail.margin = new_margin
+                                detail_updated = True
+                            
+                            new_balance = self.parse_decimal(row_values[16]) if len(row_values) > 16 else None
+                            if new_balance is not None and new_balance != existing_detail.balance:
+                                existing_detail.balance = new_balance
+                                detail_updated = True
                             
                             # 更新供应商信息
-                            if len(row_values) > 17 and self.clean_string(row_values[17]):
-                                existing_detail.supplier = self.clean_string(row_values[17])
-                            if len(row_values) > 18 and self.clean_string(row_values[18]):
-                                existing_detail.consultant = self.clean_string(row_values[18])
-                            if len(row_values) > 19 and self.clean_string(row_values[19]):
-                                existing_detail.sales_consultant = self.clean_string(row_values[19])
+                            new_supplier = self.clean_string(row_values[17]) if len(row_values) > 17 else None
+                            if new_supplier and new_supplier != existing_detail.supplier:
+                                existing_detail.supplier = new_supplier
+                                detail_updated = True
+                            
+                            new_consultant = self.clean_string(row_values[18]) if len(row_values) > 18 else None
+                            if new_consultant and new_consultant != existing_detail.consultant:
+                                existing_detail.consultant = new_consultant
+                                detail_updated = True
+                            
+                            new_sales_consultant = self.clean_string(row_values[19]) if len(row_values) > 19 else None
+                            if new_sales_consultant and new_sales_consultant != existing_detail.sales_consultant:
+                                existing_detail.sales_consultant = new_sales_consultant
+                                detail_updated = True
                             
                             # 更新发票信息
-                            if len(row_values) > 20 and self.clean_string(row_values[20]):
-                                existing_detail.invoice_no = self.clean_string(row_values[20])
-                            if len(row_values) > 21 and self.parse_date(row_values[21]):
-                                existing_detail.invoice_date = self.parse_date(row_values[21])
+                            new_invoice_no = self.clean_string(row_values[20]) if len(row_values) > 20 else None
+                            if new_invoice_no and new_invoice_no != existing_detail.invoice_no:
+                                existing_detail.invoice_no = new_invoice_no
+                                detail_updated = True
                             
-                            # 更新updated_at时间戳
-                            existing_detail.updated_at = datetime.utcnow()
+                            new_invoice_date = self.parse_date(row_values[21]) if len(row_values) > 21 else None
+                            if new_invoice_date and new_invoice_date != existing_detail.invoice_date:
+                                existing_detail.invoice_date = new_invoice_date
+                                detail_updated = True
                             
                             # 确保header_id正确
                             if existing_detail.header_id != current_header.id:
                                 existing_detail.header_id = current_header.id
+                                detail_updated = True
                             
-                            updated_details += 1
-                            print(f"更新明细记录，booking_ref: {booking_ref}, 客户: {existing_detail.client_name}")
+                            # 如果有任何更新，更新时间戳
+                            if detail_updated:
+                                existing_detail.updated_at = datetime.utcnow()
+                                updated_details += 1
+                                print(f"更新明细记录，booking_ref: {booking_ref}, 客户: {existing_detail.client_name}")
                         else:
                             # 创建新的明细记录
                             # 预处理后的列结构：第1列=booking_header_id, 第2列=Corporate Name, 第3列=Client Name, 第4列=Booking Ref, 第5列=Book Type, 第6列=Book Date, 第7列=Dep Date, 第8列=Itin Desc, 第9列=Gross Curr, 第10列=Gross, 第11列=Gross Tax, 第12列=Disc, 第13列=Local Gross, 第14列=Local Cost, 第15列=PL, 第16列=Marg, 第17列=Balance, 第18列=Supplier, 第19列=Consultant, 第20列=Sales Consultant, 第21列=Invoice No, 第22列=Invoice Date
@@ -650,13 +760,73 @@ class AthinaImportService:
             header_count = AthinaBookingHeader.query.count()
             detail_count = AthinaBookingDetail.query.count()
             
+            # 获取最近更新的记录数量
+            from datetime import datetime, timedelta
+            recent_threshold = datetime.utcnow() - timedelta(days=7)
+            
+            recent_headers = AthinaBookingHeader.query.filter(
+                AthinaBookingHeader.updated_at >= recent_threshold
+            ).count()
+            
+            recent_details = AthinaBookingDetail.query.filter(
+                AthinaBookingDetail.updated_at >= recent_threshold
+            ).count()
+            
             return {
                 'success': True,
                 'header_count': header_count,
-                'detail_count': detail_count
+                'detail_count': detail_count,
+                'recent_headers': recent_headers,
+                'recent_details': recent_details,
+                'last_updated': datetime.utcnow().isoformat()
             }
         except Exception as e:
             return {
                 'success': False,
                 'message': f'获取统计信息失败: {str(e)}'
+            }
+    
+    def update_booking_data(self, booking_header_id, field_updates):
+        """专门用于更新特定预订数据的方法"""
+        try:
+            header = AthinaBookingHeader.query.filter_by(booking_header_id=booking_header_id).first()
+            if not header:
+                return {
+                    'success': False,
+                    'message': f'未找到预订头部记录: {booking_header_id}'
+                }
+            
+            updated_fields = []
+            
+            # 更新头部记录
+            for field, value in field_updates.items():
+                if hasattr(header, field):
+                    old_value = getattr(header, field)
+                    if old_value != value:
+                        setattr(header, field, value)
+                        updated_fields.append(field)
+            
+            # 如果有更新，更新时间戳
+            if updated_fields:
+                header.updated_at = datetime.utcnow()
+                db.session.commit()
+                
+                return {
+                    'success': True,
+                    'message': f'成功更新预订 {booking_header_id} 的字段: {", ".join(updated_fields)}',
+                    'updated_fields': updated_fields,
+                    'updated_at': header.updated_at.isoformat()
+                }
+            else:
+                return {
+                    'success': True,
+                    'message': '没有字段需要更新',
+                    'updated_fields': []
+                }
+                
+        except Exception as e:
+            db.session.rollback()
+            return {
+                'success': False,
+                'message': f'更新失败: {str(e)}'
             }

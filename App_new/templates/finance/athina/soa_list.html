@@ -537,6 +537,7 @@ class SOAManager {
                 const params = new URLSearchParams({
                     company: this.companyFilter,
                     month: this.monthFilter,
+                    balance_positive: this.balanceFilter,
                     format: 'excel'
                 });
 
@@ -589,7 +590,8 @@ class SOAManager {
             try {
                 const params = new URLSearchParams({
                     company: this.companyFilter,
-                    month: this.monthFilter
+                    month: this.monthFilter,
+                    balance_positive: this.balanceFilter
                 });
 
                 const response = await fetch(`/statement/soa_batch_download_pdf?${params}`);

@@ -343,7 +343,7 @@ class SOAService:
                 'message': f'Failed to get company list: {str(e)}'
             }
     
-    def batch_download_soa(self, company=None, month=None, format='excel'):
+    def batch_download_soa(self, company=None, month=None, balance_positive=None, format='excel'):
         """批量下载SOA - 生成Excel表格"""
         try:
             import pandas as pd
@@ -376,6 +376,13 @@ class SOAService:
                     )
                 except (ValueError, TypeError):
                     pass
+            
+            # 添加余额大于0的筛选条件
+            if balance_positive is not None:
+                if balance_positive:
+                    query = query.filter(AthinaBookingHeader.sub_total_balance > 0)
+                else:
+                    query = query.filter(AthinaBookingHeader.sub_total_balance <= 0)
             
             # 获取所有符合条件的头部
             headers = query.all()
@@ -498,7 +505,7 @@ class SOAService:
         except Exception as e:
             return None, f"Error generating Excel file: {str(e)}"
     
-    def batch_download_soa_pdf(self, company=None, month=None):
+    def batch_download_soa_pdf(self, company=None, month=None, balance_positive=None):
         """批量下载SOA - 生成PDF文件"""
         try:
             # 构建查询条件
@@ -527,6 +534,13 @@ class SOAService:
                     )
                 except (ValueError, TypeError):
                     pass
+            
+            # 添加余额大于0的筛选条件
+            if balance_positive is not None:
+                if balance_positive:
+                    query = query.filter(AthinaBookingHeader.sub_total_balance > 0)
+                else:
+                    query = query.filter(AthinaBookingHeader.sub_total_balance <= 0)
             
             # 获取所有符合条件的头部
             headers = query.all()

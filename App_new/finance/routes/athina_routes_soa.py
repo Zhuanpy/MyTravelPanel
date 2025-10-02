@@ -68,12 +68,14 @@ def soa_batch_download():
     try:
         company = request.args.get('company', '')
         month = request.args.get('month', '')
+        balance_positive = request.args.get('balance_positive', 'false').lower() == 'true'
         format_type = request.args.get('format', 'excel')
         
         soa_service = SOAService()
         excel_content, error = soa_service.batch_download_soa(
             company=company if company else None,
             month=month if month else None,
+            balance_positive=balance_positive,
             format=format_type
         )
         
@@ -110,11 +112,13 @@ def soa_batch_download_pdf():
     try:
         company = request.args.get('company', '')
         month = request.args.get('month', '')
+        balance_positive = request.args.get('balance_positive', 'false').lower() == 'true'
         
         soa_service = SOAService()
         pdf_content, error = soa_service.batch_download_soa_pdf(
             company=company if company else None,
-            month=month if month else None
+            month=month if month else None,
+            balance_positive=balance_positive
         )
         
         if error:
