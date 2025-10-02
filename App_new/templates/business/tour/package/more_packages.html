@@ -1,0 +1,69 @@
+{% extends "shared/staff_base.html" %}
+
+{% block title %}{{ country }}所有配套信息{% endblock %}
+
+{% block extra_css %}
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+    .card-hover {
+        transition: all 0.3s ease;
+    }
+    .card-hover:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    }
+    .city-btn {
+        transition: all 0.3s ease;
+        backdrop-filter: blur(10px);
+    }
+    .city-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="bg-gray-50 min-h-screen p-4 md:p-6">
+    <div class="max-w-7xl mx-auto">
+        <!-- 页面标题 -->
+        <div class="mb-8">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-800">{{ country }}所有配套信息</h1>
+                    <p class="text-gray-600 mt-2">探索{{ country }}的精彩城市配套</p>
+                </div>
+                <a href="{{ url_for('package_routes.package_home') }}" 
+                   class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors">
+                    <i class="fas fa-home mr-2"></i>返回首页
+                </a>
+            </div>
+        </div>
+
+        <!-- 配套列表 -->
+        <div class="bg-white rounded-2xl shadow-md p-6">
+            <div class="flex items-center mb-6">
+                <div class="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center mr-3">
+                    <i class="fas fa-map-marked-alt text-purple-500 text-lg"></i>
+                </div>
+                <div>
+                    <h2 class="text-xl font-semibold text-gray-800">城市配套列表</h2>
+                    <p class="text-sm text-gray-500">{{ cities|length }}个城市配套</p>
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {% for city in cities %}
+                <a href="{{ url_for('package_routes.our_package', city_name=city.city_name) }}" 
+                   class="city-btn bg-gradient-to-br from-purple-50 to-blue-50 text-purple-700 hover:from-purple-100 hover:to-blue-100 border border-purple-200 px-4 py-3 rounded-xl font-medium shadow-sm">
+                    <div class="flex items-center">
+                        <i class="fas fa-city mr-2"></i>
+                        <span>{{ city.display_name }}配套</span>
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 
