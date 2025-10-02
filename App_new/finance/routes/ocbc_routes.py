@@ -42,21 +42,7 @@ def ocbc_bank():
     # 获取筛选参数
     month_param = request.args.get('month', '')
     
-    # 如果没有指定月份，默认使用最新一个月
-    if not month_param:
-        # 查询OCBC银行最新的交易记录，获取最新的月份
-        latest_transaction = BankTransaction.query.join(BankStatement).filter(
-            BankStatement.bank_name == 'OCBC'
-        ).order_by(desc(BankTransaction.transaction_date)).first()
-        
-        if latest_transaction:
-            # 使用最新交易记录的年份和月份
-            latest_date = latest_transaction.transaction_date
-            month_param = f"{latest_date.year}-{latest_date.month:02d}"
-        else:
-            # 如果没有交易记录，使用当前月份
-            now = datetime.now()
-            month_param = f"{now.year}-{now.month:02d}"
+    # 如果没有指定月份，显示全部数据（不设置默认月份）
     
     filters = {
         'month': month_param,
@@ -69,10 +55,18 @@ def ocbc_bank():
         'sort': request.args.get('sort', 'date_desc')
     }
     
-    # 获取OCBC银行的对账单数据，按创建时间降序排列
+    # 获取OCBC银行的对账单数据，按对账单号（月份）降序排列
     statements = BankStatement.query.filter(
         BankStatement.bank_name == 'OCBC'
-    ).order_by(desc(BankStatement.created_at)).limit(10).all()
+    ).order_by(desc(BankStatement.statement_number)).limit(10).all()
+    
+    # 更新每个对账单的状态（基于交易确认状态）
+    for statement in statements:
+        statement.update_status_based_on_transactions()
+    
+    # 提交状态更新到数据库
+    if statements:
+        db.session.commit()
     
     # 获取OCBC银行的交易数据
     transactions_query = BankTransaction.query.join(BankStatement).filter(
@@ -82,11 +76,28 @@ def ocbc_bank():
     # 应用筛选条件
     if filters['month']:
         # 月份筛选：格式为 YYYY-MM
-        year, month = filters['month'].split('-')
-        transactions_query = transactions_query.filter(
-            db.func.extract('year', BankTransaction.transaction_date) == int(year),
-            db.func.extract('month', BankTransaction.transaction_date) == int(month)
-        )
+        try:
+            year, month = filters['month'].split('-')
+            # 使用更简单的日期范围筛选
+            from datetime import date
+            start_date = date(int(year), int(month), 1)
+            if int(month) == 12:
+                end_date = date(int(year) + 1, 1, 1)
+            else:
+                end_date = date(int(year), int(month) + 1, 1)
+            
+            transactions_query = transactions_query.filter(
+                BankTransaction.transaction_date >= start_date,
+                BankTransaction.transaction_date < end_date
+            )
+        except Exception as e:
+            print(f"月份筛选错误: {e}")
+            # 如果月份解析失败，使用原来的方法
+            year, month = filters['month'].split('-')
+            transactions_query = transactions_query.filter(
+                db.func.extract('year', BankTransaction.transaction_date) == int(year),
+                db.func.extract('month', BankTransaction.transaction_date) == int(month)
+            )
     
     if filters['start_date']:
         transactions_query = transactions_query.filter(
@@ -119,14 +130,17 @@ def ocbc_bank():
         )
     
     if filters['operation_status']:
+        print(f"应用操作状态筛选: {filters['operation_status']}")
         if filters['operation_status'] == 'confirmed':
             transactions_query = transactions_query.filter(
                 BankTransaction.is_confirmed == True
             )
+            print("筛选条件: is_confirmed = True")
         elif filters['operation_status'] == 'unconfirmed':
             transactions_query = transactions_query.filter(
                 BankTransaction.is_confirmed == False
             )
+            print("筛选条件: is_confirmed = False")
     
     # 应用排序
     if filters['sort'] == 'date_desc':
@@ -138,10 +152,24 @@ def ocbc_bank():
     elif filters['sort'] == 'amount_asc':
         transactions_query = transactions_query.order_by(BankTransaction.amount)
     
+    # 添加调试信息
+    print(f"OCBC银行查询调试:")
+    print(f"  筛选条件: {filters}")
+    print(f"  查询语句: {transactions_query}")
+    
     # 分页处理
     page = request.args.get('page', 1, type=int)
     pagination = transactions_query.paginate(page=page, per_page=30, error_out=False)
     transactions = pagination.items
+    
+    print(f"  查询结果: 找到 {len(transactions)} 个交易记录")
+    print(f"  分页信息: 第 {pagination.page} 页 / 共 {pagination.pages} 页, 总计 {pagination.total} 条")
+    
+    # 添加操作状态调试信息
+    if transactions:
+        confirmed_count = sum(1 for tx in transactions if tx.is_confirmed)
+        unconfirmed_count = len(transactions) - confirmed_count
+        print(f"  当前页面操作状态统计: 已确认 {confirmed_count} 条, 未确认 {unconfirmed_count} 条")
     
     # 获取归属选项
     owner_options = ['Business', 'LG', 'JE', '个人消费', '个人商用']
@@ -162,68 +190,7 @@ def ocbc_bank():
                          owner_options=owner_options)
 
 
-@ocbc_blue.route('/download_ocbc_statement/<statement_number>')
-@login_required
-@staff_only
-def download_ocbc_statement(statement_number):
-    """下载OCBC对账单"""
-    try:
-        # 查找对账单
-        statement = BankStatement.query.filter_by(
-            statement_number=statement_number,
-            bank_name='OCBC'
-        ).first()
-        
-        if not statement:
-            flash(f'对账单 {statement_number} 不存在', 'error')
-            return redirect(url_for('ocbc_routes.ocbc_bank'))
-        
-        # 这里应该生成对账单文件，暂时返回提示
-        flash('对账单下载功能正在开发中', 'info')
-        return redirect(url_for('ocbc_routes.ocbc_bank'))
-        
-    except Exception as e:
-        flash(f'下载对账单失败: {str(e)}', 'error')
-        return redirect(url_for('ocbc_routes.ocbc_bank'))
-
-
-@ocbc_blue.route('/delete_ocbc_statement', methods=['POST'])
-@csrf.exempt
-@login_required
-@staff_only
-def delete_ocbc_statement():
-    """删除OCBC对账单"""
-    try:
-        statement_number = request.form.get('statement_number')
-        
-        if not statement_number:
-            flash('对账单号不能为空', 'error')
-            return redirect(url_for('ocbc_routes.ocbc_bank'))
-        
-        # 查找对账单
-        statement = BankStatement.query.filter_by(
-            statement_number=statement_number,
-            bank_name='OCBC'
-        ).first()
-        
-        if not statement:
-            flash(f'对账单 {statement_number} 不存在', 'error')
-            return redirect(url_for('ocbc_routes.ocbc_bank'))
-        
-        # 删除相关的交易记录
-        BankTransaction.query.filter_by(statement_id=statement.id).delete()
-        
-        # 删除对账单
-        db.session.delete(statement)
-        db.session.commit()
-        
-        flash(f'成功删除对账单 {statement_number}', 'success')
-        
-    except Exception as e:
-        db.session.rollback()
-        flash(f'删除对账单失败: {str(e)}', 'error')
-    
-    return redirect(url_for('ocbc_routes.ocbc_bank'))
+# OCBC下载和删除对账单功能已移至通用函数 statement_common.download_statement 和 statement_common.delete_statement
 
 
 @ocbc_blue.route('/ocbc_tx_update', methods=['POST'])
@@ -261,6 +228,16 @@ def ocbc_tx_update():
         
         if 'keyword' in data:
             transaction.keyword = data['keyword']
+        
+        # 处理确认状态
+        if 'is_confirmed' in data:
+            transaction.is_confirmed = data['is_confirmed']
+            if data['is_confirmed']:
+                transaction.confirmed_at = datetime.utcnow()
+                transaction.confirmed_by = data.get('confirmed_by', 'system')
+            else:
+                transaction.confirmed_at = None
+                transaction.confirmed_by = None
         
         db.session.commit()
         
@@ -353,77 +330,12 @@ def ocbc_batch_confirm():
         return jsonify({'success': False, 'message': f'批量确认失败: {str(e)}'}), 500
 
 
-@ocbc_blue.route('/open_ocbc_statement_folder', methods=['GET', 'POST'])
-@csrf.exempt
-def open_ocbc_statement_folder():
-    if request.method == 'GET':
-        return redirect(url_for('ocbc_routes.ocbc_bank'))
-    folder_path = Config.BILLING_DATA_PATH / "OCBC"
-    
-    # 如果文件夹不存在，则创建它
-    if not folder_path.exists():
-        try:
-            folder_path.mkdir(parents=True, exist_ok=True)
-            flash('OCBC文件夹不存在，已自动创建', 'info')
-        except Exception as e:
-            flash(f'创建文件夹失败：{str(e)}', 'error')
-            return redirect(url_for('ocbc_routes.ocbc_bank'))
-    
-    try:
-        subprocess.run(['explorer', str(folder_path)], shell=True)
-        flash('成功打开OCBC账单文件夹', 'success')
-    except Exception as e:
-        flash(f'打开文件夹失败：{str(e)}', 'error')
-    
-    return redirect(url_for('ocbc_routes.ocbc_bank'))
-
-
-@ocbc_blue.route('/ocbc_bank_processing', methods=['GET', 'POST'])
-@csrf.exempt
-def ocbc_bank_processing():
-    if request.method == 'GET':
-        return redirect(url_for('ocbc_routes.ocbc_bank'))
-    folder_path = Config.BILLING_DATA_PATH / "OCBC"
-    flash('OCBC账单整理功能尚未实现')
-    return redirect(url_for('ocbc_routes.ocbc_bank'))
-
-
-@ocbc_blue.route('/ocbc_original_processing', methods=['GET', 'POST'])
-@csrf.exempt
-def ocbc_original_processing():
-    if request.method == 'GET':
-        return redirect(url_for('ocbc_routes.ocbc_bank'))
-    folder_path = Config.BILLING_DATA_PATH / "OCBC"
-    flash('OCBC原始账单整理功能尚未实现')
-    return redirect(url_for('ocbc_routes.ocbc_bank'))
-
-
-@ocbc_blue.route('/ocbc_latest_company_statement', methods=['GET', 'POST'])
-@csrf.exempt
-def ocbc_latest_company_statement():
-    if request.method == 'GET':
-        return redirect(url_for('ocbc_routes.ocbc_bank'))
-    folder_path = Config.BILLING_DATA_PATH / "OCBC"
-    flash('OCBC公司账单整理功能尚未实现')
-    return redirect(url_for('ocbc_routes.ocbc_bank'))
-
-
-@ocbc_blue.route('/ocbc_latest_self_statement', methods=['GET', 'POST'])
-@csrf.exempt
-def ocbc_latest_self_statement():
-    if request.method == 'GET':
-        return redirect(url_for('ocbc_routes.ocbc_bank'))
-    folder_path = Config.BILLING_DATA_PATH / "OCBC"
-    flash('OCBC个人账单整理功能尚未实现')
-    return redirect(url_for('ocbc_routes.ocbc_bank'))
-
-
-@ocbc_blue.route('/ocbc_to_company', methods=['GET', 'POST'])
-@csrf.exempt
-def ocbc_to_company():
-    if request.method == 'GET':
-        return redirect(url_for('ocbc_routes.ocbc_bank'))
-    folder_path = Config.BILLING_DATA_PATH / "OCBC"
-    flash('OCBC公司账单生成功能尚未实现')
-    return redirect(url_for('ocbc_routes.ocbc_bank'))
+# OCBC所有通用功能已移至通用函数 statement_common.py：
+# - open_ocbc_statement_folder → statement_common.open_statement_folder
+# - ocbc_bank_processing → statement_common.bank_processing  
+# - ocbc_original_processing → statement_common.original_processing
+# - ocbc_latest_company_statement → statement_common.latest_company_statement
+# - ocbc_latest_self_statement → statement_common.latest_self_statement
+# - ocbc_to_company → statement_common.to_company
+# - ocbc_upload_file → statement_common.upload_file (已删除)
 

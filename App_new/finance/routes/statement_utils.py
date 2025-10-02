@@ -166,6 +166,8 @@ def process_monthly_transactions(month_data, statement_id, month, bank_name='UOB
     processed_count = 0
     error_count = 0
     duplicate_count = 0
+    confirmed_duplicate_count = 0
+    unconfirmed_duplicate_count = 0
     
     # 关键字匹配统计
     keyword_stats = {
@@ -187,7 +189,13 @@ def process_monthly_transactions(month_data, statement_id, month, bank_name='UOB
             
             if existing_transaction:
                 duplicate_count += 1
-                print(f"跳过重复记录 {index}: {row['Id']}")
+                # 根据确认状态给出不同的提示信息并统计
+                if existing_transaction.is_confirmed:
+                    confirmed_duplicate_count += 1
+                    print(f"跳过已确认的重复记录 {index}: {row['Id']} (确认时间: {existing_transaction.confirmed_at})")
+                else:
+                    unconfirmed_duplicate_count += 1
+                    print(f"跳过未确认的重复记录 {index}: {row['Id']}")
                 continue
             
             # 确定交易类型和金额 - 针对不同银行账单结构
@@ -234,6 +242,43 @@ def process_monthly_transactions(month_data, statement_id, month, bank_name='UOB
                         transaction_type = 'credit'
                     amount_found = True
                     
+            elif bank_name == 'OCBC':
+                # OCBC银行账单有Debit Amount和Credit Amount两列
+                debit_amount = 0.00
+                credit_amount = 0.00
+                
+                # 获取Debit Amount金额
+                if 'Debit Amount' in row and pd.notna(row['Debit Amount']):
+                    try:
+                        debit_amount = float(row['Debit Amount'])
+                    except (ValueError, TypeError):
+                        debit_amount = 0.00
+                
+                # 获取Credit Amount金额
+                if 'Credit Amount' in row and pd.notna(row['Credit Amount']):
+                    try:
+                        credit_amount = float(row['Credit Amount'])
+                    except (ValueError, TypeError):
+                        credit_amount = 0.00
+                
+                # 确定交易类型和金额
+                if debit_amount > 0 and credit_amount == 0:
+                    amount = debit_amount
+                    transaction_type = 'debit'
+                    amount_found = True
+                elif credit_amount > 0 and debit_amount == 0:
+                    amount = credit_amount
+                    transaction_type = 'credit'
+                    amount_found = True
+                elif debit_amount > 0 and credit_amount > 0:
+                    # 两列都有值，取较大的值
+                    if debit_amount >= credit_amount:
+                        amount = debit_amount
+                        transaction_type = 'debit'
+                    else:
+                        amount = credit_amount
+                        transaction_type = 'credit'
+                    amount_found = True
             else:
                 # 其他银行的通用处理逻辑
                 if 'Amount' in row and pd.notna(row['Amount']):
@@ -313,7 +358,9 @@ def process_monthly_transactions(month_data, statement_id, month, bank_name='UOB
     
     print(f"月份 {month} 处理完成:")
     print(f"  - 成功处理: {processed_count} 条")
-    print(f"  - 跳过重复: {duplicate_count} 条") 
+    print(f"  - 跳过重复: {duplicate_count} 条")
+    print(f"    - 已确认重复: {confirmed_duplicate_count} 条")
+    print(f"    - 未确认重复: {unconfirmed_duplicate_count} 条")
     print(f"  - 处理错误: {error_count} 条")
     print(f"关键字匹配统计:")
     print(f"  - 个人消费: {keyword_stats['personal']} 条")
@@ -324,5 +371,9 @@ def process_monthly_transactions(month_data, statement_id, month, bank_name='UOB
     
     return {
         'processed_count': processed_count,
+        'duplicate_count': duplicate_count,
+        'confirmed_duplicate_count': confirmed_duplicate_count,
+        'unconfirmed_duplicate_count': unconfirmed_duplicate_count,
+        'error_count': error_count,
         'keyword_stats': keyword_stats
     }

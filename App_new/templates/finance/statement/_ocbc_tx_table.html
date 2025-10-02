@@ -53,14 +53,14 @@
         <tbody>
             {% for t in transactions %}
             <tr>
-                <td>{{ t.transaction_date }}</td>
-                <td>{{ t.post_date or '-' }}</td>
-                <td>{{ '支出' if t.transaction_type=='debit' else '收入' }}</td>
-                <td>{{ '%.2f'|format(t.amount) }}</td>
-                <td>{{ '%.2f'|format(t.balance) if t.balance is not none else '-' }}</td>
-                <td class="summary-cell" title="点击查看/关闭全文" data-full="{{ t.description or '' }}">{{ (t.description or '')[:40] }}{% if t.description and t.description|length>40 %}...{% endif %}</td>
+                <td style="text-align:left;">{{ t.transaction_date }}</td>
+                <td style="text-align:left;">{{ t.post_date or '-' }}</td>
+                <td style="text-align:left;">{{ '支出' if t.transaction_type=='debit' else '收入' }}</td>
+                <td style="text-align:left;">{{ '%.2f'|format(t.amount) }}</td>
+                <td style="text-align:left;">{{ '%.2f'|format(t.balance) if t.balance is not none else '-' }}</td>
+                <td class="summary-cell" style="text-align:left; word-wrap:break-word; white-space:normal; max-width:200px;" title="点击查看/关闭全文" data-full="{{ t.description or '' }}">{{ t.description or '' }}</td>
                 <td style="text-align:left; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ t.keyword or '-' }}</td>
-                <td>
+                <td style="text-align:left;">
                     {% if t.is_confirmed %}
                         <span class="badge bg-success">{{ t.owner_label or '未设置' }}</span>
                     {% else %}
@@ -74,21 +74,21 @@
                         </select>
                     {% endif %}
                 </td>
-                <td>
+                <td style="text-align:left;">
                     {% if t.is_confirmed %}
-                        <span class="text-muted">{{ t.accounting_ref or '未设置' }}</span>
+                        <span class="text-muted" style="text-align:left;">{{ t.accounting_ref or '未设置' }}</span>
                     {% else %}
                         <input type="text" class="form-control form-control-sm tx-input" data-tx-id="{{ t.id }}" data-field="accounting_ref" value="{{ t.accounting_ref or '' }}" placeholder="填写REF/EO">
                     {% endif %}
                 </td>
-                <td>
+                <td style="text-align:left;">
                     {% if t.is_confirmed %}
-                        <span class="text-muted">{{ t.remarks or '无备注' }}</span>
+                        <span class="text-muted" style="text-align:left;">{{ t.remarks or '无备注' }}</span>
                     {% else %}
                         <textarea class="form-control form-control-sm tx-remarks" data-tx-id="{{ t.id }}" data-field="remarks" placeholder="填写备注">{{ t.remarks or '' }}</textarea>
                     {% endif %}
                 </td>
-                <td>
+                <td style="text-align:left;">
                     {% if not t.is_confirmed %}
                         <div class="d-flex align-items-center gap-2">
                             <input type="checkbox" class="transaction-checkbox" data-tx-id="{{ t.id }}" title="选择此交易">

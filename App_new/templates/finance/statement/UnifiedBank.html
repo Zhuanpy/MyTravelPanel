@@ -146,13 +146,7 @@
         <div class="card-body">
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <div>
-                    {% if bank_name == 'UOB' %}
-                    <form action="{{ url_for('uob_routes.open_uob_statement_folder') }}" method="post">
-                    {% elif bank_name == 'OCBC' %}
-                    <form action="{{ url_for('ocbc_routes.open_ocbc_statement_folder') }}" method="post">
-                    {% elif bank_name == 'CMB' %}
-                    <form action="{{ url_for('cmb_routes.open_cmb_statement_folder') }}" method="post">
-                    {% endif %}
+                    <form action="{{ url_for('statement_common_routes.open_statement_folder', bank_name=bank_name) }}" method="post">
                         <button type="submit" class="btn btn-outline-primary btn-sm">
                             <i class="fas fa-folder-open"></i> 打开{{ bank_name }}文件夹
                         </button>
@@ -183,27 +177,23 @@
                                 <td>{{ s.period_start.strftime('%Y-%m-%d') if s.period_start else '' }}</td>
                                 <td>{{ s.period_end.strftime('%Y-%m-%d') if s.period_end else '' }}</td>
                                 <td>
-                                    <span class="badge {{ 'bg-success' if s.status == 'completed' else 'bg-warning' }}">
-                                        {{ '已完成' if s.status == 'completed' else '草稿' }}
-                                    </span>
+                                    {% if s.status == 'completed' %}
+                                        <span class="badge bg-success">确认</span>
+                                    {% elif s.status == 'processing' %}
+                                        <span class="badge bg-warning">进行中</span>
+                                    {% elif s.status == 'draft' %}
+                                        <span class="badge bg-secondary">草稿</span>
+                                    {% elif s.status == 'cancelled' %}
+                                        <span class="badge bg-danger">已取消</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">{{ s.status }}</span>
+                                    {% endif %}
                                 </td>
                                 <td>
-                                    {% if bank_name == 'UOB' %}
-                                    <a class="btn btn-outline-primary btn-sm" href="{{ url_for('uob_routes.download_uob_statement', statement_number=s.statement_number) }}">
-                                    {% elif bank_name == 'OCBC' %}
-                                    <a class="btn btn-outline-primary btn-sm" href="{{ url_for('ocbc_routes.download_ocbc_statement', statement_number=s.statement_number) }}">
-                                    {% elif bank_name == 'CMB' %}
-                                    <a class="btn btn-outline-primary btn-sm" href="{{ url_for('cmb_routes.download_cmb_statement', statement_number=s.statement_number) }}">
-                                    {% endif %}
+                                    <a class="btn btn-outline-primary btn-sm" href="{{ url_for('statement_common_routes.download_statement', bank_name=bank_name, statement_number=s.statement_number) }}">
                                         <i class="fas fa-download"></i> 下载
                                     </a>
-                                    {% if bank_name == 'UOB' %}
-                                    <form method="post" action="{{ url_for('uob_routes.delete_uob_statement') }}"
-                                    {% elif bank_name == 'OCBC' %}
-                                    <form method="post" action="{{ url_for('ocbc_routes.delete_ocbc_statement') }}"
-                                    {% elif bank_name == 'CMB' %}
-                                    <form method="post" action="{{ url_for('cmb_routes.delete_cmb_statement') }}"
-                                    {% endif %} 
+                                    <form method="post" action="{{ url_for('statement_common_routes.delete_statement', bank_name=bank_name) }}" 
                                           style="display: inline;" 
                                           onsubmit="return confirm('确定要删除对账单 {{ s.statement_number }} 吗？这将删除所有相关的交易记录。');">
                                         <input type="hidden" name="statement_number" value="{{ s.statement_number }}">
@@ -234,10 +224,10 @@
             <div class="upload-area">
                 <form id="{{ bank_name.lower() }}-upload-form" enctype="multipart/form-data">
                     <div class="mb-3">
-                        <label class="form-label">上传Excel文件</label>
+                        <label class="form-label">上传账单文件</label>
                         <div class="d-flex gap-2">
-                            <input type="file" id="{{ bank_name.lower() }}-file-input" accept=".xls,.xlsx" style="display: none;">
-                            <button type="button" id="{{ bank_name.lower() }}-select-file-btn" class="btn btn-outline-secondary">选择XLS文件</button>
+                            <input type="file" id="{{ bank_name.lower() }}-file-input" accept=".xls,.xlsx,.csv" style="display: none;">
+                            <button type="button" id="{{ bank_name.lower() }}-select-file-btn" class="btn btn-outline-secondary">选择文件</button>
                             <button type="button" id="{{ bank_name.lower() }}-upload-btn" class="btn btn-success" disabled>入库账单数据</button>
                         </div>
                         <div id="{{ bank_name.lower() }}-file-info" class="mt-2 text-muted"></div>
@@ -380,39 +370,21 @@
         <div class="card-body">
             <div class="row g-3">
                 <div class="col-md-4">
-                    {% if bank_name == 'UOB' %}
-                    <form action="{{ url_for('uob_routes.uob_to_company') }}" method="post">
-                    {% elif bank_name == 'OCBC' %}
-                    <form action="{{ url_for('ocbc_routes.ocbc_to_company') }}" method="post">
-                    {% elif bank_name == 'CMB' %}
-                    <form action="{{ url_for('cmb_routes.cmb_to_company') }}" method="post">
-                    {% endif %}
+                    <form action="{{ url_for('statement_common_routes.to_company', bank_name=bank_name) }}" method="post">
                         <button type="submit" class="btn btn-info w-100">
                             <i class="fas fa-building"></i> 生成公司账单
                         </button>
                     </form>
                 </div>
                 <div class="col-md-4">
-                    {% if bank_name == 'UOB' %}
-                    <form action="{{ url_for('uob_routes.uob_latest_company_statement') }}" method="post">
-                    {% elif bank_name == 'OCBC' %}
-                    <form action="{{ url_for('ocbc_routes.ocbc_latest_company_statement') }}" method="post">
-                    {% elif bank_name == 'CMB' %}
-                    <form action="{{ url_for('cmb_routes.cmb_latest_company_statement') }}" method="post">
-                    {% endif %}
+                    <form action="{{ url_for('statement_common_routes.latest_company_statement', bank_name=bank_name) }}" method="post">
                         <button type="submit" class="btn btn-warning w-100">
                             <i class="fas fa-file-alt"></i> 最新公司账单
                         </button>
                     </form>
                 </div>
                 <div class="col-md-4">
-                    {% if bank_name == 'UOB' %}
-                    <form action="{{ url_for('uob_routes.uob_latest_self_statement') }}" method="post">
-                    {% elif bank_name == 'OCBC' %}
-                    <form action="{{ url_for('ocbc_routes.ocbc_latest_self_statement') }}" method="post">
-                    {% elif bank_name == 'CMB' %}
-                    <form action="{{ url_for('cmb_routes.cmb_latest_self_statement') }}" method="post">
-                    {% endif %}
+                    <form action="{{ url_for('statement_common_routes.latest_self_statement', bank_name=bank_name) }}" method="post">
                         <button type="submit" class="btn btn-secondary w-100">
                             <i class="fas fa-user"></i> 最新个人账单
                         </button>
@@ -448,13 +420,15 @@ document.addEventListener('DOMContentLoaded', function() {
         fileInput.addEventListener('change', function() {
             if (this.files.length > 0) {
                 const file = this.files[0];
-                const isValidType = file.name.toLowerCase().endsWith('.xls') || file.name.toLowerCase().endsWith('.xlsx');
+                const isValidType = file.name.toLowerCase().endsWith('.xls') || 
+                                  file.name.toLowerCase().endsWith('.xlsx') || 
+                                  file.name.toLowerCase().endsWith('.csv');
                 
                 if (isValidType) {
                     fileInfo.textContent = `已选择: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`;
                     uploadBtn.disabled = false;
                 } else {
-                    fileInfo.textContent = '请选择Excel文件 (.xls 或 .xlsx)';
+                    fileInfo.textContent = '请选择账单文件 (.xls, .xlsx 或 .csv)';
                     uploadBtn.disabled = true;
                 }
             } else {
@@ -476,7 +450,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 uploadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 上传中...';
                 uploadBtn.disabled = true;
                 
-                const response = await fetch('/statement/' + bankName + '_upload_file', {
+                const response = await fetch('/statement/upload_file/' + '{{ bank_name }}', {
                     method: 'POST',
                     body: formData
                 });
@@ -527,7 +501,50 @@ document.addEventListener('DOMContentLoaded', function() {
         const buildUrl = () => {
             const params = new URLSearchParams(new FormData(form));
             params.set('partial', 'table');
-            return baseUrl + (baseUrl.includes('?') ? '&' : '?') + params.toString();
+            
+            // 从分页元素中获取当前页码
+            let currentPage = null;
+            
+            // 方法1：从当前激活的分页按钮获取页码
+            const activePageItem = document.querySelector('.pagination .page-item.active .page-link');
+            if (activePageItem) {
+                currentPage = activePageItem.textContent.trim();
+                console.log('从激活分页按钮获取页码:', currentPage);
+            }
+            
+            // 方法2：如果方法1失败，从调试信息中获取页码
+            if (!currentPage) {
+                const debugInfo = document.querySelector('.debug-info');
+                if (debugInfo) {
+                    const debugText = debugInfo.textContent;
+                    const pageMatch = debugText.match(/第 (\d+) 页/);
+                    if (pageMatch) {
+                        currentPage = pageMatch[1];
+                        console.log('从调试信息获取页码:', currentPage);
+                    }
+                }
+            }
+            
+            // 方法3：如果前两种方法都失败，从URL中获取
+            if (!currentPage) {
+                const currentUrl = new URL(window.location.href);
+                currentPage = currentUrl.searchParams.get('page');
+                console.log('从URL获取页码:', currentPage);
+            }
+            
+            if (currentPage && currentPage !== '1') {
+                params.set('page', currentPage);
+            }
+            
+            const finalUrl = baseUrl + (baseUrl.includes('?') ? '&' : '?') + params.toString();
+            console.log('buildUrl调试信息:');
+            console.log('  baseUrl:', baseUrl);
+            console.log('  当前页面URL:', window.location.href);
+            console.log('  当前页码:', currentPage);
+            console.log('  表单参数:', params.toString());
+            console.log('  最终URL:', finalUrl);
+            
+            return finalUrl;
         };
         const loadTable = async () => {
             try {
@@ -541,7 +558,7 @@ document.addEventListener('DOMContentLoaded', function() {
         };
         btn.addEventListener('click', function(e){ e.preventDefault(); loadTable(); });
         
-        // 创建全局的refreshTableOnly函数
+        // 创建全局的refreshTableOnly函数，确保保持当前筛选条件
         window.refreshTableOnly = loadTable;
         
         // 监听排序选择变化
@@ -591,16 +608,38 @@ document.addEventListener('DOMContentLoaded', function() {
             const checkedBoxes = document.querySelectorAll('.transaction-checkbox:checked');
             const count = checkedBoxes.length;
             
+            // 计算选中交易的金额总和
+            let totalAmount = 0;
+            if (count > 0) {
+                checkedBoxes.forEach(checkbox => {
+                    // 获取该行第4列（金额列）的值
+                    const row = checkbox.closest('tr');
+                    const amountCell = row.querySelector('td:nth-child(4)');
+                    if (amountCell) {
+                        const amountText = amountCell.textContent.trim();
+                        const amount = parseFloat(amountText.replace(/[^\d.-]/g, '')) || 0;
+                        totalAmount += amount;
+                    }
+                });
+            }
+            
             const selectedCount = document.getElementById('selectedCount');
             const batchActions = document.getElementById('batchActions');
             const batchStatus = document.getElementById('batchStatus');
             
-            if (selectedCount) selectedCount.textContent = `已选择 ${count} 个交易`;
+            if (selectedCount) {
+                if (count > 0) {
+                    selectedCount.textContent = `已选择 ${count} 个交易，金额总计: ${totalAmount.toFixed(2)}`;
+                } else {
+                    selectedCount.textContent = `已选择 ${count} 个交易`;
+                }
+            }
+            
             if (batchActions) batchActions.style.display = count > 0 ? 'block' : 'none';
             
             if (batchStatus) {
                 if (count > 0) {
-                    batchStatus.textContent = `已选择 ${count} 个交易，点击"一键确认"进行批量操作`;
+                    batchStatus.textContent = `已选择 ${count} 个交易 (金额总计: ${totalAmount.toFixed(2)})，点击"一键确认"进行批量操作`;
                 } else {
                     batchStatus.textContent = '准备批量操作...';
                 }
@@ -650,18 +689,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 
                 (async () => {
+                    const originalText = e.target.innerHTML;
                     try {
-                        const originalText = e.target.innerHTML;
                         e.target.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 确认中...';
                         e.target.disabled = true;
                         
-                        {% if bank_name == 'UOB' %}
-                        const response = await fetch("{{ url_for('uob_routes.uob_batch_confirm') }}", {
-                        {% elif bank_name == 'OCBC' %}
-                        const response = await fetch("{{ url_for('ocbc_routes.ocbc_batch_confirm') }}", {
-                        {% elif bank_name == 'CMB' %}
-                        const response = await fetch("{{ url_for('cmb_routes.cmb_batch_confirm') }}", {
-                        {% endif %}
+                        const url = {% if bank_name == 'UOB' %}"{{ url_for('uob_routes.uob_batch_confirm') }}"{% elif bank_name == 'OCBC' %}"{{ url_for('ocbc_routes.ocbc_batch_confirm') }}"{% elif bank_name == 'CMB' %}"{{ url_for('cmb_routes.cmb_batch_confirm') }}"{% endif %};
+                        
+                        const response = await fetch(url, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ transaction_ids: transactionIds })
@@ -670,17 +705,76 @@ document.addEventListener('DOMContentLoaded', function() {
                         const result = await response.json();
                         
                         if (result.success) {
-                            alert(`成功确认 ${result.confirmed_count} 个交易记录`);
+                            // 直接刷新表格，不显示成功提示
+                            console.log('批量确认成功，准备刷新表格');
+                            console.log('当前页面URL:', window.location.href);
                             if (window.refreshTableOnly) {
                                 window.refreshTableOnly();
+                            } else {
+                                console.error('refreshTableOnly函数不存在');
                             }
                         } else {
+                            // 只在失败时显示错误提示
                             alert(`批量确认失败: ${result.message}`);
                         }
                         
                     } catch (error) {
                         console.error('批量确认错误:', error);
                         alert('批量确认失败，请重试');
+                    } finally {
+                        e.target.innerHTML = originalText;
+                        e.target.disabled = false;
+                    }
+                })();
+            }
+            
+            // 单个确认按钮
+            else if (e.target && e.target.classList.contains('confirm-btn')) {
+                const transactionId = parseInt(e.target.dataset.txId);
+                
+                if (!transactionId) {
+                    alert('交易记录ID无效');
+                    return;
+                }
+                
+                (async () => {
+                    const originalText = e.target.innerHTML;
+                    try {
+                        e.target.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 确认中...';
+                        e.target.disabled = true;
+                        
+                        const url = {% if bank_name == 'UOB' %}"{{ url_for('uob_routes.uob_tx_update') }}"{% elif bank_name == 'OCBC' %}"{{ url_for('ocbc_routes.ocbc_tx_update') }}"{% elif bank_name == 'CMB' %}"{{ url_for('cmb_routes.cmb_tx_update') }}"{% endif %};
+                        
+                        const response = await fetch(url, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ 
+                                id: transactionId,
+                                is_confirmed: true,
+                                confirmed_at: new Date().toISOString(),
+                                confirmed_by: 'current_user'  // 这里应该从session获取实际用户名
+                            })
+                        });
+                        
+                        const result = await response.json();
+                        
+                        if (result.success) {
+                            // 直接刷新表格，不显示成功提示
+                            console.log('确认成功，准备刷新表格');
+                            console.log('当前页面URL:', window.location.href);
+                            if (window.refreshTableOnly) {
+                                window.refreshTableOnly();
+                            } else {
+                                console.error('refreshTableOnly函数不存在');
+                            }
+                        } else {
+                            // 只在失败时显示错误提示
+                            alert(`确认失败: ${result.message}`);
+                        }
+                        
+                    } catch (error) {
+                        console.error('确认错误:', error);
+                        alert('确认失败，请重试');
                     } finally {
                         e.target.innerHTML = originalText;
                         e.target.disabled = false;
@@ -698,12 +792,62 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
         
-        // 使用事件委托处理复选框变化
+        // 使用事件委托处理复选框变化和输入字段自动保存
         document.addEventListener('change', function(e) {
             if (e.target && e.target.classList.contains('transaction-checkbox')) {
                 updateSelection();
             }
+            // 处理输入字段的自动保存
+            else if (e.target && (e.target.classList.contains('tx-input') || e.target.classList.contains('tx-remarks'))) {
+                const txId = e.target.dataset.txId;
+                const field = e.target.dataset.field;
+                const value = e.target.value;
+                
+                if (txId && field) {
+                    saveTransactionField(txId, field, value);
+                }
+            }
         });
+        
+        // 处理输入字段的blur事件（失去焦点时保存）
+        document.addEventListener('blur', function(e) {
+            if (e.target && (e.target.classList.contains('tx-input') || e.target.classList.contains('tx-remarks'))) {
+                const txId = e.target.dataset.txId;
+                const field = e.target.dataset.field;
+                const value = e.target.value;
+                
+                if (txId && field) {
+                    saveTransactionField(txId, field, value);
+                }
+            }
+        }, true);
+        
+        // 自动保存函数
+        async function saveTransactionField(txId, field, value) {
+            try {
+                const url = {% if bank_name == 'UOB' %}"{{ url_for('uob_routes.uob_tx_update') }}"{% elif bank_name == 'OCBC' %}"{{ url_for('ocbc_routes.ocbc_tx_update') }}"{% elif bank_name == 'CMB' %}"{{ url_for('cmb_routes.cmb_tx_update') }}"{% endif %};
+                
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        id: parseInt(txId),
+                        [field]: value
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    // 保存成功，可以添加视觉反馈
+                    console.log(`字段 ${field} 保存成功`);
+                } else {
+                    console.error(`保存失败: ${result.message}`);
+                }
+            } catch (error) {
+                console.error('保存字段时出错:', error);
+            }
+        }
         
         // 初始化选择状态
         setTimeout(updateSelection, 100);

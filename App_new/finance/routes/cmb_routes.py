@@ -42,21 +42,7 @@ def cmb_bank():
     # 获取筛选参数
     month_param = request.args.get('month', '')
     
-    # 如果没有指定月份，默认使用最新一个月
-    if not month_param:
-        # 查询CMB银行最新的交易记录，获取最新的月份
-        latest_transaction = BankTransaction.query.join(BankStatement).filter(
-            BankStatement.bank_name == 'CMB'
-        ).order_by(desc(BankTransaction.transaction_date)).first()
-        
-        if latest_transaction:
-            # 使用最新交易记录的年份和月份
-            latest_date = latest_transaction.transaction_date
-            month_param = f"{latest_date.year}-{latest_date.month:02d}"
-        else:
-            # 如果没有交易记录，使用当前月份
-            now = datetime.now()
-            month_param = f"{now.year}-{now.month:02d}"
+    # 如果没有指定月份，显示全部数据（不设置默认月份）
     
     filters = {
         'month': month_param,
@@ -69,10 +55,18 @@ def cmb_bank():
         'sort': request.args.get('sort', 'date_desc')
     }
     
-    # 获取CMB银行的对账单数据，按创建时间降序排列
+    # 获取CMB银行的对账单数据，按对账单号（月份）降序排列
     statements = BankStatement.query.filter(
         BankStatement.bank_name == 'CMB'
-    ).order_by(desc(BankStatement.created_at)).limit(10).all()
+    ).order_by(desc(BankStatement.statement_number)).limit(10).all()
+    
+    # 更新每个对账单的状态（基于交易确认状态）
+    for statement in statements:
+        statement.update_status_based_on_transactions()
+    
+    # 提交状态更新到数据库
+    if statements:
+        db.session.commit()
     
     # 获取CMB银行的交易数据
     transactions_query = BankTransaction.query.join(BankStatement).filter(
@@ -82,11 +76,28 @@ def cmb_bank():
     # 应用筛选条件
     if filters['month']:
         # 月份筛选：格式为 YYYY-MM
-        year, month = filters['month'].split('-')
-        transactions_query = transactions_query.filter(
-            db.func.extract('year', BankTransaction.transaction_date) == int(year),
-            db.func.extract('month', BankTransaction.transaction_date) == int(month)
-        )
+        try:
+            year, month = filters['month'].split('-')
+            # 使用更简单的日期范围筛选
+            from datetime import date
+            start_date = date(int(year), int(month), 1)
+            if int(month) == 12:
+                end_date = date(int(year) + 1, 1, 1)
+            else:
+                end_date = date(int(year), int(month) + 1, 1)
+            
+            transactions_query = transactions_query.filter(
+                BankTransaction.transaction_date >= start_date,
+                BankTransaction.transaction_date < end_date
+            )
+        except Exception as e:
+            print(f"月份筛选错误: {e}")
+            # 如果月份解析失败，使用原来的方法
+            year, month = filters['month'].split('-')
+            transactions_query = transactions_query.filter(
+                db.func.extract('year', BankTransaction.transaction_date) == int(year),
+                db.func.extract('month', BankTransaction.transaction_date) == int(month)
+            )
     
     if filters['start_date']:
         transactions_query = transactions_query.filter(
@@ -162,68 +173,7 @@ def cmb_bank():
                          owner_options=owner_options)
 
 
-@cmb_blue.route('/download_cmb_statement/<statement_number>')
-@login_required
-@staff_only
-def download_cmb_statement(statement_number):
-    """下载CMB对账单"""
-    try:
-        # 查找对账单
-        statement = BankStatement.query.filter_by(
-            statement_number=statement_number,
-            bank_name='CMB'
-        ).first()
-        
-        if not statement:
-            flash(f'对账单 {statement_number} 不存在', 'error')
-            return redirect(url_for('cmb_routes.cmb_bank'))
-        
-        # 这里应该生成对账单文件，暂时返回提示
-        flash('对账单下载功能正在开发中', 'info')
-        return redirect(url_for('cmb_routes.cmb_bank'))
-        
-    except Exception as e:
-        flash(f'下载对账单失败: {str(e)}', 'error')
-        return redirect(url_for('cmb_routes.cmb_bank'))
-
-
-@cmb_blue.route('/delete_cmb_statement', methods=['POST'])
-@csrf.exempt
-@login_required
-@staff_only
-def delete_cmb_statement():
-    """删除CMB对账单"""
-    try:
-        statement_number = request.form.get('statement_number')
-        
-        if not statement_number:
-            flash('对账单号不能为空', 'error')
-            return redirect(url_for('cmb_routes.cmb_bank'))
-        
-        # 查找对账单
-        statement = BankStatement.query.filter_by(
-            statement_number=statement_number,
-            bank_name='CMB'
-        ).first()
-        
-        if not statement:
-            flash(f'对账单 {statement_number} 不存在', 'error')
-            return redirect(url_for('cmb_routes.cmb_bank'))
-        
-        # 删除相关的交易记录
-        BankTransaction.query.filter_by(statement_id=statement.id).delete()
-        
-        # 删除对账单
-        db.session.delete(statement)
-        db.session.commit()
-        
-        flash(f'成功删除对账单 {statement_number}', 'success')
-        
-    except Exception as e:
-        db.session.rollback()
-        flash(f'删除对账单失败: {str(e)}', 'error')
-    
-    return redirect(url_for('cmb_routes.cmb_bank'))
+# CMB下载和删除对账单功能已移至通用函数 statement_common.download_statement 和 statement_common.delete_statement
 
 
 @cmb_blue.route('/cmb_tx_update', methods=['POST'])
@@ -261,6 +211,16 @@ def cmb_tx_update():
         
         if 'keyword' in data:
             transaction.keyword = data['keyword']
+        
+        # 处理确认状态
+        if 'is_confirmed' in data:
+            transaction.is_confirmed = data['is_confirmed']
+            if data['is_confirmed']:
+                transaction.confirmed_at = datetime.utcnow()
+                transaction.confirmed_by = data.get('confirmed_by', 'system')
+            else:
+                transaction.confirmed_at = None
+                transaction.confirmed_by = None
         
         db.session.commit()
         
@@ -353,107 +313,14 @@ def cmb_batch_confirm():
         return jsonify({'success': False, 'message': f'批量确认失败: {str(e)}'}), 500
 
 
-@cmb_blue.route('/open_cmb_statement_folder', methods=['GET', 'POST'])
-@csrf.exempt
-def open_cmb_statement_folder():
-    if request.method == 'GET':
-        return redirect(url_for('cmb_routes.cmb_bank'))
-    folder_path = Config.BILLING_DATA_PATH / "CMB"
-    
-    # 如果文件夹不存在，则创建它
-    if not folder_path.exists():
-        try:
-            folder_path.mkdir(parents=True, exist_ok=True)
-            flash('CMB文件夹不存在，已自动创建', 'info')
-        except Exception as e:
-            flash(f'创建文件夹失败：{str(e)}', 'error')
-            return redirect(url_for('cmb_routes.cmb_bank'))
-    
-    try:
-        subprocess.run(['explorer', str(folder_path)], shell=True)
-        flash('成功打开招商银行账单文件夹', 'success')
-    except Exception as e:
-        flash(f'打开文件夹失败：{str(e)}', 'error')
-    
-    return redirect(url_for('cmb_routes.cmb_bank'))
-
-
-@cmb_blue.route('/cmb_bank_processing', methods=['GET', 'POST'])
-@csrf.exempt
-def cmb_bank_processing():
-    if request.method == 'GET':
-        return redirect(url_for('cmb_routes.cmb_bank'))
-    
-    try:
-        folder_path = Config.BILLING_DATA_PATH / "CMB"
-        
-        # 检查文件夹是否存在
-        if not folder_path.exists():
-            folder_path.mkdir(parents=True, exist_ok=True)
-            flash('CMB文件夹不存在，已自动创建', 'info')
-        
-        # 导入招商银行处理类
-        from App_new.utils.CmbStatement import CmbStatement
-        
-        # 处理账单
-        cmb_processor = CmbStatement(str(folder_path))
-        output_file = cmb_processor.statement_process()
-        
-        # 获取摘要信息
-        summary = cmb_processor.get_statement_summary()
-        
-        if summary:
-            flash(f'招商银行账单处理完成！共处理 {summary["total_transactions"]} 笔交易，总金额: {summary["total_amount"]:.2f} CNY', 'success')
-        else:
-            flash('招商银行账单处理完成！', 'success')
-            
-    except FileNotFoundError as e:
-        flash(f'未找到账单文件：{str(e)}', 'error')
-    except Exception as e:
-        logger.error(f"招商银行账单处理失败: {str(e)}")
-        flash(f'账单处理失败：{str(e)}', 'error')
-    
-    return redirect(url_for('cmb_routes.cmb_bank'))
-
-
-@cmb_blue.route('/cmb_original_processing', methods=['GET', 'POST'])
-@csrf.exempt
-def cmb_original_processing():
-    if request.method == 'GET':
-        return redirect(url_for('cmb_routes.cmb_bank'))
-    folder_path = Config.BILLING_DATA_PATH / "CMB"
-    flash('招商银行原始账单整理功能尚未实现')
-    return redirect(url_for('cmb_routes.cmb_bank'))
-
-
-@cmb_blue.route('/cmb_latest_company_statement', methods=['GET', 'POST'])
-@csrf.exempt
-def cmb_latest_company_statement():
-    if request.method == 'GET':
-        return redirect(url_for('cmb_routes.cmb_bank'))
-    folder_path = Config.BILLING_DATA_PATH / "CMB"
-    flash('招商银行公司账单整理功能尚未实现')
-    return redirect(url_for('cmb_routes.cmb_bank'))
-
-
-@cmb_blue.route('/cmb_latest_self_statement', methods=['GET', 'POST'])
-@csrf.exempt
-def cmb_latest_self_statement():
-    if request.method == 'GET':
-        return redirect(url_for('cmb_routes.cmb_bank'))
-    folder_path = Config.BILLING_DATA_PATH / "CMB"
-    flash('招商银行个人账单整理功能尚未实现')
-    return redirect(url_for('cmb_routes.cmb_bank'))
-
-
-@cmb_blue.route('/cmb_to_company', methods=['GET', 'POST'])
-@csrf.exempt
-def cmb_to_company():
-    if request.method == 'GET':
-        return redirect(url_for('cmb_routes.cmb_bank'))
-    folder_path = Config.BILLING_DATA_PATH / "CMB"
-    flash('招商银行公司账单生成功能尚未实现')
-    return redirect(url_for('cmb_routes.cmb_bank'))
+# CMB所有通用功能已移至通用函数 statement_common.py：
+# - open_cmb_statement_folder → statement_common.open_statement_folder
+# - cmb_bank_processing → statement_common.bank_processing
+# - cmb_original_processing → statement_common.original_processing
+# - cmb_latest_company_statement → statement_common.latest_company_statement
+# - cmb_latest_self_statement → statement_common.latest_self_statement
+# - cmb_to_company → statement_common.to_company
+# - cmb_upload_file → statement_common.upload_file (已删除)
 
 
 # Athina 相关路由已移动到 athina_routes.py
@@ -474,7 +341,7 @@ def company_bill():
                 flash('Company文件夹不存在，已自动创建', 'info')
             except Exception as e:
                 flash(f'创建文件夹失败：{str(e)}', 'error')
-                return redirect(url_for("statement_common_routes.statement_to_company"))
+                return redirect(url_for("statement_common_routes.to_company", bank_name="CMB"))
         
         try:
             os.startfile(str(folder_path))
@@ -482,7 +349,7 @@ def company_bill():
         except Exception as e:
             flash(f'打开文件夹失败：{str(e)}', 'error')
         
-        return redirect(url_for("statement_common_routes.statement_to_company"))
+        return redirect(url_for("statement_common_routes.to_company", bank_name="CMB"))
     
     # GET请求，显示公司账单页面
     companies = get_company_list()
@@ -545,7 +412,7 @@ def company_bill_processing():
     except Exception as e:
         flash(f'批量处理失败：{str(e)}', 'error')
     
-    return redirect(url_for("statement_common_routes.statement_to_company"))
+    return redirect(url_for("statement_common_routes.to_company", bank_name="CMB"))
 
 
 @cmb_blue.route('/company_bill_consolidate', methods=['POST'])
@@ -571,7 +438,7 @@ def company_bill_consolidate():
     except Exception as e:
         flash(f'汇总失败：{str(e)}', 'error')
     
-    return redirect(url_for("statement_common_routes.statement_to_company"))
+    return redirect(url_for("statement_common_routes.to_company", bank_name="CMB"))
 
 
 @cmb_blue.route('/company_bill_export', methods=['POST'])
@@ -586,7 +453,7 @@ def company_bill_export():
     except Exception as e:
         flash(f'导出失败：{str(e)}', 'error')
     
-    return redirect(url_for("statement_common_routes.statement_to_company"))
+    return redirect(url_for("statement_common_routes.to_company", bank_name="CMB"))
 
 
 @cmb_blue.route('/open_company_bill_folder', methods=['POST'])
@@ -605,14 +472,14 @@ def open_company_bill_folder():
                 flash('Company文件夹不存在，已自动创建', 'info')
             except Exception as e:
                 flash(f'创建文件夹失败：{str(e)}', 'error')
-                return redirect(url_for("statement_common_routes.statement_to_company"))
+                return redirect(url_for("statement_common_routes.to_company", bank_name="CMB"))
         
         os.startfile(str(folder_path))
         flash('成功打开公司账单文件夹', 'success')
     except Exception as e:
         flash(f'打开文件夹失败：{str(e)}', 'error')
     
-    return redirect(url_for("statement_common_routes.statement_to_company"))
+    return redirect(url_for("statement_common_routes.to_company", bank_name="CMB"))
 
 
 @cmb_blue.route('/refresh_company_list', methods=['POST'])
@@ -627,7 +494,7 @@ def refresh_company_list():
     except Exception as e:
         flash(f'刷新失败：{str(e)}', 'error')
     
-    return redirect(url_for("statement_common_routes.statement_to_company"))
+    return redirect(url_for("statement_common_routes.to_company", bank_name="CMB"))
 
 
 @cmb_blue.route('/open_company_folder', methods=['POST'])
@@ -640,13 +507,13 @@ def open_company_folder():
         company_name = request.form.get('company_name')
         if not company_name:
             flash('公司名称不能为空', 'error')
-            return redirect(url_for("statement_common_routes.statement_to_company"))
+            return redirect(url_for("statement_common_routes.to_company", bank_name="CMB"))
         
         company_folder = Config.BILLING_DATA_PATH / "Company" / company_name
         
         if not company_folder.exists():
             flash(f'公司文件夹不存在：{company_name}', 'error')
-            return redirect(url_for("statement_common_routes.statement_to_company"))
+            return redirect(url_for("statement_common_routes.to_company", bank_name="CMB"))
         
         # 打开文件夹
         os.startfile(str(company_folder))
@@ -655,7 +522,7 @@ def open_company_folder():
     except Exception as e:
         flash(f'打开文件夹失败：{str(e)}', 'error')
     
-    return redirect(url_for("statement_common_routes.statement_to_company"))
+    return redirect(url_for("statement_common_routes.to_company", bank_name="CMB"))
 
 
 @cmb_blue.route('/compare_reports', methods=['POST'])

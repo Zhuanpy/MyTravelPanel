@@ -77,6 +77,40 @@ class BankStatement(db.Model):
     def transaction_count(self):
         """交易笔数"""
         return len(self.transactions)
+    
+    @property
+    def confirmed_transaction_count(self):
+        """已确认交易笔数"""
+        return sum(1 for t in self.transactions if t.is_confirmed)
+    
+    @property
+    def unconfirmed_transaction_count(self):
+        """未确认交易笔数"""
+        return sum(1 for t in self.transactions if not t.is_confirmed)
+    
+    def update_status_based_on_transactions(self):
+        """根据交易确认状态更新对账单状态"""
+        if not self.transactions:
+            # 没有交易记录，保持草稿状态
+            self.status = 'draft'
+            return
+        
+        total_count = len(self.transactions)
+        confirmed_count = self.confirmed_transaction_count
+        unconfirmed_count = self.unconfirmed_transaction_count
+        
+        if confirmed_count == total_count:
+            # 全部确认
+            self.status = 'completed'
+        elif confirmed_count > 0:
+            # 部分确认
+            self.status = 'processing'
+        else:
+            # 全部未确认
+            self.status = 'processing'
+        
+        # 更新修改时间
+        self.updated_at = datetime.utcnow()
 
 
 class BankTransaction(db.Model):
