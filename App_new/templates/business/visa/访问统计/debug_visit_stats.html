@@ -1,0 +1,77 @@
+{% extends "staff_base.html" %}
+
+{% block title %}访问统计调试 - MyTravelPanel{% endblock %}
+
+{% block page_title %}访问统计调试{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title">访问统计调试工具</h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <h6>调试步骤：</h6>
+                        <ol>
+                            <li>首先执行数据库SQL：<code>debug_visit_stats.sql</code></li>
+                            <li>访问签证详情页面：<a href="http://127.0.0.1:5000/public/visa-detail/日本多次签证" target="_blank">http://127.0.0.1:5000/public/visa-detail/日本多次签证</a></li>
+                            <li>查看Flask控制台输出，应该会看到调试信息</li>
+                            <li>检查数据库表是否有新记录</li>
+                        </ol>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>测试访问统计</h6>
+                            <button onclick="testVisitStats()" class="btn btn-primary">测试记录访问</button>
+                            <div id="testResult" class="mt-3"></div>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>查看统计数据</h6>
+                            <button onclick="viewStats()" class="btn btn-success">查看统计数据</button>
+                            <div id="statsResult" class="mt-3"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function testVisitStats() {
+    fetch('/visa/basic/test_visit_stats', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('meta[name=csrf-token]')?.getAttribute('content') || ''
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        document.getElementById('testResult').innerHTML = 
+            '<div class="alert alert-success">测试结果: ' + JSON.stringify(data) + '</div>';
+    })
+    .catch(error => {
+        document.getElementById('testResult').innerHTML = 
+            '<div class="alert alert-danger">测试失败: ' + error + '</div>';
+    });
+}
+
+function viewStats() {
+    fetch('/visa/basic/api/universal_visit_stats_data')
+    .then(response => response.json())
+    .then(data => {
+        document.getElementById('statsResult').innerHTML = 
+            '<div class="alert alert-info">统计数据: ' + JSON.stringify(data) + '</div>';
+    })
+    .catch(error => {
+        document.getElementById('statsResult').innerHTML = 
+            '<div class="alert alert-danger">获取失败: ' + error + '</div>';
+    });
+}
+</script>
+{% endblock %}

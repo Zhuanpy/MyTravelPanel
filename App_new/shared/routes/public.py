@@ -26,10 +26,10 @@ def visa_services():
         # 获取所有签证国家
         countries = VisaCountries.query.order_by(VisaCountries.country_name_CN).all()
         
-        # 获取签证类型统计
+        # 获取签证类型统计（只统计激活的）
         visa_stats = {}
         for country in countries:
-            visa_count = VisaTypes.query.filter_by(country_id=country.id).count()
+            visa_count = VisaTypes.query.filter_by(country_id=country.id, is_active=True).count()
             if visa_count > 0:
                 visa_stats[country.id] = visa_count
         
@@ -56,8 +56,8 @@ def visa_services_by_country(country_name):
         if not country:
             return render_template('public/404.html', message='未找到该国家'), 404
         
-        # 获取该国家的签证类型
-        visa_types = VisaTypes.query.filter_by(country_id=country.id).order_by(VisaTypes.visa_type).all()
+        # 获取该国家的签证类型（只显示激活的）
+        visa_types = VisaTypes.query.filter_by(country_id=country.id, is_active=True).order_by(VisaTypes.visa_type).all()
         
         return render_template('public/visa_services_country.html',
                              country=country,
@@ -71,11 +71,32 @@ def visa_services_by_country(country_name):
 def visa_detail(visa_type_name):
     """签证类型详情页面"""
     try:
-        # 获取签证类型信息
-        visa_type = VisaTypes.query.filter_by(visa_type=visa_type_name).first()
+        # 获取签证类型信息（只允许访问激活的）
+        visa_type = VisaTypes.query.filter_by(visa_type=visa_type_name, is_active=True).first()
         
         if not visa_type:
             return render_template('public/404.html', message='未找到该签证类型'), 404
+        
+        # 记录访问统计
+        try:
+            from App_new.shared.services.visit_stats_service import VisitStatsService
+            
+            # 记录签证访问
+            result = VisitStatsService.record_visa_visit(
+                visa_type_id=visa_type.id,
+                visa_type_name=visa_type.visa_type,
+                country_name=visa_type.country.country_name_CN if visa_type.country else None
+            )
+            
+            # 调试日志
+            current_app.logger.info(f"访问统计记录结果: {result}")
+            current_app.logger.info(f"签证类型ID: {visa_type.id}, 名称: {visa_type.visa_type}")
+            
+        except Exception as e:
+            # 访问统计记录失败不影响页面正常显示
+            current_app.logger.error(f"记录访问统计失败: {str(e)}")
+            import traceback
+            current_app.logger.error(f"详细错误信息: {traceback.format_exc()}")
         
         # 获取关联的身份信息
         identities = visa_type.identities if hasattr(visa_type, 'identities') else []

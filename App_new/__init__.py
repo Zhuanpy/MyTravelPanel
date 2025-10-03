@@ -240,7 +240,7 @@ def import_all_models():
         try:
             from .shared.models.business_types import BusinessType, BusinessTypeExtension, BusinessTypeRelation
             from .shared.models.Suppliers import Supplier
-            from .shared.models.Utilsmodels import Todo, Task
+            from .shared.models.Utilsmodels import Todo
         except Exception:
             pass
     except Exception:

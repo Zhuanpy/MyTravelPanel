@@ -37,7 +37,7 @@ def visa_services():
         if search_query and any(keyword in search_query.lower() for keyword in ['申根', 'schengen']):
             all_countries = VisaCountries.query.order_by(VisaCountries.country_name_CN).all()
             for country in all_countries:
-                visa_types = VisaTypes.query.filter_by(country_id=country.id).all()
+                visa_types = VisaTypes.query.filter_by(country_id=country.id, is_active=True).all()
                 for visa_type in visa_types:
                     if any(keyword in visa_type.visa_type for keyword in ['申根', 'Schengen', 'schengen']):
                         if country not in countries:
@@ -66,7 +66,7 @@ def visa_services():
                 else:
                     # 对于申根签证，检查是否有申根相关的签证类型
                     if region_filter == 'europe':
-                        visa_types = VisaTypes.query.filter_by(country_id=country.id).all()
+                        visa_types = VisaTypes.query.filter_by(country_id=country.id, is_active=True).all()
                         for visa_type in visa_types:
                             if any(keyword in visa_type.visa_type for keyword in ['申根', 'Schengen', 'schengen']):
                                 filtered_countries.append(country)
@@ -77,7 +77,7 @@ def visa_services():
         # 获取签证类型统计
         visa_stats = {}
         for country in countries:
-            visa_count = VisaTypes.query.filter_by(country_id=country.id).count()
+            visa_count = VisaTypes.query.filter_by(country_id=country.id, is_active=True).count()
             if visa_count > 0:
                 visa_stats[country.id] = visa_count
         
@@ -197,7 +197,7 @@ def visa_services_by_country(country_name):
             return render_template('guest/shared/404.html', message='未找到该国家'), 404
         
         # 获取该国家的签证类型
-        visa_types = VisaTypes.query.filter_by(country_id=country.id).order_by(VisaTypes.visa_type).all()
+        visa_types = VisaTypes.query.filter_by(country_id=country.id, is_active=True).order_by(VisaTypes.visa_type).all()
         
         # 转换为可序列化的格式
         visa_types_data = []
@@ -251,7 +251,7 @@ def visa_detail(visa_type_name):
         
         # 获取签证类型信息
         try:
-            visa_type_record = VisaTypes.query.filter_by(visa_type=decoded_visa_type).first()
+            visa_type_record = VisaTypes.query.filter_by(visa_type=decoded_visa_type, is_active=True).first()
             current_app.logger.info(f"查询签证类型结果: {visa_type_record}")
         except Exception as qe:
             current_app.logger.error(f"查询签证类型失败: {str(qe)}")
@@ -270,6 +270,27 @@ def visa_detail(visa_type_name):
                 current_app.logger.error(f"获取所有签证类型失败: {str(ae)}")
                 return f"Get All Types Error: {str(ae)}", 500
         
+        # 记录访问统计
+        try:
+            from App_new.shared.services.visit_stats_service import VisitStatsService
+            
+            # 记录签证访问
+            result = VisitStatsService.record_visa_visit(
+                visa_type_id=visa_type_record.id,
+                visa_type_name=visa_type_record.visa_type,
+                country_name=visa_type_record.country.country_name_CN if visa_type_record.country else None
+            )
+            
+            # 调试日志
+            current_app.logger.info(f"访问统计记录结果: {result}")
+            current_app.logger.info(f"签证类型ID: {visa_type_record.id}, 名称: {visa_type_record.visa_type}")
+            
+        except Exception as e:
+            # 访问统计记录失败不影响页面正常显示
+            current_app.logger.error(f"记录访问统计失败: {str(e)}")
+            import traceback
+            current_app.logger.error(f"详细错误信息: {traceback.format_exc()}")
+
         # 获取国家信息
         try:
             country = VisaCountries.query.get(visa_type_record.country_id)

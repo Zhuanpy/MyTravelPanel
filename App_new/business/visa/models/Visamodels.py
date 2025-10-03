@@ -90,6 +90,14 @@ class VisaTypes(db.Model):
     
     # 签证说明
     introduction = db.Column(db.Text, nullable=True)
+    
+    # 时间字段
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, comment='创建时间')
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False, comment='更新时间')
+    valid_until = db.Column(db.DateTime, nullable=True, comment='有效期')
+    
+    # 激活状态字段
+    is_active = db.Column(db.Boolean, default=True, nullable=False, comment='是否激活（显示在外部网页）')
 
     # 外键关系 - 国家
     country_id = db.Column(db.Integer, db.ForeignKey('visa_countries.id'), nullable=False)
@@ -128,6 +136,10 @@ class VisaTypes(db.Model):
             'introduction': self.introduction,
             'country_id': self.country_id,
             'country_name': self.country.country_name_CN if self.country else None,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+            'valid_until': self.valid_until.isoformat() if self.valid_until else None,
+            'is_active': self.is_active,
             'identities': [identity.to_dict() for identity in self.identities],
             'links': [link.to_dict() for link in self.links]
         }
@@ -510,6 +522,97 @@ class VisaLinks(db.Model):
             'visa_countries_id': self.visa_countries_id,
             'country_name': self.country.country_name_CN if self.country else None
         }
+
+
+class VisaVisitStats(db.Model):
+    """签证访问统计模型"""
+    __tablename__ = 'visa_visit_stats'
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    visa_type_id = db.Column(db.Integer, db.ForeignKey('visa_types.id', ondelete='CASCADE'), nullable=False)
+    visa_type_name = db.Column(db.String(100), nullable=False)
+    country_name = db.Column(db.String(100), nullable=True)
+    visitor_ip = db.Column(db.String(45), nullable=True)
+    user_agent = db.Column(db.Text, nullable=True)
+    referer = db.Column(db.Text, nullable=True)
+    visit_time = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    session_id = db.Column(db.String(100), nullable=True)
+
+    # 关系定义
+    visa_type = db.relationship('VisaTypes', backref='visit_stats')
+
+    def __repr__(self):
+        return f"<VisaVisitStats(id={self.id}, visa_type='{self.visa_type_name}', visit_time='{self.visit_time}')>"
+
+    @staticmethod
+    def record_visit(visa_type_id, visa_type_name, country_name=None, visitor_ip=None, 
+                    user_agent=None, referer=None, session_id=None):
+        """记录访问统计"""
+        try:
+            visit_record = VisaVisitStats(
+                visa_type_id=visa_type_id,
+                visa_type_name=visa_type_name,
+                country_name=country_name,
+                visitor_ip=visitor_ip,
+                user_agent=user_agent,
+                referer=referer,
+                session_id=session_id
+            )
+            db.session.add(visit_record)
+            db.session.commit()
+            return True
+        except Exception as e:
+            db.session.rollback()
+            print(f"记录访问统计失败: {str(e)}")
+            return False
+
+    @staticmethod
+    def get_visit_stats(visa_type_id=None, days=30):
+        """获取访问统计"""
+        try:
+            query = VisaVisitStats.query
+            if visa_type_id:
+                query = query.filter_by(visa_type_id=visa_type_id)
+            
+            # 按时间过滤
+            from datetime import datetime, timedelta
+            start_date = datetime.utcnow() - timedelta(days=days)
+            query = query.filter(VisaVisitStats.visit_time >= start_date)
+            
+            return query.order_by(VisaVisitStats.visit_time.desc()).all()
+        except Exception as e:
+            print(f"获取访问统计失败: {str(e)}")
+            return []
+
+    @staticmethod
+    def get_popular_visas(limit=10, days=30):
+        """获取热门签证类型"""
+        try:
+            from datetime import datetime, timedelta
+            from sqlalchemy import func
+            
+            start_date = datetime.utcnow() - timedelta(days=days)
+            
+            # 按签证类型分组统计访问次数
+            popular_visas = db.session.query(
+                VisaVisitStats.visa_type_id,
+                VisaVisitStats.visa_type_name,
+                VisaVisitStats.country_name,
+                func.count(VisaVisitStats.id).label('visit_count')
+            ).filter(
+                VisaVisitStats.visit_time >= start_date
+            ).group_by(
+                VisaVisitStats.visa_type_id,
+                VisaVisitStats.visa_type_name,
+                VisaVisitStats.country_name
+            ).order_by(
+                func.count(VisaVisitStats.id).desc()
+            ).limit(limit).all()
+            
+            return popular_visas
+        except Exception as e:
+            print(f"获取热门签证失败: {str(e)}")
+            return []
 
 
 class VisaProject(db.Model):

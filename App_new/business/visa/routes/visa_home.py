@@ -18,8 +18,8 @@ visa_home = Blueprint('visa_home', __name__)
 @staff_only
 def home():
     """签证首页路由"""
-    # 获取所有签证类别
-    visa_categories = VisaTypes.query.all()
+    # 获取所有签证类别（只显示激活的）
+    visa_categories = VisaTypes.query.filter_by(is_active=True).all()
     
     # 在后端进行分组处理
     visas_by_country = {}

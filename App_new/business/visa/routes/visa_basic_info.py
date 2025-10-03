@@ -1,6 +1,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_required
 from pathlib import Path
+from datetime import datetime
 from App_new.exts import db, csrf
 from App_new.business.visa.models.Visamodels import VisaCountries, VisaTypes, VisaSingaporeIdentity, VisaDocuments, VisaDocumentsList, VisaLinks
 from App_new.utils.decorators import staff_only
@@ -467,6 +468,32 @@ def add_visa_type():
             introduction = request.form.get('introduction')
             country_id = request.form.get('country_id')
             identity_ids = request.form.getlist('identity_ids')  # 获取多个身份ID
+            is_active = request.form.get('is_active') == 'on'  # 处理复选框值
+            
+            # 处理时间字段
+            valid_until_str = request.form.get('valid_until')
+            valid_until = None
+            if valid_until_str:
+                try:
+                    valid_until = datetime.fromisoformat(valid_until_str.replace('T', ' '))
+                except ValueError:
+                    valid_until = None
+            
+            created_at_str = request.form.get('created_at')
+            created_at = None
+            if created_at_str:
+                try:
+                    created_at = datetime.fromisoformat(created_at_str.replace('T', ' '))
+                except ValueError:
+                    created_at = None
+            
+            updated_at_str = request.form.get('updated_at')
+            updated_at = None
+            if updated_at_str:
+                try:
+                    updated_at = datetime.fromisoformat(updated_at_str.replace('T', ' '))
+                except ValueError:
+                    updated_at = None
 
             # 创建新的签证类型
             new_visa_type = VisaTypes(
@@ -474,7 +501,11 @@ def add_visa_type():
                 processing_time=processing_time,
                 fee=fee,
                 introduction=introduction,
-                country_id=country_id
+                country_id=country_id,
+                created_at=created_at,
+                updated_at=updated_at,
+                valid_until=valid_until,
+                is_active=is_active
             )
 
             # 添加身份关联
@@ -549,6 +580,32 @@ def copy_visa_type():
             introduction = request.form.get('introduction')
             country_id = request.form.get('country_id')
             identity_ids = request.form.getlist('identity_ids')
+            is_active = request.form.get('is_active') == 'on'  # 处理复选框值
+            
+            # 处理时间字段
+            valid_until_str = request.form.get('valid_until')
+            valid_until = None
+            if valid_until_str:
+                try:
+                    valid_until = datetime.fromisoformat(valid_until_str.replace('T', ' '))
+                except ValueError:
+                    valid_until = None
+            
+            created_at_str = request.form.get('created_at')
+            created_at = None
+            if created_at_str:
+                try:
+                    created_at = datetime.fromisoformat(created_at_str.replace('T', ' '))
+                except ValueError:
+                    created_at = None
+            
+            updated_at_str = request.form.get('updated_at')
+            updated_at = None
+            if updated_at_str:
+                try:
+                    updated_at = datetime.fromisoformat(updated_at_str.replace('T', ' '))
+                except ValueError:
+                    updated_at = None
             
             # 检查源签证类型是否存在
             source_visa_type_record = VisaTypes.query.filter_by(visa_type=source_visa_type).first()
@@ -568,7 +625,11 @@ def copy_visa_type():
                 processing_time=processing_time,
                 fee=fee,
                 introduction=introduction,
-                country_id=country_id
+                country_id=country_id,
+                created_at=created_at,
+                updated_at=updated_at,
+                valid_until=valid_until,
+                is_active=is_active
             )
             
             # 添加身份关联
@@ -646,6 +707,9 @@ def get_visa_type_data(visa_type):
                 'fee': visa_type_record.fee,
                 'introduction': visa_type_record.introduction,
                 'country_id': visa_type_record.country_id,
+                'created_at': visa_type_record.created_at.isoformat() if visa_type_record.created_at else None,
+                'updated_at': visa_type_record.updated_at.isoformat() if visa_type_record.updated_at else None,
+                'valid_until': visa_type_record.valid_until.isoformat() if visa_type_record.valid_until else None,
                 'identities': identities
             }
         })
@@ -888,6 +952,36 @@ def edit_visa_type_all(visa_type):
                 visa_type_record.introduction = new_introduction
                 print(f"DEBUG: 更新签证说明为: {new_introduction}")
                 
+                # 处理激活状态更新
+                is_active = request.form.get('is_active') == 'on'  # 处理复选框值
+                visa_type_record.is_active = is_active
+                print(f"DEBUG: 更新激活状态为: {is_active}")
+                
+                # 处理时间字段更新
+                created_at_str = request.form.get('created_at')
+                if created_at_str:
+                    try:
+                        visa_type_record.created_at = datetime.fromisoformat(created_at_str)
+                        print(f"DEBUG: 更新创建时间为: {created_at_str}")
+                    except ValueError:
+                        print(f"DEBUG: 创建时间格式错误: {created_at_str}")
+                
+                updated_at_str = request.form.get('updated_at')
+                if updated_at_str:
+                    try:
+                        visa_type_record.updated_at = datetime.fromisoformat(updated_at_str)
+                        print(f"DEBUG: 更新更新时间为: {updated_at_str}")
+                    except ValueError:
+                        print(f"DEBUG: 更新时间格式错误: {updated_at_str}")
+                
+                valid_until_str = request.form.get('valid_until')
+                if valid_until_str:
+                    try:
+                        visa_type_record.valid_until = datetime.fromisoformat(valid_until_str)
+                        print(f"DEBUG: 更新有效期为: {valid_until_str}")
+                    except ValueError:
+                        print(f"DEBUG: 有效期格式错误: {valid_until_str}")
+                
                 # 处理身份选项更新
                 selected_identities = request.form.getlist('identities')
                 print(f"DEBUG: 选择的身份: {selected_identities}")
@@ -1046,8 +1140,8 @@ def delete_visa_type(visa_type):
 @login_required
 @staff_only
 def visa_home():
-    # 获取所有签证类型
-    visa_categories = VisaTypes.query.all()
+    # 获取所有签证类型（只显示激活的）
+    visa_categories = VisaTypes.query.filter_by(is_active=True).all()
     
     # 在后端进行分组处理
     visas_by_country = {}
@@ -3099,3 +3193,211 @@ def apply_template():
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'message': f'套用模板失败: {str(e)}'})
+
+@visa_basic.route('/visa/toggle_active_status/<visa_type>', methods=['POST'])
+@csrf.exempt
+def toggle_active_status(visa_type):
+    """切换签证类型的激活状态"""
+    try:
+        # 获取签证类型记录
+        visa_type_record = VisaTypes.query.filter_by(visa_type=visa_type).first()
+        if not visa_type_record:
+            return jsonify({'success': False, 'message': '签证类型不存在'})
+        
+        # 获取请求数据
+        data = request.get_json()
+        new_status = data.get('is_active', not visa_type_record.is_active)
+        
+        # 更新激活状态
+        visa_type_record.is_active = new_status
+        
+        # 如果激活，自动设置有效期为一年后
+        if new_status:
+            from datetime import datetime, timedelta
+            visa_type_record.valid_until = datetime.utcnow() + timedelta(days=365)
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True, 
+            'message': f'激活状态已更新为{"激活" if new_status else "未激活"}',
+            'is_active': new_status,
+            'valid_until': visa_type_record.valid_until.isoformat() if visa_type_record.valid_until else None
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'更新失败：{str(e)}'})
+
+@visa_basic.route('/visa_visit_stats')
+@login_required
+@staff_only
+def visa_visit_stats():
+    """签证访问统计页面"""
+    try:
+        from App_new.business.visa.models.Visamodels import VisaVisitStats
+        
+        # 获取查询参数
+        days = request.args.get('days', 30, type=int)
+        visa_type_id = request.args.get('visa_type_id', type=int)
+        
+        # 获取访问统计
+        visit_stats = VisaVisitStats.get_visit_stats(visa_type_id=visa_type_id, days=days)
+        
+        # 获取热门签证
+        popular_visas = VisaVisitStats.get_popular_visas(limit=20, days=days)
+        
+        # 获取所有签证类型（用于筛选）
+        all_visa_types = VisaTypes.query.filter_by(is_active=True).order_by(VisaTypes.visa_type).all()
+        
+        # 统计数据
+        total_visits = len(visit_stats)
+        unique_visitors = len(set(stat.session_id for stat in visit_stats if stat.session_id))
+        
+        return render_template('business/visa/访问统计/visa_visit_stats.html',
+                             visit_stats=visit_stats,
+                             popular_visas=popular_visas,
+                             all_visa_types=all_visa_types,
+                             total_visits=total_visits,
+                             unique_visitors=unique_visitors,
+                             days=days,
+                             selected_visa_type_id=visa_type_id)
+                             
+    except Exception as e:
+        flash(f'加载访问统计失败: {str(e)}', 'error')
+        return redirect(url_for('visa_basic.visa_type_list'))
+
+@visa_basic.route('/api/visa_visit_stats_data')
+@login_required
+@staff_only
+def visa_visit_stats_data():
+    """获取访问统计数据API"""
+    try:
+        from App_new.business.visa.models.Visamodels import VisaVisitStats
+        from datetime import datetime, timedelta
+        
+        days = request.args.get('days', 30, type=int)
+        visa_type_id = request.args.get('visa_type_id', type=int)
+        
+        # 获取访问统计
+        visit_stats = VisaVisitStats.get_visit_stats(visa_type_id=visa_type_id, days=days)
+        
+        # 按日期分组统计
+        daily_stats = {}
+        for stat in visit_stats:
+            date_key = stat.visit_time.date().isoformat()
+            if date_key not in daily_stats:
+                daily_stats[date_key] = 0
+            daily_stats[date_key] += 1
+        
+        # 转换为列表格式
+        chart_data = []
+        for i in range(days):
+            date = (datetime.utcnow() - timedelta(days=i)).date()
+            date_key = date.isoformat()
+            chart_data.append({
+                'date': date_key,
+                'visits': daily_stats.get(date_key, 0)
+            })
+        
+        chart_data.reverse()  # 按时间正序排列
+        
+        return jsonify({
+            'success': True,
+            'chart_data': chart_data,
+            'total_visits': len(visit_stats),
+            'unique_visitors': len(set(stat.session_id for stat in visit_stats if stat.session_id))
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'获取统计数据失败: {str(e)}'})
+
+@visa_basic.route('/universal_visit_stats')
+@login_required
+@staff_only
+def universal_visit_stats():
+    """通用产品访问统计页面"""
+    try:
+        from App_new.shared.services.visit_stats_service import VisitStatsService
+        
+        # 获取查询参数
+        days = request.args.get('days', 30, type=int)
+        product_type = request.args.get('product_type', '')
+        product_id = request.args.get('product_id', type=int)
+        
+        # 获取访问统计
+        visit_stats = VisitStatsService.get_product_stats(product_type=product_type, days=days)
+        
+        # 获取热门产品
+        popular_products = VisitStatsService.get_popular_products(product_type=product_type, limit=20, days=days)
+        
+        # 获取整体统计
+        stats_summary = VisitStatsService.get_overall_stats(days=days)
+        
+        # 产品类型名称映射
+        product_type_names = {
+            'visa': '签证',
+            'tour': '旅游',
+            'flight': '机票',
+            'hotel': '酒店',
+            'package': '套餐'
+        }
+        
+        return render_template('business/visa/访问统计/universal_visit_stats.html',
+                             visit_stats=visit_stats,
+                             popular_products=popular_products,
+                             stats_summary=stats_summary,
+                             product_type_names=product_type_names,
+                             days=days,
+                             selected_product_type=product_type,
+                             selected_product_id=product_id)
+                             
+    except Exception as e:
+        flash(f'加载访问统计失败: {str(e)}', 'error')
+        return redirect(url_for('visa_basic.visa_type_list'))
+
+@visa_basic.route('/api/universal_visit_stats_data')
+@login_required
+@staff_only
+def universal_visit_stats_data():
+    """获取通用访问统计数据API"""
+    try:
+        from App_new.shared.services.visit_stats_service import VisitStatsService
+        from datetime import datetime, timedelta
+        
+        days = request.args.get('days', 30, type=int)
+        product_type = request.args.get('product_type', '')
+        product_id = request.args.get('product_id', type=int)
+        
+        # 获取访问统计
+        visit_stats = VisitStatsService.get_product_stats(product_type=product_type, days=days)
+        
+        # 按日期分组统计
+        daily_stats = {}
+        for stat in visit_stats:
+            date_key = stat.visit_time.date().isoformat()
+            if date_key not in daily_stats:
+                daily_stats[date_key] = 0
+            daily_stats[date_key] += 1
+        
+        # 转换为列表格式
+        chart_data = []
+        for i in range(days):
+            date = (datetime.utcnow() - timedelta(days=i)).date()
+            date_key = date.isoformat()
+            chart_data.append({
+                'date': date_key,
+                'visits': daily_stats.get(date_key, 0)
+            })
+        
+        chart_data.reverse()  # 按时间正序排列
+        
+        return jsonify({
+            'success': True,
+            'chart_data': chart_data,
+            'total_visits': len(visit_stats),
+            'unique_visitors': len(set(stat.session_id for stat in visit_stats if stat.session_id))
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'获取统计数据失败: {str(e)}'})

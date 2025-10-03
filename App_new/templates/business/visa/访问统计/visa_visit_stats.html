@@ -1,0 +1,243 @@
+{% extends "staff_base.html" %}
+
+{% block title %}签证访问统计 - MyTravelPanel{% endblock %}
+
+{% block page_title %}签证访问统计{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- 统计概览 -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">{{ total_visits }}</h4>
+                            <p class="card-text">总访问次数</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-eye fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">{{ unique_visitors }}</h4>
+                            <p class="card-text">独立访客</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-users fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">{{ popular_visas|length }}</h4>
+                            <p class="card-text">活跃签证类型</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-passport fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">{{ days }}</h4>
+                            <p class="card-text">统计天数</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-calendar fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 筛选控件 -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <form method="GET" class="row g-3">
+                        <div class="col-md-4">
+                            <label for="days" class="form-label">统计天数</label>
+                            <select name="days" id="days" class="form-select">
+                                <option value="7" {% if days == 7 %}selected{% endif %}>最近7天</option>
+                                <option value="30" {% if days == 30 %}selected{% endif %}>最近30天</option>
+                                <option value="90" {% if days == 90 %}selected{% endif %}>最近90天</option>
+                                <option value="365" {% if days == 365 %}selected{% endif %}>最近一年</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="visa_type_id" class="form-label">签证类型</label>
+                            <select name="visa_type_id" id="visa_type_id" class="form-select">
+                                <option value="">全部签证类型</option>
+                                {% for visa_type in all_visa_types %}
+                                <option value="{{ visa_type.id }}" {% if selected_visa_type_id == visa_type.id %}selected{% endif %}>
+                                    {{ visa_type.visa_type }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">&nbsp;</label>
+                            <div>
+                                <button type="submit" class="btn btn-primary">筛选</button>
+                                <a href="{{ url_for('visa_basic.visa_visit_stats') }}" class="btn btn-secondary">重置</a>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 访问趋势图表 -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title">访问趋势</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="visitChart" height="100"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 热门签证类型 -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title">热门签证类型</h5>
+                </div>
+                <div class="card-body">
+                    {% if popular_visas %}
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>排名</th>
+                                    <th>签证类型</th>
+                                    <th>国家</th>
+                                    <th>访问次数</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for visa in popular_visas %}
+                                <tr>
+                                    <td>{{ loop.index }}</td>
+                                    <td>{{ visa.visa_type_name }}</td>
+                                    <td>{{ visa.country_name or '-' }}</td>
+                                    <td>
+                                        <span class="badge bg-primary">{{ visa.visit_count }}</span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted">暂无访问数据</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- 最近访问记录 -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title">最近访问记录</h5>
+                </div>
+                <div class="card-body">
+                    {% if visit_stats %}
+                    <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>签证类型</th>
+                                    <th>国家</th>
+                                    <th>访问时间</th>
+                                    <th>IP地址</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for stat in visit_stats[:20] %}
+                                <tr>
+                                    <td>{{ stat.visa_type_name }}</td>
+                                    <td>{{ stat.country_name or '-' }}</td>
+                                    <td>{{ stat.visit_time.strftime('%m-%d %H:%M') }}</td>
+                                    <td>{{ stat.visitor_ip or '-' }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted">暂无访问记录</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// 获取图表数据
+fetch('{{ url_for("visa_basic.visa_visit_stats_data") }}?days={{ days }}&visa_type_id={{ selected_visa_type_id or "" }}')
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // 创建访问趋势图表
+            const ctx = document.getElementById('visitChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.chart_data.map(item => item.date),
+                    datasets: [{
+                        label: '访问次数',
+                        data: data.chart_data.map(item => item.visits),
+                        borderColor: 'rgb(75, 192, 192)',
+                        backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+    })
+    .catch(error => {
+        console.error('获取图表数据失败:', error);
+    });
+</script>
+{% endblock %}

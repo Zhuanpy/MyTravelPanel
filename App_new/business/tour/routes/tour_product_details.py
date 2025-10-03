@@ -51,7 +51,7 @@ def get_image_base64(image_path):
 def tour_product_details():
     products = TourProduct.query.order_by(TourProduct.created_at.desc()).all()
     company = CompanyInfo.query.first()
-    return render_template('business/tour/package/旅游产品详细.html', products=products, company=company, is_pdf_export=False)
+    return render_template('business/tour/package/tour_product_detail.html', products=products, company=company, is_pdf_export=False)
 
 # 添加新产品
 @product_details.route('/tour_product/add', methods=['GET', 'POST'])
@@ -158,7 +158,7 @@ def generate_pdf(id):
             if company.logo_base64 is None:
                 print("Failed to convert image to base64")  # 调试信息
             
-        rendered = render_template('business/tour/package/旅游产品详细.html', 
+        rendered = render_template('business/tour/package/tour_product_detail.html', 
                                 products=[product],  # 将单个产品放入列表中
                                 company=company,
                                 is_pdf_export=True)

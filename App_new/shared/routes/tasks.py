@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify, render_template, current_app
 from flask_login import login_required, current_user
-from App_new.shared.models.Utilsmodels import Task, Todo
+from App_new.shared.models.Utilsmodels import Todo
 from App_new.exts import db, csrf
 from App_new.utils.decorators import staff_only
 from datetime import datetime
@@ -9,95 +9,7 @@ import traceback
 # 定义蓝图
 utils_blue = Blueprint('utils_blue', __name__)
 
-@utils_blue.route('/render_pomodoro', methods=['GET'])
-@login_required
-@staff_only
-def render_pomodoro():
-    return render_template('utils/番茄工作法.html')
-
-# 获取任务列表
-@utils_blue.route('/tasks', methods=['GET'])
-def get_tasks():
-    tasks = Task.query.all()
-    return jsonify([{
-        'id': task.id,
-        'name': task.name,
-        'remaining_time': task.remaining_time,
-        'status': task.status
-    } for task in tasks])
-
-# 添加任务
-@utils_blue.route('/tasks', methods=['POST'])
-def add_task():
-    data = request.get_json()
-    task = Task(
-        name=data['name'],
-        remaining_time=data['remaining_time'],
-        status=data.get('status', 'pending')
-    )
-    db.session.add(task)
-    db.session.commit()
-    return jsonify({
-        'id': task.id,
-        'name': task.name,
-        'remaining_time': task.remaining_time,
-        'status': task.status
-    })
-
-# 更新任务
-@utils_blue.route('/tasks/<int:task_id>', methods=['PUT'])
-def update_task(task_id):
-    task = Task.query.get_or_404(task_id)
-    data = request.get_json()
-    
-    task.name = data.get('name', task.name)
-    task.remaining_time = data.get('remaining_time', task.remaining_time)
-    task.status = data.get('status', task.status)
-    
-    db.session.commit()
-    return jsonify({
-        'id': task.id,
-        'name': task.name,
-        'remaining_time': task.remaining_time,
-        'status': task.status
-    })
-
-# 删除任务
-@utils_blue.route('/tasks/<int:task_id>', methods=['DELETE'])
-def delete_task(task_id):
-    task = Task.query.get_or_404(task_id)
-    db.session.delete(task)
-    db.session.commit()
-    return '', 204
-
-# 重置任务
-@utils_blue.route('/tasks/<int:task_id>/reset', methods=['POST'])
-def reset_task(task_id):
-    task = Task.reset(task_id)
-    if task:
-        return jsonify({'message': 'Task reset to 10 minutes'})
-    return jsonify({'message': 'Task not found'}), 404
-
-# 切换任务状态（开始或暂停）
-@utils_blue.route('/tasks/<int:task_id>/toggle', methods=['GET','POST'])
-def toggle_task(task_id):
-    task = Task.query.get(task_id)
-    if task:
-        task_data = request.get_json()  # 获取前端传来的 JSON 数据
-        remaining_time = task_data.get('remaining_time')  # 从请求中提取剩余时间
-
-        # 如果任务正在运行，保存当前时间并暂停任务
-        if task.status == 'running':
-            Task.update_status(task_id, status='paused', remaining_time=remaining_time)
-            return jsonify({'message': 'Task paused', 'remaining_time': remaining_time})
-
-        # 如果任务处于暂停状态或停止状态，则恢复运行
-        elif task.status in ['paused', 'stopped']:
-            Task.update_status(task_id, status='running', remaining_time=remaining_time)
-            return jsonify({'message': 'Task started', 'remaining_time': remaining_time})
-
-        return jsonify({'message': 'Invalid task status'}), 400
-    return jsonify({'message': 'Task not found'}), 404
+# Task相关路由已删除，现在只保留Todo相关功能
 
 # 签证项目管理
 @utils_blue.route('/visa_project')

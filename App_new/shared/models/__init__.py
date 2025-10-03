@@ -6,7 +6,7 @@ from .account import Account
 from .Accountsmodels import SupplierData
 from .business_types import BusinessType
 from .Suppliers import Supplier, SupplierService, SupplierPrice, SupplierContract, SupplierPayment
-from .Utilsmodels import Task, Todo
+from .Utilsmodels import Todo
 
 # 注意：project, ref, eo 模型在 finance 模块中
 # 注意：flight 模型在 business.flight 模块中
@@ -22,6 +22,5 @@ __all__ = [
     'SupplierPrice', 
     'SupplierContract',
     'SupplierPayment',
-    'Task',
     'Todo',
 ]

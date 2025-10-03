@@ -6,7 +6,7 @@ from flask_login import login_required, current_user
 from App_new.utils.decorators import staff_only
 from sqlalchemy.exc import SQLAlchemyError
 from App_new.exts import db
-from App_new.business.orders.forms.ProductForm import ProductForm
+from App_new.business.projects.forms.ProductForm import ProductForm
 from App_new.shared.models.Accountsmodels import SupplierData
 from ..models.Packagemodels import Product, ProductCity
 from App_new.config import Config
@@ -76,7 +76,7 @@ def our_package(city_name):
         return jsonify({"error": "City parameter is required"}), 400
     country_name = ProductCity.get_country_name_by_city(city_name=city_name)
     products = Product.query.filter_by(city_name=city_name).all()
-    return render_template('business/tour/package/旅游产品展示.html', country_name=country_name,  city_name=city_name, products=products)
+    return render_template('business/tour/package/tour_product_display.html', country_name=country_name,  city_name=city_name, products=products)
 
 
 @package_blue.route('/open_company_package_folder/<country_name>/<city_name>/<company_name>', methods=['GET', 'POST'])
@@ -448,16 +448,16 @@ def package_home():
                 cities_by_country[city.country_name] = []
             cities_by_country[city.country_name].append(city)
         
-        return render_template('business/tour/package/配套首页.html', cities_by_country=cities_by_country)
+        return render_template('business/tour/package/package_home.html', cities_by_country=cities_by_country)
     
     except SQLAlchemyError as e:
         print(f"数据库错误: {e}")
         flash('数据库连接失败，请稍后重试', 'error')
-        return render_template('business/tour/package/配套首页.html', cities_by_country={})
+        return render_template('business/tour/package/package_home.html', cities_by_country={})
     except Exception as e:
         print(f"未知错误: {e}")
         flash('页面加载失败，请稍后重试', 'error')
-        return render_template('business/tour/package/配套首页.html', cities_by_country={})
+        return render_template('business/tour/package/package_home.html', cities_by_country={})
 
 
 @package_blue.route('/open_package_folder', methods=['GET', 'POST'])
