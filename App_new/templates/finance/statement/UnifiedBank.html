@@ -10,7 +10,8 @@
     .table-responsive { overflow-x: auto; }
     /* 列宽度调整：7个字段等宽，3个字段更宽，1个操作列 */
     #txTable { table-layout: fixed; width: 100%; min-width: 1200px; }
-    #txTable th, #txTable td { text-align: center; vertical-align: middle; }
+    #txTable th, #txTable td { text-align: center; vertical-align: top; }
+    #txTable tbody tr { height: auto; min-height: 40px; }
     
     /* 等宽字段：日期、记账日期、类型、金额、余额、归属、REF/EO (7个字段，每个约7%) */
     #txTable th:nth-child(1), #txTable td:nth-child(1), /* 日期 */

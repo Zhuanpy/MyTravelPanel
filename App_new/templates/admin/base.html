@@ -1,5 +1,4 @@
-{% extends "base.html" %}
-{% block content %}
+{# 管理员后台基础模板 - 独立模板，不继承其他模板 #}
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -34,13 +33,34 @@
         @media (max-width: 360px) {
             html { font-size: 13px; }
         }
+        
+        /* 导航栏层级修复 */
+        .navbar {
+            z-index: 1000 !important;
+            position: relative;
+        }
+        
+        .sidebar {
+            z-index: 100 !important;
+        }
+        
+        .sidebar .position-sticky {
+            top: 56px !important; /* Bootstrap导航栏高度 */
+            z-index: 100 !important;
+        }
+        
+        /* 确保主要内容区域不被覆盖 */
+        .main-content {
+            position: relative;
+            z-index: 1;
+        }
     </style>
 </head>
 <body>
     <!-- 导航栏 -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
         <div class="container-fluid">
-            <a class="navbar-brand" href="{{ url_for('guest.main.index') }}">
+            <a class="navbar-brand" href="{{ url_for('public.index') }}">
                 <i class="fas fa-plane"></i> MyTravelPanel
                 <span class="badge bg-danger ms-2">管理员</span>
             </a>
@@ -76,6 +96,11 @@
                             <i class="fas fa-cogs"></i> 系统设置
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <button type="button" class="nav-link btn btn-link p-0" data-bs-toggle="modal" data-bs-target="#adminCenterModal">
+                            <i class="fas fa-user-crown"></i> 管理员中心
+                        </button>
+                    </li>
                 </ul>
                 
                 <ul class="navbar-nav">
@@ -92,6 +117,9 @@
                             <li><a class="dropdown-item" href="{{ url_for('auth_profile.profile') }}">
                                 <i class="fas fa-user me-2"></i>个人资料
                             </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('admin.change_password') }}">
+                                <i class="fas fa-key me-2"></i>修改密码
+                            </a></li>
                             <li><a class="dropdown-item" href="{{ url_for('staff.dashboard') }}">
                                 <i class="fas fa-user-tie me-2"></i>员工工作台
                             </a></li>
@@ -99,7 +127,7 @@
                                 <i class="fas fa-user-circle me-2"></i>会员中心
                             </a></li>
                             <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="{{ url_for('auth.logout') }}">
+                            <li><a class="dropdown-item" href="{{ url_for('common_auth.logout') }}">
                                 <i class="fas fa-sign-out-alt me-2"></i>退出登录
                             </a></li>
                         </ul>
@@ -177,7 +205,7 @@
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('guest.main.index') }}">
+                            <a class="nav-link" href="{{ url_for('public.index') }}">
                                 <i class="fas fa-home me-2"></i>
                                 返回首页
                             </a>
@@ -205,7 +233,7 @@
             </nav>
 
             <!-- 主内容区域 -->
-            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 main-content">
                 <!-- 面包屑导航 -->
                 <nav aria-label="breadcrumb" class="pt-3">
                     <ol class="breadcrumb">
@@ -233,7 +261,7 @@
                 {% endwith %}
 
                 <!-- 页面内容 -->
-                {% block content %}{% endblock %}
+                {% block page_content %}{% endblock %}
             </main>
         </div>
     </div>
@@ -243,7 +271,225 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
+    <!-- 管理员中心弹窗 -->
+    <div class="modal fade" id="adminCenterModal" tabindex="-1" aria-labelledby="adminCenterModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content admin-center-modal">
+                <div class="modal-header admin-center-header">
+                    <h5 class="modal-title" id="adminCenterModalLabel">
+                        <i class="fas fa-user-crown me-2"></i>管理员中心
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body admin-center-body">
+                    <!-- 管理员头像和信息 -->
+                    <div class="admin-profile text-center mb-4">
+                        <div class="admin-avatar">
+                            <i class="fas fa-user-crown"></i>
+                        </div>
+                        <h6 class="admin-name mt-2 mb-1">{{ current_user.username or current_user.email }}</h6>
+                        <p class="admin-email text-muted small mb-0">{{ current_user.email }}</p>
+                        <div class="admin-badges mt-2">
+                            <span class="badge bg-danger me-1">管理员</span>
+                            <span class="badge bg-success">活跃</span>
+                        </div>
+                    </div>
+
+                    <!-- 操作按钮 -->
+                    <div class="admin-actions">
+                        <a href="{{ url_for('admin.change_password') }}" class="admin-action-btn change-password-btn">
+                            <div class="admin-action-icon">
+                                <i class="fas fa-key"></i>
+                            </div>
+                            <div class="admin-action-text">
+                                <span class="admin-action-title">修改密码</span>
+                                <span class="admin-action-desc">更改您的登录密码</span>
+                            </div>
+                        </a>
+                        
+                        <a href="{{ url_for('common_auth.logout') }}" class="admin-action-btn logout-btn" 
+                           onclick="return confirm('确定要退出登录吗？')">
+                            <div class="admin-action-icon">
+                                <i class="fas fa-sign-out-alt"></i>
+                            </div>
+                            <div class="admin-action-text">
+                                <span class="admin-action-title">退出登录</span>
+                                <span class="admin-action-desc">安全退出系统</span>
+                            </div>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <style>
+    /* 管理员中心弹窗样式 */
+    .admin-center-modal {
+        border: none;
+        border-radius: 16px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+        overflow: hidden;
+    }
+
+    .admin-center-header {
+        background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+        border: none;
+        padding: 1.5rem;
+    }
+
+    .admin-center-header .modal-title {
+        font-weight: 600;
+        font-size: 1.25rem;
+    }
+
+    .admin-center-body {
+        padding: 2rem;
+        background: #f8f9fa;
+    }
+
+    /* 管理员头像 */
+    .admin-avatar {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto;
+        box-shadow: 0 8px 20px rgba(220, 53, 69, 0.3);
+    }
+
+    .admin-avatar i {
+        font-size: 2rem;
+        color: white;
+    }
+
+    .admin-name {
+        font-weight: 600;
+        color: #2c3e50;
+        margin: 0;
+    }
+
+    .admin-email {
+        color: #6c757d;
+        font-size: 0.9rem;
+    }
+
+    .admin-badges .badge {
+        font-size: 0.75rem;
+        padding: 0.4rem 0.8rem;
+        border-radius: 20px;
+    }
+
+    /* 操作按钮 */
+    .admin-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .admin-action-btn {
+        display: flex;
+        align-items: center;
+        padding: 1.25rem;
+        background: white;
+        border-radius: 12px;
+        text-decoration: none;
+        color: inherit;
+        border: 2px solid transparent;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    }
+
+    .admin-action-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+        color: inherit;
+        text-decoration: none;
+    }
+
+    .change-password-btn:hover {
+        border-color: #ffc107;
+        background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+    }
+
+    .logout-btn:hover {
+        border-color: #dc3545;
+        background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
+    }
+
+    .admin-action-icon {
+        width: 50px;
+        height: 50px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 1rem;
+        flex-shrink: 0;
+    }
+
+    .change-password-btn .admin-action-icon {
+        background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%);
+        color: white;
+    }
+
+    .logout-btn .admin-action-icon {
+        background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+        color: white;
+    }
+
+    .admin-action-icon i {
+        font-size: 1.25rem;
+    }
+
+    .admin-action-text {
+        flex: 1;
+    }
+
+    .admin-action-title {
+        display: block;
+        font-weight: 600;
+        color: #2c3e50;
+        margin-bottom: 0.25rem;
+    }
+
+    .admin-action-desc {
+        display: block;
+        font-size: 0.875rem;
+        color: #6c757d;
+        line-height: 1.4;
+    }
+
+    /* 响应式设计 */
+    @media (max-width: 576px) {
+        .admin-center-body {
+            padding: 1.5rem;
+        }
+        
+        .admin-avatar {
+            width: 60px;
+            height: 60px;
+        }
+        
+        .admin-avatar i {
+            font-size: 1.5rem;
+        }
+        
+        .admin-action-btn {
+            padding: 1rem;
+        }
+        
+        .admin-action-icon {
+            width: 40px;
+            height: 40px;
+            margin-right: 0.75rem;
+        }
+    }
+    </style>
+    
     {% block extra_js %}{% endblock %}
 </body>
 </html> 
-{% endblock %} 

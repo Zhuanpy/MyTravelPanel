@@ -11,10 +11,10 @@
                 <h1 class="fade-in-up display-4 fw-bold mb-4">专业的旅游服务平台</h1>
                 <p class="fade-in-up lead mb-4">为您提供签证办理、旅游配套等全方位服务，让您的旅行更加轻松愉快</p>
                 <div class="fade-in-up">
-                    <a href="{{ url_for('guest.visa.visa_services') }}" class="btn btn-light btn-lg me-3 mb-3">
+                    <a href="{{ url_for('public.visa_services') }}" class="btn btn-light btn-lg me-3 mb-3">
                         <i class="fas fa-passport"></i> 签证服务
                     </a>
-                    <a href="{{ url_for('guest.tour.tour_packages') }}" class="btn btn-outline-light btn-lg mb-3">
+                    <a href="{{ url_for('public.tour_packages') }}" class="btn btn-outline-light btn-lg mb-3">
                         <i class="fas fa-map-marked-alt"></i> 旅游配套
                     </a>
                 </div>
@@ -197,22 +197,44 @@
 </section>
 
 <!-- 联系我们 CTA -->
-<section class="py-5 bg-primary text-white">
+<!-- <section class="py-5 bg-primary text-white">
     <div class="container text-center">
         <div class="row justify-content-center">
             <div class="col-lg-8">
                 <h2 class="fw-bold mb-3">准备开始您的旅程了吗？</h2>
                 <p class="lead mb-4">联系我们的专业顾问，获取个性化的旅行建议和报价</p>
+                {% if company %}
+                <div class="row g-3 mb-4">
+                    <div class="col-md-4">
+                        <div class="d-flex align-items-center justify-content-center">
+                            <i class="fas fa-phone me-2"></i>
+                            <span>{{ company.phone }}</span>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="d-flex align-items-center justify-content-center">
+                            <i class="fas fa-envelope me-2"></i>
+                            <span>{{ company.email }}</span>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="d-flex align-items-center justify-content-center">
+                            <i class="fas fa-map-marker-alt me-2"></i>
+                            <span>{{ company.address }}</span>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
                 <div>
-                    <a href="{{ url_for('guest.main.contact') }}" class="btn btn-light btn-lg me-3">
+                    <a href="{{ url_for('public.contact') }}" class="btn btn-light btn-lg me-3">
                         <i class="fas fa-phone"></i> 立即咨询
                     </a>
-                    <a href="{{ url_for('guest.visa.visa_services') }}" class="btn btn-outline-light btn-lg">
+                    <a href="{{ url_for('public.visa_services') }}" class="btn btn-outline-light btn-lg">
                         <i class="fas fa-passport"></i> 查看服务
                     </a>
                 </div>
             </div>
         </div>
     </div>
-</section>
+</section> -->
 {% endblock %}

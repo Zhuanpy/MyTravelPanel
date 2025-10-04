@@ -56,7 +56,7 @@
                     </td>
                     <td class="text-end">{{ "%.2f"|format(tx.amount) }}</td>
                     <td class="text-end">{{ "%.2f"|format(tx.balance) if tx.balance else '' }}</td>
-                    <td>{{ tx.description[:50] + '...' if tx.description and tx.description|length > 50 else tx.description or '' }}</td>
+                    <td style="text-align:left; word-wrap:break-word; white-space:normal; max-width:200px; vertical-align:top; padding:8px; line-height:1.4;" title="{{ tx.description or '' }}">{{ tx.description or '' }}</td>
                     <td>{{ tx.keyword or '' }}</td>
                     <td>
                         {% if tx.is_confirmed %}

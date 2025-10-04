@@ -6,6 +6,7 @@
 from flask import Blueprint, render_template, request, jsonify, current_app
 from urllib.parse import unquote
 import html
+from App_new.business.tour.models.Packagemodels import CompanyInfo
 
 # 创建签证蓝图
 visa_bp = Blueprint('visa', __name__)
@@ -166,20 +167,28 @@ def visa_services():
             for item in schengen_countries:
                 print(f"  - {item['country']}: {item['visa_type']}")
         
+        # 获取公司信息
+        company_info = CompanyInfo.query.first()
+        
         return render_template('guest/visa/visa_services.html', 
                              visa_services=visa_services_data,
                              search_query=search_query,
                              region_filter=region_filter,
+                             company=company_info,
                              region_options=region_options,
                              regions=regions)
     except Exception as e:
         current_app.logger.error(f"加载签证服务页面失败: {e}")
+        # 获取公司信息
+        company_info = CompanyInfo.query.first()
+        
         return render_template('guest/visa/visa_services.html', 
                              visa_services=[],
                              search_query='',
                              region_filter='',
                              region_options={},
-                             regions={})
+                             regions={},
+                             company=company_info)
 
 @visa_bp.route('/visa-services/<country_name>')
 def visa_services_by_country(country_name):
@@ -218,8 +227,12 @@ def visa_services_by_country(country_name):
             'visa_types': visa_types_data  # 传递序列化后的数据
         }
         
+        # 获取公司信息
+        company_info = CompanyInfo.query.first()
+        
         return render_template('guest/visa/visa_services_country.html',
-                             country_info=country_visa_info)
+                             country_info=country_visa_info,
+                             company=company_info)
     except Exception as e:
         current_app.logger.error(f"加载国家签证服务失败: {e}")
         import traceback
@@ -332,7 +345,12 @@ def visa_detail(visa_type_name):
         
         # 渲染模板
         try:
-            return render_template('guest/visa/visa_detail.html', visa_type=visa_detail_info)
+            # 获取公司信息
+            company_info = CompanyInfo.query.first()
+            
+            return render_template('guest/visa/visa_detail.html', 
+                                 visa_type=visa_detail_info,
+                                 company=company_info)
         except Exception as te:
             current_app.logger.error(f"渲染模板失败: {str(te)}")
             return f"Template Render Error: {str(te)}", 500

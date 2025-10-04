@@ -248,7 +248,7 @@
     <!-- 导航栏 -->
     <nav class="navbar navbar-expand-lg navbar-dark">
         <div class="container">
-            <a class="navbar-brand" href="{{ url_for('guest.main.index') }}">
+            <a class="navbar-brand" href="{{ url_for('public.index') }}">
                 <div class="logo-container">
                     <img src="{{ url_for('static', filename='JE/LOGO.png') }}" alt="悦行假期">
                     <div class="logo-text">
@@ -265,32 +265,32 @@
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('guest.main.index') }}">
+                        <a class="nav-link" href="{{ url_for('public.index') }}">
                             <i class="fas fa-home me-1"></i>首页
                         </a>
                     </li>
             
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('guest.tour.tour_packages') }}">
+                        <a class="nav-link" href="{{ url_for('public.tour_packages') }}">
                             <i class="fas fa-map-marked-alt me-1"></i>旅游配套
                         </a>
                     </li>
 
 
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('guest.visa.visa_services') }}">
+                        <a class="nav-link" href="{{ url_for('public.visa_services') }}">
                             <i class="fas fa-passport me-1"></i>签证服务
                         </a>
                     </li>
 
                     
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('guest.main.about') }}">
+                        <a class="nav-link" href="{{ url_for('public.about') }}">
                             <i class="fas fa-info-circle me-1"></i>关于我们
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('guest.main.contact') }}">
+                        <a class="nav-link" href="{{ url_for('public.contact') }}">
                             <i class="fas fa-envelope me-1"></i>联系我们
                         </a>
                     </li>
@@ -330,8 +330,8 @@
                 <div class="col-md-2">
                     <h5>服务</h5>
                     <ul class="list-unstyled">
-                        <li><a href="{{ url_for('guest.visa.visa_services') }}">签证办理</a></li>
-                        <li><a href="{{ url_for('guest.tour.tour_packages') }}">旅游配套</a></li>
+                        <li><a href="{{ url_for('public.visa_services') }}">签证办理</a></li>
+                        <li><a href="{{ url_for('public.tour_packages') }}">旅游配套</a></li>
                         <li><a href="#">机票预订</a></li>
                         <li><a href="#">酒店预订</a></li>
                     </ul>
@@ -339,7 +339,7 @@
                 <div class="col-md-2">
                     <h5>支持</h5>
                     <ul class="list-unstyled">
-                        <li><a href="{{ url_for('guest.main.contact') }}">联系我们</a></li>
+                        <li><a href="{{ url_for('public.contact') }}">联系我们</a></li>
                         <li><a href="#">常见问题</a></li>
                         <!-- <li><a href="#">服务条款</a></li>
                         <li><a href="#">隐私政策</a></li> -->
@@ -349,9 +349,15 @@
                 </div>
                 <div class="col-md-4">
                     <h5>联系信息</h5>
-                    <p><i class="fas fa-map-marker-alt me-2"></i>新加坡市中心商业区</p>
-                    <p><i class="fas fa-phone me-2"></i>+65 1234 5678</p>
-                    <p><i class="fas fa-envelope me-2"></i>info@joyesc.com</p>
+                    {% if company %}
+                        <p><i class="fas fa-map-marker-alt me-2"></i>{{ company.address }}</p>
+                        <p><i class="fas fa-phone me-2"></i>{{ company.phone }}</p>
+                        <p><i class="fas fa-envelope me-2"></i>{{ company.email }}</p>
+                    {% else %}
+                        <p><i class="fas fa-map-marker-alt me-2"></i>新加坡市中心商业区</p>
+                        <p><i class="fas fa-phone me-2"></i>+65 1234 5678</p>
+                        <p><i class="fas fa-envelope me-2"></i>info@joyesc.com</p>
+                    {% endif %}
                 </div>
             </div>
             <hr class="my-4">

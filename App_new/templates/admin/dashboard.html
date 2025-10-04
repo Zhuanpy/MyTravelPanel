@@ -4,7 +4,43 @@
 
 {% block page_title %}系统总览{% endblock %}
 
-{% block content %}
+<style>
+.card {
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    border: 1px solid rgba(0, 0, 0, 0.125);
+}
+
+.btn {
+    transition: all 0.2s ease-in-out;
+}
+
+.btn:hover {
+    transform: translateY(-1px);
+}
+
+.card-header {
+    border-bottom: 1px solid rgba(0, 0, 0, 0.125);
+}
+
+.fa-2x {
+    font-size: 2em;
+}
+</style>
+
+{% block page_content %}
+<!-- 页面标题和操作按钮 -->
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0">管理员仪表板</h1>
+    <div class="btn-group">
+        <button type="button" class="btn btn-danger btn-lg" data-bs-toggle="modal" data-bs-target="#adminCenterModal">
+            <i class="fas fa-user-crown me-2"></i>管理员中心
+        </button>
+        <a href="{{ url_for('admin.users') }}" class="btn btn-outline-primary">
+            <i class="fas fa-users me-2"></i>用户管理
+        </a>
+    </div>
+</div>
+
 <!-- 统计卡片 -->
 <div class="row mb-4">
     <div class="col-md-3 mb-3">
@@ -205,6 +241,11 @@
                         <i class="fas fa-key me-2"></i>邀请码管理
                     </a>
                 </div>
+                <div class="col-md-6 mb-3">
+                    <button type="button" class="btn btn-outline-danger btn-admin w-100" data-bs-toggle="modal" data-bs-target="#adminCenterModal">
+                        <i class="fas fa-user-crown me-2"></i>管理员中心
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -395,4 +436,57 @@ document.addEventListener('DOMContentLoaded', function() {
     setInterval(loadAdminStats, 30000); // 每30秒更新一次
 });
 </script>
+
+<!-- 管理员中心弹窗 -->
+<div class="modal fade" id="adminCenterModal" tabindex="-1" aria-labelledby="adminCenterModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content admin-center-modal">
+            <div class="modal-header admin-center-header">
+                <h5 class="modal-title" id="adminCenterModalLabel">
+                    <i class="fas fa-user-crown me-2"></i>管理员中心
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body admin-center-body">
+                <!-- 管理员头像和信息 -->
+                <div class="admin-profile text-center mb-4">
+                    <div class="admin-avatar">
+                        <i class="fas fa-user-crown"></i>
+                    </div>
+                    <h6 class="admin-name mt-2 mb-1">{{ current_user.username or current_user.email }}</h6>
+                    <p class="admin-email text-muted small mb-0">{{ current_user.email }}</p>
+                    <div class="admin-badges mt-2">
+                        <span class="badge bg-danger me-1">管理员</span>
+                        <span class="badge bg-success">活跃</span>
+                    </div>
+                </div>
+
+                <!-- 操作按钮 -->
+                <div class="admin-actions">
+                    <a href="{{ url_for('admin.change_password') }}" class="admin-action-btn change-password-btn">
+                        <div class="admin-action-icon">
+                            <i class="fas fa-key"></i>
+                        </div>
+                        <div class="admin-action-text">
+                            <span class="admin-action-title">修改密码</span>
+                            <span class="admin-action-desc">更改您的登录密码</span>
+                        </div>
+                    </a>
+                    
+                    <a href="{{ url_for('common_auth.logout') }}" class="admin-action-btn logout-btn" 
+                       onclick="return confirm('确定要退出登录吗？')">
+                        <div class="admin-action-icon">
+                            <i class="fas fa-sign-out-alt"></i>
+                        </div>
+                        <div class="admin-action-text">
+                            <span class="admin-action-title">退出登录</span>
+                            <span class="admin-action-desc">安全退出系统</span>
+                        </div>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock %} 

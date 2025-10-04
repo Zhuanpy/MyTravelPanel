@@ -86,6 +86,8 @@ def create_app():
     # 共享与公开
     from .shared.routes.views import dex
     app.register_blueprint(dex)
+    from .shared.routes.public import public
+    app.register_blueprint(public)
     from .guest.routes import guest_bp
     app.register_blueprint(guest_bp, url_prefix='/public')
 

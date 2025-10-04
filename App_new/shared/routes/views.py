@@ -28,19 +28,19 @@ def legacy_home():
 def auth_staff_login_redirect():
     """员工登录页面重定向"""
     from flask import redirect, url_for
-    return redirect(url_for('auth.staff_login'))
+    return redirect(url_for('staff_auth.login'))
 
 @dex.route('/auth/member_login')
 def auth_member_login_redirect():
     """会员登录页面重定向"""
     from flask import redirect, url_for
-    return redirect(url_for('auth.member_login'))
+    return redirect(url_for('member_auth.login'))
 
 @dex.route('/auth/admin_login')
 def auth_admin_login_redirect():
     """管理员登录页面重定向"""
     from flask import redirect, url_for
-    return redirect(url_for('auth.admin_login'))
+    return redirect(url_for('admin_auth.login'))
 
 @dex.route('/open_package_folder', methods=['GET', 'POST'])
 def open_package_folder():
@@ -57,7 +57,7 @@ def open_package_folder():
 @dex.route('/open_package_project_folder', methods=['GET', 'POST'])
 def open_package_project_folder():
     current_dir = Path.cwd()
-    from App.config import Config
+    from App_new.config import Config
     folder_path = Config.TOUR_PROJECTS_PATH
     folder_path = os.path.join(folder_path)
     # 使用 explorer 命令确保文件夹置顶显示

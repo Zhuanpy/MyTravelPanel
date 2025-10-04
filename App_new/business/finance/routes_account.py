@@ -1,5 +1,5 @@
 from flask import Blueprint, jsonify, request, render_template, send_file
-from App.exts import db
+from App_new.exts import db
 import logging
 from sqlalchemy import case
 from datetime import datetime
@@ -7,7 +7,7 @@ import pandas as pd
 from io import BytesIO
 import os
 
-from App.models.account import Account
+from App_new.finance.models.account import Account
 
 # 创建蓝图
 account_routes = Blueprint('account_routes', __name__)

@@ -100,21 +100,95 @@ def process_itinerary(text):
     
     return '\n'.join(processed_lines)
 
-@flights_schedule.route('/input_flight_schedule', methods=['GET'])
+@flights_schedule.route('/input_flight_schedule', methods=['GET', 'POST'])
 @login_required
 @staff_only
 def input_flight_schedule():
     """航班时刻表输入页面"""
-    search_flight_number = request.args.get('search_flight_number', '')
-    # 获取航班列表（加入分页）
-    page = request.args.get('page', 1, type=int)
-    per_page = 10
-    flights = FlightSchedule.query.order_by(FlightSchedule.id.desc()).paginate(
-        page=page, per_page=per_page, error_out=False)
+    if request.method == 'GET':
+        search_flight_number = request.args.get('search_flight_number', '')
+        search_airline_code = request.args.get('search_airline_code', '')
+        search_airline_num = request.args.get('search_airline_num', '')
+        search_schedule_city = request.args.get('search_schedule_city', '')
+        page = request.args.get('page', 1, type=int)
+        per_page = 10
+        
+        # 构建查询
+        query = FlightSchedule.query
+        
+        # 如果有搜索条件，添加过滤
+        if search_flight_number:
+            query = query.filter(FlightSchedule.flight_number.like(f"%{search_flight_number}%"))
+        if search_airline_code:
+            query = query.filter(FlightSchedule.airline_code.like(f"%{search_airline_code}%"))
+        if search_airline_num:
+            query = query.filter(FlightSchedule.airline_num.like(f"%{search_airline_num}%"))
+        if search_schedule_city:
+            query = query.filter(FlightSchedule.schedule_city.like(f"%{search_schedule_city}%"))
+        
+        # 添加排序并分页
+        flights = query.order_by(FlightSchedule.id.desc()).paginate(
+            page=page, per_page=per_page, error_out=False)
+        
+        return render_template('business/flight/flight_schedule_input.html',
+                               search_flight_number=search_flight_number,
+                               search_airline_code=search_airline_code,
+                               search_airline_num=search_airline_num,
+                               search_schedule_city=search_schedule_city,
+                               flights=flights)
     
-    return render_template('business/flight/flight_schedule_input.html',
-                           search_flight_number=search_flight_number,
-                           flights=flights)
+    elif request.method == 'POST':
+        try:
+            flight_numbers = request.form.getlist('flight_number[]')
+            airline_codes = request.form.getlist('airline_code[]')
+            airline_nums = request.form.getlist('airline_num[]')
+            schedule_cities = request.form.getlist('schedule_city[]')
+            schedule_timings = request.form.getlist('schedule_timing[]')
+            
+            # 验证数据
+            if not flight_numbers or len(flight_numbers) != len(schedule_cities) or len(flight_numbers) != len(schedule_timings):
+                flash('提交的数据不完整或格式错误', 'error')
+                return redirect(url_for('flights_schedule.input_flight_schedule'))
+            
+            # 保存到数据库
+            success_count = 0
+            for i in range(len(flight_numbers)):
+                if flight_numbers[i] and schedule_cities[i] and schedule_timings[i]:
+                    flight_number = flight_numbers[i].strip().upper()
+                    airline_code = airline_codes[i].strip().upper() if airline_codes and i < len(airline_codes) else flight_number[:2]
+                    airline_num = airline_nums[i].strip() if airline_nums and i < len(airline_nums) else flight_number[2:]
+                    
+                    # 检查是否已存在相同航班号的记录
+                    existing = FlightSchedule.query.filter_by(flight_number=flight_number).first()
+                    if existing:
+                        # 更新现有记录
+                        existing.schedule_city = schedule_cities[i]
+                        existing.schedule_timing = schedule_timings[i]
+                        existing.airline_code = airline_code
+                        existing.airline_num = airline_num
+                    else:
+                        # 创建新记录
+                        new_flight = FlightSchedule(
+                            flight_number=flight_number,
+                            airline_code=airline_code,
+                            airline_num=airline_num,
+                            schedule_city=schedule_cities[i],
+                            schedule_timing=schedule_timings[i]
+                        )
+                        db.session.add(new_flight)
+                    
+                    success_count += 1
+            
+            # 提交事务
+            db.session.commit()
+            flash(f'成功保存 {success_count} 条航班信息', 'success')
+            
+        except Exception as e:
+            db.session.rollback()
+            flash(f'保存失败: {str(e)}', 'error')
+            current_app.logger.error(f'保存航班信息失败: {str(e)}')
+        
+        return redirect(url_for('flights_schedule.input_flight_schedule'))
 
 @flights_schedule.route('/input_flight_schedule_info', methods=['GET', 'POST'])
 @login_required

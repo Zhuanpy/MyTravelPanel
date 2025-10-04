@@ -3,7 +3,7 @@
 管理员仪表板、用户管理、权限管理、系统配置等功能
 """
 
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app
 from flask_login import login_required, current_user
 from App_new.utils.decorators import admin_only, permission_required
 from App_new.auth.models.auth import AuthUser, Role, UserProfile, InvitationCode
@@ -641,7 +641,7 @@ def api_system_info():
 def locked_users():
     """查看被锁定的用户列表"""
     try:
-        from App.models.auth import AuthUser
+        from App_new.auth.models import AuthUser
         
         # 获取所有被锁定的用户
         locked_users = AuthUser.query.filter_by(is_locked=True).all()
@@ -656,7 +656,7 @@ def locked_users():
 def unlock_user(user_id):
     """解锁被锁定的用户"""
     try:
-        from App.models.auth import AuthUser
+        from App_new.auth.models import AuthUser
         
         user = AuthUser.query.get_or_404(user_id)
         
@@ -676,7 +676,7 @@ def unlock_user(user_id):
 def reset_user_attempts(user_id):
     """重置用户的登录失败次数"""
     try:
-        from App.models.auth import AuthUser
+        from App_new.auth.models import AuthUser
         
         user = AuthUser.query.get_or_404(user_id)
         
@@ -687,4 +687,71 @@ def reset_user_attempts(user_id):
         return redirect(url_for('admin.locked_users'))
     except Exception as e:
         flash(f'重置失败次数失败：{str(e)}', 'error')
-        return redirect(url_for('admin.locked_users')) 
+        return redirect(url_for('admin.locked_users'))
+
+@admin.route('/change-password', methods=['GET', 'POST'])
+@login_required
+@admin_only
+def change_password():
+    """管理员更改密码"""
+    if request.method == 'POST':
+        try:
+            current_password = request.form.get('current_password')
+            new_password = request.form.get('new_password')
+            confirm_password = request.form.get('confirm_password')
+            
+            # 验证表单数据
+            if not all([current_password, new_password, confirm_password]):
+                flash('请填写所有字段', 'error')
+                return render_template('admin/change_password.html')
+            
+            if new_password != confirm_password:
+                flash('新密码和确认密码不匹配', 'error')
+                return render_template('admin/change_password.html')
+            
+            if len(new_password) < 6:
+                flash('新密码长度至少为6位', 'error')
+                return render_template('admin/change_password.html')
+            
+            # 验证当前密码
+            # 检查数据库中存储的密码（支持明文密码）
+            if current_password == current_user.password_hash:
+                # 更新密码（临时使用明文存储，避免哈希问题）
+                old_password = current_user.password_hash
+                current_user.password_hash = new_password
+                
+                try:
+                    db.session.commit()
+                    
+                    # 验证密码是否真的被更新了
+                    db.session.refresh(current_user)
+                    if current_user.password_hash == new_password:
+                        current_app.logger.info(f"管理员密码修改成功: {current_user.email}")
+                        flash('密码修改成功！', 'success')
+                        return redirect(url_for('admin.dashboard'))
+                    else:
+                        current_app.logger.error(f"密码更新验证失败: {current_user.email}")
+                        flash('密码修改失败：更新验证失败', 'error')
+                        return render_template('admin/change_password.html')
+                except Exception as db_error:
+                    db.session.rollback()
+                    current_app.logger.error(f"数据库提交失败: {db_error}")
+                    flash('密码修改失败：数据库更新错误', 'error')
+                    return render_template('admin/change_password.html')
+            else:
+                flash('当前密码错误', 'error')
+                return render_template('admin/change_password.html')
+                
+        except Exception as e:
+            flash(f'密码修改失败：{str(e)}', 'error')
+            return render_template('admin/change_password.html')
+    
+    return render_template('admin/change_password.html')
+
+@admin.route('/center')
+@login_required
+@admin_only
+def admin_center():
+    """管理员中心"""
+    return render_template('admin/admin_center.html')
+

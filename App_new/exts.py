@@ -46,7 +46,7 @@ def init_exts(app):
     def unauthorized():
         from flask import request, redirect, url_for, flash
         flash('请先登录', 'warning')
-        return redirect(url_for('auth.staff_login', next=request.url))
+        return redirect(url_for('staff_auth.login', next=request.url))
 
     # 导入模型并创建所有表（如果未跳过）
     if not app.config.get('SKIP_DB_INIT', False):

@@ -58,7 +58,7 @@
                 <td>{{ '支出' if t.transaction_type=='debit' else '收入' }}</td>
                 <td>{{ '%.2f'|format(t.amount) }}</td>
                 <td>{{ '%.2f'|format(t.balance) if t.balance is not none else '-' }}</td>
-                <td class="summary-cell" title="点击查看/关闭全文" data-full="{{ t.description or '' }}">{{ (t.description or '')[:40] }}{% if t.description and t.description|length>40 %}...{% endif %}</td>
+                <td class="summary-cell" style="text-align:left; word-wrap:break-word; white-space:normal; max-width:200px; vertical-align:top; padding:8px; line-height:1.4;" title="{{ t.description or '' }}">{{ t.description or '' }}</td>
                 <td style="text-align:left; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ t.keyword or '-' }}</td>
                 <td>
                     {% if t.is_confirmed %}

@@ -596,11 +596,11 @@ def upload_file(bank_name):
                 # 处理余额列 - 针对OCBC银行优先使用Closing Book Balance
                 balance_str = '0'
                 if bank_name == 'OCBC':
-                    # OCBC银行优先使用Closing Book Balance列
+                    # OCBC银行优先使用Closing Book Balance列（用于排重）
                     for balance_col in ['Closing Book Balance', 'Balance', 'Available Balance']:
                         if balance_col in df.columns:
                             balance_str = df[balance_col].fillna('0').astype(str)
-                            print(f"OCBC银行使用余额列: {balance_col}")
+                            print(f"OCBC银行使用余额列进行排重: {balance_col}")
                             break
                 else:
                     # 其他银行使用Balance列

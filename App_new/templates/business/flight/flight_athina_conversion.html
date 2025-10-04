@@ -1411,10 +1411,10 @@
                                         <i class="fas fa-plane-arrival"></i> 输出行程：
                                     </label>
                                     <div class="flight-app-input-wrapper flight-app-output-container">
-                                        <button type="button" class="btn-base btn-secondary" onclick="copyOutputText()">
+                                        <textarea id="output_text" name="output_text" class="textarea-base" placeholder="转换后的行程将显示在这里...">{{ output_text }}</textarea>
+                                        <button type="button" class="flight-app-copy-btn" onclick="copyOutputText()" title="复制到剪贴板">
                                             <i class="fas fa-copy"></i> 复制
                                         </button>
-                                        <textarea id="output_text" name="output_text" class="textarea-base" placeholder="转换后的行程将显示在这里...">{{ output_text }}</textarea>
                                     </div>
                                 </div>
                             </div>
@@ -1471,7 +1471,7 @@
                     </div>
                     <div class="athina-textarea-container">
                         <textarea id="itinerary" class="textarea-base" placeholder="生成的行程代码将显示在这里..."></textarea>
-                        <button id="copyBtn" class="btn-base btn-secondary" onclick="copyToClipboard()" title="复制到剪贴板">
+                        <button id="copyBtn" class="athina-copy-btn" onclick="copyToClipboard()" title="复制到剪贴板">
                             <i class="fas fa-copy"></i> 复制
                         </button>
                     </div>

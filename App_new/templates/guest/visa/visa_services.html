@@ -19,7 +19,7 @@
 <!-- 筛选区域 -->
 <section class="py-3 bg-light">
     <div class="container">
-        <form method="GET" action="{{ url_for('guest.visa.visa_services') }}" class="row g-3 align-items-end">
+        <form method="GET" action="{{ url_for('public.visa_services') }}" class="row g-3 align-items-end">
             <div class="col-md-4">
                 <label for="search" class="form-label fw-bold">搜索国家或签证类型</label>
                 <input type="text" class="form-control" id="search" name="search" 
@@ -42,7 +42,7 @@
                 </button>
             </div>
             <div class="col-md-3 text-end">
-                <a href="{{ url_for('guest.visa.visa_services') }}" class="btn btn-outline-secondary">
+                <a href="{{ url_for('public.visa_services') }}" class="btn btn-outline-secondary">
                     <i class="fas fa-refresh"></i> 重置
                 </a>
             </div>
@@ -53,27 +53,27 @@
             <div class="col-12">
                 <div class="d-flex flex-wrap gap-2">
                     <span class="text-muted me-2">快速筛选：</span>
-                    <a href="{{ url_for('guest.visa.visa_services', region='asia') }}" 
+                    <a href="{{ url_for('public.visa_services', region='asia') }}" 
                        class="badge {% if region_filter == 'asia' %}bg-primary{% else %}bg-light text-dark{% endif %} text-decoration-none">
                         亚洲
                     </a>
-                    <a href="{{ url_for('guest.visa.visa_services', region='europe') }}" 
+                    <a href="{{ url_for('public.visa_services', region='europe') }}" 
                        class="badge {% if region_filter == 'europe' %}bg-primary{% else %}bg-light text-dark{% endif %} text-decoration-none">
                         欧洲
                     </a>
-                    <a href="{{ url_for('guest.visa.visa_services', region='america') }}" 
+                    <a href="{{ url_for('public.visa_services', region='america') }}" 
                        class="badge {% if region_filter == 'america' %}bg-primary{% else %}bg-light text-dark{% endif %} text-decoration-none">
                         美洲
                     </a>
-                    <a href="{{ url_for('guest.visa.visa_services', region='oceania') }}" 
+                    <a href="{{ url_for('public.visa_services', region='oceania') }}" 
                        class="badge {% if region_filter == 'oceania' %}bg-primary{% else %}bg-light text-dark{% endif %} text-decoration-none">
                         大洋洲
                     </a>
-                    <a href="{{ url_for('guest.visa.visa_services', region='middle_east') }}" 
+                    <a href="{{ url_for('public.visa_services', region='middle_east') }}" 
                        class="badge {% if region_filter == 'middle_east' %}bg-primary{% else %}bg-light text-dark{% endif %} text-decoration-none">
                         中东
                     </a>
-                    <a href="{{ url_for('guest.visa.visa_services', search='申根') }}" 
+                    <a href="{{ url_for('public.visa_services', search='申根') }}" 
                        class="badge {% if search_query == '申根' %}bg-success{% else %}bg-light text-dark{% endif %} text-decoration-none">
                         申根签证
                     </a>
@@ -108,7 +108,7 @@
             {% for service in visa_services %}
             <div class="col-6 col-sm-4 col-md-3 col-lg-3">
                 <div class="visa-card position-relative h-100">
-                    <a class="stretched-link" href="{{ url_for('guest.visa.visa_services_by_country', country_name=service.country) }}"></a>
+                    <a class="stretched-link" href="{{ url_for('public.visa_services_by_country', country_name=service.country) }}"></a>
                     <div class="visa-thumb" {% if service.flag_file %}style="background-image: url('{{ url_for('static', filename='images/flags/' + service.flag_file) }}'); background-size: cover; background-position: center; background-repeat: no-repeat;"{% endif %}>
                         {% if service.flag_file %}
                         <div class="visa-flag-overlay"></div>
@@ -158,10 +158,10 @@
                         {% endif %}
                     </p>
                     <div>
-                        <a href="{{ url_for('guest.visa.visa_services') }}" class="btn btn-primary me-2">
+                        <a href="{{ url_for('public.visa_services') }}" class="btn btn-primary me-2">
                             <i class="fas fa-refresh"></i> 查看全部
                         </a>
-                        <a href="{{ url_for('guest.main.contact') }}" class="btn btn-outline-primary">
+                        <a href="{{ url_for('public.contact') }}" class="btn btn-outline-primary">
                             <i class="fas fa-phone"></i> 联系我们
                         </a>
                     </div>
@@ -171,7 +171,7 @@
                     <i class="fas fa-globe"></i>
                     <h5>暂无签证服务信息</h5>
                     <p class="mb-3">我们正在努力添加更多国家和地区的签证服务</p>
-                    <a href="{{ url_for('guest.main.contact') }}" class="btn btn-primary">
+                    <a href="{{ url_for('public.contact') }}" class="btn btn-primary">
                         <i class="fas fa-phone"></i> 咨询签证服务
                     </a>
                 </div>
@@ -181,7 +181,7 @@
         {% endif %}
 
         <div class="text-center mt-3">
-            <a href="{{ url_for('guest.visa.visa_services') }}" class="text-primary text-decoration-none">
+            <a href="{{ url_for('public.visa_services') }}" class="text-primary text-decoration-none">
                 查看全部国家和地区 <i class="fas fa-arrow-right"></i>
             </a>
         </div>
@@ -241,12 +241,13 @@
 
 
 <!-- 服务优势 -->
+<!-- 
 <section class="py-5 bg-light">
     <div class="container">
         <div class="row text-center mb-5">
             <div class="col-12">
                 <h2 class="fw-bold mb-3">为什么选择我们的签证服务？</h2>
-                <!-- <p class="text-muted lead">专业团队，丰富经验，让您的签证申请更加顺利</p> -->
+                <p class="text-muted lead">专业团队，丰富经验，让您的签证申请更加顺利</p>
             </div>
         </div>
         
@@ -290,6 +291,7 @@
         </div>
     </div>
 </section>
+-->
 
 
 <!-- 联系咨询 -->
@@ -300,7 +302,7 @@
                 <h2 class="fw-bold mb-3">需要签证办理服务？</h2>
                 <p class="lead mb-4">我们的专业顾问团队随时为您提供咨询和服务</p>
                 <div>
-                    <a href="{{ url_for('guest.main.contact') }}" class="btn btn-light btn-lg me-3">
+                    <a href="{{ url_for('public.contact') }}" class="btn btn-light btn-lg me-3">
                         <i class="fas fa-phone"></i> 立即咨询
                     </a>
                     <a href="tel:+6512345678" class="btn btn-outline-light btn-lg">

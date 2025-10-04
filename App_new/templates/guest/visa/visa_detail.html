@@ -1,6 +1,6 @@
 {% extends "guest/shared/base.html" %}
 
-{% block title %}{{ visa_type.name }} - MyTravelPanel{% endblock %}
+{% block title %}{{ visa_type.visa_type }} - MyTravelPanel{% endblock %}
 
 {% block content %}
 <!-- 页面标题区域 -->
@@ -11,18 +11,18 @@
                 <nav aria-label="breadcrumb" class="mb-4">
                     <ol class="breadcrumb justify-content-center bg-transparent">
                         <li class="breadcrumb-item">
-                            <a href="{{ url_for('guest.main.index') }}" class="text-white-50">首页</a>
+                            <a href="{{ url_for('public.index') }}" class="text-white-50">首页</a>
                         </li>
                         <li class="breadcrumb-item">
-                            <a href="{{ url_for('guest.visa.visa_services') }}" class="text-white-50">签证服务</a>
+                            <a href="{{ url_for('public.visa_services') }}" class="text-white-50">签证服务</a>
                         </li>
                         <li class="breadcrumb-item">
-                            <a href="{{ url_for('guest.visa.visa_services_by_country', country_name=visa_type.country) }}" class="text-white-50">{{ visa_type.country }}</a>
+                            <a href="{{ url_for('public.visa_services_by_country', country_name=visa_type.country.country_name_CN) }}" class="text-white-50">{{ visa_type.country.country_name_CN }}</a>
                         </li>
-                        <li class="breadcrumb-item active text-white" aria-current="page">{{ visa_type.name }}</li>
+                        <li class="breadcrumb-item active text-white" aria-current="page">{{ visa_type.visa_type }}</li>
                     </ol>
                 </nav>
-                <h1 class="display-4 fw-bold mb-3">{{ visa_type.name }}</h1>
+                <h1 class="display-4 fw-bold mb-3">{{ visa_type.visa_type }}</h1>
                 <p class="lead">{{ visa_type.description }}</p>
             </div>
         </div>
@@ -42,7 +42,7 @@
                             <i class="fas fa-passport"></i>
                         </div>
                         <div>
-                            <h1 class="visa-title">{{ visa_type.name }}</h1>
+                            <h1 class="visa-title">{{ visa_type.visa_type }}</h1>
                             <p class="visa-subtitle">{{ visa_type.description }}</p>
                         </div>
                     </div>
@@ -90,11 +90,11 @@
                             <span class="label-text">选择您的身份类型</span>
                         </div>
                         <div class="identity-buttons" id="identityButtons" 
-                             data-visa-type="{{ visa_type.name }}" 
-                             data-identities="{{ visa_type.identities | join(',') }}">
+                             data-visa-type="{{ visa_type.visa_type }}" 
+                             data-identities="{% for identity in visa_type.identities %}{{ identity.identity_zh if identity.identity_zh else identity }}{% if not loop.last %},{% endif %}{% endfor %}">
                             {% for identity in visa_type.identities %}
-                            <button class="identity-button" data-identity="{{ identity }}" onclick="selectIdentity('{{ identity }}')">
-                                {{ identity if identity != 'SHARE' else '通用' }}
+                            <button class="identity-button" data-identity="{{ identity.identity_zh if identity.identity_zh else identity }}" onclick="selectIdentity('{{ identity.identity_zh if identity.identity_zh else identity }}')">
+                                {{ identity.identity_zh if identity.identity_zh else (identity if identity != 'SHARE' else '通用') }}
                             </button>
                             {% endfor %}
                         </div>
@@ -130,41 +130,13 @@
             </div>
         </div>
         
-        <!-- 重要提示 -->
-        <div class="row justify-content-center mt-5">
-            <div class="col-lg-10">
-                <div class="bg-white rounded-3 p-4 shadow-sm">
-                    <h5 class="text-primary mb-3">
-                        <i class="fas fa-exclamation-triangle me-2"></i>重要提示
-                    </h5>
-                    <ul class="list-unstyled mb-0">
-                        <li class="mb-2">
-                            <i class="fas fa-info-circle text-info me-2"></i>
-                            签证申请时间可能因个人情况和领事馆工作安排而有所不同
-                        </li>
-                        <li class="mb-2">
-                            <i class="fas fa-info-circle text-info me-2"></i>
-                            所有文件需提供原件和复印件，部分文件可能需要公证或认证
-                        </li>
-                        <li class="mb-2">
-                            <i class="fas fa-info-circle text-info me-2"></i>
-                            签证费用不包含领事馆收取的签证费和其他可能产生的费用
-                        </li>
-                        <li class="mb-0">
-                            <i class="fas fa-info-circle text-info me-2"></i>
-                            建议在出行前至少提前2-4周申请签证，以确保有足够的处理时间
-                        </li>
-                    </ul>
-                </div>
-            </div>
-        </div>
         
         <!-- 返回按钮 -->
         <div class="row justify-content-center mt-4">
             <div class="col-lg-10">
                 <div class="text-center">
-                    <a href="{{ url_for('guest.visa.visa_services_by_country', country_name=visa_type.country) }}" class="btn btn-outline-primary">
-                        <i class="fas fa-arrow-left me-2"></i>返回{{ visa_type.country }}签证服务
+                    <a href="{{ url_for('public.visa_services_by_country', country_name=visa_type.country.country_name_CN) }}" class="btn btn-outline-primary">
+                        <i class="fas fa-arrow-left me-2"></i>返回{{ visa_type.country.country_name_CN }}签证服务
                     </a>
                 </div>
             </div>

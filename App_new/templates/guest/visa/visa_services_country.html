@@ -11,10 +11,10 @@
                 <nav aria-label="breadcrumb" class="mb-4">
                     <ol class="breadcrumb justify-content-center bg-transparent">
                         <li class="breadcrumb-item">
-                            <a href="{{ url_for('guest.main.index') }}" class="text-white-50">首页</a>
+                            <a href="{{ url_for('public.index') }}" class="text-white-50">首页</a>
                         </li>
                         <li class="breadcrumb-item">
-                            <a href="{{ url_for('guest.visa.visa_services') }}" class="text-white-50">签证服务</a>
+                            <a href="{{ url_for('public.visa_services') }}" class="text-white-50">签证服务</a>
                         </li>
                         <li class="breadcrumb-item active text-white" aria-current="page">{{ country_info.country }}</li>
                     </ol>
@@ -78,7 +78,7 @@
                         
                         <!-- 操作按钮 -->
                         <div class="d-grid mt-auto">
-                            <a href="{{ url_for('guest.visa.visa_detail', visa_type_name=visa_type.visa_type) }}" class="btn btn-primary btn-sm">
+                            <a href="{{ url_for('public.visa_detail', visa_type_name=visa_type.visa_type) }}" class="btn btn-primary btn-sm">
                                 <i class="fas fa-info-circle me-1"></i>查看详情
                             </a>
                         </div>
@@ -94,7 +94,7 @@
                     <i class="fas fa-info-circle text-muted" style="font-size: 4rem;"></i>
                     <h4 class="mt-3 text-muted">暂无签证类型信息</h4>
                     <p class="text-muted">该国家的签证服务信息正在完善中，请联系我们获取最新信息。</p>
-                    <a href="{{ url_for('guest.main.contact') }}" class="btn btn-custom">
+                    <a href="{{ url_for('public.contact') }}" class="btn btn-custom">
                         <i class="fas fa-phone"></i> 联系我们
                     </a>
                 </div>
@@ -105,50 +105,6 @@
 </section>
 
 
-<!-- 相关服务推荐 -->
-<section class="py-5">
-    <div class="container">
-        <div class="row text-center mb-4">
-            <div class="col-12">
-                <h3 class="fw-bold mb-3">相关服务推荐</h3>
-                <p class="text-muted">我们还为您提供以下相关服务</p>
-            </div>
-        </div>
-        
-        <div class="row g-4">
-            <div class="col-md-4">
-                <div class="text-center p-4">
-                    <div class="bg-primary text-white rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
-                        <i class="fas fa-plane fa-2x"></i>
-                    </div>
-                    <h5>机票预订</h5>
-                    <p class="text-muted">为您提供优惠的机票预订服务</p>
-                    <a href="#" class="btn btn-outline-primary btn-sm">了解更多</a>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div class="text-center p-4">
-                    <div class="bg-success text-white rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
-                        <i class="fas fa-bed fa-2x"></i>
-                    </div>
-                    <h5>酒店预订</h5>
-                    <p class="text-muted">精选优质酒店，享受舒适住宿</p>
-                    <a href="#" class="btn btn-outline-success btn-sm">了解更多</a>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div class="text-center p-4">
-                    <div class="bg-warning text-white rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
-                        <i class="fas fa-map-marked-alt fa-2x"></i>
-                    </div>
-                    <h5>旅游配套</h5>
-                    <p class="text-muted">精心设计的旅游路线和配套服务</p>
-                    <a href="{{ url_for('guest.tour.tour_packages') }}" class="btn btn-outline-warning btn-sm">了解更多</a>
-                </div>
-            </div>
-        </div>
-    </div>
-</section>
 {% endblock %}
 
 {% block extra_css %}

@@ -123,14 +123,27 @@ def apply_keyword_matching(description, bank_name='UOB'):
             BankStatementKeyword.bank_name == bank_name
         ).all()
         
+        print(f"关键字匹配调试 - 银行: {bank_name}, 描述: {description}")
+        print(f"找到 {len(keywords)} 个关键字配置")
+        
+        # 打印所有关键字配置
+        for kw in keywords:
+            print(f"  - 关键字: {kw.keyword}, 类型: {kw.keyword_type}, 激活: {kw.is_active}")
+        
         matched_keywords = []
         owner_label = ''
         
         description_lower = str(description).lower()
         
         for keyword in keywords:
+            if not keyword.is_active:
+                print(f"跳过非激活关键字: {keyword.keyword}")
+                continue
+                
+            print(f"检查关键字: {keyword.keyword} (类型: {keyword.keyword_type})")
             if keyword.keyword.lower() in description_lower:
                 matched_keywords.append(keyword.keyword)
+                print(f"匹配到关键字: {keyword.keyword}")
                 
                 # 根据关键字类型设置owner标签
                 if keyword.keyword_type == 'personal':
@@ -139,12 +152,27 @@ def apply_keyword_matching(description, bank_name='UOB'):
                     owner_label = 'Business'
                 elif keyword.keyword_type == 'personal_business':
                     owner_label = '个人商用'
+                elif keyword.keyword_type == 'je':
+                    owner_label = 'JE'
+                    print(f"警告: 匹配到 'je' 类型关键字，设置 owner_label 为 'JE'")
                 else:
                     owner_label = 'Business'  # 默认
         
         # 如果没有匹配到关键字，设置默认值
         if not matched_keywords:
-            owner_label = 'Business'
+            # 为不同银行设置不同的默认值
+            if bank_name == 'OCBC':
+                owner_label = 'JE'  # OCBC 是公司账户，默认使用 JE
+            else:
+                owner_label = 'Business'
+            print(f"无关键字匹配，使用默认值: {owner_label}")
+        else:
+            print(f"匹配到关键字，设置owner_label: {owner_label}")
+            
+        # OCBC 银行强制使用 'JE' 作为默认值（公司账户）
+        if bank_name == 'OCBC':
+            owner_label = 'JE'
+            print(f"OCBC 银行强制设置 owner_label 为 'JE'（公司账户）")
         
         return {
             'owner_label': owner_label,
@@ -298,17 +326,29 @@ def process_monthly_transactions(month_data, statement_id, month, bank_name='UOB
             balance = 0.00
             balance_col_name = None
             
-            # 查找余额列
-            for col in ['Available Balance', 'Balance', '余额']:
-                if col in row and pd.notna(row[col]):
-                    balance_col_name = col
-                    break
+            # 查找余额列 - 针对OCBC银行优先使用Closing Book Balance
+            if bank_name == 'OCBC':
+                # OCBC银行优先使用Closing Book Balance作为余额
+                for col in ['Closing Book Balance', 'Available Balance', 'Balance', '余额']:
+                    if col in row and pd.notna(row[col]):
+                        balance_col_name = col
+                        break
+            else:
+                # 其他银行使用通用余额列
+                for col in ['Available Balance', 'Balance', '余额']:
+                    if col in row and pd.notna(row[col]):
+                        balance_col_name = col
+                        break
             
             if balance_col_name:
                 try:
                     balance = float(row[balance_col_name])
+                    print(f"使用余额列: {balance_col_name}, 余额值: {balance}")
                 except (ValueError, TypeError):
                     balance = 0.00
+                    print(f"余额列 {balance_col_name} 转换失败，使用默认值 0.00")
+            else:
+                print(f"未找到有效的余额列，使用默认值 0.00")
             
             # 应用关键字匹配，设置owner标签
             keyword_result = apply_keyword_matching(row['Description'], bank_name)

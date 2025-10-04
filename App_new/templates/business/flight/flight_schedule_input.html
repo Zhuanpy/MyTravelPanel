@@ -537,7 +537,7 @@
             </button>
         </div>
         
-        <form id="searchForm" method="GET" action="{{ url_for('flights_schedule.input_flight_schedule_info') }}">
+        <form id="searchForm" method="GET" action="{{ url_for('flights_schedule.input_flight_schedule') }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             
             <!-- 搜索字段行1 -->
@@ -588,7 +588,7 @@
             {% if search_airline_code %}<span class="filter-tag">航司代码: {{ search_airline_code }}</span>{% endif %}
             {% if search_airline_num %}<span class="filter-tag">航班编号: {{ search_airline_num }}</span>{% endif %}
             {% if search_schedule_city %}<span class="filter-tag">起始地点: {{ search_schedule_city }}</span>{% endif %}
-            <a href="{{ url_for('flights_schedule.input_flight_schedule_info') }}" class="btn btn-sm btn-outline-secondary ml-2" style="margin-left: 15px; padding: 4px 8px; font-size: 12px; text-decoration: none; color: #6c757d; border: 1px solid #6c757d; border-radius: 4px;">
+            <a href="{{ url_for('flights_schedule.input_flight_schedule') }}" class="btn btn-sm btn-outline-secondary ml-2" style="margin-left: 15px; padding: 4px 8px; font-size: 12px; text-decoration: none; color: #6c757d; border: 1px solid #6c757d; border-radius: 4px;">
                 <i class="fas fa-times"></i> 清除所有筛选
             </a>
         </div>
@@ -607,7 +607,7 @@
                 </button>
             </div>
             
-            <form id="flightForm" method="POST" action="{{ url_for('flights_schedule.input_flight_schedule_info') }}">
+            <form id="flightForm" method="POST" action="{{ url_for('flights_schedule.input_flight_schedule') }}">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="search_flight_number" value="{{ search_flight_number }}">
                 <input type="hidden" name="search_airline_code" value="{{ search_airline_code }}">
@@ -711,7 +711,7 @@
         <div class="flight-schedule-pagination">
             {% if flights.pages > 1 %}
                 <!-- 首页 -->
-                <a href="{{ url_for('flights_schedule.input_flight_schedule_info', page=1, 
+                <a href="{{ url_for('flights_schedule.input_flight_schedule', page=1, 
                         search_flight_number=search_flight_number,
                         search_airline_code=search_airline_code,
                         search_airline_num=search_airline_num,
@@ -720,7 +720,7 @@
                 
                 <!-- 上一页 -->
                 {% if flights.has_prev %}
-                    <a href="{{ url_for('flights_schedule.input_flight_schedule_info', page=flights.prev_num,
+                    <a href="{{ url_for('flights_schedule.input_flight_schedule', page=flights.prev_num,
                             search_flight_number=search_flight_number,
                             search_airline_code=search_airline_code,
                             search_airline_num=search_airline_num,
@@ -730,7 +730,7 @@
                 <!-- 页码 -->
                 {% for page_num in flights.iter_pages(left_edge=2, right_edge=2, left_current=2, right_current=2) %}
                     {% if page_num %}
-                        <a href="{{ url_for('flights_schedule.input_flight_schedule_info', page=page_num,
+                        <a href="{{ url_for('flights_schedule.input_flight_schedule', page=page_num,
                                 search_flight_number=search_flight_number,
                                 search_airline_code=search_airline_code,
                                 search_airline_num=search_airline_num,
@@ -743,7 +743,7 @@
                 
                 <!-- 下一页 -->
                 {% if flights.has_next %}
-                    <a href="{{ url_for('flights_schedule.input_flight_schedule_info', page=flights.next_num,
+                    <a href="{{ url_for('flights_schedule.input_flight_schedule', page=flights.next_num,
                             search_flight_number=search_flight_number,
                             search_airline_code=search_airline_code,
                             search_airline_num=search_airline_num,
@@ -751,7 +751,7 @@
                 {% endif %}
                 
                 <!-- 末页 -->
-                <a href="{{ url_for('flights_schedule.input_flight_schedule_info', page=flights.pages,
+                <a href="{{ url_for('flights_schedule.input_flight_schedule', page=flights.pages,
                         search_flight_number=search_flight_number,
                         search_airline_code=search_airline_code,
                         search_airline_num=search_airline_num,
