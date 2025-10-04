@@ -92,9 +92,9 @@ def create_app():
     app.register_blueprint(guest_bp, url_prefix='/public')
 
     # 认证模块
-    from .auth.routes import auth_bp
+    from .auth import init_auth
     from .shared.routes.auth import auth_profile
-    app.register_blueprint(auth_bp)
+    init_auth(app)
     app.register_blueprint(auth_profile)
 
     # 管理员/会员/员工模块
