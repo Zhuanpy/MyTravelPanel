@@ -28,7 +28,7 @@ def legacy_home():
 def auth_staff_login_redirect():
     """员工登录页面重定向"""
     from flask import redirect, url_for
-    return redirect(url_for('staff_auth.login'))
+    return redirect(url_for('auth_profile.staff_login'))
 
 @dex.route('/auth/member_login')
 def auth_member_login_redirect():

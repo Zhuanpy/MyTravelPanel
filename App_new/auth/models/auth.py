@@ -157,6 +157,7 @@ class UserProfile(db.Model):
     position = db.Column(db.String(50))
     avatar = db.Column(db.String(255))  # 头像文件路径
     preferences = db.Column(db.JSON)  # 用户偏好设置
+    staff_level = db.Column(db.Integer, default=1, comment='员工等级：1-普通员工(只能看自己的订单), 2-高级员工(可看所有订单)')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
@@ -184,6 +185,7 @@ class UserProfile(db.Model):
             'position': self.position,
             'avatar': self.avatar,
             'preferences': self.preferences,
+            'staff_level': self.staff_level,
             'full_name': self.get_full_name()
         }
 

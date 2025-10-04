@@ -285,17 +285,21 @@
                             </a></li>
                             <li><hr class="dropdown-divider"></li>
                             <li><h6 class="dropdown-header">REF管理</h6></li>
-                            <li><a class="dropdown-item" href="{{ url_for('business_projects.project_ref.create_ref', header_id=0) }}">
+                            <li><a class="dropdown-item" href="{{ url_for('business_projects.list.list_projects') }}">
                                 <i class="fas fa-file-alt me-2"></i>创建REF
+                                <small class="text-muted d-block">请先选择项目</small>
                             </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('business_projects.project_ref.create_flight_ref', header_id=0) }}">
+                            <li><a class="dropdown-item" href="{{ url_for('business_projects.list.list_projects') }}">
                                 <i class="fas fa-plane me-2"></i>机票REF
+                                <small class="text-muted d-block">请先选择项目</small>
                             </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('business_projects.project_ref.create_hotel_ref', header_id=0) }}">
+                            <li><a class="dropdown-item" href="{{ url_for('business_projects.list.list_projects') }}">
                                 <i class="fas fa-bed me-2"></i>酒店REF
+                                <small class="text-muted d-block">请先选择项目</small>
                             </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('business_projects.project_ref.create_visa_ref', header_id=0) }}">
+                            <li><a class="dropdown-item" href="{{ url_for('business_projects.list.list_projects') }}">
                                 <i class="fas fa-passport me-2"></i>签证REF
+                                <small class="text-muted d-block">请先选择项目</small>
                             </a></li>
                             <li><hr class="dropdown-divider"></li>
                             <li><h6 class="dropdown-header">EO管理</h6></li>

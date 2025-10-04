@@ -1,0 +1,243 @@
+{% extends "admin/base.html" %}
+
+{% block title %}员工等级管理 - MyTravelPanel{% endblock %}
+
+{% block page_title %}员工等级管理{% endblock %}
+
+{% block page_content %}
+<div class="container-fluid">
+    <!-- 统计卡片 -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">{{ total_count }}</h4>
+                            <p class="card-text">总员工数</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-users fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">{{ level_1_count }}</h4>
+                            <p class="card-text">1级员工</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-user fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">{{ level_2_count }}</h4>
+                            <p class="card-text">2级员工</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-user-shield fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">{{ (level_2_count / total_count * 100) | round(1) if total_count > 0 else 0 }}%</h4>
+                            <p class="card-text">高级员工比例</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-percentage fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 员工等级说明 -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-info-circle me-2"></i>员工等级说明
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="alert alert-info">
+                                <h6><i class="fas fa-user me-2"></i>1级员工（普通员工）</h6>
+                                <ul class="mb-0">
+                                    <li>只能查看和管理自己创建的订单</li>
+                                    <li>具有基本的项目操作权限</li>
+                                    <li>适合新入职员工或初级员工</li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="alert alert-success">
+                                <h6><i class="fas fa-user-shield me-2"></i>2级员工（高级员工）</h6>
+                                <ul class="mb-0">
+                                    <li>可以查看和管理所有员工的订单</li>
+                                    <li>具有完整的项目管理权限</li>
+                                    <li>适合主管或资深员工</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 员工列表 -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-list me-2"></i>员工列表
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if staff_users %}
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>用户名</th>
+                                    <th>邮箱</th>
+                                    <th>姓名</th>
+                                    <th>当前等级</th>
+                                    <th>注册时间</th>
+                                    <th>最后登录</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for user in staff_users %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ user.username }}</strong>
+                                        {% if user.is_active %}
+                                            <span class="badge bg-success ms-2">活跃</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary ms-2">禁用</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ user.email }}</td>
+                                    <td>
+                                        {% if user.profile %}
+                                            {{ user.profile.get_full_name() }}
+                                        {% else %}
+                                            <span class="text-muted">未设置</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% set current_level = user.profile.staff_level if user.profile else 1 %}
+                                        {% if current_level == 1 %}
+                                            <span class="badge bg-info">
+                                                <i class="fas fa-user me-1"></i>1级员工
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-success">
+                                                <i class="fas fa-user-shield me-1"></i>2级员工
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if user.created_at %}
+                                            {{ user.created_at.strftime('%Y-%m-%d %H:%M') }}
+                                        {% else %}
+                                            <span class="text-muted">未知</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if user.last_login %}
+                                            {{ user.last_login.strftime('%Y-%m-%d %H:%M') }}
+                                        {% else %}
+                                            <span class="text-muted">从未登录</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <button type="button" class="btn btn-sm btn-outline-info" 
+                                                    onclick="changeStaffLevel({{ user.id }}, 1)"
+                                                    {% if current_level == 1 %}disabled{% endif %}>
+                                                <i class="fas fa-user me-1"></i>设为1级
+                                            </button>
+                                            <button type="button" class="btn btn-sm btn-outline-success" 
+                                                    onclick="changeStaffLevel({{ user.id }}, 2)"
+                                                    {% if current_level == 2 %}disabled{% endif %}>
+                                                <i class="fas fa-user-shield me-1"></i>设为2级
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-users fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">暂无员工用户</h5>
+                        <p class="text-muted">系统中还没有员工用户</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function changeStaffLevel(userId, newLevel) {
+    const levelText = newLevel === 1 ? '1级员工' : '2级员工';
+    
+    if (confirm(`确定要将此员工设置为${levelText}吗？`)) {
+        fetch('/admin/update-staff-level', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token() }}'
+            },
+            body: JSON.stringify({
+                user_id: userId,
+                level: newLevel
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                location.reload(); // 刷新页面
+            } else {
+                alert('操作失败：' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('操作失败，请稍后重试');
+        });
+    }
+}
+</script>
+{% endblock %}

@@ -139,19 +139,34 @@ def dashboard():
         from ...business.projects.models.ref import ProjectRef
         from ...exts import db
         
+        # 构建基础查询
+        base_query = ProjectHeader.query
+        
+        # 根据员工等级过滤项目
+        if current_user.role and current_user.role.name == 'staff':
+            # 检查用户资料中的员工等级
+            staff_level = 1  # 默认等级
+            if current_user.profile:
+                staff_level = current_user.profile.staff_level or 1
+            
+            if staff_level == 1:
+                # 1级员工只能看到自己创建的项目
+                base_query = base_query.filter(ProjectHeader.staff_name == current_user.username)
+            # 2级员工可以看到所有项目，不需要额外过滤
+        
         # 获取员工统计信息（真实数据）
-        total_projects = ProjectHeader.query.count()
-        active_projects = ProjectHeader.query.filter_by(status='active').count()
+        total_projects = base_query.count()
+        active_projects = base_query.filter_by(status='active').count()
         
         # 计算本月完成的项目
         current_month_start = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-        completed_this_month = ProjectHeader.query.filter(
+        completed_this_month = base_query.filter(
             ProjectHeader.status == 'completed',
             ProjectHeader.updated_at >= current_month_start
         ).count()
         
         # 计算待处理报价（状态为draft的项目）
-        pending_quotes = ProjectHeader.query.filter_by(status='draft').count()
+        pending_quotes = base_query.filter_by(status='draft').count()
         
         stats = {
             'total_projects': total_projects,
@@ -161,7 +176,7 @@ def dashboard():
         }
         
         # 获取最近的项目列表（真实数据，最近10个）
-        recent_projects_query = ProjectHeader.query.order_by(ProjectHeader.created_at.desc()).limit(10)
+        recent_projects_query = base_query.order_by(ProjectHeader.created_at.desc()).limit(10)
         recent_projects = []
         
         for project in recent_projects_query:
@@ -197,7 +212,7 @@ def dashboard():
         
         # 获取待处理任务（状态为draft的项目）
         pending_tasks = []
-        draft_projects = ProjectHeader.query.filter_by(status='draft').limit(5).all()
+        draft_projects = base_query.filter_by(status='draft').limit(5).all()
         
         for project in draft_projects:
             task_data = {
@@ -554,22 +569,37 @@ def api_stats():
         from ...business.projects.models.ref import ProjectRef
         from datetime import datetime
         
+        # 构建基础查询
+        base_query = ProjectHeader.query
+        
+        # 根据员工等级过滤项目
+        if current_user.role and current_user.role.name == 'staff':
+            # 检查用户资料中的员工等级
+            staff_level = 1  # 默认等级
+            if current_user.profile:
+                staff_level = current_user.profile.staff_level or 1
+            
+            if staff_level == 1:
+                # 1级员工只能看到自己创建的项目
+                base_query = base_query.filter(ProjectHeader.staff_name == current_user.username)
+            # 2级员工可以看到所有项目，不需要额外过滤
+        
         # 获取真实统计数据
-        total_projects = ProjectHeader.query.count()
-        active_projects = ProjectHeader.query.filter_by(status='active').count()
+        total_projects = base_query.count()
+        active_projects = base_query.filter_by(status='active').count()
         
         # 计算本月完成的项目
         current_month_start = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-        completed_this_month = ProjectHeader.query.filter(
+        completed_this_month = base_query.filter(
             ProjectHeader.status == 'completed',
             ProjectHeader.updated_at >= current_month_start
         ).count()
         
         # 计算待处理报价（状态为draft的项目）
-        pending_quotes = ProjectHeader.query.filter_by(status='draft').count()
+        pending_quotes = base_query.filter_by(status='draft').count()
         
         # 计算财务数据
-        all_projects = ProjectHeader.query.all()
+        all_projects = base_query.all()
         total_revenue = 0
         total_cost = 0
         
@@ -613,8 +643,23 @@ def api_recent_projects():
         from ...business.projects.models.project import ProjectHeader, CustomerCompany
         from ...business.projects.models.ref import ProjectRef
         
+        # 构建基础查询
+        base_query = ProjectHeader.query
+        
+        # 根据员工等级过滤项目
+        if current_user.role and current_user.role.name == 'staff':
+            # 检查用户资料中的员工等级
+            staff_level = 1  # 默认等级
+            if current_user.profile:
+                staff_level = current_user.profile.staff_level or 1
+            
+            if staff_level == 1:
+                # 1级员工只能看到自己创建的项目
+                base_query = base_query.filter(ProjectHeader.staff_name == current_user.username)
+            # 2级员工可以看到所有项目，不需要额外过滤
+        
         # 获取最近的项目（最近10个）
-        recent_projects_query = ProjectHeader.query.order_by(ProjectHeader.created_at.desc()).limit(10)
+        recent_projects_query = base_query.order_by(ProjectHeader.created_at.desc()).limit(10)
         projects = []
         
         for project in recent_projects_query:
@@ -669,7 +714,23 @@ def api_pending_tasks():
         
         # 获取未完成的待办事项（真正的待处理任务）
         pending_tasks = []
-        todos = Todo.get_pending()  # 获取所有未完成的待办事项
+        
+        # 构建基础查询
+        base_query = Todo.query.filter_by(is_completed=False)
+        
+        # 根据员工等级过滤待办事项
+        if current_user.role and current_user.role.name == 'staff':
+            # 检查用户资料中的员工等级
+            staff_level = 1  # 默认等级
+            if current_user.profile:
+                staff_level = current_user.profile.staff_level or 1
+            
+            if staff_level == 1:
+                # 1级员工只能看到自己创建的待办事项
+                base_query = base_query.filter(Todo.user_id == current_user.id)
+            # 2级员工可以看到所有待办事项，不需要额外过滤
+        
+        todos = base_query.order_by(Todo.created_at.desc()).all()
         
         for todo in todos[:5]:  # 限制显示5个任务
             # 转换优先级数字为文本

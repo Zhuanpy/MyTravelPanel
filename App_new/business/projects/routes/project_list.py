@@ -5,7 +5,7 @@
 """
 
 from flask import Blueprint, render_template, request, flash, jsonify
-from flask_login import login_required
+from flask_login import login_required, current_user
 from App_new.exts import db, csrf
 from App_new.business.projects.models.project import ProjectHeader, CustomerCompany
 from App_new.business.projects.models.ref import ProjectRef
@@ -136,6 +136,18 @@ def list_projects():
         base_query = base_query.options(
             db.joinedload(ProjectHeader.company)
         )
+        
+        # 根据员工等级过滤项目
+        if current_user.role and current_user.role.name == 'staff':
+            # 检查用户资料中的员工等级
+            staff_level = 1  # 默认等级
+            if current_user.profile:
+                staff_level = current_user.profile.staff_level or 1
+            
+            if staff_level == 1:
+                # 1级员工只能看到自己创建的订单
+                base_query = base_query.filter(ProjectHeader.staff_name == current_user.username)
+            # 2级员工可以看到所有订单，不需要额外过滤
         
         # 应用筛选条件
         if status:

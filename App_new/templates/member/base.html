@@ -85,14 +85,14 @@
                             <li><a class="dropdown-item" href="{{ url_for('auth_profile.profile') }}">
                                 <i class="fas fa-user me-2"></i>个人资料
                             </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('auth.change_password') }}">
+                            <li><a class="dropdown-item" href="{{ url_for('auth_profile.change_password') }}">
                                 <i class="fas fa-key me-2"></i>修改密码
                             </a></li>
                             <li><a class="dropdown-item" href="{{ url_for('member.notifications') }}">
                                 <i class="fas fa-bell me-2"></i>通知中心
                             </a></li>
                             <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="{{ url_for('auth.logout') }}">
+                            <li><a class="dropdown-item" href="{{ url_for('auth_profile.logout') }}">
                                 <i class="fas fa-sign-out-alt me-2"></i>退出登录
                             </a></li>
                         </ul>
@@ -165,7 +165,7 @@
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('auth.logout') }}">
+                            <a class="nav-link" href="{{ url_for('auth_profile.logout') }}">
                                 <i class="fas fa-sign-out-alt me-2"></i>
                                 退出登录
                             </a>

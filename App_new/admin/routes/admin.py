@@ -130,6 +130,12 @@ def edit_user(user_id):
                 user.profile.last_name = request.form.get('last_name', '').strip()
                 user.profile.phone = request.form.get('phone', '').strip()
                 user.profile.address = request.form.get('address', '').strip()
+                
+                # 更新员工等级（仅对员工角色有效）
+                if user.role and user.role.name == 'staff':
+                    staff_level = request.form.get('staff_level', type=int)
+                    if staff_level in [1, 2]:
+                        user.profile.staff_level = staff_level
             
             db.session.commit()
             flash('用户信息更新成功', 'success')
@@ -145,6 +151,74 @@ def edit_user(user_id):
         db.session.rollback()
         flash(f'编辑用户失败：{str(e)}', 'error')
         return redirect(url_for('admin.users'))
+
+@admin.route('/staff-levels')
+@login_required
+@admin_only
+def staff_levels():
+    """员工等级管理"""
+    try:
+        # 获取所有员工用户
+        staff_users = AuthUser.query.join(Role).filter(Role.name == 'staff').order_by(AuthUser.created_at.desc()).all()
+        
+        # 统计各等级员工数量
+        level_1_count = 0
+        level_2_count = 0
+        
+        for user in staff_users:
+            if user.profile:
+                level = user.profile.staff_level or 1
+                if level == 1:
+                    level_1_count += 1
+                elif level == 2:
+                    level_2_count += 1
+            else:
+                level_1_count += 1  # 没有profile的默认为1级
+        
+        return render_template('admin/staff_levels.html',
+                             staff_users=staff_users,
+                             level_1_count=level_1_count,
+                             level_2_count=level_2_count,
+                             total_count=len(staff_users))
+    except Exception as e:
+        flash(f'加载员工等级管理失败：{str(e)}', 'error')
+        return render_template('admin/staff_levels.html',
+                             staff_users=[],
+                             level_1_count=0,
+                             level_2_count=0,
+                             total_count=0)
+
+@admin.route('/update-staff-level', methods=['POST'])
+@login_required
+@admin_only
+def update_staff_level():
+    """更新员工等级"""
+    try:
+        user_id = request.json.get('user_id', type=int)
+        new_level = request.json.get('level', type=int)
+        
+        if not user_id or new_level not in [1, 2]:
+            return jsonify({'success': False, 'message': '无效的参数'}), 400
+        
+        user = AuthUser.query.get(user_id)
+        if not user:
+            return jsonify({'success': False, 'message': '用户不存在'}), 404
+        
+        if not user.role or user.role.name != 'staff':
+            return jsonify({'success': False, 'message': '只能修改员工用户的等级'}), 400
+        
+        # 确保用户有profile
+        if not user.profile:
+            user.profile = UserProfile(user_id=user.id)
+            db.session.add(user.profile)
+        
+        user.profile.staff_level = new_level
+        db.session.commit()
+        
+        return jsonify({'success': True, 'message': f'员工等级已更新为{new_level}级'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'更新失败：{str(e)}'}), 500
 
 @admin.route('/roles')
 @login_required

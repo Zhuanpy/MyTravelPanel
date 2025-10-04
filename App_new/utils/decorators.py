@@ -81,6 +81,43 @@ def member_only(f):
     return role_required('member')(f)
 
 
+def staff_level_required(min_level=1):
+    """
+    员工等级权限装饰器
+    要求员工具有指定等级或更高等级才能访问
+    min_level: 最低要求的员工等级 (1-普通员工, 2-高级员工)
+    """
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            if not current_user.is_authenticated:
+                flash('请先登录', 'warning')
+                return redirect(url_for('shared.auth_member_login', next=request.url))
+            
+            # 检查用户是否为员工
+            if not hasattr(current_user, 'role') or current_user.role.name != 'staff':
+                flash('此功能仅限员工使用', 'error')
+                return redirect(url_for('public.index'))
+            
+            # 检查员工等级
+            staff_level = 1  # 默认等级
+            if current_user.profile:
+                staff_level = current_user.profile.staff_level or 1
+            
+            if staff_level < min_level:
+                flash(f'此功能需要员工等级{min_level}或以上，您当前的等级为{staff_level}', 'error')
+                return redirect(url_for('public.index'))
+            
+            return f(*args, **kwargs)
+        return decorated_function
+    return decorator
+
+
+def staff_level_2_only(f):
+    """仅限2级员工（高级员工）访问的装饰器"""
+    return staff_level_required(2)(f)
+
+
 def permission_required(permission):
     """
     权限检查装饰器

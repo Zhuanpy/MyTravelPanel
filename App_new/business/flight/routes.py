@@ -5,6 +5,7 @@ from datetime import datetime
 
 from flask import Blueprint, render_template, request, jsonify, flash, redirect, url_for
 from flask import current_app as app
+from flask_login import current_user
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.exc import NoResultFound
 from flask_caching import Cache
@@ -670,6 +671,21 @@ def flight_orders():
     
     # 基础查询
     query = FlightOrder.query
+    
+    # 根据员工等级过滤订单
+    if current_user.is_authenticated and current_user.role and current_user.role.name == 'staff':
+        # 检查用户资料中的员工等级
+        staff_level = 1  # 默认等级
+        if current_user.profile:
+            staff_level = current_user.profile.staff_level or 1
+        
+        if staff_level == 1:
+            # 1级员工只能看到自己创建的订单
+            # 通过关联的ProjectHeader表进行过滤
+            from App_new.business.projects.models.project import ProjectHeader
+            query = query.join(ProjectHeader, FlightOrder.project_header_id == ProjectHeader.id)\
+                         .filter(ProjectHeader.staff_name == current_user.username)
+        # 2级员工可以看到所有订单，不需要额外过滤
     
     # 应用筛选条件
     if status_filter and status_filter != 'all':

@@ -579,7 +579,21 @@ def order_list():
         ProjectFlightSegment, ProjectRef.id == ProjectFlightSegment.ref_id
     ).filter(
         ProjectRef.ref_type_id == 1  # 机票业务类型ID
-    ).group_by(
+    )
+    
+    # 根据员工等级过滤订单
+    if current_user.role and current_user.role.name == 'staff':
+        # 检查用户资料中的员工等级
+        staff_level = 1  # 默认等级
+        if current_user.profile:
+            staff_level = current_user.profile.staff_level or 1
+        
+        if staff_level == 1:
+            # 1级员工只能看到自己创建的订单
+            query = query.filter(ProjectHeader.staff_name == current_user.username)
+        # 2级员工可以看到所有订单，不需要额外过滤
+    
+    query = query.group_by(
         ProjectRef.id,
         ProjectHeader.id
     )

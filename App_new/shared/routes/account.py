@@ -34,6 +34,20 @@ def account_detail(account_id):
         if not account:
             return render_template('errors/404.html'), 404
         
+        # 员工等级权限检查
+        if current_user.role and current_user.role.name == 'staff':
+            # 检查用户资料中的员工等级
+            staff_level = 1  # 默认等级
+            if current_user.profile:
+                staff_level = current_user.profile.staff_level or 1
+            
+            if staff_level == 1:
+                # 1级员工只能访问自己创建的账户
+                if account.owner != current_user.username:
+                    flash('您没有权限访问此账户', 'error')
+                    return redirect(url_for('account_routes.account_page'))
+            # 2级员工可以访问所有账户，不需要额外检查
+        
         return render_template('utils/account_detail.html', account=account)
     except Exception as e:
         logger.error(f"Error fetching account detail: {str(e)}")
@@ -41,12 +55,30 @@ def account_detail(account_id):
 
 @account_routes.route('/api/accounts/increment_click/<int:account_id>', methods=['POST'])
 @csrf.exempt
+@login_required
+@staff_only
 def increment_click(account_id):
     try:
         logger.info(f"Received click increment request for account_id: {account_id}")
         account = Account.query.get(account_id)
         if not account:
             return jsonify({'success': False, 'message': '账号不存在'}), 404
+        
+        # 员工等级权限检查
+        if current_user.role and current_user.role.name == 'staff':
+            # 检查用户资料中的员工等级
+            staff_level = 1  # 默认等级
+            if current_user.profile:
+                staff_level = current_user.profile.staff_level or 1
+            
+            if staff_level == 1:
+                # 1级员工只能点击自己创建的账户
+                if account.owner != current_user.username:
+                    return jsonify({
+                        'success': False,
+                        'message': '您没有权限访问此账户'
+                    }), 403
+            # 2级员工可以点击所有账户，不需要额外检查
         
         # 增加点击次数
         if account.click_count is None:
@@ -94,11 +126,29 @@ def get_categories():
         }), 500
 
 @account_routes.route('/api/accounts/popular', methods=['GET'])
+@login_required
+@staff_only
 def get_popular_accounts():
     try:
         logger.info("Fetching popular accounts")
+        
+        # 构建基础查询
+        base_query = Account.query
+        
+        # 根据员工等级过滤账户
+        if current_user.role and current_user.role.name == 'staff':
+            # 检查用户资料中的员工等级
+            staff_level = 1  # 默认等级
+            if current_user.profile:
+                staff_level = current_user.profile.staff_level or 1
+            
+            if staff_level == 1:
+                # 1级员工只能看到自己创建的账户
+                base_query = base_query.filter(Account.owner == current_user.username)
+            # 2级员工可以看到所有账户，不需要额外过滤
+        
         # 修复 case 语句的语法
-        popular_accounts = Account.query.order_by(
+        popular_accounts = base_query.order_by(
             case(
                 (Account.click_count == None, 0),
                 else_=Account.click_count
@@ -130,7 +180,23 @@ def get_popular_accounts():
 def get_accounts():
     try:
         logger.info("Fetching all accounts")
-        accounts = Account.query.all()
+        
+        # 构建查询
+        query = Account.query
+        
+        # 根据员工等级过滤账户
+        if current_user.role and current_user.role.name == 'staff':
+            # 检查用户资料中的员工等级
+            staff_level = 1  # 默认等级
+            if current_user.profile:
+                staff_level = current_user.profile.staff_level or 1
+            
+            if staff_level == 1:
+                # 1级员工只能看到自己创建的账户（通过owner字段关联）
+                query = query.filter(Account.owner == current_user.username)
+            # 2级员工可以看到所有账户，不需要额外过滤
+        
+        accounts = query.all()
         accounts_data = [{
             'id': account.id,
             'platform': account.platform,
@@ -161,10 +227,28 @@ def get_accounts():
         }), 500
 
 @account_routes.route('/api/accounts/<int:account_id>', methods=['GET'])
+@login_required
+@staff_only
 def get_account(account_id):
     """获取单个账号信息"""
     try:
         account = Account.query.get_or_404(account_id)
+        
+        # 员工等级权限检查
+        if current_user.role and current_user.role.name == 'staff':
+            # 检查用户资料中的员工等级
+            staff_level = 1  # 默认等级
+            if current_user.profile:
+                staff_level = current_user.profile.staff_level or 1
+            
+            if staff_level == 1:
+                # 1级员工只能访问自己创建的账户
+                if account.owner != current_user.username:
+                    return jsonify({
+                        'success': False,
+                        'message': '您没有权限访问此账户'
+                    }), 403
+            # 2级员工可以访问所有账户，不需要额外检查
         return jsonify({
             'success': True,
             'account': {
@@ -193,11 +277,26 @@ def get_account(account_id):
 
 @csrf.exempt
 @account_routes.route('/api/accounts', methods=['POST'])
+@login_required
+@staff_only
 def create_account():
     """创建新账号"""
     try:
         logger.info("Creating new account")
         data = request.get_json()
+        
+        # 员工等级权限检查
+        if current_user.role and current_user.role.name == 'staff':
+            # 检查用户资料中的员工等级
+            staff_level = 1  # 默认等级
+            if current_user.profile:
+                staff_level = current_user.profile.staff_level or 1
+            
+            if staff_level == 1:
+                # 1级员工只能创建自己拥有的账户
+                # 强制设置owner为当前用户
+                data['owner'] = current_user.username
+            # 2级员工可以创建任何账户，不需要限制
         
         # 验证必填字段
         required_fields = ['platform', 'category', 'username', 'password']
@@ -246,6 +345,8 @@ def create_account():
 
 @csrf.exempt
 @account_routes.route('/api/accounts/<int:account_id>', methods=['PUT'])
+@login_required
+@staff_only
 def update_account(account_id):
     """更新账号信息"""
     try:
@@ -257,6 +358,22 @@ def update_account(account_id):
                 'success': False,
                 'message': '账号不存在'
             }), 404
+
+        # 员工等级权限检查
+        if current_user.role and current_user.role.name == 'staff':
+            # 检查用户资料中的员工等级
+            staff_level = 1  # 默认等级
+            if current_user.profile:
+                staff_level = current_user.profile.staff_level or 1
+            
+            if staff_level == 1:
+                # 1级员工只能更新自己创建的账户
+                if account.owner != current_user.username:
+                    return jsonify({
+                        'success': False,
+                        'message': '您没有权限更新此账户'
+                    }), 403
+            # 2级员工可以更新所有账户，不需要额外检查
 
         data = request.get_json()
         logger.info(f"Update data received: {data}")
@@ -303,6 +420,22 @@ def delete_account(account_id):
     try:
         logger.info(f"Deleting account with id: {account_id}")
         account = Account.query.get_or_404(account_id)
+        
+        # 员工等级权限检查
+        if current_user.role and current_user.role.name == 'staff':
+            # 检查用户资料中的员工等级
+            staff_level = 1  # 默认等级
+            if current_user.profile:
+                staff_level = current_user.profile.staff_level or 1
+            
+            if staff_level == 1:
+                # 1级员工只能删除自己创建的账户
+                if account.owner != current_user.username:
+                    return jsonify({
+                        'success': False,
+                        'message': '您没有权限删除此账户'
+                    }), 403
+            # 2级员工可以删除所有账户，不需要额外检查
         
         # 记录要删除的账号信息
         logger.info(f"Found account: {account.platform} - {account.username}")

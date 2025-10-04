@@ -15,6 +15,22 @@ project_eo = Blueprint('project_eo', __name__)
 def create_eo(ref_id):
     """创建EO"""
     ref = ProjectRef.query.get_or_404(ref_id)
+    
+    # 员工等级权限检查
+    if current_user.role and current_user.role.name == 'staff':
+        # 获取关联的项目信息
+        from App_new.business.projects.models.project import ProjectHeader
+        header = ProjectHeader.query.get(ref.header_id)
+        if header:
+            staff_level = 1  # 默认等级
+            if current_user.profile:
+                staff_level = current_user.profile.staff_level or 1
+            
+            if staff_level == 1:
+                # 1级员工只能操作自己创建的项目
+                if header.staff_name != current_user.username:
+                    flash('您没有权限访问此项目', 'error')
+                    return redirect(url_for('business_projects.list.list_projects'))
     form = ProjectEOForm()
     form.ref_id.data = ref_id
     
@@ -105,16 +121,52 @@ def create_eo(ref_id):
                            form=form, ref=ref, eo_number=eo_number)
 
 @project_eo.route('/<int:eo_id>')
+@login_required
+@staff_only
 def eo_detail(eo_id):
     """EO详情页面"""
     eo = ProjectEO.query.get_or_404(eo_id)
+    
+    # 员工等级权限检查
+    if current_user.role and current_user.role.name == 'staff':
+        # 获取关联的项目信息
+        from App_new.business.projects.models.project import ProjectHeader
+        header = ProjectHeader.query.get(eo.ref.header_id)
+        if header:
+            staff_level = 1  # 默认等级
+            if current_user.profile:
+                staff_level = current_user.profile.staff_level or 1
+            
+            if staff_level == 1:
+                # 1级员工只能操作自己创建的项目
+                if header.staff_name != current_user.username:
+                    flash('您没有权限访问此项目', 'error')
+                    return redirect(url_for('business_projects.project_eo.eo_list'))
     return render_template('business/projects/project_eo/eo_detail.html', eo=eo)
 
 @project_eo.route('/<int:eo_id>/edit', methods=['GET', 'POST'])
 @csrf.exempt
+@login_required
+@staff_only
 def edit_eo(eo_id):
     """编辑EO"""
     eo = ProjectEO.query.get_or_404(eo_id)
+    
+    # 员工等级权限检查
+    if current_user.role and current_user.role.name == 'staff':
+        # 获取关联的项目信息
+        from App_new.business.projects.models.project import ProjectHeader
+        header = ProjectHeader.query.get(eo.ref.header_id)
+        if header:
+            staff_level = 1  # 默认等级
+            if current_user.profile:
+                staff_level = current_user.profile.staff_level or 1
+            
+            if staff_level == 1:
+                # 1级员工只能操作自己创建的项目
+                if header.staff_name != current_user.username:
+                    flash('您没有权限访问此项目', 'error')
+                    return redirect(url_for('business_projects.project_eo.eo_list'))
     form = ProjectEOForm(obj=eo)
     
     if form.validate_on_submit():
@@ -134,10 +186,30 @@ def edit_eo(eo_id):
 
 @project_eo.route('/quick_create/<int:ref_id>', methods=['POST'])
 @csrf.exempt
+@login_required
+@staff_only
 def quick_create_eo(ref_id):
     """一键生成EO - API接口"""
     try:
         ref = ProjectRef.query.get_or_404(ref_id)
+        
+        # 员工等级权限检查
+        if current_user.role and current_user.role.name == 'staff':
+            # 获取关联的项目信息
+            from App_new.business.projects.models.project import ProjectHeader
+            header = ProjectHeader.query.get(ref.header_id)
+            if header:
+                staff_level = 1  # 默认等级
+                if current_user.profile:
+                    staff_level = current_user.profile.staff_level or 1
+                
+                if staff_level == 1:
+                    # 1级员工只能操作自己创建的项目
+                    if header.staff_name != current_user.username:
+                        return jsonify({
+                            'success': False,
+                            'message': '您没有权限访问此项目'
+                        }), 403
         
         # 检查REF是否已经有EO
         existing_eo = ProjectEO.query.filter_by(ref_id=ref.id).first()
@@ -204,6 +276,8 @@ def quick_create_eo(ref_id):
 
 
 @project_eo.route('/list')
+@login_required
+@staff_only
 def eo_list():
     """EO列表页面 - 支持筛选、搜索和分页"""
     try:
@@ -248,6 +322,18 @@ def eo_list():
         
         # 应用筛选条件
         filters = []
+        
+        # 根据员工等级过滤EO
+        if current_user.role and current_user.role.name == 'staff':
+            # 检查用户资料中的员工等级
+            staff_level = 1  # 默认等级
+            if current_user.profile:
+                staff_level = current_user.profile.staff_level or 1
+            
+            if staff_level == 1:
+                # 1级员工只能看到自己创建的项目的EO
+                filters.append(ProjectHeader.staff_name == current_user.username)
+            # 2级员工可以看到所有EO，不需要额外过滤
         
         if supplier_type:
             filters.append(ProjectEO.supplier_type == supplier_type)

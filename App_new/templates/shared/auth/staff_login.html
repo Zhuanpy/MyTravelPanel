@@ -283,7 +283,7 @@
                 {% endif %}
             {% endwith %}
 
-            <form method="POST" action="{{ url_for('auth.staff_login') }}">
+            <form method="POST" action="{{ url_for('auth_profile.staff_login') }}">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                 
                 <div class="form-group">
@@ -319,10 +319,10 @@
             </div>
 
             <div class="auth-links">
-                <a href="{{ url_for('auth.member_login') }}">
+                <a href="{{ url_for('auth_profile.member_login') }}">
                     <i class="fas fa-user me-1"></i>会员登录
                 </a>
-                <a href="{{ url_for('auth.admin_login') }}">
+                <a href="{{ url_for('admin_auth.login') }}">
                     <i class="fas fa-user-shield me-1"></i>管理员
                 </a>
             </div>

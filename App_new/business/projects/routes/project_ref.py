@@ -22,10 +22,24 @@ import json
 project_ref = Blueprint('project_ref', __name__)
 
 @project_ref.route('/general/create/<int:header_id>', methods=['GET', 'POST'])
+@login_required
+@staff_only
 def create_ref(header_id):
     """创建REF"""
     try:
         header = ProjectHeader.query.get_or_404(header_id)
+        
+        # 员工等级权限检查
+        if current_user.role and current_user.role.name == 'staff':
+            staff_level = 1  # 默认等级
+            if current_user.profile:
+                staff_level = current_user.profile.staff_level or 1
+            
+            if staff_level == 1:
+                # 1级员工只能操作自己创建的项目
+                if header.staff_name != current_user.username:
+                    flash('您没有权限访问此项目', 'error')
+                    return redirect(url_for('business_projects.list.list_projects'))
         form = ProjectRefForm()
         form.header_id.data = header_id
         
@@ -142,9 +156,23 @@ def ref_detail(ref_id):
 
 
 @project_ref.route('/flight/create/<int:header_id>', methods=['GET'])
+@login_required
+@staff_only
 def create_flight_ref(header_id):
     """创建机票REF页面"""
     header = ProjectHeader.query.get_or_404(header_id)
+    
+    # 员工等级权限检查
+    if current_user.role and current_user.role.name == 'staff':
+        staff_level = 1  # 默认等级
+        if current_user.profile:
+            staff_level = current_user.profile.staff_level or 1
+        
+        if staff_level == 1:
+            # 1级员工只能操作自己创建的项目
+            if header.staff_name != current_user.username:
+                flash('您没有权限访问此项目', 'error')
+                return redirect(url_for('business_projects.list.list_projects'))
     
     # 获取供应商数据
     suppliers = Supplier.query.all()
@@ -404,6 +432,8 @@ def submit_flight_ref():
 
 # 酒店REF相关函数
 @project_ref.route('/hotel/create/<int:header_id>', methods=['GET'])
+@login_required
+@staff_only
 def create_hotel_ref(header_id):
     """创建酒店REF页面"""
     try:
@@ -413,6 +443,18 @@ def create_hotel_ref(header_id):
             return redirect(url_for('business_projects.list.list_projects'))
         
         header = ProjectHeader.query.get_or_404(header_id)
+        
+        # 员工等级权限检查
+        if current_user.role and current_user.role.name == 'staff':
+            staff_level = 1  # 默认等级
+            if current_user.profile:
+                staff_level = current_user.profile.staff_level or 1
+            
+            if staff_level == 1:
+                # 1级员工只能操作自己创建的项目
+                if header.staff_name != current_user.username:
+                    flash('您没有权限访问此项目', 'error')
+                    return redirect(url_for('business_projects.list.list_projects'))
     
         suppliers = Supplier.query.all()
         supplier_types = ['visa', 'flight', 'hotel', 'transport', 'local_operator', 'other']
@@ -565,6 +607,8 @@ def edit_hotel_ref(ref_id):
 
 # 签证REF相关函数
 @project_ref.route('/visa/create/<int:header_id>', methods=['GET'])
+@login_required
+@staff_only
 def create_visa_ref(header_id):
     """创建签证REF页面"""
     try:
@@ -575,6 +619,18 @@ def create_visa_ref(header_id):
             return redirect(url_for('business_projects.list.list_projects'))
         
         header = ProjectHeader.query.get_or_404(header_id)
+        
+        # 员工等级权限检查
+        if current_user.role and current_user.role.name == 'staff':
+            staff_level = 1  # 默认等级
+            if current_user.profile:
+                staff_level = current_user.profile.staff_level or 1
+            
+            if staff_level == 1:
+                # 1级员工只能操作自己创建的项目
+                if header.staff_name != current_user.username:
+                    flash('您没有权限访问此项目', 'error')
+                    return redirect(url_for('business_projects.list.list_projects'))
     
         # 获取供应商数据
         suppliers = Supplier.query.all()
@@ -660,10 +716,24 @@ def submit_visa_ref():
 # 旅游团REF相关函数
 @project_ref.route('/tour/create/<int:header_id>', methods=['GET', 'POST'])
 @csrf.exempt
+@login_required
+@staff_only
 def create_tour_ref(header_id):
     """创建旅游团REF页面"""
     try:
         header = ProjectHeader.query.get_or_404(header_id)
+        
+        # 员工等级权限检查
+        if current_user.role and current_user.role.name == 'staff':
+            staff_level = 1  # 默认等级
+            if current_user.profile:
+                staff_level = current_user.profile.staff_level or 1
+            
+            if staff_level == 1:
+                # 1级员工只能操作自己创建的项目
+                if header.staff_name != current_user.username:
+                    flash('您没有权限访问此项目', 'error')
+                    return redirect(url_for('business_projects.list.list_projects'))
         
         if request.method == 'POST':
             # 处理POST请求 - 创建旅游团REF
@@ -803,10 +873,24 @@ def submit_tour_ref():
 
 # 保险REF相关函数
 @project_ref.route('/insurance/create/<int:header_id>', methods=['GET'])
+@login_required
+@staff_only
 def create_insurance_ref(header_id):
     """创建保险REF页面"""
     try:
         header = ProjectHeader.query.get_or_404(header_id)
+        
+        # 员工等级权限检查
+        if current_user.role and current_user.role.name == 'staff':
+            staff_level = 1  # 默认等级
+            if current_user.profile:
+                staff_level = current_user.profile.staff_level or 1
+            
+            if staff_level == 1:
+                # 1级员工只能操作自己创建的项目
+                if header.staff_name != current_user.username:
+                    flash('您没有权限访问此项目', 'error')
+                    return redirect(url_for('business_projects.list.list_projects'))
     
         # 获取供应商数据
         suppliers = Supplier.query.all()
@@ -886,10 +970,24 @@ def submit_insurance_ref():
 
 # 交通REF相关函数
 @project_ref.route('/transport/create/<int:header_id>', methods=['GET'])
+@login_required
+@staff_only
 def create_transport_ref(header_id):
     """创建交通REF页面"""
     try:
         header = ProjectHeader.query.get_or_404(header_id)
+        
+        # 员工等级权限检查
+        if current_user.role and current_user.role.name == 'staff':
+            staff_level = 1  # 默认等级
+            if current_user.profile:
+                staff_level = current_user.profile.staff_level or 1
+            
+            if staff_level == 1:
+                # 1级员工只能操作自己创建的项目
+                if header.staff_name != current_user.username:
+                    flash('您没有权限访问此项目', 'error')
+                    return redirect(url_for('business_projects.list.list_projects'))
     
         # 获取供应商数据
         suppliers = Supplier.query.all()

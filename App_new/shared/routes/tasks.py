@@ -48,6 +48,18 @@ def list_todos():
         # 构建查询
         query = Todo.query
         
+        # 根据员工等级过滤待办事项
+        if current_user.role and current_user.role.name == 'staff':
+            # 检查用户资料中的员工等级
+            staff_level = 1  # 默认等级
+            if current_user.profile:
+                staff_level = current_user.profile.staff_level or 1
+            
+            if staff_level == 1:
+                # 1级员工只能看到自己创建的待办事项
+                query = query.filter(Todo.user_id == current_user.id)
+            # 2级员工可以看到所有待办事项，不需要额外过滤
+        
         # 应用过滤条件
         if priority:
             query = query.filter(Todo.priority == int(priority))
@@ -110,7 +122,7 @@ def create_todo():
             priority=int(data.get('priority', 2)),
             due_date=due_date,
             category=data.get('category'),
-            user_id=None  # 暂时设置为None避免外键约束问题
+            user_id=current_user.id  # 关联到当前登录用户
         )
         
         return jsonify({

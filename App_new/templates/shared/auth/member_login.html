@@ -189,7 +189,7 @@
                             {% endif %}
                         {% endwith %}
 
-                        <form method="POST" action="{{ url_for('auth.member_login') }}">
+                        <form method="POST" action="{{ url_for('auth_profile.member_login') }}">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                             <div class="mb-3">
                                 <label for="email" class="form-label">
@@ -240,7 +240,7 @@
                         <div class="text-center">
                             <p class="text-muted">
                                 还没有账户？ 
-                                <a href="{{ url_for('auth.member_register') }}" class="text-decoration-none fw-bold">
+                                <a href="{{ url_for('auth_profile.register') }}" class="text-decoration-none fw-bold">
                                     立即注册
                                 </a>
                             </p>
