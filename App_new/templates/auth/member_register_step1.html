@@ -6,11 +6,12 @@
     <style>
         /* 重置body样式，避免与base模板冲突 */
         body {
-            background: linear-gradient(135deg, #28a745 0%, #34ce57 100%) !important;
+            background: white !important;
             min-height: 100vh !important;
             margin: 0 !important;
             padding: 0 !important;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
+            overflow-x: hidden !important;
         }
         
         /* 只隐藏页脚，保留导航栏 */
@@ -36,7 +37,7 @@
         }
 
         .auth-container {
-            max-width: 500px;
+            max-width: 450px;
             width: 100%;
             margin: 0 auto;
             padding: 0 1rem;
@@ -48,6 +49,7 @@
             border-radius: 20px;
             padding: 3rem 2.5rem;
             box-shadow: 0 20px 60px rgba(40, 167, 69, 0.2);
+            border: 2px solid rgba(40, 167, 69, 0.3);
             text-align: center;
             position: relative;
             overflow: hidden;
@@ -128,7 +130,7 @@
             box-shadow: 0 0 0 3px rgba(40, 167, 69, 0.1);
         }
 
-        .btn-register {
+        .btn-primary {
             width: 100%;
             padding: 0.875rem;
             background: linear-gradient(135deg, #28a745 0%, #34ce57 100%);
@@ -141,32 +143,33 @@
             cursor: pointer;
         }
 
-        .btn-register:hover {
+        .btn-primary:hover {
             transform: translateY(-2px);
             box-shadow: 0 10px 25px rgba(40, 167, 69, 0.3);
+            background: linear-gradient(135deg, #28a745 0%, #34ce57 100%);
         }
 
-        .btn-register:active {
+        .btn-primary:active {
             transform: translateY(0);
         }
 
-        .auth-footer {
+        .auth-links {
             margin-top: 2rem;
             text-align: center;
         }
 
-        .auth-footer p {
+        .auth-links p {
             color: #666;
             margin-bottom: 0;
         }
 
-        .auth-footer a {
+        .auth-links a {
             color: #28a745;
             text-decoration: none;
             font-weight: 600;
         }
 
-        .auth-footer a:hover {
+        .auth-links a:hover {
             text-decoration: underline;
         }
 
@@ -185,6 +188,12 @@
             color: white;
             text-decoration: none;
             transform: translateX(-5px);
+        }
+
+        .form-text {
+            font-size: 0.8rem;
+            color: #6c757d;
+            margin-top: 0.25rem;
         }
 
         /* 响应式设计 */
@@ -209,38 +218,50 @@
             }
         }
 
-        /* 动画效果 */
-        @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(30px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
+        /* 移除动画效果，避免闪现问题 */
         .fade-in-up {
-            animation: fadeInUp 0.6s ease-out;
+            opacity: 1;
+            transform: translateY(0);
         }
     </style>
 {% endblock %}
 
+{% block extra_js %}
+    <script>
+        // 确保页面内容立即显示，避免闪现问题
+        document.addEventListener('DOMContentLoaded', function() {
+            // 立即显示所有内容
+            const elements = document.querySelectorAll('.fade-in-up');
+            elements.forEach(element => {
+                element.style.opacity = '1';
+                element.style.transform = 'translateY(0)';
+                element.style.transition = 'none';
+            });
+            
+            // 确保页面容器可见
+            const registerPage = document.querySelector('.register-page');
+            if (registerPage) {
+                registerPage.style.opacity = '1';
+                registerPage.style.visibility = 'visible';
+            }
+        });
+    </script>
+{% endblock %}
+
 {% block content %}
     <div class="register-page">
-        <a href="{{ url_for('auth_profile.member_login') }}" class="back-link">
+        <!-- <a href="{{ url_for('auth_profile.member_login') }}" class="back-link">
             <i class="fas fa-arrow-left me-2"></i>返回登录
-        </a>
+        </a> -->
 
         <div class="auth-container">
             <div class="auth-card fade-in-up">
                 <div class="auth-header">
                     <div class="auth-icon">
-                        <i class="fas fa-user-plus"></i>
+                        <i class="fas fa-envelope"></i>
                     </div>
                     <h1 class="auth-title">会员注册</h1>
-                    <p class="auth-subtitle">加入我们，享受专属旅游服务</p>
+                    <p class="auth-subtitle">第1步：验证邮箱</p>
                 </div>
 
                 <!-- 显示消息 -->
@@ -258,79 +279,35 @@
                 <form method="POST" class="auth-form">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label for="first_name" class="form-label">
-                                    <i class="fas fa-user me-2"></i>姓氏 *
-                                </label>
-                                <input type="text" class="form-control" id="first_name" name="first_name" 
-                                       placeholder="请输入您的姓氏" required>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label for="last_name" class="form-label">
-                                    <i class="fas fa-user me-2"></i>名字
-                                </label>
-                                <input type="text" class="form-control" id="last_name" name="last_name" 
-                                       placeholder="请输入您的名字">
-                            </div>
-                        </div>
-                    </div>
-
                     <div class="form-group">
                         <label for="email" class="form-label">
                             <i class="fas fa-envelope me-2"></i>邮箱地址 *
                         </label>
                         <input type="email" class="form-control" id="email" name="email" 
                                placeholder="请输入您的邮箱地址" required>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="phone" class="form-label">
-                            <i class="fas fa-phone me-2"></i>手机号码 *
-                        </label>
-                        <input type="tel" class="form-control" id="phone" name="phone" 
-                               placeholder="请输入您的手机号码" required>
-                    </div>
-
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label for="password" class="form-label">
-                                    <i class="fas fa-lock me-2"></i>密码 *
-                                </label>
-                                <input type="password" class="form-control" id="password" name="password" 
-                                       placeholder="请输入密码" required>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label for="confirm_password" class="form-label">
-                                    <i class="fas fa-lock me-2"></i>确认密码 *
-                                </label>
-                                <input type="password" class="form-control" id="confirm_password" name="confirm_password" 
-                                       placeholder="请再次输入密码" required>
-                            </div>
-                        </div>
+                        <small class="form-text">
+                            <i class="fas fa-info-circle me-1"></i>
+                            我们将向此邮箱发送6位数字验证码
+                        </small>
                     </div>
 
                     <div class="form-group">
                         <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="agree_terms" name="agree_terms" required>
-                            <label class="form-check-label" for="agree_terms">
+                            <input class="form-check-input" type="checkbox" id="terms" required>
+                            <label class="form-check-label" for="terms">
                                 我已阅读并同意 <a href="#" class="text-primary">服务条款</a> 和 <a href="#" class="text-primary">隐私政策</a>
                             </label>
                         </div>
                     </div>
 
-                    <button type="submit" class="btn-register">
-                        <i class="fas fa-user-plus me-2"></i>立即注册
-                    </button>
+                    <div class="form-group">
+                        <button type="submit" class="btn-primary">
+                            <i class="fas fa-paper-plane me-2"></i>发送验证码
+                        </button>
+                    </div>
                 </form>
 
-                <div class="auth-footer">
+                <div class="auth-links">
                     <p>已有账户？ <a href="{{ url_for('auth_profile.member_login') }}">立即登录</a></p>
                 </div>
             </div>

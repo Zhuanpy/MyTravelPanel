@@ -15,7 +15,7 @@ class Todo(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     priority = db.Column(db.Integer, default=2)  # 1=高，2=中，3=低
-    user_id = db.Column(db.Integer, db.ForeignKey('auth_users.id'), nullable=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('auth_users.id', ondelete='CASCADE'), nullable=True)
     # 分类（类型）
     category = db.Column(db.String(50), nullable=True)
 

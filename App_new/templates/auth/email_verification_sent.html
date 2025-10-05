@@ -1,0 +1,214 @@
+{% extends "auth/base.html" %}
+
+{% block title %}邮箱验证 - MyTravelPanel{% endblock %}
+
+{% block content %}
+<div class="auth-container">
+    <div class="auth-card">
+        <div class="auth-header">
+            <div class="auth-icon success">
+                <i class="fas fa-envelope-open"></i>
+            </div>
+            <h2 class="auth-title">验证邮件已发送</h2>
+            <p class="auth-subtitle">我们已向您的邮箱发送了验证链接</p>
+        </div>
+
+        <div class="auth-body">
+            <div class="verification-info">
+                <div class="info-item">
+                    <i class="fas fa-check-circle text-success"></i>
+                    <span>验证邮件已发送到您的注册邮箱</span>
+                </div>
+                <div class="info-item">
+                    <i class="fas fa-clock text-warning"></i>
+                    <span>验证链接有效期为24小时</span>
+                </div>
+                <div class="info-item">
+                    <i class="fas fa-shield-alt text-info"></i>
+                    <span>请检查垃圾邮件文件夹</span>
+                </div>
+            </div>
+
+            <div class="verification-actions">
+                <div class="text-center mb-4">
+                    <p class="text-muted">没有收到邮件？</p>
+                    <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#resendModal">
+                        <i class="fas fa-redo me-2"></i>重新发送验证邮件
+                    </button>
+                </div>
+
+                <div class="text-center">
+                    <a href="{{ url_for('auth_profile.member_login') }}" class="btn btn-primary">
+                        <i class="fas fa-sign-in-alt me-2"></i>返回登录
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 重新发送验证邮件模态框 -->
+<div class="modal fade" id="resendModal" tabindex="-1" aria-labelledby="resendModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="resendModalLabel">重新发送验证邮件</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="POST" action="{{ url_for('auth_profile.resend_verification') }}">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="email" class="form-label">邮箱地址</label>
+                        <input type="email" class="form-control" id="email" name="email" 
+                               placeholder="请输入您的注册邮箱" required>
+                    </div>
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        我们将向您重新发送验证邮件，请确保邮箱地址正确。
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-paper-plane me-2"></i>发送验证邮件
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+.auth-container {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: 20px;
+}
+
+.auth-card {
+    background: white;
+    border-radius: 15px;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+    max-width: 500px;
+    width: 100%;
+    overflow: hidden;
+}
+
+.auth-header {
+    background: linear-gradient(135deg, #28a745, #20c997);
+    color: white;
+    padding: 40px 30px;
+    text-align: center;
+}
+
+.auth-icon {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 20px;
+    font-size: 32px;
+}
+
+.auth-title {
+    font-size: 28px;
+    font-weight: 700;
+    margin-bottom: 10px;
+}
+
+.auth-subtitle {
+    font-size: 16px;
+    opacity: 0.9;
+    margin: 0;
+}
+
+.auth-body {
+    padding: 40px 30px;
+}
+
+.verification-info {
+    margin-bottom: 30px;
+}
+
+.info-item {
+    display: flex;
+    align-items: center;
+    margin-bottom: 15px;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 10px;
+    border-left: 4px solid #28a745;
+}
+
+.info-item i {
+    font-size: 20px;
+    margin-right: 15px;
+    width: 24px;
+}
+
+.verification-actions {
+    border-top: 1px solid #e9ecef;
+    padding-top: 30px;
+}
+
+.btn {
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+}
+
+.modal-content {
+    border-radius: 15px;
+    border: none;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+}
+
+.modal-header {
+    border-bottom: 1px solid #e9ecef;
+    border-radius: 15px 15px 0 0;
+}
+
+.form-control {
+    border-radius: 8px;
+    border: 2px solid #e9ecef;
+    padding: 12px 15px;
+    transition: all 0.3s ease;
+}
+
+.form-control:focus {
+    border-color: #007bff;
+    box-shadow: 0 0 0 0.2rem rgba(0,123,255,0.25);
+}
+
+@media (max-width: 576px) {
+    .auth-container {
+        padding: 10px;
+    }
+    
+    .auth-header {
+        padding: 30px 20px;
+    }
+    
+    .auth-body {
+        padding: 30px 20px;
+    }
+    
+    .auth-title {
+        font-size: 24px;
+    }
+}
+</style>
+{% endblock %}
+

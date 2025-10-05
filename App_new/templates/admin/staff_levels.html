@@ -2,67 +2,177 @@
 
 {% block title %}员工等级管理 - MyTravelPanel{% endblock %}
 
-{% block page_title %}员工等级管理{% endblock %}
+{% block extra_css %}
+<style>
+    .level-card {
+        transition: transform 0.2s, box-shadow 0.2s;
+        border: none;
+        border-radius: 10px;
+        overflow: hidden;
+    }
+    
+    .level-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+    
+    .level-1 {
+        background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+    }
+    
+    .level-2 {
+        background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%);
+    }
+    
+    .staff-row {
+        transition: background-color 0.2s;
+    }
+    
+    .staff-row:hover {
+        background-color: #f8f9fa;
+    }
+    
+    .level-badge {
+        font-size: 0.9rem;
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        font-weight: 600;
+    }
+    
+    .level-1-badge {
+        background: rgba(0, 123, 255, 0.1);
+        color: #007bff;
+        border: 1px solid rgba(0, 123, 255, 0.3);
+    }
+    
+    .level-2-badge {
+        background: rgba(40, 167, 69, 0.1);
+        color: #28a745;
+        border: 1px solid rgba(40, 167, 69, 0.3);
+    }
+    
+    .level-select {
+        min-width: 120px;
+    }
+    
+    .permission-info {
+        font-size: 0.8rem;
+        color: #6c757d;
+        margin-top: 0.25rem;
+    }
+    
+    /* 修复模态框z-index问题 */
+    .modal {
+        z-index: 1055 !important;
+    }
+    
+    .modal-backdrop {
+        z-index: 1050 !important;
+    }
+    
+    /* 确保确认按钮可以点击 */
+    #confirmChange {
+        position: relative;
+        z-index: 1060 !important;
+        pointer-events: auto !important;
+        cursor: pointer !important;
+    }
+    
+    /* 修复模态框按钮组 */
+    .modal-footer {
+        z-index: 1060 !important;
+    }
+    
+    .modal-footer .btn {
+        position: relative;
+        z-index: 1061 !important;
+        pointer-events: auto !important;
+        cursor: pointer !important;
+    }
+    
+    /* 确保模态框内容可交互 */
+    .modal-content {
+        position: relative;
+        z-index: 1055 !important;
+    }
+    
+    .modal-dialog {
+        position: relative;
+        z-index: 1055 !important;
+    }
+    
+    /* 强制移除backdrop的pointer-events */
+    .modal-backdrop.fade.show {
+        pointer-events: none !important;
+    }
+</style>
+{% endblock %}
 
 {% block page_content %}
 <div class="container-fluid">
-    <!-- 统计卡片 -->
+    <!-- 页面标题 -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0">
+                <i class="fas fa-layer-group text-warning"></i>
+                员工等级管理
+            </h1>
+            <p class="text-muted">管理员工等级权限，控制数据访问范围</p>
+        </div>
+        <div>
+            <a href="{{ url_for('admin.roles') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left"></i> 返回角色管理
+            </a>
+        </div>
+    </div>
+
+    <!-- 等级统计概览 -->
     <div class="row mb-4">
-        <div class="col-md-3">
-            <div class="card bg-primary text-white">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between">
-                        <div>
-                            <h4 class="card-title">{{ total_count }}</h4>
-                            <p class="card-text">总员工数</p>
+        <div class="col-md-4">
+            <div class="card level-card">
+                <div class="card-body text-white level-1">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <i class="fas fa-user-tie fa-2x"></i>
                         </div>
-                        <div class="align-self-center">
+                        <div class="flex-grow-1 ms-3">
+                            <h5 class="mb-0">1级员工 (普通)</h5>
+                            <p class="mb-0 opacity-75">只能查看自己创建的订单</p>
+                            <h2 class="mb-0">{{ level_1_count }}</h2>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card level-card">
+                <div class="card-body text-white level-2">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <i class="fas fa-user-crown fa-2x"></i>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h5 class="mb-0">2级员工 (高级)</h5>
+                            <p class="mb-0 opacity-75">可以查看所有订单</p>
+                            <h2 class="mb-0">{{ level_2_count }}</h2>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card level-card">
+                <div class="card-body text-white bg-secondary">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
                             <i class="fas fa-users fa-2x"></i>
                         </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card bg-info text-white">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between">
-                        <div>
-                            <h4 class="card-title">{{ level_1_count }}</h4>
-                            <p class="card-text">1级员工</p>
-                        </div>
-                        <div class="align-self-center">
-                            <i class="fas fa-user fa-2x"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card bg-success text-white">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between">
-                        <div>
-                            <h4 class="card-title">{{ level_2_count }}</h4>
-                            <p class="card-text">2级员工</p>
-                        </div>
-                        <div class="align-self-center">
-                            <i class="fas fa-user-shield fa-2x"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card bg-warning text-white">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between">
-                        <div>
-                            <h4 class="card-title">{{ (level_2_count / total_count * 100) | round(1) if total_count > 0 else 0 }}%</h4>
-                            <p class="card-text">高级员工比例</p>
-                        </div>
-                        <div class="align-self-center">
-                            <i class="fas fa-percentage fa-2x"></i>
+                        <div class="flex-grow-1 ms-3">
+                            <h5 class="mb-0">总员工数</h5>
+                            <p class="mb-0 opacity-75">所有员工用户</p>
+                            <h2 class="mb-0">{{ total_count }}</h2>
                         </div>
                     </div>
                 </div>
@@ -70,35 +180,48 @@
         </div>
     </div>
 
-    <!-- 员工等级说明 -->
+    <!-- 等级权限说明 -->
     <div class="row mb-4">
         <div class="col-12">
             <div class="card">
                 <div class="card-header">
                     <h5 class="mb-0">
-                        <i class="fas fa-info-circle me-2"></i>员工等级说明
+                        <i class="fas fa-info-circle text-info"></i>
+                        员工等级权限说明
                     </h5>
                 </div>
                 <div class="card-body">
                     <div class="row">
                         <div class="col-md-6">
-                            <div class="alert alert-info">
-                                <h6><i class="fas fa-user me-2"></i>1级员工（普通员工）</h6>
-                                <ul class="mb-0">
-                                    <li>只能查看和管理自己创建的订单</li>
-                                    <li>具有基本的项目操作权限</li>
-                                    <li>适合新入职员工或初级员工</li>
-                                </ul>
+                            <div class="d-flex align-items-start">
+                                <div class="flex-shrink-0">
+                                    <span class="level-badge level-1-badge">1级</span>
+                                </div>
+                                <div class="flex-grow-1 ms-3">
+                                    <h6 class="mb-1">普通员工</h6>
+                                    <ul class="mb-0 small text-muted">
+                                        <li>只能查看自己创建的项目和订单</li>
+                                        <li>只能查看自己创建的待办事项</li>
+                                        <li>只能管理自己创建的账户信息</li>
+                                        <li>可以创建新的项目和订单</li>
+                                    </ul>
+                                </div>
                             </div>
                         </div>
                         <div class="col-md-6">
-                            <div class="alert alert-success">
-                                <h6><i class="fas fa-user-shield me-2"></i>2级员工（高级员工）</h6>
-                                <ul class="mb-0">
-                                    <li>可以查看和管理所有员工的订单</li>
-                                    <li>具有完整的项目管理权限</li>
-                                    <li>适合主管或资深员工</li>
-                                </ul>
+                            <div class="d-flex align-items-start">
+                                <div class="flex-shrink-0">
+                                    <span class="level-badge level-2-badge">2级</span>
+                                </div>
+                                <div class="flex-grow-1 ms-3">
+                                    <h6 class="mb-1">高级员工</h6>
+                                    <ul class="mb-0 small text-muted">
+                                        <li>可以查看所有员工的项目和订单</li>
+                                        <li>可以查看所有待办事项</li>
+                                        <li>可以管理所有账户信息</li>
+                                        <li>具有完整的数据访问权限</li>
+                                    </ul>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -108,136 +231,307 @@
     </div>
 
     <!-- 员工列表 -->
-    <div class="row">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0">
-                        <i class="fas fa-list me-2"></i>员工列表
-                    </h5>
+    <div class="card shadow">
+        <div class="card-header">
+            <h5 class="mb-0">
+                <i class="fas fa-list text-primary"></i>
+                员工等级设置
+            </h5>
+        </div>
+        <div class="card-body">
+            {% if staff_users %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>ID</th>
+                            <th>用户名</th>
+                            <th>邮箱</th>
+                            <th>姓名</th>
+                            <th>当前等级</th>
+                            <th>权限说明</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for user in staff_users %}
+                        <tr class="staff-row">
+                            <td>{{ user.id }}</td>
+                            <td>
+                                <strong>{{ user.username }}</strong>
+                            </td>
+                            <td>{{ user.email }}</td>
+                            <td>
+                                {% if user.profile %}
+                                    {{ user.profile.first_name or '' }} {{ user.profile.last_name or '' }}
+                                {% else %}
+                                    <span class="text-muted">未设置</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% set current_level = user.profile.staff_level if user.profile and user.profile.staff_level else 1 %}
+                                <span class="level-badge {% if current_level == 1 %}level-1-badge{% else %}level-2-badge{% endif %}">
+                                    {{ current_level }}级
+                                    {% if current_level == 1 %}普通员工{% else %}高级员工{% endif %}
+                                </span>
+                            </td>
+                            <td>
+                                <div class="permission-info">
+                                    {% if current_level == 1 %}
+                                        只能查看自己的数据
+                                    {% else %}
+                                        可以查看所有数据
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td>
+                                <select class="form-select form-select-sm level-select" data-user-id="{{ user.id }}">
+                                    <option value="1" {% if current_level == 1 %}selected{% endif %}>1级 (普通)</option>
+                                    <option value="2" {% if current_level == 2 %}selected{% endif %}>2级 (高级)</option>
+                                </select>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-user-tie fa-3x text-muted mb-3"></i>
+                <h5 class="text-muted">暂无员工用户</h5>
+                <p class="text-muted">系统中还没有员工用户。</p>
+                <a href="{{ url_for('admin.users') }}" class="btn btn-outline-primary">
+                    <i class="fas fa-users"></i> 查看所有用户
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- 操作提示模态框 -->
+<div class="modal fade" id="confirmModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">确认修改员工等级</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>确定要将用户 <strong id="userInfo"></strong> 的等级更改为 <strong id="newLevel"></strong> 吗？</p>
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <strong>注意：</strong>等级变更将立即生效，影响用户的数据访问权限。
                 </div>
-                <div class="card-body">
-                    {% if staff_users %}
-                    <div class="table-responsive">
-                        <table class="table table-striped table-hover">
-                            <thead class="table-dark">
-                                <tr>
-                                    <th>用户名</th>
-                                    <th>邮箱</th>
-                                    <th>姓名</th>
-                                    <th>当前等级</th>
-                                    <th>注册时间</th>
-                                    <th>最后登录</th>
-                                    <th>操作</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for user in staff_users %}
-                                <tr>
-                                    <td>
-                                        <strong>{{ user.username }}</strong>
-                                        {% if user.is_active %}
-                                            <span class="badge bg-success ms-2">活跃</span>
-                                        {% else %}
-                                            <span class="badge bg-secondary ms-2">禁用</span>
-                                        {% endif %}
-                                    </td>
-                                    <td>{{ user.email }}</td>
-                                    <td>
-                                        {% if user.profile %}
-                                            {{ user.profile.get_full_name() }}
-                                        {% else %}
-                                            <span class="text-muted">未设置</span>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        {% set current_level = user.profile.staff_level if user.profile else 1 %}
-                                        {% if current_level == 1 %}
-                                            <span class="badge bg-info">
-                                                <i class="fas fa-user me-1"></i>1级员工
-                                            </span>
-                                        {% else %}
-                                            <span class="badge bg-success">
-                                                <i class="fas fa-user-shield me-1"></i>2级员工
-                                            </span>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        {% if user.created_at %}
-                                            {{ user.created_at.strftime('%Y-%m-%d %H:%M') }}
-                                        {% else %}
-                                            <span class="text-muted">未知</span>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        {% if user.last_login %}
-                                            {{ user.last_login.strftime('%Y-%m-%d %H:%M') }}
-                                        {% else %}
-                                            <span class="text-muted">从未登录</span>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        <div class="btn-group" role="group">
-                                            <button type="button" class="btn btn-sm btn-outline-info" 
-                                                    onclick="changeStaffLevel({{ user.id }}, 1)"
-                                                    {% if current_level == 1 %}disabled{% endif %}>
-                                                <i class="fas fa-user me-1"></i>设为1级
-                                            </button>
-                                            <button type="button" class="btn btn-sm btn-outline-success" 
-                                                    onclick="changeStaffLevel({{ user.id }}, 2)"
-                                                    {% if current_level == 2 %}disabled{% endif %}>
-                                                <i class="fas fa-user-shield me-1"></i>设为2级
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                    {% else %}
-                    <div class="text-center py-5">
-                        <i class="fas fa-users fa-3x text-muted mb-3"></i>
-                        <h5 class="text-muted">暂无员工用户</h5>
-                        <p class="text-muted">系统中还没有员工用户</p>
-                    </div>
-                    {% endif %}
-                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" id="confirmChange">确认修改</button>
             </div>
         </div>
     </div>
 </div>
 
 <script>
-function changeStaffLevel(userId, newLevel) {
-    const levelText = newLevel === 1 ? '1级员工' : '2级员工';
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('员工等级管理页面已加载');
+    let currentUserId = null;
+    let currentNewLevel = null;
+    let currentSelectElement = null;
     
-    if (confirm(`确定要将此员工设置为${levelText}吗？`)) {
-        fetch('/admin/update-staff-level', {
+    // 测试模态框和按钮
+    console.log('模态框元素:', document.getElementById('confirmModal'));
+    console.log('确认按钮元素:', document.getElementById('confirmChange'));
+    
+    document.querySelectorAll('.level-select').forEach(selectElement => {
+        selectElement.addEventListener('change', function() {
+            const userId = this.dataset.userId;
+            const newLevel = this.value;
+            const originalLevel = this.dataset.originalLevel;
+            
+            if (newLevel === originalLevel) {
+                return; // 没有变化
+            }
+            
+            // 获取用户信息
+            const row = this.closest('tr');
+            const username = row.querySelector('td:nth-child(2) strong').textContent;
+            
+            // 设置模态框内容
+            document.getElementById('userInfo').textContent = username;
+            document.getElementById('newLevel').textContent = newLevel + '级 (' + (newLevel == 1 ? '普通员工' : '高级员工') + ')';
+            
+            // 保存当前操作信息
+            currentUserId = userId;
+            currentNewLevel = newLevel;
+            currentSelectElement = this;
+            
+            // 显示确认模态框
+            const modalElement = document.getElementById('confirmModal');
+            const modal = new bootstrap.Modal(modalElement, {
+                backdrop: 'static', // 使用static backdrop防止点击关闭
+                keyboard: true,
+                focus: true
+            });
+            modal.show();
+            
+            // 立即修复backdrop问题
+            setTimeout(() => {
+                const backdrop = document.querySelector('.modal-backdrop');
+                if (backdrop) {
+                    // 完全移除backdrop的点击事件
+                    backdrop.onclick = null;
+                    backdrop.style.pointerEvents = 'none';
+                }
+            }, 50);
+            
+            // 确保模态框在正确的z-index层级
+            setTimeout(() => {
+                modalElement.style.zIndex = '1055';
+                const backdrop = document.querySelector('.modal-backdrop');
+                if (backdrop) {
+                    backdrop.style.zIndex = '1050';
+                    // 禁用backdrop的pointer-events
+                    backdrop.style.pointerEvents = 'none';
+                }
+                
+                // 确保确认按钮在最上层
+                const confirmBtn = document.getElementById('confirmChange');
+                if (confirmBtn) {
+                    confirmBtn.style.zIndex = '1060';
+                    confirmBtn.style.pointerEvents = 'auto';
+                }
+            }, 100);
+        });
+        
+        // 保存原始等级
+        selectElement.dataset.originalLevel = selectElement.value;
+    });
+    
+    // 确认修改按钮
+    document.getElementById('confirmChange').addEventListener('click', function() {
+        console.log('确认修改按钮被点击');
+        console.log('currentUserId:', currentUserId);
+        console.log('currentNewLevel:', currentNewLevel);
+        
+        if (!currentUserId || !currentNewLevel) {
+            console.error('缺少必要的参数');
+            alert('操作失败：缺少必要参数');
+            return;
+        }
+        
+        // 发送AJAX请求
+        const csrfToken = document.querySelector('meta[name=csrf-token]') ? 
+            document.querySelector('meta[name=csrf-token]').getAttribute('content') : '';
+        
+        console.log('CSRF Token:', csrfToken);
+        console.log('请求URL:', '{{ url_for("admin.update_staff_level") }}');
+        
+        // 禁用按钮防止重复点击
+        this.disabled = true;
+        this.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>处理中...';
+        
+        fetch('{{ url_for("admin.update_staff_level") }}', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRFToken': '{{ csrf_token() }}'
+                'X-CSRFToken': csrfToken
             },
-            body: JSON.stringify({
-                user_id: userId,
-                level: newLevel
+            body: JSON.stringify({ 
+                user_id: parseInt(currentUserId), 
+                level: parseInt(currentNewLevel) 
             })
         })
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                alert(data.message);
-                location.reload(); // 刷新页面
+                // 显示成功消息
+                const toast = document.createElement('div');
+                toast.className = 'toast align-items-center text-white bg-success border-0';
+                toast.setAttribute('role', 'alert');
+                toast.innerHTML = `
+                    <div class="d-flex">
+                        <div class="toast-body">
+                            <i class="fas fa-check-circle me-2"></i>
+                            ${data.message}
+                        </div>
+                        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                    </div>
+                `;
+                
+                // 添加到页面并显示
+                document.body.appendChild(toast);
+                const bsToast = new bootstrap.Toast(toast);
+                bsToast.show();
+                
+                // 更新页面显示
+                updateUserLevelDisplay(currentUserId, currentNewLevel);
+                
+                // 更新原始等级
+                currentSelectElement.dataset.originalLevel = currentNewLevel;
+                
             } else {
-                alert('操作失败：' + data.message);
+                // 显示错误消息
+                alert('更新失败: ' + data.message);
+                // 恢复选择框到原值
+                currentSelectElement.value = currentSelectElement.dataset.originalLevel;
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            alert('操作失败，请稍后重试');
+            alert('请求出错，请稍后再试。');
+            // 恢复选择框到原值
+            currentSelectElement.value = currentSelectElement.dataset.originalLevel;
+        })
+        .finally(() => {
+            // 恢复按钮状态
+            const confirmBtn = document.getElementById('confirmChange');
+            confirmBtn.disabled = false;
+            confirmBtn.innerHTML = '确认修改';
+            
+            // 关闭模态框
+            const modal = bootstrap.Modal.getInstance(document.getElementById('confirmModal'));
+            modal.hide();
+            
+            // 重置变量
+            currentUserId = null;
+            currentNewLevel = null;
+            currentSelectElement = null;
         });
+    });
+    
+    // 更新用户等级显示
+    function updateUserLevelDisplay(userId, newLevel) {
+        const selectElement = document.querySelector(`[data-user-id="${userId}"]`);
+        const row = selectElement.closest('tr');
+        const levelCell = row.querySelector('td:nth-child(5)');
+        
+        // 更新等级徽章
+        levelCell.innerHTML = `
+            <span class="level-badge ${newLevel == 1 ? 'level-1-badge' : 'level-2-badge'}">
+                ${newLevel}级
+                ${newLevel == 1 ? '普通员工' : '高级员工'}
+            </span>
+        `;
+        
+        // 更新权限说明
+        const permissionCell = row.querySelector('td:nth-child(6)');
+        permissionCell.innerHTML = `
+            <div class="permission-info">
+                ${newLevel == 1 ? '只能查看自己的数据' : '可以查看所有数据'}
+            </div>
+        `;
     }
-}
+    
+    // 测试模态框功能
+    console.log('员工等级管理页面已加载');
+    console.log('模态框元素:', document.getElementById('confirmModal'));
+    console.log('确认按钮元素:', document.getElementById('confirmChange'));
+    
+    // 添加点击事件监听器测试
+    document.getElementById('confirmChange').addEventListener('click', function(e) {
+        console.log('确认按钮被点击', e);
+    });
+});
 </script>
 {% endblock %}

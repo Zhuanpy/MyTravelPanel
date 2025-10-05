@@ -1,19 +1,14 @@
-from flask import Blueprint, render_template, jsonify, send_from_directory
+from flask import Blueprint, render_template, jsonify, send_from_directory, redirect, url_for
 import os
 from pathlib import Path
 
 # 创建共享模块的蓝图
 dex = Blueprint("shared", __name__)
 
-@dex.route('/portal')
-def portal():
-    """统一入口门户页面"""
-    return render_template('portal.html')
-
 @dex.route('/')
 def index():
-    """网站首页 - 显示门户页面"""
-    return render_template('portal.html')
+    """网站首页 - 重定向到公开页面"""
+    return redirect(url_for('public.index'))
 
 @dex.route('/legacy-home')
 def legacy_home():

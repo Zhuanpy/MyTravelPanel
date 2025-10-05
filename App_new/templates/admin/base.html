@@ -127,7 +127,7 @@
                                 <i class="fas fa-user-circle me-2"></i>会员中心
                             </a></li>
                             <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="{{ url_for('common_auth.logout') }}">
+                            <li><a class="dropdown-item" href="{{ url_for('auth_profile.logout') }}">
                                 <i class="fas fa-sign-out-alt me-2"></i>退出登录
                             </a></li>
                         </ul>
@@ -307,7 +307,7 @@
                             </div>
                         </a>
                         
-                        <a href="{{ url_for('common_auth.logout') }}" class="admin-action-btn logout-btn" 
+                        <a href="{{ url_for('auth_profile.logout') }}" class="admin-action-btn logout-btn" 
                            onclick="return confirm('确定要退出登录吗？')">
                             <div class="admin-action-icon">
                                 <i class="fas fa-sign-out-alt"></i>

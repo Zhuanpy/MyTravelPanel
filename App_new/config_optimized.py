@@ -79,11 +79,18 @@ class Config:
     CACHE_DEFAULT_TIMEOUT = 300
     
     # 邮件配置 - 从环境变量读取敏感信息
-    MAIL_SERVER = os.environ.get('MAIL_SERVER', 'localhost')
-    MAIL_PORT = int(os.environ.get('MAIL_PORT', 587))
-    MAIL_USE_TLS = os.environ.get('MAIL_USE_TLS', 'true').lower() in ['true', 'on', '1']
-    MAIL_USERNAME = os.environ.get('MAIL_USERNAME')
-    MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD')
+    # 支持多种邮箱服务商：
+    # QQ邮箱: smtp.qq.com:587
+    # 阿里云企业邮箱: smtp.qiye.aliyun.com:465 或 smtp.mxhichina.com:465
+    # Gmail: smtp.gmail.com:587
+    # 163邮箱: smtp.163.com:25
+    MAIL_SERVER = os.environ.get('MAIL_SERVER', 'smtp.qiye.aliyun.com')
+    MAIL_PORT = int(os.environ.get('MAIL_PORT', 465))
+    MAIL_USE_TLS = os.environ.get('MAIL_USE_TLS', 'false').lower() in ['true', 'on', '1']
+    MAIL_USE_SSL = os.environ.get('MAIL_USE_SSL', 'true').lower() in ['true', 'on', '1']
+    MAIL_USERNAME = os.environ.get('MAIL_USERNAME', 'info@joyesc.com')
+    MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD', '***REMOVED***')
+    MAIL_DEFAULT_SENDER = os.environ.get('MAIL_DEFAULT_SENDER', 'info@joyesc.com')
     
     # 默认收件人邮箱（当无法获取经办人邮箱时使用）
     DEFAULT_EMAIL_RECIPIENT = os.environ.get('DEFAULT_EMAIL_RECIPIENT', 'admin@joyesc.com')

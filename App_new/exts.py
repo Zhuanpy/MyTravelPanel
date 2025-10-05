@@ -5,12 +5,14 @@ from flask_migrate import Migrate
 from flask_caching import Cache
 from flask_wtf.csrf import CSRFProtect
 from flask_login import LoginManager
+from flask_mail import Mail
 
 db = SQLAlchemy()
 migrate = Migrate()
 cache = Cache()
 csrf = CSRFProtect()
 login_manager = LoginManager()
+mail = Mail()
 
 
 def init_exts(app):
@@ -28,6 +30,9 @@ def init_exts(app):
     }
     app.config.from_mapping(cache_config)
     cache.init_app(app)
+
+    # 初始化Flask-Mail
+    mail.init_app(app)
 
     # 初始化Flask-Login
     login_manager.init_app(app)

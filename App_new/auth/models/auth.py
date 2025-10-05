@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import UserMixin
 from ...exts import db
@@ -144,6 +144,119 @@ class AuthUser(db.Model, UserMixin):
             'unlock_at': self.unlock_at.isoformat() if self.unlock_at else None
         }
 
+class EmailVerificationCode(db.Model):
+    """邮箱验证码模型"""
+    __tablename__ = 'email_verification_codes'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    email = db.Column(db.String(120), nullable=False, index=True)
+    verification_code = db.Column(db.String(6), nullable=False)
+    is_used = db.Column(db.Boolean, default=False)
+    expires_at = db.Column(db.DateTime, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<EmailVerificationCode {self.email}:{self.verification_code}>'
+    
+    @classmethod
+    def generate_code(cls, email):
+        """生成6位数字验证码"""
+        import random
+        
+        # 生成6位数字验证码
+        verification_code = str(random.randint(100000, 999999))
+        
+        # 设置过期时间（10分钟）
+        expires_at = datetime.utcnow() + timedelta(minutes=10)
+        
+        # 将之前的验证码标记为已使用
+        cls.query.filter_by(email=email, is_used=False).update({'is_used': True})
+        
+        # 创建新的验证码记录
+        verification_code_obj = cls(
+            email=email,
+            verification_code=verification_code,
+            expires_at=expires_at
+        )
+        
+        return verification_code_obj, verification_code
+    
+    def is_valid(self):
+        """检查验证码是否有效"""
+        return not self.is_used and datetime.utcnow() < self.expires_at
+    
+    def use_code(self):
+        """使用验证码（标记为已使用）"""
+        self.is_used = True
+        db.session.commit()
+    
+    @classmethod
+    def verify_code(cls, email, code):
+        """验证邮箱和验证码"""
+        verification_code_obj = cls.query.filter_by(
+            email=email, 
+            verification_code=code, 
+            is_used=False
+        ).first()
+        
+        if verification_code_obj and verification_code_obj.is_valid():
+            verification_code_obj.use_code()
+            return True, "验证成功"
+        elif verification_code_obj and not verification_code_obj.is_valid():
+            return False, "验证码已过期"
+        else:
+            return False, "验证码错误"
+
+class EmailVerificationToken(db.Model):
+    """邮箱验证令牌模型（保留用于链接验证）"""
+    __tablename__ = 'email_verification_tokens'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('auth_users.id', ondelete='CASCADE'), nullable=False)
+    token = db.Column(db.String(255), nullable=False, unique=True)
+    email = db.Column(db.String(120), nullable=False)
+    is_used = db.Column(db.Boolean, default=False)
+    expires_at = db.Column(db.DateTime, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # 关系
+    user = db.relationship('AuthUser', backref='verification_tokens')
+    
+    def __repr__(self):
+        return f'<EmailVerificationToken {self.token}>'
+    
+    @classmethod
+    def generate_token(cls, user_id, email):
+        """生成邮箱验证令牌"""
+        import secrets
+        import hashlib
+        
+        # 生成随机令牌
+        raw_token = secrets.token_urlsafe(32)
+        token = hashlib.sha256(raw_token.encode()).hexdigest()
+        
+        # 设置过期时间（24小时）
+        expires_at = datetime.utcnow() + timedelta(hours=24)
+        
+        # 创建令牌记录
+        verification_token = cls(
+            user_id=user_id,
+            token=token,
+            email=email,
+            expires_at=expires_at
+        )
+        
+        return verification_token, raw_token
+    
+    def is_valid(self):
+        """检查令牌是否有效"""
+        return not self.is_used and datetime.utcnow() < self.expires_at
+    
+    def use_token(self):
+        """使用令牌（标记为已使用）"""
+        self.is_used = True
+        db.session.commit()
+
 class UserProfile(db.Model):
     """用户资料模型"""
     __tablename__ = 'user_profiles'
@@ -196,8 +309,8 @@ class InvitationCode(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     code = db.Column(db.String(50), unique=True, nullable=False, comment='邀请码')
     role_name = db.Column(db.String(20), nullable=False, comment='角色名称 (staff/admin)')
-    created_by = db.Column(db.Integer, db.ForeignKey('auth_users.id'), nullable=False, comment='创建者ID')
-    used_by = db.Column(db.Integer, db.ForeignKey('auth_users.id'), nullable=True, comment='使用者ID')
+    created_by = db.Column(db.Integer, db.ForeignKey('auth_users.id', ondelete='CASCADE'), nullable=False, comment='创建者ID')
+    used_by = db.Column(db.Integer, db.ForeignKey('auth_users.id', ondelete='SET NULL'), nullable=True, comment='使用者ID')
     is_used = db.Column(db.Boolean, default=False, comment='是否已使用')
     expires_at = db.Column(db.DateTime, nullable=True, comment='过期时间')
     created_at = db.Column(db.DateTime, default=datetime.utcnow, comment='创建时间')
