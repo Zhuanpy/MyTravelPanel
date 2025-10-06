@@ -43,17 +43,33 @@ def merge_pdf_to_pdf():
             flash('提供的文件夹路径无效或不存在')
             return redirect(url_for('utils_process.file_processing'))
             
+        # 检查文件夹中是否有PDF文件
+        pdf_files = [f for f in os.listdir(path) if f.lower().endswith('.pdf')]
+        if not pdf_files:
+            if is_ajax():
+                return jsonify({'success': False, 'message': '文件夹中没有找到PDF文件'}), 400
+            flash('文件夹中没有找到PDF文件')
+            return redirect(url_for('utils_process.file_processing'))
+        
+        current_app.logger.info(f'开始合并PDF文件，路径: {path}, 文件数量: {len(pdf_files)}')
+        
         f = MyPdfFile(path)
         f.merge_pdf2pdf()
         
+        current_app.logger.info('PDF合并成功完成')
+        
         if is_ajax():
-            return jsonify({'success': True, 'message': 'PDF合并成功'})
-        flash('PDF合并成功')
+            return jsonify({'success': True, 'message': f'PDF合并成功，处理了 {len(pdf_files)} 个文件'})
+        flash(f'PDF合并成功，处理了 {len(pdf_files)} 个文件')
         return redirect(url_for('utils_process.file_processing'))
     except Exception as e:
+        error_msg = f'处理失败：{str(e)}'
+        current_app.logger.error(f'PDF合并失败: {error_msg}')
+        current_app.logger.error(f'错误详情: {traceback.format_exc()}')
+        
         if is_ajax():
-            return jsonify({'success': False, 'message': f'处理失败：{str(e)}'}), 500
-        flash(f'处理失败：{str(e)}')
+            return jsonify({'success': False, 'message': error_msg}), 500
+        flash(error_msg)
         return redirect(url_for('utils_process.file_processing'))
 
 

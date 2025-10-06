@@ -1,7 +1,13 @@
 import pandas as pd
 from PIL import Image, ImageDraw, ImageFont
 import os
-from PyPDF2 import PdfMerger
+from PyPDF2 import PdfReader, PdfWriter
+try:
+    # Optional imports available in newer PyPDF2/pypdf versions
+    from PyPDF2 import PageObject, Transformation  # type: ignore
+except Exception:  # pragma: no cover
+    PageObject = None
+    Transformation = None
 
 
 class MyPdfFile:
@@ -10,19 +16,91 @@ class MyPdfFile:
         self.files = folder
 
     def merge_pdf2pdf(self):
+        try:
+            output_path = os.path.join(self.files, 'Pdf.pdf')
 
-        output_path = os.path.join(self.files, 'Pdf.pdf')
+            pdf_lst = [f for f in os.listdir(self.files) if f.lower().endswith('.pdf')]
 
-        pdf_lst = [f for f in os.listdir(self.files) if f.endswith('.pdf')]
+            if not pdf_lst:
+                raise ValueError("文件夹中没有找到PDF文件")
 
-        pdf_lst = [os.path.join(self.files, filename) for filename in pdf_lst]
+            pdf_paths = [os.path.join(self.files, filename) for filename in sorted(pdf_lst)]
 
-        file_merger = PdfMerger()
+            writer = PdfWriter()
+            total_pages_added = 0
 
-        for f in pdf_lst:
-            file_merger.append(f)  # 合并pdf文件
+            for pdf_path in pdf_paths:
+                try:
+                    with open(pdf_path, 'rb') as fh:
+                        try:
+                            reader = PdfReader(fh, strict=False)
+                        except TypeError:
+                            # some versions don't support strict kw
+                            reader = PdfReader(fh)
 
-        file_merger.write(output_path)
+                        if getattr(reader, 'is_encrypted', False):
+                            try:
+                                reader.decrypt("")
+                            except Exception as e:
+                                print(f"跳过加密的PDF文件 {pdf_path}: {str(e)}")
+                                continue
+
+                        num_pages = len(reader.pages)
+                        # 统一输出为A4尺寸（单位：pt）
+                        A4_W = 595.276  # 210mm
+                        A4_H = 841.890  # 297mm
+
+                        for page_index in range(num_pages):
+                            try:
+                                page = reader.pages[page_index]
+                                # 将每页内容缩放/居中到A4尺寸
+                                if PageObject is not None and Transformation is not None:
+                                    try:
+                                        orig_w = float(page.mediabox.width)
+                                        orig_h = float(page.mediabox.height)
+                                        if orig_w <= 0 or orig_h <= 0:
+                                            raise ValueError("invalid page size")
+
+                                        scale = min(A4_W / orig_w, A4_H / orig_h)
+                                        tx = (A4_W - orig_w * scale) / 2.0
+                                        ty = (A4_H - orig_h * scale) / 2.0
+
+                                        blank = PageObject.create_blank_page(width=A4_W, height=A4_H)
+                                        blank.merge_transformed_page(
+                                            page,
+                                            Transformation().scale(scale, scale).translate(tx, ty)
+                                        )
+                                        writer.add_page(blank)
+                                    except Exception as _e:
+                                        # 回退：无法转换时直接添加原始页面
+                                        print(f"A4标准化失败，使用原始页面: {pdf_path} 第 {page_index + 1} 页，原因: {_e}")
+                                        writer.add_page(page)
+                                else:
+                                    # 缺少必要API时，直接添加原始页面
+                                    writer.add_page(page)
+                                total_pages_added += 1
+                            except AssertionError as e:
+                                # 针对 PyPDF2 clone 过程中出现的断言错误，跳过该页
+                                print(f"跳过损坏页面 {pdf_path} 第 {page_index + 1} 页: {str(e)}")
+                                continue
+                            except Exception as e:
+                                print(f"添加页面失败 {pdf_path} 第 {page_index + 1} 页: {str(e)}")
+                                continue
+                    print(f"成功处理文件: {pdf_path}，页数: {num_pages}")
+                except Exception as e:
+                    print(f"跳过损坏的PDF文件 {pdf_path}: {str(e)}")
+                    continue
+
+            if total_pages_added == 0:
+                raise ValueError("未能从任何PDF添加有效页面，可能所有文件均损坏或加密")
+
+            with open(output_path, 'wb') as out_fh:
+                writer.write(out_fh)
+            print(f"PDF合并完成，输出文件: {output_path}，共添加页数: {total_pages_added}")
+
+        except Exception as e:
+            print(f"PDF合并失败: {str(e)}")
+            raise
 
     # Merge images into PDF
     def merge_images2pdf(self):

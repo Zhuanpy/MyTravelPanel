@@ -114,6 +114,38 @@
         max-height: 5.6em;
     }
 
+    /* 邮件提醒徽标样式 */
+    .email-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 2px 8px;
+        border-radius: 9999px;
+        font-size: 12px;
+        font-weight: 500;
+        line-height: 1.2;
+        border: 1px solid transparent;
+    }
+    .email-none {
+        color: #6b7280;            /* gray-500 */
+        background: #f3f4f6;       /* gray-100 */
+        border-color: #e5e7eb;     /* gray-200 */
+    }
+    .email-pending {
+        color: #92400e;            /* amber-900 */
+        background: #fef3c7;       /* amber-100 */
+        border-color: #fde68a;     /* amber-200 */
+    }
+    .email-sent {
+        color: #065f46;            /* emerald-900 */
+        background: #d1fae5;       /* emerald-100 */
+        border-color: #a7f3d0;     /* emerald-200 */
+    }
+    .email-badge i {
+        font-size: 12px;
+        opacity: .85;
+    }
+
     .todo-meta {
         display: flex;
         flex-wrap: wrap;
@@ -322,10 +354,11 @@
                     <th style="width: 140px;">类型</th>
                     <th style="width: 110px; text-align:center;">优先级</th>
                     <th style="width: 160px;">截止日期</th>
+                    <th style="width: 120px; text-align:center;">邮件提醒</th>
                     <th style="width: 110px; text-align:center;">状态</th>
                     <th style="width: 160px;">创建</th>
                     <th style="width: 160px;">更新</th>
-                    <th style="width: 110px; text-align:center;">操作</th>
+                    <th style="width: 160px; text-align:center;">操作</th>
                 </tr>
             </thead>
             <tbody id="todoTbody">
@@ -386,6 +419,21 @@
                             </div>
                         </div>
                     </div>
+                    <div class="row mt-2">
+                        <div class="col-md-8">
+                            <div class="form-group">
+                                <label for="todoRecipientEmail">收件邮箱（可选）</label>
+                                <input type="text" class="form-control" id="todoRecipientEmail" placeholder="例如：a@b.com, c@d.com">
+                                <small class="form-text text-muted">支持多个邮箱，使用逗号或分号分隔；留空则默认发送至当前登录用户邮箱</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4 d-flex align-items-end">
+                            <div class="form-check">
+                                <input type="checkbox" class="form-check-input" id="todoSendEmail">
+                                <label class="form-check-label" for="todoSendEmail">是否发送邮件提醒</label>
+                            </div>
+                        </div>
+                    </div>
                     <div class="form-group" id="completedGroup" style="display: none;">
                         <div class="form-check">
                             <input type="checkbox" class="form-check-input" id="todoIsCompleted" name="is_completed">
@@ -426,6 +474,12 @@ document.addEventListener('DOMContentLoaded', function() {
             data.id = todoId;
             data.is_completed = document.getElementById('todoIsCompleted').checked;
         }
+
+        // 额外可选：收件邮箱与是否发送
+        const recipientInput = document.getElementById('todoRecipientEmail');
+        const sendEmailInput = document.getElementById('todoSendEmail');
+        if (recipientInput) data.recipient_email = recipientInput.value || null;
+        if (sendEmailInput) data.send_email = !!sendEmailInput.checked;
         
         const url = isEdit ? '/utils/todos/update' : '/utils/todos/create';
         const method = 'POST';
@@ -475,6 +529,12 @@ document.addEventListener('DOMContentLoaded', function() {
     loadTodos();
 });
 
+function renderEmailStatus(todo) {
+    if (!todo.recipient_email) return '<span class="email-badge email-none"><i class="fas fa-minus-circle"></i> 无</span>';
+    if (todo.email_reminder_sent) return '<span class="email-badge email-sent"><i class="fas fa-check-circle"></i> 已发送</span>';
+    return '<span class="email-badge email-pending"><i class="fas fa-clock"></i> 待发送</span>';
+}
+
 // 打开添加模态框
 function openAddModal() {
     document.getElementById('modalTitle').textContent = '添加待办事项';
@@ -509,6 +569,12 @@ function openEditModal(todoId) {
                     const localDateTime = new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
                     document.getElementById('todoDueDate').value = localDateTime;
                 }
+
+                // 预填收件邮箱与是否发送
+                const recipientInput = document.getElementById('todoRecipientEmail');
+                const sendEmailInput = document.getElementById('todoSendEmail');
+                if (recipientInput) recipientInput.value = todo.recipient_email || '';
+                if (sendEmailInput) sendEmailInput.checked = !!todo.send_email;
                 
                 new bootstrap.Modal(document.getElementById('todoModal')).show();
             } else {
@@ -572,6 +638,7 @@ function loadTodos() {
                         <span class="todo-priority priority-${getPriorityClass(todo.priority)}">${getPriorityText(todo.priority)}</span>
                     </td>
                     <td>${todo.due_date ? formatDate(todo.due_date) : ''}</td>
+                    <td style="text-align:center;">${renderEmailStatus(todo)}</td>
                     <td style="text-align:center;">
                         <span class="status-badge ${todo.is_completed ? 'completed' : 'pending'}">
                             <i class="fas fa-${todo.is_completed ? 'check-circle' : 'clock'}"></i>
@@ -581,9 +648,10 @@ function loadTodos() {
                     <td>${formatDate(todo.created_at)}</td>
                     <td>${formatDate(todo.updated_at)}</td>
                     <td style="text-align:center;">
-                        <div class="todo-actions">
-                            <button class="btn-edit" onclick="editTodo(${todo.id})"><i class="fas fa-edit"></i></button>
-                            <button class="btn-delete" onclick="deleteTodo(${todo.id})"><i class="fas fa-trash"></i></button>
+                        <div class="todo-actions" style="display:flex;gap:8px;justify-content:center;">
+                            <button class="btn-edit" title="编辑" onclick="editTodo(${todo.id})"><i class="fas fa-edit"></i></button>
+                            <button class="btn-delete" title="删除" onclick="deleteTodo(${todo.id})"><i class="fas fa-trash"></i></button>
+                            <button class="btn btn-sm btn-outline-primary" title="发送提醒邮件" onclick="sendReminder(${todo.id})"><i class="fas fa-paper-plane"></i></button>
                         </div>
                     </td>
                 </tr>
@@ -607,6 +675,29 @@ function loadTodos() {
         });
 }
 
+// 发送提醒邮件
+function sendReminder(todoId) {
+    fetch('/utils/todos/send_reminder', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
+        },
+        body: JSON.stringify({ id: todoId })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showMessage('提醒邮件已发送', 'success');
+        } else {
+            showMessage(data.message || '发送失败', 'error');
+        }
+    })
+    .catch(err => {
+        console.error(err);
+        showMessage('发送失败，请稍后重试', 'error');
+    });
+}
 function toggleTodoStatus(id, completed) {
     // 先获取当前待办事项的数据
     fetch(`/utils/todos/get/${id}`)

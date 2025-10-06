@@ -3,6 +3,7 @@ import subprocess
 from flask import Blueprint, render_template, request, jsonify, flash, redirect, url_for
 from flask_login import login_required, current_user
 from App_new.exts import db
+from App_new.utils.cache import simple_cache
 from sqlalchemy.exc import NoResultFound
 
 # from App.utils.ConvertFlight.read_sql_data import original_airport_code_data, original_flight_timing_data
@@ -55,6 +56,10 @@ def input_flight_schedule_info():
                     # 更新现有记录
                     existing_flight.schedule_city = schedule_city.strip()
                     existing_flight.schedule_timing = schedule_timing.strip()
+                    try:
+                        simple_cache.delete(f"schedule:{flight_number.strip().upper()}")
+                    except Exception:
+                        pass
                 
                 else:
                     # 创建新记录
@@ -66,6 +71,10 @@ def input_flight_schedule_info():
                         schedule_timing=schedule_timing.strip()
                     )
                     db.session.add(new_flight)
+                    try:
+                        simple_cache.delete(f"schedule:{flight_number.strip().upper()}")
+                    except Exception:
+                        pass
             
             db.session.commit()
             flash('航班信息保存成功！', 'success')

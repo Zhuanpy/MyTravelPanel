@@ -18,8 +18,14 @@ class Todo(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('auth_users.id', ondelete='CASCADE'), nullable=True)
     # 分类（类型）
     category = db.Column(db.String(50), nullable=True)
+    # 邮件提醒字段
+    recipient_email = db.Column(db.String(255), nullable=True)
+    send_email = db.Column(db.Boolean, default=False, nullable=False)
+    email_reminder_sent = db.Column(db.Boolean, default=False, nullable=False)
+    email_sent_at = db.Column(db.DateTime, nullable=True)
 
-    def __init__(self, title, description=None, due_date=None, priority=2, user_id=None, category=None, is_completed=False):
+    def __init__(self, title, description=None, due_date=None, priority=2, user_id=None, category=None, is_completed=False,
+                 recipient_email=None, send_email=False, email_reminder_sent=False, email_sent_at=None):
         self.title = title
         self.description = description
         self.due_date = due_date
@@ -27,6 +33,10 @@ class Todo(db.Model):
         self.user_id = user_id
         self.category = category
         self.is_completed = is_completed
+        self.recipient_email = recipient_email
+        self.send_email = bool(send_email)
+        self.email_reminder_sent = bool(email_reminder_sent)
+        self.email_sent_at = email_sent_at
 
     def to_dict(self):
         """将模型转换为字典"""
@@ -40,11 +50,16 @@ class Todo(db.Model):
             'updated_at': self.updated_at.isoformat(),
             'priority': self.priority,
             'user_id': self.user_id,
-            'category': self.category
+            'category': self.category,
+            'recipient_email': self.recipient_email,
+            'send_email': self.send_email,
+            'email_reminder_sent': self.email_reminder_sent,
+            'email_sent_at': self.email_sent_at.isoformat() if self.email_sent_at else None
         }
 
     @classmethod
-    def create(cls, title, description=None, due_date=None, priority=2, user_id=None, category=None, is_completed=False):
+    def create(cls, title, description=None, due_date=None, priority=2, user_id=None, category=None, is_completed=False,
+               recipient_email=None, send_email=False, email_reminder_sent=False, email_sent_at=None):
         """创建新的待办事项"""
         todo = cls(
             title=title,
@@ -53,7 +68,11 @@ class Todo(db.Model):
             priority=priority,
             user_id=user_id,
             category=category,
-            is_completed=is_completed
+            is_completed=is_completed,
+            recipient_email=recipient_email,
+            send_email=bool(send_email),
+            email_reminder_sent=bool(email_reminder_sent),
+            email_sent_at=email_sent_at
         )
         db.session.add(todo)
         db.session.commit()

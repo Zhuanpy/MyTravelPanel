@@ -2,6 +2,7 @@ from ..models.models import FlightSchedule
 from sqlalchemy.exc import IntegrityError
 from flask import current_app as app
 from App_new.exts import db
+from App_new.utils.cache import simple_cache
 
 class FlightService:
     @staticmethod
@@ -39,6 +40,10 @@ class FlightService:
                 existing_flight.aircraft = aircraft
                 existing_flight.status = status
                 db.session.commit()
+                try:
+                    simple_cache.delete(f"schedule:{flight_number}")
+                except Exception:
+                    pass
                 return {'success': True, 'message': f"航班 '{flight_number}' 更新成功。"}
             else:
                 # 创建新记录
@@ -57,6 +62,10 @@ class FlightService:
                 )
                 db.session.add(new_flight)
                 db.session.commit()
+                try:
+                    simple_cache.delete(f"schedule:{flight_number}")
+                except Exception:
+                    pass
                 return {'success': True, 'message': f"航班 '{flight_number}' 添加成功。"}
                 
         except IntegrityError:

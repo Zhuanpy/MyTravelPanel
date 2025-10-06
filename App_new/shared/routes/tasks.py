@@ -1,10 +1,13 @@
 from flask import Blueprint, request, jsonify, render_template, current_app
 from flask_login import login_required, current_user
 from App_new.shared.models.Utilsmodels import Todo
-from App_new.exts import db, csrf
+from App_new.exts import db, csrf, scheduler
+import re
 from App_new.utils.decorators import staff_only
 from datetime import datetime
 import traceback
+from flask_mail import Message
+from App_new.exts import mail
 
 # 定义蓝图
 utils_blue = Blueprint('utils_blue', __name__)
@@ -107,14 +110,32 @@ def create_todo():
         data = request.get_json()
         current_app.logger.info(f"创建待办事项，数据: {data}")
         
-        # 处理日期格式
-        due_date = data.get('due_date')
-        if due_date:
+        # 处理日期时间，支持多种格式
+        def _parse_due_datetime(val: str):
+            if not val:
+                return None
             try:
-                from datetime import datetime
-                due_date = datetime.strptime(due_date, '%Y-%m-%d').date()
-            except ValueError:
-                due_date = None
+                # 直接 ISO 格式（如 2025-10-06T17:30）
+                return datetime.fromisoformat(val)
+            except Exception:
+                pass
+            # 常见替换
+            v = val.strip()
+            v = v.replace('/', '-').replace(' ', 'T')
+            try:
+                return datetime.fromisoformat(v)
+            except Exception:
+                pass
+            # 兜底：仅日期
+            for fmt in ('%Y-%m-%d %H:%M', '%Y-%m-%d'):
+                try:
+                    dt = datetime.strptime(val.replace('/', '-'), fmt)
+                    return dt
+                except Exception:
+                    continue
+            return None
+
+        due_date = _parse_due_datetime(data.get('due_date'))
         
         todo = Todo.create(
             title=data.get('title'),
@@ -122,7 +143,9 @@ def create_todo():
             priority=int(data.get('priority', 2)),
             due_date=due_date,
             category=data.get('category'),
-            user_id=current_user.id  # 关联到当前登录用户
+            user_id=current_user.id,  # 关联到当前登录用户
+            recipient_email=data.get('recipient_email'),
+            send_email=bool(data.get('send_email', False))
         )
         
         return jsonify({
@@ -149,27 +172,60 @@ def update_todo():
         data = request.get_json()
         current_app.logger.info(f"更新待办事项，数据: {data}")
         
-        # 处理日期格式
-        due_date = data.get('due_date')
-        if due_date:
+        # 处理日期格式（更新）
+        def _parse_due_datetime(val: str):
+            if not val:
+                return None
             try:
-                due_date = datetime.fromisoformat(due_date.replace('Z', '+00:00'))
-            except ValueError as e:
-                current_app.logger.error(f"日期格式错误: {str(e)}")
-                return jsonify({
-                    'success': False,
-                    'message': '日期格式错误'
-                }), 400
+                return datetime.fromisoformat(val.replace('Z', '+00:00'))
+            except Exception:
+                pass
+            v = val.strip().replace('/', '-').replace(' ', 'T')
+            try:
+                return datetime.fromisoformat(v)
+            except Exception:
+                pass
+            for fmt in ('%Y-%m-%d %H:%M', '%Y-%m-%d'):
+                try:
+                    return datetime.strptime(val.replace('/', '-'), fmt)
+                except Exception:
+                    continue
+            return None
+
+        due_date = _parse_due_datetime(data.get('due_date'))
         
-        # 更新待办事项
-        todo = Todo.update(data['id'], **{
+        # 取旧值用来判断是否需要重置邮件发送状态
+        todo_old = Todo.query.get(data['id'])
+        old_due = getattr(todo_old, 'due_date', None)
+        old_recipient = getattr(todo_old, 'recipient_email', None) or ''
+        old_send_flag = bool(getattr(todo_old, 'send_email', False))
+
+        new_recipient = data.get('recipient_email') or ''
+        new_send_flag = bool(data.get('send_email', False))
+
+        reset_email_status = False
+        # 仅当需要发送邮件时，以下变更触发重置为“待发送”
+        if new_send_flag:
+            if (old_due != due_date) or (old_recipient.strip() != new_recipient.strip()) or (not old_send_flag and new_send_flag):
+                reset_email_status = True
+
+        update_payload = {
             'title': data.get('title'),
             'description': data.get('description'),
             'priority': int(data.get('priority', 2)),
             'is_completed': data.get('is_completed'),
             'due_date': due_date,
-            'category': data.get('category')
-        })
+            'category': data.get('category'),
+            'recipient_email': new_recipient,
+            'send_email': new_send_flag
+        }
+
+        if reset_email_status:
+            update_payload['email_reminder_sent'] = False
+            update_payload['email_sent_at'] = None
+
+        # 更新待办事项
+        todo = Todo.update(data['id'], **update_payload)
         
         if not todo:
             return jsonify({
@@ -220,6 +276,122 @@ def delete_todo():
             'message': f'删除待办事项失败: {str(e)}'
         }), 500
 
+# 发送提醒邮件
+@utils_blue.route('/todos/send_reminder', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def send_todo_reminder():
+    try:
+        data = request.get_json() or {}
+        todo_id = data.get('id')
+        if not todo_id:
+            return jsonify({'success': False, 'message': '缺少待办事项ID'}), 400
+
+        todo = Todo.query.get(todo_id)
+        if not todo:
+            return jsonify({'success': False, 'message': '待办事项不存在'}), 404
+
+        # 解析多个收件人，支持逗号/分号分隔
+        def _parse_recipients(raw: str):
+            if not raw:
+                return []
+            parts = re.split(r"[;,]", raw)
+            return [p.strip() for p in parts if p and p.strip()]
+
+        recipients = _parse_recipients(todo.recipient_email)
+        if not recipients:
+            return jsonify({'success': False, 'message': '未配置收件邮箱，请在待办事项中填写“收件邮箱”'}), 400
+
+        subject = f"待办提醒：{todo.title}"
+        desc = (todo.description or '').strip()
+        due = todo.due_date.strftime('%Y-%m-%d %H:%M') if todo.due_date else '未设置'
+        body = (
+            f"您有一个待办提醒：\n\n"
+            f"标题：{todo.title}\n"
+            f"描述：{desc}\n"
+            f"类型：{todo.category or '未分类'}\n"
+            f"优先级：{todo.priority}\n"
+            f"截止时间：{due}\n\n"
+            f"此邮件由系统自动发送，请勿回复。"
+        )
+
+        # 组装并发送
+        sender = current_app.config.get('MAIL_DEFAULT_SENDER') or current_app.config.get('MAIL_USERNAME')
+        msg = Message(subject=subject, sender=sender, recipients=recipients, body=body)
+        mail.send(msg)
+
+        return jsonify({'success': True, 'message': '提醒邮件已发送'})
+
+    except Exception as e:
+        current_app.logger.error(f"发送待办提醒邮件失败: {str(e)}")
+        current_app.logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'message': f'发送失败：{str(e)}'}), 500
+
+
+def send_due_todo_reminders():
+    """扫描到期需要发送的待办事项并发送提醒邮件。"""
+    with current_app.app_context():
+        try:
+            # 使用本地时间对比，避免时区导致的误差
+            now = datetime.now()
+            # 仅选取必要字段，避免大开销
+            todos = Todo.query.filter(
+                Todo.send_email.is_(True),
+                Todo.is_completed.is_(False),
+                Todo.due_date.isnot(None),
+                Todo.due_date <= now,
+                getattr(Todo, 'email_reminder_sent', False).is_(False)
+            ).order_by(Todo.due_date.asc()).all()
+
+            sent_count = 0
+            def _parse_recipients(raw: str):
+                if not raw:
+                    return []
+                parts = re.split(r"[;,]", raw)
+                return [p.strip() for p in parts if p and p.strip()]
+
+            for todo in todos:
+                recipients = _parse_recipients(todo.recipient_email)
+                if not recipients:
+                    # 没有配置收件邮箱则跳过自动发送
+                    continue
+
+                subject = f"【到期提醒】{todo.title}"
+                desc = (todo.description or '').strip()
+                due = todo.due_date.strftime('%Y-%m-%d %H:%M') if todo.due_date else '未设置'
+                body = (
+                    f"以下待办已到期：\n\n"
+                    f"标题：{todo.title}\n"
+                    f"描述：{desc}\n"
+                    f"类型：{todo.category or '未分类'}\n"
+                    f"优先级：{todo.priority}\n"
+                    f"截止时间：{due}\n\n"
+                    f"此邮件由系统自动发送，请勿回复。"
+                )
+
+                sender = current_app.config.get('MAIL_DEFAULT_SENDER') or current_app.config.get('MAIL_USERNAME')
+                try:
+                    msg = Message(subject=subject, sender=sender, recipients=recipients, body=body)
+                    mail.send(msg)
+                    # 标记已发送
+                    if hasattr(todo, 'email_reminder_sent'):
+                        todo.email_reminder_sent = True
+                    if hasattr(todo, 'email_sent_at'):
+                        todo.email_sent_at = datetime.utcnow()
+                    db.session.commit()
+                    sent_count += 1
+                except Exception as e:
+                    current_app.logger.error(f"发送到期提醒失败 todo_id={todo.id}: {e}")
+                    db.session.rollback()
+            if sent_count:
+                current_app.logger.info(f"到期提醒邮件发送完成，数量: {sent_count}")
+        except Exception as e:
+            current_app.logger.error(f"定时任务执行失败: {e}")
+
+
+# 定时任务的注册将在 exts.init_exts(app) 中完成，以确保有应用上下文
+
 # 获取单个待办事项
 @utils_blue.route('/todos/get/<int:todo_id>')
 @login_required
@@ -243,6 +415,8 @@ def get_todo(todo_id):
                 'due_date': todo.due_date.isoformat() if todo.due_date else None,
                 'priority': todo.priority,
                 'category': todo.category,
+                'recipient_email': todo.recipient_email,
+                'send_email': todo.send_email,
                 'created_at': todo.created_at.isoformat(),
                 'updated_at': todo.updated_at.isoformat()
             }

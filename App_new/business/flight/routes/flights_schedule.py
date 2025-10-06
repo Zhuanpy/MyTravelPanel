@@ -1,8 +1,9 @@
-from flask import Blueprint, render_template, request, jsonify, redirect, url_for, flash, session
+from flask import Blueprint, render_template, request, jsonify, redirect, url_for, flash, session, current_app
 from flask_login import login_required, current_user
 from ..models.models import FlightSchedule, AirportData
 from sqlalchemy.exc import IntegrityError
 from App_new.exts import db
+from App_new.utils.cache import simple_cache
 from App_new.utils.decorators import staff_only
 from sqlalchemy import text
 import re
@@ -248,6 +249,11 @@ def input_flight_schedule():
                         existing.arrival_gate = arr_gate
                         existing.aircraft = aircraft
                         existing.status = status
+                        # 失效缓存
+                        try:
+                            simple_cache.delete(f"schedule:{flight_number}")
+                        except Exception:
+                            pass
                     else:
                         # 创建新记录
                         new_flight = FlightSchedule(
@@ -264,6 +270,11 @@ def input_flight_schedule():
                             status=status
                         )
                         db.session.add(new_flight)
+                        # 失效缓存
+                        try:
+                            simple_cache.delete(f"schedule:{flight_number}")
+                        except Exception:
+                            pass
                     
                     success_count += 1
             
@@ -332,6 +343,10 @@ def input_flight_schedule_info():
                         existing.airline_code = airline_code
                         existing.airline_num = airline_num
                         db.session.add(existing)
+                        try:
+                            simple_cache.delete(f"schedule:{flight_number}")
+                        except Exception:
+                            pass
                     else:
                         # 创建新记录
                         flight_schedule = FlightSchedule(
@@ -342,6 +357,10 @@ def input_flight_schedule_info():
                             schedule_timing=schedule_timings[i]
                         )
                         db.session.add(flight_schedule)
+                        try:
+                            simple_cache.delete(f"schedule:{flight_number}")
+                        except Exception:
+                            pass
                     
                     success_count += 1
             

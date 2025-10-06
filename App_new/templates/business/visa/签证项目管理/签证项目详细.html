@@ -1419,8 +1419,42 @@
                 <a href="{{ url_for('visa_basic.visa_type_document_manager', visa_type=project.visa_type) }}" class="visa-project-resource-link">
                     文档管理器
                 </a>
-            </div>
+                <a href="javascript:void(0);" class="visa-project-resource-link" data-bs-toggle="modal" data-bs-target="#reminderModal2">添加提醒</a>
+                <input type="hidden" id="csrfToken" value="{{ csrf_token() }}">
+    </div>
         </div>
+    </div>
+
+    <!-- 添加提醒 弹窗（邮件） -->
+    <div class="modal fade" id="reminderModal2" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">添加提醒</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <div class="mb-3">
+              <label class="form-label">收件邮箱（可多个，逗号/分号分隔）</label>
+              <input type="text" id="reminderRecipient" class="form-control" placeholder="a@b.com, c@d.com">
+              <div class="form-text">留空则默认发送至当前登录用户邮箱</div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">提醒时间</label>
+              <input type="text" id="reminderDue" class="form-control" placeholder="选择日期时间">
+            </div>
+            <div class="form-check">
+              <input type="checkbox" class="form-check-input" id="reminderSendEmail" checked>
+              <label class="form-check-label" for="reminderSendEmail">发送邮件</label>
+            </div>
+            <small class="text-muted">将创建一条“签证提醒”待办，并按到期时间自动发送邮件。</small>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+            <button type="button" class="btn btn-primary" id="btnCreateReminder">保存</button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <section class="visa-project-section-card">
@@ -3079,5 +3113,55 @@ document.addEventListener('DOMContentLoaded', function() {
         opacity: 0.5;
     }
 </style>
+
+<input type="hidden" id="csrfToken" value="{{ csrf_token() }}">
+
+<!-- 提醒设置（邮件）块已移除，改为通过弹窗显示 -->
+
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    if (window.flatpickr) {
+      flatpickr('#reminderDue', { enableTime: true, dateFormat: 'Y-m-d H:i' });
+    }
+
+    const btn = document.getElementById('btnCreateReminder');
+    if (btn) {
+      btn.addEventListener('click', async function() {
+        const recipient = (document.getElementById('reminderRecipient').value || '').trim();
+        const due = (document.getElementById('reminderDue').value || '').trim();
+        const sendEmail = document.getElementById('reminderSendEmail').checked;
+        const csrf = document.getElementById('csrfToken').value;
+
+        const payload = {
+          title: `[签证提醒] {{ project.project_folder_name }} (#{{ project.id }})`,
+          description: `签证类型: {{ types_info.visa_type if types_info else (project.visa_type or '') }}\n申请人: {{ project.applicant_name or '' }}`,
+          category: 'visa_reminder',
+          priority: 2,
+          due_date: due ? due.replace(' ', 'T') : null,
+          recipient_email: recipient || null,
+          send_email: sendEmail
+        };
+
+        try {
+          const resp = await fetch('/utils/todos/create', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+            body: JSON.stringify(payload)
+          });
+          const data = await resp.json();
+          if (data && data.success) {
+            alert('提醒已添加');
+          } else {
+            alert('添加失败：' + ((data && data.message) || '服务器错误'));
+          }
+        } catch (e) {
+          console.error(e);
+          alert('请求失败，请稍后重试');
+        }
+      });
+    }
+  });
+</script>
 
 {% endblock %} 

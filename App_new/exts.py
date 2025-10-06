@@ -6,6 +6,9 @@ from flask_caching import Cache
 from flask_wtf.csrf import CSRFProtect
 from flask_login import LoginManager
 from flask_mail import Mail
+from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.triggers.interval import IntervalTrigger
+from flask import current_app
 
 db = SQLAlchemy()
 migrate = Migrate()
@@ -13,6 +16,7 @@ cache = Cache()
 csrf = CSRFProtect()
 login_manager = LoginManager()
 mail = Mail()
+scheduler = BackgroundScheduler()
 
 
 def init_exts(app):
@@ -33,6 +37,36 @@ def init_exts(app):
 
     # 初始化Flask-Mail
     mail.init_app(app)
+
+    # 初始化 APScheduler（仅在非调试多进程重复启动时注意幂等）
+    try:
+        # 避免重复启动：仅在未运行时启动
+        if not scheduler.running:
+            scheduler.start()
+            print("APScheduler started")
+
+        # 在应用上下文内注册任务，显式使用 app 传入，避免 current_app 未绑定
+        def _register_jobs(app):
+            try:
+                from App_new.shared.routes.tasks import send_due_todo_reminders
+                def job_send_reminders():
+                    # 手动创建应用上下文
+                    with app.app_context():
+                        send_due_todo_reminders()
+                # 使用 replace_existing 确保热重载不重复
+                scheduler.add_job(
+                    id='todo_due_email',
+                    func=job_send_reminders,
+                    trigger=IntervalTrigger(minutes=1),
+                    replace_existing=True
+                )
+                print("Registered job: todo_due_email (every 1 minute)")
+            except Exception as je:
+                print(f"注册定时任务失败: {je}")
+
+        _register_jobs(app)
+    except Exception as e:
+        print(f"APScheduler 启动失败: {e}")
 
     # 初始化Flask-Login
     login_manager.init_app(app)
