@@ -58,12 +58,12 @@ def init_exts(app):
         with app.app_context():
             try:
                 db.create_all()
-                print("✅ 数据库表创建完成")
+                print("数据库表创建完成")
             except Exception as e:
-                print(f"⚠️ 数据库连接失败: {e}")
-                print("💡 提示：请检查数据库连接配置或IP白名单设置")
+                print(f"数据库连接失败: {e}")
+                print("提示：请检查数据库连接配置或IP白名单设置")
     else:
-        print("⏭️ 跳过数据库初始化")
+        print("跳过数据库初始化")
 
 # 在需要使用模型时在各自的模块中导入
 

@@ -16,3 +16,4 @@ FOREIGN KEY (user_id) REFERENCES auth_users(id) ON DELETE CASCADE;
 -- SHOW CREATE TABLE invitation_codes;
 -- SHOW CREATE TABLE user_profiles;
 
+

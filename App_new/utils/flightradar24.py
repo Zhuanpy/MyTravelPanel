@@ -93,14 +93,37 @@ def get_flight_from_flightradar24(flight_number: str) -> Optional[Dict]:
         url = f"https://www.flightradar24.com/data/flights/{flight_number.lower()}"
         
         headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
-            'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8'
+            'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'DNT': '1',
+            'Connection': 'keep-alive',
+            'Upgrade-Insecure-Requests': '1',
+            'Sec-Fetch-Dest': 'document',
+            'Sec-Fetch-Mode': 'navigate',
+            'Sec-Fetch-Site': 'none',
+            'Cache-Control': 'max-age=0'
         }
         
-        # 发送请求
-        response = requests.get(url, headers=headers)
-        response.raise_for_status()
+        # 创建会话并发送请求
+        session = requests.Session()
+        session.headers.update(headers)
+        
+        # 添加重试机制
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                response = session.get(url, timeout=30)
+                response.raise_for_status()
+                break
+            except requests.exceptions.RequestException as e:
+                print(f"  请求失败 (尝试 {attempt + 1}/{max_retries}): {e}")
+                if attempt == max_retries - 1:
+                    print(f"  所有重试失败，跳过FlightRadar24")
+                    return None
+                import time
+                time.sleep(2)  # 等待2秒后重试
         
         # 使用BeautifulSoup解析HTML
         soup = BeautifulSoup(response.text, 'html.parser')
@@ -207,7 +230,11 @@ def extract_flight_data_from_row(row, flight_number: str) -> Optional[Dict]:
             'std': "Unknown",  # 计划起飞时间
             'atd': "Unknown",  # 实际起飞时间
             'sta': "Unknown",  # 计划到达时间
-            'status': "Unknown"
+            'status': "Unknown",
+            'departure_terminal': "Unknown",  # 出发航站楼
+            'departure_gate': "Unknown",      # 出发登机口
+            'arrival_terminal': "Unknown",    # 到达航站楼
+            'arrival_gate': "Unknown"         # 到达登机口
         }
         
         # 1. 提取基本数据 (机场、飞机型号等)
@@ -303,7 +330,133 @@ def extract_flight_data_from_row(row, flight_number: str) -> Optional[Dict]:
                     flight_info['sta'] = sta_text
                     print(f"从文本提取STA: {flight_info['sta']}")
         
-        # 3. 如果上面方法失败，尝试从其他位置查找 (备用方案)
+        # 3. 提取航站楼和登机口信息
+        print("\n=== 提取航站楼和登机口信息 ===")
+        
+        # 查找航站楼信息 - 增强的正则表达式
+        terminal_patterns = [
+            r'Terminal\s+([A-Z0-9]+)',     # Terminal 1, Terminal 2
+            r'\bT(\d+)\b',                 # T1, T2, T3
+            r'航站楼\s*([A-Z0-9]+)',       # 航站楼1, 航站楼A
+            r'\(Terminal\s+([A-Z0-9]+)\)', # (Terminal 1)
+            r'Terminal\s*([A-Z0-9]+)',     # Terminal1 (无空格)
+            r'\bTerminal([A-Z0-9]+)\b',    # Terminal1 (连写)
+            r'T-(\d+)',                    # T-1, T-2
+            r'Term\s+([A-Z0-9]+)',         # Term 1, Term 2
+            r'Terminal\s*([A-Z])',         # Terminal A, Terminal B
+        ]
+        
+        gate_patterns = [
+            r'Gate\s+([A-Z0-9]+)',        # Gate A15, Gate B22
+            r'登机口\s*([A-Z0-9]+)',       # 登机口A5
+            r'\bG(\d+)\b',                # G15, G22
+            r'\(Gate\s+([A-Z0-9]+)\)',    # (Gate A15)
+            r'Gate\s*([A-Z0-9]+)',        # GateA15 (无空格)
+            r'\bGate([A-Z0-9]+)\b',       # GateA15 (连写)
+            r'G-([A-Z0-9]+)',             # G-A15, G-B22
+            r'Gate\s*([A-Z])(\d+)',       # Gate A15, Gate B22
+            r'登机口([A-Z0-9]+)',         # 登机口A15 (无空格)
+            r'Boarding\s+Gate\s+([A-Z0-9]+)', # Boarding Gate A15
+        ]
+        
+        # 在整行文本中查找航站楼和登机口信息
+        row_text = row.get_text()
+        print(f"行文本内容: {row_text}")
+        print(f"行文本长度: {len(row_text)}")
+        
+        # 查找所有航站楼信息
+        all_terminal_matches = []
+        print("测试航站楼正则表达式:")
+        for i, pattern in enumerate(terminal_patterns):
+            matches = re.findall(pattern, row_text, re.IGNORECASE)
+            print(f"  模式{i+1}: {pattern} -> 匹配: {matches}")
+            all_terminal_matches.extend(matches)
+        print(f"所有航站楼匹配结果: {all_terminal_matches}")
+        
+        # 查找所有登机口信息
+        all_gate_matches = []
+        print("测试登机口正则表达式:")
+        for i, pattern in enumerate(gate_patterns):
+            matches = re.findall(pattern, row_text, re.IGNORECASE)
+            print(f"  模式{i+1}: {pattern} -> 匹配: {matches}")
+            all_gate_matches.extend(matches)
+        print(f"所有登机口匹配结果: {all_gate_matches}")
+        
+        # 分配航站楼信息
+        if len(all_terminal_matches) >= 1:
+            flight_info['departure_terminal'] = all_terminal_matches[0]
+            print(f"找到出发航站楼: {all_terminal_matches[0]}")
+        
+        if len(all_terminal_matches) >= 2:
+            flight_info['arrival_terminal'] = all_terminal_matches[1]
+            print(f"找到到达航站楼: {all_terminal_matches[1]}")
+        elif len(all_terminal_matches) == 1:
+            # 如果只有一个航站楼，尝试从文本位置判断是出发还是到达
+            terminal_pos = row_text.find(all_terminal_matches[0])
+            if terminal_pos > len(row_text) // 2:  # 在文本后半部分，可能是到达
+                flight_info['arrival_terminal'] = all_terminal_matches[0]
+                flight_info['departure_terminal'] = "Unknown"
+                print(f"找到到达航站楼: {all_terminal_matches[0]}")
+            else:  # 在文本前半部分，可能是出发
+                flight_info['departure_terminal'] = all_terminal_matches[0]
+                print(f"找到出发航站楼: {all_terminal_matches[0]}")
+        
+        # 分配登机口信息
+        if len(all_gate_matches) >= 1:
+            flight_info['departure_gate'] = all_gate_matches[0]
+            print(f"找到出发登机口: {all_gate_matches[0]}")
+        
+        if len(all_gate_matches) >= 2:
+            flight_info['arrival_gate'] = all_gate_matches[1]
+            print(f"找到到达登机口: {all_gate_matches[1]}")
+        elif len(all_gate_matches) == 1:
+            # 如果只有一个登机口，尝试从文本位置判断
+            gate_pos = row_text.find(all_gate_matches[0])
+            if gate_pos > len(row_text) // 2:  # 在文本后半部分，可能是到达
+                flight_info['arrival_gate'] = all_gate_matches[0]
+                flight_info['departure_gate'] = "Unknown"
+                print(f"找到到达登机口: {all_gate_matches[0]}")
+            else:  # 在文本前半部分，可能是出发
+                flight_info['departure_gate'] = all_gate_matches[0]
+                print(f"找到出发登机口: {all_gate_matches[0]}")
+        
+        # 尝试从特定的HTML元素中提取航站楼信息
+        terminal_elements = row.find_all(['span', 'div', 'td'], string=re.compile(r'Terminal|T\d+|航站楼', re.IGNORECASE))
+        for elem in terminal_elements:
+            elem_text = elem.get_text().strip()
+            print(f"找到航站楼元素: {elem_text}")
+            
+            # 判断是出发还是到达航站楼 (通常出发在前)
+            if flight_info['departure_terminal'] == "Unknown":
+                terminal_match = re.search(r'(Terminal|T|航站楼)\s*([A-Z0-9]+)', elem_text, re.IGNORECASE)
+                if terminal_match:
+                    flight_info['departure_terminal'] = terminal_match.group(2)
+                    print(f"从元素提取出发航站楼: {terminal_match.group(2)}")
+            elif flight_info['arrival_terminal'] == "Unknown":
+                terminal_match = re.search(r'(Terminal|T|航站楼)\s*([A-Z0-9]+)', elem_text, re.IGNORECASE)
+                if terminal_match:
+                    flight_info['arrival_terminal'] = terminal_match.group(2)
+                    print(f"从元素提取到达航站楼: {terminal_match.group(2)}")
+        
+        # 尝试从特定的HTML元素中提取登机口信息
+        gate_elements = row.find_all(['span', 'div', 'td'], string=re.compile(r'Gate|登机口|G\d+', re.IGNORECASE))
+        for elem in gate_elements:
+            elem_text = elem.get_text().strip()
+            print(f"找到登机口元素: {elem_text}")
+            
+            # 判断是出发还是到达登机口
+            if flight_info['departure_gate'] == "Unknown":
+                gate_match = re.search(r'(Gate|登机口|G)\s*([A-Z0-9]+)', elem_text, re.IGNORECASE)
+                if gate_match:
+                    flight_info['departure_gate'] = gate_match.group(2)
+                    print(f"从元素提取出发登机口: {gate_match.group(2)}")
+            elif flight_info['arrival_gate'] == "Unknown":
+                gate_match = re.search(r'(Gate|登机口|G)\s*([A-Z0-9]+)', elem_text, re.IGNORECASE)
+                if gate_match:
+                    flight_info['arrival_gate'] = gate_match.group(2)
+                    print(f"从元素提取到达登机口: {gate_match.group(2)}")
+
+        # 4. 如果上面方法失败，尝试从其他位置查找 (备用方案)
         print("\n=== 备用时间提取方法 ===")
         
         # 尝试寻找隐藏的td元素
@@ -591,52 +744,7 @@ def get_airline_name(airline_code: str) -> str:
     
     return airlines.get(airline_code, f"Unknown Airline ({airline_code})")
 
-def get_flight_from_aviationstack(flight_number: str, api_key: str = '***REMOVED***') -> Optional[Dict]:
-    """从Aviationstack API获取航班信息"""
-    try:
-        base_url = "http://api.aviationstack.com/v1/flights"
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36'
-        }
-
-        print(f"\n正在从Aviationstack API获取航班 {flight_number} 的信息...")
-
-        # 构建 API 请求参数
-        params = {
-            'access_key': api_key,
-            'flight_iata': flight_number
-        }
-
-        # 发送请求
-        response = requests.get(base_url, params=params, headers=headers)
-        response.raise_for_status()
-
-        # 解析响应
-        data = response.json()
-
-        # 打印原始响应以便调试
-        print("\nAviationstack API 响应:")
-        print(json.dumps(data, indent=2, ensure_ascii=False))
-
-        # 检查是否有错误
-        if 'error' in data:
-            print(f"Aviationstack API 错误: {data['error'].get('message', '未知错误')}")
-            return None
-
-        # 检查是否有航班数据
-        if not data.get('data') or len(data['data']) == 0:
-            print(f"Aviationstack API未找到航班 {flight_number} 的信息")
-            return None
-
-        return data
-    
-    except requests.RequestException as e:
-        print(f"Aviationstack API请求错误: {e}")
-        return None
-    
-    except Exception as e:
-        print(f"处理Aviationstack数据时出错: {e}")
-        return None
+# Aviationstack功能已移至 flightAviationstack.py
 
 def get_flight_from_opensky(flight_number: str) -> Optional[Dict]:
     """从OpenSky Network API获取航班信息"""
@@ -812,6 +920,38 @@ def extract_flight_data(data: Dict, flight_number: str) -> Optional[Dict]:
             if dep_total_minutes > arr_total_minutes:
                 formatted_arr_time = f"#{formatted_arr_time}"
         
+        # 从raw_data中提取新字段（如果存在）
+        raw_data = flight_data.get('raw_data', {})
+        
+        # 尝试从aviationstack数据结构中提取航站楼信息
+        departure_terminal = 'Unknown'
+        departure_gate = 'Unknown'
+        arrival_terminal = 'Unknown'
+        arrival_gate = 'Unknown'
+        
+        # 检查是否是aviationstack数据格式
+        if 'departure' in flight_data and 'arrival' in flight_data:
+            # Aviationstack格式
+            departure_info = flight_data.get('departure', {})
+            arrival_info = flight_data.get('arrival', {})
+            
+            departure_terminal = departure_info.get('terminal', 'Unknown')
+            departure_gate = departure_info.get('gate', 'Unknown')
+            arrival_terminal = arrival_info.get('terminal', 'Unknown')
+            arrival_gate = arrival_info.get('gate', 'Unknown')
+            
+            print(f"从Aviationstack提取航站楼信息:")
+            print(f"  出发航站楼: {departure_terminal}")
+            print(f"  出发登机口: {departure_gate}")
+            print(f"  到达航站楼: {arrival_terminal}")
+            print(f"  到达登机口: {arrival_gate}")
+        else:
+            # FlightRadar24格式或其他格式
+            departure_terminal = raw_data.get('departure_terminal', flight_data.get('departure_terminal', 'Unknown'))
+            departure_gate = raw_data.get('departure_gate', flight_data.get('departure_gate', 'Unknown'))
+            arrival_terminal = raw_data.get('arrival_terminal', flight_data.get('arrival_terminal', 'Unknown'))
+            arrival_gate = raw_data.get('arrival_gate', flight_data.get('arrival_gate', 'Unknown'))
+        
         # 构建结果
         result = {
             'flight_number': flight_number,
@@ -819,7 +959,14 @@ def extract_flight_data(data: Dict, flight_number: str) -> Optional[Dict]:
             'airline_num': flight_num,
             'airline_name': airline_name,
             'schedule_city': f"{departure_iata} {arrival_iata}",
-            'schedule_timing': f"{formatted_dep_time} {formatted_arr_time}"
+            'schedule_timing': f"{formatted_dep_time} {formatted_arr_time}",
+            'departure_terminal': departure_terminal,
+            'departure_gate': departure_gate,
+            'arrival_terminal': arrival_terminal,
+            'arrival_gate': arrival_gate,
+            'aircraft': raw_data.get('aircraft', flight_data.get('aircraft', 'Unknown')),
+            'status': raw_data.get('status', flight_data.get('status', 'Unknown')),
+            'date': raw_data.get('date', flight_data.get('date', 'Unknown'))
         }
         return result
     except Exception as e:
@@ -855,9 +1002,15 @@ def get_flight_info(flight_number: str) -> Optional[Dict]:
             return extract_flight_data(flightradar_data, flight_number)
         
         # 如果 FlightRadar24 失败，尝试 Aviationstack API
-        api_data = get_flight_from_aviationstack(flight_number)
-        if api_data and api_data.get('data') and len(api_data['data']) > 0:
-            return extract_flight_data(api_data, flight_number)
+        try:
+            from .flightAviationstack import get_flight_info_aviationstack
+            aviationstack_data = get_flight_info_aviationstack(flight_number)
+            if aviationstack_data:
+                return aviationstack_data
+        except ImportError:
+            print("警告: 无法导入flightAviationstack模块")
+        except Exception as e:
+            print(f"Aviationstack获取失败: {e}")
         
         # 如果 Aviationstack 失败，尝试 OpenSky API
         opensky_data = get_flight_from_opensky(flight_number)

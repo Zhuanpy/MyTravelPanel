@@ -36,3 +36,4 @@ ALTER TABLE user_profiles
 ADD CONSTRAINT fk_user_profiles_user_cascade 
 FOREIGN KEY (user_id) REFERENCES auth_users(id) ON DELETE CASCADE;
 
+

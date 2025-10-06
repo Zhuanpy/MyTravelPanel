@@ -19,3 +19,4 @@ FOREIGN KEY (user_id) REFERENCES auth_users(id) ON DELETE CASCADE;
 
 -- 然后根据结果清理其他表的重复约束
 
+

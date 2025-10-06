@@ -9,6 +9,68 @@ import re
 
 flights_schedule = Blueprint('flights_schedule', __name__)
 
+
+def _enrich_with_airport_scrapers(payload: dict, dep_iata: str = None, arr_iata: str = None, flight_number: str = None, flight_date: str = None) -> dict:
+    """使用机场官网抓取器补全 terminal/gate（仅在字段为 Unknown 时尝试）。"""
+    try:
+        if not payload:
+            return payload
+
+        # 解析 IATA
+        dep = (dep_iata or '').upper() if dep_iata else None
+        arr = (arr_iata or '').upper() if arr_iata else None
+
+        # 若仍未知，从 schedule_city 拆分
+        if (not dep or not arr) and payload.get('schedule_city'):
+            parts = payload['schedule_city'].split()
+            if len(parts) >= 2:
+                dep = dep or parts[0].upper()
+                arr = arr or parts[1].upper()
+
+        # SIN 抓取
+        try:
+            from App_new.utils.scrapers.sin_changi import fetch_terminal_gate as sin_fetch
+            if dep == 'SIN' and (payload.get('departure_terminal') == 'Unknown' or payload.get('departure_gate') == 'Unknown'):
+                res = sin_fetch(flight_number or payload.get('flight_number', ''), flight_date, 'departures')
+                if res:
+                    if payload.get('departure_terminal') == 'Unknown' and res.get('departure_terminal'):
+                        payload['departure_terminal'] = res['departure_terminal']
+                    if payload.get('departure_gate') == 'Unknown' and res.get('departure_gate'):
+                        payload['departure_gate'] = res['departure_gate']
+            if arr == 'SIN' and (payload.get('arrival_terminal') == 'Unknown' or payload.get('arrival_gate') == 'Unknown'):
+                res = sin_fetch(flight_number or payload.get('flight_number', ''), flight_date, 'arrivals')
+                if res:
+                    if payload.get('arrival_terminal') == 'Unknown' and res.get('arrival_terminal'):
+                        payload['arrival_terminal'] = res['arrival_terminal']
+                    if payload.get('arrival_gate') == 'Unknown' and res.get('arrival_gate'):
+                        payload['arrival_gate'] = res['arrival_gate']
+        except Exception:
+            pass
+
+        # PVG 抓取
+        try:
+            from App_new.utils.scrapers.pvg_pudong import fetch_terminal_gate as pvg_fetch
+            if dep == 'PVG' and (payload.get('departure_terminal') == 'Unknown' or payload.get('departure_gate') == 'Unknown'):
+                res = pvg_fetch(flight_number or payload.get('flight_number', ''), flight_date, 'departures')
+                if res:
+                    if payload.get('departure_terminal') == 'Unknown' and (res.get('departure_terminal') or res.get('terminal')):
+                        payload['departure_terminal'] = res.get('departure_terminal') or res.get('terminal')
+                    if payload.get('departure_gate') == 'Unknown' and (res.get('departure_gate') or res.get('gate')):
+                        payload['departure_gate'] = res.get('departure_gate') or res.get('gate')
+            if arr == 'PVG' and (payload.get('arrival_terminal') == 'Unknown' or payload.get('arrival_gate') == 'Unknown'):
+                res = pvg_fetch(flight_number or payload.get('flight_number', ''), flight_date, 'arrivals')
+                if res:
+                    if payload.get('arrival_terminal') == 'Unknown' and (res.get('arrival_terminal') or res.get('terminal')):
+                        payload['arrival_terminal'] = res.get('arrival_terminal') or res.get('terminal')
+                    if payload.get('arrival_gate') == 'Unknown' and (res.get('arrival_gate') or res.get('gate')):
+                        payload['arrival_gate'] = res.get('arrival_gate') or res.get('gate')
+        except Exception:
+            pass
+
+        return payload
+    except Exception:
+        return payload
+
 @flights_schedule.route('/input_airport_code', methods=['GET'])
 @login_required
 @staff_only
@@ -144,6 +206,13 @@ def input_flight_schedule():
             airline_nums = request.form.getlist('airline_num[]')
             schedule_cities = request.form.getlist('schedule_city[]')
             schedule_timings = request.form.getlist('schedule_timing[]')
+            # 新增字段
+            departure_terminals = request.form.getlist('departure_terminal[]')
+            departure_gates = request.form.getlist('departure_gate[]')
+            arrival_terminals = request.form.getlist('arrival_terminal[]')
+            arrival_gates = request.form.getlist('arrival_gate[]')
+            aircrafts = request.form.getlist('aircraft[]')
+            statuses = request.form.getlist('status[]')
             
             # 验证数据
             if not flight_numbers or len(flight_numbers) != len(schedule_cities) or len(flight_numbers) != len(schedule_timings):
@@ -157,6 +226,13 @@ def input_flight_schedule():
                     flight_number = flight_numbers[i].strip().upper()
                     airline_code = airline_codes[i].strip().upper() if airline_codes and i < len(airline_codes) else flight_number[:2]
                     airline_num = airline_nums[i].strip() if airline_nums and i < len(airline_nums) else flight_number[2:]
+                    # 安全获取新增字段
+                    dep_terminal = (departure_terminals[i].strip() if departure_terminals and i < len(departure_terminals) and departure_terminals[i] else 'Unknown')
+                    dep_gate = (departure_gates[i].strip() if departure_gates and i < len(departure_gates) and departure_gates[i] else 'Unknown')
+                    arr_terminal = (arrival_terminals[i].strip() if arrival_terminals and i < len(arrival_terminals) and arrival_terminals[i] else 'Unknown')
+                    arr_gate = (arrival_gates[i].strip() if arrival_gates and i < len(arrival_gates) and arrival_gates[i] else 'Unknown')
+                    aircraft = (aircrafts[i].strip() if aircrafts and i < len(aircrafts) and aircrafts[i] else 'Unknown')
+                    status = (statuses[i].strip() if statuses and i < len(statuses) and statuses[i] else 'Unknown')
                     
                     # 检查是否已存在相同航班号的记录
                     existing = FlightSchedule.query.filter_by(flight_number=flight_number).first()
@@ -166,6 +242,12 @@ def input_flight_schedule():
                         existing.schedule_timing = schedule_timings[i]
                         existing.airline_code = airline_code
                         existing.airline_num = airline_num
+                        existing.departure_terminal = dep_terminal
+                        existing.departure_gate = dep_gate
+                        existing.arrival_terminal = arr_terminal
+                        existing.arrival_gate = arr_gate
+                        existing.aircraft = aircraft
+                        existing.status = status
                     else:
                         # 创建新记录
                         new_flight = FlightSchedule(
@@ -173,7 +255,13 @@ def input_flight_schedule():
                             airline_code=airline_code,
                             airline_num=airline_num,
                             schedule_city=schedule_cities[i],
-                            schedule_timing=schedule_timings[i]
+                            schedule_timing=schedule_timings[i],
+                            departure_terminal=dep_terminal,
+                            departure_gate=dep_gate,
+                            arrival_terminal=arr_terminal,
+                            arrival_gate=arr_gate,
+                            aircraft=aircraft,
+                            status=status
                         )
                         db.session.add(new_flight)
                     
@@ -282,6 +370,25 @@ def input_flight_schedule_info():
 def get_flight_info():
     """获取航班信息"""
     flight_number = request.args.get('flight_number', '').strip().upper()
+    source = request.args.get('source', '').strip().lower()  # 可选：指定数据源 ('aviationstack' / 'fr24')
+    # 可选：增强查询参数
+    dep_iata = request.args.get('dep_iata', '').strip().upper() or None
+    arr_iata = request.args.get('arr_iata', '').strip().upper() or None
+    flight_date = request.args.get('flight_date', '').strip() or None
+    schedule_city = request.args.get('schedule_city', '').strip().upper()
+    if (not dep_iata or not arr_iata) and schedule_city:
+        parts = schedule_city.split()
+        if len(parts) >= 2:
+            dep_iata = dep_iata or parts[0]
+            arr_iata = arr_iata or parts[1]
+
+    # 若未显式提供日期：默认使用 “今天+1天”
+    if not flight_date:
+        try:
+            from datetime import datetime, timedelta
+            flight_date = (datetime.utcnow().date() + timedelta(days=1)).isoformat()
+        except Exception:
+            flight_date = None
     
     if not flight_number:
         return jsonify({
@@ -291,42 +398,102 @@ def get_flight_info():
         })
     
     try:
-        # 查询数据库中的航班信息
-        flight = FlightSchedule.query.filter_by(flight_number=flight_number).first()
-        
-        if flight:
-            return jsonify({
-                'success': True,
-                'message': '找到航班信息',
-                'data': {
-                    'flight_number': flight.flight_number,
-                    'airline_code': flight.airline_code,
-                    'airline_num': flight.airline_num,
-                    'schedule_city': flight.schedule_city,
-                    'schedule_timing': flight.schedule_timing
-                }
-            })
-        else:
-            # 如果数据库中没有找到，尝试从其他来源获取信息
-            from App_new.utils.flightradar24 import get_flight_info as get_flight_data
-            flight_info = get_flight_data(flight_number)
+        # 如果没有提供IATA代码，尝试从航班号推断
+        if not dep_iata or not arr_iata:
+            # 常见航班的航线映射
+            flight_routes = {
+                'TR156': {'dep_iata': 'SIN', 'arr_iata': 'SHE'},
+                'SQ876': {'dep_iata': 'SIN', 'arr_iata': 'TPE'},
+                'MU544': {'dep_iata': 'SIN', 'arr_iata': 'PVG'},
+                'CA976': {'dep_iata': 'PEK', 'arr_iata': 'FRA'},
+                'CZ3001': {'dep_iata': 'CAN', 'arr_iata': 'PVG'},
+            }
             
-            if flight_info:
+            if flight_number in flight_routes:
+                route = flight_routes[flight_number]
+                dep_iata = dep_iata or route['dep_iata']
+                arr_iata = arr_iata or route['arr_iata']
+                print(f"DEBUG: 从航班号推断航线 {flight_number}: {dep_iata} -> {arr_iata}")
+        
+        # 只使用Aerodatabox作为唯一数据源
+        from App_new.utils.flightaerodatabox import get_flight_info_aerodatabox
+        from datetime import datetime, timedelta
+        
+        aero_data = None
+        dates_to_try = []
+        
+        # 如果指定了日期，先尝试该日期
+        if flight_date:
+            dates_to_try.append(flight_date)
+        
+        # 添加今天、昨天、明天作为备选
+        today = datetime.utcnow().strftime('%Y-%m-%d')
+        yesterday = (datetime.utcnow() - timedelta(days=1)).strftime('%Y-%m-%d')
+        tomorrow = (datetime.utcnow() + timedelta(days=1)).strftime('%Y-%m-%d')
+        
+        for date in [today, yesterday, tomorrow]:
+            if date not in dates_to_try:
+                dates_to_try.append(date)
+        
+        # 尝试不同日期
+        for date_to_try in dates_to_try:
+            print(f"DEBUG: 尝试日期 {date_to_try}")
+            aero_data = get_flight_info_aerodatabox(
+                flight_number,
+                dep_iata=dep_iata,
+                arr_iata=arr_iata,
+                flight_date=date_to_try,
+                use_rapidapi=True,
+            )
+            if aero_data:
+                print(f"DEBUG: 在日期 {date_to_try} 找到航班数据")
+                break
+        
+        if not aero_data:
+            print(f"DEBUG: 在所有尝试的日期中都未找到航班数据: {dates_to_try}")
+        
+        if aero_data:
+            payload = {
+                'flight_number': flight_number,
+                'airline_code': flight_number[:2] if len(flight_number) >= 2 else '',
+                'airline_num': flight_number[2:] if len(flight_number) >= 2 else '',
+                'schedule_city': aero_data.get('schedule_city', ''),
+                'schedule_timing': aero_data.get('schedule_timing', ''),
+                'departure_terminal': aero_data.get('departure_terminal', 'Unknown'),
+                'departure_gate': aero_data.get('departure_gate', 'Unknown'),
+                'arrival_terminal': aero_data.get('arrival_terminal', 'Unknown'),
+                'arrival_gate': aero_data.get('arrival_gate', 'Unknown'),
+                'aircraft': aero_data.get('aircraft', 'Unknown'),
+                'status': aero_data.get('status', 'Unknown')
+            }
+            payload = _enrich_with_airport_scrapers(payload, dep_iata, arr_iata, flight_number, flight_date)
+            return jsonify({'success': True, 'message': '从Aerodatabox获取到最新航班信息', 'data': payload})
+        else:
+            # Aerodatabox未找到数据，尝试从数据库获取历史数据作为备用
+            flight = FlightSchedule.query.filter_by(flight_number=flight_number).first()
+            
+            if flight:
                 return jsonify({
                     'success': True,
-                    'message': '找到航班信息',
+                    'message': 'Aerodatabox未找到，返回数据库中的历史信息',
                     'data': {
-                        'flight_number': flight_number,
-                        'airline_code': flight_number[:2] if len(flight_number) >= 2 else '',
-                        'airline_num': flight_number[2:] if len(flight_number) >= 2 else '',
-                        'schedule_city': flight_info.get('schedule_city', ''),
-                        'schedule_timing': flight_info.get('schedule_timing', '')
+                        'flight_number': flight.flight_number,
+                        'airline_code': flight.airline_code,
+                        'airline_num': flight.airline_num,
+                        'schedule_city': flight.schedule_city,
+                        'schedule_timing': flight.schedule_timing,
+                        'departure_terminal': getattr(flight, 'departure_terminal', 'Unknown'),
+                        'departure_gate': getattr(flight, 'departure_gate', 'Unknown'),
+                        'arrival_terminal': getattr(flight, 'arrival_terminal', 'Unknown'),
+                        'arrival_gate': getattr(flight, 'arrival_gate', 'Unknown'),
+                        'aircraft': getattr(flight, 'aircraft', 'Unknown'),
+                        'status': getattr(flight, 'status', 'Unknown')
                     }
                 })
             else:
                 return jsonify({
                     'success': False,
-                    'message': '未找到航班信息',
+                    'message': 'Aerodatabox和数据库中均未找到航班信息，请检查航班号是否正确',
                     'data': None
                 })
             
@@ -368,21 +535,27 @@ def get_flight_info_api(flight_number):
 @login_required
 @staff_only
 def update_flight_timing():
-    """更新航班时刻表的时间信息"""
+    """更新航班时刻表的时间信息和状态"""
     try:
         data = request.get_json()
         flight_id = data.get('flight_id')
         schedule_timing = data.get('schedule_timing')
+        status = data.get('status', 'Unknown')
         
-        if not flight_id or not schedule_timing:
-            return jsonify({'success': False, 'error': '数据不完整'})
+        if not flight_id:
+            return jsonify({'success': False, 'error': '航班ID不能为空'})
         
         # 查找并更新记录
         flight = FlightSchedule.query.get(flight_id)
         if not flight:
             return jsonify({'success': False, 'error': '找不到指定的航班'})
         
-        flight.schedule_timing = schedule_timing
+        # 更新时间和状态
+        if schedule_timing:
+            flight.schedule_timing = schedule_timing
+        if status:
+            flight.status = status
+            
         db.session.commit()
         
         return jsonify({'success': True})
@@ -461,6 +634,29 @@ def search_airports():
             'status': 'error',
             'message': str(e)
         }), 500
+
+
+@flights_schedule.route('/ocr_flight_info', methods=['POST'])
+@login_required
+@staff_only
+def ocr_flight_info():
+    """上传图片，OCR提取航班信息。"""
+    try:
+        if 'file' not in request.files:
+            return jsonify({'success': False, 'message': '未找到文件字段 file'}), 400
+        file = request.files['file']
+        if not file or file.filename == '':
+            return jsonify({'success': False, 'message': '未选择文件'}), 400
+
+        from App_new.utils.ocr_extract import extract_flight_info_from_image
+        res = extract_flight_info_from_image(file)
+        if not res.get('success'):
+            return jsonify({'success': False, 'message': res.get('message', 'OCR失败')})
+
+        data = res.get('data') or {}
+        return jsonify({'success': True, 'message': 'OK', 'data': data})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 
 @flights_schedule.route('/update_airport', methods=['POST'])
@@ -628,5 +824,65 @@ def delete_flight(flight_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'message': f'删除失败：{str(e)}'})
+
+
+@flights_schedule.route('/update_flight_info', methods=['POST'])
+@login_required
+@staff_only
+def update_flight_info():
+    """更新航班信息"""
+    try:
+        # 支持表单数据和JSON数据
+        if request.is_json:
+            data = request.get_json()
+            flight_id = data.get('flight_id')
+            airline_code = data.get('airline_code', '').strip()
+            airline_num = data.get('airline_num', '').strip()
+            schedule_city = data.get('schedule_city', '').strip()
+            schedule_timing = data.get('schedule_timing', '').strip()
+            departure_terminal = data.get('departure_terminal', '').strip()
+            departure_gate = data.get('departure_gate', '').strip()
+            arrival_terminal = data.get('arrival_terminal', '').strip()
+            arrival_gate = data.get('arrival_gate', '').strip()
+            aircraft = data.get('aircraft', '').strip()
+        else:
+            flight_id = request.form.get('flight_id')
+            airline_code = request.form.get('airline_code', '').strip()
+            airline_num = request.form.get('airline_num', '').strip()
+            schedule_city = request.form.get('schedule_city', '').strip()
+            schedule_timing = request.form.get('schedule_timing', '').strip()
+            departure_terminal = request.form.get('departure_terminal', '').strip()
+            departure_gate = request.form.get('departure_gate', '').strip()
+            arrival_terminal = request.form.get('arrival_terminal', '').strip()
+            arrival_gate = request.form.get('arrival_gate', '').strip()
+            aircraft = request.form.get('aircraft', '').strip()
+        
+        if not flight_id:
+            return jsonify({'success': False, 'message': '航班ID不能为空'}), 400
+        
+        # 获取航班记录
+        flight = FlightSchedule.query.get_or_404(flight_id)
+        
+        # 更新字段
+        flight.airline_code = airline_code
+        flight.airline_num = airline_num
+        flight.schedule_city = schedule_city
+        flight.schedule_timing = schedule_timing
+        flight.departure_terminal = departure_terminal
+        flight.departure_gate = departure_gate
+        flight.arrival_terminal = arrival_terminal
+        flight.arrival_gate = arrival_gate
+        flight.aircraft = aircraft
+        
+        # 保存到数据库
+        db.session.commit()
+        
+        flash('航班信息更新成功！', 'success')
+        return jsonify({'success': True, 'message': '航班信息更新成功'})
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'更新失败：{str(e)}', 'error')
+        return jsonify({'success': False, 'message': f'更新失败：{str(e)}'}), 500
 
 

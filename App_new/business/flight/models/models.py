@@ -70,6 +70,14 @@ class FlightSchedule(db.Model):
 
     schedule_city = db.Column(db.String(20))
     schedule_timing = db.Column(db.String(15))
+    
+    # 新增航站楼和登机口字段
+    departure_terminal = db.Column(db.String(10), default='Unknown')
+    departure_gate = db.Column(db.String(10), default='Unknown')
+    arrival_terminal = db.Column(db.String(10), default='Unknown')
+    arrival_gate = db.Column(db.String(10), default='Unknown')
+    aircraft = db.Column(db.String(10), default='Unknown')
+    status = db.Column(db.String(20), default='Unknown')
 
     def to_dict(self):
         return {
@@ -79,6 +87,12 @@ class FlightSchedule(db.Model):
             'airline_num': self.airline_num,
             'schedule_city': self.schedule_city,
             'schedule_timing': self.schedule_timing,
+            'departure_terminal': self.departure_terminal,
+            'departure_gate': self.departure_gate,
+            'arrival_terminal': self.arrival_terminal,
+            'arrival_gate': self.arrival_gate,
+            'aircraft': self.aircraft,
+            'status': self.status
         }
 
 
