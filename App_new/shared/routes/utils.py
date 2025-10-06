@@ -21,7 +21,7 @@ def is_ajax():
 @login_required
 @staff_only
 def file_processing():
-    return render_template('utils/pdf.html')
+    return render_template('shared/utils/pdf.html')
 
 
 @csrf.exempt
@@ -303,4 +303,4 @@ def open_Athina():
 @staff_only
 def files_home():
     """文件处理首页路由"""
-    return render_template('utils/文件处理首页.html')
+    return render_template('shared/utils/文件处理首页.html')
