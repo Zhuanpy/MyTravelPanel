@@ -343,7 +343,7 @@
                 <div class="visa-project-form-group" style="width: 100%; padding: 0 10px;">
                     <label for="remarks">备注信息</label>
                     <textarea class="visa-project-form-control auto-resize" id="remarks" name="remarks" 
-                              placeholder="添加备注信息" rows="3" style="min-height: 80px; resize: vertical;">{{ project.remarks or '' }}</textarea>
+                              placeholder="添加备注信息" rows="8" style="min-height: 200px; resize: vertical;">{{ project.remarks or '' }}</textarea>
                 </div>
             </div>
 
@@ -393,7 +393,7 @@
             // 重置高度以获取正确的scrollHeight
             textarea.style.height = 'auto';
             // 设置新高度
-            textarea.style.height = Math.max(textarea.scrollHeight, 80) + 'px';
+            textarea.style.height = Math.max(textarea.scrollHeight, 200) + 'px';
         }
         
         // 为所有自动调整的文本框添加事件监听

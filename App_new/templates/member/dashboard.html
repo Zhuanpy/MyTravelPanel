@@ -4,7 +4,41 @@
 
 {% block page_title %}欢迎回来，{% if current_user.profile %}{{ current_user.profile.first_name }}{% else %}{{ current_user.email }}{% endif %}{% endblock %}
 
-{% block content %}
+{% block extra_css %}
+{{ super() }}
+<style>
+/* 确保仪表板内容始终可见 */
+.member-layout .stats-card,
+.member-layout .chart-card,
+.member-layout .service-card {
+    opacity: 1 !important;
+    visibility: visible !important;
+    display: block !important;
+    transform: none !important;
+}
+
+/* 移除可能导致问题的动画 */
+.fade-in-up {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+}
+
+/* 确保主内容区域可见 */
+.member-layout main {
+    opacity: 1 !important;
+    visibility: visible !important;
+}
+
+/* 确保容器可见 */
+.member-layout .container-fluid {
+    opacity: 1 !important;
+    visibility: visible !important;
+}
+</style>
+{% endblock %}
+
+{% block member_content %}
 <!-- 统计卡片 -->
 <div class="row mb-4">
     <div class="col-md-3 mb-3">
@@ -234,110 +268,28 @@
 
 {% block extra_js %}
 <script>
-// 加载统计数据
-function loadDashboardStats() {
-    fetch('/member/api/stats')
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                // 更新统计数据
-                updateStatsDisplay(data.data);
-            }
-        })
-        .catch(error => {
-            console.error('加载统计数据失败:', error);
-        });
-}
-
-// 更新统计数据显示
-function updateStatsDisplay(stats) {
-    const elements = {
-        total_orders: document.querySelector('.stats-primary'),
-        pending_orders: document.querySelector('.stats-warning'),
-        completed_orders: document.querySelector('.stats-success'),
-        total_amount: document.querySelector('.stats-info')
-    };
-    
-    if (elements.total_orders) {
-        elements.total_orders.textContent = stats.total_orders || 0;
-    }
-    if (elements.pending_orders) {
-        elements.pending_orders.textContent = stats.pending_orders || 0;
-    }
-    if (elements.completed_orders) {
-        elements.completed_orders.textContent = stats.completed_orders || 0;
-    }
-    if (elements.total_amount) {
-        elements.total_amount.textContent = `SGD ${stats.total_amount || 0}`;
-    }
-}
-
-// 加载最近活动
-function loadRecentActivity() {
-    fetch('/member/api/recent-activity')
-        .then(response => response.json())
-        .then(data => {
-            if (data.success && data.data.length > 0) {
-                updateActivityDisplay(data.data);
-            }
-        })
-        .catch(error => {
-            console.error('加载活动数据失败:', error);
-        });
-}
-
-// 更新活动显示
-function updateActivityDisplay(activities) {
-    const container = document.getElementById('recentActivity');
-    if (!container) return;
-    
-    container.innerHTML = '';
-    
-    activities.forEach(activity => {
-        const activityElement = document.createElement('div');
-        activityElement.className = 'activity-item d-flex align-items-center';
-        activityElement.innerHTML = `
-            <div class="activity-icon ${activity.status}">
-                <i class="fas fa-${getActivityIcon(activity.type)}"></i>
-            </div>
-            <div class="activity-content">
-                <h6 class="activity-title">${activity.title}</h6>
-                <p class="activity-description">${activity.description}</p>
-            </div>
-            <div class="activity-time">
-                ${activity.date}
-            </div>
-        `;
-        container.appendChild(activityElement);
-    });
-}
-
-// 获取活动图标
-function getActivityIcon(type) {
-    const icons = {
-        order: 'shopping-cart',
-        quote: 'file-invoice-dollar',
-        payment: 'credit-card',
-        service: 'concierge-bell',
-        notification: 'bell',
-        profile: 'user'
-    };
-    return icons[type] || 'info-circle';
-}
-
 // 页面加载完成后执行
 document.addEventListener('DOMContentLoaded', function() {
-    // 添加动画效果
-    const cards = document.querySelectorAll('.stats-card, .chart-card, .service-card');
-    cards.forEach((card, index) => {
-        setTimeout(() => {
-            card.classList.add('fade-in-up');
-        }, index * 100);
-    });
+    console.log('Dashboard loaded successfully');
     
-    // 加载数据
-    loadDashboardStats();
-    loadRecentActivity();
+    // 检查页面元素是否存在
+    const statsCards = document.querySelectorAll('.stats-card');
+    const chartCards = document.querySelectorAll('.chart-card');
+    const serviceCards = document.querySelectorAll('.service-card');
+    
+    console.log('Stats cards found:', statsCards.length);
+    console.log('Chart cards found:', chartCards.length);
+    console.log('Service cards found:', serviceCards.length);
+    
+    // 确保所有卡片都可见
+    const allCards = [...statsCards, ...chartCards, ...serviceCards];
+    allCards.forEach(card => {
+        if (card) {
+            card.style.opacity = '1';
+            card.style.visibility = 'visible';
+            card.style.display = 'block';
+        }
+    });
 });
 </script>
 {% endblock %} 

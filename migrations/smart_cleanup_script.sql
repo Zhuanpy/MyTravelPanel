@@ -97,3 +97,5 @@ ADD CONSTRAINT user_profiles_smart_fk
 FOREIGN KEY (user_id) REFERENCES auth_users(id) ON DELETE CASCADE;
 
 
+
+

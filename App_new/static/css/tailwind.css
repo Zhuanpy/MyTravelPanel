@@ -1,0 +1,21 @@
+/* Minimal Tailwind placeholder (prefix: tw-) - replace with real build output */
+
+.tw-hidden{display:none}
+.tw-block{display:block}
+.tw-fixed{position:fixed}
+.tw-top-4{top:1rem}
+.tw-left-4{left:1rem}
+.tw-z-50{z-index:50}
+.tw-bg-member-primary{background-color:#48b968}
+.tw-text-white{color:#fff}
+.tw-border-0{border:0}
+.tw-px-3{padding-left:.75rem;padding-right:.75rem}
+.tw-py-2{padding-top:.5rem;padding-bottom:.5rem}
+.tw-rounded{border-radius:.25rem}
+.tw-cursor-pointer{cursor:pointer}
+.tw-flex{display:flex}
+.tw-items-center{align-items:center}
+.tw-space-x-2>:not([hidden])~:not([hidden]){margin-left:.5rem}
+.tw-text-sm{font-size:.875rem;line-height:1.25rem}
+.tw-whitespace-nowrap{white-space:nowrap}
+@media (min-width:768px){.md\\:tw-hidden{display:none}}

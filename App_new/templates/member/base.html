@@ -1,216 +1,173 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}会员中心 - MyTravelPanel{% endblock %}</title>
-    
-    <!-- CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <link href="{{ url_for('static', filename='css/member.css') }}" rel="stylesheet">
-    
-    <!-- Tailwind CSS CDN (tw- 前缀，关闭 preflight，增量迁移) -->
-    <script>
-        tailwind = window.tailwind || {};
-        tailwind.config = {
-            prefix: 'tw-',
-            corePlugins: { preflight: false },
-            darkMode: 'class'
-        };
-    </script>
-    <script src="https://cdn.tailwindcss.com?plugins=forms,typography,aspect-ratio"></script>
-    
-    {% block extra_css %}{% endblock %}
-    <style>
-        /* 全局移动端字体缩放 */
-        @media (max-width: 768px) {
-            html { font-size: 14px; }
-            body { line-height: 1.4; }
+{% extends "guest/shared/base.html" %}
+
+{% block title %}会员中心 - MyTravelPanel{% endblock %}
+
+{% block extra_css %}
+<link href="{{ url_for('static', filename='css/member.css', v='20251008') }}" rel="stylesheet">
+<link href="{{ url_for('static', filename='css/tailwind.css', v='20251008') }}" rel="stylesheet">
+<style>
+    /* Member layout scoped styles */
+    .member-layout .sidebar {
+        border-right: 1px solid #eee;
+        background-color: #f8f9fa;
+    }
+
+    .member-layout .sidebar .nav-link {
+        display: flex;
+        align-items: center;
+        color: #495057;
+        padding: 0.75rem 1rem;
+        margin: 0.125rem 0.5rem;
+        border-radius: 0.5rem;
+        transition: background-color 0.2s ease, color 0.2s ease;
+        text-decoration: none;
+        font-weight: 500;
+    }
+
+    .member-layout .sidebar .nav-link:hover {
+        background-color: rgba(72, 185, 104, 0.08);
+        color: #48b968;
+    }
+
+    .member-layout .sidebar .nav-link.active {
+        background-color: #48b968;
+        color: #fff;
+        font-weight: 600;
+    }
+
+    .member-layout .sidebar .nav-link .nav-icon {
+        width: 1.25rem;
+        text-align: center;
+        color: inherit;
+    }
+
+    .member-layout .breadcrumb { margin-bottom: 0; }
+    .member-layout .page-header { border-bottom: 1px solid #dee2e6; }
+    .member-layout .page-header h1 { margin: 0; }
+    .member-layout .page-header-actions { white-space: nowrap; }
+
+    /* Responsive spacing for container */
+    @media (min-width: 768px) {
+        .member-layout.container-fluid {
+            padding-left: 1rem;
+            padding-right: 1rem;
         }
-        @media (max-width: 360px) {
-            html { font-size: 13px; }
-        }
-    </style>
-</head>
-<body>
-    <!-- 导航栏 -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
-        <div class="container-fluid">
-            <a class="navbar-brand" href="{{ url_for('guest.main.index') }}">
-                <i class="fas fa-plane"></i> MyTravelPanel
-            </a>
-            
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav me-auto">
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+{{ super() }}
+<!-- 会员侧边栏和内容区域 -->
+<div class="{% block outer_container_class %}container-fluid{% endblock %} member-layout">
+    <div class="row">
+        {% block member_sidebar %}
+        {% if current_user.is_authenticated %}
+        <nav class="col-md-3 col-lg-2 d-md-block bg-light sidebar">
+            <div class="position-sticky pt-3">
+                <ul class="nav flex-column">
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('member.dashboard') }}">
-                            <i class="fas fa-tachometer-alt"></i> 仪表板
+                        <a class="nav-link {% if request.path.startswith('/member/dashboard') %}active{% endif %}"
+                           href="{{ url_for('member.dashboard') }}">
+                            <i class="fas fa-tachometer-alt me-2 nav-icon"></i>
+                            仪表板
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('member.orders') }}">
-                            <i class="fas fa-shopping-cart"></i> 我的订单
+                        <a class="nav-link {% if request.path.startswith('/member/orders') %}active{% endif %}"
+                           href="{{ url_for('member.orders') }}">
+                            <i class="fas fa-shopping-cart me-2 nav-icon"></i>
+                            我的订单
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('member.quotes') }}">
-                            <i class="fas fa-file-invoice-dollar"></i> 我的报价
+                        <a class="nav-link {% if request.path.startswith('/member/quotes') %}active{% endif %}"
+                           href="{{ url_for('member.quotes') }}">
+                            <i class="fas fa-file-invoice-dollar me-2 nav-icon"></i>
+                            我的报价
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('member.services') }}">
-                            <i class="fas fa-concierge-bell"></i> 服务中心
+                        <a class="nav-link {% if request.path.startswith('/member/invoices') %}active{% endif %}"
+                           href="{{ url_for('member.invoices') }}">
+                            <i class="fas fa-receipt me-2 nav-icon"></i>
+                            我的发票
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path.startswith('/member/services') %}active{% endif %}"
+                           href="{{ url_for('member.services') }}">
+                            <i class="fas fa-concierge-bell me-2 nav-icon"></i>
+                            服务中心
                         </a>
                     </li>
                 </ul>
-                
-                <ul class="navbar-nav">
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
-                            <i class="fas fa-user-circle"></i> 
-                            {% if current_user.profile %}
-                                {{ current_user.profile.first_name }}
-                            {% else %}
-                                {{ current_user.email }}
-                            {% endif %}
+
+                <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted">
+                    <span>个人中心</span>
+                </h6>
+                <ul class="nav flex-column mb-2">
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path.startswith('/auth/profile') %}active{% endif %}"
+                           href="{{ url_for('auth_profile.profile') }}">
+                            <i class="fas fa-user me-2 nav-icon"></i>
+                            个人资料
                         </a>
-                        <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="{{ url_for('auth_profile.profile') }}">
-                                <i class="fas fa-user me-2"></i>个人资料
-                            </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('auth_profile.change_password') }}">
-                                <i class="fas fa-key me-2"></i>修改密码
-                            </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('member.notifications') }}">
-                                <i class="fas fa-bell me-2"></i>通知中心
-                            </a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="{{ url_for('auth_profile.logout') }}">
-                                <i class="fas fa-sign-out-alt me-2"></i>退出登录
-                            </a></li>
-                        </ul>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path.startswith('/member/notifications') %}active{% endif %}"
+                           href="{{ url_for('member.notifications') }}">
+                            <i class="fas fa-bell me-2 nav-icon"></i>
+                            通知中心
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('auth_profile.logout') }}">
+                            <i class="fas fa-sign-out-alt me-2 nav-icon"></i>
+                            退出登录
+                        </a>
                     </li>
                 </ul>
             </div>
-        </div>
-    </nav>
+        </nav>
+        {% endif %}
+        {% endblock %}
 
-    <!-- 主要内容 -->
-    <div class="container-fluid">
-        <div class="row">
-            <!-- 侧边栏 -->
-            <nav class="col-md-3 col-lg-2 d-md-block bg-light sidebar">
-                <div class="position-sticky pt-3">
-                    <ul class="nav flex-column">
-                        <li class="nav-item">
-                            <a class="nav-link {% if request.endpoint == 'member.dashboard' %}active{% endif %}" 
-                               href="{{ url_for('member.dashboard') }}">
-                                <i class="fas fa-tachometer-alt me-2"></i>
-                                仪表板
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {% if 'order' in request.endpoint %}active{% endif %}" 
-                               href="{{ url_for('member.orders') }}">
-                                <i class="fas fa-shopping-cart me-2"></i>
-                                我的订单
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {% if 'quote' in request.endpoint %}active{% endif %}" 
-                               href="{{ url_for('member.quotes') }}">
-                                <i class="fas fa-file-invoice-dollar me-2"></i>
-                                我的报价
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {% if 'invoice' in request.endpoint %}active{% endif %}" 
-                               href="{{ url_for('member.invoices') }}">
-                                <i class="fas fa-receipt me-2"></i>
-                                我的发票
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {% if request.endpoint == 'member.services' %}active{% endif %}" 
-                               href="{{ url_for('member.services') }}">
-                                <i class="fas fa-concierge-bell me-2"></i>
-                                服务中心
-                            </a>
-                        </li>
-                    </ul>
-
-                    <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted">
-                        <span>个人中心</span>
-                    </h6>
-                    <ul class="nav flex-column mb-2">
-                        <li class="nav-item">
-                            <a class="nav-link {% if request.endpoint == 'auth_profile.profile' %}active{% endif %}" 
-                               href="{{ url_for('auth_profile.profile') }}">
-                                <i class="fas fa-user me-2"></i>
-                                个人资料
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {% if request.endpoint == 'member.notifications' %}active{% endif %}" 
-                               href="{{ url_for('member.notifications') }}">
-                                <i class="fas fa-bell me-2"></i>
-                                通知中心
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('auth_profile.logout') }}">
-                                <i class="fas fa-sign-out-alt me-2"></i>
-                                退出登录
-                            </a>
-                        </li>
-                    </ul>
-                </div>
+        <main class="{% block main_col_classes %}{% if current_user.is_authenticated %}col-md-9 ms-sm-auto col-lg-10{% else %}col-12{% endif %}{% endblock %} px-md-4">
+            {% block breadcrumb_block %}
+            <nav aria-label="breadcrumb" class="pt-3">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('member.dashboard') }}">会员中心</a></li>
+                    {% block breadcrumb %}{% endblock %}
+                </ol>
             </nav>
+            {% endblock %}
 
-            <!-- 主内容区域 -->
-            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
-                <!-- 面包屑导航 -->
-                <nav aria-label="breadcrumb" class="pt-3">
-                    <ol class="breadcrumb">
-                        <li class="breadcrumb-item"><a href="{{ url_for('member.dashboard') }}">会员中心</a></li>
-                        {% block breadcrumb %}{% endblock %}
-                    </ol>
-                </nav>
+            {% block page_header_block %}
+            <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 page-header">
+                <h1 class="h2">{% block page_title %}会员中心{% endblock %}</h1>
+                <div class="page-header-actions">{% block page_actions %}{% endblock %}</div>
+            </div>
+            {% endblock %}
 
-                <!-- 页面标题 -->
-                <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-                    <h1 class="h2">{% block page_title %}会员中心{% endblock %}</h1>
-                    {% block page_actions %}{% endblock %}
-                </div>
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
 
-                <!-- Flash消息 -->
-                {% with messages = get_flashed_messages(with_categories=true) %}
-                    {% if messages %}
-                        {% for category, message in messages %}
-                            <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
-                                {{ message }}
-                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                            </div>
-                        {% endfor %}
-                    {% endif %}
-                {% endwith %}
-
-                <!-- 页面内容 -->
-                {% block content %}{% endblock %}
-            </main>
-        </div>
+            {% block member_content %}{% endblock %}
+        </main>
     </div>
+</div>
+{% endblock %}
 
-    <!-- JavaScript -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    
-    {% block extra_js %}{% endblock %}
-</body>
-</html> 
+{% block extra_js %}
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}

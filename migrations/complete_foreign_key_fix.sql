@@ -70,3 +70,5 @@ ADD CONSTRAINT email_verification_tokens_user_id_fk
 FOREIGN KEY (user_id) REFERENCES auth_users(id) ON DELETE CASCADE;
 
 
+
+

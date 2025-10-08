@@ -57,10 +57,10 @@ def init_exts(app):
                 scheduler.add_job(
                     id='todo_due_email',
                     func=job_send_reminders,
-                    trigger=IntervalTrigger(minutes=1),
+                    trigger=IntervalTrigger(minutes=15),
                     replace_existing=True
                 )
-                print("Registered job: todo_due_email (every 1 minute)")
+                print("Registered job: todo_due_email (every 15 minutes)")
             except Exception as je:
                 print(f"注册定时任务失败: {je}")
 

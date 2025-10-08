@@ -188,7 +188,37 @@ def logout():
 @member_only
 def profile():
     """用户资料页面"""
-    return render_template('auth/profile.html', user=current_user)
+    # 模拟统计数据（实际项目中应该从数据库查询）
+    stats = {
+        'total_orders': 0,
+        'completed_orders': 0,
+        'pending_orders': 0,
+        'total_spent': 0
+    }
+    
+    # 模拟最近活动（实际项目中应该从数据库查询）
+    recent_activities = [
+        {
+            'title': '登录系统',
+            'time': '刚刚',
+            'icon': 'sign-in-alt'
+        },
+        {
+            'title': '查看个人资料',
+            'time': '1小时前',
+            'icon': 'user'
+        },
+        {
+            'title': '更新联系方式',
+            'time': '2天前',
+            'icon': 'phone'
+        }
+    ]
+    
+    return render_template('auth/profile.html', 
+                         user=current_user, 
+                         stats=stats, 
+                         recent_activities=recent_activities)
 
 @auth_profile.route('/profile/edit', methods=['GET', 'POST'])
 @login_required

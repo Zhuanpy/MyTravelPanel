@@ -35,3 +35,5 @@ ADD CONSTRAINT user_profiles_fk_20241004_162336
 FOREIGN KEY (user_id) REFERENCES auth_users(id) ON DELETE CASCADE;
 
 
+
+

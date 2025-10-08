@@ -297,12 +297,46 @@
                 </ul>
                 
                 <ul class="navbar-nav">
+                    {% if current_user.is_authenticated %}
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" id="memberMenu" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <span class="rounded-circle bg-white text-primary d-inline-flex justify-content-center align-items-center me-2" style="width:28px;height:28px;font-weight:600;">
+                                {% if current_user.profile and current_user.profile.first_name %}
+                                    {{ current_user.profile.first_name[0]|upper }}
+                                {% else %}
+                                    <i class="fas fa-user"></i>
+                                {% endif %}
+                            </span>
+                            {% if current_user.profile and current_user.profile.first_name %}
+                                {{ current_user.profile.first_name }}
+                            {% else %}
+                                {{ current_user.email }}
+                            {% endif %}
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="memberMenu">
+                            <li class="dropdown-header">
+                                {% if current_user.profile and current_user.profile.first_name %}
+                                    {{ current_user.profile.first_name }}
+                                {% else %}
+                                    {{ current_user.email }}
+                                {% endif %}
+                            </li>
+                            <li><a class="dropdown-item" href="{{ url_for('member.orders') }}"><i class="fas fa-suitcase-rolling me-2"></i>我的订单</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('auth_profile.profile') }}"><i class="fas fa-user me-2"></i>个人资料</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{{ url_for('member.notifications') }}"><i class="fas fa-bell me-2"></i>通知中心</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('member.services') }}"><i class="fas fa-concierge-bell me-2"></i>服务中心</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{{ url_for('auth_profile.logout') }}"><i class="fas fa-sign-out-alt me-2"></i>退出登录</a></li>
+                        </ul>
+                    </li>
+                    {% else %}
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('auth_profile.member_login') }}">
                             <i class="fas fa-sign-in-alt me-1"></i>登录/注册
                         </a>
                     </li>
-                </ul>
+                    {% endif %}
                 </ul>
             </div>
         </div>

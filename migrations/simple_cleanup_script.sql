@@ -20,3 +20,5 @@ SHOW CREATE TABLE user_profiles;
 -- 然后根据结果手动删除其他表的重复约束
 
 
+
+

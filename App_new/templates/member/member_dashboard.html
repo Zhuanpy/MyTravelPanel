@@ -4,7 +4,7 @@
 
 {% block page_title %}欢迎回来，{% if current_user.profile %}{{ current_user.profile.first_name }}{% else %}{{ current_user.email }}{% endif %}{% endblock %}
 
-{% block content %}
+{% block member_content %}
 <!-- 统计卡片 -->
 <div class="row mb-4">
     <div class="col-md-3 mb-3">
