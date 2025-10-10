@@ -50,11 +50,11 @@ def request_schedule_data(flight_number):
         # 标准化航班号
         flight_number = flight_number.replace(" ", "").upper()
         # 查询数据库
-        # 简单缓存键
-        cache_key = f"schedule:{flight_number}"
-        cached = simple_cache.get(cache_key)
-        if cached is not None:
-            return cached
+        # 简单缓存键 - 已禁用缓存以保证数据实时性
+        # cache_key = f"schedule:{flight_number}"
+        # cached = simple_cache.get(cache_key)
+        # if cached is not None:
+        #     return cached
 
         schedule = FlightSchedule.query.filter_by(flight_number=flight_number).first()
         
@@ -66,7 +66,7 @@ def request_schedule_data(flight_number):
                 'schedule_city': schedule.schedule_city,
                 'schedule_timing': schedule.schedule_timing
             }
-            simple_cache.set(cache_key, result, expire_minutes=5)
+            # simple_cache.set(cache_key, result, expire_minutes=5)
             return result
         return None
     except Exception as e:

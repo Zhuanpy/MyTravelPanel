@@ -283,33 +283,14 @@
                             <li><a class="dropdown-item" href="{{ url_for('business_projects.project_create.create_header') }}">
                                 <i class="fas fa-plus me-2"></i>创建项目
                             </a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><h6 class="dropdown-header">REF管理</h6></li>
-                            <li><a class="dropdown-item" href="{{ url_for('business_projects.list.list_projects') }}">
-                                <i class="fas fa-file-alt me-2"></i>创建REF
-                                <small class="text-muted d-block">请先选择项目</small>
+                            <li><a class="dropdown-item" href="{{ url_for('business_projects.project_ref.ref_list') }}">
+                                <i class="fas fa-file-alt me-2"></i>REF列表
                             </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('business_projects.list.list_projects') }}">
-                                <i class="fas fa-plane me-2"></i>机票REF
-                                <small class="text-muted d-block">请先选择项目</small>
-                            </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('business_projects.list.list_projects') }}">
-                                <i class="fas fa-bed me-2"></i>酒店REF
-                                <small class="text-muted d-block">请先选择项目</small>
-                            </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('business_projects.list.list_projects') }}">
-                                <i class="fas fa-passport me-2"></i>签证REF
-                                <small class="text-muted d-block">请先选择项目</small>
-                            </a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><h6 class="dropdown-header">EO管理</h6></li>
                             <li><a class="dropdown-item" href="{{ url_for('business_projects.project_eo.eo_list') }}">
-                                <i class="fas fa-list-alt me-2"></i>EO列表
+                                <i class="fas fa-tasks me-2"></i>EO列表
                             </a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><h6 class="dropdown-header">项目管理</h6></li>
-                            <li><a class="dropdown-item" href="{{ url_for('business_projects.project_header.create_header') }}">
-                                <i class="fas fa-edit me-2"></i>编辑HID
+                            <li><a class="dropdown-item" href="{{ url_for('business_projects.project_receipt.receipt_list') }}">
+                                <i class="fas fa-receipt me-2"></i>收据列表
                             </a></li>
                         </ul>
                     </li>
@@ -321,42 +302,23 @@
                             <li><a class="dropdown-item" href="{{ url_for('visa_basic.visa_home') }}">
                                 <i class="fas fa-home me-2"></i>签证首页
                             </a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><h6 class="dropdown-header">项目管理</h6></li>
                             <li><a class="dropdown-item" href="{{ url_for('visa_project.show_current_all_projects') }}">
-                                <i class="fas fa-list me-2"></i>项目列表
+                                <i class="fas fa-list me-2"></i>签证项目
                             </a></li>
                             <li><a class="dropdown-item" href="{{ url_for('visa_project.visa_processing', visa_type='all') }}">
                                 <i class="fas fa-cogs me-2"></i>项目处理
                             </a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><h6 class="dropdown-header">类型管理</h6></li>
                             <li><a class="dropdown-item" href="{{ url_for('visa_basic.visa_type_list') }}">
-                                <i class="fas fa-tags me-2"></i>签证类型列表
+                                <i class="fas fa-tags me-2"></i>类型管理
                             </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('visa_basic.add_visa_type') }}">
-                                <i class="fas fa-plus me-2"></i>添加签证类型
-                            </a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><h6 class="dropdown-header">文档管理</h6></li>
                             <li><a class="dropdown-item" href="{{ url_for('visa_basic.visa_type_document_manager') }}">
-                                <i class="fas fa-file-alt me-2"></i>文档管理器
+                                <i class="fas fa-file-alt me-2"></i>文档管理
                             </a></li>
                             <li><a class="dropdown-item" href="{{ url_for('visa_basic.visa_template_manager') }}">
-                                <i class="fas fa-file-code me-2"></i>模板管理器
+                                <i class="fas fa-file-code me-2"></i>模板管理
                             </a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><h6 class="dropdown-header">基础管理</h6></li>
-                            <li><a class="dropdown-item" href="{{ url_for('visa_basic.manage_countries') }}">
-                                <i class="fas fa-globe me-2"></i>管理国家信息
-                            </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('visa_basic.manage_identities') }}">
-                                <i class="fas fa-users me-2"></i>管理身份信息
-                            </a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><h6 class="dropdown-header">统计分析</h6></li>
                             <li><a class="dropdown-item" href="{{ url_for('visa_basic.universal_visit_stats') }}">
-                                <i class="fas fa-chart-line me-2"></i>产品访问统计
+                                <i class="fas fa-chart-line me-2"></i>访问统计
                             </a></li>
                         </ul>
                     </li>
@@ -687,6 +649,13 @@
                                 预算管理
                             </a>
                         </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint.startswith('tour_projects') %}active{% endif %}" 
+                               href="{{ url_for('tour_projects.manage_tour_projects') }}">
+                                <i class="fas fa-suitcase me-2"></i>
+                                旅游项目
+                            </a>
+                        </li>
                         
                         <!-- 项目管理分组 -->
                         <li class="nav-item mt-3">
@@ -702,24 +671,31 @@
                             </a>
                         </li>
                         <li class="nav-item">
-                                                        <a class="nav-link {% if request.endpoint == 'business_projects.create_project' %}active{% endif %}"
+                            <a class="nav-link {% if request.endpoint == 'business_projects.create_project' %}active{% endif %}"
                                href="{{ url_for('business_projects.project_create.create_header') }}">
                                 <i class="fas fa-plus me-2"></i>
                                 创建项目
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link {% if request.endpoint.startswith('visa_project') %}active{% endif %}" 
-                               href="{{ url_for('visa_project.show_current_all_projects') }}">
-                                <i class="fas fa-passport me-2"></i>
-                                签证项目
+                            <a class="nav-link {% if request.endpoint == 'business_projects.project_ref.ref_list' %}active{% endif %}" 
+                               href="{{ url_for('business_projects.project_ref.ref_list') }}">
+                                <i class="fas fa-file-alt me-2"></i>
+                                REF列表
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link {% if request.endpoint.startswith('tour_projects') %}active{% endif %}" 
-                               href="{{ url_for('tour_projects.manage_tour_projects') }}">
-                                <i class="fas fa-suitcase me-2"></i>
-                                旅游项目
+                            <a class="nav-link {% if request.endpoint == 'business_projects.project_eo.eo_list' %}active{% endif %}" 
+                               href="{{ url_for('business_projects.project_eo.eo_list') }}">
+                                <i class="fas fa-tasks me-2"></i>
+                                EO列表
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint == 'business_projects.project_receipt.receipt_list' %}active{% endif %}" 
+                               href="{{ url_for('business_projects.project_receipt.receipt_list') }}">
+                                <i class="fas fa-receipt me-2"></i>
+                                收据列表
                             </a>
                         </li>
                         
@@ -728,12 +704,6 @@
                             <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted">
                                 <span><i class="fas fa-bolt me-2"></i>快速操作</span>
                             </h6>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('business_projects.project_create.create_header') }}">
-                                <i class="fas fa-plus me-2"></i>
-                                新建项目
-                            </a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link" href="{{ url_for('staff.create_quote') }}">
