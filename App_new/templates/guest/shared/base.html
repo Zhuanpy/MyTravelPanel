@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{% block title %}悦行假期 - 专业旅游服务平台{% endblock %}</title>
     
     <!-- CSS -->
@@ -321,7 +322,7 @@
                                     {{ current_user.email }}
                                 {% endif %}
                             </li>
-                            <li><a class="dropdown-item" href="{{ url_for('member.orders') }}"><i class="fas fa-suitcase-rolling me-2"></i>我的订单</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('orders.list') }}"><i class="fas fa-suitcase-rolling me-2"></i>我的订单</a></li>
                             <li><a class="dropdown-item" href="{{ url_for('auth_profile.profile') }}"><i class="fas fa-user me-2"></i>个人资料</a></li>
                             <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item" href="{{ url_for('member.notifications') }}"><i class="fas fa-bell me-2"></i>通知中心</a></li>

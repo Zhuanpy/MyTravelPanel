@@ -393,7 +393,7 @@ def generate_form_for_project(project_id):
         project_name = f"{project.visa_type}_{project.hid_or_serial}_{project.applicant_name}"
         visa_folder = f"{project_name}_{project.singapore_status}"
         from App_new.config import Config
-        static_path = Config.PROJECT_ROOT / "App" / "static"
+        static_path = Config.PROJECT_ROOT / "App_new" / "static"
         
         # 检查项目文件夹是否存在
         visa_project_path = Config.VISA_PROJECTS_PATH

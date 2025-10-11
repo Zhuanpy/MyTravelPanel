@@ -132,17 +132,17 @@
                         <tbody>
                             {% for order in recent_orders %}
                             <tr>
-                                <td data-label="订单号">#{{ order.id }}</td>
+                                <td data-label="订单号">{{ order.order_number }}</td>
                                 <td data-label="服务类型">{{ order.service_type }}</td>
-                                <td data-label="金额">SGD {{ order.amount }}</td>
+                                <td data-label="金额">{{ order.currency }} {{ "%.2f"|format(order.total_amount) }}</td>
                                 <td data-label="状态">
-                                    <span class="status-badge status-{{ order.status }}">
-                                        {{ order.status_text }}
+                                    <span class="badge bg-{{ order.status_color }}">
+                                        {{ order.status_display }}
                                     </span>
                                 </td>
                                 <td data-label="日期">{{ order.created_at.strftime('%Y-%m-%d') }}</td>
                                 <td data-label="操作">
-                                    <a href="{{ url_for('member.order_detail', order_id=order.id) }}" 
+                                    <a href="{{ url_for('orders.order_detail', order_id=order.id) }}" 
                                        class="btn btn-sm btn-outline-primary btn-action">
                                         查看
                                     </a>
@@ -153,7 +153,7 @@
                     </table>
                 </div>
                 <div class="text-center mt-3">
-                    <a href="{{ url_for('member.orders') }}" class="btn btn-primary btn-action">
+                    <a href="{{ url_for('orders.list') }}" class="btn btn-primary btn-action">
                         查看全部订单 <i class="fas fa-arrow-right ms-1"></i>
                     </a>
                 </div>

@@ -203,7 +203,7 @@ class VisasUtils:
         :param visa_folder: 项目文件夹夹名称
         :param static_path: 数据 flask 项目 static 文件夹路径，其它资源文件通过此文件夹找
         """
-        from App.config import Config
+        from App_new.config import Config
         visa_project_path = Config.VISA_PROJECTS_PATH
 
         form_path = os.path.join(visa_project_path, visa_folder)
@@ -212,7 +212,7 @@ class VisasUtils:
         """检查路径是否存在，如果不存在则创建它。"""
         os.makedirs(form_temp_path, exist_ok=True)
 
-        from App.config import Config
+        from App_new.config import Config
         source_path = os.path.join(Config.PROJECT_ROOT, "资源", "签证", "韩国签证", "source")  # 韩国签证 图片文件和坐标文件路径
 
         # 检查源路径是否存在

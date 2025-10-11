@@ -659,7 +659,7 @@ def update_airport():
 @flight_blue.route('/flight_home')
 def flight_home():
     """机票首页路由"""
-    return render_template('flights/机票首页.html')
+    return render_template('business/flight/flight_home.html')
 
 @flight_blue.route('/flight_orders')
 def flight_orders():

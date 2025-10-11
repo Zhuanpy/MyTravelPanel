@@ -1151,7 +1151,7 @@ def visa_home():
             visas_by_country[country_name] = []
         visas_by_country[country_name].append(visa)
     
-    return render_template('business/visa/签证首页.html', 
+    return render_template('business/visa/visa_home.html', 
                          visa_categories=visa_categories,
                          visas_by_country=visas_by_country)
 

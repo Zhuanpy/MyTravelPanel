@@ -101,7 +101,9 @@ def create_app():
     from .admin.routes.admin import admin
     app.register_blueprint(admin)
     from .member.routes.member import member
+    from .member.routes.orders import orders_bp
     app.register_blueprint(member)
+    app.register_blueprint(orders_bp)
     from .staff.routes.staff import staff
     app.register_blueprint(staff)
 

@@ -8,39 +8,11 @@
 <!-- FontAwesome 6.5.0 -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" integrity="sha512-Avb2QiuDEEvB4bZJYdft2mNjVShBftLdPG8FJ0V7irTLQ8Uo0qcPxh4Plq7G5tGm0rU+1SPhVotteLpBERwTkw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
 
+<!-- 引入共享首页样式 -->
+<link rel="stylesheet" href="{{ url_for('static', filename='css/home_common.css') }}">
+
 <style>
-/* 参考 public/visa-services 的样式 */
-.visa-country-card {
-    background: linear-gradient(135deg, #f8f9fa, #e9ecef);
-    border: 2px solid transparent;
-    transition: all 0.3s ease;
-    border-radius: 10px;
-    overflow: hidden;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-    min-height: 100%;
-}
-
-.visa-country-card:hover {
-    border-color: #007bff;
-    background: linear-gradient(135deg, #e3f2fd, #bbdefb);
-    transform: translateY(-5px);
-    box-shadow: 0 5px 20px rgba(0,0,0,0.15);
-}
-
-.search-box {
-    background: white;
-    border-radius: 25px;
-    padding: 0.5rem 1rem;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-    border: 2px solid transparent;
-    transition: all 0.3s ease;
-}
-
-.search-box:focus {
-    border-color: #007bff;
-    box-shadow: 0 2px 15px rgba(0,123,255,0.3);
-}
-
+/* 签证页面额外的特殊样式 */
 .btn {
     border-radius: 25px;
     font-weight: 500;
@@ -58,235 +30,69 @@
     transform: translateY(-2px);
 }
 
-.btn-outline-primary {
-    border-radius: 25px;
-    font-weight: 500;
-    padding: 0.5rem 1.5rem;
-    transition: all 0.3s ease;
-}
-
 .badge {
     border-radius: 15px;
     padding: 0.5rem 1rem;
     font-weight: 500;
-}
-
-.modal {
-    display: none;
-    position: fixed;
-    z-index: 1000;
-    left: 0;
-    top: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0,0,0,0.5);
-}
-
-.modal-content {
-    background-color: #fefefe;
-    margin: 5% auto;
-    padding: 0;
-    border-radius: 15px;
-    width: 90%;
-    max-width: 600px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-    overflow: hidden;
-}
-
-.modal-header {
-    background: linear-gradient(135deg, #007bff, #0056b3);
-    color: white;
-    padding: 1rem 1.5rem;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.modal-title {
-    margin: 0;
-    font-size: 1.25rem;
-    font-weight: 600;
-}
-
-.close-modal {
-    background: none;
-    border: none;
-    color: white;
-    font-size: 1.5rem;
-    cursor: pointer;
-    padding: 0;
-    width: 30px;
-    height: 30px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.close-modal:hover {
-    opacity: 0.7;
-}
-
-.modal-body {
-    padding: 1.5rem;
-}
-
-.visa-list {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-}
-
-.visa-item {
-    border: 1px solid #e9ecef;
-    border-radius: 10px;
-    padding: 1rem;
-    background: white;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-}
-
-.visa-item-header {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    margin-bottom: 0.5rem;
-}
-
-.visa-item-title {
-    margin: 0;
-    font-size: 1.1rem;
-    font-weight: 600;
-    color: #333;
-}
-
-.visa-item-info {
-    margin-bottom: 1rem;
-}
-
-.visa-item-info-row {
-    display: flex;
-    justify-content: space-between;
-    margin-bottom: 0.25rem;
-}
-
-.visa-item-label {
-    font-weight: 500;
-    color: #666;
-}
-
-.visa-item-value {
-    color: #333;
-}
-
-.visa-item-actions {
-    display: flex;
-    gap: 0.5rem;
-}
-
-.visa-btn {
-    padding: 0.5rem 1rem;
-    border-radius: 5px;
-    text-decoration: none;
-    font-size: 0.9rem;
-    font-weight: 500;
-    transition: all 0.3s ease;
-    border: none;
-    cursor: pointer;
-}
-
-.visa-btn-primary {
-    background: #007bff;
-    color: white;
-}
-
-.visa-btn-primary:hover {
-    background: #0056b3;
-    color: white;
-}
-
-.visa-btn-secondary {
-    background: #6c757d;
-    color: white;
-}
-
-.visa-btn-secondary:hover {
-    background: #545b62;
-    color: white;
-}
-
-.visa-btn-info {
-    background: #17a2b8;
-    color: white;
-}
-
-.visa-btn-info:hover {
-    background: #138496;
-    color: white;
 }
 </style>
 
 {% endblock %}
 
 {% block content %}
-<!-- 页面标题 -->
-<section class="py-4 bg-light">
-    <div class="container">
-        <div class="row">
-            <div class="col-12">
-                <h1 class="fw-bold mb-2">
-                    <i class="fas fa-passport text-primary me-3"></i>签证管理
-                </h1>
-                <p class="text-muted">选择国家查看可办理的签证类型</p>
-            </div>
-        </div>
-    </div>
-</section>
-
-<!-- 管理功能链接 -->
-<section class="py-3 bg-white border-bottom">
-    <div class="container">
-        <div class="row">
-            <div class="col-12">
-                <div class="d-flex flex-wrap gap-2 justify-content-center">
-                    <a href="{{ url_for('visa_project.show_current_all_projects') }}" class="btn btn-outline-primary btn-sm">
-                        <i class="fas fa-project-diagram me-1"></i> 项目管理
-                    </a>
-                    <a href="{{ url_for('visa_documents_list.documents_list') }}" class="btn btn-outline-primary btn-sm">
-                        <i class="fas fa-database me-1"></i> 文档资料管理
-                    </a>
-                    <a href="{{ url_for('visa_basic.visa_type_document_manager') }}" class="btn btn-outline-primary btn-sm">
-                        <i class="fas fa-cogs me-1"></i> 签证文档配置
-                    </a>
-                    <a href="{{ url_for('visa_links.visa_link_page') }}" class="btn btn-outline-primary btn-sm">
-                        <i class="fas fa-link me-1"></i> 签证链接管理
-                    </a>
-                    <a href="{{ url_for('visa_basic.visa_type_management') }}" class="btn btn-outline-primary btn-sm">
-                        <i class="fas fa-plus me-1"></i> 签证类型管理
-                    </a>
-                    <a href="{{ url_for('visa_basic.manage_identities') }}" class="btn btn-outline-primary btn-sm">
-                        <i class="fas fa-user me-1"></i> 新加坡身份管理
-                    </a>
-                    <a href="{{ url_for('visa_basic.manage_countries') }}" class="btn btn-outline-primary btn-sm">
-                        <i class="fas fa-flag me-1"></i> 签证国家管理
-                    </a>
-                    <a href="{{ url_for('visa_basic.visa_document_relations_manager') }}" class="btn btn-outline-primary btn-sm">
-                        <i class="fas fa-link me-1"></i> 文档关联管理
-                    </a>
-                    <a href="javascript:void(0);" onclick="openVisaRootFolder()" class="btn btn-outline-primary btn-sm">
-                        <i class="fas fa-folder me-1"></i> 资源文件夹
-                    </a>
-                </div>
-            </div>
+<!-- 快速操作 -->
+<section class="quick-actions-section" style="margin-bottom: 2rem;">
+    <div class="home-container">
+        <h2 class="quick-actions-title">
+            <i class="fas fa-bolt"></i> 快速操作
+        </h2>
+        
+        <div class="quick-actions-grid">
+            <!-- 核心业务 -->
+            <a href="{{ url_for('visa_project.show_current_all_projects') }}" class="quick-action-btn btn-blue">
+                <i class="fas fa-project-diagram"></i> 项目管理
+            </a>
+            <a href="{{ url_for('visa_documents_list.documents_list') }}" class="quick-action-btn btn-purple">
+                <i class="fas fa-database"></i> 文档资料管理
+            </a>
+            
+            <!-- 基础配置 -->
+            <a href="{{ url_for('visa_basic.visa_type_management') }}" class="quick-action-btn btn-green">
+                <i class="fas fa-list"></i> 签证类型管理
+            </a>
+            <a href="{{ url_for('visa_basic.manage_countries') }}" class="quick-action-btn btn-indigo">
+                <i class="fas fa-flag"></i> 签证国家管理
+            </a>
+            <a href="{{ url_for('visa_basic.manage_identities') }}" class="quick-action-btn btn-yellow">
+                <i class="fas fa-id-card"></i> 新加坡身份管理
+            </a>
+            
+            <!-- 关联配置 -->
+            <a href="{{ url_for('visa_basic.visa_type_document_manager') }}" class="quick-action-btn btn-blue">
+                <i class="fas fa-file-alt"></i> 签证文档配置
+            </a>
+            <a href="{{ url_for('visa_basic.visa_document_relations_manager') }}" class="quick-action-btn btn-purple">
+                <i class="fas fa-sitemap"></i> 文档关联管理
+            </a>
+            <a href="{{ url_for('visa_links.visa_link_page') }}" class="quick-action-btn btn-green">
+                <i class="fas fa-external-link-alt"></i> 签证链接管理
+            </a>
+            
+            <!-- 资源管理 -->
+            <a href="javascript:void(0);" onclick="openVisaRootFolder()" class="quick-action-btn btn-red">
+                <i class="fas fa-folder"></i> 资源文件夹
+            </a>
         </div>
     </div>
 </section>
 
 <!-- 搜索框 -->
-<section class="py-4">
+<section class="visa-search-section">
     <div class="container">
         <div class="row justify-content-center">
             <div class="col-lg-6">
                 <div class="input-group">
-                    <input type="text" class="form-control search-box" id="searchCountry" 
+                    <input type="text" class="form-control visa-search-box" id="searchCountry" 
                            placeholder="搜索国家或签证类型...">
                     <button class="btn btn-primary" type="button" id="searchBtn">
                         <i class="fas fa-search"></i> 搜索
@@ -367,13 +173,13 @@
 </section>
 
 <!-- Visa Modal -->
-<div id="visaModal" class="modal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h2 class="modal-title" id="modalTitle"></h2>
-            <button class="close-modal" onclick="closeVisaModal()">&times;</button>
+<div id="visaModal" class="visa-modal">
+    <div class="visa-modal-content">
+        <div class="visa-modal-header">
+            <h2 class="visa-modal-title" id="modalTitle"></h2>
+            <button class="visa-modal-close" onclick="closeVisaModal()">&times;</button>
         </div>
-        <div class="modal-body">
+        <div class="visa-modal-body">
             <div id="visaList" class="visa-list"></div>
         </div>
     </div>
@@ -453,13 +259,13 @@
                     </div>
                 </div>
                 <div class="visa-item-actions">
-                    <a href="{{ url_for('visa_project.visa_processing', visa_type='') }}${encodeURIComponent(visaTypes[i] || '')}" class="visa-btn visa-btn-primary">
+                    <a href="{{ url_for('visa_project.visa_processing', visa_type='') }}${encodeURIComponent(visaTypes[i] || '')}" class="visa-btn visa-btn-action-primary">
                         开始处理
                     </a>
-                    <a href="{{ url_for('visa_basic.visa_intro', visa_type='') }}${encodeURIComponent(visaTypes[i] || '')}" class="visa-btn visa-btn-secondary" style="background: #718096; color: white; margin-left: 8px;">
+                    <a href="{{ url_for('visa_basic.visa_intro', visa_type='') }}${encodeURIComponent(visaTypes[i] || '')}" class="visa-btn visa-btn-action-secondary">
                         签证介绍
                     </a>
-                    <a href="{{ url_for('visa_basic.visa_type_detail', visa_type='') }}${encodeURIComponent(visaTypes[i] || '')}" class="visa-btn visa-btn-info" style="background: #17a2b8; color: white; margin-left: 8px;">
+                    <a href="{{ url_for('visa_basic.visa_type_detail', visa_type='') }}${encodeURIComponent(visaTypes[i] || '')}" class="visa-btn visa-btn-action-info">
                         签证详细
                     </a>
                 </div>
@@ -580,3 +386,4 @@
     });
 </script>
 {% endblock %}
+

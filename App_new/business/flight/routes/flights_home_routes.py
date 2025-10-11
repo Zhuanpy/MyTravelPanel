@@ -93,7 +93,7 @@ def input_flight_schedule_info():
 @staff_only
 def flight_home_page():
     """机票模块首页"""
-    return render_template('business/flight/机票首页.html')
+    return render_template('business/flight/flight_home.html')
 
 @flight_home.route('/search_flights', methods=['GET'])
 @login_required

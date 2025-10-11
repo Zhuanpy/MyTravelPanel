@@ -1,0 +1,1410 @@
+{% extends "staff_base.html" %}
+
+
+
+{% block page_title %}Visa Type Detail{% endblock %}
+
+
+
+{% block extra_css %}
+<!-- FontAwesome 6.5.0 -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" integrity="sha512-Avb2QiuDEEvB4bZJYdft2mNjVShBftLdPG8FJ0V7irTLQ8Uo0qcPxh4Plq7G5tGm0rU+1SPhVotteLpBERwTkw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+<style>
+    /* ========= 全局变量定义 ========= */
+    :root {
+        --color-primary: #2a5298;
+        --color-primary-hover: #1a365d;
+        --color-accent: #3a6ea5;
+        --color-accent-bg: #eaf1fb;
+        --color-accent-bg-hover: #d2e6fa;
+        --color-text-dark: #2d3a4b;
+        --color-text-gray: #6c7a89;
+        --color-border: #e2e8f0;
+        --color-light-bg: #f8f9fa;
+        --color-success: #10b981;
+        --color-warning: #f59e0b;
+        --color-danger: #ef4444;
+        --radius: 8px;
+        --radius-lg: 12px;
+        --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+        --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.1);
+        --shadow-lg: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    /* ========= 基础容器 ========= */
+    .detail-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+
+    /* ========= 页面头部 ========= */
+    .detail-header {
+        background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+        padding: 2rem;
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-md);
+        margin-bottom: 2rem;
+        position: relative;
+        border: 1px solid var(--color-border);
+    }
+
+    .header-content {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .header-info h1 {
+        font-size: 2rem;
+        font-weight: 800;
+        color: var(--color-text-dark);
+        margin-bottom: 0.5rem;
+    }
+
+    .header-info .country {
+        font-size: 1.1rem;
+        color: var(--color-text-gray);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .header-actions {
+        display: flex;
+        gap: 1rem;
+    }
+
+    .action-button {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.75rem 1.5rem;
+        border-radius: var(--radius);
+        text-decoration: none;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        border: none;
+        cursor: pointer;
+    }
+
+    .action-button.primary {
+        background: var(--color-primary);
+        color: white;
+    }
+
+    .action-button.primary:hover {
+        background: var(--color-primary-hover);
+        transform: translateY(-2px);
+    }
+
+    .action-button.secondary {
+        background: var(--color-accent-bg);
+        color: var(--color-primary);
+        border: 1px solid var(--color-border);
+    }
+
+    .action-button.secondary:hover {
+        background: var(--color-accent-bg-hover);
+        transform: translateY(-2px);
+    }
+
+    .action-button.back {
+        background: var(--color-text-gray);
+        color: white;
+    }
+
+    .action-button.back:hover {
+        background: #4b5563;
+        transform: translateY(-2px);
+    }
+
+    .action-button.template {
+        background: var(--color-warning);
+        color: white;
+        border: none;
+        cursor: pointer;
+    }
+
+    .action-button.template:hover {
+        background: #d97706;
+        transform: translateY(-2px);
+    }
+
+    .action-button.sort {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        color: white;
+        border: none;
+        cursor: pointer;
+    }
+
+    .action-button.sort:hover {
+        background: linear-gradient(135deg, #059669 0%, #047857 100%);
+        transform: translateY(-2px);
+    }
+
+    /* ========= 信息卡片网格 ========= */
+    .info-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 2rem;
+        margin-bottom: 2rem;
+    }
+
+    .info-card {
+        background: white;
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-md);
+        padding: 1.5rem;
+        border: 1px solid var(--color-border);
+    }
+
+    .card-header {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-bottom: 1rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 1px solid var(--color-border);
+    }
+
+    .card-icon {
+        width: 40px;
+        height: 40px;
+        background: linear-gradient(135deg, var(--color-primary), var(--color-accent));
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 1.1rem;
+    }
+
+    .card-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: var(--color-text-dark);
+    }
+
+    .info-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    .info-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.75rem 0;
+        border-bottom: 1px solid #f1f5f9;
+    }
+
+    .info-item:last-child {
+        border-bottom: none;
+    }
+
+    .info-label {
+        color: var(--color-text-gray);
+        font-weight: 500;
+    }
+
+    .info-value {
+        color: var(--color-text-dark);
+        font-weight: 600;
+        text-align: right;
+    }
+
+    .identity-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    .identity-tag {
+        background: var(--color-accent-bg);
+        color: var(--color-primary);
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.9rem;
+        font-weight: 500;
+        border: 1px solid var(--color-border);
+    }
+
+    /* ========= 文档配置区域 ========= */
+    .documents-section {
+        background: white;
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-md);
+        padding: 2rem;
+        margin-bottom: 2rem;
+        border: 1px solid var(--color-border);
+    }
+
+    .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+        padding-bottom: 1rem;
+        border-bottom: 2px solid var(--color-primary);
+    }
+
+    .section-title {
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: var(--color-text-dark);
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .identity-tabs {
+        display: flex;
+        gap: 0.5rem;
+        margin-bottom: 1.5rem;
+        border-bottom: 1px solid var(--color-border);
+        overflow-x: auto;
+    }
+
+    .identity-tab {
+        padding: 0.75rem 1.5rem;
+        border: none;
+        background: none;
+        cursor: pointer;
+        font-weight: 500;
+        color: var(--color-text-gray);
+        border-bottom: 2px solid transparent;
+        transition: all 0.2s ease;
+        white-space: nowrap;
+    }
+
+    .identity-tab.active {
+        color: var(--color-primary);
+        border-bottom-color: var(--color-primary);
+        background: var(--color-accent-bg);
+    }
+
+    .identity-tab:hover {
+        color: var(--color-primary);
+        background: var(--color-accent-bg);
+    }
+
+    .documents-content {
+        min-height: 200px;
+    }
+
+    .documents-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    .document-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1rem;
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius);
+        margin-bottom: 0.75rem;
+        background: var(--color-light-bg);
+    }
+
+    .document-info {
+        flex: 1;
+    }
+
+    .document-name {
+        font-weight: 600;
+        color: var(--color-text-dark);
+        margin-bottom: 0.25rem;
+    }
+
+    .document-details {
+        font-size: 0.9rem;
+        color: var(--color-text-gray);
+    }
+
+    .document-responsible {
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 500;
+    }
+
+    .document-responsible.applicant {
+        background: #dcfce7;
+        color: #166534;
+    }
+
+    .document-responsible.agent {
+        background: #dbeafe;
+        color: #1e40af;
+    }
+
+    /* ========= 模板文件区域 ========= */
+    .templates-section {
+        background: white;
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-md);
+        padding: 2rem;
+        margin-bottom: 2rem;
+        border: 1px solid var(--color-border);
+    }
+
+    .template-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+        gap: 1rem;
+    }
+
+    .template-card {
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius);
+        padding: 1rem;
+        background: var(--color-light-bg);
+        transition: all 0.2s ease;
+    }
+
+    .template-card:hover {
+        border-color: var(--color-primary);
+        box-shadow: var(--shadow-md);
+    }
+
+    .template-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 0.75rem;
+    }
+
+    .template-name {
+        font-weight: 600;
+        color: var(--color-text-dark);
+        font-size: 0.95rem;
+    }
+
+    .template-type {
+        background: var(--color-primary);
+        color: white;
+        padding: 0.2rem 0.5rem;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        font-weight: 500;
+    }
+
+    .template-info {
+        font-size: 0.85rem;
+        color: var(--color-text-gray);
+        margin-bottom: 0.75rem;
+    }
+
+    .template-actions {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .template-action {
+        padding: 0.25rem 0.5rem;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.8rem;
+        transition: all 0.2s ease;
+    }
+
+    .template-action.download {
+        background: var(--color-success);
+        color: white;
+    }
+
+    .template-action.download:hover {
+        background: #059669;
+    }
+
+    /* ========= 统计信息 ========= */
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .stat-card {
+        background: white;
+        border-radius: var(--radius);
+        padding: 1.5rem;
+        text-align: center;
+        box-shadow: var(--shadow-sm);
+        border: 1px solid var(--color-border);
+    }
+
+    .stat-number {
+        font-size: 2rem;
+        font-weight: 800;
+        color: var(--color-primary);
+        margin-bottom: 0.5rem;
+    }
+
+    .stat-label {
+        color: var(--color-text-gray);
+        font-weight: 500;
+    }
+
+    /* ========= 文档排序样式 ========= */
+    .sortable-document-list {
+        margin-top: 1rem;
+    }
+    
+    .sortable-item {
+        transition: all 0.2s ease;
+    }
+    
+    .sortable-item:hover {
+        transform: translateY(-1px);
+        box-shadow: var(--shadow-md);
+    }
+    
+    .sortable-item.dragging {
+        opacity: 0.5;
+        transform: rotate(2deg);
+    }
+    
+    .sortable-list {
+        min-height: 100px;
+    }
+    
+    .sortable-item:last-child {
+        margin-bottom: 0;
+    }
+    
+    .document-header {
+        border-bottom: 1px solid var(--color-border);
+        padding-bottom: 0.5rem;
+    }
+
+    /* ========= 响应式设计 ========= */
+    @media (max-width: 768px) {
+        .header-content {
+            flex-direction: column;
+            gap: 1rem;
+            text-align: center;
+        }
+
+        .header-actions {
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .info-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .identity-tabs {
+            flex-wrap: wrap;
+        }
+
+        .template-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .stats-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+
+    /* ========= 加载状态 ========= */
+    .loading {
+        text-align: center;
+        padding: 2rem;
+        color: var(--color-text-gray);
+    }
+
+    .loading i {
+        font-size: 2rem;
+        margin-bottom: 1rem;
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="detail-container">
+    <!-- 页面头部 -->
+    <div class="detail-header">
+        <div class="header-content">
+            <div class="header-info">
+                <h1>{{ visa_type.visa_type }}</h1>
+                <div class="country">
+                    <i class="fas fa-flag"></i>
+                    {{ visa_type.country.country_name_CN }}
+                </div>
+            </div>
+            <div class="header-actions">
+                <button onclick="openTemplateModal()" class="action-button template">
+                    <i class="fas fa-copy"></i>
+                    套用模板
+                </button>
+                <a href="{{ url_for('visa_basic.visa_type_document_manager') }}?visa_type={{ visa_type.visa_type }}" class="action-button primary">
+                    <i class="fas fa-cogs"></i>
+                    配置文档
+                </a>
+                <a href="{{ url_for('visa_basic.visa_template_manager') }}?visa_type={{ visa_type.visa_type }}" class="action-button secondary">
+                    <i class="fas fa-file-upload"></i>
+                    管理模板
+                </a>
+                <a href="{{ url_for('visa_basic.visa_type_list') }}" class="action-button back">
+                    <i class="fas fa-arrow-left"></i>
+                    返回列表
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- 统计信息 -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-number">{{ document_stats.total_documents }}</div>
+            <div class="stat-label">配置文档</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number">{{ template_stats.total_templates }}</div>
+            <div class="stat-label">模板文件</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number">{{ visa_type.actual_identities|length }}</div>
+            <div class="stat-label">适用身份</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number">{{ project_stats.total_projects }}</div>
+            <div class="stat-label">相关项目</div>
+        </div>
+    </div>
+
+    <!-- 基本信息 -->
+    <div class="info-grid">
+        <div class="info-card">
+            <div class="card-header">
+                <div class="card-icon">
+                    <i class="fas fa-info-circle"></i>
+                </div>
+                <h3 class="card-title">基本信息</h3>
+            </div>
+            <ul class="info-list">
+                <li class="info-item">
+                    <span class="info-label">签证类型</span>
+                    <span class="info-value">{{ visa_type.visa_type }}</span>
+                </li>
+                <li class="info-item">
+                    <span class="info-label">所属国家</span>
+                    <span class="info-value">{{ visa_type.country.country_name_CN }}</span>
+                </li>
+                <li class="info-item">
+                    <span class="info-label">申请费用</span>
+                    <span class="info-value">{{ visa_type.fee }}</span>
+                </li>
+                <li class="info-item">
+                    <span class="info-label">处理时间</span>
+                    <span class="info-value">{{ visa_type.processing_time }}</span>
+                </li>
+            </ul>
+        </div>
+
+        <div class="info-card">
+            <div class="card-header">
+                <div class="card-icon">
+                    <i class="fas fa-users"></i>
+                </div>
+                <h3 class="card-title">适用身份</h3>
+            </div>
+            <div class="identity-tags">
+                {% for identity in visa_type.actual_identities %}
+                    <span class="identity-tag">{{ identity }}</span>
+                {% else %}
+                    <span class="identity-tag" style="color: var(--color-text-gray);">无配置身份</span>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="info-card">
+            <div class="card-header">
+                <div class="card-icon">
+                    <i class="fas fa-link"></i>
+                </div>
+                <h3 class="card-title">相关链接</h3>
+            </div>
+            <ul class="info-list">
+                {% if visa_type.links %}
+                    {% for link in visa_type.links %}
+                    <li class="info-item">
+                        <span class="info-label">{{ link.name }}</span>
+                        <span class="info-value">
+                            <a href="{{ link.link }}" target="_blank" style="color: var(--color-primary); text-decoration: none;">
+                                <i class="fas fa-external-link-alt"></i>
+                            </a>
+                        </span>
+                    </li>
+                    {% endfor %}
+                {% else %}
+                    <li class="info-item">
+                        <span class="info-label">相关链接</span>
+                        <span class="info-value" style="color: var(--color-text-gray);">暂无</span>
+                    </li>
+                {% endif %}
+            </ul>
+        </div>
+    </div>
+
+    <!-- 文档配置 -->
+    <div class="documents-section">
+        <div class="section-header">
+            <h3 class="section-title">
+                <i class="fas fa-file-alt"></i>
+                文档配置
+            </h3>
+            <a href="{{ url_for('visa_basic.visa_type_document_manager') }}?visa_type={{ visa_type.visa_type }}" class="action-button secondary">
+                <i class="fas fa-edit"></i>
+                编辑配置
+            </a>
+        </div>
+
+        <div class="identity-tabs">
+            <button class="identity-tab active" onclick="showDocuments('share')">共用资料</button>
+            {% for identity in visa_type.actual_identities %}
+                <button class="identity-tab" onclick="showDocuments('{{ identity }}')">{{ identity }}</button>
+            {% endfor %}
+            <button class="identity-tab" onclick="showDocuments('additional')">
+                <i class="fas fa-info-circle"></i> 补充信息
+            </button>
+        </div>
+
+        <div class="documents-content">
+            <div id="documents-share" class="documents-list">
+                {% if document_data.SHARE and document_data.SHARE.document_info %}
+                    <div class="document-info-display">
+                        <div class="document-header" style="margin-bottom: 1rem;">
+                            <h5 style="margin: 0; color: var(--color-text-dark);">申请人准备资料</h5>
+                        </div>
+                        <div id="document-list-share" class="sortable-document-list">
+                            <!-- 文档列表将通过JavaScript动态加载 -->
+                        </div>
+                        <div id="document-display-share" class="document-info-display" style="display: none;">
+                            <pre style="white-space: pre-wrap; font-family: inherit; margin: 0; padding: 1rem; background: var(--color-light-bg); border-radius: var(--radius); border: 1px solid var(--color-border);">{{ document_data.SHARE.document_info }}</pre>
+                        </div>
+                    </div>
+                {% else %}
+                    <div class="loading" style="text-align: center; padding: 2rem; color: var(--color-text-gray);">暂无共用资料配置</div>
+                {% endif %}
+            </div>
+
+            {% for identity in visa_type.actual_identities %}
+                <div id="documents-{{ identity }}" class="documents-list" style="display: none;">
+                    {% if document_data[identity] and document_data[identity].document_info %}
+                        <div class="document-info-display">
+                            <div class="document-header" style="margin-bottom: 1rem;">
+                                <h5 style="margin: 0; color: var(--color-text-dark);">{{ identity }}身份申请人准备资料</h5>
+                            </div>
+                            <div id="document-list-{{ identity }}" class="sortable-document-list">
+                                <!-- 文档列表将通过JavaScript动态加载 -->
+                            </div>
+                            <div id="document-display-{{ identity }}" class="document-info-display" style="display: none;">
+                                <pre style="white-space: pre-wrap; font-family: inherit; margin: 0; padding: 1rem; background: var(--color-light-bg); border-radius: var(--radius); border: 1px solid var(--color-border);">{{ document_data[identity].document_info }}</pre>
+                            </div>
+                        </div>
+                    {% else %}
+                        <div class="loading" style="text-align: center; padding: 2rem; color: var(--color-text-gray);">暂无{{ identity }}身份文档配置</div>
+                    {% endif %}
+                </div>
+            {% endfor %}
+            
+            <!-- 补充信息标签页 -->
+            <div id="documents-additional" class="documents-list" style="display: none;">
+                <div class="additional-info-section">
+                    <h4 style="margin: 0 0 1rem 0; color: var(--color-text-dark); font-size: 1.1rem;">
+                        <i class="fas fa-info-circle"></i> 补充信息汇总
+                    </h4>
+                    
+                    {% set has_additional_info = false %}
+                    
+                    <!-- 共用资料补充信息 -->
+                    {% if document_data.SHARE and document_data.SHARE.additional_info and document_data.SHARE.additional_info != '暂无补充信息' %}
+                        {% set has_additional_info = true %}
+                        <div class="additional-info-card" style="margin-bottom: 1.5rem; padding: 1rem; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: var(--radius);">
+                            <h5 style="margin: 0 0 0.5rem 0; color: #856404; font-size: 1rem;">
+                                <i class="fas fa-share-alt"></i> 共用资料补充信息
+                            </h5>
+                            <pre style="white-space: pre-wrap; font-family: inherit; margin: 0; color: #856404;">{{ document_data.SHARE.additional_info }}</pre>
+                        </div>
+                    {% endif %}
+                    
+                    <!-- 各身份补充信息 -->
+                    {% for identity in visa_type.actual_identities %}
+                        {% if document_data[identity] and document_data[identity].additional_info and document_data[identity].additional_info != '暂无补充信息' %}
+                            {% set has_additional_info = true %}
+                            <div class="additional-info-card" style="margin-bottom: 1.5rem; padding: 1rem; background: #e3f2fd; border: 1px solid #bbdefb; border-radius: var(--radius);">
+                                <h5 style="margin: 0 0 0.5rem 0; color: #1976d2; font-size: 1rem;">
+                                    <i class="fas fa-user"></i> {{ identity }}补充信息
+                                </h5>
+                                <pre style="white-space: pre-wrap; font-family: inherit; margin: 0; color: #1976d2;">{{ document_data[identity].additional_info }}</pre>
+                            </div>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if not has_additional_info %}
+                        <div class="loading" style="text-align: center; padding: 2rem; color: var(--color-text-gray);">
+                            <i class="fas fa-info-circle" style="font-size: 2rem; margin-bottom: 1rem; display: block;"></i>
+                            暂无补充信息
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 模板文件 -->
+    <div class="templates-section">
+        <div class="section-header">
+            <h3 class="section-title">
+                <i class="fas fa-file-upload"></i>
+                模板文件
+            </h3>
+            <a href="{{ url_for('visa_basic.visa_template_manager') }}?visa_type={{ visa_type.visa_type|urlencode }}" class="action-button secondary">
+                <i class="fas fa-plus"></i>
+                上传模板
+            </a>
+        </div>
+
+        {% if template_files %}
+            <div class="template-grid">
+                {% for template in template_files %}
+                <div class="template-card">
+                    <div class="template-header">
+                        <div class="template-name">{{ template.template_name }}</div>
+                        <span class="template-type">{{ template.template_type }}</span>
+                    </div>
+                    <div class="template-info">
+                        <div><strong>适用身份:</strong> {{ template.identity_name }}</div>
+                        <div><strong>文件类型:</strong> {{ template.file_type.upper() }}</div>
+                        <div><strong>文件大小:</strong> {{ template.file_size|filesizeformat }}</div>
+                        {% if template.description %}
+                        <div><strong>描述:</strong> {{ template.description }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="template-actions">
+                        <button class="template-action download" data-template-id="{{ template.id }}" onclick="downloadTemplate(this.dataset.templateId)">
+                            <i class="fas fa-download"></i> 下载
+                        </button>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="loading">
+                <i class="fas fa-inbox"></i>
+                <h4>暂无模板文件</h4>
+                <p>点击"上传模板"按钮开始添加模板文件</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- 套用模板模态框 -->
+<div id="templateModal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3><i class="fas fa-copy"></i> 套用签证模板</h3>
+            <span class="close" onclick="closeTemplateModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <p>选择要套用的签证类型作为模板，系统将复制其文档配置和模板文件到当前签证类型。</p>
+            
+            <div class="template-selection">
+                <label for="templateVisaType">选择模板签证类型：</label>
+                <select id="templateVisaType" class="template-select">
+                    <option value="">请选择签证类型...</option>
+                </select>
+            </div>
+            
+            <div class="template-options">
+                <h4>套用选项：</h4>
+                <div class="option-item">
+                    <input type="checkbox" id="copyDocuments" checked>
+                    <label for="copyDocuments">复制文档配置</label>
+                </div>
+                <div class="option-item">
+                    <input type="checkbox" id="copyTemplates" checked>
+                    <label for="copyTemplates">复制模板文件</label>
+                </div>
+                <div class="option-item">
+                    <input type="checkbox" id="copyIdentities" checked>
+                    <label for="copyIdentities">复制身份配置</label>
+                </div>
+            </div>
+            
+            <div class="template-preview" id="templatePreview" style="display: none;">
+                <h4>模板预览：</h4>
+                <div id="previewContent"></div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button onclick="closeTemplateModal()" class="btn-secondary">取消</button>
+            <button onclick="applyTemplate()" class="btn-primary">套用模板</button>
+        </div>
+    </div>
+</div>
+
+<!-- 模态框样式 -->
+<style>
+    .modal {
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0,0,0,0.5);
+    }
+
+    .modal-content {
+        background-color: white;
+        margin: 5% auto;
+        padding: 0;
+        border-radius: var(--radius-lg);
+        width: 80%;
+        max-width: 600px;
+        box-shadow: var(--shadow-lg);
+    }
+
+    .modal-header {
+        padding: 1.5rem;
+        border-bottom: 1px solid var(--color-border);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .modal-header h3 {
+        margin: 0;
+        color: var(--color-text-dark);
+    }
+
+    .close {
+        color: var(--color-text-gray);
+        font-size: 28px;
+        font-weight: bold;
+        cursor: pointer;
+    }
+
+    .close:hover {
+        color: var(--color-text-dark);
+    }
+
+    .modal-body {
+        padding: 1.5rem;
+    }
+
+    .template-selection {
+        margin-bottom: 1.5rem;
+    }
+
+    .template-selection label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: 500;
+        color: var(--color-text-dark);
+    }
+
+    .template-select {
+        width: 100%;
+        padding: 0.75rem;
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius);
+        font-size: 1rem;
+    }
+
+    .template-options {
+        margin-bottom: 1.5rem;
+    }
+
+    .template-options h4 {
+        margin-bottom: 1rem;
+        color: var(--color-text-dark);
+    }
+
+    .option-item {
+        display: flex;
+        align-items: center;
+        margin-bottom: 0.75rem;
+    }
+
+    .option-item input[type="checkbox"] {
+        margin-right: 0.5rem;
+    }
+
+    .option-item label {
+        color: var(--color-text-dark);
+    }
+
+    .template-preview {
+        background: var(--color-light-bg);
+        padding: 1rem;
+        border-radius: var(--radius);
+        border: 1px solid var(--color-border);
+    }
+
+    .modal-footer {
+        padding: 1.5rem;
+        border-top: 1px solid var(--color-border);
+        display: flex;
+        justify-content: flex-end;
+        gap: 1rem;
+    }
+
+    .btn-primary, .btn-secondary {
+        padding: 0.75rem 1.5rem;
+        border: none;
+        border-radius: var(--radius);
+        cursor: pointer;
+        font-weight: 500;
+        transition: all 0.2s ease;
+    }
+
+    .btn-primary {
+        background: var(--color-primary);
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: var(--color-primary-hover);
+    }
+
+    .btn-secondary {
+        background: var(--color-text-gray);
+        color: white;
+    }
+
+    .btn-secondary:hover {
+        background: #4b5563;
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function showDocuments(identity) {
+        // 隐藏所有文档列表
+        document.querySelectorAll('.documents-list').forEach(list => {
+            list.style.display = 'none';
+        });
+        
+        // 移除所有标签的active状态
+        document.querySelectorAll('.identity-tab').forEach(tab => {
+            tab.classList.remove('active');
+        });
+        
+        // 显示选中的文档列表
+        const targetList = document.getElementById(`documents-${identity}`);
+        if (targetList) {
+            targetList.style.display = 'block';
+        }
+        
+        // 激活对应的标签
+        const targetTab = document.querySelector(`[onclick="showDocuments('${identity}')"]`);
+        if (targetTab) {
+            targetTab.classList.add('active');
+        }
+        
+        // 加载文档详情
+        loadDocumentListForSorting(identity);
+    }
+
+    function downloadTemplate(templateId) {
+        window.open(`/visa/basic/api/visa_templates/download/${templateId}`, '_blank');
+    }
+
+    // 页面加载完成后的初始化
+    document.addEventListener('DOMContentLoaded', function() {
+        // 默认显示共用资料
+        showDocuments('share');
+        
+        // 加载可用的签证类型模板
+        loadTemplateVisaTypes();
+        
+        // 加载文档详情
+        loadDocumentListForSorting('share');
+    });
+
+    // 套用模板相关函数
+    function openTemplateModal() {
+        document.getElementById('templateModal').style.display = 'block';
+    }
+
+    function closeTemplateModal() {
+        document.getElementById('templateModal').style.display = 'none';
+    }
+
+    function loadTemplateVisaTypes() {
+        fetch('/visa/basic/api/get_template_visa_types')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const select = document.getElementById('templateVisaType');
+                    select.innerHTML = '<option value="">请选择签证类型...</option>';
+                    
+                    data.visa_types.forEach(visaType => {
+                        if (visaType !== '{{ visa_type.visa_type }}') { // 排除当前签证类型
+                            const option = document.createElement('option');
+                            option.value = visaType;
+                            option.textContent = visaType;
+                            select.appendChild(option);
+                        }
+                    });
+                    
+                    // 添加选择事件监听器
+                    select.addEventListener('change', function() {
+                        if (this.value) {
+                            loadTemplatePreview(this.value);
+                        } else {
+                            document.getElementById('templatePreview').style.display = 'none';
+                        }
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('加载签证类型失败:', error);
+            });
+    }
+
+    function loadTemplatePreview(templateVisaType) {
+        fetch(`/visa/basic/api/get_template_preview?visa_type=${encodeURIComponent(templateVisaType)}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const previewDiv = document.getElementById('previewContent');
+                    let previewHtml = '<div class="preview-info">';
+                    
+                    if (data.identities && data.identities.length > 0) {
+                        previewHtml += `<p><strong>适用身份:</strong> ${data.identities.join(', ')}</p>`;
+                    }
+                    
+                    if (data.document_count > 0) {
+                        previewHtml += `<p><strong>文档配置:</strong> ${data.document_count} 项</p>`;
+                    }
+                    
+                    if (data.template_count > 0) {
+                        previewHtml += `<p><strong>模板文件:</strong> ${data.template_count} 个</p>`;
+                    }
+                    
+                    previewHtml += '</div>';
+                    previewDiv.innerHTML = previewHtml;
+                    document.getElementById('templatePreview').style.display = 'block';
+                }
+            })
+            .catch(error => {
+                console.error('加载模板预览失败:', error);
+            });
+    }
+
+    function applyTemplate() {
+        const templateVisaType = document.getElementById('templateVisaType').value;
+        const copyDocuments = document.getElementById('copyDocuments').checked;
+        const copyTemplates = document.getElementById('copyTemplates').checked;
+        const copyIdentities = document.getElementById('copyIdentities').checked;
+        
+        if (!templateVisaType) {
+            alert('请选择要套用的签证类型');
+            return;
+        }
+        
+        if (!copyDocuments && !copyTemplates && !copyIdentities) {
+            alert('请至少选择一个套用选项');
+            return;
+        }
+        
+        // 显示确认对话框
+        const confirmMessage = `确定要将"${templateVisaType}"的配置套用到"{{ visa_type.visa_type }}"吗？\n\n{% block title %}{{ visa_type.visa_type }} - 签证类型详情{% endblock %}\n\n套用选项：\n${copyDocuments ? '• 文档配置\n' : ''}${copyTemplates ? '• 模板文件\n' : ''}${copyIdentities ? '• 身份配置' : ''}`;
+        
+        if (confirm(confirmMessage)) {
+            // 发送套用请求
+            fetch('/visa/basic/api/apply_template', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    target_visa_type: '{{ visa_type.visa_type }}',
+                    template_visa_type: templateVisaType,
+                    copy_documents: copyDocuments,
+                    copy_templates: copyTemplates,
+                    copy_identities: copyIdentities
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('模板套用成功！页面将自动刷新。');
+                    closeTemplateModal();
+                    window.location.reload();
+                } else {
+                    alert('模板套用失败: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('套用模板失败:', error);
+                alert('套用模板失败，请稍后重试');
+            });
+        }
+    }
+
+    // ========== 文档排序功能 ==========
+    let sortableMode = {};
+    
+    function toggleDocumentOrder(identityType) {
+        const listContainer = document.getElementById(`document-list-${identityType}`);
+        const displayContainer = document.getElementById(`document-display-${identityType}`);
+        const button = document.querySelector(`button[onclick="toggleDocumentOrder('${identityType}')"]`);
+        
+        if (sortableMode[identityType]) {
+            // 退出排序模式
+            sortableMode[identityType] = false;
+            listContainer.style.display = 'none';
+            displayContainer.style.display = 'block';
+            button.innerHTML = '<i class="fas fa-sort"></i> 调整顺序';
+            button.classList.remove('btn-success');
+            button.classList.add('btn-outline-primary');
+        } else {
+            // 进入排序模式
+            sortableMode[identityType] = true;
+            loadDocumentListForSorting(identityType);
+            listContainer.style.display = 'block';
+            displayContainer.style.display = 'none';
+            button.innerHTML = '<i class="fas fa-check"></i> 完成排序';
+            button.classList.remove('btn-outline-primary');
+            button.classList.add('btn-success');
+        }
+    }
+    
+    function loadDocumentListForSorting(identityType) {
+        const container = document.getElementById(`document-list-${identityType}`);
+        
+        // 从后端API获取文档详情
+        const visaTypeId = parseInt('{{ visa_type.id }}');
+        fetch(`/visa/basic/api/get_document_details/${visaTypeId}`)
+            .then(response => response.json())
+            .then(result => {
+                if (result.success) {
+                    let documents = [];
+                    let visaDocumentId = 0;
+                    
+                    if (identityType === 'SHARE' && result.data.share_doc) {
+                        documents = result.data.share_doc.documents;
+                        visaDocumentId = result.data.share_doc.visa_document_id;
+                    } else if (result.data.specific_docs[identityType]) {
+                        documents = result.data.specific_docs[identityType].documents;
+                        visaDocumentId = result.data.specific_docs[identityType].visa_document_id;
+                    }
+                    
+                    if (documents.length === 0) {
+                        container.innerHTML = '<div class="text-center py-4"><p class="text-muted">暂无文档</p></div>';
+                        return;
+                    }
+                    
+                    generateSortableList(container, documents, visaDocumentId, identityType);
+                } else {
+                    container.innerHTML = '<div class="text-center py-4"><p class="text-danger">加载文档失败: ' + result.message + '</p></div>';
+                }
+            })
+            .catch(error => {
+                console.error('获取文档详情失败:', error);
+                container.innerHTML = '<div class="text-center py-4"><p class="text-danger">加载文档失败</p></div>';
+            });
+    }
+    
+    function generateSortableList(container, documents, visaDocumentId, identityType) {
+        // 生成可排序的列表
+        let html = '<div class="sortable-list">';
+        documents.forEach((doc, index) => {
+            html += `
+                <div class="sortable-item" 
+                     data-index="${index}" 
+                     data-document-id="${doc.id}" 
+                     data-visa-document-id="${visaDocumentId}"
+                     style="
+                        display: flex;
+                        align-items: center;
+                        padding: 0.75rem;
+                        margin-bottom: 0.5rem;
+                        background: white;
+                        border: 1px solid var(--color-border);
+                        border-radius: var(--radius);
+                        cursor: move;
+                        transition: all 0.2s ease;
+                    ">
+                    <i class="fas fa-grip-vertical" style="color: var(--color-text-gray); margin-right: 0.75rem;"></i>
+                    <span style="flex: 1; color: var(--color-text-dark);">${doc.name}</span>
+                    <span class="order-number" style="
+                        background: var(--color-accent);
+                        color: white;
+                        padding: 0.25rem 0.5rem;
+                        border-radius: 50%;
+                        font-size: 0.8rem;
+                        min-width: 1.5rem;
+                        text-align: center;
+                    ">${index + 1}</span>
+                </div>
+            `;
+        });
+        html += '</div>';
+        
+        // 添加操作按钮
+        html += `
+            <div style="margin-top: 1rem; text-align: center;">
+                <button type="button" class="btn btn-primary" onclick="saveDocumentOrder('${identityType}')">
+                    <i class="fas fa-save"></i> 保存顺序
+                </button>
+                <button type="button" class="btn btn-secondary ml-2" onclick="toggleDocumentOrder('${identityType}')">
+                    <i class="fas fa-times"></i> 取消
+                </button>
+            </div>
+        `;
+        
+        container.innerHTML = html;
+        
+        // 启用拖拽排序
+        enableDragSort(container);
+    }
+    
+    function enableDragSort(container) {
+        const sortableList = container.querySelector('.sortable-list');
+        if (!sortableList) return;
+        
+        // 改进的拖拽排序实现
+        let draggedElement = null;
+        let draggedIndex = -1;
+        
+        const items = sortableList.querySelectorAll('.sortable-item');
+        items.forEach((item, index) => {
+            item.draggable = true;
+            
+            item.addEventListener('dragstart', function(e) {
+                draggedElement = this;
+                draggedIndex = index;
+                this.style.opacity = '0.5';
+                e.dataTransfer.effectAllowed = 'move';
+            });
+            
+            item.addEventListener('dragend', function(e) {
+                this.style.opacity = '1';
+                draggedElement = null;
+                draggedIndex = -1;
+            });
+            
+            item.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+            });
+            
+            item.addEventListener('drop', function(e) {
+                e.preventDefault();
+                if (draggedElement && draggedElement !== this) {
+                    const targetIndex = Array.from(sortableList.children).indexOf(this);
+                    
+                    // 使用更安全的方法重新排序
+                    if (draggedIndex < targetIndex) {
+                        // 向下移动
+                        sortableList.insertBefore(draggedElement, this.nextSibling);
+                    } else {
+                        // 向上移动
+                        sortableList.insertBefore(draggedElement, this);
+                    }
+                    
+                    updateOrderNumbers();
+                }
+            });
+        });
+    }
+    
+    function updateOrderNumbers() {
+        // 只更新当前排序容器中的项目编号
+        const activeSortableList = document.querySelector('.sortable-list');
+        if (!activeSortableList) return;
+        
+        const items = activeSortableList.querySelectorAll('.sortable-item');
+        items.forEach((item, index) => {
+            const orderNumber = item.querySelector('.order-number');
+            if (orderNumber) {
+                orderNumber.textContent = index + 1;
+            }
+        });
+    }
+    
+    function saveDocumentOrder(identityType) {
+        // 只获取当前排序容器中的项目
+        const activeSortableList = document.querySelector('.sortable-list');
+        if (!activeSortableList) {
+            alert('没有找到可排序的文档列表');
+            return;
+        }
+        
+        const items = activeSortableList.querySelectorAll('.sortable-item');
+        const orders = [];
+        
+        items.forEach((item, index) => {
+            const visaDocumentId = parseInt(item.dataset.visaDocumentId);
+            const documentId = parseInt(item.dataset.documentId);
+            orders.push({
+                visa_document_id: visaDocumentId,
+                document_id: documentId,
+                order: index
+            });
+        });
+        
+        // 发送到后端保存
+        const visaTypeId = parseInt('{{ visa_type.id }}');
+        const data = {
+            identity_type: identityType,
+            document_orders: orders
+        };
+        
+        fetch(`/visa/basic/api/update_document_order/${visaTypeId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token() }}'
+            },
+            body: JSON.stringify(data)
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                alert('文档顺序保存成功！');
+                toggleDocumentOrder(identityType);
+                // 刷新页面以显示新的顺序
+                window.location.reload();
+            } else {
+                alert('保存失败: ' + result.message);
+            }
+        })
+        .catch(error => {
+            console.error('保存文档顺序失败:', error);
+            alert('保存失败，请稍后重试');
+        });
+    }
+
+    // 点击模态框外部关闭
+    window.onclick = function(event) {
+        const modal = document.getElementById('templateModal');
+        if (event.target === modal) {
+            closeTemplateModal();
+        }
+    }
+
+</script>
+{% endblock %} 

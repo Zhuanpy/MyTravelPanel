@@ -19,16 +19,48 @@ member = Blueprint('member', __name__, url_prefix='/member', template_folder='..
 def dashboard():
     """会员仪表板"""
     try:
+        # 导入订单模型
+        from ..models.order import Order, OrderStatus
+        
         # 获取会员统计信息
+        total_orders = 0
+        pending_orders = 0
+        completed_orders = 0
+        total_amount = 0
+        
+        try:
+            # 查询当前用户的订单统计
+            total_orders = Order.query.filter_by(user_id=current_user.id).count()
+            pending_orders = Order.query.filter_by(user_id=current_user.id, status=OrderStatus.PENDING.value).count()
+            completed_orders = Order.query.filter_by(user_id=current_user.id, status=OrderStatus.COMPLETED.value).count()
+            
+            # 计算总消费金额
+            completed_orders_list = Order.query.filter_by(
+                user_id=current_user.id, 
+                status=OrderStatus.COMPLETED.value
+            ).all()
+            total_amount = sum(order.total_amount for order in completed_orders_list)
+        except Exception as db_error:
+            # 数据库表不存在时使用默认值
+            pass
+        
         stats = {
-            'total_orders': 0,  # 总订单数
-            'pending_orders': 0,  # 待处理订单
-            'completed_orders': 0,  # 已完成订单
-            'total_amount': 0,  # 总消费金额
+            'total_orders': total_orders,
+            'pending_orders': pending_orders,
+            'completed_orders': completed_orders,
+            'total_amount': total_amount,
         }
         
-        # 获取最近的订单（暂时模拟数据）
+        # 获取最近的订单（最近5条）
         recent_orders = []
+        try:
+            recent_orders = Order.query.filter_by(user_id=current_user.id)\
+                .order_by(Order.created_at.desc())\
+                .limit(5)\
+                .all()
+        except Exception as db_error:
+            # 数据库表不存在时使用空列表
+            pass
         
         # 获取最近的报价（暂时模拟数据）
         recent_quotes = []
@@ -42,42 +74,11 @@ def dashboard():
         return render_template('member/dashboard.html',
                              stats={}, recent_orders=[], recent_quotes=[])
 
-@member.route('/orders')
-@login_required
-@member_only
-def orders():
-    """订单列表"""
-    try:
-        page = request.args.get('page', 1, type=int)
-        per_page = 10
-        
-        # 获取订单状态筛选
-        status = request.args.get('status', '')
-        
-        # 暂时返回空的订单列表
-        orders = []
-        pagination = None
-        
-        return render_template('member/orders.html',
-                             orders=orders,
-                             pagination=pagination,
-                             current_status=status)
-    except Exception as e:
-        flash(f'加载订单列表失败：{str(e)}', 'error')
-        return render_template('member/orders.html',
-                             orders=[], pagination=None, current_status='')
+# 订单功能已移至 orders.py 蓝图
+# @member.route('/orders') - 已废弃，请使用 orders_bp 蓝图
 
-@member.route('/order/<int:order_id>')
-@login_required
-@member_only
-def order_detail(order_id):
-    """订单详情"""
-    try:
-        # 暂时返回404，因为订单模型还未实现
-        return render_template('member/404.html', message='订单功能暂未开放'), 404
-    except Exception as e:
-        flash(f'加载订单详情失败：{str(e)}', 'error')
-        return render_template('member/404.html', message='加载失败'), 500
+# 订单详情功能已移至 orders.py 蓝图
+# @member.route('/order/<int:order_id>') - 已废弃，请使用 orders_bp 蓝图
 
 @member.route('/quotes')
 @login_required
@@ -112,11 +113,22 @@ def quotes():
 def quote_detail(quote_id):
     """报价详情"""
     try:
-        # 暂时返回404，因为报价模型还未实现
-        return render_template('member/404.html', message='报价功能暂未开放'), 404
+        # 暂时返回503，因为报价模型还未实现
+        return render_template('member/error.html', 
+                             title='功能建设中',
+                             icon='tools',
+                             color='info',
+                             message='报价功能正在开发中，敬请期待',
+                             show_back_button=True), 503
     except Exception as e:
         flash(f'加载报价详情失败：{str(e)}', 'error')
-        return render_template('member/404.html', message='加载失败'), 500
+        return render_template('member/error.html',
+                             title='加载失败',
+                             icon='times-circle',
+                             color='danger',
+                             message='无法加载报价详情，请稍后再试',
+                             details=str(e) if current_user.is_authenticated else None,
+                             show_back_button=True), 500
 
 @member.route('/invoices')
 @login_required
@@ -149,11 +161,22 @@ def invoices():
 def invoice_detail(invoice_id):
     """发票详情"""
     try:
-        # 暂时返回404，因为发票模型还未实现
-        return render_template('member/404.html', message='发票功能暂未开放'), 404
+        # 暂时返回503，因为发票模型还未实现
+        return render_template('member/error.html',
+                             title='功能建设中',
+                             icon='tools',
+                             color='info',
+                             message='发票功能正在开发中，敬请期待',
+                             show_back_button=True), 503
     except Exception as e:
         flash(f'加载发票详情失败：{str(e)}', 'error')
-        return render_template('member/404.html', message='加载失败'), 500
+        return render_template('member/error.html',
+                             title='加载失败',
+                             icon='times-circle',
+                             color='danger',
+                             message='无法加载发票详情，请稍后再试',
+                             details=str(e) if current_user.is_authenticated else None,
+                             show_back_button=True), 500
 
 @member.route('/services')
 @login_required
@@ -185,32 +208,7 @@ def services():
         return render_template('member/services.html',
                              services_by_country={})
 
-@member.route('/service/apply/<visa_type>')
-@login_required
-@member_only
-def apply_service(visa_type):
-    """申请服务"""
-    try:
-        # TODO: 需要创建签证相关的模型
-        # 暂时使用模拟数据
-        visa_info = {
-            'name': visa_type,
-            'description': f'{visa_type}申请服务',
-            'processing_time': '3-5个工作日',
-            'price': 'SGD 50',
-            'required_documents': [
-                '护照原件（有效期6个月以上）',
-                '2张2寸白底彩色照片',
-                '签证申请表',
-                '往返机票预订单',
-                '酒店预订单'
-            ]
-        }
-        
-        return render_template('member/apply_service.html', visa=visa_info)
-    except Exception as e:
-        flash(f'加载申请页面失败：{str(e)}', 'error')
-        return render_template('member/404.html', message='加载失败'), 500
+# 服务申请功能已移至 orders.py
 
 @member.route('/notifications')
 @login_required

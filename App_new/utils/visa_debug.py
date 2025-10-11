@@ -1,7 +1,7 @@
 """
 签证文档调试工具
 """
-from App.models.Product.Visamodels import VisaDocuments, VisaTypes, VisaDocumentsList
+from App_new.models.Product.Visamodels import VisaDocuments, VisaTypes, VisaDocumentsList
 from App_new.exts import db
 
 

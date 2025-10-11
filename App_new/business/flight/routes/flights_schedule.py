@@ -488,13 +488,51 @@ def get_flight_info():
             payload = _enrich_with_airport_scrapers(payload, dep_iata, arr_iata, flight_number, flight_date)
             return jsonify({'success': True, 'message': '从Aerodatabox获取到最新航班信息', 'data': payload})
         else:
-            # Aerodatabox未找到数据，尝试从数据库获取历史数据作为备用
+            # Aerodatabox未找到数据，尝试使用Flightradar24作为备用
+            print(f"DEBUG: Aerodatabox未找到数据，尝试使用Flightradar24...")
+            try:
+                from App_new.utils.flightradar24 import get_flight_info
+                
+                # get_flight_info 会返回已提取的简化数据
+                fr24_data = get_flight_info(flight_number)
+                
+                if fr24_data:
+                    print(f"DEBUG: 从Flightradar24获取到数据")
+                    print(f"DEBUG: Flightradar24数据: {fr24_data}")
+                    
+                    # 转换Flightradar24数据格式为统一格式
+                    payload = {
+                        'flight_number': flight_number,
+                        'airline_code': fr24_data.get('airline', flight_number[:2] if len(flight_number) >= 2 else ''),
+                        'airline_num': fr24_data.get('airline_num', flight_number[2:] if len(flight_number) >= 2 else ''),
+                        'schedule_city': fr24_data.get('schedule_city', ''),  # 例如: "SIN CAN"
+                        'schedule_timing': fr24_data.get('schedule_timing', ''),  # 例如: "0515 0925"
+                        'departure_terminal': fr24_data.get('departure_terminal', 'Unknown'),
+                        'departure_gate': fr24_data.get('departure_gate', 'Unknown'),
+                        'arrival_terminal': fr24_data.get('arrival_terminal', 'Unknown'),
+                        'arrival_gate': fr24_data.get('arrival_gate', 'Unknown'),
+                        'aircraft': fr24_data.get('aircraft', 'Unknown'),
+                        'status': fr24_data.get('status', 'Unknown')
+                    }
+                    return jsonify({
+                        'success': True,
+                        'message': '从Flightradar24获取到航班信息',
+                        'data': payload
+                    })
+                else:
+                    print(f"DEBUG: Flightradar24也未找到数据")
+            except Exception as fr24_error:
+                print(f"DEBUG: Flightradar24查询出错: {str(fr24_error)}")
+                import traceback
+                print(f"DEBUG: 详细错误: {traceback.format_exc()}")
+            
+            # Flightradar24也未找到，尝试从数据库获取历史数据作为最后备用
             flight = FlightSchedule.query.filter_by(flight_number=flight_number).first()
             
             if flight:
                 return jsonify({
                     'success': True,
-                    'message': 'Aerodatabox未找到，返回数据库中的历史信息',
+                    'message': 'Aerodatabox和Flightradar24未找到，返回数据库中的历史信息',
                     'data': {
                         'flight_number': flight.flight_number,
                         'airline_code': flight.airline_code,
@@ -512,7 +550,7 @@ def get_flight_info():
             else:
                 return jsonify({
                     'success': False,
-                    'message': 'Aerodatabox和数据库中均未找到航班信息，请检查航班号是否正确',
+                    'message': 'Aerodatabox、Flightradar24和数据库中均未找到航班信息，请检查航班号是否正确',
                     'data': None
                 })
             

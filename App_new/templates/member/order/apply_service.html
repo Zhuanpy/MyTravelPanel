@@ -1,0 +1,531 @@
+{% extends "member/base.html" %}
+
+{% block title %}申请服务 - {{ service.service_name }} - MyTravelPanel{% endblock %}
+
+{% block page_title %}申请服务{% endblock %}
+
+{% block page_actions %}
+<div class="btn-toolbar mb-2 mb-md-0">
+    <a href="{{ url_for('member.services') }}" class="btn btn-sm btn-outline-secondary">
+        <i class="fas fa-arrow-left me-1"></i>返回服务列表
+    </a>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+{{ super() }}
+<style>
+    .service-info-card {
+        background: linear-gradient(135deg, #48b968 0%, #7ecf8e 100%);
+        color: white;
+        border-radius: 15px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+    }
+    
+    .service-info-card h3 {
+        color: white;
+        margin-bottom: 1rem;
+    }
+    
+    .service-info-card .price {
+        font-size: 2rem;
+        font-weight: bold;
+        margin-bottom: 0.5rem;
+    }
+    
+    .service-info-card .processing-time {
+        font-size: 1.1rem;
+        opacity: 0.9;
+    }
+    
+    .form-section {
+        background: white;
+        border-radius: 15px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+    
+    .form-section h5 {
+        color: #48b968;
+        margin-bottom: 1.5rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid #48b968;
+    }
+    
+    .required-documents {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+    }
+    
+    .required-documents h6 {
+        color: #495057;
+        margin-bottom: 1rem;
+    }
+    
+    .required-documents ul {
+        margin: 0;
+        padding-left: 1.5rem;
+    }
+    
+    .required-documents li {
+        margin-bottom: 0.5rem;
+        color: #6c757d;
+    }
+    
+    .file-upload-area {
+        border: 2px dashed #dee2e6;
+        border-radius: 10px;
+        padding: 2rem;
+        text-align: center;
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+    
+    .file-upload-area:hover {
+        border-color: #48b968;
+        background-color: rgba(72, 185, 104, 0.05);
+    }
+    
+    .file-upload-area.dragover {
+        border-color: #48b968;
+        background-color: rgba(72, 185, 104, 0.1);
+    }
+    
+    .uploaded-files {
+        margin-top: 1rem;
+    }
+    
+    .uploaded-file {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.75rem;
+        background: #f8f9fa;
+        border-radius: 8px;
+        margin-bottom: 0.5rem;
+    }
+    
+    .order-items-section {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+    }
+    
+    .order-item {
+        background: white;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        border: 1px solid #dee2e6;
+    }
+    
+    .add-item-btn {
+        width: 100%;
+        border: 2px dashed #48b968;
+        background: transparent;
+        color: #48b968;
+        padding: 1rem;
+        border-radius: 8px;
+        transition: all 0.3s ease;
+    }
+    
+    .add-item-btn:hover {
+        background: #48b968;
+        color: white;
+    }
+    
+    .price-summary {
+        background: #48b968;
+        color: white;
+        border-radius: 10px;
+        padding: 1.5rem;
+        margin-top: 2rem;
+    }
+    
+    .price-summary h5 {
+        color: white;
+        margin-bottom: 1rem;
+    }
+    
+    .price-row {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 0.5rem;
+    }
+    
+    .price-row.total {
+        font-size: 1.2rem;
+        font-weight: bold;
+        border-top: 1px solid rgba(255, 255, 255, 0.3);
+        padding-top: 0.5rem;
+        margin-top: 1rem;
+    }
+</style>
+{% endblock %}
+
+{% block member_content %}
+<div class="container-fluid">
+    <!-- 服务信息卡片 -->
+    <div class="service-info-card">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h3>{{ service.service_name }}</h3>
+                <p class="mb-3">{{ service.description }}</p>
+                <div class="processing-time">
+                    <i class="fas fa-clock me-2"></i>处理时间：{{ service.processing_time }}
+                </div>
+            </div>
+            <div class="col-md-4 text-end">
+                <div class="price">{{ service.currency }} {{ "%.2f"|format(service.base_price) }}</div>
+                <small>起价</small>
+            </div>
+        </div>
+    </div>
+
+    <form id="orderForm" method="POST" action="{{ url_for('orders.create_order') }}" enctype="multipart/form-data">
+        <input type="hidden" name="service_type" value="{{ service.service_type }}">
+        <input type="hidden" name="service_name" value="{{ service.service_name }}">
+        <input type="hidden" name="description" value="{{ service.description }}">
+        <input type="hidden" name="base_price" value="{{ service.base_price }}">
+
+        <div class="row">
+            <!-- 左侧：表单 -->
+            <div class="col-lg-8">
+                <!-- 客户信息 -->
+                <div class="form-section">
+                    <h5><i class="fas fa-user me-2"></i>客户信息</h5>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="customer_name" class="form-label">姓名 <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="customer_name" name="customer_name" 
+                                   value="{{ user_profile.first_name + ' ' + user_profile.last_name if user_profile else '' }}" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="customer_email" class="form-label">邮箱 <span class="text-danger">*</span></label>
+                            <input type="email" class="form-control" id="customer_email" name="customer_email" 
+                                   value="{{ current_user.email }}" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="customer_phone" class="form-label">联系电话</label>
+                            <input type="tel" class="form-control" id="customer_phone" name="customer_phone" 
+                                   value="{{ user_profile.phone if user_profile else '' }}">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="customer_address" class="form-label">地址</label>
+                            <input type="text" class="form-control" id="customer_address" name="customer_address" 
+                                   value="{{ user_profile.address if user_profile else '' }}">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 订单项目 -->
+                <div class="form-section">
+                    <h5><i class="fas fa-list me-2"></i>订单项目</h5>
+                    <div class="order-items-section">
+                        <div id="orderItems">
+                            <!-- 默认项目 -->
+                            <div class="order-item">
+                                <div class="row">
+                                    <div class="col-md-5">
+                                        <label class="form-label">项目名称</label>
+                                        <input type="text" class="form-control" name="item_name[]" value="{{ service.service_name }}" required>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label">数量</label>
+                                        <input type="number" class="form-control" name="item_quantity[]" value="1" min="1" required>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label">单价</label>
+                                        <input type="number" class="form-control" name="item_price[]" value="{{ service.base_price }}" step="0.01" required>
+                                    </div>
+                                    <div class="col-md-1 d-flex align-items-end">
+                                        <button type="button" class="btn btn-outline-danger btn-sm remove-item" style="display: none;">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="row mt-2">
+                                    <div class="col-12">
+                                        <label class="form-label">项目描述</label>
+                                        <textarea class="form-control" name="item_description[]" rows="2">{{ service.description }}</textarea>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <button type="button" class="add-item-btn" id="addItemBtn">
+                            <i class="fas fa-plus me-2"></i>添加项目
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 特殊要求 -->
+                <div class="form-section">
+                    <h5><i class="fas fa-star me-2"></i>特殊要求</h5>
+                    <div class="mb-3">
+                        <label for="special_requirements" class="form-label">特殊要求或备注</label>
+                        <textarea class="form-control" id="special_requirements" name="special_requirements" rows="4" 
+                                  placeholder="请详细描述您的特殊要求，我们会根据您的要求提供个性化服务..."></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="notes" class="form-label">其他备注</label>
+                        <textarea class="form-control" id="notes" name="notes" rows="3" 
+                                  placeholder="其他需要说明的信息..."></textarea>
+                    </div>
+                </div>
+
+                <!-- 文档上传 -->
+                <div class="form-section">
+                    <h5><i class="fas fa-file-upload me-2"></i>相关文档</h5>
+                    <div class="file-upload-area" id="fileUploadArea">
+                        <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
+                        <h6>拖拽文件到此处或点击选择文件</h6>
+                        <p class="text-muted">支持 PDF, JPG, PNG 格式，单个文件不超过 10MB</p>
+                        <input type="file" id="fileInput" name="documents[]" multiple accept=".pdf,.jpg,.jpeg,.png" style="display: none;">
+                    </div>
+                    <div class="uploaded-files" id="uploadedFiles"></div>
+                </div>
+            </div>
+
+            <!-- 右侧：信息面板 -->
+            <div class="col-lg-4">
+                <!-- 必需文档 -->
+                <div class="required-documents">
+                    <h6><i class="fas fa-list-check me-2"></i>必需文档</h6>
+                    <ul>
+                        {% for doc in service.required_documents %}
+                        <li>{{ doc }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+
+                <!-- 服务要求 -->
+                <div class="required-documents">
+                    <h6><i class="fas fa-info-circle me-2"></i>服务要求</h6>
+                    <p>{{ service.requirements }}</p>
+                </div>
+
+                <!-- 价格摘要 -->
+                <div class="price-summary">
+                    <h5><i class="fas fa-calculator me-2"></i>价格摘要</h5>
+                    <div class="price-row">
+                        <span>基础价格：</span>
+                        <span>{{ service.currency }} <span id="basePrice">{{ "%.2f"|format(service.base_price) }}</span></span>
+                    </div>
+                    <div class="price-row">
+                        <span>附加费用：</span>
+                        <span>{{ service.currency }} <span id="additionalFees">0.00</span></span>
+                    </div>
+                    <div class="price-row">
+                        <span>折扣：</span>
+                        <span>{{ service.currency }} <span id="discount">0.00</span></span>
+                    </div>
+                    <div class="price-row total">
+                        <span>总计：</span>
+                        <span>{{ service.currency }} <span id="totalPrice">{{ "%.2f"|format(service.base_price) }}</span></span>
+                    </div>
+                </div>
+
+                <!-- 提交按钮 -->
+                <div class="d-grid gap-2 mt-4">
+                    <button type="submit" class="btn btn-success btn-lg">
+                        <i class="fas fa-check me-2"></i>提交订单
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" onclick="saveDraft()">
+                        <i class="fas fa-save me-2"></i>保存草稿
+                    </button>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // 添加 CSRF token 到表单
+    const form = document.getElementById('orderForm');
+    const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+    if (csrfMeta && form) {
+        const csrfInput = document.createElement('input');
+        csrfInput.type = 'hidden';
+        csrfInput.name = 'csrf_token';
+        csrfInput.value = csrfMeta.content;
+        form.insertBefore(csrfInput, form.firstChild);
+    }
+    
+    // 文件上传处理
+    const fileUploadArea = document.getElementById('fileUploadArea');
+    const fileInput = document.getElementById('fileInput');
+    const uploadedFiles = document.getElementById('uploadedFiles');
+    
+    fileUploadArea.addEventListener('click', () => fileInput.click());
+    
+    fileUploadArea.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        fileUploadArea.classList.add('dragover');
+    });
+    
+    fileUploadArea.addEventListener('dragleave', () => {
+        fileUploadArea.classList.remove('dragover');
+    });
+    
+    fileUploadArea.addEventListener('drop', (e) => {
+        e.preventDefault();
+        fileUploadArea.classList.remove('dragover');
+        handleFiles(e.dataTransfer.files);
+    });
+    
+    fileInput.addEventListener('change', (e) => {
+        handleFiles(e.target.files);
+    });
+    
+    function handleFiles(files) {
+        Array.from(files).forEach(file => {
+            if (file.size > 10 * 1024 * 1024) {
+                alert('文件 ' + file.name + ' 超过 10MB 限制');
+                return;
+            }
+            
+            const fileDiv = document.createElement('div');
+            fileDiv.className = 'uploaded-file';
+            fileDiv.innerHTML = `
+                <div>
+                    <i class="fas fa-file me-2"></i>
+                    <span>${file.name}</span>
+                    <small class="text-muted ms-2">(${(file.size / 1024 / 1024).toFixed(2)} MB)</small>
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-danger remove-file">
+                    <i class="fas fa-times"></i>
+                </button>
+            `;
+            
+            uploadedFiles.appendChild(fileDiv);
+        });
+    }
+    
+    // 移除文件
+    uploadedFiles.addEventListener('click', (e) => {
+        if (e.target.closest('.remove-file')) {
+            e.target.closest('.uploaded-file').remove();
+        }
+    });
+    
+    // 添加订单项目
+    const addItemBtn = document.getElementById('addItemBtn');
+    const orderItems = document.getElementById('orderItems');
+    
+    addItemBtn.addEventListener('click', () => {
+        const itemDiv = document.createElement('div');
+        itemDiv.className = 'order-item';
+        itemDiv.innerHTML = `
+            <div class="row">
+                <div class="col-md-5">
+                    <label class="form-label">项目名称</label>
+                    <input type="text" class="form-control" name="item_name[]" required>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">数量</label>
+                    <input type="number" class="form-control" name="item_quantity[]" value="1" min="1" required>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">单价</label>
+                    <input type="number" class="form-control" name="item_price[]" step="0.01" required>
+                </div>
+                <div class="col-md-1 d-flex align-items-end">
+                    <button type="button" class="btn btn-outline-danger btn-sm remove-item">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="row mt-2">
+                <div class="col-12">
+                    <label class="form-label">项目描述</label>
+                    <textarea class="form-control" name="item_description[]" rows="2"></textarea>
+                </div>
+            </div>
+        `;
+        
+        orderItems.appendChild(itemDiv);
+        updateRemoveButtons();
+        updatePriceSummary();
+    });
+    
+    // 移除订单项目
+    orderItems.addEventListener('click', (e) => {
+        if (e.target.closest('.remove-item')) {
+            e.target.closest('.order-item').remove();
+            updateRemoveButtons();
+            updatePriceSummary();
+        }
+    });
+    
+    function updateRemoveButtons() {
+        const items = orderItems.querySelectorAll('.order-item');
+        items.forEach((item, index) => {
+            const removeBtn = item.querySelector('.remove-item');
+            if (items.length === 1) {
+                removeBtn.style.display = 'none';
+            } else {
+                removeBtn.style.display = 'block';
+            }
+        });
+    }
+    
+    // 更新价格摘要
+    function updatePriceSummary() {
+        const items = orderItems.querySelectorAll('.order-item');
+        let total = 0;
+        
+        items.forEach(item => {
+            const quantity = parseFloat(item.querySelector('input[name="item_quantity[]"]').value) || 0;
+            const price = parseFloat(item.querySelector('input[name="item_price[]"]').value) || 0;
+            total += quantity * price;
+        });
+        
+        document.getElementById('totalPrice').textContent = total.toFixed(2);
+    }
+    
+    // 监听价格变化
+    orderItems.addEventListener('input', (e) => {
+        if (e.target.name === 'item_quantity[]' || e.target.name === 'item_price[]') {
+            updatePriceSummary();
+        }
+    });
+    
+    // 表单验证
+    document.getElementById('orderForm').addEventListener('submit', function(e) {
+        const requiredFields = this.querySelectorAll('[required]');
+        let isValid = true;
+        
+        requiredFields.forEach(field => {
+            if (!field.value.trim()) {
+                field.classList.add('is-invalid');
+                isValid = false;
+            } else {
+                field.classList.remove('is-invalid');
+            }
+        });
+        
+        if (!isValid) {
+            e.preventDefault();
+            alert('请填写所有必填字段');
+        }
+    });
+    
+    // 初始化
+    updateRemoveButtons();
+    updatePriceSummary();
+});
+
+function saveDraft() {
+    // 保存草稿功能
+    alert('草稿保存功能开发中...');
+}
+</script>
+{% endblock %}

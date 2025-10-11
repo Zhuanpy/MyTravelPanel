@@ -1,0 +1,631 @@
+/* 通用首页样式 - 用于 package_home.html 和 flight_home.html */
+
+/* 容器样式 */
+.home-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 1.5rem;
+}
+
+/* 快速操作区域 */
+.quick-actions-section {
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+    transition: all 0.3s ease;
+}
+
+.quick-actions-section:hover {
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+.quick-actions-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #2d3748;
+    margin-top: 0;
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.quick-actions-title i {
+    color: #f59e0b;
+}
+
+.quick-actions-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 0.75rem;
+}
+
+.quick-action-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    text-decoration: none;
+    font-weight: 500;
+    border-radius: 10px;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+}
+
+.quick-action-btn:hover {
+    transform: translateY(-2px);
+}
+
+.quick-action-btn i {
+    font-size: 1.125rem;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    flex-shrink: 0;
+}
+
+/* 不同颜色的快速操作按钮 */
+.btn-purple {
+    background: linear-gradient(135deg, #f3e8ff 0%, #e9d5ff 100%);
+    color: #7c3aed;
+    border: 1px solid #e9d5ff;
+}
+
+.btn-purple:hover {
+    background: linear-gradient(135deg, #e9d5ff 0%, #d8b4fe 100%);
+    box-shadow: 0 8px 20px rgba(124, 58, 237, 0.3);
+    color: #6d28d9;
+}
+
+.btn-purple i {
+    background: rgba(124, 58, 237, 0.15);
+    color: #7c3aed;
+}
+
+.btn-blue {
+    background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+    color: #2563eb;
+    border: 1px solid #bfdbfe;
+}
+
+.btn-blue:hover {
+    background: linear-gradient(135deg, #bfdbfe 0%, #93c5fd 100%);
+    box-shadow: 0 8px 20px rgba(37, 99, 235, 0.3);
+    color: #1d4ed8;
+}
+
+.btn-blue i {
+    background: rgba(37, 99, 235, 0.15);
+    color: #2563eb;
+}
+
+.btn-indigo {
+    background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
+    color: #4f46e5;
+    border: 1px solid #c7d2fe;
+}
+
+.btn-indigo:hover {
+    background: linear-gradient(135deg, #c7d2fe 0%, #a5b4fc 100%);
+    box-shadow: 0 8px 20px rgba(79, 70, 229, 0.3);
+    color: #4338ca;
+}
+
+.btn-indigo i {
+    background: rgba(79, 70, 229, 0.15);
+    color: #4f46e5;
+}
+
+.btn-yellow {
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+    color: #d97706;
+    border: 1px solid #fde68a;
+}
+
+.btn-yellow:hover {
+    background: linear-gradient(135deg, #fde68a 0%, #fcd34d 100%);
+    box-shadow: 0 8px 20px rgba(217, 119, 6, 0.3);
+    color: #b45309;
+}
+
+.btn-yellow i {
+    background: rgba(217, 119, 6, 0.15);
+    color: #d97706;
+}
+
+.btn-green {
+    background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+    color: #059669;
+    border: 1px solid #a7f3d0;
+}
+
+.btn-green:hover {
+    background: linear-gradient(135deg, #a7f3d0 0%, #6ee7b7 100%);
+    box-shadow: 0 8px 20px rgba(5, 150, 105, 0.3);
+    color: #047857;
+}
+
+.btn-green i {
+    background: rgba(5, 150, 105, 0.15);
+    color: #059669;
+}
+
+.btn-red {
+    background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+    color: #dc2626;
+    border: 1px solid #fecaca;
+}
+
+.btn-red:hover {
+    background: linear-gradient(135deg, #fecaca 0%, #fca5a5 100%);
+    box-shadow: 0 8px 20px rgba(220, 38, 38, 0.3);
+    color: #b91c1c;
+}
+
+.btn-red i {
+    background: rgba(220, 38, 38, 0.15);
+    color: #dc2626;
+}
+
+/* 工具/模块卡片区域 */
+.tools-section {
+    margin-bottom: 3rem;
+}
+
+.tools-section-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #2d3748;
+    margin-bottom: 1.5rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 2px solid #e9ecef;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.tools-section-title i {
+    color: #3b82f6;
+}
+
+.tools-card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1.5rem;
+}
+
+.tool-card {
+    border-radius: 16px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    transition: all 0.3s ease;
+    overflow: hidden;
+    border: 1px solid #e5e7eb;
+    display: flex;
+    flex-direction: column;
+}
+
+.tool-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+.tool-card-header {
+    padding: 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.tool-card-header .icon-wrapper {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.tool-card-header i {
+    font-size: 1.125rem;
+}
+
+.tool-card-header h4 {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: #1f2937;
+    margin: 0;
+}
+
+.tool-card-body {
+    padding: 0 1.25rem 1.25rem 1.25rem;
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+}
+
+.tool-card-description {
+    color: #6b7280;
+    font-size: 0.875rem;
+    margin-bottom: 1.25rem;
+    line-height: 1.6;
+    flex-grow: 1;
+}
+
+.tool-card-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: auto;
+}
+
+.tool-card-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.625rem 1.25rem;
+    border-radius: 10px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    text-decoration: none;
+    transition: all 0.3s ease;
+    color: white;
+}
+
+.tool-card-btn:hover {
+    transform: translateY(-2px);
+    color: white;
+}
+
+/* 不同颜色的工具卡片 */
+.card-blue {
+    background: linear-gradient(135deg, #dbeafe 0%, #ffffff 100%);
+}
+
+.card-blue .icon-wrapper {
+    background: #bfdbfe;
+    color: #2563eb;
+}
+
+.card-blue .tool-card-btn {
+    background: #3b82f6;
+}
+
+.card-blue .tool-card-btn:hover {
+    background: #2563eb;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+}
+
+.card-green {
+    background: linear-gradient(135deg, #d1fae5 0%, #ffffff 100%);
+}
+
+.card-green .icon-wrapper {
+    background: #a7f3d0;
+    color: #059669;
+}
+
+.card-green .tool-card-btn {
+    background: #10b981;
+}
+
+.card-green .tool-card-btn:hover {
+    background: #059669;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+}
+
+.card-pink {
+    background: linear-gradient(135deg, #fce7f3 0%, #ffffff 100%);
+}
+
+.card-pink .icon-wrapper {
+    background: #fbcfe8;
+    color: #db2777;
+}
+
+.card-pink .tool-card-btn {
+    background: #ec4899;
+}
+
+.card-pink .tool-card-btn:hover {
+    background: #db2777;
+    box-shadow: 0 4px 12px rgba(236, 72, 153, 0.4);
+}
+
+.card-purple {
+    background: linear-gradient(135deg, #f3e8ff 0%, #ffffff 100%);
+}
+
+.card-purple .icon-wrapper {
+    background: #e9d5ff;
+    color: #9333ea;
+}
+
+.card-purple .tool-card-btn {
+    background: #a855f7;
+}
+
+.card-purple .tool-card-btn:hover {
+    background: #9333ea;
+    box-shadow: 0 4px 12px rgba(168, 85, 247, 0.4);
+}
+
+.card-yellow {
+    background: linear-gradient(135deg, #fef3c7 0%, #ffffff 100%);
+}
+
+.card-yellow .icon-wrapper {
+    background: #fde68a;
+    color: #d97706;
+}
+
+.card-yellow .tool-card-btn {
+    background: #f59e0b;
+}
+
+.card-yellow .tool-card-btn:hover {
+    background: #d97706;
+    box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
+}
+
+.card-indigo {
+    background: linear-gradient(135deg, #e0e7ff 0%, #ffffff 100%);
+}
+
+.card-indigo .icon-wrapper {
+    background: #c7d2fe;
+    color: #4f46e5;
+}
+
+.card-indigo .tool-card-btn {
+    background: #6366f1;
+}
+
+.card-indigo .tool-card-btn:hover {
+    background: #4f46e5;
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+}
+
+/* 响应式调整 */
+@media (max-width: 992px) {
+    .tools-card-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .quick-actions-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+    .home-container {
+        padding: 1rem;
+    }
+    
+    .tools-card-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+    
+    .quick-actions-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.5rem;
+    }
+    
+    .quick-action-btn {
+        padding: 0.625rem 0.75rem;
+        font-size: 0.875rem;
+        gap: 0.375rem;
+    }
+    
+    .quick-action-btn i {
+        width: 28px;
+        height: 28px;
+        font-size: 0.95rem;
+    }
+    
+    .quick-actions-section {
+        padding: 1.25rem;
+    }
+}
+
+/* 签证页面专用样式 */
+
+/* 签证国家卡片 */
+.visa-country-card {
+    background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+    border: 2px solid transparent;
+    transition: all 0.3s ease;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    min-height: 100%;
+}
+
+.visa-country-card:hover {
+    border-color: #007bff;
+    background: linear-gradient(135deg, #e3f2fd, #bbdefb);
+    transform: translateY(-5px);
+    box-shadow: 0 5px 20px rgba(0,0,0,0.15);
+}
+
+/* 搜索框 */
+.visa-search-section {
+    padding: 2rem 0;
+}
+
+.visa-search-box {
+    background: white;
+    border-radius: 25px;
+    padding: 0.5rem 1rem;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    border: 2px solid transparent;
+    transition: all 0.3s ease;
+}
+
+.visa-search-box:focus {
+    border-color: #007bff;
+    box-shadow: 0 2px 15px rgba(0,123,255,0.3);
+    outline: none;
+}
+
+/* 模态框样式 */
+.visa-modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.5);
+}
+
+.visa-modal-content {
+    background-color: #fefefe;
+    margin: 5% auto;
+    padding: 0;
+    border-radius: 15px;
+    width: 90%;
+    max-width: 600px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    overflow: hidden;
+}
+
+.visa-modal-header {
+    background: linear-gradient(135deg, #007bff, #0056b3);
+    color: white;
+    padding: 1rem 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.visa-modal-title {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+
+.visa-modal-close {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 1.5rem;
+    cursor: pointer;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.visa-modal-close:hover {
+    opacity: 0.7;
+}
+
+.visa-modal-body {
+    padding: 1.5rem;
+}
+
+.visa-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.visa-item {
+    border: 1px solid #e9ecef;
+    border-radius: 10px;
+    padding: 1rem;
+    background: white;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.visa-item-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.visa-item-title {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #333;
+}
+
+.visa-item-info {
+    margin-bottom: 1rem;
+}
+
+.visa-item-info-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.25rem;
+}
+
+.visa-item-label {
+    font-weight: 500;
+    color: #666;
+}
+
+.visa-item-value {
+    color: #333;
+}
+
+.visa-item-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.visa-btn {
+    padding: 0.5rem 1rem;
+    border-radius: 5px;
+    text-decoration: none;
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    border: none;
+    cursor: pointer;
+    display: inline-block;
+}
+
+.visa-btn-action-primary {
+    background: #007bff;
+    color: white;
+}
+
+.visa-btn-action-primary:hover {
+    background: #0056b3;
+    color: white;
+}
+
+.visa-btn-action-secondary {
+    background: #6c757d;
+    color: white;
+}
+
+.visa-btn-action-secondary:hover {
+    background: #545b62;
+    color: white;
+}
+
+.visa-btn-action-info {
+    background: #17a2b8;
+    color: white;
+}
+
+.visa-btn-action-info:hover {
+    background: #138496;
+    color: white;
+}

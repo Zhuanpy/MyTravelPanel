@@ -75,7 +75,7 @@
                     </li>
                     <li class="nav-item">
                         <a class="nav-link {% if request.path.startswith('/member/orders') %}active{% endif %}"
-                           href="{{ url_for('member.orders') }}">
+                           href="{{ url_for('orders.list') }}">
                             <i class="fas fa-shopping-cart me-2 nav-icon"></i>
                             我的订单
                         </a>

@@ -32,8 +32,9 @@
 <!-- 签证详情内容 -->
 <section class="py-5">
     <div class="container">
-        <div class="row justify-content-center">
-            <div class="col-lg-10">
+        <div class="row">
+            <!-- 左侧：签证详细信息 -->
+            <div class="col-lg-8">
                 <!-- 签证信息卡片 -->
                 <div class="visa-info-card">
                     <!-- 签证类型标题 -->
@@ -128,16 +129,36 @@
                     </div>
                 </div>
             </div>
-        </div>
-        
-        
-        <!-- 返回按钮 -->
-        <div class="row justify-content-center mt-4">
-            <div class="col-lg-10">
-                <div class="text-center">
-                    <a href="{{ url_for('public.visa_services_by_country', country_name=visa_type.country.country_name_CN) }}" class="btn btn-outline-primary">
-                        <i class="fas fa-arrow-left me-2"></i>返回{{ visa_type.country.country_name_CN }}签证服务
-                    </a>
+            
+            <!-- 右侧：下单操作面板 -->
+            <div class="col-lg-4">
+                <div class="order-sidebar-panel sticky-top" style="top: 80px;">
+                    <!-- 操作卡片 -->
+                    <div class="visa-info-card">
+                        {% if current_user.is_authenticated %}
+                            <a href="{{ url_for('orders.apply_service', service_type='visa') }}" class="btn btn-success btn-lg w-100 mb-3">
+                                <i class="fas fa-cart-plus me-2"></i>立即下单
+                            </a>
+                            <p class="text-muted text-center mb-3" style="font-size: 0.9rem;">
+                                <i class="fas fa-shield-alt me-1"></i>安全快捷的在线下单服务
+                            </p>
+                        {% else %}
+                            <button type="button" class="btn btn-success btn-lg w-100 mb-3" onclick="showLoginPrompt()">
+                                <i class="fas fa-cart-plus me-2"></i>立即下单
+                            </button>
+                            <p class="text-warning text-center mb-3" style="font-size: 0.9rem;">
+                                <i class="fas fa-exclamation-circle me-1"></i>请先登录后才能下单
+                            </p>
+                        {% endif %}
+                        
+                        <a href="{{ url_for('guest.main.contact') }}" class="btn btn-outline-primary w-100 mb-2">
+                            <i class="fas fa-headset me-2"></i>咨询客服
+                        </a>
+                        
+                        <a href="{{ url_for('public.visa_services') }}" class="btn btn-outline-secondary w-100">
+                            <i class="fas fa-passport me-2"></i>浏览其他签证
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>
@@ -146,6 +167,31 @@
 
 {% block extra_css %}
 <style>
+    /* 右侧下单面板样式 */
+    .order-sidebar-panel {
+        position: sticky;
+        top: 80px;
+    }
+    
+    .order-sidebar-panel .btn-success {
+        font-weight: 600;
+        box-shadow: 0 4px 15px rgba(40, 167, 69, 0.2);
+        transition: all 0.3s ease;
+    }
+    
+    .order-sidebar-panel .btn-success:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(40, 167, 69, 0.3);
+    }
+    
+    /* 响应式设计 */
+    @media (max-width: 991.98px) {
+        .order-sidebar-panel {
+            position: static;
+            margin-top: 2rem;
+        }
+    }
+
     /* 签证信息卡片样式 */
     .visa-info-card {
         background: white;
@@ -531,6 +577,15 @@ function renderDocuments(documentInfo, additionalInfo, applicantAdditionalInfo) 
     }
     
     container.innerHTML = html;
+}
+
+// 显示登录提示
+function showLoginPrompt() {
+    if (confirm('您需要先登录才能下单。是否前往登录页面？')) {
+        // 保存当前页面URL，登录后返回
+        const currentUrl = window.location.href;
+        window.location.href = "{{ url_for('auth_profile.member_login') }}?next=" + encodeURIComponent(currentUrl);
+    }
 }
 </script>
 {% endblock %}
