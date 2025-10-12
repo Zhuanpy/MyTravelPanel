@@ -4,6 +4,10 @@
 
 {% block page_title %}访问统计调试{% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/visa_common.css') }}">
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid">
     <div class="row">

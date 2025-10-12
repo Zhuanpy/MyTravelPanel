@@ -1,10 +1,11 @@
-{% extends "staff_base.html" %}
+﻿{% extends "staff_base.html" %}
 
 {% block title %}PDF处理 - MyTravelPanel{% endblock %}
 
 {% block page_title %}PDF处理{% endblock %}
 
 {% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/shared_common.css') }}">
 <style>
     .pdf-page-container {
         max-width: 800px;

@@ -5,7 +5,8 @@
 {% block page_title %}机票确认详情{% endblock %}
 
 {% block extra_css %}
-    <style>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/flight_order_common.css') }}">
+<style>
     .confirm-detail-container {
         width: 90%;
         max-width: 1200px;

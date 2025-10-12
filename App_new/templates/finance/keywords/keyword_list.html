@@ -1,10 +1,11 @@
-{% extends "staff_base.html" %}
+﻿{% extends "staff_base.html" %}
 
 {% block title %}银行关键词管理 - MyTravelPanel{% endblock %}
 
 {% block page_title %}银行关键词管理{% endblock %}
 
 {% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/finance_common.css') }}">
 <style>
     .keyword-container {
         max-width: 1200px;

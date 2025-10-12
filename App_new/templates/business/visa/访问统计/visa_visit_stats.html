@@ -4,6 +4,10 @@
 
 {% block page_title %}签证访问统计{% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/visa_common.css') }}">
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid">
     <!-- 统计概览 -->

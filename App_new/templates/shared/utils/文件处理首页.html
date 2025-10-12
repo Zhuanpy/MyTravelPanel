@@ -1,10 +1,11 @@
-{% extends "staff_base.html" %}
+﻿{% extends "staff_base.html" %}
 
 {% block title %}文件处理 - MyTravelPanel{% endblock %}
 
 {% block page_title %}文件处理{% endblock %}
 
 {% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/shared_common.css') }}">
 <style>
     .files-home-container {
         max-width: 1200px;

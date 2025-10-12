@@ -7,8 +7,9 @@
 
 
 {% block extra_css %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/visa_common.css') }}">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-    <style>
+<style>
         /* 建议定义CSS变量 */
         :root {
             --primary-color: #4299e1;

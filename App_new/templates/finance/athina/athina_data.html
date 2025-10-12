@@ -1,10 +1,11 @@
-{% extends "staff_base.html" %}
+﻿{% extends "staff_base.html" %}
 
 {% block title %}Athina数据查看 - MyTravelPanel{% endblock %}
 
 {% block page_title %}Athina数据查看{% endblock %}
 
 {% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/finance_common.css') }}">
 <style>
     .data-container {
         max-width: 1400px;

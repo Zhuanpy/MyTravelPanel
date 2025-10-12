@@ -1,0 +1,181 @@
+/**
+ * 配套模块通用样式 (Tour/Package Module Common Styles)
+ * 用于统一配套产品、旅游项目、预算管理等页面的样式
+ */
+
+/* ==================== CSS变量定义 ==================== */
+:root {
+    /* 配套模块主题色 - 绿色系 */
+    --tour-primary: #10b981;
+    --tour-primary-hover: #059669;
+    --tour-secondary: #34d399;
+    --tour-success: #22c55e;
+    --tour-warning: #f59e0b;
+    --tour-danger: #ef4444;
+    --tour-info: #3b82f6;
+    
+    /* 渐变色 */
+    --tour-gradient-start: #10b981;
+    --tour-gradient-end: #059669;
+    
+    /* 背景色 */
+    --tour-bg-light: #f0fdf4;
+    --tour-bg-white: #ffffff;
+    
+    /* 边框和阴影 */
+    --tour-border-color: #d1fae5;
+    --tour-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
+    --tour-shadow-md: 0 2px 10px rgba(0, 0, 0, 0.05);
+    --tour-shadow-lg: 0 4px 20px rgba(0, 0, 0, 0.1);
+    
+    /* 文字颜色 */
+    --tour-text-dark: #064e3b;
+    --tour-text-muted: #475569;
+    --tour-text-light: #94a3b8;
+}
+
+/* ==================== 容器和布局 ==================== */
+.tour-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.tour-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 15px;
+}
+
+/* ==================== 页面标题 ==================== */
+.tour-page-title {
+    font-size: 24px;
+    margin-bottom: 20px;
+    font-weight: bold;
+    text-align: center;
+    color: var(--tour-text-dark);
+}
+
+/* ==================== 卡片样式 ==================== */
+.tour-card {
+    background-color: var(--tour-bg-white);
+    border-radius: 10px;
+    box-shadow: var(--tour-shadow-md);
+    padding: 20px;
+    margin-bottom: 20px;
+    border-left: 4px solid var(--tour-primary);
+}
+
+.tour-card-header {
+    background: linear-gradient(135deg, var(--tour-gradient-start) 0%, var(--tour-gradient-end) 100%);
+    color: white;
+    padding: 20px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+}
+
+/* ==================== 按钮样式 ==================== */
+.tour-btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    text-decoration: none;
+    display: inline-block;
+}
+
+.tour-btn-primary {
+    background-color: var(--tour-primary);
+    color: white;
+}
+
+.tour-btn-primary:hover {
+    background-color: var(--tour-primary-hover);
+    color: white;
+}
+
+.tour-btn-success {
+    background-color: var(--tour-success);
+    color: white;
+}
+
+.tour-btn-success:hover {
+    background-color: #16a34a;
+    color: white;
+}
+
+/* ==================== 表格样式 ==================== */
+.tour-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+    background: white;
+}
+
+.tour-table thead tr {
+    background: #f0fdf4;
+}
+
+.tour-table th {
+    padding: 12px;
+    text-align: left;
+    font-weight: 600;
+    color: var(--tour-text-dark);
+    border-bottom: 2px solid var(--tour-border-color);
+}
+
+.tour-table td {
+    padding: 12px;
+    border-bottom: 1px solid var(--tour-border-color);
+}
+
+.tour-table tbody tr:hover {
+    background-color: var(--tour-bg-light);
+}
+
+/* ==================== 表单样式 ==================== */
+.tour-form-group {
+    margin-bottom: 1.5rem;
+}
+
+.tour-form-label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+    color: var(--tour-text-dark);
+}
+
+.tour-form-control {
+    width: 100%;
+    padding: 10px 12px;
+    border: 2px solid var(--tour-border-color);
+    border-radius: 8px;
+    font-size: 14px;
+    transition: border-color 0.3s ease;
+}
+
+.tour-form-control:focus {
+    outline: none;
+    border-color: var(--tour-primary);
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+}
+
+/* ==================== 响应式设计 ==================== */
+@media (max-width: 768px) {
+    .tour-container {
+        padding: 10px;
+    }
+    
+    .tour-table {
+        font-size: 12px;
+    }
+    
+    .tour-table th,
+    .tour-table td {
+        padding: 8px;
+    }
+}
+

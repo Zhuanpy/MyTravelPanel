@@ -4,6 +4,10 @@
 
 {% block page_title %}REF详情{% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/projects_common.css') }}">
+{% endblock %}
+
 {% block content %}
 <style>
     .detail-container {

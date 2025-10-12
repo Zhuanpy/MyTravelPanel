@@ -1,8 +1,9 @@
-{% extends "shared/staff_base.html" %}
+﻿{% extends "shared/staff_base.html" %}
 
 {% block title %}SOA 对账单管理{% endblock %}
 
 {% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/finance_common.css') }}">
 <style>
     .soa-container {
         padding: 20px;

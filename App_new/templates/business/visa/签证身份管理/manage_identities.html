@@ -5,322 +5,41 @@
 {% block page_title %}Manage Identities{% endblock %}
 
 {% block extra_css %}
-{{ super() }}
-<style>
-    .identity-container {
-        max-width: 1000px;
-        margin: 0 auto;
-        padding: 20px;
-    }
-    
-    .identity-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 30px;
-        border-bottom: 2px solid #e9ecef;
-        padding-bottom: 15px;
-    }
-    
-    .identity-header h1 {
-        font-size: 1.75rem;
-        font-weight: 600;
-        color: #2d3748;
-        margin: 0;
-    }
-    
-    .identity-add-btn {
-        display: inline-flex;
-        align-items: center;
-        padding: 10px 20px;
-        background-color: #4299e1;
-        color: white;
-        border: none;
-        border-radius: 6px;
-        cursor: pointer;
-        font-weight: 500;
-        transition: all 0.3s ease;
-        text-decoration: none;
-    }
-    
-    .identity-add-btn:hover {
-        background-color: #3182ce;
-        transform: translateY(-1px);
-    }
-    
-    .identity-add-btn i {
-        margin-right: 8px;
-    }
-    
-    .identity-table {
-        width: 100%;
-        border-collapse: collapse;
-        background-color: white;
-        border-radius: 8px;
-        overflow: hidden;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-    }
-    
-    .identity-table th,
-    .identity-table td {
-        padding: 12px 16px;
-        text-align: left;
-        border-bottom: 1px solid #e2e8f0;
-    }
-    
-    .identity-table th {
-        background-color: #f7fafc;
-        color: #4a5568;
-        font-weight: 600;
-        font-size: 0.875rem;
-    }
-    
-    .identity-table tr:hover {
-        background-color: #f8f9fa;
-    }
-    
-    .identity-table tr:last-child td {
-        border-bottom: none;
-    }
-    
-    .identity-actions {
-        display: flex;
-        gap: 6px;
-        justify-content: center;
-        flex-wrap: nowrap;
-    }
-    
-    .identity-btn {
-        padding: 4px 8px;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-        font-size: 0.75rem;
-        transition: all 0.2s ease;
-        white-space: nowrap;
-        min-width: 60px;
-    }
-    
-    .identity-btn-edit {
-        background-color: #3182ce;
-        color: white;
-    }
-    
-    .identity-btn-edit:hover {
-        background-color: #2c5282;
-    }
-    
-    .identity-btn-delete {
-        background-color: #e53e3e;
-        color: white;
-    }
-    
-    .identity-btn-delete:hover {
-        background-color: #c53030;
-    }
-    
-    /* 弹窗样式 */
-    .identity-modal-overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background-color: rgba(0, 0, 0, 0.5);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 1000;
-        opacity: 0;
-        visibility: hidden;
-        transition: all 0.3s ease;
-    }
-    
-    .identity-modal-overlay.active {
-        opacity: 1;
-        visibility: visible;
-    }
-    
-    .identity-modal {
-        background-color: #ffffff;
-        border-radius: 8px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-        width: 100%;
-        max-width: 600px;
-        padding: 0;
-        transform: translateY(-20px);
-        transition: transform 0.3s ease;
-    }
-    
-    .identity-modal-overlay.active .identity-modal {
-        transform: translateY(0);
-    }
-    
-    .identity-modal-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 20px 24px;
-        border-bottom: 1px solid #e2e8f0;
-        background-color: #f7fafc;
-    }
-    
-    .identity-modal-title {
-        font-size: 1.25rem;
-        font-weight: 600;
-        color: #2d3748;
-        margin: 0;
-    }
-    
-    .identity-modal-close {
-        background: none;
-        border: none;
-        font-size: 1.5rem;
-        cursor: pointer;
-        color: #a0aec0;
-        padding: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 32px;
-        height: 32px;
-        border-radius: 4px;
-        transition: all 0.2s ease;
-    }
-    
-    .identity-modal-close:hover {
-        background-color: #edf2f7;
-        color: #4a5568;
-    }
-    
-    .identity-modal-body {
-        padding: 24px;
-    }
-    
-    .identity-form-group {
-        margin-bottom: 20px;
-    }
-    
-    .identity-form-label {
-        display: block;
-        font-weight: 500;
-        margin-bottom: 8px;
-        color: #4a5568;
-    }
-    
-    .identity-form-control {
-        width: 100%;
-        padding: 10px 12px;
-        border: 1px solid #e2e8f0;
-        border-radius: 6px;
-        font-size: 0.875rem;
-        transition: border-color 0.15s ease-in-out;
-        box-sizing: border-box;
-    }
-    
-    .identity-form-control:focus {
-        border-color: #4299e1;
-        outline: 0;
-        box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.1);
-    }
-    
-    .identity-form-row {
-        display: flex;
-        gap: 16px;
-    }
-    
-    .identity-form-row .identity-form-group {
-        flex: 1;
-    }
-    
-    .identity-modal-footer {
-        padding: 16px 24px;
-        border-top: 1px solid #e2e8f0;
-        display: flex;
-        justify-content: flex-end;
-        gap: 12px;
-    }
-    
-    .identity-btn-secondary {
-        background-color: #e2e8f0;
-        color: #4a5568;
-        border: 1px solid #cbd5e0;
-    }
-    
-    .identity-btn-secondary:hover {
-        background-color: #cbd5e0;
-        color: #2d3748;
-    }
-    
-    .identity-btn-primary {
-        background-color: #4299e1;
-        color: white;
-    }
-    
-    .identity-btn-primary:hover {
-        background-color: #3182ce;
-    }
-    
-    .identity-alert {
-        padding: 12px 16px;
-        border-radius: 6px;
-        margin-bottom: 16px;
-        display: none;
-    }
-    
-    .identity-alert-success {
-        background-color: #f0fff4;
-        border: 1px solid #c6f6d5;
-        color: #276749;
-    }
-    
-    .identity-alert-error {
-        background-color: #fff5f5;
-        border: 1px solid #fed7d7;
-        color: #c53030;
-    }
-    
-    /* 消息提示样式 */
-    .identity-message {
-        margin-top: 15px;
-        padding: 12px 16px;
-        border-radius: 6px;
-        font-weight: 500;
-    }
-    
-    .identity-message-success {
-        background-color: #d1fae5;
-        color: #047857;
-        border: 1px solid #6ee7b7;
-    }
-    
-    .identity-message-error {
-        background-color: #fee2e2;
-        color: #b91c1c;
-        border: 1px solid #fca5a5;
-    }
-</style>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/visa_common.css') }}">
 {% endblock %}
 
 {% block content %}
-<div class="identity-container">
-    <div class="identity-header">
-        <h1>管理新加坡身份信息</h1>
-        <button type="button" class="identity-add-btn" onclick="showAddModal()">
-            <i class="fas fa-plus"></i>
-            添加身份
+<div class="visa-container-sm">
+    <!-- 闪现消息容器 -->
+    <div class="visa-flash-container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="visa-flash visa-flash-{{ category }}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    </div>
+
+    <!-- 页面标题和操作按钮 -->
+    <div class="visa-flex-between visa-mb-3">
+        <h1 class="visa-page-title" style="margin: 0;">身份管理</h1>
+        <button type="button" class="visa-btn visa-btn-primary" onclick="showAddModal()">
+            <i class="fas fa-plus"></i> 添加身份
         </button>
     </div>
     
-    <!-- 身份列表 -->
-    <div style="background-color: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); overflow: hidden;">
-        <table class="identity-table">
+    <!-- 身份列表表格 -->
+    <div class="visa-card">
+        <table class="visa-table">
             <thead>
                 <tr>
                     <th>中文名称</th>
                     <th>英文名称</th>
                     <th>备注</th>
-                    <th style="text-align: center; width: 200px;">操作</th>
+                    <th class="visa-text-center">操作</th>
                 </tr>
             </thead>
             <tbody>
@@ -329,107 +48,95 @@
                     <td>{{ identity.identity_zh }}</td>
                     <td>{{ identity.identity_en }}</td>
                     <td>{{ identity.remarks or '' }}</td>
-                    <td>
-                        <div class="identity-actions">
-                            <button onclick="editIdentity({{ identity.id }})" class="identity-btn identity-btn-edit">
-                                <i class="fas fa-edit"></i> 编辑
-                            </button>
-                            <button onclick="deleteIdentity({{ identity.id }})" class="identity-btn identity-btn-delete">
-                                <i class="fas fa-trash"></i> 删除
-                            </button>
-                        </div>
+                    <td class="visa-text-center">
+                        <button onclick="editIdentity({{ identity.id }})" class="visa-btn-link visa-btn-link-primary">
+                            <i class="fas fa-edit"></i> 编辑
+                        </button>
+                        <button onclick="deleteIdentity({{ identity.id }})" class="visa-btn-link visa-btn-link-danger">
+                            <i class="fas fa-trash"></i> 删除
+                        </button>
                     </td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
-    
-    <!-- 消息提示 -->
-    {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-            {% for category, message in messages %}
-                <div class="identity-message identity-message-{{ category }}">
-                    <i class="fas fa-{% if category == 'success' %}check-circle{% else %}exclamation-circle{% endif %}"></i> {{ message }}
-                </div>
-            {% endfor %}
-        {% endif %}
-    {% endwith %}
 </div>
 
-<!-- 添加身份弹窗 -->
-<div id="addModal" class="identity-modal-overlay">
-    <div class="identity-modal">
-        <div class="identity-modal-header">
-            <h3 class="identity-modal-title">添加新身份</h3>
-            <button type="button" class="identity-modal-close" onclick="closeAddModal()">&times;</button>
+<!-- 添加身份模态框 -->
+<div id="addModal" class="visa-modal">
+    <div class="visa-modal-dialog">
+        <div class="visa-modal-header">
+            <h3 class="visa-modal-title">添加新身份</h3>
+            <button type="button" class="visa-modal-close" onclick="closeAddModal()">&times;</button>
         </div>
-        <div class="identity-modal-body">
-            <div id="addModalAlert" class="identity-alert" style="display: none;"></div>
+        <div class="visa-modal-body">
+            <div id="addModalAlert" class="visa-flash" style="display: none;"></div>
             
             <form method="POST" id="addIdentityForm">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 
-                <div class="identity-form-row">
-                    <div class="identity-form-group">
-                        <label class="identity-form-label">中文名称</label>
-                        <input type="text" name="identity_zh" class="identity-form-control" required placeholder="请输入身份中文名称">
+                <div class="visa-grid-2 visa-gap-2">
+                    <div class="visa-form-group">
+                        <label class="visa-form-label">中文名称 *</label>
+                        <input type="text" name="identity_zh" class="visa-form-control" required placeholder="请输入身份中文名称">
                     </div>
-                    <div class="identity-form-group">
-                        <label class="identity-form-label">英文名称</label>
-                        <input type="text" name="identity_en" class="identity-form-control" required placeholder="请输入身份英文名称">
+                    <div class="visa-form-group">
+                        <label class="visa-form-label">英文名称 *</label>
+                        <input type="text" name="identity_en" class="visa-form-control" required placeholder="请输入身份英文名称">
                     </div>
                 </div>
                 
-                <div class="identity-form-group">
-                    <label class="identity-form-label">备注</label>
-                    <textarea name="remarks" rows="3" class="identity-form-control" placeholder="可选：添加备注信息"></textarea>
+                <div class="visa-form-group">
+                    <label class="visa-form-label">备注</label>
+                    <textarea name="remarks" rows="3" class="visa-form-control" placeholder="可选：添加备注信息"></textarea>
                 </div>
             </form>
         </div>
-        <div class="identity-modal-footer">
-            <button type="button" class="identity-btn identity-btn-secondary" onclick="closeAddModal()">取消</button>
-            <button type="submit" form="addIdentityForm" class="identity-btn identity-btn-primary">添加身份</button>
+        <div class="visa-modal-footer">
+            <button type="button" class="visa-btn visa-btn-secondary" onclick="closeAddModal()">取消</button>
+            <button type="submit" form="addIdentityForm" class="visa-btn visa-btn-primary">添加身份</button>
         </div>
     </div>
 </div>
 
-<!-- 编辑身份弹窗 -->
-<div id="editModal" class="identity-modal-overlay">
-    <div class="identity-modal">
-        <div class="identity-modal-header">
-            <h3 class="identity-modal-title">编辑身份</h3>
-            <button type="button" class="identity-modal-close" onclick="closeEditModal()">&times;</button>
+<!-- 编辑身份模态框 -->
+<div id="editModal" class="visa-modal">
+    <div class="visa-modal-dialog">
+        <div class="visa-modal-header">
+            <h3 class="visa-modal-title">编辑身份</h3>
+            <button type="button" class="visa-modal-close" onclick="closeEditModal()">&times;</button>
         </div>
-        <div class="identity-modal-body">
-            <div id="editModalAlert" class="identity-alert" style="display: none;"></div>
+        <div class="visa-modal-body">
+            <div id="editModalAlert" class="visa-flash" style="display: none;"></div>
             
             <form method="POST" id="editIdentityForm">
                 <input type="hidden" name="identity_id" id="editIdentityId">
                 
-                <div class="identity-form-row">
-                    <div class="identity-form-group">
-                        <label class="identity-form-label">中文名称</label>
-                        <input type="text" name="identity_zh" id="editIdentityZh" class="identity-form-control" required placeholder="请输入身份中文名称">
+                <div class="visa-grid-2 visa-gap-2">
+                    <div class="visa-form-group">
+                        <label class="visa-form-label">中文名称 *</label>
+                        <input type="text" name="identity_zh" id="editIdentityZh" class="visa-form-control" required placeholder="请输入身份中文名称">
                     </div>
-                    <div class="identity-form-group">
-                        <label class="identity-form-label">英文名称</label>
-                        <input type="text" name="identity_en" id="editIdentityEn" class="identity-form-control" required placeholder="请输入身份英文名称">
+                    <div class="visa-form-group">
+                        <label class="visa-form-label">英文名称 *</label>
+                        <input type="text" name="identity_en" id="editIdentityEn" class="visa-form-control" required placeholder="请输入身份英文名称">
                     </div>
                 </div>
                 
-                <div class="identity-form-group">
-                    <label class="identity-form-label">备注</label>
-                    <textarea name="remarks" id="editIdentityRemarks" rows="3" class="identity-form-control" placeholder="可选：添加备注信息"></textarea>
+                <div class="visa-form-group">
+                    <label class="visa-form-label">备注</label>
+                    <textarea name="remarks" id="editIdentityRemarks" rows="3" class="visa-form-control" placeholder="可选：添加备注信息"></textarea>
                 </div>
             </form>
         </div>
-        <div class="identity-modal-footer">
-            <button type="button" class="identity-btn identity-btn-secondary" onclick="closeEditModal()">取消</button>
-            <button type="submit" form="editIdentityForm" class="identity-btn identity-btn-primary">保存修改</button>
+        <div class="visa-modal-footer">
+            <button type="button" class="visa-btn visa-btn-secondary" onclick="closeEditModal()">取消</button>
+            <button type="submit" form="editIdentityForm" class="visa-btn visa-btn-primary">保存修改</button>
         </div>
     </div>
 </div>
+
 
 <script>
 // 弹窗控制函数
@@ -570,7 +277,7 @@ document.getElementById('editIdentityForm').addEventListener('submit', function(
 function showModalAlert(message, type, alertId) {
     const alert = document.getElementById(alertId);
     alert.textContent = message;
-    alert.className = `identity-alert identity-alert-${type}`;
+    alert.className = `visa-flash visa-flash-${type}`;
     alert.style.display = 'block';
     
     // 3秒后自动隐藏

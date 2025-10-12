@@ -5,6 +5,7 @@
 {% block page_title %}Statistics{% endblock %}
 
 {% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/projects_common.css') }}">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
     .stats-container {

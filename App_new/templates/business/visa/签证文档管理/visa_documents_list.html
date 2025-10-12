@@ -5,191 +5,57 @@
 {% block page_title %}Visa Documents List{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
-<style>
-    .document-container {
-        max-width: 1200px;
-        margin: 0 auto;
-        padding: 20px;
-    }
-    .document-header {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        padding: 20px;
-        border-radius: 10px;
-        margin-bottom: 20px;
-    }
-    .document-table {
-        background: white;
-        border-radius: 10px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        overflow: hidden;
-    }
-    .document-form {
-        background: white;
-        padding: 20px;
-        border-radius: 10px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        margin-bottom: 20px;
-    }
-    .btn-primary {
-        background-color: #3273dc;
-        color: white;
-        border: none;
-        padding: 8px 16px;
-        border-radius: 4px;
-        cursor: pointer;
-        transition: background-color 0.3s;
-    }
-    .btn-primary:hover {
-        background-color: #2366d1;
-    }
-    .btn-success {
-        background-color: #48c774;
-        color: white;
-        border: none;
-        padding: 8px 16px;
-        border-radius: 4px;
-        cursor: pointer;
-        transition: background-color 0.3s;
-    }
-    .btn-success:hover {
-        background-color: #3da066;
-    }
-    .btn-warning {
-        background-color: #ffdd57;
-        color: #363636;
-        border: none;
-        padding: 8px 16px;
-        border-radius: 4px;
-        cursor: pointer;
-        transition: background-color 0.3s;
-    }
-    .btn-warning:hover {
-        background-color: #ffd83d;
-    }
-    .btn-danger {
-        background-color: #f14668;
-        color: white;
-        border: none;
-        padding: 8px 16px;
-        border-radius: 4px;
-        cursor: pointer;
-        transition: background-color 0.3s;
-    }
-    .btn-danger:hover {
-        background-color: #e03e5f;
-    }
-    .search-box {
-        margin-bottom: 20px;
-    }
-    .status-badge {
-        padding: 4px 8px;
-        border-radius: 12px;
-        font-size: 0.75rem;
-        font-weight: bold;
-    }
-    .status-optional {
-        background-color: #ffdd57;
-        color: #363636;
-    }
-    .status-required {
-        background-color: #f14668;
-        color: white;
-    }
-    .modal {
-        display: none;
-        position: fixed;
-        z-index: 1000;
-        left: 0;
-        top: 0;
-        width: 100%;
-        height: 100%;
-        background-color: rgba(0,0,0,0.5);
-    }
-    .modal-content {
-        background-color: white;
-        margin: 5% auto;
-        padding: 20px;
-        border-radius: 10px;
-        width: 80%;
-        max-width: 600px;
-        position: relative;
-    }
-    .close {
-        position: absolute;
-        right: 20px;
-        top: 15px;
-        font-size: 28px;
-        font-weight: bold;
-        cursor: pointer;
-    }
-    .close:hover {
-        color: #f14668;
-    }
-</style>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/visa_common.css') }}">
 {% endblock %}
 
 {% block content %}
-<div class="document-container">
-    <!-- 页面标题 -->
-    <div class="document-header">
-        <h1 class="title is-3 has-text-white">
-            <i class="fas fa-file-alt"></i> 签证资料管理
-        </h1>
-        <p class="subtitle is-6 has-text-white">管理签证申请所需的文档资料</p>
+<div class="visa-container-sm">
+    <!-- 闪现消息容器 -->
+    <div class="visa-flash-container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="visa-flash visa-flash-{{ category }}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
     </div>
 
-    <!-- 搜索和过滤 -->
-    <div class="search-box">
-        <div class="columns">
-            <div class="column is-4">
-                <div class="field">
-                    <label class="label">搜索文档名称</label>
-                    <div class="control">
-                        <input class="input" type="text" id="searchName" placeholder="输入文档名称...">
-                    </div>
-                </div>
+    <h1 class="visa-page-title">签证文档管理</h1>
+
+    <!-- 筛选栏 -->
+    <div class="visa-filter-bar">
+        <div class="visa-flex visa-gap-2" style="align-items: flex-end;">
+            <div class="visa-filter-item">
+                <label class="visa-form-label">搜索文档名称</label>
+                <input class="visa-form-control" type="text" id="searchName" placeholder="输入文档名称..." value="{{ request.args.get('search', '') }}">
             </div>
-            <div class="column is-3">
-                <div class="field">
-                    <label class="label">分类过滤</label>
-                    <div class="control">
-                        <div class="select is-fullwidth">
-                            <select id="filterCategory">
-                                <option value="">所有分类</option>
-                                {% for category in categories %}
-                                <option value="{{ category }}" {% if request.args.get('category') == category %}selected{% endif %}>{{ category }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                    </div>
-                </div>
+            <div class="visa-filter-item">
+                <label class="visa-form-label">分类过滤</label>
+                <select id="filterCategory" class="visa-form-select">
+                    <option value="">所有分类</option>
+                    {% for category in categories %}
+                    <option value="{{ category }}" {% if request.args.get('category') == category %}selected{% endif %}>{{ category }}</option>
+                    {% endfor %}
+                </select>
             </div>
-            <div class="column is-2">
-                <div class="field">
-                    <label class="label">&nbsp;</label>
-                    <div class="control">
-                        <button class="button is-primary is-fullwidth" onclick="searchDocuments()">
-                            <i class="fas fa-search"></i> 搜索
-                        </button>
-                    </div>
-                </div>
-            </div>
+            <button class="visa-btn visa-btn-primary" onclick="searchDocuments()">
+                <i class="fas fa-search"></i> 搜索
+            </button>
+            <button class="visa-btn visa-btn-secondary" onclick="resetFilters()">
+                <i class="fas fa-redo"></i> 重置
+            </button>
         </div>
-    </div>
-
-    <!-- 添加新文档按钮 -->
-    <div class="has-text-right" style="margin-bottom: 20px;">
-        <button class="button is-success" onclick="openAddModal()">
+        <button class="visa-btn visa-btn-success" onclick="openAddModal()">
             <i class="fas fa-plus"></i> 添加新文档
         </button>
     </div>
 
     <!-- 文档列表表格 -->
-    <div class="document-table">
-        <table class="table is-fullwidth is-striped">
+    <div class="visa-card">
+        <table class="visa-table">
             <thead>
                 <tr>
                     <th>ID</th>
@@ -207,10 +73,10 @@
                     <td>{{ document.description or '无描述' }}</td>
                     <td>{{ document.category or '未分类' }}</td>
                     <td>
-                        <button class="button is-small btn-warning" onclick="openEditModal({{ document.id }})">
+                        <button class="visa-btn-link visa-btn-link-primary" onclick="openEditModal({{ document.id }})">
                             <i class="fas fa-edit"></i> 编辑
                         </button>
-                        <button class="button is-small btn-danger" onclick="deleteDocument({{ document.id }})">
+                        <button class="visa-btn-link visa-btn-link-danger" onclick="deleteDocument({{ document.id }})">
                             <i class="fas fa-trash"></i> 删除
                         </button>
                     </td>
@@ -218,54 +84,85 @@
                 {% endfor %}
             </tbody>
         </table>
+        
+        <!-- 分页控件 -->
+        {% if pagination and pagination.pages > 1 %}
+        <div class="visa-pagination">
+            {% if pagination.has_prev %}
+                <a href="{{ url_for('visa_documents_list.documents_list', page=pagination.prev_num, search=request.args.get('search', ''), category=request.args.get('category', '')) }}" 
+                   class="visa-pagination-btn">
+                    上一页
+                </a>
+            {% endif %}
+            
+            {% for page in pagination.iter_pages(left_edge=2, left_current=2, right_current=3, right_edge=2) %}
+                {% if page %}
+                    {% if page == pagination.page %}
+                        <span class="visa-pagination-btn visa-pagination-btn-active">
+                            {{ page }}
+                        </span>
+                    {% else %}
+                        <a href="{{ url_for('visa_documents_list.documents_list', page=page, search=request.args.get('search', ''), category=request.args.get('category', '')) }}"
+                           class="visa-pagination-btn">
+                            {{ page }}
+                        </a>
+                    {% endif %}
+                {% else %}
+                    <span class="visa-pagination-ellipsis">...</span>
+                {% endif %}
+            {% endfor %}
+            
+            {% if pagination.has_next %}
+                <a href="{{ url_for('visa_documents_list.documents_list', page=pagination.next_num, search=request.args.get('search', ''), category=request.args.get('category', '')) }}"
+                   class="visa-pagination-btn">
+                    下一页
+                </a>
+            {% endif %}
+        </div>
+        <div style="text-align: center; margin-top: 1rem; color: var(--visa-text-muted); font-size: 0.875rem;">
+            显示 {{ pagination.items|length }} 条，共 {{ pagination.total }} 条记录
+        </div>
+        {% endif %}
     </div>
 </div>
 
 <!-- 添加/编辑文档模态框 -->
-<div id="documentModal" class="modal">
-    <div class="modal-content">
-        <span class="close" onclick="closeModal()">&times;</span>
-        <h2 id="modalTitle" class="title is-4">添加新文档</h2>
+<div id="documentModal" class="visa-modal">
+    <div class="visa-modal-dialog">
+        <div class="visa-modal-header">
+            <h2 id="modalTitle" class="visa-modal-title">添加新文档</h2>
+            <button type="button" class="visa-modal-close" onclick="closeModal()">&times;</button>
+        </div>
         
         <form id="documentForm">
-            <input type="hidden" id="documentId" name="id">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            
-            <div class="field">
-                <label class="label">文档名称 *</label>
-                <div class="control">
-                    <input class="input" type="text" id="documentName" name="name" required>
+            <div class="visa-modal-body">
+                <input type="hidden" id="documentId" name="id">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                
+                <div class="visa-form-group">
+                    <label class="visa-form-label">文档名称 *</label>
+                    <input class="visa-form-control" type="text" id="documentName" name="name" required placeholder="请输入文档名称">
+                </div>
+                
+                <div class="visa-form-group">
+                    <label class="visa-form-label">描述</label>
+                    <textarea class="visa-form-control" id="documentDescription" name="description" rows="3" placeholder="请输入文档描述"></textarea>
+                </div>
+                
+                <div class="visa-form-group">
+                    <label class="visa-form-label">分类</label>
+                    <select id="documentCategory" name="category" class="visa-form-select">
+                        <option value="">选择分类</option>
+                        {% for category in categories %}
+                        <option value="{{ category }}">{{ category }}</option>
+                        {% endfor %}
+                    </select>
                 </div>
             </div>
             
-            <div class="field">
-                <label class="label">描述</label>
-                <div class="control">
-                    <textarea class="textarea" id="documentDescription" name="description" rows="3"></textarea>
-                </div>
-            </div>
-            
-            <div class="field">
-                <label class="label">分类</label>
-                <div class="control">
-                    <div class="select is-fullwidth">
-                        <select id="documentCategory" name="category">
-                            <option value="">选择分类</option>
-                            {% for category in categories %}
-                            <option value="{{ category }}">{{ category }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="field is-grouped is-grouped-right">
-                <div class="control">
-                    <button type="button" class="button" onclick="closeModal()">取消</button>
-                </div>
-                <div class="control">
-                    <button type="submit" class="button is-success">保存</button>
-                </div>
+            <div class="visa-modal-footer">
+                <button type="button" class="visa-btn visa-btn-secondary" onclick="closeModal()">取消</button>
+                <button type="submit" class="visa-btn visa-btn-success">保存</button>
             </div>
         </form>
     </div>
@@ -289,13 +186,20 @@ function searchDocuments() {
     window.location.href = `/visa/documents_list/list?${params.toString()}`;
 }
 
+// 重置筛选
+function resetFilters() {
+    document.getElementById('searchName').value = '';
+    document.getElementById('filterCategory').value = '';
+    window.location.href = '/visa/documents_list/list';
+}
+
 // 打开添加模态框
 function openAddModal() {
     currentDocumentId = null;
     document.getElementById('modalTitle').textContent = '添加新文档';
     document.getElementById('documentForm').reset();
     document.getElementById('documentId').value = '';
-    document.getElementById('documentModal').style.display = 'block';
+    document.getElementById('documentModal').classList.add('active');
 }
 
 // 打开编辑模态框
@@ -314,7 +218,7 @@ function openEditModal(documentId) {
                 document.getElementById('documentDescription').value = doc.description || '';
                 document.getElementById('documentCategory').value = doc.category || '';
                 
-                document.getElementById('documentModal').style.display = 'block';
+                document.getElementById('documentModal').classList.add('active');
             } else {
                 alert('获取文档信息失败：' + data.message);
             }
@@ -327,7 +231,7 @@ function openEditModal(documentId) {
 
 // 关闭模态框
 function closeModal() {
-    document.getElementById('documentModal').style.display = 'none';
+    document.getElementById('documentModal').classList.remove('active');
 }
 
 // 删除文档
@@ -438,12 +342,11 @@ function updateCategoryOptions() {
 }
 
 // 点击模态框外部关闭
-window.onclick = function(event) {
-    const modal = document.getElementById('documentModal');
-    if (event.target === modal) {
+document.getElementById('documentModal').addEventListener('click', function(e) {
+    if (e.target === this) {
         closeModal();
     }
-}
+});
 
 // 回车键搜索
 document.getElementById('searchName').addEventListener('keypress', function(e) {

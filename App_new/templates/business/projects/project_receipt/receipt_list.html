@@ -1,6 +1,7 @@
-{% extends 'staff_base.html' %}
+﻿{% extends 'staff_base.html' %}
 {% block title %}收据列表{% endblock %}
 {% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/projects_common.css') }}">
 <style>
   /* 窄屏优化：将表格转为卡片式堆叠显示 */
   @media (max-width: 576px) {

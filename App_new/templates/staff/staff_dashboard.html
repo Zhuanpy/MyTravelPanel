@@ -5,29 +5,7 @@
 {% block page_title %}工作台总览{% endblock %}
 
 {% block extra_css %}
-<style>
-/* 移动端适配：卡片、表格、按钮、文本可读性优化 */
-@media (max-width: 576px) {
-  /* 统计卡片紧凑化 */
-  .stats-card .stats-number { font-size: 1.4rem; }
-  .stats-icon { width: 36px; height: 36px; display:flex; align-items:center; justify-content:center; font-size: 1.1rem; }
-
-  /* 表格转卡片：最近项目 */
-  .data-table table thead { display: none; }
-  .data-table table, .data-table table tbody, .data-table table tr, .data-table table td { display: block; width: 100%; }
-  .data-table table tr { margin-bottom: 12px; border: 1px solid #eee; border-radius: 6px; background: #fff; }
-  .data-table table td { display:flex; justify-content: space-between; align-items: center; padding: 8px 10px; border: none; border-bottom: 1px dashed #f1f3f5; }
-  .data-table table td:last-child { border-bottom: 0; }
-  .data-table table td::before { content: attr(data-label); font-weight: 600; color: #6c757d; margin-right: 12px; }
-
-  /* 任务卡片文本换行与间距 */
-  .task-description { white-space: normal; word-break: break-word; }
-  .task-title { white-space: normal; word-break: break-word; }
-
-  /* 快速操作按钮占满一行 */
-  .btn-staff { width: 100%; }
-}
-</style>
+<!-- 此页面使用staff_common.css的统一样式 -->
 {% endblock %}
 
 {% block content %}

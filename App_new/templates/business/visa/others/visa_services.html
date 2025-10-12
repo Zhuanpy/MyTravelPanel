@@ -2,6 +2,10 @@
 
 {% block title %}签证服务 - MyTravelPanel{% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/visa_common.css') }}">
+{% endblock %}
+
 {% block content %}
 <!-- 页面标题 -->
 <section class="py-4 bg-light">

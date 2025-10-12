@@ -1,10 +1,11 @@
-{% extends "staff_base.html" %}
+﻿{% extends "staff_base.html" %}
 
 {% block title %}任务列表 - MyTravelPanel{% endblock %}
 
 {% block page_title %}任务列表{% endblock %}
 
 {% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/shared_common.css') }}">
 <style>
     :root {
         /* 浅绿色主题 */

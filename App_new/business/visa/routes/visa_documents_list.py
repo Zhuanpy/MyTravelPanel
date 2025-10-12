@@ -15,6 +15,8 @@ def documents_list():
         # 获取查询参数
         search = request.args.get('search', '')
         category = request.args.get('category', '')
+        page = request.args.get('page', 1, type=int)
+        per_page = 20  # 每页显示20条
         
         # 构建查询
         query = VisaDocumentsList.query
@@ -27,8 +29,11 @@ def documents_list():
         if category:
             query = query.filter(VisaDocumentsList.category == category)
         
-        # 获取所有文档
-        documents = query.order_by(VisaDocumentsList.id.desc()).all()
+        # 获取分页数据
+        pagination = query.order_by(VisaDocumentsList.id.desc()).paginate(
+            page=page, per_page=per_page, error_out=False
+        )
+        documents = pagination.items
         
         # 获取所有分类
         categories = db.session.query(VisaDocumentsList.category).distinct().filter(
@@ -39,7 +44,8 @@ def documents_list():
         
         return render_template('business/visa/签证文档管理/visa_documents_list.html', 
                              documents=documents, 
-                             categories=category_list)
+                             categories=category_list,
+                             pagination=pagination)
         
     except Exception as e:
         flash(f'获取文档列表失败: {str(e)}', 'error')

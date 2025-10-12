@@ -7,7 +7,7 @@
 
 
 {% block extra_css %}
-{{ super() }}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/visa_common.css') }}">
 <style>
     .visa-detail-page .container {
         max-width: 1200px;

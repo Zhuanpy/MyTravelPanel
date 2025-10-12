@@ -5,327 +5,35 @@
 {% block page_title %}Manage Countries{% endblock %}
 
 {% block extra_css %}
-{{ super() }}
-<style>
-    .country-container {
-        max-width: 1000px;
-        margin: 0 auto;
-        padding: 20px;
-    }
-    
-    .country-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 30px;
-        border-bottom: 2px solid #e9ecef;
-        padding-bottom: 15px;
-    }
-    
-    .country-header h1 {
-        font-size: 1.75rem;
-        font-weight: 600;
-        color: #2d3748;
-        margin: 0;
-    }
-    
-    .country-add-btn {
-        display: inline-flex;
-        align-items: center;
-        padding: 10px 20px;
-        background-color: #4299e1;
-        color: white;
-        border: none;
-        border-radius: 6px;
-        cursor: pointer;
-        font-weight: 500;
-        transition: all 0.3s ease;
-        text-decoration: none;
-    }
-    
-    .country-add-btn:hover {
-        background-color: #3182ce;
-        transform: translateY(-1px);
-    }
-    
-    .country-add-btn i {
-        margin-right: 8px;
-    }
-    
-    .country-table {
-        width: 100%;
-        border-collapse: collapse;
-        background-color: white;
-        border-radius: 8px;
-        overflow: hidden;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-    }
-    
-    .country-table th,
-    .country-table td {
-        padding: 12px 16px;
-        text-align: left;
-        border-bottom: 1px solid #e2e8f0;
-    }
-    
-    .country-table th {
-        background-color: #f7fafc;
-        color: #4a5568;
-        font-weight: 600;
-        font-size: 0.875rem;
-    }
-    
-    .country-table tr:hover {
-        background-color: #f8f9fa;
-    }
-    
-    .country-table tr:last-child td {
-        border-bottom: none;
-    }
-    
-    /* 弹窗样式 */
-    .country-modal-overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background-color: rgba(0, 0, 0, 0.5);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 1000;
-        opacity: 0;
-        visibility: hidden;
-        transition: all 0.3s ease;
-    }
-    
-    .country-modal-overlay.active {
-        opacity: 1;
-        visibility: visible;
-    }
-    
-    .country-modal {
-        background-color: #ffffff;
-        border-radius: 8px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-        width: 100%;
-        max-width: 600px;
-        padding: 0;
-        transform: translateY(-20px);
-        transition: transform 0.3s ease;
-    }
-    
-    .country-modal-overlay.active .country-modal {
-        transform: translateY(0);
-    }
-    
-    .country-modal-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 20px 24px;
-        border-bottom: 1px solid #e2e8f0;
-        background-color: #f7fafc;
-    }
-    
-    .country-modal-title {
-        font-size: 1.25rem;
-        font-weight: 600;
-        color: #2d3748;
-        margin: 0;
-    }
-    
-    .country-modal-close {
-        background: none;
-        border: none;
-        font-size: 1.5rem;
-        cursor: pointer;
-        color: #a0aec0;
-        padding: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 32px;
-        height: 32px;
-        border-radius: 4px;
-        transition: all 0.2s ease;
-    }
-    
-    .country-modal-close:hover {
-        background-color: #edf2f7;
-        color: #4a5568;
-    }
-    
-    .country-modal-body {
-        padding: 24px;
-    }
-    
-    .country-form-group {
-        margin-bottom: 20px;
-    }
-    
-    .country-form-label {
-        display: block;
-        font-weight: 500;
-        margin-bottom: 8px;
-        color: #4a5568;
-    }
-    
-    .country-form-control {
-        width: 100%;
-        padding: 10px 12px;
-        border: 1px solid #e2e8f0;
-        border-radius: 6px;
-        font-size: 0.875rem;
-        transition: border-color 0.15s ease-in-out;
-        box-sizing: border-box;
-    }
-    
-    .country-form-control:focus {
-        border-color: #4299e1;
-        outline: 0;
-        box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.1);
-    }
-    
-    .country-form-row {
-        display: flex;
-        gap: 16px;
-    }
-    
-    .country-form-row .country-form-group {
-        flex: 1;
-    }
-    
-    .country-modal-footer {
-        padding: 16px 24px;
-        border-top: 1px solid #e2e8f0;
-        display: flex;
-        justify-content: flex-end;
-        gap: 12px;
-    }
-    
-    .country-btn-secondary {
-        background-color: #e2e8f0;
-        color: #4a5568;
-        border: 1px solid #cbd5e0;
-        padding: 8px 16px;
-        border-radius: 6px;
-        cursor: pointer;
-        font-size: 0.875rem;
-        transition: all 0.2s ease;
-    }
-    
-    .country-btn-secondary:hover {
-        background-color: #cbd5e0;
-        color: #2d3748;
-    }
-    
-    .country-btn-primary {
-        background-color: #4299e1;
-        color: white;
-        border: none;
-        padding: 8px 16px;
-        border-radius: 6px;
-        cursor: pointer;
-        font-size: 0.875rem;
-        transition: all 0.2s ease;
-    }
-    
-    .country-btn-primary:hover {
-        background-color: #3182ce;
-    }
-    
-    .country-alert {
-        padding: 12px 16px;
-        border-radius: 6px;
-        margin-bottom: 16px;
-        display: none;
-    }
-    
-    .country-alert-success {
-        background-color: #f0fff4;
-        border: 1px solid #c6f6d5;
-        color: #276749;
-    }
-    
-    .country-alert-error {
-        background-color: #fff5f5;
-        border: 1px solid #fed7d7;
-        color: #c53030;
-    }
-    
-    /* 消息提示样式 */
-    .country-message {
-        margin-top: 15px;
-        padding: 12px 16px;
-        border-radius: 6px;
-        font-weight: 500;
-    }
-    
-    .country-message-success {
-        background-color: #d1fae5;
-        color: #047857;
-        border: 1px solid #6ee7b7;
-    }
-    
-    .country-message-error {
-        background-color: #fee2e2;
-        color: #b91c1c;
-        border: 1px solid #fca5a5;
-    }
-    
-    .country-actions {
-        display: flex;
-        gap: 6px;
-        justify-content: center;
-        flex-wrap: nowrap;
-    }
-    
-    .country-btn {
-        padding: 4px 8px;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-        font-size: 0.75rem;
-        transition: all 0.2s ease;
-        white-space: nowrap;
-        min-width: 60px;
-    }
-    
-    .country-btn-edit {
-        background-color: #3182ce;
-        color: white;
-    }
-    
-    .country-btn-edit:hover {
-        background-color: #2c5282;
-    }
-    
-    .country-btn-delete {
-        background-color: #e53e3e;
-        color: white;
-    }
-    
-    .country-btn-delete:hover {
-        background-color: #c53030;
-    }
-</style>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/visa_common.css') }}">
 {% endblock %}
 
 {% block content %}
-<div class="country-container">
-    <div class="country-header">
-        <h1>管理国家数据</h1>
-        <button type="button" class="country-add-btn" onclick="showAddModal()">
-            <i class="fas fa-plus"></i>
-            添加国家
+<div class="visa-container-sm">
+    <!-- 闪现消息 -->
+    <div class="visa-flash-container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="visa-flash visa-flash-{{ category }}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    </div>
+
+    <!-- 页面标题和操作 -->
+    <div class="visa-flex-between visa-mb-3">
+        <h1 class="visa-page-title" style="margin: 0;">国家管理</h1>
+        <button type="button" class="visa-btn visa-btn-primary" onclick="showAddModal()">
+            <i class="fas fa-plus"></i> 添加国家
         </button>
     </div>
     
-    <!-- 国家列表 -->
-    <div style="background-color: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); overflow: hidden;">
-        <table class="country-table">
+    <!-- 国家列表表格 -->
+    <div class="visa-card">
+        <table class="visa-table">
             <thead>
                 <tr>
                     <th>中文名称</th>
@@ -341,141 +49,128 @@
                     <td>{{ country.country_name_CN }}</td>
                     <td>{{ country.country_name_EN }}</td>
                     <td>{{ country.country_code }}</td>
-                    <td style="text-align: center;">
+                    <td class="visa-text-center">
                         {% if country.flag_file %}
                         <img src="{{ url_for('static', filename='images/flags/' + country.flag_file) }}" 
                              alt="{{ country.country_name_CN }} 国旗" 
                              style="width: 32px; height: 24px; object-fit: cover; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.2);"
                              onerror="this.style.display='none'">
                         {% else %}
-                        <span style="color: #999; font-size: 12px;">无国旗</span>
+                        <span class="text-muted">无国旗</span>
                         {% endif %}
                     </td>
                     <td>
-                        <div class="country-actions">
-                            <button onclick="editCountry({{ country.id }})" class="country-btn country-btn-edit">
-                                <i class="fas fa-edit"></i> 编辑
-                            </button>
-                            <button onclick="deleteCountry({{ country.id }})" class="country-btn country-btn-delete">
-                                <i class="fas fa-trash"></i> 删除
-                            </button>
-                        </div>
+                        <button onclick="editCountry({{ country.id }})" class="visa-btn-link visa-btn-link-primary">
+                            <i class="fas fa-edit"></i> 编辑
+                        </button>
+                        <button onclick="deleteCountry({{ country.id }})" class="visa-btn-link visa-btn-link-danger">
+                            <i class="fas fa-trash"></i> 删除
+                        </button>
                     </td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
-    
-    <!-- 消息提示 -->
-    {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-            {% for category, message in messages %}
-                <div class="country-message country-message-{{ category }}">
-                    <i class="fas fa-{% if category == 'success' %}check-circle{% else %}exclamation-circle{% endif %}"></i> {{ message }}
-                </div>
-            {% endfor %}
-        {% endif %}
-    {% endwith %}
 </div>
 
-<!-- 添加国家弹窗 -->
-<div id="addModal" class="country-modal-overlay">
-    <div class="country-modal">
-        <div class="country-modal-header">
-            <h3 class="country-modal-title">添加新国家</h3>
-            <button type="button" class="country-modal-close" onclick="closeAddModal()">&times;</button>
+<!-- 添加国家模态框 -->
+<div id="addModal" class="visa-modal">
+    <div class="visa-modal-dialog">
+        <div class="visa-modal-header">
+            <h3 class="visa-modal-title">添加新国家</h3>
+            <button type="button" class="visa-modal-close" onclick="closeAddModal()">&times;</button>
         </div>
-        <div class="country-modal-body">
-            <div id="addModalAlert" class="country-alert" style="display: none;"></div>
+        <div class="visa-modal-body">
+            <div id="addModalAlert" class="visa-flash" style="display: none;"></div>
             
             <form method="POST" id="addCountryForm" enctype="multipart/form-data">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 
-                <div class="country-form-row">
-                    <div class="country-form-group">
-                        <label class="country-form-label">国家名称（中文）</label>
-                        <input type="text" name="country_name_CN" class="country-form-control" required placeholder="请输入中文名称">
+                <div class="visa-grid-2 visa-gap-2">
+                    <div class="visa-form-group">
+                        <label class="visa-form-label">国家名称（中文）</label>
+                        <input type="text" name="country_name_CN" class="visa-form-control" required placeholder="请输入中文名称">
                     </div>
-                    <div class="country-form-group">
-                        <label class="country-form-label">国家名称（英文）</label>
-                        <input type="text" name="country_name_EN" class="country-form-control" required placeholder="请输入英文名称">
+                    <div class="visa-form-group">
+                        <label class="visa-form-label">国家名称（英文）</label>
+                        <input type="text" name="country_name_EN" class="visa-form-control" required placeholder="请输入英文名称">
                     </div>
                 </div>
                 
-                <div class="country-form-group">
-                    <label class="country-form-label">国家代码</label>
-                    <input type="text" name="country_code" class="country-form-control" required placeholder="请输入国家代码">
+                <div class="visa-form-group">
+                    <label class="visa-form-label">国家代码</label>
+                    <input type="text" name="country_code" class="visa-form-control" required placeholder="请输入国家代码">
                 </div>
                 
-                <div class="country-form-group">
-                    <label class="country-form-label">国旗图片</label>
-                    <input type="file" name="flag_file" id="addFlagFile" class="country-form-control" accept=".png,.jpg,.jpeg,.gif,.svg">
-                    <small style="color: #666; font-size: 12px; margin-top: 4px; display: block;">
+                <div class="visa-form-group">
+                    <label class="visa-form-label">国旗图片</label>
+                    <input type="file" name="flag_file" id="addFlagFile" class="visa-form-control" accept=".png,.jpg,.jpeg,.gif,.svg">
+                    <small style="color: var(--visa-text-muted); font-size: 0.75rem; margin-top: 0.25rem; display: block;">
                         支持 PNG、JPG、JPEG、GIF、SVG 格式，建议尺寸 64x64px
                     </small>
-                    <div id="addFlagPreview" style="margin-top: 8px; display: none;">
-                        <img id="addFlagPreviewImg" style="width: 64px; height: 48px; object-fit: cover; border-radius: 4px; border: 1px solid #ddd;">
+                    <div id="addFlagPreview" style="margin-top: 0.5rem; display: none;">
+                        <img id="addFlagPreviewImg" style="width: 64px; height: 48px; object-fit: cover; border-radius: 4px; border: 1px solid var(--visa-border);">
                     </div>
                 </div>
             </form>
         </div>
-        <div class="country-modal-footer">
-            <button type="button" class="country-btn-secondary" onclick="closeAddModal()">取消</button>
-            <button type="submit" form="addCountryForm" class="country-btn-primary">添加国家</button>
+        <div class="visa-modal-footer">
+            <button type="button" class="visa-btn visa-btn-secondary" onclick="closeAddModal()">取消</button>
+            <button type="submit" form="addCountryForm" class="visa-btn visa-btn-primary">添加国家</button>
         </div>
     </div>
 </div>
 
-<!-- 编辑国家弹窗 -->
-<div id="editModal" class="country-modal-overlay">
-    <div class="country-modal">
-        <div class="country-modal-header">
-            <h3 class="country-modal-title">编辑国家</h3>
-            <button type="button" class="country-modal-close" onclick="closeEditModal()">&times;</button>
+<!-- 编辑国家模态框 -->
+<div id="editModal" class="visa-modal">
+    <div class="visa-modal-dialog">
+        <div class="visa-modal-header">
+            <h3 class="visa-modal-title">编辑国家</h3>
+            <button type="button" class="visa-modal-close" onclick="closeEditModal()">&times;</button>
         </div>
-        <div class="country-modal-body">
-            <div id="editModalAlert" class="country-alert" style="display: none;"></div>
+        <div class="visa-modal-body">
+            <div id="editModalAlert" class="visa-flash" style="display: none;"></div>
             
             <form method="POST" id="editCountryForm" enctype="multipart/form-data">
                 <input type="hidden" name="country_id" id="editCountryId">
                 
-                <div class="country-form-row">
-                    <div class="country-form-group">
-                        <label class="country-form-label">国家名称（中文）</label>
-                        <input type="text" name="country_name_CN" id="editCountryNameCN" class="country-form-control" required placeholder="请输入中文名称">
+                <div class="visa-grid-2 visa-gap-2">
+                    <div class="visa-form-group">
+                        <label class="visa-form-label">国家名称（中文）</label>
+                        <input type="text" name="country_name_CN" id="editCountryNameCN" class="visa-form-control" required placeholder="请输入中文名称">
                     </div>
-                    <div class="country-form-group">
-                        <label class="country-form-label">国家名称（英文）</label>
-                        <input type="text" name="country_name_EN" id="editCountryNameEN" class="country-form-control" required placeholder="请输入英文名称">
+                    <div class="visa-form-group">
+                        <label class="visa-form-label">国家名称（英文）</label>
+                        <input type="text" name="country_name_EN" id="editCountryNameEN" class="visa-form-control" required placeholder="请输入英文名称">
                     </div>
                 </div>
                 
-                <div class="country-form-group">
-                    <label class="country-form-label">国家代码</label>
-                    <input type="text" name="country_code" id="editCountryCode" class="country-form-control" required placeholder="请输入国家代码">
+                <div class="visa-form-group">
+                    <label class="visa-form-label">国家代码</label>
+                    <input type="text" name="country_code" id="editCountryCode" class="visa-form-control" required placeholder="请输入国家代码">
                 </div>
                 
-                <div class="country-form-group">
-                    <label class="country-form-label">国旗图片</label>
-                    <div id="editCurrentFlag" style="margin-bottom: 8px;">
-                        <img id="editCurrentFlagImg" style="width: 64px; height: 48px; object-fit: cover; border-radius: 4px; border: 1px solid #ddd; display: none;">
-                        <span id="editNoFlagText" style="color: #999; font-size: 12px;">当前无国旗</span>
+                <div class="visa-form-group">
+                    <label class="visa-form-label">国旗图片</label>
+                    <div id="editCurrentFlag" style="margin-bottom: 0.5rem;">
+                        <img id="editCurrentFlagImg" style="width: 64px; height: 48px; object-fit: cover; border-radius: 4px; border: 1px solid var(--visa-border); display: none;">
+                        <span id="editNoFlagText" class="text-muted" style="font-size: 0.75rem;">当前无国旗</span>
                     </div>
-                    <input type="file" name="flag_file" id="editFlagFile" class="country-form-control" accept=".png,.jpg,.jpeg,.gif,.svg">
-                    <small style="color: #666; font-size: 12px; margin-top: 4px; display: block;">
+                    <input type="file" name="flag_file" id="editFlagFile" class="visa-form-control" accept=".png,.jpg,.jpeg,.gif,.svg">
+                    <small style="color: var(--visa-text-muted); font-size: 0.75rem; margin-top: 0.25rem; display: block;">
                         支持 PNG、JPG、JPEG、GIF、SVG 格式，建议尺寸 64x64px
                     </small>
-                    <div id="editFlagPreview" style="margin-top: 8px; display: none;">
-                        <img id="editFlagPreviewImg" style="width: 64px; height: 48px; object-fit: cover; border-radius: 4px; border: 1px solid #ddd;">
-                        <span style="color: #666; font-size: 12px; margin-left: 8px;">新国旗预览</span>
+                    <div id="editFlagPreview" style="margin-top: 0.5rem; display: none;">
+                        <img id="editFlagPreviewImg" style="width: 64px; height: 48px; object-fit: cover; border-radius: 4px; border: 1px solid var(--visa-border);">
+                        <span style="color: var(--visa-text-muted); font-size: 0.75rem; margin-left: 0.5rem;">新国旗预览</span>
                     </div>
                 </div>
             </form>
         </div>
-        <div class="country-modal-footer">
-            <button type="button" class="country-btn-secondary" onclick="closeEditModal()">取消</button>
-            <button type="submit" form="editCountryForm" class="country-btn-primary">保存修改</button>
+        <div class="visa-modal-footer">
+            <button type="button" class="visa-btn visa-btn-secondary" onclick="closeAddModal()">取消</button>
+            <button type="submit" form="editCountryForm" class="visa-btn visa-btn-primary">保存修改</button>
         </div>
     </div>
 </div>
@@ -612,7 +307,7 @@ document.getElementById('editCountryForm').addEventListener('submit', function(e
 function showModalAlert(message, type, alertId) {
     const alert = document.getElementById(alertId);
     alert.textContent = message;
-    alert.className = `country-alert country-alert-${type}`;
+    alert.className = `visa-flash visa-flash-${type}`;
     alert.style.display = 'block';
     
     // 3秒后自动隐藏

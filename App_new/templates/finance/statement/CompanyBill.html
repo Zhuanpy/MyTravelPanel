@@ -1,10 +1,11 @@
-{% extends "staff_base.html" %}
+﻿{% extends "staff_base.html" %}
 
 {% block title %}公司账单 - MyTravelPanel{% endblock %}
 
 {% block page_title %}公司账单{% endblock %}
 
 {% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/finance_common.css') }}">
 <style>
     /* 公司账单处理页面样式 */
     .company-container {

@@ -4,6 +4,10 @@
 
 {% block page_title %}Visa Type Add{% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/visa_common.css') }}">
+{% endblock %}
+
 {% block content %}
 <div class="container" style="max-width: 1000px; margin: 0 auto; padding: 20px;">
     <h1 style="font-size: 24px; margin-bottom: 20px; font-weight: bold; text-align: center;">添加签证类型</h1>

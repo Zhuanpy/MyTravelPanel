@@ -1,4 +1,4 @@
-{% extends "shared/staff_base.html" %}
+﻿{% extends "shared/staff_base.html" %}
 
 {% block title %}编辑项目 - {{ project.hid }}{% endblock %}
 
@@ -6,6 +6,7 @@
 
 
 {% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/projects_common.css') }}">
 <style>
     .project-container {
         max-width: 1200px;
@@ -103,18 +104,18 @@
                     </div>
                     <div class="col-md-4">
                         <div class="form-group">
-                            <label>最后更�?/label>
+                            <label>最后更�?/label>
                             <input type="text" class="form-control" value="{{ project.updated_at.strftime('%Y-%m-%d %H:%M') }}" readonly>
                         </div>
                     </div>
                     <div class="col-md-4">
                         <div class="form-group">
-                            <label>项目状�?/label>
+                            <label>项目状�?/label>
                             <select class="form-control" name="project_status">
                                 <option value="draft" {% if project.status == 'draft' %}selected{% endif %}>草稿</option>
-                                <option value="active" {% if project.status == 'active' %}selected{% endif %}>进行�?/option>
-                                <option value="completed" {% if project.status == 'completed' %}selected{% endif %}>已完�?/option>
-                                <option value="cancelled" {% if project.status == 'cancelled' %}selected{% endif %}>已取�?/option>
+                                <option value="active" {% if project.status == 'active' %}selected{% endif %}>进行�?/option>
+                                <option value="completed" {% if project.status == 'completed' %}selected{% endif %}>已完�?/option>
+                                <option value="cancelled" {% if project.status == 'cancelled' %}selected{% endif %}>已取�?/option>
                             </select>
                         </div>
                     </div>

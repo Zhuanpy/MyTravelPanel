@@ -5,336 +5,21 @@
 {% block page_title %}签证项目列表{% endblock %}
 
 {% block extra_css %}
-{{ super() }}
-<style>
-    /* 主内容区域设置 */
-    main.py-4 {
-        padding-top: 5rem !important;
-    }
-    
-    /* 基础样式 */
-    body {
-        background-color: #f8f9fa;
-        font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    }
-    
-    .visa-container {
-        max-width: 1200px;
-        margin: 0 auto;
-        padding: 0 15px;
-    }
-    
-    /* 页面标题 */
-    .page-title {
-        text-align: center;
-        color: #1e3a8a;
-        margin: 2rem 0 3rem;
-        font-weight: 600;
-        position: relative;
-        padding-bottom: 1rem;
-    }
-    
-    .page-title:after {
-        content: "";
-        position: absolute;
-        width: 100px;
-        height: 3px;
-        background: linear-gradient(to right, #4f46e5, #7c3aed);
-        bottom: 0;
-        left: 50%;
-        transform: translateX(-50%);
-        border-radius: 3px;
-    }
-    
-    /* 搜索和过滤栏 */
-    .search-filter-bar {
-        background: white;
-        border-radius: 10px;
-        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-        padding: 1.5rem;
-        margin-bottom: 2.5rem;
-        display: flex;
-        flex-wrap: wrap;
-        gap: 1rem;
-        align-items: center;
-    }
-    
-    .search-box {
-        flex: 1;
-        min-width: 250px;
-        position: relative;
-    }
-    
-    .search-box input {
-        width: 100%;
-        padding: 0.75rem 1rem 0.75rem 2.5rem;
-        border: 1px solid #e2e8f0;
-        border-radius: 8px;
-        font-size: 0.95rem;
-    }
-    
-    .search-box i {
-        position: absolute;
-        left: 0.75rem;
-        top: 50%;
-        transform: translateY(-50%);
-        color: #94a3b8;
-    }
-    
-    .filter-dropdown {
-        min-width: 180px;
-    }
-    
-    .filter-dropdown select {
-        width: 100%;
-        padding: 0.75rem 1rem;
-        border: 1px solid #e2e8f0;
-        border-radius: 8px;
-        font-size: 0.95rem;
-        color: #475569;
-        background-color: white;
-        appearance: none;
-        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
-        background-repeat: no-repeat;
-        background-position: right 0.75rem center;
-        background-size: 1rem;
-    }
-    
-    /* 网格布局 */
-    .visa-grid {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 25px;
-        margin-bottom: 3rem;
-    }
-    
-    /* 响应式调整 */
-    @media (max-width: 1200px) {
-        .visa-grid {
-            grid-template-columns: repeat(2, 1fr);
-        }
-    }
-    
-    @media (max-width: 768px) {
-        .visa-grid {
-            grid-template-columns: 1fr;
-        }
-        
-        .search-filter-bar {
-            flex-direction: column;
-            align-items: stretch;
-        }
-        
-        .search-box, .filter-dropdown {
-            width: 100%;
-        }
-    }
-    
-    /* 签证卡片 */
-    .visa-card {
-        background-color: white;
-        border-radius: 12px;
-        overflow: hidden;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05), 0 1px 3px rgba(0, 0, 0, 0.1);
-        transition: all 0.3s ease;
-        display: flex;
-        flex-direction: column;
-        height: 100%;
-    }
-    
-    .visa-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
-    }
-    
-    .visa-card-header {
-        position: relative;
-        padding: 0;
-        overflow: hidden;
-    }
-    
-    .visa-card-flag {
-        width: 100%;
-        height: 160px;
-        object-fit: cover;
-        display: block;
-        transition: transform 0.3s ease;
-    }
-    
-    .visa-card:hover .visa-card-flag {
-        transform: scale(1.05);
-    }
-    
-    .visa-card-badge {
-        position: absolute;
-        top: 15px;
-        right: 15px;
-        background: rgba(124, 58, 237, 0.9);
-        color: white;
-        padding: 5px 10px;
-        border-radius: 30px;
-        font-size: 0.8rem;
-        font-weight: 500;
-        z-index: 10;
-    }
-    
-    .visa-card-country {
-        position: absolute;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        background: linear-gradient(to top, rgba(0, 0, 0, 0.8), transparent);
-        color: white;
-        padding: 30px 20px 15px;
-        font-size: 1.5rem;
-        font-weight: 600;
-    }
-    
-    .visa-card-body {
-        padding: 1.5rem;
-        flex-grow: 1;
-        display: flex;
-        flex-direction: column;
-    }
-    
-    .visa-card-title {
-        font-size: 1.25rem;
-        font-weight: 600;
-        color: #1e293b;
-        margin-bottom: 0.75rem;
-        transition: color 0.2s ease;
-    }
-    
-    .visa-card-title a {
-        text-decoration: none;
-        color: inherit;
-    }
-    
-    .visa-card-title a:hover {
-        color: #4f46e5;
-    }
-    
-    .visa-card-description {
-        color: #64748b;
-        font-size: 0.95rem;
-        line-height: 1.5;
-        margin-bottom: 1.25rem;
-        flex-grow: 1;
-    }
-    
-    .visa-card-meta {
-        display: flex;
-        align-items: center;
-        margin-bottom: 0.5rem;
-        color: #64748b;
-        font-size: 0.85rem;
-    }
-    
-    .visa-card-meta i {
-        color: #4f46e5;
-        margin-right: 0.5rem;
-        width: 1rem;
-        text-align: center;
-    }
-    
-    .visa-card-footer {
-        padding: 1rem 1.5rem;
-        background: #f8fafc;
-        border-top: 1px solid #f1f5f9;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
-    
-    .visa-type-badge {
-        display: inline-flex;
-        align-items: center;
-        background: #eef2ff;
-        color: #4f46e5;
-        padding: 0.4rem 0.75rem;
-        border-radius: 6px;
-        font-size: 0.8rem;
-        font-weight: 500;
-    }
-    
-    .visa-type-badge i {
-        margin-right: 0.4rem;
-    }
-    
-    .visa-card-action {
-        display: inline-flex;
-        align-items: center;
-        color: #4f46e5;
-        font-size: 0.9rem;
-        font-weight: 500;
-        text-decoration: none;
-        transition: all 0.2s ease;
-    }
-    
-    .visa-card-action:hover {
-        color: #3730a3;
-    }
-    
-    .visa-card-action i {
-        margin-left: 0.4rem;
-        transition: transform 0.2s ease;
-    }
-    
-    .visa-card-action:hover i {
-        transform: translateX(3px);
-    }
-    
-    /* 分页 */
-    .pagination {
-        display: flex;
-        justify-content: center;
-        margin: 3rem 0;
-    }
-    
-    .pagination-item {
-        margin: 0 0.25rem;
-    }
-    
-    .pagination-link {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 35px;
-        height: 35px;
-        border-radius: 8px;
-        background: white;
-        color: #475569;
-        text-decoration: none;
-        transition: all 0.2s ease;
-        font-weight: 500;
-        border: 1px solid #e2e8f0;
-    }
-    
-    .pagination-link:hover, .pagination-link.active {
-        background: #4f46e5;
-        color: white;
-        border-color: #4f46e5;
-    }
-    
-    .pagination-link.disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-    }
-</style>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/visa_common.css') }}">
 {% endblock %}
 
 {% block content %}
-<div class="visa-container">
-    <h1 class="page-title">签证项目展示</h1>
+<div class="visa-content">
+    <h1 class="visa-page-title-center">签证项目展示</h1>
     
     <!-- 搜索和过滤栏 -->
-    <div class="search-filter-bar">
-        <div class="search-box">
+    <div class="visa-search-filter-bar">
+        <div class="visa-search-box">
             <i class="fas fa-search"></i>
             <input type="text" placeholder="搜索签证项目..." id="searchInput">
         </div>
-        <div class="filter-dropdown">
-            <select id="regionFilter">
+        <div class="visa-filter-dropdown">
+            <select id="regionFilter" class="visa-form-select">
                 <option value="">地区 (全部)</option>
                 <option value="亚洲">亚洲</option>
                 <option value="欧洲">欧洲</option>
@@ -343,8 +28,8 @@
                 <option value="非洲">非洲</option>
             </select>
         </div>
-        <div class="filter-dropdown">
-            <select id="processingTimeFilter">
+        <div class="visa-filter-dropdown">
+            <select id="processingTimeFilter" class="visa-form-select">
                 <option value="">处理时间 (全部)</option>
                 <option value="3日内">3日内</option>
                 <option value="1周内">1周内</option>
@@ -353,8 +38,8 @@
                 <option value="1个月以上">1个月以上</option>
             </select>
         </div>
-        <div class="filter-dropdown">
-            <select id="visaTypeFilter">
+        <div class="visa-filter-dropdown">
+            <select id="visaTypeFilter" class="visa-form-select">
                 <option value="">签证类型 (全部)</option>
                 <option value="旅游签证">旅游签证</option>
                 <option value="商务签证">商务签证</option>
@@ -365,209 +50,209 @@
     </div>
     
     <!-- 签证项目网格 -->
-    <div class="visa-grid">
+    <div class="visa-projects-grid">
         <!-- 日本 -->
-        <div class="visa-card">
-            <div class="visa-card-header">
-                <img src="{{ url_for('static', filename='images/flags/japan.jpg') }}" class="visa-card-flag" alt="日本国旗">
-                <span class="visa-card-badge">热门</span>
-                <div class="visa-card-country">日本</div>
+        <div class="visa-project-card">
+            <div class="visa-project-card-header">
+                <img src="{{ url_for('static', filename='images/flags/japan.jpg') }}" class="visa-project-card-flag" alt="日本国旗">
+                <span class="visa-project-card-badge">热门</span>
+                <div class="visa-project-card-country">日本</div>
             </div>
-            <div class="visa-card-body">
-                <h3 class="visa-card-title">
+            <div class="visa-project-card-body">
+                <h3 class="visa-project-card-title">
                     <a href="{{ url_for('visa_project.visa_project_detail', project_id=1) }}">日本单次旅游签证</a>
                 </h3>
-                <p class="visa-card-description">
+                <p class="visa-project-card-description">
                     适用于短期旅游、访友、商务考察等活动，停留期最长90天，有效期3个月。
                 </p>
-                <div class="visa-card-meta">
+                <div class="visa-project-card-meta">
                     <i class="fas fa-clock"></i>
                     <span>处理时间: 5-7个工作日</span>
                 </div>
-                <div class="visa-card-meta">
+                <div class="visa-project-card-meta">
                     <i class="fas fa-calendar-alt"></i>
                     <span>有效期: 3个月</span>
                 </div>
-                <div class="visa-card-meta">
+                <div class="visa-project-card-meta">
                     <i class="fas fa-yen-sign"></i>
                     <span>费用: 350元起</span>
                 </div>
             </div>
-            <div class="visa-card-footer">
+            <div class="visa-project-card-footer">
                 <span class="visa-type-badge"><i class="fas fa-plane"></i>旅游签证</span>
-                <a href="{{ url_for('visa_project.visa_project_detail', project_id=1) }}" class="visa-card-action">
+                <a href="{{ url_for('visa_project.visa_project_detail', project_id=1) }}" class="visa-project-card-action">
                     查看详情 <i class="fas fa-arrow-right"></i>
                 </a>
             </div>
         </div>
         
         <!-- 韩国 -->
-        <div class="visa-card">
-            <div class="visa-card-header">
-                <img src="{{ url_for('static', filename='images/flags/korea.jpg') }}" class="visa-card-flag" alt="韩国国旗">
-                <div class="visa-card-country">韩国</div>
+        <div class="visa-project-card">
+            <div class="visa-project-card-header">
+                <img src="{{ url_for('static', filename='images/flags/korea.jpg') }}" class="visa-project-card-flag" alt="韩国国旗">
+                <div class="visa-project-card-country">韩国</div>
             </div>
-            <div class="visa-card-body">
-                <h3 class="visa-card-title">
+            <div class="visa-project-card-body">
+                <h3 class="visa-project-card-title">
                     <a href="{{ url_for('visa_project.visa_project_detail', project_id=2) }}">韩国单次旅游签证</a>
                 </h3>
-                <p class="visa-card-description">
+                <p class="visa-project-card-description">
                     适用于赴韩国旅游、探亲、商务等短期活动，停留期最长30天，有效期3个月。
                 </p>
-                <div class="visa-card-meta">
+                <div class="visa-project-card-meta">
                     <i class="fas fa-clock"></i>
                     <span>处理时间: 5-7个工作日</span>
                 </div>
-                <div class="visa-card-meta">
+                <div class="visa-project-card-meta">
                     <i class="fas fa-calendar-alt"></i>
                     <span>有效期: 3个月</span>
                 </div>
-                <div class="visa-card-meta">
+                <div class="visa-project-card-meta">
                     <i class="fas fa-won-sign"></i>
                     <span>费用: 300元起</span>
                 </div>
             </div>
-            <div class="visa-card-footer">
+            <div class="visa-project-card-footer">
                 <span class="visa-type-badge"><i class="fas fa-plane"></i>旅游签证</span>
-                <a href="{{ url_for('visa_project.visa_project_detail', project_id=2) }}" class="visa-card-action">
+                <a href="{{ url_for('visa_project.visa_project_detail', project_id=2) }}" class="visa-project-card-action">
                     查看详情 <i class="fas fa-arrow-right"></i>
                 </a>
             </div>
         </div>
         
         <!-- 英国 -->
-        <div class="visa-card">
-            <div class="visa-card-header">
-                <img src="{{ url_for('static', filename='images/flags/uk.jpg') }}" class="visa-card-flag" alt="英国国旗">
-                <div class="visa-card-country">英国</div>
+        <div class="visa-project-card">
+            <div class="visa-project-card-header">
+                <img src="{{ url_for('static', filename='images/flags/uk.jpg') }}" class="visa-project-card-flag" alt="英国国旗">
+                <div class="visa-project-card-country">英国</div>
             </div>
-            <div class="visa-card-body">
-                <h3 class="visa-card-title">
+            <div class="visa-project-card-body">
+                <h3 class="visa-project-card-title">
                     <a href="{{ url_for('visa_project.visa_project_detail', project_id=3) }}">英国标准访客签证</a>
                 </h3>
-                <p class="visa-card-description">
+                <p class="visa-project-card-description">
                     适用于旅游、探亲、短期商务访问等，最长可停留6个月，申请资料较为复杂。
                 </p>
-                <div class="visa-card-meta">
+                <div class="visa-project-card-meta">
                     <i class="fas fa-clock"></i>
                     <span>处理时间: 15个工作日左右</span>
                 </div>
-                <div class="visa-card-meta">
+                <div class="visa-project-card-meta">
                     <i class="fas fa-calendar-alt"></i>
                     <span>有效期: 6个月</span>
                 </div>
-                <div class="visa-card-meta">
+                <div class="visa-project-card-meta">
                     <i class="fas fa-pound-sign"></i>
                     <span>费用: 1000元起</span>
                 </div>
             </div>
-            <div class="visa-card-footer">
+            <div class="visa-project-card-footer">
                 <span class="visa-type-badge"><i class="fas fa-plane"></i>访客签证</span>
-                <a href="{{ url_for('visa_project.visa_project_detail', project_id=3) }}" class="visa-card-action">
+                <a href="{{ url_for('visa_project.visa_project_detail', project_id=3) }}" class="visa-project-card-action">
                     查看详情 <i class="fas fa-arrow-right"></i>
                 </a>
             </div>
         </div>
         
         <!-- 美国 -->
-        <div class="visa-card">
-            <div class="visa-card-header">
-                <img src="{{ url_for('static', filename='images/flags/usa.jpg') }}" class="visa-card-flag" alt="美国国旗">
-                <span class="visa-card-badge">推荐</span>
-                <div class="visa-card-country">美国</div>
+        <div class="visa-project-card">
+            <div class="visa-project-card-header">
+                <img src="{{ url_for('static', filename='images/flags/usa.jpg') }}" class="visa-project-card-flag" alt="美国国旗">
+                <span class="visa-project-card-badge">推荐</span>
+                <div class="visa-project-card-country">美国</div>
             </div>
-            <div class="visa-card-body">
-                <h3 class="visa-card-title">
+            <div class="visa-project-card-body">
+                <h3 class="visa-project-card-title">
                     <a href="{{ url_for('visa_project.visa_project_detail', project_id=4) }}">美国B1/B2访客签证</a>
                 </h3>
-                <p class="visa-card-description">
+                <p class="visa-project-card-description">
                     用于临时旅游、探亲或商务访问美国，一般有效期为10年，需要面签。
                 </p>
-                <div class="visa-card-meta">
+                <div class="visa-project-card-meta">
                     <i class="fas fa-clock"></i>
                     <span>处理时间: 1-3个月</span>
                 </div>
-                <div class="visa-card-meta">
+                <div class="visa-project-card-meta">
                     <i class="fas fa-calendar-alt"></i>
                     <span>有效期: 10年</span>
                 </div>
-                <div class="visa-card-meta">
+                <div class="visa-project-card-meta">
                     <i class="fas fa-dollar-sign"></i>
                     <span>费用: 1200元起</span>
                 </div>
             </div>
-            <div class="visa-card-footer">
+            <div class="visa-project-card-footer">
                 <span class="visa-type-badge"><i class="fas fa-plane"></i>访客签证</span>
-                <a href="{{ url_for('visa_project.visa_project_detail', project_id=4) }}" class="visa-card-action">
+                <a href="{{ url_for('visa_project.visa_project_detail', project_id=4) }}" class="visa-project-card-action">
                     查看详情 <i class="fas fa-arrow-right"></i>
                 </a>
             </div>
         </div>
         
         <!-- 澳大利亚 -->
-        <div class="visa-card">
-            <div class="visa-card-header">
-                <img src="{{ url_for('static', filename='images/flags/australia.jpg') }}" class="visa-card-flag" alt="澳大利亚国旗">
-                <div class="visa-card-country">澳大利亚</div>
+        <div class="visa-project-card">
+            <div class="visa-project-card-header">
+                <img src="{{ url_for('static', filename='images/flags/australia.jpg') }}" class="visa-project-card-flag" alt="澳大利亚国旗">
+                <div class="visa-project-card-country">澳大利亚</div>
             </div>
-            <div class="visa-card-body">
-                <h3 class="visa-card-title">
+            <div class="visa-project-card-body">
+                <h3 class="visa-project-card-title">
                     <a href="{{ url_for('visa_project.visa_project_detail', project_id=5) }}">澳大利亚电子访客签证</a>
                 </h3>
-                <p class="visa-card-description">
+                <p class="visa-project-card-description">
                     适用于旅游或商务访问，全程在线申请，无需递交护照，最长可停留3个月。
                 </p>
-                <div class="visa-card-meta">
+                <div class="visa-project-card-meta">
                     <i class="fas fa-clock"></i>
                     <span>处理时间: 10-15个工作日</span>
                 </div>
-                <div class="visa-card-meta">
+                <div class="visa-project-card-meta">
                     <i class="fas fa-calendar-alt"></i>
                     <span>有效期: 1年</span>
                 </div>
-                <div class="visa-card-meta">
+                <div class="visa-project-card-meta">
                     <i class="fas fa-dollar-sign"></i>
                     <span>费用: 700元起</span>
                 </div>
             </div>
-            <div class="visa-card-footer">
+            <div class="visa-project-card-footer">
                 <span class="visa-type-badge"><i class="fas fa-plane"></i>电子签证</span>
-                <a href="{{ url_for('visa_project.visa_project_detail', project_id=5) }}" class="visa-card-action">
+                <a href="{{ url_for('visa_project.visa_project_detail', project_id=5) }}" class="visa-project-card-action">
                     查看详情 <i class="fas fa-arrow-right"></i>
                 </a>
             </div>
         </div>
         
         <!-- 泰国 -->
-        <div class="visa-card">
-            <div class="visa-card-header">
-                <img src="{{ url_for('static', filename='images/flags/thailand.jpg') }}" class="visa-card-flag" alt="泰国国旗">
-                <span class="visa-card-badge">简易</span>
-                <div class="visa-card-country">泰国</div>
+        <div class="visa-project-card">
+            <div class="visa-project-card-header">
+                <img src="{{ url_for('static', filename='images/flags/thailand.jpg') }}" class="visa-project-card-flag" alt="泰国国旗">
+                <span class="visa-project-card-badge">简易</span>
+                <div class="visa-project-card-country">泰国</div>
             </div>
-            <div class="visa-card-body">
-                <h3 class="visa-card-title">
+            <div class="visa-project-card-body">
+                <h3 class="visa-project-card-title">
                     <a href="{{ url_for('visa_project.visa_project_detail', project_id=6) }}">泰国旅游签证</a>
                 </h3>
-                <p class="visa-card-description">
+                <p class="visa-project-card-description">
                     适用于赴泰国旅游、探亲等活动，无需面签，材料简单，最长可停留60天。
                 </p>
-                <div class="visa-card-meta">
+                <div class="visa-project-card-meta">
                     <i class="fas fa-clock"></i>
                     <span>处理时间: 3-5个工作日</span>
                 </div>
-                <div class="visa-card-meta">
+                <div class="visa-project-card-meta">
                     <i class="fas fa-calendar-alt"></i>
                     <span>有效期: 3个月</span>
                 </div>
-                <div class="visa-card-meta">
+                <div class="visa-project-card-meta">
                     <i class="fas fa-baht-sign"></i>
                     <span>费用: 250元起</span>
                 </div>
             </div>
-            <div class="visa-card-footer">
+            <div class="visa-project-card-footer">
                 <span class="visa-type-badge"><i class="fas fa-plane"></i>旅游签证</span>
-                <a href="{{ url_for('visa_project.visa_project_detail', project_id=6) }}" class="visa-card-action">
+                <a href="{{ url_for('visa_project.visa_project_detail', project_id=6) }}" class="visa-project-card-action">
                     查看详情 <i class="fas fa-arrow-right"></i>
                 </a>
             </div>
@@ -608,7 +293,7 @@
         const regionFilter = document.getElementById('regionFilter');
         const processingTimeFilter = document.getElementById('processingTimeFilter');
         const visaTypeFilter = document.getElementById('visaTypeFilter');
-        const visaCards = document.querySelectorAll('.visa-card');
+        const visaCards = document.querySelectorAll('.visa-project-card');
         
         function filterVisaProjects() {
             const searchTerm = searchInput.value.toLowerCase();
@@ -617,10 +302,10 @@
             const visaType = visaTypeFilter.value.toLowerCase();
             
             visaCards.forEach(card => {
-                const title = card.querySelector('.visa-card-title').textContent.toLowerCase();
-                const description = card.querySelector('.visa-card-description').textContent.toLowerCase();
-                const country = card.querySelector('.visa-card-country').textContent.toLowerCase();
-                const processing = card.querySelector('.visa-card-meta:nth-child(1)').textContent.toLowerCase();
+                const title = card.querySelector('.visa-project-card-title').textContent.toLowerCase();
+                const description = card.querySelector('.visa-project-card-description').textContent.toLowerCase();
+                const country = card.querySelector('.visa-project-card-country').textContent.toLowerCase();
+                const processing = card.querySelector('.visa-project-card-meta:nth-child(1)').textContent.toLowerCase();
                 const type = card.querySelector('.visa-type-badge').textContent.toLowerCase();
                 
                 let showCard = true;
