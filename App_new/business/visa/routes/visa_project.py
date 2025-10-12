@@ -151,7 +151,7 @@ def show_current_all_projects():
                     
                     project_links[project.id] = links
 
-        return render_template('business/visa/签证项目管理/签证项目列表.html',
+        return render_template('business/visa/签证项目管理/visa_project_list.html',
                              projects=projects,
                            pagination=pagination,
                            visa_status=visa_status,
@@ -221,7 +221,7 @@ def visa_processing(visa_type):
             print(f"获取项目列表时出错: {str(e)}")
             projects = []
 
-        return render_template('business/visa/签证项目管理/签证项目创建.html',
+        return render_template('business/visa/签证项目管理/visa_project_create.html',
                              form_data=form_data,
                              visa_type=visa_type,
                              types_info=types_info,
@@ -351,7 +351,7 @@ def update_current_project(project_id):
 def edit_project(project_id):
     """显示签证项目编辑页面"""
     project = VisaProject.query.get_or_404(project_id)
-    return render_template('business/visa/签证项目管理/签证项目编辑.html', project=project)
+    return render_template('business/visa/签证项目管理/visa_project_edit.html', project=project)
 
 
 @visa_project.route('/generate_form/<int:project_id>', methods=['POST'])
@@ -585,7 +585,7 @@ def visa_detail(project_name=None, project_id=None):
         has_header = project.header_id is not None
         has_ref = project.ref_id is not None
         
-        return render_template('business/visa/签证项目管理/签证项目详细.html',
+        return render_template('business/visa/签证项目管理/visa_project_detail.html',
                              project=project,
                              types_info=types_info,
                              links=links,

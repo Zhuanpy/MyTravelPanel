@@ -329,6 +329,45 @@ def uob_batch_confirm():
         return jsonify({'success': False, 'message': f'批量确认失败: {str(e)}'}), 500
 
 
+@uob_blue.route('/uob_unlock_transaction/<int:transaction_id>', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def uob_unlock_transaction(transaction_id):
+    """解锁已确认的UOB银行交易记录，使其可以重新编辑"""
+    try:
+        # 查找交易记录
+        transaction = BankTransaction.query.get(transaction_id)
+        
+        if not transaction:
+            return jsonify({'success': False, 'message': '交易记录不存在'}), 404
+        
+        # 验证该交易是否属于UOB银行
+        if transaction.statement.bank_name != 'UOB':
+            return jsonify({'success': False, 'message': '该交易不属于UOB银行'}), 400
+        
+        # 检查是否已确认
+        if not transaction.is_confirmed:
+            return jsonify({'success': False, 'message': '该交易尚未确认，无需解锁'})
+        
+        # 解锁交易记录
+        transaction.is_confirmed = False
+        transaction.confirmed_at = None
+        transaction.confirmed_by = None
+        
+        # 保存更改
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': '交易记录已解锁，现在可以重新编辑'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'解锁失败: {str(e)}'}), 500
+
+
 @uob_blue.route('/uob_create_test_data', methods=['GET'])
 @login_required
 @staff_only

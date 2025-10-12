@@ -103,8 +103,38 @@ class MyPdfFile:
             raise
 
     # Merge images into PDF
-    def merge_images2pdf(self):
-        pdfFilePath = os.path.join(self.files, 'CombinePdf.pdf')
+    def merge_images2pdf(self, single_file=None):
+        """
+        将图片合并为PDF
+        
+        Args:
+            single_file: 可选参数，如果提供，则只转换指定的单个图片文件
+        """
+        # 如果指定了单个文件
+        if single_file:
+            # 单个文件的处理逻辑
+            file_path = os.path.join(self.files, single_file)
+            
+            # 生成PDF文件名（使用原文件名，但扩展名改为.pdf）
+            file_name_without_ext = os.path.splitext(single_file)[0]
+            pdfFilePath = os.path.join(self.files, f'{file_name_without_ext}.pdf')
+            
+            # 打开图片并转换为PDF
+            img = Image.open(file_path)
+            
+            # 确保图片是RGB模式
+            if img.mode != "RGB":
+                img = img.convert("RGB")
+            
+            # 保存为PDF
+            img.save(pdfFilePath, "PDF")
+            
+            return
+        
+        # 原有的合并文件夹内所有图片的逻辑
+        # 使用文件夹名称作为PDF文件名
+        folder_name = os.path.basename(self.files)
+        pdfFilePath = os.path.join(self.files, f'{folder_name}.pdf')
         files = os.listdir(self.files)
 
         files_list = []
@@ -127,6 +157,10 @@ class MyPdfFile:
                     files_list.append(file_path_)
 
         files_list.sort()
+        
+        if not files_list:
+            raise ValueError("文件夹中没有找到图片文件")
+        
         output = Image.open(files_list[0])
         files_list.pop(0)
 
@@ -134,7 +168,7 @@ class MyPdfFile:
 
             pngFile = Image.open(file)
 
-            if pngFile.mode == "RGB":
+            if pngFile.mode != "RGB":
                 pngFile = pngFile.convert("RGB")
 
             sources.append(pngFile)

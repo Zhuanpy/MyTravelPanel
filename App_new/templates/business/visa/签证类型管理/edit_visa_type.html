@@ -1,58 +1,64 @@
 {% extends "staff_base.html" %}
 
-{% block title %}Edit Visa Type - MyTravelPanel{% endblock %}
+{% block title %}编辑{{ field_name }} - {{ visa_type }}{% endblock %}
 
-{% block page_title %}Edit Visa Type{% endblock %}
+{% block page_title %}编辑签证类型{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/visa_common.css') }}">
+{% endblock %}
 
 {% block content %}
-<div class="container" style="max-width: 800px; margin: 0 auto; padding: 20px;">
-    <h1 style="font-size: 24px; margin-bottom: 20px; font-weight: bold; text-align: center;">编辑{{ field_name }}</h1>
-    <div style="background-color: white; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); padding: 20px;">
-        <form method="POST">
-            {{ form.csrf_token }}
-            {% if field == 'identities' %}
-                <div style="margin-bottom: 20px;">
-                    <label style="display: block; margin-bottom: 10px; font-weight: bold;">选择{{ field_name }}：</label>
-                    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px;">
+<div class="visa-container-sm">
+    <h1 class="visa-page-title">编辑{{ field_name }}</h1>
+    
+    <div class="visa-card">
+        <div class="visa-card-body">
+            <form method="POST" action="{{ url_for('visa_basic.edit_visa_type', visa_type=visa_type, field=field) }}" id="editForm">
+                {{ form.csrf_token }}
+                
+                <div class="visa-form-group">
+                    <label class="visa-form-label">签证类型</label>
+                    <input type="text" class="visa-form-control" value="{{ visa_type }}" disabled style="background: var(--visa-bg-light);">
+                </div>
+
+                {% if field == 'identities' %}
+                <div class="visa-form-group">
+                    <label class="visa-form-label">选择{{ field_name }}</label>
+                    <div class="visa-grid-2">
                         {% for identity in all_identities %}
-                            <div style="display: flex; align-items: center;">
-                                <input type="checkbox" 
-                                       name="identities" 
-                                       value="{{ identity }}"
-                                       id="identity_{{ loop.index }}"
-                                       {% if identity in current_value %}checked{% endif %}
-                                       style="margin-right: 8px;">
-                                <label for="identity_{{ loop.index }}">{{ identity }}</label>
-                            </div>
+                        <label class="visa-flex" style="align-items: center; gap: 0.5rem; cursor: pointer;">
+                            <input type="checkbox" 
+                                   name="identities" 
+                                   value="{{ identity }}"
+                                   id="identity_{{ loop.index }}"
+                                   {% if identity in current_value %}checked{% endif %}
+                                   style="width: 18px; height: 18px;">
+                            <span style="color: var(--visa-text-primary);">{{ identity }}</span>
+                        </label>
                         {% endfor %}
                     </div>
                 </div>
-            {% else %}
-                <div style="margin-bottom: 20px;">
-                    <label style="display: block; margin-bottom: 10px; font-weight: bold;">{{ field_name }}：</label>
-                    <input type="text" 
-                           name="value" 
-                           value="{{ current_value }}" 
-                           class="form-control" 
-                           style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                {% else %}
+                <div class="visa-form-group">
+                    <label class="visa-form-label">{{ field_name }}</label>
+                    <input type="text" name="value" class="visa-form-control" value="{{ current_value }}">
                 </div>
-            {% endif %}
-            
-            <div style="text-align: right; margin-top: 20px;">
-                <a href="{{ url_for('visa_basic.visa_type_list') }}" 
-                   style="background-color: #6b7280; color: white; border: none; padding: 8px 16px; border-radius: 4px; text-decoration: none; margin-right: 10px;">
-                    取消
-                </a>
-                <button type="submit" 
-                        style="background-color: #1a56db; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">
-                    保存
-                </button>
-                <a href="{{ url_for('visa_basic.visa_type_document_manager') }}?visa_type={{ visa_type }}" 
-                   style="background-color: #10b981; color: white; border: none; padding: 8px 16px; border-radius: 4px; text-decoration: none; margin-left: 10px;">
-                    <i class="fas fa-cogs"></i> 编辑文档
-                </a>
-            </div>
-        </form>
+                {% endif %}
+            </form>
+        </div>
+        
+        <div class="visa-card-footer">
+            <a href="{{ url_for('visa_basic.visa_type_list') }}" class="visa-btn visa-btn-secondary">
+                <i class="fas fa-times"></i> 取消
+            </a>
+            <a href="{{ url_for('visa_basic.visa_type_document_manager') }}?visa_type={{ visa_type }}" class="visa-btn visa-btn-success">
+                <i class="fas fa-cogs"></i> 编辑文档
+            </a>
+            <button type="submit" form="editForm" class="visa-btn visa-btn-primary">
+                <i class="fas fa-save"></i> 保存
+            </button>
+        </div>
     </div>
 </div>
-{% endblock %} 
+{% endblock %}

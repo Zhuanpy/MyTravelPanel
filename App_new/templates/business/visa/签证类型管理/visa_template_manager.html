@@ -1,557 +1,255 @@
 {% extends "staff_base.html" %}
 
-{% block title %}Visa Template Manager - MyTravelPanel{% endblock %}
+{% block title %}签证模板文件管理{% endblock %}
 
-{% block page_title %}Visa Template Manager{% endblock %}
+{% block page_title %}签证模板文件管理{% endblock %}
 
 {% block extra_css %}
-<!-- FontAwesome 6.5.0 -->
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" integrity="sha512-Avb2QiuDEEvB4bZJYdft2mNjVShBftLdPG8FJ0V7irTLQ8Uo0qcPxh4Plq7G5tGm0rU+1SPhVotteLpBERwTkw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
-
-<!-- 添加CSRF令牌 -->
-<meta name="csrf-token" content="{{ csrf_token() }}">
-
+<link rel="stylesheet" href="{{ url_for('static', filename='css/visa_common.css') }}">
 <style>
-    /* ========= 全局变量定义 ========= */
-    :root {
-        --color-primary: #2a5298;
-        --color-primary-hover: #1a365d;
-        --color-accent: #3a6ea5;
-        --color-accent-bg: #eaf1fb;
-        --color-accent-bg-hover: #d2e6fa;
-        --color-text-dark: #2d3a4b;
-        --color-text-gray: #6c7a89;
-        --color-border: #e2e8f0;
-        --color-light-bg: #f8f9fa;
-        --color-success: #10b981;
-        --color-warning: #f59e0b;
-        --color-danger: #ef4444;
-        --radius: 8px;
-        --radius-lg: 12px;
-        --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
-        --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.1);
-        --shadow-lg: 0 4px 6px rgba(0, 0, 0, 0.1);
-    }
+/* 页面特定样式 */
+.template-manager-grid {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    gap: 1.5rem;
+    margin-top: 1rem;
+}
 
-    /* ========= 基础容器 ========= */
-    .template-manager {
-        max-width: 1400px;
-        margin: 0 auto;
-        padding: 20px;
-        min-height: 100vh;
-        display: flex;
-        flex-direction: column;
-    }
+.visa-types-sidebar {
+    background: var(--visa-bg-card);
+    border-radius: var(--visa-radius-md);
+    box-shadow: var(--visa-shadow-md);
+    padding: 1.5rem;
+    height: fit-content;
+    max-height: calc(100vh - 200px);
+    overflow-y: auto;
+}
 
-    /* ========= 页面头部 ========= */
-    .manager-header {
-        background: var(--color-light-bg);
-        padding: 24px;
-        border-radius: var(--radius-lg);
-        box-shadow: var(--shadow-sm);
-        margin-bottom: 24px;
-        text-align: center;
-    }
+.visa-type-item {
+    padding: 0.75rem 1rem;
+    margin-bottom: 0.5rem;
+    border-radius: var(--visa-radius-sm);
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: var(--visa-text-secondary);
+    font-weight: 500;
+}
 
-    .manager-title {
-        font-size: 2rem;
-        font-weight: 700;
-        color: var(--color-text-dark);
-        margin-bottom: 12px;
-    }
+.visa-type-item:hover {
+    background: var(--visa-bg-hover);
+    color: var(--visa-text-primary);
+}
 
-    .manager-subtitle {
-        color: var(--color-text-gray);
-        font-size: 1rem;
-    }
+.visa-type-item.active {
+    background: var(--visa-primary);
+    color: white;
+    border-color: var(--visa-primary);
+}
 
-    /* ========= 主要内容区域 ========= */
-    .manager-content {
-        display: flex;
-        gap: 24px;
-        flex: 1;
-        min-height: calc(100vh - 200px);
-    }
+.visa-type-item.locked {
+    cursor: default;
+    background: var(--visa-bg-light);
+    border-color: var(--visa-primary);
+}
 
-    /* ========= 左侧签证类型列表 ========= */
-    .visa-types-panel {
-        width: 300px;
-        background: white;
-        border-radius: var(--radius);
-        box-shadow: var(--shadow-md);
-        padding: 20px;
-        height: fit-content;
-        max-height: calc(100vh - 250px);
-        overflow-y: auto;
-    }
+.identity-button {
+    padding: 0.625rem 1.25rem;
+    background: var(--visa-bg-light);
+    border: 2px solid var(--visa-border);
+    border-radius: var(--visa-radius-sm);
+    color: var(--visa-text-secondary);
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
 
-    .visa-types-title {
-        font-size: 1.25rem;
-        font-weight: 600;
-        color: var(--color-text-dark);
-        margin-bottom: 16px;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
+.identity-button:hover {
+    background: var(--visa-bg-hover);
+    border-color: var(--visa-border-dark);
+}
 
-    .visa-type-item {
-        padding: 12px 16px;
-        border-radius: var(--radius);
-        cursor: pointer;
-        transition: all 0.2s ease;
-        margin-bottom: 8px;
-        border: 1px solid transparent;
-    }
+.identity-button.active {
+    background: var(--visa-primary);
+    border-color: var(--visa-primary);
+    color: white;
+}
 
-    .visa-type-item:hover {
-        background: var(--color-accent-bg);
-        border-color: var(--color-primary);
-    }
+.template-group {
+    margin-bottom: 1.5rem;
+}
 
-    .visa-type-item.active {
-        background: var(--color-primary);
-        color: white;
-        border-color: var(--color-primary);
-    }
+.template-group-title {
+    color: var(--visa-primary);
+    font-size: 1.125rem;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid var(--visa-border);
+}
 
-    /* ========= 右侧配置区域 ========= */
-    .config-panel {
-        flex: 1;
-        background: white;
-        border-radius: var(--radius);
-        box-shadow: var(--shadow-md);
-        padding: 24px;
-        min-height: calc(100vh - 250px);
-        overflow-y: auto;
-    }
+.template-list {
+    display: grid;
+    gap: 1rem;
+}
 
-    .config-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 24px;
-        padding-bottom: 16px;
-        border-bottom: 1px solid var(--color-border);
-    }
+.template-item {
+    background: var(--visa-bg-light);
+    border: 1px solid var(--visa-border);
+    border-radius: var(--visa-radius-sm);
+    padding: 1rem;
+    transition: all 0.2s;
+}
 
-    .config-title {
-        font-size: 1.5rem;
-        font-weight: 600;
-        color: var(--color-text-dark);
-    }
+.template-item:hover {
+    border-color: var(--visa-primary-light);
+    box-shadow: var(--visa-shadow-sm);
+}
 
-    .upload-button {
-        background: var(--color-primary);
-        color: white;
-        border: none;
-        padding: 10px 20px;
-        border-radius: var(--radius);
-        cursor: pointer;
-        font-weight: 500;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        transition: all 0.2s ease;
-    }
+.template-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+}
 
-    .upload-button:hover {
-        background: var(--color-primary-hover);
-        transform: translateY(-1px);
-    }
+.template-name {
+    font-weight: 600;
+    color: var(--visa-text-primary);
+    font-size: 0.9375rem;
+}
 
-    /* ========= 身份选择器 ========= */
-    .identity-selector {
-        margin-bottom: 24px;
-        padding: 16px;
-        background: var(--color-light-bg);
-        border-radius: var(--radius);
-    }
+.template-actions {
+    display: flex;
+    gap: 0.5rem;
+}
 
-    .identity-selector h4 {
-        margin-bottom: 12px;
-        color: var(--color-text-dark);
-        font-size: 1rem;
-    }
+.template-action {
+    background: none;
+    border: none;
+    padding: 0.375rem;
+    cursor: pointer;
+    color: var(--visa-text-secondary);
+    transition: color 0.2s;
+    font-size: 1rem;
+}
 
-    .identity-buttons {
-        display: flex;
-        gap: 8px;
-        flex-wrap: wrap;
-    }
+.template-action.download:hover {
+    color: var(--visa-primary);
+}
 
-    .identity-button {
-        padding: 8px 16px;
-        border: 1px solid var(--color-border);
-        background: white;
-        border-radius: var(--radius);
-        cursor: pointer;
-        transition: all 0.2s ease;
-        font-size: 0.9rem;
-    }
+.template-action.delete:hover {
+    color: var(--visa-danger);
+}
 
-    .identity-button:hover {
-        border-color: var(--color-primary);
-        background: var(--color-accent-bg);
-    }
+.template-info {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.5rem;
+    font-size: 0.8125rem;
+    color: var(--visa-text-secondary);
+    margin-bottom: 0.5rem;
+}
 
-    .identity-button.active {
-        background: var(--color-primary);
-        color: white;
-        border-color: var(--color-primary);
-    }
+.template-description {
+    font-size: 0.8125rem;
+    color: var(--visa-text-secondary);
+    font-style: italic;
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--visa-border);
+}
 
-    /* ========= 模板文件列表 ========= */
-    .templates-container {
-        margin-top: 24px;
-    }
+.file-input-wrapper {
+    position: relative;
+}
 
-    .template-group {
-        margin-bottom: 32px;
-    }
+.file-input {
+    position: absolute;
+    opacity: 0;
+    width: 0.1px;
+    height: 0.1px;
+}
 
-    .template-group-title {
-        font-size: 1.25rem;
-        font-weight: 600;
-        color: var(--color-text-dark);
-        margin-bottom: 16px;
-        padding-bottom: 8px;
-        border-bottom: 2px solid var(--color-primary);
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
+.file-input-label {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 2rem;
+    border: 2px dashed var(--visa-border);
+    border-radius: var(--visa-radius-sm);
+    cursor: pointer;
+    transition: all 0.2s;
+    color: var(--visa-text-muted);
+    background: var(--visa-bg-light);
+}
 
-    .template-list {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-        gap: 16px;
-    }
+.file-input-label:hover {
+    border-color: var(--visa-primary);
+    background: var(--visa-bg-hover);
+    color: var(--visa-primary);
+}
 
-    .template-item {
-        background: var(--color-light-bg);
-        border: 1px solid var(--color-border);
-        border-radius: var(--radius);
-        padding: 16px;
-        transition: all 0.2s ease;
-    }
+.loading {
+    text-align: center;
+    padding: 3rem;
+    color: var(--visa-text-muted);
+}
 
-    .template-item:hover {
-        border-color: var(--color-primary);
-        box-shadow: var(--shadow-md);
-    }
+.loading i {
+    font-size: 2rem;
+    margin-bottom: 1rem;
+    display: block;
+    animation: spin 1s linear infinite;
+}
 
-    .template-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        margin-bottom: 12px;
-    }
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
 
-    .template-name {
-        font-weight: 600;
-        color: var(--color-text-dark);
-        font-size: 1rem;
+@media (max-width: 1024px) {
+    .template-manager-grid {
+        grid-template-columns: 1fr;
     }
-
-    .template-actions {
-        display: flex;
-        gap: 4px;
-    }
-
-    .template-action {
-        padding: 4px 8px;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-        font-size: 0.8rem;
-        transition: all 0.2s ease;
-    }
-
-    .template-action.download {
-        background: var(--color-success);
-        color: white;
-    }
-
-    .template-action.download:hover {
-        background: #059669;
-    }
-
-    .template-action.delete {
-        background: var(--color-danger);
-        color: white;
-    }
-
-    .template-action.delete:hover {
-        background: #dc2626;
-    }
-
+    
     .template-info {
-        font-size: 0.9rem;
-        color: var(--color-text-gray);
-        margin-bottom: 8px;
+        grid-template-columns: 1fr;
     }
-
-    .template-description {
-        font-size: 0.85rem;
-        color: var(--color-text-gray);
-        font-style: italic;
-    }
-
-    /* ========= 上传模态框 ========= */
-    .upload-modal {
-        display: none;
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.5);
-        z-index: 1000;
-        backdrop-filter: blur(4px);
-    }
-
-    .upload-modal-content {
-        position: relative;
-        background: white;
-        width: 90%;
-        max-width: 600px;
-        margin: 50px auto;
-        border-radius: var(--radius-lg);
-        box-shadow: 0 25px 50px rgba(0, 0, 0, 0.25);
-        padding: 24px;
-    }
-
-    .upload-modal-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 24px;
-        padding-bottom: 16px;
-        border-bottom: 1px solid var(--color-border);
-    }
-
-    .upload-modal-title {
-        font-size: 1.5rem;
-        font-weight: 600;
-        color: var(--color-text-dark);
-    }
-
-    .close-modal {
-        background: none;
-        border: none;
-        font-size: 1.5rem;
-        color: var(--color-text-gray);
-        cursor: pointer;
-        padding: 4px;
-        border-radius: 4px;
-        transition: all 0.2s ease;
-    }
-
-    .close-modal:hover {
-        background: var(--color-light-bg);
-        color: var(--color-text-dark);
-    }
-
-    .upload-form {
-        display: grid;
-        gap: 16px;
-    }
-
-    .form-group {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-    }
-
-    .form-label {
-        font-weight: 500;
-        color: var(--color-text-dark);
-    }
-
-    .form-input {
-        padding: 10px 12px;
-        border: 1px solid var(--color-border);
-        border-radius: var(--radius);
-        font-size: 1rem;
-        transition: all 0.2s ease;
-    }
-
-    .form-input:focus {
-        outline: none;
-        border-color: var(--color-primary);
-        box-shadow: 0 0 0 3px rgba(42, 82, 152, 0.1);
-    }
-
-    .form-select {
-        padding: 10px 12px;
-        border: 1px solid var(--color-border);
-        border-radius: var(--radius);
-        font-size: 1rem;
-        background: white;
-        cursor: pointer;
-    }
-
-    .form-textarea {
-        padding: 10px 12px;
-        border: 1px solid var(--color-border);
-        border-radius: var(--radius);
-        font-size: 1rem;
-        resize: vertical;
-        min-height: 80px;
-        font-family: inherit;
-    }
-
-    .file-input-wrapper {
-        position: relative;
-        display: inline-block;
-        cursor: pointer;
-    }
-
-    .file-input {
-        position: absolute;
-        opacity: 0;
-        width: 100%;
-        height: 100%;
-        cursor: pointer;
-    }
-
-    .file-input-label {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        padding: 10px 12px;
-        border: 2px dashed var(--color-border);
-        border-radius: var(--radius);
-        background: var(--color-light-bg);
-        cursor: pointer;
-        transition: all 0.2s ease;
-    }
-
-    .file-input-label:hover {
-        border-color: var(--color-primary);
-        background: var(--color-accent-bg);
-    }
-
-    .upload-actions {
-        display: flex;
-        gap: 12px;
-        justify-content: flex-end;
-        margin-top: 24px;
-        padding-top: 16px;
-        border-top: 1px solid var(--color-border);
-    }
-
-    .btn {
-        padding: 10px 20px;
-        border: none;
-        border-radius: var(--radius);
-        cursor: pointer;
-        font-weight: 500;
-        transition: all 0.2s ease;
-    }
-
-    .btn-secondary {
-        background: var(--color-text-gray);
-        color: white;
-    }
-
-    .btn-secondary:hover {
-        background: #4b5563;
-    }
-
-    .btn-primary {
-        background: var(--color-primary);
-        color: white;
-    }
-
-    .btn-primary:hover {
-        background: var(--color-primary-hover);
-    }
-
-    .btn-primary:disabled {
-        background: var(--color-text-gray);
-        cursor: not-allowed;
-    }
-
-    /* ========= 加载状态 ========= */
-    .loading {
-        text-align: center;
-        padding: 40px;
-        color: var(--color-text-gray);
-    }
-
-    .loading i {
-        font-size: 2rem;
-        margin-bottom: 16px;
-        animation: spin 1s linear infinite;
-    }
-
-    @keyframes spin {
-        from { transform: rotate(0deg); }
-        to { transform: rotate(360deg); }
-    }
-
-    /* ========= 响应式设计 ========= */
-    @media (max-width: 768px) {
-        .manager-content {
-            flex-direction: column;
-        }
-
-        .visa-types-panel {
-            width: 100%;
-            max-height: none;
-        }
-
-        .template-list {
-            grid-template-columns: 1fr;
-        }
-
-        .upload-modal-content {
-            margin: 20px auto;
-            width: 95%;
-        }
-    }
+}
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="template-manager">
-    <!-- 页面头部 -->
-    <div class="manager-header">
-        <h1 class="manager-title">签证模板文件管理</h1>
-        <p class="manager-subtitle">上传和管理签证申请所需的模板文件</p>
-    </div>
+<div class="visa-container" data-selected-visa-type="{{ selected_visa_type or '' }}" data-identities='{{ identities_json|tojson }}'>
+    <h1 class="visa-page-title">签证模板文件管理</h1>
+    <p class="visa-text-center" style="color: var(--visa-text-secondary); margin-bottom: 2rem;">上传和管理签证申请所需的模板文件</p>
 
-    <!-- 主要内容区域 -->
-    <div class="manager-content">
+    <div class="template-manager-grid">
         <!-- 左侧签证类型列表 -->
-        <div class="visa-types-panel" {% if selected_visa_type %}style="opacity: 0.9;"{% endif %}>
-            <h3 class="visa-types-title">
+        <div class="visa-types-sidebar">
+            <h3 style="font-size: 1.125rem; font-weight: 600; color: var(--visa-text-primary); margin-bottom: 1rem;">
                 <i class="fas fa-passport"></i> 
                 {% if selected_visa_type %}
                     当前签证类型
-                    <small style="font-size: 0.8rem; color: var(--color-primary); display: block; margin-top: 4px; font-weight: 500;">
+                    <small style="font-size: 0.75rem; color: var(--visa-primary); display: block; margin-top: 0.25rem; font-weight: 500;">
                         <i class="fas fa-lock"></i> 已锁定
                     </small>
                 {% else %}
                     选择签证类型
                 {% endif %}
             </h3>
-            <div class="visa-type-list">
+            <div>
                 {% if selected_visa_type %}
-                    <!-- 当指定了签证类型时，只显示当前选中的签证类型 -->
                     {% for visa_type in visa_types %}
                         {% if visa_type.visa_type == selected_visa_type %}
-                            <div class="visa-type-item active" data-visa-type="{{ visa_type.visa_type }}" style="cursor: default; background: var(--color-accent-bg); color: var(--color-text-dark); font-weight: 600; border: 2px solid var(--color-primary);">
+                            <div class="visa-type-item active locked" data-visa-type="{{ visa_type.visa_type }}">
                                 {{ visa_type.visa_type }}
                             </div>
                         {% endif %}
                     {% endfor %}
                 {% else %}
-                    <!-- 没有指定签证类型时，显示所有签证类型 -->
                     {% for visa_type in visa_types %}
-                        <div class="visa-type-item" data-visa-type="{{ visa_type.visa_type }}">
+                        <div class="visa-type-item" data-visa-type="{{ visa_type.visa_type }}" data-action="select-visa-type">
                             {{ visa_type.visa_type }}
                         </div>
                     {% endfor %}
@@ -560,7 +258,7 @@
         </div>
 
         <!-- 右侧配置区域 -->
-        <div class="config-panel">
+        <div>
             <div id="configContent">
                 <div class="loading">
                     <i class="fas fa-spinner"></i>
@@ -572,423 +270,409 @@
 </div>
 
 <!-- 上传模态框 -->
-<div id="uploadModal" class="upload-modal">
-    <div class="upload-modal-content">
-        <div class="upload-modal-header">
-            <h3 class="upload-modal-title">上传模板文件</h3>
-            <button class="close-modal" onclick="closeUploadModal()">&times;</button>
+<div id="uploadModal" class="visa-modal">
+    <div class="visa-modal-dialog">
+        <div class="visa-modal-header">
+            <h3 class="visa-modal-title">上传模板文件</h3>
+            <button class="visa-modal-close" data-action="close-upload-modal">&times;</button>
         </div>
-        <form id="uploadForm" class="upload-form">
-            <div class="form-group">
-                <label class="form-label">模板名称 *</label>
-                <input type="text" name="template_name" class="form-input" required>
-            </div>
-            <div class="form-group">
-                <label class="form-label">模板类型 *</label>
-                <select name="template_type" class="form-select" required>
-                    <option value="">请选择模板类型</option>
-                    <option value="公司信">公司信</option>
-                    <option value="邀请信">邀请信</option>
-                    <option value="申请表">申请表</option>
-                    <option value="行程安排">行程安排</option>
-                    <option value="酒店预订">酒店预订</option>
-                    <option value="机票预订">机票预订</option>
-                    <option value="其他">其他</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label class="form-label">适用身份</label>
-                <select name="identity_id" class="form-select">
-                    <option value="">共用模板</option>
-                    {% for identity in identities %}
-                        <option value="{{ identity.id }}">{{ identity.identity_zh }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="form-group">
-                <label class="form-label">文件描述</label>
-                <textarea name="description" class="form-textarea" placeholder="请输入模板文件的描述信息..."></textarea>
-            </div>
-            <div class="form-group">
-                <label class="form-label">选择文件 *</label>
-                <div class="file-input-wrapper">
-                    <input type="file" name="template_file" class="file-input" accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.jpg,.jpeg,.png" required>
-                    <label class="file-input-label">
-                        <i class="fas fa-cloud-upload-alt"></i>
-                        <span id="fileLabel">点击选择文件</span>
-                    </label>
+        <form id="uploadForm">
+            <div class="visa-modal-body">
+                <div class="visa-form-group">
+                    <label class="visa-form-label">模板名称 *</label>
+                    <input type="text" name="template_name" class="visa-form-control" required>
+                </div>
+                <div class="visa-form-group">
+                    <label class="visa-form-label">模板类型 *</label>
+                    <select name="template_type" class="visa-form-select" required>
+                        <option value="">请选择模板类型</option>
+                        <option value="公司信">公司信</option>
+                        <option value="邀请信">邀请信</option>
+                        <option value="申请表">申请表</option>
+                        <option value="行程安排">行程安排</option>
+                        <option value="酒店预订">酒店预订</option>
+                        <option value="机票预订">机票预订</option>
+                        <option value="其他">其他</option>
+                    </select>
+                </div>
+                <div class="visa-form-group">
+                    <label class="visa-form-label">适用身份</label>
+                    <select name="identity_id" class="visa-form-select">
+                        <option value="">共用模板</option>
+                        {% for identity in identities %}
+                            <option value="{{ identity.id }}">{{ identity.identity_zh }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="visa-form-group">
+                    <label class="visa-form-label">文件描述</label>
+                    <textarea name="description" class="visa-form-textarea" placeholder="请输入模板文件的描述信息..."></textarea>
+                </div>
+                <div class="visa-form-group">
+                    <label class="visa-form-label">选择文件 *</label>
+                    <div class="file-input-wrapper">
+                        <input type="file" name="template_file" class="file-input" accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.jpg,.jpeg,.png" required>
+                        <label class="file-input-label">
+                            <i class="fas fa-cloud-upload-alt fa-2x"></i>
+                            <span id="fileLabel">点击选择文件</span>
+                        </label>
+                    </div>
                 </div>
             </div>
-            <div class="upload-actions">
-                <button type="button" class="btn btn-secondary" onclick="closeUploadModal()">取消</button>
-                <button type="submit" class="btn btn-primary" id="uploadSubmitBtn">
+            <div class="visa-modal-footer">
+                <button type="button" class="visa-btn visa-btn-secondary" data-action="close-upload-modal">取消</button>
+                <button type="submit" class="visa-btn visa-btn-primary" id="uploadSubmitBtn">
                     <i class="fas fa-upload"></i> 上传文件
                 </button>
             </div>
         </form>
     </div>
 </div>
+
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 {% endblock %}
 
 {% block extra_js %}
 <script>
-    let currentVisaType = {{ selected_visa_type|tojson if selected_visa_type else 'null' }};
-    let currentIdentityId = null;
-    let currentVisaTypeId = null;
+// ==================== 全局变量 ====================
+const mainContainer = document.querySelector('.visa-container');
+const IS_FIXED_VISA_TYPE = mainContainer.dataset.selectedVisaType !== '';
+let currentVisaType = mainContainer.dataset.selectedVisaType || null;
+let currentIdentityId = null;
+let currentVisaTypeId = null;
 
-    // 初始化页面
-    document.addEventListener('DOMContentLoaded', function() {
-        setupEventListeners();
-        if (currentVisaType) {
-            selectVisaType(currentVisaType);
-        } else {
-            // 如果没有选中的签证类型，默认选择第一个
-            const firstVisaTypeItem = document.querySelector('.visa-type-item');
-            if (firstVisaTypeItem) {
-                const firstVisaType = firstVisaTypeItem.dataset.visaType;
-                selectVisaType(firstVisaType);
-            }
+// ==================== 签证类型选择 ====================
+function selectVisaType(visaType) {
+    if (IS_FIXED_VISA_TYPE) return;
+    
+    // 更新UI状态
+    document.querySelectorAll('.visa-type-item').forEach(item => {
+        item.classList.remove('active');
+        if (item.dataset.visaType === visaType) {
+            item.classList.add('active');
         }
     });
 
-    function setupEventListeners() {
-        // 签证类型选择
-        document.querySelectorAll('.visa-type-item').forEach(item => {
-            item.addEventListener('click', function() {
-                // 如果指定了固定的签证类型，则不允许切换
-                const isFixedVisaType = {{ 'true' if selected_visa_type else 'false' }};
-                if (isFixedVisaType) {
-                    return;
-                }
-                const visaType = this.dataset.visaType;
-                selectVisaType(visaType);
-            });
-        });
+    currentVisaType = visaType;
+    currentIdentityId = null;
+    loadTemplates();
+}
 
-        // 文件选择
-        document.querySelector('input[name="template_file"]').addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            if (file) {
-                document.getElementById('fileLabel').textContent = file.name;
+// ==================== 身份选择 ====================
+function selectIdentity(identityId) {
+    currentIdentityId = identityId;
+    
+    // 更新UI状态
+    document.querySelectorAll('.identity-button').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    const targetBtn = document.querySelector(`[data-identity-id="${identityId || ''}"]`);
+    if (targetBtn) targetBtn.classList.add('active');
+    
+    loadTemplates();
+}
+
+// ==================== 加载模板 ====================
+function loadTemplates() {
+    if (!currentVisaType) return;
+
+    const configContent = document.getElementById('configContent');
+    configContent.innerHTML = '<div class="loading"><i class="fas fa-spinner"></i> 加载中...</div>';
+
+    const params = new URLSearchParams({ visa_type: currentVisaType });
+    if (currentIdentityId) {
+        params.append('identity_id', currentIdentityId);
+    }
+
+    fetch(`/visa/basic/api/visa_templates/get_templates?${params}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                currentVisaTypeId = data.visa_type_id;
+                renderTemplates(data.templates);
             } else {
-                document.getElementById('fileLabel').textContent = '点击选择文件';
+                configContent.innerHTML = `<div class="loading">错误: ${data.message}</div>`;
             }
+        })
+        .catch(error => {
+            console.error('Error loading templates:', error);
+            configContent.innerHTML = '<div class="loading">加载失败，请重试</div>';
         });
+}
 
-        // 表单提交
-        document.getElementById('uploadForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-            uploadTemplate();
-        });
-    }
-
-    function selectVisaType(visaType) {
-        // 更新UI状态
-        document.querySelectorAll('.visa-type-item').forEach(item => {
-            item.classList.remove('active');
-            if (item.dataset.visaType === visaType) {
-                item.classList.add('active');
-            }
-        });
-
-        currentVisaType = visaType;
-        currentIdentityId = null;
-        loadTemplates();
-    }
-
-    function selectIdentity(identityId) {
-        currentIdentityId = identityId;
-        
-        // 更新UI状态
-        document.querySelectorAll('.identity-button').forEach(btn => {
-            btn.classList.remove('active');
-        });
-        document.querySelector(`[data-identity-id="${identityId}"]`).classList.add('active');
-        
-        loadTemplates();
-    }
-
-    function loadTemplates() {
-        if (!currentVisaType) return;
-
-        const configContent = document.getElementById('configContent');
-        configContent.innerHTML = '<div class="loading"><i class="fas fa-spinner"></i> 加载中...</div>';
-
-        const params = new URLSearchParams({
-            visa_type: currentVisaType
-        });
-        
-        if (currentIdentityId) {
-            params.append('identity_id', currentIdentityId);
-        }
-
-        fetch(`/visa/basic/api/visa_templates/get_templates?${params}`)
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    currentVisaTypeId = data.visa_type_id;
-                    renderTemplates(data.templates);
-                } else {
-                    configContent.innerHTML = `<div class="loading">错误: ${data.message}</div>`;
-                }
-            })
-            .catch(error => {
-                console.error('Error loading templates:', error);
-                configContent.innerHTML = '<div class="loading">加载失败，请重试</div>';
-            });
-    }
-
-    function renderTemplates(templates) {
-        const configContent = document.getElementById('configContent');
-        
-        // 生成身份按钮HTML
-        const identities = {{ identities_json|tojson }};
-        let identityButtonsHtml = `
-            <button class="identity-button ${!currentIdentityId ? 'active' : ''}" data-identity-id="" onclick="selectIdentity(null)">共用模板</button>
+// ==================== 渲染模板 ====================
+function renderTemplates(templates) {
+    const configContent = document.getElementById('configContent');
+    const identities = JSON.parse(mainContainer.dataset.identities || '[]');
+    
+    let identityButtonsHtml = `
+        <button class="identity-button ${!currentIdentityId ? 'active' : ''}" data-identity-id="" data-action="select-identity">共用模板</button>
+    `;
+    
+    identities.forEach(identity => {
+        const isActive = currentIdentityId == identity.id ? 'active' : '';
+        identityButtonsHtml += `
+            <button class="identity-button ${isActive}" data-identity-id="${identity.id}" data-action="select-identity">${identity.identity_zh}</button>
         `;
-        
-        identities.forEach(identity => {
-            const isActive = currentIdentityId == identity.id ? 'active' : '';
-            identityButtonsHtml += `
-                <button class="identity-button ${isActive}" data-identity-id="${identity.id}" onclick="selectIdentity(${identity.id})">${identity.identity_zh}</button>
-            `;
-        });
-        
-        if (Object.keys(templates).length === 0) {
-            configContent.innerHTML = `
-                <div class="config-header">
-                    <h3 class="config-title">${currentVisaType} - 模板文件</h3>
-                    <button class="upload-button" onclick="openUploadModal()">
+    });
+    
+    if (Object.keys(templates).length === 0) {
+        configContent.innerHTML = `
+            <div class="visa-card">
+                <div class="visa-card-header">
+                    <h2>${currentVisaType} - 模板文件</h2>
+                    <button class="visa-btn visa-btn-sm visa-btn-primary" data-action="open-upload-modal">
                         <i class="fas fa-plus"></i> 上传模板
                     </button>
                 </div>
-                <div class="identity-selector">
-                    <h4>选择身份</h4>
-                    <div class="identity-buttons">
-                        ${identityButtonsHtml}
+                <div class="visa-card-body">
+                    <div class="visa-mb-3">
+                        <h4 style="color: var(--visa-text-primary); margin-bottom: 0.75rem;">选择身份</h4>
+                        <div class="visa-flex visa-gap-2" style="flex-wrap: wrap;">
+                            ${identityButtonsHtml}
+                        </div>
+                    </div>
+                    <div class="visa-text-center" style="padding: 3rem;">
+                        <i class="fas fa-inbox fa-3x" style="color: var(--visa-text-muted); margin-bottom: 1rem; display: block;"></i>
+                        <h4 style="color: var(--visa-text-secondary); margin-bottom: 0.5rem;">暂无模板文件</h4>
+                        <p style="color: var(--visa-text-muted);">点击"上传模板"按钮开始添加模板文件</p>
                     </div>
                 </div>
-                <div class="templates-container">
-                    <div style="text-align: center; padding: 40px; color: var(--color-text-gray);">
-                        <i class="fas fa-inbox fa-3x mb-3"></i>
-                        <h4>暂无模板文件</h4>
-                        <p>点击"上传模板"按钮开始添加模板文件</p>
-                    </div>
-                </div>
-            `;
-            return;
-        }
+            </div>
+        `;
+        return;
+    }
 
-        let templatesHtml = `
-            <div class="config-header">
-                <h3 class="config-title">${currentVisaType} - 模板文件</h3>
-                <button class="upload-button" onclick="openUploadModal()">
+    let templatesHtml = `
+        <div class="visa-card">
+            <div class="visa-card-header">
+                <h2>${currentVisaType} - 模板文件</h2>
+                <button class="visa-btn visa-btn-sm visa-btn-primary" data-action="open-upload-modal">
                     <i class="fas fa-plus"></i> 上传模板
                 </button>
             </div>
-            <div class="identity-selector">
-                <h4>选择身份</h4>
-                <div class="identity-buttons">
-                    ${identityButtonsHtml}
+            <div class="visa-card-body">
+                <div class="visa-mb-3">
+                    <h4 style="color: var(--visa-text-primary); margin-bottom: 0.75rem;">选择身份</h4>
+                    <div class="visa-flex visa-gap-2" style="flex-wrap: wrap;">
+                        ${identityButtonsHtml}
+                    </div>
                 </div>
-            </div>
-            <div class="templates-container">
+    `;
+
+    for (const [templateType, templateList] of Object.entries(templates)) {
+        templatesHtml += `
+            <div class="template-group">
+                <h4 class="template-group-title">
+                    <i class="fas fa-folder"></i> ${templateType}
+                </h4>
+                <div class="template-list">
         `;
 
-        for (const [templateType, templateList] of Object.entries(templates)) {
+        templateList.forEach(template => {
+            const fileSize = template.file_size ? formatFileSize(template.file_size) : '未知';
             templatesHtml += `
-                <div class="template-group">
-                    <h4 class="template-group-title">
-                        <i class="fas fa-folder"></i>
-                        ${templateType}
-                    </h4>
-                    <div class="template-list">
-            `;
-
-            templateList.forEach(template => {
-                const fileSize = template.file_size ? formatFileSize(template.file_size) : '未知';
-                templatesHtml += `
-                    <div class="template-item">
-                        <div class="template-header">
-                            <div class="template-name">${template.template_name}</div>
-                            <div class="template-actions">
-                                <button class="template-action download" onclick="downloadTemplate(${template.id})">
-                                    <i class="fas fa-download"></i>
-                                </button>
-                                <button class="template-action delete" onclick="deleteTemplate(${template.id})">
-                                    <i class="fas fa-trash"></i>
-                                </button>
-                            </div>
+                <div class="template-item">
+                    <div class="template-header">
+                        <div class="template-name">${template.template_name}</div>
+                        <div class="template-actions">
+                            <button class="template-action download" data-action="download-template" data-template-id="${template.id}">
+                                <i class="fas fa-download"></i>
+                            </button>
+                            <button class="template-action delete" data-action="delete-template" data-template-id="${template.id}">
+                                <i class="fas fa-trash"></i>
+                            </button>
                         </div>
-                        <div class="template-info">
-                            <div><strong>文件类型:</strong> ${template.file_type.toUpperCase()}</div>
-                            <div><strong>文件大小:</strong> ${fileSize}</div>
-                            <div><strong>适用身份:</strong> ${template.identity_name}</div>
-                            <div><strong>上传时间:</strong> ${formatDate(template.created_at)}</div>
-                        </div>
-                        ${template.description ? `<div class="template-description">${template.description}</div>` : ''}
                     </div>
-                `;
-            });
-
-            templatesHtml += `
+                    <div class="template-info">
+                        <div><strong>文件类型:</strong> ${template.file_type.toUpperCase()}</div>
+                        <div><strong>文件大小:</strong> ${fileSize}</div>
+                        <div><strong>适用身份:</strong> ${template.identity_name}</div>
+                        <div><strong>上传时间:</strong> ${formatDate(template.created_at)}</div>
                     </div>
+                    ${template.description ? `<div class="template-description">${template.description}</div>` : ''}
                 </div>
             `;
-        }
-
-        templatesHtml += '</div>';
-        configContent.innerHTML = templatesHtml;
-    }
-
-    function openUploadModal() {
-        document.getElementById('uploadModal').style.display = 'block';
-        document.getElementById('uploadForm').reset();
-        document.getElementById('fileLabel').textContent = '点击选择文件';
-    }
-
-    function closeUploadModal() {
-        document.getElementById('uploadModal').style.display = 'none';
-    }
-
-    function uploadTemplate() {
-        const form = document.getElementById('uploadForm');
-        const formData = new FormData(form);
-        
-        // 添加签证类型ID
-        formData.append('visa_type_id', currentVisaTypeId);
-        
-        // 添加身份ID（如果有选择）
-        if (currentIdentityId) {
-            formData.append('identity_id', currentIdentityId);
-        }
-
-        const submitBtn = document.getElementById('uploadSubmitBtn');
-        const originalText = submitBtn.innerHTML;
-        submitBtn.disabled = true;
-        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 上传中...';
-
-        fetch('/visa/basic/api/visa_templates/upload', {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                closeUploadModal();
-                loadTemplates();
-                showAlert('模板文件上传成功！', 'success');
-            } else {
-                showAlert(data.message || '上传失败', 'error');
-            }
-        })
-        .catch(error => {
-            console.error('Upload error:', error);
-            showAlert('上传失败，请重试', 'error');
-        })
-        .finally(() => {
-            submitBtn.disabled = false;
-            submitBtn.innerHTML = originalText;
         });
+
+        templatesHtml += `
+                </div>
+            </div>
+        `;
     }
 
-    function downloadTemplate(templateId) {
-        window.open(`/visa/basic/api/visa_templates/download/${templateId}`, '_blank');
+    templatesHtml += '</div></div>';
+    configContent.innerHTML = templatesHtml;
+}
+
+// ==================== 上传模板 ====================
+function openUploadModal() {
+    document.getElementById('uploadModal').classList.add('active');
+    document.getElementById('uploadForm').reset();
+    document.getElementById('fileLabel').textContent = '点击选择文件';
+}
+
+function closeUploadModal() {
+    document.getElementById('uploadModal').classList.remove('active');
+}
+
+function uploadTemplate() {
+    const form = document.getElementById('uploadForm');
+    const formData = new FormData(form);
+    
+    formData.append('visa_type_id', currentVisaTypeId);
+    if (currentIdentityId) {
+        formData.append('identity_id', currentIdentityId);
     }
 
-    function deleteTemplate(templateId) {
-        if (!confirm('确定要删除这个模板文件吗？此操作不可恢复。')) {
-            return;
-        }
+    const submitBtn = document.getElementById('uploadSubmitBtn');
+    const originalText = submitBtn.innerHTML;
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 上传中...';
 
-        fetch(`/visa/basic/api/visa_templates/delete/${templateId}`, {
-            method: 'DELETE',
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest'
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                loadTemplates();
-                showAlert('模板文件删除成功！', 'success');
-            } else {
-                showAlert(data.message || '删除失败', 'error');
-            }
-        })
-        .catch(error => {
-            console.error('Delete error:', error);
-            showAlert('删除失败，请重试', 'error');
-        });
-    }
-
-    function formatFileSize(bytes) {
-        if (bytes === 0) return '0 Bytes';
-        const k = 1024;
-        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-        const i = Math.floor(Math.log(bytes) / Math.log(k));
-        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-    }
-
-    function formatDate(dateString) {
-        if (!dateString) return '未知';
-        const date = new Date(dateString);
-        return date.toLocaleString('zh-CN');
-    }
-
-    function showAlert(message, type) {
-        // 创建提示元素
-        const alert = document.createElement('div');
-        alert.textContent = message;
-        alert.style.position = 'fixed';
-        alert.style.top = '20px';
-        alert.style.right = '20px';
-        alert.style.padding = '12px 20px';
-        alert.style.borderRadius = '4px';
-        alert.style.color = 'white';
-        alert.style.fontWeight = '500';
-        alert.style.zIndex = '10000';
-        alert.style.animation = 'slideIn 0.3s ease';
-        
-        if (type === 'success') {
-            alert.style.backgroundColor = '#10b981';
-        } else {
-            alert.style.backgroundColor = '#ef4444';
-        }
-        
-        document.body.appendChild(alert);
-        
-        // 3秒后自动移除
-        setTimeout(() => {
-            alert.style.animation = 'slideOut 0.3s ease';
-            setTimeout(() => {
-                if (alert.parentNode) {
-                    alert.parentNode.removeChild(alert);
-                }
-            }, 300);
-        }, 3000);
-    }
-
-    // 点击模态框外部关闭
-    window.onclick = function(event) {
-        const modal = document.getElementById('uploadModal');
-        if (event.target === modal) {
+    fetch('/visa/basic/api/visa_templates/upload', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
             closeUploadModal();
+            loadTemplates();
+            showAlert('模板文件上传成功！', 'success');
+        } else {
+            showAlert(data.message || '上传失败', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Upload error:', error);
+        showAlert('上传失败，请重试', 'error');
+    })
+    .finally(() => {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalText;
+    });
+}
+
+// ==================== 下载/删除模板 ====================
+function downloadTemplate(templateId) {
+    window.open(`/visa/basic/api/visa_templates/download/${templateId}`, '_blank');
+}
+
+function deleteTemplate(templateId) {
+    if (!confirm('确定要删除这个模板文件吗？此操作不可恢复。')) return;
+
+    fetch(`/visa/basic/api/visa_templates/delete/${templateId}`, {
+        method: 'DELETE',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            loadTemplates();
+            showAlert('模板文件删除成功！', 'success');
+        } else {
+            showAlert(data.message || '删除失败', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Delete error:', error);
+        showAlert('删除失败，请重试', 'error');
+    });
+}
+
+// ==================== 工具函数 ====================
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+function formatDate(dateString) {
+    if (!dateString) return '未知';
+    const date = new Date(dateString);
+    return date.toLocaleString('zh-CN');
+}
+
+function showAlert(message, type) {
+    const alert = document.createElement('div');
+    alert.className = 'visa-flash visa-flash-' + type;
+    alert.style.position = 'fixed';
+    alert.style.top = '20px';
+    alert.style.right = '20px';
+    alert.style.zIndex = '10000';
+    alert.textContent = message;
+    
+    document.body.appendChild(alert);
+    
+    setTimeout(() => {
+        alert.style.opacity = '0';
+        setTimeout(() => alert.remove(), 300);
+    }, 3000);
+}
+
+// ==================== 事件委托 ====================
+document.addEventListener('click', function(e) {
+    const target = e.target.closest('[data-action]');
+    if (!target) return;
+    
+    const action = target.dataset.action;
+    
+    switch(action) {
+        case 'select-visa-type':
+            selectVisaType(target.dataset.visaType);
+            break;
+        case 'select-identity':
+            selectIdentity(target.dataset.identityId || null);
+            break;
+        case 'open-upload-modal':
+            openUploadModal();
+            break;
+        case 'close-upload-modal':
+            closeUploadModal();
+            break;
+        case 'download-template':
+            downloadTemplate(parseInt(target.dataset.templateId));
+            break;
+        case 'delete-template':
+            deleteTemplate(parseInt(target.dataset.templateId));
+            break;
+    }
+});
+
+// 模态框外部点击关闭
+document.addEventListener('click', function(e) {
+    const modal = document.getElementById('uploadModal');
+    if (e.target === modal) {
+        closeUploadModal();
+    }
+});
+
+// ==================== 初始化 ====================
+document.addEventListener('DOMContentLoaded', function() {
+    // 文件选择
+    document.querySelector('input[name="template_file"]').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        document.getElementById('fileLabel').textContent = file ? file.name : '点击选择文件';
+    });
+
+    // 表单提交
+    document.getElementById('uploadForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        uploadTemplate();
+    });
+    
+    // 自动选择签证类型
+    if (currentVisaType) {
+        selectVisaType(currentVisaType);
+    } else {
+        const firstVisaTypeItem = document.querySelector('.visa-type-item');
+        if (firstVisaTypeItem) {
+            selectVisaType(firstVisaTypeItem.dataset.visaType);
         }
     }
-
-    // 添加CSS动画
-    const style = document.createElement('style');
-    style.textContent = `
-        @keyframes slideIn {
-            from { transform: translateX(100%); opacity: 0; }
-            to { transform: translateX(0); opacity: 1; }
-        }
-        @keyframes slideOut {
-            from { transform: translateX(0); opacity: 1; }
-            to { transform: translateX(100%); opacity: 0; }
-        }
-    `;
-    document.head.appendChild(style);
+});
 </script>
-{% endblock %} 
+{% endblock %}

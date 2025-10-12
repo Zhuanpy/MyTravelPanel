@@ -1,0 +1,357 @@
+{% extends "staff_base.html" %}
+
+{% block title %}编辑签证项目 - MyTravelPanel{% endblock %}
+
+{% block page_title %}编辑签证项目{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/visa_common.css') }}">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+{% endblock %}
+
+{% block content %}
+<div class="visa-container" data-project-folder="{{ project.project_folder_name }}" data-visa-type="{{ project.visa_type }}" data-project-id="{{ project.id }}">
+    <h1 class="visa-page-title">编辑签证项目</h1>
+
+    <div class="visa-card">
+        <div class="visa-card-header">
+            <h2>项目信息</h2>
+            <div class="visa-flex visa-gap-2">
+                <a href="{{ url_for('visa_project.show_current_all_projects') }}" class="visa-btn visa-btn-sm visa-btn-secondary">
+                    <i class="fas fa-arrow-left"></i> 返回项目列表
+                </a>
+                <button type="button" class="visa-btn visa-btn-sm visa-btn-secondary" data-action="open-project-folder">
+                    <i class="fas fa-folder-open"></i> 打开项目文件夹
+                </button>
+            </div>
+        </div>
+        
+        <div class="visa-card-body">
+            <div id="formAlert" class="visa-info-box" style="display: none;"></div>
+            
+            <form id="visaForm" method="post" action="{{ url_for('visa_project.update_project_details', project_id=project.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="current_visa_status" value="all">
+                <input type="hidden" name="current_sort_by" value="name">
+                
+                <div class="visa-grid-3">
+                    <div class="visa-form-group">
+                        <label class="visa-form-label">HID或序列号 *</label>
+                        <input type="text" class="visa-form-control" id="hid_or_serial" name="hid_or_serial" 
+                               placeholder="输入HID或序列号" required value="{{ project.hid_or_serial or '' }}">
+                        <div id="hid_or_serial_error" style="display: none; color: var(--visa-danger); font-size: 0.875rem; margin-top: 0.25rem;">HID或序列号不能为空</div>
+                    </div>
+
+                    <div class="visa-form-group">
+                        <label class="visa-form-label">在新加坡身份 *</label>
+                        <select class="visa-form-select" id="singapore_status" name="singapore_status" required>
+                            <option value="PR" {% if project.singapore_status == 'PR' %}selected{% endif %}>永久居民 (PR)</option>
+                            <option value="工作准证" {% if project.singapore_status == '工作准证' %}selected{% endif %}>工作准证</option>
+                            <option value="家属准证" {% if project.singapore_status == '家属准证' %}selected{% endif %}>家属准证</option>
+                            <option value="学生准证" {% if project.singapore_status == '学生准证' %}selected{% endif %}>学生准证</option>
+                            <option value="女佣准证" {% if project.singapore_status == '女佣准证' %}selected{% endif %}>女佣准证</option>
+                        </select>
+                    </div>
+
+                    <div class="visa-form-group">
+                        <label class="visa-form-label">签证类型 *</label>
+                        <input type="text" class="visa-form-control" id="visa_type" name="visa_type" 
+                               placeholder="如：商务签证、旅游签证等" required value="{{ project.visa_type or '' }}">
+                        <div id="visa_type_error" style="display: none; color: var(--visa-danger); font-size: 0.875rem; margin-top: 0.25rem;">签证类型不能为空</div>
+                    </div>
+
+                    <div class="visa-form-group">
+                        <label class="visa-form-label">申请人名字 *</label>
+                        <input type="text" class="visa-form-control" id="applicant_name" name="applicant_name" 
+                               placeholder="申请人全名" required value="{{ project.applicant_name or '' }}">
+                        <div id="applicant_name_error" style="display: none; color: var(--visa-danger); font-size: 0.875rem; margin-top: 0.25rem;">申请人名字不能为空</div>
+                    </div>
+
+                    <div class="visa-form-group">
+                        <label class="visa-form-label">联系人名字</label>
+                        <input type="text" class="visa-form-control" id="contact_name" name="contact_name" 
+                               placeholder="联系人全名" value="{{ project.contact_name or '' }}">
+                    </div>
+
+                    <div class="visa-form-group">
+                        <label class="visa-form-label">签证状态 *</label>
+                        <select class="visa-form-select" id="visa_status" name="visa_status" required>
+                            <option value="待递交" {% if project.visa_status == '待递交' %}selected{% endif %}>待递交</option>
+                            <option value="待出签" {% if project.visa_status == '待出签' %}selected{% endif %}>待出签</option>
+                            <option value="已出签" {% if project.visa_status == '已出签' %}selected{% endif %}>已出签</option>
+                            <option value="忽略单" {% if project.visa_status == '忽略单' %}selected{% endif %}>忽略单</option>
+                        </select>
+                    </div>
+
+                    <div class="visa-form-group">
+                        <label class="visa-form-label">预估出签日期 *</label>
+                        <input type="text" class="visa-form-control datepicker" id="estimated_date" name="estimated_date" 
+                               placeholder="选择日期" required value="{{ project.estimated_date.strftime('%Y-%m-%d') if project.estimated_date }}">
+                        <div id="estimated_date_error" style="display: none; color: var(--visa-danger); font-size: 0.875rem; margin-top: 0.25rem;">请选择有效的日期</div>
+                    </div>
+
+                    <div class="visa-form-group">
+                        <label class="visa-form-label">创建时间</label>
+                        <input type="text" class="visa-form-control" id="created_date" 
+                               value="{{ project.created_date.strftime('%Y-%m-%d') }}" readonly style="background: var(--visa-bg-light);">
+                        <small style="color: var(--visa-text-muted); font-size: 0.75rem;">创建时间不可修改</small>
+                    </div>
+
+                    <div class="visa-form-group">
+                        <label class="visa-form-label">项目文件夹名称</label>
+                        <input type="text" class="visa-form-control" id="project_folder_name" 
+                               value="{{ project.project_folder_name }}" readonly style="background: var(--visa-bg-light);">
+                        <small style="color: var(--visa-text-muted); font-size: 0.75rem;">项目文件夹名称不可修改</small>
+                    </div>
+                </div>
+                
+                <div class="visa-form-group">
+                    <label class="visa-form-label">备注信息</label>
+                    <textarea class="visa-form-textarea" id="remarks" name="remarks" 
+                              placeholder="添加备注信息" rows="6">{{ project.remarks or '' }}</textarea>
+                </div>
+            </form>
+        </div>
+        
+        <div class="visa-card-footer">
+            <button type="button" class="visa-btn visa-btn-secondary" data-action="cancel">
+                <i class="fas fa-times"></i> 取消
+            </button>
+            {% if '韩国' in project.visa_type %}
+            <button type="button" class="visa-btn visa-btn-success" id="generateFormBtn">
+                <i class="fas fa-file-excel"></i> 生成表格
+            </button>
+            {% endif %}
+            <button type="submit" class="visa-btn visa-btn-primary" id="updateBtn" form="visaForm">
+                <i class="fas fa-save"></i> 保存修改
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/zh.js"></script>
+<script>
+// ==================== 全局变量 ====================
+const mainContainer = document.querySelector('.visa-container');
+const PROJECT_ID = parseInt(mainContainer.dataset.projectId);
+const PROJECT_FOLDER_NAME = mainContainer.dataset.projectFolder;
+const VISA_TYPE = mainContainer.dataset.visaType;
+
+// ==================== 工具函数 ====================
+function showAlert(message, isSuccess) {
+    const formAlert = document.getElementById('formAlert');
+    formAlert.textContent = message;
+    formAlert.style.backgroundColor = isSuccess ? '#d1fae5' : '#fee2e2';
+    formAlert.style.color = isSuccess ? '#065f46' : '#991b1b';
+    formAlert.style.borderColor = isSuccess ? '#a7f3d0' : '#fca5a5';
+    formAlert.style.display = 'block';
+    setTimeout(() => {
+        formAlert.style.display = 'none';
+    }, 5000);
+}
+
+function openProjectFolder() {
+    const encodedFolderName = encodeURIComponent(PROJECT_FOLDER_NAME);
+    const encodedVisaType = encodeURIComponent(VISA_TYPE);
+    
+    fetch(`/visa/project/open_folder?folder_type=project&project_folder=${encodedFolderName}&visa_type=${encodedVisaType}`, {
+        method: 'GET',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('文件夹已打开', true);
+        } else {
+            showAlert(data.message || '打开文件夹失败', false);
+        }
+    })
+    .catch(error => {
+        console.error('Error opening folder:', error);
+        showAlert('打开文件夹时发生错误', false);
+    });
+}
+
+function generateForm() {
+    const button = document.getElementById('generateFormBtn');
+    if (!button) return;
+    
+    const originalText = button.innerHTML;
+    button.disabled = true;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 生成中...';
+    
+    const formData = new FormData();
+    formData.append('csrf_token', document.querySelector('input[name="csrf_token"]').value);
+    
+    fetch(`{{ url_for('visa_project.generate_form_for_project', project_id=project.id) }}`, {
+        method: 'POST',
+        body: formData,
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert(data.message || '表格生成成功！', true);
+        } else {
+            showAlert(data.message || '表格生成失败，请重试', false);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showAlert('系统错误，请稍后重试', false);
+    })
+    .finally(() => {
+        button.disabled = false;
+        button.innerHTML = originalText;
+    });
+}
+
+// ==================== 表单验证和提交 ====================
+function validateForm() {
+    let isValid = true;
+    
+    // 验证HID或序列号
+    const hidOrSerial = document.getElementById('hid_or_serial');
+    const hidError = document.getElementById('hid_or_serial_error');
+    if (!hidOrSerial.value.trim()) {
+        isValid = false;
+        hidError.style.display = 'block';
+        hidOrSerial.style.borderColor = 'var(--visa-danger)';
+    } else {
+        hidError.style.display = 'none';
+        hidOrSerial.style.borderColor = '';
+    }
+    
+    // 验证签证类型
+    const visaType = document.getElementById('visa_type');
+    const visaTypeError = document.getElementById('visa_type_error');
+    if (!visaType.value.trim()) {
+        isValid = false;
+        visaTypeError.style.display = 'block';
+        visaType.style.borderColor = 'var(--visa-danger)';
+    } else {
+        visaTypeError.style.display = 'none';
+        visaType.style.borderColor = '';
+    }
+    
+    // 验证申请人名字
+    const applicantName = document.getElementById('applicant_name');
+    const applicantNameError = document.getElementById('applicant_name_error');
+    if (!applicantName.value.trim()) {
+        isValid = false;
+        applicantNameError.style.display = 'block';
+        applicantName.style.borderColor = 'var(--visa-danger)';
+    } else {
+        applicantNameError.style.display = 'none';
+        applicantName.style.borderColor = '';
+    }
+    
+    // 验证预估日期
+    const estimatedDate = document.getElementById('estimated_date');
+    const estimatedDateError = document.getElementById('estimated_date_error');
+    if (!estimatedDate.value) {
+        isValid = false;
+        estimatedDateError.style.display = 'block';
+        estimatedDate.style.borderColor = 'var(--visa-danger)';
+    } else {
+        estimatedDateError.style.display = 'none';
+        estimatedDate.style.borderColor = '';
+    }
+    
+    return isValid;
+}
+
+// ==================== 事件委托 ====================
+document.addEventListener('click', function(e) {
+    const target = e.target.closest('[data-action]');
+    if (!target) return;
+    
+    switch(target.dataset.action) {
+        case 'open-project-folder':
+            openProjectFolder();
+            break;
+        case 'cancel':
+            window.location.href = '{{ url_for("visa_project.show_current_all_projects") }}';
+            break;
+    }
+});
+
+// ==================== 初始化 ====================
+document.addEventListener('DOMContentLoaded', function() {
+    // 初始化日期选择器
+    if (window.flatpickr) {
+        flatpickr(".datepicker", {
+            locale: "zh",
+            dateFormat: "Y-m-d",
+            allowInput: true
+        });
+    }
+    
+    // 绑定生成表格按钮
+    const generateFormBtn = document.getElementById('generateFormBtn');
+    if (generateFormBtn) {
+        generateFormBtn.addEventListener('click', generateForm);
+    }
+    
+    // 表单提交处理
+    const form = document.getElementById('visaForm');
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        // 表单验证
+        if (!validateForm()) {
+            showAlert('请填写所有必填字段', false);
+            return;
+        }
+
+        const updateBtn = document.getElementById('updateBtn');
+        const originalText = updateBtn.innerHTML;
+        updateBtn.disabled = true;
+        updateBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 保存中...';
+        
+        try {
+            const formData = new FormData(this);
+            
+            const response = await fetch(this.action, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
+                }
+            });
+            
+            if (response.redirected) {
+                window.location.href = response.url;
+                return;
+            }
+
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                throw new Error('Server returned non-JSON response');
+            }
+            
+            const result = await response.json();
+            
+            if (response.ok) {
+                showAlert(result.message || '修改成功！', true);
+                setTimeout(() => {
+                    window.location.href = `{{ url_for('visa_project.visa_detail', project_id=project.id) }}`;
+                }, 1500);
+            } else {
+                showAlert(result.message || '修改失败，请重试', false);
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            showAlert('系统错误，请稍后重试', false);
+        } finally {
+            updateBtn.disabled = false;
+            updateBtn.innerHTML = originalText;
+        }
+    });
+});
+</script>
+{% endblock %}

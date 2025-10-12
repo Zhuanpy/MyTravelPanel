@@ -117,9 +117,18 @@
     <h2 class="pdf-page-section">图片合并为PDF</h2>
     <form id="imageForm" class="pdf-page-form" method="post" action="{{url_for('utils_process.merge_images_to_pdf')}}" onsubmit="return handleSubmit(this, event)">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <label for="imageFolderPath" class="pdf-page-label">图片文件夹路径:</label>
-        <input type="text" id="imageFolderPath" name="imageFolderPath" class="pdf-page-input">
+        <label for="imageFolderPath" class="pdf-page-label">图片路径:</label>
+        <input type="text" id="imageFolderPath" name="imageFolderPath" class="pdf-page-input" 
+               placeholder="支持文件夹路径或单个图片文件路径">
         <button type="submit" name="submit_button" value="merge_images" class="pdf-page-button">图片合并为PDF</button>
+        <p style="font-size: 12px; color: #666; margin: 5px 0 0 0;">
+            <i class="fas fa-info-circle"></i> 
+            <strong>文件夹路径：</strong>合并文件夹内所有图片，PDF文件名为文件夹名<br>
+            <span style="margin-left: 20px;">示例: C:\Users\User\Downloads\JPG → 生成 JPG.pdf</span><br>
+            <i class="fas fa-info-circle"></i> 
+            <strong>文件路径：</strong>仅转换指定的图片，PDF文件名为图片名<br>
+            <span style="margin-left: 20px;">示例: C:\Users\User\Downloads\JPG\497.png → 生成 497.pdf</span>
+        </p>
     </form>
 
     <!-- 多个PDF合并表单 -->

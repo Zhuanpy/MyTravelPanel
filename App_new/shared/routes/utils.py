@@ -82,23 +82,61 @@ def merge_images_to_pdf():
         path = request.form.get('imageFolderPath')
         if not path:
             if is_ajax():
-                return jsonify({'success': False, 'message': '请提供图片文件夹路径'}), 400
-            flash('请提供图片文件夹路径')
+                return jsonify({'success': False, 'message': '请提供图片路径'}), 400
+            flash('请提供图片路径')
             return redirect(url_for('utils_process.file_processing'))
-            
-        if not os.path.exists(path) or not os.path.isdir(path):
-            if is_ajax():
-                return jsonify({'success': False, 'message': '提供的文件夹路径无效或不存在'}), 400
-            flash('提供的文件夹路径无效或不存在')
-            return redirect(url_for('utils_process.file_processing'))
-            
-        f = MyPdfFile(path)
-        f.merge_images2pdf()
         
-        if is_ajax():
-            return jsonify({'success': True, 'message': '图片合并为PDF成功'})
-        flash('图片合并为PDF成功')
-        return redirect(url_for('utils_process.file_processing'))
+        # 规范化路径
+        path = os.path.normpath(path)
+        
+        # 检查路径是否存在
+        if not os.path.exists(path):
+            if is_ajax():
+                return jsonify({'success': False, 'message': '提供的路径不存在'}), 400
+            flash('提供的路径不存在')
+            return redirect(url_for('utils_process.file_processing'))
+        
+        # 判断是文件夹还是文件
+        if os.path.isfile(path):
+            # 如果是单个文件，检查是否为图片格式
+            image_extensions = ['.jpg', '.jpeg', '.png', '.webp']
+            file_ext = os.path.splitext(path)[1].lower()
+            
+            if file_ext not in image_extensions:
+                error_msg = '指定的文件不是支持的图片格式（支持：jpg, jpeg, png, webp）'
+                if is_ajax():
+                    return jsonify({'success': False, 'message': error_msg}), 400
+                flash(error_msg)
+                return redirect(url_for('utils_process.file_processing'))
+            
+            # 获取文件所在的文件夹和文件名
+            folder_path = os.path.dirname(path)
+            file_name = os.path.basename(path)
+            
+            # 使用文件所在文件夹初始化MyPdfFile，并传递单个文件名
+            f = MyPdfFile(folder_path)
+            f.merge_images2pdf(single_file=file_name)
+            
+            if is_ajax():
+                return jsonify({'success': True, 'message': f'图片 {file_name} 已成功转换为PDF'})
+            flash(f'图片 {file_name} 已成功转换为PDF')
+            return redirect(url_for('utils_process.file_processing'))
+            
+        elif os.path.isdir(path):
+            # 如果是文件夹，合并文件夹内所有图片
+            f = MyPdfFile(path)
+            f.merge_images2pdf()
+            
+            if is_ajax():
+                return jsonify({'success': True, 'message': '文件夹内所有图片已合并为PDF'})
+            flash('文件夹内所有图片已合并为PDF')
+            return redirect(url_for('utils_process.file_processing'))
+        else:
+            if is_ajax():
+                return jsonify({'success': False, 'message': '提供的路径无效'}), 400
+            flash('提供的路径无效')
+            return redirect(url_for('utils_process.file_processing'))
+            
     except Exception as e:
         if is_ajax():
             return jsonify({'success': False, 'message': f'处理失败：{str(e)}'}), 500

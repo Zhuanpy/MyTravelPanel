@@ -146,7 +146,7 @@ def visa_detail_optimized(project_name=None, project_id=None):
         current_app.logger.info(f"页面数据准备完成，总耗时: {total_time:.3f}秒")
         print(f"✅ 页面数据准备完成，总耗时: {total_time:.3f}秒")
         
-        return render_template('business/visa/签证项目管理/签证项目详细.html',
+        return render_template('business/visa/签证项目管理/visa_project_detail.html',
                              project=project,
                              types_info=types_info,
                              links=links,

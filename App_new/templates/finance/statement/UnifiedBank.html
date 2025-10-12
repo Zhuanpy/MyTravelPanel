@@ -55,6 +55,19 @@
     .confirm-btn:hover {
         background-color: #0056b3;
     }
+    .unlock-btn {
+        background-color: #ffc107;
+        color: #000;
+        border: none;
+        padding: 4px 8px;
+        border-radius: 3px;
+        font-size: 12px;
+        cursor: pointer;
+        transition: background-color 0.2s;
+    }
+    .unlock-btn:hover {
+        background-color: #e0a800;
+    }
     .badge.bg-success {
         background-color: #28a745 !important;
         color: white;
@@ -777,6 +790,58 @@ document.addEventListener('DOMContentLoaded', function() {
                     } catch (error) {
                         console.error('确认错误:', error);
                         alert('确认失败，请重试');
+                    } finally {
+                        e.target.innerHTML = originalText;
+                        e.target.disabled = false;
+                    }
+                })();
+            }
+            
+            // 解锁按钮
+            else if (e.target && e.target.classList.contains('unlock-btn')) {
+                const transactionId = parseInt(e.target.dataset.txId);
+                
+                if (!transactionId) {
+                    alert('交易记录ID无效');
+                    return;
+                }
+                
+                // 添加确认对话框
+                if (!confirm('确定要解锁此交易记录吗？解锁后将可以重新编辑归属、REF/EO和备注字段。')) {
+                    return;
+                }
+                
+                (async () => {
+                    const originalText = e.target.innerHTML;
+                    try {
+                        e.target.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 解锁中...';
+                        e.target.disabled = true;
+                        
+                        const url = {% if bank_name == 'UOB' %}"{{ url_for('uob_routes.uob_unlock_transaction', transaction_id=0) }}".replace('/0', '/' + transactionId){% elif bank_name == 'OCBC' %}"{{ url_for('ocbc_routes.ocbc_unlock_transaction', transaction_id=0) }}".replace('/0', '/' + transactionId){% elif bank_name == 'CMB' %}"{{ url_for('cmb_routes.cmb_unlock_transaction', transaction_id=0) }}".replace('/0', '/' + transactionId){% endif %};
+                        
+                        const response = await fetch(url, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' }
+                        });
+                        
+                        const result = await response.json();
+                        
+                        if (result.success) {
+                            // 直接刷新表格，不显示成功提示
+                            console.log('解锁成功，准备刷新表格');
+                            if (window.refreshTableOnly) {
+                                window.refreshTableOnly();
+                            } else {
+                                console.error('refreshTableOnly函数不存在');
+                            }
+                        } else {
+                            // 只在失败时显示错误提示
+                            alert(`解锁失败: ${result.message}`);
+                        }
+                        
+                    } catch (error) {
+                        console.error('解锁错误:', error);
+                        alert('解锁失败，请重试');
                     } finally {
                         e.target.innerHTML = originalText;
                         e.target.disabled = false;

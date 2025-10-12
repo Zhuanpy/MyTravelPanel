@@ -815,3 +815,317 @@ textarea.visa-form-control,
         font-size: 1.5rem;
     }
 }
+
+/* ==================== 签证项目详情页面特定样式 ==================== */
+/* 文档列表网格布局 */
+.visa-document-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 0.5rem;
+}
+
+.visa-document-item {
+    background: var(--visa-bg-light);
+    border: 1px solid var(--visa-border);
+    border-radius: var(--visa-radius-sm);
+    padding: 0.75rem;
+    transition: all 0.2s;
+}
+
+.visa-document-item:hover {
+    border-color: var(--visa-border-dark);
+    box-shadow: var(--visa-shadow-sm);
+}
+
+.visa-document-name {
+    font-weight: 500;
+    color: var(--visa-text-primary);
+    margin-bottom: 0.5rem;
+    font-size: 0.875rem;
+}
+
+.visa-document-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    justify-content: space-between;
+}
+
+.visa-status-badge {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.visa-status-badge.ready {
+    background: #dcfce7;
+    color: #166534;
+    border: 1px solid #16a34a;
+}
+
+.visa-status-badge.not-ready {
+    background: #fef3c7;
+    color: #92400e;
+    border: 1px solid #f59e0b;
+}
+
+.visa-status-badge:hover {
+    opacity: 0.8;
+    transform: scale(1.05);
+}
+
+.visa-icon-btn {
+    background: none;
+    border: none;
+    padding: 0.25rem;
+    cursor: pointer;
+    color: var(--visa-text-secondary);
+    transition: color 0.2s;
+}
+
+.visa-icon-btn:hover {
+    color: var(--visa-primary);
+}
+
+.visa-icon-btn.edit:hover {
+    color: var(--visa-primary);
+}
+
+.visa-icon-btn.delete:hover {
+    color: var(--visa-danger);
+}
+
+/* 项目信息网格 */
+.visa-project-info-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--visa-spacing-md);
+}
+
+.visa-info-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--visa-text-muted);
+    text-transform: uppercase;
+    margin-bottom: 0.5rem;
+}
+
+.visa-info-value {
+    color: var(--visa-text-primary);
+    font-size: 0.875rem;
+}
+
+/* 项目标题样式 */
+.visa-project-title {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--visa-primary-dark);
+    margin: 0;
+    text-align: center;
+}
+
+/* 链接列表 */
+.visa-links-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 0.75rem;
+    padding: var(--visa-spacing-md);
+}
+
+.visa-link-item {
+    background: #ebf4ff;
+    padding: 0.5rem 0.75rem;
+    border-radius: var(--visa-radius-sm);
+    text-align: center;
+    transition: all 0.2s;
+}
+
+.visa-link-item a {
+    color: var(--visa-primary);
+    text-decoration: none;
+    font-size: 0.875rem;
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.visa-link-item:hover {
+    background: #bee3f8;
+}
+
+/* HID/REF管理区域 */
+.visa-hid-ref-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--visa-spacing-md);
+    margin-bottom: var(--visa-spacing-md);
+}
+
+.visa-hid-ref-item {
+    display: flex;
+    align-items: center;
+    gap: var(--visa-spacing-sm);
+    padding: 0.75rem;
+    background: var(--visa-bg-light);
+    border: 1px solid var(--visa-border);
+    border-radius: var(--visa-radius-sm);
+}
+
+.visa-hid-ref-label {
+    font-weight: 600;
+    color: var(--visa-text-secondary);
+    min-width: 80px;
+}
+
+.visa-hid-ref-value {
+    flex: 1;
+    color: var(--visa-text-primary);
+    font-family: monospace;
+    font-size: 0.875rem;
+}
+
+/* 响应式 - 项目详情页 */
+@media (max-width: 1200px) {
+    .visa-document-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+    
+    .visa-links-grid {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}
+
+@media (max-width: 900px) {
+    .visa-document-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .visa-project-info-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .visa-links-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+@media (max-width: 600px) {
+    .visa-document-grid,
+    .visa-project-info-grid,
+    .visa-hid-ref-grid,
+    .visa-links-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ==================== 拖拽排序组件 ==================== */
+.visa-drag-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.visa-drag-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    background: var(--visa-bg-light);
+    border: 2px solid var(--visa-border);
+    border-radius: var(--visa-radius-sm);
+    cursor: move;
+    transition: all 0.2s ease;
+    user-select: none;
+}
+
+.visa-drag-item:hover {
+    background: #ffffff;
+    border-color: var(--visa-primary-light);
+    box-shadow: var(--visa-shadow-md);
+}
+
+.visa-drag-item.dragging {
+    opacity: 0.5;
+    transform: scale(0.98);
+    border-color: var(--visa-primary);
+}
+
+.visa-drag-handle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    color: var(--visa-text-muted);
+    cursor: grab;
+    transition: color 0.2s;
+}
+
+.visa-drag-handle:active {
+    cursor: grabbing;
+}
+
+.visa-drag-item:hover .visa-drag-handle {
+    color: var(--visa-primary);
+}
+
+.visa-drag-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.visa-drag-title {
+    font-weight: 600;
+    color: var(--visa-text-primary);
+    margin-bottom: 0.25rem;
+    font-size: 0.9375rem;
+}
+
+.visa-drag-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.8125rem;
+    color: var(--visa-text-secondary);
+    flex-wrap: wrap;
+}
+
+.visa-drag-order {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    background: var(--visa-primary);
+    color: white;
+    border-radius: 50%;
+    font-weight: 600;
+    font-size: 1.125rem;
+    flex-shrink: 0;
+}
+
+/* 拖拽响应式 */
+@media (max-width: 768px) {
+    .visa-drag-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+    
+    .visa-drag-handle {
+        width: 100%;
+        justify-content: flex-start;
+    }
+    
+    .visa-drag-order {
+        align-self: flex-end;
+        width: 32px;
+        height: 32px;
+        font-size: 0.875rem;
+    }
+}

@@ -9,349 +9,348 @@
 {% endblock %}
 
 {% block content %}
-<div class="visa-content">
-    <h1 class="visa-page-title-center">签证项目展示</h1>
-    
-    <!-- 搜索和过滤栏 -->
-    <div class="visa-search-filter-bar">
-        <div class="visa-search-box">
-            <i class="fas fa-search"></i>
-            <input type="text" placeholder="搜索签证项目..." id="searchInput">
-        </div>
-        <div class="visa-filter-dropdown">
-            <select id="regionFilter" class="visa-form-select">
-                <option value="">地区 (全部)</option>
-                <option value="亚洲">亚洲</option>
-                <option value="欧洲">欧洲</option>
-                <option value="北美洲">北美洲</option>
-                <option value="大洋洲">大洋洲</option>
-                <option value="非洲">非洲</option>
-            </select>
-        </div>
-        <div class="visa-filter-dropdown">
-            <select id="processingTimeFilter" class="visa-form-select">
-                <option value="">处理时间 (全部)</option>
-                <option value="3日内">3日内</option>
-                <option value="1周内">1周内</option>
-                <option value="2周内">2周内</option>
-                <option value="1个月内">1个月内</option>
-                <option value="1个月以上">1个月以上</option>
-            </select>
-        </div>
-        <div class="visa-filter-dropdown">
-            <select id="visaTypeFilter" class="visa-form-select">
-                <option value="">签证类型 (全部)</option>
-                <option value="旅游签证">旅游签证</option>
-                <option value="商务签证">商务签证</option>
-                <option value="工作签证">工作签证</option>
-                <option value="学生签证">学生签证</option>
-            </select>
-        </div>
+<div class="visa-container-lg">
+    <!-- 闪现消息 -->
+    <div class="visa-flash-container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="visa-flash visa-flash-{{ category }}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
     </div>
-    
-    <!-- 签证项目网格 -->
-    <div class="visa-projects-grid">
-        <!-- 日本 -->
-        <div class="visa-project-card">
-            <div class="visa-project-card-header">
-                <img src="{{ url_for('static', filename='images/flags/japan.jpg') }}" class="visa-project-card-flag" alt="日本国旗">
-                <span class="visa-project-card-badge">热门</span>
-                <div class="visa-project-card-country">日本</div>
+
+    <h1 class="visa-page-title">签证项目管理</h1>
+
+    <!-- 筛选栏 -->
+    <div class="visa-filter-bar">
+        <form method="get" action="{{ url_for('visa_project.show_current_all_projects') }}" class="visa-flex visa-gap-2" style="align-items: flex-end; flex-wrap: wrap; flex: 1;">
+            <div class="visa-filter-item">
+                <label for="visa_status" class="visa-form-label">签证状态：</label>
+                <select name="visa_status" id="visa_status" class="visa-form-select" onchange="this.form.submit()">
+                    <option value="待递交" {% if visa_status == '待递交' %}selected{% endif %}>待递交</option>
+                    <option value="待出签" {% if visa_status == '待出签' %}selected{% endif %}>待出签</option>
+                    <option value="已出签" {% if visa_status == '已出签' %}selected{% endif %}>已出签</option>
+                    <option value="忽略单" {% if visa_status == '忽略单' %}selected{% endif %}>忽略单</option>
+                    <option value="all" {% if visa_status == 'all' %}selected{% endif %}>全部</option>
+                </select>
             </div>
-            <div class="visa-project-card-body">
-                <h3 class="visa-project-card-title">
-                    <a href="{{ url_for('visa_project.visa_project_detail', project_id=1) }}">日本单次旅游签证</a>
-                </h3>
-                <p class="visa-project-card-description">
-                    适用于短期旅游、访友、商务考察等活动，停留期最长90天，有效期3个月。
-                </p>
-                <div class="visa-project-card-meta">
-                    <i class="fas fa-clock"></i>
-                    <span>处理时间: 5-7个工作日</span>
-                </div>
-                <div class="visa-project-card-meta">
-                    <i class="fas fa-calendar-alt"></i>
-                    <span>有效期: 3个月</span>
-                </div>
-                <div class="visa-project-card-meta">
-                    <i class="fas fa-yen-sign"></i>
-                    <span>费用: 350元起</span>
-                </div>
+            
+            <div class="visa-filter-item">
+                <label for="filter_country" class="visa-form-label">国家：</label>
+                <select name="filter_country" id="filter_country" class="visa-form-select" onchange="this.form.submit()">
+                    <option value="all" {% if filter_country == 'all' %}selected{% endif %}>全部</option>
+                    {% for country in countries %}
+                    <option value="{{ country.country_name_CN }}" {% if filter_country == country.country_name_CN %}selected{% endif %}>
+                        {{ country.country_name_CN }}
+                    </option>
+                    {% endfor %}
+                </select>
             </div>
-            <div class="visa-project-card-footer">
-                <span class="visa-type-badge"><i class="fas fa-plane"></i>旅游签证</span>
-                <a href="{{ url_for('visa_project.visa_project_detail', project_id=1) }}" class="visa-project-card-action">
-                    查看详情 <i class="fas fa-arrow-right"></i>
-                </a>
+            
+            <div class="visa-filter-item">
+                <label for="filter_visa_type" class="visa-form-label">签证类型：</label>
+                <select name="filter_visa_type" id="filter_visa_type" class="visa-form-select" onchange="this.form.submit()">
+                    <option value="all" {% if filter_visa_type == 'all' %}selected{% endif %}>全部</option>
+                    {% for type in visa_types %}
+                    <option value="{{ type.visa_type }}" {% if filter_visa_type == type.visa_type %}selected{% endif %}>
+                        {{ type.visa_type }}
+                    </option>
+                    {% endfor %}
+                </select>
             </div>
-        </div>
-        
-        <!-- 韩国 -->
-        <div class="visa-project-card">
-            <div class="visa-project-card-header">
-                <img src="{{ url_for('static', filename='images/flags/korea.jpg') }}" class="visa-project-card-flag" alt="韩国国旗">
-                <div class="visa-project-card-country">韩国</div>
+            
+            <div class="visa-filter-item">
+                <label for="search_name" class="visa-form-label">申请人：</label>
+                <input type="text" name="search_name" id="search_name" class="visa-form-control" value="{{ search_name }}" placeholder="输入申请人姓名">
             </div>
-            <div class="visa-project-card-body">
-                <h3 class="visa-project-card-title">
-                    <a href="{{ url_for('visa_project.visa_project_detail', project_id=2) }}">韩国单次旅游签证</a>
-                </h3>
-                <p class="visa-project-card-description">
-                    适用于赴韩国旅游、探亲、商务等短期活动，停留期最长30天，有效期3个月。
-                </p>
-                <div class="visa-project-card-meta">
-                    <i class="fas fa-clock"></i>
-                    <span>处理时间: 5-7个工作日</span>
-                </div>
-                <div class="visa-project-card-meta">
-                    <i class="fas fa-calendar-alt"></i>
-                    <span>有效期: 3个月</span>
-                </div>
-                <div class="visa-project-card-meta">
-                    <i class="fas fa-won-sign"></i>
-                    <span>费用: 300元起</span>
-                </div>
-            </div>
-            <div class="visa-project-card-footer">
-                <span class="visa-type-badge"><i class="fas fa-plane"></i>旅游签证</span>
-                <a href="{{ url_for('visa_project.visa_project_detail', project_id=2) }}" class="visa-project-card-action">
-                    查看详情 <i class="fas fa-arrow-right"></i>
-                </a>
-            </div>
-        </div>
-        
-        <!-- 英国 -->
-        <div class="visa-project-card">
-            <div class="visa-project-card-header">
-                <img src="{{ url_for('static', filename='images/flags/uk.jpg') }}" class="visa-project-card-flag" alt="英国国旗">
-                <div class="visa-project-card-country">英国</div>
-            </div>
-            <div class="visa-project-card-body">
-                <h3 class="visa-project-card-title">
-                    <a href="{{ url_for('visa_project.visa_project_detail', project_id=3) }}">英国标准访客签证</a>
-                </h3>
-                <p class="visa-project-card-description">
-                    适用于旅游、探亲、短期商务访问等，最长可停留6个月，申请资料较为复杂。
-                </p>
-                <div class="visa-project-card-meta">
-                    <i class="fas fa-clock"></i>
-                    <span>处理时间: 15个工作日左右</span>
-                </div>
-                <div class="visa-project-card-meta">
-                    <i class="fas fa-calendar-alt"></i>
-                    <span>有效期: 6个月</span>
-                </div>
-                <div class="visa-project-card-meta">
-                    <i class="fas fa-pound-sign"></i>
-                    <span>费用: 1000元起</span>
-                </div>
-            </div>
-            <div class="visa-project-card-footer">
-                <span class="visa-type-badge"><i class="fas fa-plane"></i>访客签证</span>
-                <a href="{{ url_for('visa_project.visa_project_detail', project_id=3) }}" class="visa-project-card-action">
-                    查看详情 <i class="fas fa-arrow-right"></i>
-                </a>
-            </div>
-        </div>
-        
-        <!-- 美国 -->
-        <div class="visa-project-card">
-            <div class="visa-project-card-header">
-                <img src="{{ url_for('static', filename='images/flags/usa.jpg') }}" class="visa-project-card-flag" alt="美国国旗">
-                <span class="visa-project-card-badge">推荐</span>
-                <div class="visa-project-card-country">美国</div>
-            </div>
-            <div class="visa-project-card-body">
-                <h3 class="visa-project-card-title">
-                    <a href="{{ url_for('visa_project.visa_project_detail', project_id=4) }}">美国B1/B2访客签证</a>
-                </h3>
-                <p class="visa-project-card-description">
-                    用于临时旅游、探亲或商务访问美国，一般有效期为10年，需要面签。
-                </p>
-                <div class="visa-project-card-meta">
-                    <i class="fas fa-clock"></i>
-                    <span>处理时间: 1-3个月</span>
-                </div>
-                <div class="visa-project-card-meta">
-                    <i class="fas fa-calendar-alt"></i>
-                    <span>有效期: 10年</span>
-                </div>
-                <div class="visa-project-card-meta">
-                    <i class="fas fa-dollar-sign"></i>
-                    <span>费用: 1200元起</span>
-                </div>
-            </div>
-            <div class="visa-project-card-footer">
-                <span class="visa-type-badge"><i class="fas fa-plane"></i>访客签证</span>
-                <a href="{{ url_for('visa_project.visa_project_detail', project_id=4) }}" class="visa-project-card-action">
-                    查看详情 <i class="fas fa-arrow-right"></i>
-                </a>
-            </div>
-        </div>
-        
-        <!-- 澳大利亚 -->
-        <div class="visa-project-card">
-            <div class="visa-project-card-header">
-                <img src="{{ url_for('static', filename='images/flags/australia.jpg') }}" class="visa-project-card-flag" alt="澳大利亚国旗">
-                <div class="visa-project-card-country">澳大利亚</div>
-            </div>
-            <div class="visa-project-card-body">
-                <h3 class="visa-project-card-title">
-                    <a href="{{ url_for('visa_project.visa_project_detail', project_id=5) }}">澳大利亚电子访客签证</a>
-                </h3>
-                <p class="visa-project-card-description">
-                    适用于旅游或商务访问，全程在线申请，无需递交护照，最长可停留3个月。
-                </p>
-                <div class="visa-project-card-meta">
-                    <i class="fas fa-clock"></i>
-                    <span>处理时间: 10-15个工作日</span>
-                </div>
-                <div class="visa-project-card-meta">
-                    <i class="fas fa-calendar-alt"></i>
-                    <span>有效期: 1年</span>
-                </div>
-                <div class="visa-project-card-meta">
-                    <i class="fas fa-dollar-sign"></i>
-                    <span>费用: 700元起</span>
-                </div>
-            </div>
-            <div class="visa-project-card-footer">
-                <span class="visa-type-badge"><i class="fas fa-plane"></i>电子签证</span>
-                <a href="{{ url_for('visa_project.visa_project_detail', project_id=5) }}" class="visa-project-card-action">
-                    查看详情 <i class="fas fa-arrow-right"></i>
-                </a>
-            </div>
-        </div>
-        
-        <!-- 泰国 -->
-        <div class="visa-project-card">
-            <div class="visa-project-card-header">
-                <img src="{{ url_for('static', filename='images/flags/thailand.jpg') }}" class="visa-project-card-flag" alt="泰国国旗">
-                <span class="visa-project-card-badge">简易</span>
-                <div class="visa-project-card-country">泰国</div>
-            </div>
-            <div class="visa-project-card-body">
-                <h3 class="visa-project-card-title">
-                    <a href="{{ url_for('visa_project.visa_project_detail', project_id=6) }}">泰国旅游签证</a>
-                </h3>
-                <p class="visa-project-card-description">
-                    适用于赴泰国旅游、探亲等活动，无需面签，材料简单，最长可停留60天。
-                </p>
-                <div class="visa-project-card-meta">
-                    <i class="fas fa-clock"></i>
-                    <span>处理时间: 3-5个工作日</span>
-                </div>
-                <div class="visa-project-card-meta">
-                    <i class="fas fa-calendar-alt"></i>
-                    <span>有效期: 3个月</span>
-                </div>
-                <div class="visa-project-card-meta">
-                    <i class="fas fa-baht-sign"></i>
-                    <span>费用: 250元起</span>
-                </div>
-            </div>
-            <div class="visa-project-card-footer">
-                <span class="visa-type-badge"><i class="fas fa-plane"></i>旅游签证</span>
-                <a href="{{ url_for('visa_project.visa_project_detail', project_id=6) }}" class="visa-project-card-action">
-                    查看详情 <i class="fas fa-arrow-right"></i>
-                </a>
-            </div>
-        </div>
+            
+            <button type="submit" class="visa-btn visa-btn-primary">
+                <i class="fas fa-search"></i> 搜索
+            </button>
+            <button type="button" class="visa-btn visa-btn-secondary" onclick="resetFilters()">
+                <i class="fas fa-redo"></i> 重置
+            </button>
+        </form>
     </div>
-    
-    <!-- 分页 -->
-    <div class="pagination">
-        <div class="pagination-item">
-            <a href="#" class="pagination-link disabled">
-                <i class="fas fa-chevron-left"></i>
-            </a>
+
+    <!-- 项目列表 -->
+    <div class="visa-card">
+        <table class="visa-table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>HID/序列号</th>
+                <th>申请人</th>
+                <th>签证类型</th>
+                <th>创建时间</th>
+                <th>签证状态</th>
+                <th>预估日期</th>
+                <th>签证详细</th>
+                <th>编辑项目</th>
+                <th>打开项目</th>
+                <th>删除项目</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for project in projects %}
+            <tr>
+                <td>{{ project.id }}</td>
+                <td>{{ project.hid_or_serial }}</td>
+                <td>{{ project.applicant_name }}</td>
+                <td>{{ project.visa_type }}</td>
+                <td>{{ project.created_date.strftime('%Y-%m-%d') }}</td>
+                <td>
+                    <select name="visa_status" class="visa-form-select" style="width: 100px; padding: 0.25rem;" 
+                            data-project-id="{{ project.id }}" 
+                            onchange="updateVisaStatus(this)">
+                        <option value="待递交" {% if project.visa_status == '待递交' %}selected{% endif %}>待递交</option>
+                        <option value="待出签" {% if project.visa_status == '待出签' %}selected{% endif %}>待出签</option>
+                        <option value="已出签" {% if project.visa_status == '已出签' %}selected{% endif %}>已出签</option>
+                        <option value="忽略单" {% if project.visa_status == '忽略单' %}selected{% endif %}>忽略单</option>
+                    </select>
+                </td>
+                <td>{{ project.estimated_date.strftime('%Y-%m-%d') if project.estimated_date else '' }}</td>
+                <td>
+                    <a href="{{ url_for('visa_project.visa_detail', project_id=project.id) }}" 
+                       class="visa-btn-link visa-btn-link-info">查看详情</a>
+                </td>
+                <td>
+                    <a href="{{ url_for('visa_project.edit_project', project_id=project.id) }}" 
+                       class="visa-btn-link visa-btn-link-primary">编辑</a>
+                </td>
+                <td>
+                    <a href="#" onclick="openProjectFolder('{{ project.project_folder_name }}', '{{ project.visa_type }}')" 
+                       class="visa-btn-link visa-btn-link-success">打开</a>
+                </td>
+                <td>
+                    <a href="#" onclick="deleteProject({{ project.id }})" 
+                       class="visa-btn-link visa-btn-link-danger">删除</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+        <!-- 分页控件 -->
+        {% if pagination.pages > 1 %}
+        <div class="visa-pagination">
+            {% if pagination.has_prev %}
+                <a href="{{ url_for('visa_project.show_current_all_projects', 
+                    page=pagination.prev_num,
+                    visa_status=visa_status,
+                    sort_by=sort_by,
+                    filter_visa_type=filter_visa_type,
+                    filter_country=filter_country,
+                    search_name=search_name) }}" 
+                   class="visa-pagination-btn">上一页</a>
+            {% endif %}
+            
+            {% for page in pagination.iter_pages(left_edge=2, left_current=2, right_current=3, right_edge=2) %}
+                {% if page %}
+                    {% if page == pagination.page %}
+                        <span class="visa-pagination-btn visa-pagination-btn-active">{{ page }}</span>
+                    {% else %}
+                        <a href="{{ url_for('visa_project.show_current_all_projects', 
+                            page=page,
+                            visa_status=visa_status,
+                            sort_by=sort_by,
+                            filter_visa_type=filter_visa_type,
+                            filter_country=filter_country,
+                            search_name=search_name) }}" 
+                           class="visa-pagination-btn">{{ page }}</a>
+                    {% endif %}
+                {% else %}
+                    <span class="visa-pagination-ellipsis">...</span>
+                {% endif %}
+            {% endfor %}
+            
+            {% if pagination.has_next %}
+                <a href="{{ url_for('visa_project.show_current_all_projects', 
+                    page=pagination.next_num,
+                    visa_status=visa_status,
+                    sort_by=sort_by,
+                    filter_visa_type=filter_visa_type,
+                    filter_country=filter_country,
+                    search_name=search_name) }}" 
+                   class="visa-pagination-btn">下一页</a>
+            {% endif %}
         </div>
-        <div class="pagination-item">
-            <a href="#" class="pagination-link active">1</a>
+        <div style="text-align: center; margin-top: 1rem; color: var(--visa-text-muted); font-size: 0.875rem;">
+            显示 {{ pagination.items|length }} 条，共 {{ pagination.total }} 条记录
         </div>
-        <div class="pagination-item">
-            <a href="#" class="pagination-link">2</a>
-        </div>
-        <div class="pagination-item">
-            <a href="#" class="pagination-link">3</a>
-        </div>
-        <div class="pagination-item">
-            <a href="#" class="pagination-link">
-                <i class="fas fa-chevron-right"></i>
-            </a>
-        </div>
+        {% endif %}
     </div>
+
+    <!-- 添加 CSRF 令牌隐藏输入 -->
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 </div>
+
+<!-- Toast 容器 -->
+<div class="visa-flash-container" id="toastContainer" style="position: fixed; top: 20px; right: 20px; z-index: 9999;"></div>
 {% endblock %}
 
 {% block extra_js %}
-{{ super() }}
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // 搜索和过滤功能
-        const searchInput = document.getElementById('searchInput');
-        const regionFilter = document.getElementById('regionFilter');
-        const processingTimeFilter = document.getElementById('processingTimeFilter');
-        const visaTypeFilter = document.getElementById('visaTypeFilter');
-        const visaCards = document.querySelectorAll('.visa-project-card');
-        
-        function filterVisaProjects() {
-            const searchTerm = searchInput.value.toLowerCase();
-            const region = regionFilter.value.toLowerCase();
-            const processingTime = processingTimeFilter.value.toLowerCase();
-            const visaType = visaTypeFilter.value.toLowerCase();
-            
-            visaCards.forEach(card => {
-                const title = card.querySelector('.visa-project-card-title').textContent.toLowerCase();
-                const description = card.querySelector('.visa-project-card-description').textContent.toLowerCase();
-                const country = card.querySelector('.visa-project-card-country').textContent.toLowerCase();
-                const processing = card.querySelector('.visa-project-card-meta:nth-child(1)').textContent.toLowerCase();
-                const type = card.querySelector('.visa-type-badge').textContent.toLowerCase();
-                
-                let showCard = true;
-                
-                // 搜索筛选
-                if (searchTerm && !title.includes(searchTerm) && !description.includes(searchTerm) && !country.includes(searchTerm)) {
-                    showCard = false;
+    // 获取CSRF令牌
+    const csrfToken = document.querySelector('input[name="csrf_token"]').value;
+
+    // 状态映射
+    const STATUS_MAP = {
+        '待递交': 'pending_submission',
+        '待出签': 'submitted',
+        '已出签': 'approved',
+        '忽略单': 'ignored'
+    };
+
+    const REVERSE_STATUS_MAP = {
+        'pending_submission': '待递交',
+        'submitted': '待出签',
+        'approved': '已出签',
+        'ignored': '忽略单'
+    };
+
+    function deleteProject(projectId) {
+        if (confirm('确定要删除这个项目吗？')) {
+            fetch(`/visa/project/delete_project/${projectId}`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token() }}'
                 }
-                
-                // 地区筛选
-                if (region && !getRegionForCountry(country).includes(region)) {
-                    showCard = false;
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // 显示成功消息
+                    const successMessage = document.createElement('div');
+                    successMessage.className = 'alert alert-success';
+                    successMessage.textContent = data.message;
+                    document.querySelector('.visa-project-container').insertBefore(successMessage, document.querySelector('.visa-project-table'));
+                    
+                    // 0.5秒后移除消息并刷新页面
+                    setTimeout(() => {
+                        successMessage.remove();
+                        window.location.reload();
+                    }, 500);
+                } else {
+                    alert(data.message);
                 }
-                
-                // 处理时间筛选
-                if (processingTime && !processing.includes(processingTime)) {
-                    showCard = false;
-                }
-                
-                // 签证类型筛选
-                if (visaType && !type.includes(visaType)) {
-                    showCard = false;
-                }
-                
-                card.style.display = showCard ? '' : 'none';
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('删除项目时发生错误');
             });
         }
+    }
+    
+    function updateVisaStatus(select) {
+        const projectId = select.dataset.projectId;
+        const newStatus = select.value;
         
-        function getRegionForCountry(country) {
-            const regions = {
-                '日本': '亚洲',
-                '韩国': '亚洲',
-                '泰国': '亚洲',
-                '英国': '欧洲',
-                '美国': '北美洲',
-                '澳大利亚': '大洋洲'
-            };
-            
-            return regions[country] || '';
-        }
-        
-        // 添加事件监听器
-        searchInput.addEventListener('input', filterVisaProjects);
-        regionFilter.addEventListener('change', filterVisaProjects);
-        processingTimeFilter.addEventListener('change', filterVisaProjects);
-        visaTypeFilter.addEventListener('change', filterVisaProjects);
+        fetch("{{ url_for('visa_project.update_visa_status') }}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': csrfToken
+            },
+            body: `project_id=${projectId}&status=${encodeURIComponent(newStatus)}&csrf_token=${csrfToken}`
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                showToast('success', data.message);
+                // 获取当前URL参数
+                const urlParams = new URLSearchParams(window.location.search);
+                // 保持当前页码和其他筛选条件
+                const currentPage = urlParams.get('page') || 1;
+                const visaStatus = urlParams.get('visa_status') || 'all';
+                const sortBy = urlParams.get('sort_by') || 'created_date';
+                const filterVisaType = urlParams.get('filter_visa_type') || 'all';
+                const filterCountry = urlParams.get('filter_country') || 'all';
+                const searchName = urlParams.get('search_name') || '';
+                
+                // 构建新的URL
+                const newUrl = `${window.location.pathname}?page=${currentPage}&visa_status=${visaStatus}&sort_by=${sortBy}&filter_visa_type=${filterVisaType}&filter_country=${filterCountry}&search_name=${searchName}`;
+                
+                // 延迟一小段时间后刷新页面，让用户看到成功提示
+                setTimeout(() => {
+                    window.location.href = newUrl;
+                }, 500);
+            } else {
+                showToast('error', data.message);
+                // 恢复原值
+                select.value = select.dataset.originalValue;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showToast('error', '更新状态时出错');
+            // 恢复原值
+            select.value = select.dataset.originalValue;
+        });
+    }
+    
+    // 页面加载时保存原始状态
+    document.addEventListener('DOMContentLoaded', function() {
+        const statusSelects = document.querySelectorAll('.visa-project-select-field');
+        statusSelects.forEach(select => {
+            const currentStatus = select.value;
+            select.setAttribute('data-status', currentStatus);
+            select.dataset.originalValue = currentStatus;
+        });
     });
+    
+    function resetFilters() {
+        // 重置所有筛选条件
+        document.getElementById('visa_status').value = '待递交';
+        document.getElementById('filter_country').value = 'all';
+        document.getElementById('filter_visa_type').value = 'all';
+        document.getElementById('search_name').value = '';
+        
+        // 提交表单
+        document.querySelector('form').submit();
+    }
+
+    // Toast 通知函数
+    function showToast(type, message) {
+        const container = document.getElementById('toastContainer');
+        const toast = document.createElement('div');
+        toast.className = `visa-flash visa-flash-${type}`;
+        toast.textContent = message;
+        container.appendChild(toast);
+        
+        // 3秒后自动移除
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+
+    function openProjectFolder(projectFolder, visaType) {
+        fetch(`/visa/project/open_folder?folder_type=project&project_folder=${encodeURIComponent(projectFolder)}&visa_type=${encodeURIComponent(visaType)}`, {
+            method: 'GET',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token() }}'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (!data.success) {
+                alert(data.message || '打开文件夹失败');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('打开文件夹时发生错误');
+        });
+    }
 </script>
-{% endblock %} 
+{% endblock %}
