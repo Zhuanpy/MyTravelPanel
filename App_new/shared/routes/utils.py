@@ -279,7 +279,7 @@ def split_screenshot_to_pdf():
             return redirect(url_for('utils_process.file_processing'))
 
         # 处理长截图切分
-        from App.utils.screenshot_splitter import ScreenshotSplitter
+        from App_new.utils.screenshot_splitter import ScreenshotSplitter
         splitter = ScreenshotSplitter(folder_path, margin_size)
         result = splitter.process_screenshots()
 
