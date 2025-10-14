@@ -5,156 +5,94 @@
 {% block page_title %}任务列表{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/shared_common.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/visa_common.css') }}">
 <style>
-    :root {
-        /* 浅绿色主题 */
-        --primary-color: #34d399;   /* emerald-400 */
-        --secondary-color: #10b981; /* emerald-500 */
-        --success-color: #48bb78;
-        --warning-color: #ff9f1c;
-        --info-color: #38b2ac;      /* teal-500 */
-        --light-bg: #f8f9fa;
-        --card-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-        --hover-shadow: 0 8px 16px rgba(0, 0, 0, 0.12);
+    /* 标题列不换行，溢出隐藏 */
+    .visa-table tbody td:nth-child(2) {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 200px;
     }
-
-    .header-section {
-        background: linear-gradient(120deg, var(--primary-color), var(--secondary-color));
-        color: #fff;
-        border-radius: 16px;
-        padding: 25px 30px;
-        margin-bottom: 25px;
-        box-shadow: var(--card-shadow);
-    }
-    .btn-primary-custom {
-        background: linear-gradient(120deg, var(--primary-color), var(--secondary-color));
-        border: none;
-        border-radius: 10px;
-        padding: 10px 20px;
-        font-weight: 600;
-        transition: all 0.3s ease;
-        box-shadow: 0 4px 8px rgba(67, 97, 238, 0.3);
-    }
-    .btn-primary-custom:hover { transform: translateY(-2px); box-shadow: 0 6px 12px rgba(67, 97, 238, 0.4); }
-
-    .filter-section { background: #fff; border-radius: 16px; padding: 20px; margin-bottom: 25px; box-shadow: var(--card-shadow); }
-
-    .table-container { background: #fff; border-radius: 16px; overflow: hidden; box-shadow: var(--card-shadow); max-height: calc(100vh - 250px); overflow: auto; }
-    .table thead { background: linear-gradient(120deg, var(--primary-color), var(--secondary-color)); color: #fff; }
-    .table thead th { border: none; padding: 15px 12px; font-weight: 600; }
-    .table tbody tr { transition: all 0.2s ease; }
-    .table tbody tr:hover { background-color: rgba(25,135,84,0.08); transform: translateY(-1px); }
-    .table tbody td { padding: 15px 12px; vertical-align: middle; }
-
-    .priority-badge { padding: 6px 12px; border-radius: 20px; font-weight: 600; font-size: 0.8rem; }
-    .priority-high { background-color: rgba(247, 37, 133, 0.15); color: #f72585; }
-    .priority-medium { background-color: rgba(255, 159, 28, 0.15); color: #ff9f1c; }
-    .priority-low { background-color: rgba(76, 201, 240, 0.15); color: #4cc9f0; }
-
-    .status-badge { padding: 6px 12px; border-radius: 20px; font-weight: 600; font-size: 0.8rem; }
-    .status-pending { background-color: rgba(255, 159, 28, 0.15); color: #ff9f1c; }
-    .status-completed { background-color: rgba(72, 187, 120, 0.15); color: #48bb78; }
-
-    .category-tag { display: inline-block; padding: 4px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: 500; background-color: #e9ecef; color: #495057; }
-
-    .action-btn { border: none; background: transparent; color: var(--primary-color); padding: 6px 10px; border-radius: 8px; transition: all 0.2s ease; }
-    .action-btn:hover { background-color: rgba(16,185,129,0.12); }
-
-    .email-indicator { font-size: 1.1rem; }
-    .email-enabled { color: #48bb78; }
-    .email-disabled { color: #a0aec0; }
-    .email-pending { color: #ffc107; }
-
-    .modal-content { border-radius: 16px; border: none; box-shadow: 0 10px 25px rgba(0,0,0,0.15); }
-    .modal-header { background: linear-gradient(120deg, var(--primary-color), var(--secondary-color)); color: #fff; border-radius: 16px 16px 0 0; padding: 20px 25px; }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid px-4 py-3">
-    <div class="header-section">
-        <div class="d-flex justify-content-between align-items-center">
-            <div>
-                <h1 class="mb-1">待办事项管理</h1>
-                <p class="mb-0">高效管理您的任务和提醒事项</p>
-            </div>
-            <button class="btn btn-primary-custom d-flex align-items-center gap-2" onclick="openAddModal()">
-                <i class="fas fa-plus"></i>
-                <span>添加待办事项</span>
-            </button>
+<div class="visa-container-lg">
+    <h1 class="visa-page-title">待办事项管理</h1>
+
+    <!-- 筛选栏 -->
+    <div class="visa-filter-bar">
+        <div class="visa-filter-item">
+            <label for="priorityFilter" class="visa-form-label">优先级：</label>
+            <select class="visa-form-select" id="priorityFilter">
+                <option value="">所有优先级</option>
+                <option value="1">高优先级</option>
+                <option value="2">中优先级</option>
+                <option value="3">低优先级</option>
+            </select>
         </div>
+        
+        <div class="visa-filter-item">
+            <label for="statusFilter" class="visa-form-label">状态：</label>
+            <select class="visa-form-select" id="statusFilter">
+                <option value="">所有状态</option>
+                <option value="pending" selected>未完成</option>
+                <option value="completed">已完成</option>
+            </select>
+        </div>
+        
+        <div class="visa-filter-item">
+            <label for="categoryFilter" class="visa-form-label">类型：</label>
+            <select class="visa-form-select" id="categoryFilter">
+                <option value="">所有类型</option>
+                <option value="公司日常">公司日常</option>
+                <option value="个人事务">个人事务</option>
+                <option value="产品报价">产品报价</option>
+                <option value="项目提醒">项目提醒</option>
+                <option value="visa_reminder">签证提醒</option>
+            </select>
+        </div>
+        
+        <div class="visa-filter-item">
+            <label for="searchInput" class="visa-form-label">搜索：</label>
+            <input type="text" class="visa-form-control" id="searchInput" placeholder="输入关键词...">
+        </div>
+        
+        <button class="visa-btn visa-btn-primary" onclick="openAddModal()">
+            <i class="fas fa-plus"></i> 添加待办
+        </button>
     </div>
 
-    <div class="filter-section">
-        <div class="row g-3 align-items-end">
-                <div class="col-md-3">
-                    <label class="form-label">优先级</label>
-                    <select class="form-select" id="priorityFilter">
-                        <option value="">所有优先级</option>
-                        <option value="1">高优先级</option>
-                        <option value="2">中优先级</option>
-                        <option value="3">低优先级</option>
-                    </select>
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label">状态</label>
-                    <select class="form-select" id="statusFilter">
-                        <option value="">所有状态</option>
-                        <option value="pending" selected>未完成</option>
-                        <option value="completed">已完成</option>
-                    </select>
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label">类型</label>
-                    <select class="form-select" id="categoryFilter">
-                        <option value="">所有类型</option>
-                        <option value="公司日常">公司日常</option>
-                        <option value="个人事务">个人事务</option>
-                        <option value="产品报价">产品报价</option>
-                        <option value="项目提醒">项目提醒</option>
-                        <option value="visa_reminder">签证提醒</option>
-                    </select>
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label">搜索</label>
-                    <input type="text" class="form-control" id="searchInput" placeholder="搜索待办事项...">
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="table-container">
-        <div class="table-responsive">
-            <table class="table table-hover mb-0" id="todoTable">
-                    <thead class="table-light">
-                        <tr>
-                            <th width="50" class="text-center">
-                                <input type="checkbox" class="form-check-input" id="selectAll">
-                            </th>
-                            <th width="200">标题</th>
-                            <th>描述</th>
-                            <th width="120">类型</th>
-                            <th width="100" class="text-center">优先级</th>
-                            <th width="150">截止日期</th>
-                            <th width="100" class="text-center">邮件提醒</th>
-                            <th width="100" class="text-center">状态</th>
-                            <th width="150">创建时间</th>
-                            <th width="150">更新时间</th>
-                            <th width="120" class="text-center">操作</th>
-                        </tr>
-                    </thead>
-                    <tbody id="todoTbody">
-                        <tr>
-                            <td colspan="11" class="text-center py-4 text-muted">
-                                <i class="fas fa-spinner fa-spin me-2"></i>
-                                加载中...
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
+    <!-- 项目列表 -->
+    <div class="visa-card">
+        <table class="visa-table">
+            <thead>
+                <tr>
+                    <th width="50" class="text-center">
+                        <input type="checkbox" class="form-check-input" id="selectAll">
+                    </th>
+                    <th width="200">标题</th>
+                    <th>描述</th>
+                    <th width="120">类型</th>
+                    <th width="130" class="text-center">优先级</th>
+                    <th width="150">截止日期</th>
+                    <th width="130" class="text-center">邮件提醒</th>
+                    <th width="100" class="text-center">状态</th>
+                    <th width="150">创建时间</th>
+                    <th width="150">更新时间</th>
+                    <th width="120" class="text-center">操作</th>
+                </tr>
+            </thead>
+            <tbody id="todoTbody">
+                <tr>
+                    <td colspan="11" class="text-center py-4 text-muted">
+                        <i class="fas fa-spinner fa-spin me-2"></i>
+                        加载中...
+                    </td>
+                </tr>
+            </tbody>
+        </table>
     </div>
 </div>
 
@@ -173,15 +111,15 @@
                     
                     <div class="row">
                         <div class="col-md-8">
-                            <div class="mb-3">
-                                <label for="todoTitle" class="form-label">标题 <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control" id="todoTitle" name="title" required>
+                            <div class="visa-form-group">
+                                <label for="todoTitle" class="visa-form-label">标题 <span class="text-danger">*</span></label>
+                                <input type="text" class="visa-form-control" id="todoTitle" name="title" required>
                             </div>
                         </div>
                         <div class="col-md-4">
-                            <div class="mb-3">
-                                <label for="todoCategory" class="form-label">类型</label>
-                                <select class="form-select" id="todoCategory" name="category">
+                            <div class="visa-form-group">
+                                <label for="todoCategory" class="visa-form-label">类型</label>
+                                <select class="visa-form-select" id="todoCategory" name="category">
                                     <option value="">未分类</option>
                                     <option value="公司日常">公司日常</option>
                                     <option value="个人事务">个人事务</option>
@@ -193,22 +131,22 @@
                         </div>
                     </div>
 
-                    <div class="mb-3">
-                        <label for="todoDescription" class="form-label">描述</label>
-                        <textarea class="form-control" id="todoDescription" name="description" rows="4" placeholder="请输入任务描述..."></textarea>
+                    <div class="visa-form-group">
+                        <label for="todoDescription" class="visa-form-label">描述</label>
+                        <textarea class="visa-form-control" id="todoDescription" name="description" rows="4" placeholder="请输入任务描述..."></textarea>
                     </div>
 
                     <div class="row">
                         <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="todoDueDate" class="form-label">截止日期</label>
-                                <input type="datetime-local" class="form-control" id="todoDueDate" name="due_date">
+                            <div class="visa-form-group">
+                                <label for="todoDueDate" class="visa-form-label">截止日期</label>
+                                <input type="datetime-local" class="visa-form-control" id="todoDueDate" name="due_date">
                             </div>
                         </div>
                         <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="todoPriority" class="form-label">优先级</label>
-                                <select class="form-select" id="todoPriority" name="priority">
+                            <div class="visa-form-group">
+                                <label for="todoPriority" class="visa-form-label">优先级</label>
+                                <select class="visa-form-select" id="todoPriority" name="priority">
                                     <option value="1">高</option>
                                     <option value="2" selected>中</option>
                                     <option value="3">低</option>
@@ -217,20 +155,20 @@
                         </div>
                     </div>
 
-                    <div class="mb-3">
-                        <label for="todoRecipientEmail" class="form-label">收件邮箱</label>
-                        <input type="text" class="form-control" id="todoRecipientEmail" placeholder="例如：a@b.com, c@d.com">
-                        <div class="form-text">支持多个邮箱，使用逗号或分号分隔；留空则默认发送至当前登录用户邮箱</div>
+                    <div class="visa-form-group">
+                        <label for="todoRecipientEmail" class="visa-form-label">收件邮箱</label>
+                        <input type="text" class="visa-form-control" id="todoRecipientEmail" placeholder="例如：a@b.com, c@d.com">
+                        <div class="form-text" style="font-size: 0.8125rem; color: var(--visa-text-muted);">支持多个邮箱，使用逗号或分号分隔；留空则默认发送至当前登录用户邮箱</div>
                     </div>
 
-                    <div class="mb-3">
+                    <div class="visa-form-group">
                         <div class="form-check">
                             <input type="checkbox" class="form-check-input" id="todoSendEmail">
                             <label class="form-check-label" for="todoSendEmail">发送邮件提醒</label>
                         </div>
                     </div>
 
-                    <div class="mb-3" id="completedGroup" style="display: none;">
+                    <div class="visa-form-group" id="completedGroup" style="display: none;">
                         <div class="form-check">
                             <input type="checkbox" class="form-check-input" id="todoIsCompleted" name="is_completed">
                             <label class="form-check-label" for="todoIsCompleted">标记为已完成</label>
@@ -239,8 +177,8 @@
                 </form>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-                <button type="button" class="btn btn-primary" id="saveTodo">
+                <button type="button" class="visa-btn visa-btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="visa-btn visa-btn-primary" id="saveTodo">
                     <i class="fas fa-save me-2"></i>保存
                 </button>
             </div>
@@ -328,9 +266,9 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function renderEmailStatus(todo) {
-    if (!todo.recipient_email) return '<span class="tw-inline-flex tw-items-center tw-gap-1.5 tw-px-2 tw-py-0.5 tw-rounded-full tw-text-xs tw-font-medium tw-text-gray-600 tw-bg-gray-100 tw-border tw-border-gray-200"><i class="fas fa-minus-circle"></i> 无</span>';
-    if (todo.email_reminder_sent) return '<span class="tw-inline-flex tw-items-center tw-gap-1.5 tw-px-2 tw-py-0.5 tw-rounded-full tw-text-xs tw-font-medium tw-text-emerald-700 tw-bg-emerald-100 tw-border tw-border-emerald-200"><i class="fas fa-check-circle"></i> 已发送</span>';
-    return '<span class="tw-inline-flex tw-items-center tw-gap-1.5 tw-px-2 tw-py-0.5 tw-rounded-full tw-text-xs tw-font-medium tw-text-amber-900 tw-bg-amber-100 tw-border tw-border-amber-200"><i class="fas fa-clock"></i> 待发送</span>';
+    if (!todo.recipient_email) return '<span class="visa-badge" style="background: #f1f5f9; color: #64748b; border: 1px solid #cbd5e1;"><i class="fas fa-minus-circle"></i> 无</span>';
+    if (todo.email_reminder_sent) return '<span class="visa-badge visa-badge-success"><i class="fas fa-check-circle"></i> 已发送</span>';
+    return '<span class="visa-badge visa-badge-warning"><i class="fas fa-clock"></i> 待发送</span>';
 }
 
 // 打开添加模态框
@@ -433,21 +371,20 @@ function loadTodos() {
                     <td><div class="text-truncate" style="max-width: 250px;">${todo.description ? todo.description : ''}</div></td>
                     <td><span class="category-tag">${getCategoryDisplayName(todo.category) || ''}</span></td>
                     <td style="text-align:center;">
-                        <span class="priority-badge ${getPriorityClass(todo.priority) === 'high' ? 'priority-high' : (getPriorityClass(todo.priority) === 'medium' ? 'priority-medium' : 'priority-low')}">${getPriorityText(todo.priority)}</span>
+                        <span class="visa-badge ${getPriorityClass(todo.priority) === 'high' ? 'visa-badge-danger' : (getPriorityClass(todo.priority) === 'medium' ? 'visa-badge-warning' : 'visa-badge-info')}">${getPriorityText(todo.priority)}</span>
                     </td>
                     <td>${todo.due_date ? formatDate(todo.due_date) : ''}</td>
                     <td style="text-align:center;">${renderEmailStatus(todo)}</td>
                     <td style="text-align:center;">
-                        <span class="status-badge ${todo.is_completed ? 'status-completed' : 'status-pending'}">${todo.is_completed ? '已完成' : '未完成'}</span>
+                        <span class="visa-badge ${todo.is_completed ? 'visa-badge-success' : 'visa-badge-warning'}">${todo.is_completed ? '已完成' : '未完成'}</span>
                     </td>
-                    <td>${formatDate(todo.created_at)}</td>
-                    <td>${formatDate(todo.updated_at)}</td>
+                    <td>${formatDateOnly(todo.created_at)}</td>
+                    <td>${formatDateOnly(todo.updated_at)}</td>
                     <td style="text-align:center;">
                         <div>
-                            <button class="action-btn me-1" title="编辑" onclick="editTodo(${todo.id})"><i class="fas fa-edit"></i></button>
-                            <button class="action-btn me-1" title="完成" onclick="toggleTodoStatus(${todo.id}, true)"><i class="fas fa-check"></i></button>
-                            <button class="action-btn text-danger" title="删除" onclick="deleteTodo(${todo.id})"><i class="fas fa-trash"></i></button>
-                            <button class="action-btn" title="发送提醒邮件" onclick="sendReminder(${todo.id})"><i class="fas fa-paper-plane"></i></button>
+                            <button class="visa-btn-link visa-btn-link-primary me-1" title="编辑" onclick="editTodo(${todo.id})"><i class="fas fa-edit"></i></button>
+                            <button class="visa-btn-link visa-btn-link-danger me-1" title="删除" onclick="deleteTodo(${todo.id})"><i class="fas fa-trash"></i></button>
+                            <button class="visa-btn-link visa-btn-link-info" title="发送提醒邮件" onclick="sendReminder(${todo.id})"><i class="fas fa-paper-plane"></i></button>
                         </div>
                     </td>
                 </tr>
@@ -594,6 +531,15 @@ function formatDate(dateString) {
         day: '2-digit',
         hour: '2-digit',
         minute: '2-digit'
+    });
+}
+
+function formatDateOnly(dateString) {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('zh-CN', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
     });
 }
 

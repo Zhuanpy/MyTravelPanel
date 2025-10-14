@@ -187,7 +187,7 @@
                             <i class="fas fa-tools"></i> 文件处理
                         </a>
                         <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="{{ url_for('utils_process.file_processing') }}">
+                            <li><a class="dropdown-item" href="{{ url_for('utils_process.files_home') }}">
                                 <i class="fas fa-home me-2"></i>文件处理首页  
                             </a></li>
                             <li><a class="dropdown-item" href="{{ url_for('utils_process.file_processing') }}">
@@ -331,13 +331,7 @@
                                 报价管理
                             </a>
                         </li>
-                        <!-- <li class="nav-item">
-                            <a class="nav-link {% if request.endpoint == 'staff.files' %}active{% endif %}" 
-                               href="{{ url_for('staff.files') }}">
-                                <i class="fas fa-folder me-2"></i>
-                                文件管理
-                            </a>
-                        </li> -->
+
                         <li class="nav-item">
                             <a class="nav-link {% if request.endpoint == 'staff.tasks' %}active{% endif %}" 
                                href="{{ url_for('staff.tasks') }}">
@@ -514,7 +508,7 @@
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('utils_process.file_processing') }}">
+                            <a class="nav-link" href="{{ url_for('utils_process.files_home') }}">
                                 <i class="fas fa-tools me-2"></i>
                                 文件处理
                             </a>
