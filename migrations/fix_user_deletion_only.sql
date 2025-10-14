@@ -40,3 +40,4 @@ FOREIGN KEY (user_id) REFERENCES auth_users(id) ON DELETE CASCADE;
 
 
 
+

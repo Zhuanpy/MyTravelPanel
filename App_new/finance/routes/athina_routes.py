@@ -11,6 +11,10 @@ from App_new.finance.services.soa_service import SOAService
 import os
 import tempfile
 import pandas as pd
+import logging
+
+# 创建logger
+logger = logging.getLogger(__name__)
 
 # 创建 Athina 蓝图
 athina_blue = Blueprint('athina_routes', __name__)
@@ -268,26 +272,194 @@ def athina_detail(header_id):
 
 @athina_blue.route('/athina_processing', methods=['GET', 'POST'])
 @csrf.exempt
+@login_required
+@staff_only
 def process_all_invoices():
     """处理全部订单"""
+    import logging
+    logger = logging.getLogger(__name__)
+    
     try:
-        # 暂时注释掉，因为依赖旧的App模块
-        return jsonify({'error': 'Athina账单处理功能暂时不可用，正在开发中...'}), 503
+        logger.info("开始处理全部订单计算请求")
         
+        from App_new.utils.Invoice import CountHid
+        from App_new.config import Config
+        from pathlib import Path
+        
+        # 初始化CountHid类
+        booking_path = Path(Config.BILLING_DATA_PATH) / "BOOKING"
+        logger.info(f"账单路径: {booking_path}")
+        
+        if not booking_path.exists():
+            error_msg = f'账单路径不存在: {booking_path}'
+            logger.error(error_msg)
+            return jsonify({'error': error_msg}), 404
+        
+        # 检查子目录
+        zz_path = booking_path / "Zz"
+        if not zz_path.exists():
+            error_msg = f'Zz文件夹不存在: {zz_path}'
+            logger.error(error_msg)
+            return jsonify({'error': error_msg}), 404
+        
+        logger.info("创建CountHid实例")
+        # 创建CountHid实例
+        count_hid = CountHid(str(booking_path), name="Zz")
+        
+        logger.info("开始计算未结算订单")
+        # 计算未结算订单
+        # 返回值：(complete_month之后的总利润, 已结算利润)
+        total_profit, settled_profit = count_hid.find_no_inv_booking()
+        unsettled_profit = total_profit - settled_profit
+        
+        logger.info(f"计算完成 - 总利润: {total_profit}, 已结算: {settled_profit}, 未结算: {unsettled_profit}")
+        
+        # 格式化结果信息
+        complete_month_str = str(count_hid._get_complete_month())
+        complete_month_display = f"{complete_month_str[:4]}-{complete_month_str[4:]}" if len(complete_month_str) == 6 else complete_month_str
+        
+        result_info = f"""
+📊 业绩结算统计报告
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📈 {complete_month_display} 之后的利润汇总
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+💰 总业绩（{complete_month_display}之后）: ${total_profit:,.2f}
+   ├─ ✅ 已结算利润: ${settled_profit:,.2f} ({settled_profit/total_profit*100:.1f}%)
+   └─ ⏳ 未结算利润: ${unsettled_profit:,.2f} ({unsettled_profit/total_profit*100:.1f}%)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📋 说明
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+• 总业绩: {complete_month_display} 之后所有HID订单的利润总和
+• 已结算: 公司已开具Invoice的订单利润
+• 未结算: 尚未开具Invoice的订单利润（需要追踪）
+• 已排除: disputed.txt 中标记的争议订单
+
+💡 做账进度: 
+• complete.txt 当前值: {complete_month_display}
+• 表示此月份之前的订单已核对完成
+• 如需查看更早月份，请修改 complete.txt 为更早日期
+"""
+        
+        # 获取未结算订单的详细数据（可选）
+        # unsettled_orders = count_hid.get_unsettled_orders()  # 如果需要详细列表，可以添加这个方法
+        
+        return jsonify({
+            'result': result_info.strip(),
+            'total_profit': total_profit,
+            'settled_profit': settled_profit,
+            'unsettled_profit': unsettled_profit,
+            'summary': {
+                'total_profit': float(total_profit),
+                'settled_profit': float(settled_profit),
+                'unsettled_profit': float(unsettled_profit),
+                'complete_month': complete_month_display
+            }
+        })
+        
+    except FileNotFoundError as e:
+        error_msg = f'路径错误: {str(e)}'
+        logger.error(error_msg, exc_info=True)
+        return jsonify({'error': error_msg}), 404
     except Exception as e:
-        return jsonify({'error': f'处理失败: {str(e)}'}), 500
+        error_msg = f'处理失败: {str(e)}'
+        logger.error(error_msg, exc_info=True)
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': error_msg}), 500
 
 
 @athina_blue.route('/athina_processing_month', methods=['POST'])
 @csrf.exempt
+@login_required
+@staff_only
 def process_month_invoice():
     """处理指定月份订单"""
+    import logging
+    import re
+    logger = logging.getLogger(__name__)
+    
     try:
-        # 暂时注释掉，因为依赖旧的App模块
-        return jsonify({'error': 'Athina月份账单处理功能暂时不可用，正在开发中...'}), 503
+        logger.info("开始处理指定月份订单计算请求")
         
+        from App_new.utils.Invoice import CountHid
+        from App_new.config import Config
+        from pathlib import Path
+        
+        # 获取请求中的月份参数
+        data = request.get_json()
+        month = data.get('month', '')  # 格式: YYYY-MM
+        
+        logger.info(f"请求月份: {month}")
+        
+        if not month:
+            error_msg = '请提供月份参数'
+            logger.warning(error_msg)
+            return jsonify({'error': error_msg}), 400
+        
+        # 验证月份格式
+        if not re.match(r'^\d{4}-(0[1-9]|1[0-2])$', month):
+            error_msg = '月份格式错误，应为 YYYY-MM'
+            logger.warning(f"{error_msg}, 实际输入: {month}")
+            return jsonify({'error': error_msg}), 400
+        
+        # 初始化CountHid类
+        booking_path = Path(Config.BILLING_DATA_PATH) / "BOOKING"
+        logger.info(f"账单路径: {booking_path}")
+        
+        if not booking_path.exists():
+            error_msg = f'账单路径不存在: {booking_path}'
+            logger.error(error_msg)
+            return jsonify({'error': error_msg}), 404
+        
+        # 检查子目录
+        zz_path = booking_path / "Zz"
+        if not zz_path.exists():
+            error_msg = f'Zz文件夹不存在: {zz_path}'
+            logger.error(error_msg)
+            return jsonify({'error': error_msg}), 404
+        
+        logger.info("创建CountHid实例")
+        # 创建CountHid实例
+        count_hid = CountHid(str(booking_path), name="Zz")
+        
+        logger.info(f"开始计算 {month} 月份的未结算订单")
+        # 计算指定月份之前的未结算订单
+        total_profit, pre_profit = count_hid.find_no_inv_booking(pre_month=month)
+        
+        # 计算当前月份的利润
+        current_month_profit = total_profit - pre_profit
+        
+        logger.info(f"{month} 月份计算完成 - 总利润: {total_profit}, 前期利润: {pre_profit}, 当前: {current_month_profit}")
+        
+        # 格式化结果
+        result = f"""📊 {month} 月份订单计算完成
+
+总利润: ${total_profit:,.2f}
+{month} 之前利润: ${pre_profit:,.2f}
+{month} 当前利润: ${current_month_profit:,.2f}"""
+        
+        return jsonify({
+            'result': result,
+            'month': month,
+            'total_profit': total_profit,
+            'pre_profit': pre_profit,
+            'current_month_profit': current_month_profit
+        })
+        
+    except FileNotFoundError as e:
+        error_msg = f'路径错误: {str(e)}'
+        logger.error(error_msg, exc_info=True)
+        return jsonify({'error': error_msg}), 404
     except Exception as e:
-        return jsonify({'error': f'处理失败: {str(e)}'}), 500
+        error_msg = f'处理失败: {str(e)}'
+        logger.error(error_msg, exc_info=True)
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': error_msg}), 500
 
 
 @athina_blue.route('/open_athina_statement_folder', methods=['GET', 'POST'])
@@ -657,3 +829,83 @@ def download_batch_report():
         
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
+
+
+@athina_blue.route('/open_booking_folder', methods=['GET'])
+@login_required
+@staff_only
+def open_booking_folder():
+    """打开账单文件夹"""
+    try:
+        import subprocess
+        from App_new.config import Config
+        from pathlib import Path
+        
+        # 获取账单文件夹路径
+        booking_folder = Path(Config.BILLING_DATA_PATH) / "BOOKING" / "Zz"
+        
+        if not booking_folder.exists():
+            return jsonify({
+                'error': f'文件夹不存在: {booking_folder}',
+                'success': False
+            }), 404
+        
+        # 在Windows中打开文件夹
+        subprocess.Popen(f'explorer "{booking_folder}"')
+        
+        return jsonify({
+            'success': True,
+            'message': '文件夹已打开'
+        })
+        
+    except Exception as e:
+        error_msg = f'打开文件夹失败: {str(e)}'
+        logger.error(error_msg, exc_info=True)
+        return jsonify({'error': error_msg, 'success': False}), 500
+
+
+@athina_blue.route('/athina_export_unsettled', methods=['GET'])
+@login_required
+@staff_only
+def export_unsettled_orders():
+    """导出未结算订单到Excel"""
+    try:
+        logger.info('开始导出未结算订单')
+        
+        from App_new.utils.Invoice import CountHid
+        from App_new.config import Config
+        from pathlib import Path
+        
+        # 初始化CountHid类
+        booking_path = Path(Config.BILLING_DATA_PATH) / 'BOOKING'
+        
+        if not booking_path.exists():
+            error_msg = f'账单路径不存在: {booking_path}'
+            logger.error(error_msg)
+            return jsonify({'error': error_msg, 'success': False}), 404
+        
+        # 创建CountHid实例
+        count_hid = CountHid(str(booking_path), name='Zz')
+        
+        # 导出未结算订单
+        success = count_hid.export_unsettled_orders()
+        
+        if success:
+            message = f'✅ 未结算订单已成功导出到: {booking_path / "Zz"} 文件夹'
+            logger.info(message)
+            return jsonify({
+                'success': True,
+                'message': message
+            })
+        else:
+            error_msg = '导出失败：没有未结算订单或发生错误'
+            logger.warning(error_msg)
+            return jsonify({
+                'error': error_msg,
+                'success': False
+            }), 400
+            
+    except Exception as e:
+        error_msg = f'导出未结算订单时出错: {str(e)}'
+        logger.error(error_msg, exc_info=True)
+        return jsonify({'error': error_msg, 'success': False}), 500

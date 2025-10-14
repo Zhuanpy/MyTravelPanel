@@ -303,6 +303,16 @@
             <button class="athina-btn" onclick="processAllInvoice()">
                 <i class="fas fa-calculator"></i> 计算全部订单
             </button>
+            
+            <!-- 导出未结算订单按钮 -->
+            <button class="athina-btn" onclick="exportUnsettledOrders()" style="background-color: #1976D2; margin-top: 10px;">
+                <i class="fas fa-file-excel"></i> 导出未结算订单
+            </button>
+            
+            <!-- 打开文件夹按钮 -->
+            <button class="athina-btn" onclick="openBookingFolder()" style="background-color: #FF9800; margin-top: 10px;">
+                <i class="fas fa-folder-open"></i> 打开账单文件夹
+            </button>
 
             <!-- 用于显示全部订单的处理结果 -->
             <div id="result-display-all" class="result-display">
@@ -442,6 +452,60 @@
         .catch(error => {
             console.error('Error:', error);
             document.getElementById("result-display-all").innerText = "账单处理失败: " + error.message;
+        });
+    }
+    
+    // 导出未结算订单的函数
+    function exportUnsettledOrders() {
+        // 显示加载状态
+        const originalText = document.getElementById("result-display-all").innerText;
+        document.getElementById("result-display-all").innerText = "正在导出未结算订单，请稍候...";
+        
+        fetch('/statement/athina_export_unsettled', {
+            method: 'GET',
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.error) {
+                document.getElementById("result-display-all").innerText = originalText + "\n\n错误: " + data.error;
+                alert("导出失败: " + data.error);
+            } else if (data.success) {
+                document.getElementById("result-display-all").innerText = originalText + "\n\n✅ " + data.message;
+                alert(data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            document.getElementById("result-display-all").innerText = originalText + "\n\n导出失败: " + error.message;
+            alert("导出失败: " + error.message);
+        });
+    }
+    
+    // 打开账单文件夹的函数
+    function openBookingFolder() {
+        fetch('/statement/open_booking_folder', {
+            method: 'GET',
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.error) {
+                alert("打开文件夹失败: " + data.error);
+            }
+            // 成功时不显示提示，直接打开文件夹
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert("打开文件夹失败: " + error.message);
         });
     }
 
