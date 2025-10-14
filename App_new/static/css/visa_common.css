@@ -271,6 +271,16 @@
     color: white;
 }
 
+.visa-btn-info {
+    background: var(--visa-info);
+    color: white;
+}
+
+.visa-btn-info:hover {
+    background: #0891b2;
+    color: white;
+}
+
 /* 按钮大小变体 */
 .visa-btn-sm {
     height: 32px;
@@ -301,6 +311,7 @@
 .visa-btn-link-success { color: var(--visa-success); }
 .visa-btn-link-warning { color: var(--visa-warning); }
 .visa-btn-link-danger { color: var(--visa-danger); }
+.visa-btn-link-info { color: var(--visa-info); font-weight: 600; }
 
 /* ==================== 统一表格系统 ==================== */
 .visa-table {
@@ -414,6 +425,36 @@ textarea.visa-form-control,
     background-position: right 0.75rem center;
     background-color: #ffffff;
     padding-right: 2.5rem;
+}
+
+/* 签证状态选择器颜色样式 */
+.visa-status-select {
+    font-weight: 600;
+    border-width: 2px;
+}
+
+.visa-status-select[data-current-status="待递交"] {
+    color: #6b7280;
+    background-color: #f3f4f6;
+    border-color: #9ca3af;
+}
+
+.visa-status-select[data-current-status="待出签"] {
+    color: #0891b2;
+    background-color: #ecfeff;
+    border-color: #06b6d4;
+}
+
+.visa-status-select[data-current-status="已出签"] {
+    color: #059669;
+    background-color: #d1fae5;
+    border-color: #10b981;
+}
+
+.visa-status-select[data-current-status="忽略单"] {
+    color: #dc2626;
+    background-color: #fee2e2;
+    border-color: #ef4444;
 }
 
 /* ==================== 统一徽章系统 ==================== */
@@ -682,6 +723,177 @@ textarea.visa-form-control,
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
     gap: var(--visa-spacing-md);
+}
+
+/* 侧边栏和主内容布局 */
+.visa-sidebar {
+    background: var(--visa-bg-card);
+    border-radius: var(--visa-radius-md);
+    box-shadow: var(--visa-shadow-md);
+    padding: 1.5rem;
+    height: fit-content;
+    max-height: calc(100vh - 200px);
+    overflow-y: auto;
+}
+
+/* 可选择项样式 */
+.visa-selectable-item {
+    padding: 0.75rem 1rem;
+    margin-bottom: 0.5rem;
+    border-radius: var(--visa-radius-sm);
+    border: 2px solid #e0e7ff;
+    color: var(--visa-text-secondary);
+    font-weight: 500;
+    background: #f5f3ff;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.visa-selectable-item:hover {
+    background: #ede9fe;
+    color: #6366f1;
+    border-color: #a5b4fc;
+}
+
+.visa-selectable-item.active {
+    background: #6366f1;
+    color: white;
+    border-color: #6366f1;
+    box-shadow: var(--visa-shadow-md);
+}
+
+.visa-selectable-item.locked {
+    cursor: default;
+    background: var(--visa-bg-light);
+    border-color: var(--visa-primary);
+}
+
+/* 标签按钮样式（用于身份选择等） */
+.visa-tag-btn {
+    padding: 0.625rem 1.25rem;
+    background: #ecfdf5;
+    border: 2px solid #a7f3d0;
+    border-radius: var(--visa-radius-sm);
+    color: #047857;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    outline: none;
+}
+
+.visa-tag-btn:hover {
+    background: #d1fae5;
+    border-color: #6ee7b7;
+    color: #065f46;
+    box-shadow: var(--visa-shadow-sm);
+}
+
+.visa-tag-btn.active {
+    background: var(--visa-success);
+    border-color: var(--visa-success);
+    color: white;
+    box-shadow: var(--visa-shadow-md);
+}
+
+/* 内容块标题 */
+.visa-block-title {
+    color: #ea580c;
+    font-size: 1.125rem;
+    margin-bottom: 1rem;
+    padding: 0.75rem 1rem;
+    background: #fff7ed;
+    border-left: 4px solid #f97316;
+    border-radius: var(--visa-radius-sm);
+    font-weight: 600;
+}
+
+/* 列表项卡片 */
+.visa-list-item {
+    background: white;
+    border: 2px solid #e0f2fe;
+    border-radius: var(--visa-radius-sm);
+    padding: 1rem;
+    transition: all 0.2s;
+    margin-bottom: 1rem;
+}
+
+.visa-list-item:hover {
+    border-color: var(--visa-info);
+    box-shadow: 0 4px 12px rgba(6, 182, 212, 0.15);
+    background: #f0f9ff;
+}
+
+/* 图标按钮（用于下载、删除等） */
+.visa-icon-action-btn {
+    padding: 0.5rem 0.75rem;
+    cursor: pointer;
+    border-radius: var(--visa-radius-sm);
+    transition: all 0.2s;
+    font-size: 1rem;
+    font-weight: 500;
+    border: none;
+    outline: none;
+}
+
+.visa-icon-action-btn.info {
+    color: var(--visa-info);
+    background: #e0f2fe;
+}
+
+.visa-icon-action-btn.info:hover {
+    color: white;
+    background: var(--visa-info);
+}
+
+.visa-icon-action-btn.danger {
+    color: var(--visa-danger);
+    background: #fee2e2;
+}
+
+.visa-icon-action-btn.danger:hover {
+    color: white;
+    background: var(--visa-danger);
+}
+
+/* 文件上传区域 */
+.visa-file-upload-area {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 2rem;
+    border: 2px dashed var(--visa-border);
+    border-radius: var(--visa-radius-sm);
+    cursor: pointer;
+    transition: all 0.2s;
+    color: var(--visa-text-muted);
+    background: var(--visa-bg-light);
+    position: relative;
+}
+
+.visa-file-upload-area:hover {
+    border-color: var(--visa-primary);
+    background: var(--visa-bg-hover);
+    color: var(--visa-primary);
+}
+
+/* 加载动画 */
+.visa-loading {
+    text-align: center;
+    padding: 3rem;
+    color: var(--visa-text-muted);
+}
+
+.visa-loading i {
+    font-size: 2rem;
+    margin-bottom: 1rem;
+    display: block;
+    animation: visa-spin 1s linear infinite;
+}
+
+@keyframes visa-spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
 }
 
 /* ==================== 信息展示组件 ==================== */

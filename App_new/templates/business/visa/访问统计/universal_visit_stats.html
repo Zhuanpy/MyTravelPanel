@@ -9,65 +9,62 @@
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid">
+<div class="visa-container-lg">
+    <h1 class="visa-page-title">产品访问统计</h1>
+    
     <!-- 统计概览 -->
-    <div class="row mb-4">
-        <div class="col-md-3">
-            <div class="card bg-primary text-white">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between">
-                        <div>
-                            <h4 class="card-title">{{ stats_summary.total_visits }}</h4>
-                            <p class="card-text">总访问次数</p>
-                        </div>
-                        <div class="align-self-center">
-                            <i class="fas fa-eye fa-2x"></i>
-                        </div>
+    <div class="visa-grid-4 visa-mb-4">
+        <div class="visa-card" style="background: var(--visa-primary); color: white; border: none;">
+            <div class="visa-card-body">
+                <div class="visa-flex-between">
+                    <div>
+                        <h4 style="margin: 0; font-size: 2rem; font-weight: 700;">{{ stats_summary.total_visits }}</h4>
+                        <p style="margin: 0.5rem 0 0 0; opacity: 0.9;">总访问次数</p>
+                    </div>
+                    <div>
+                        <i class="fas fa-eye fa-2x" style="opacity: 0.8;"></i>
                     </div>
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card bg-success text-white">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between">
-                        <div>
-                            <h4 class="card-title">{{ stats_summary.unique_visitors }}</h4>
-                            <p class="card-text">独立访客</p>
-                        </div>
-                        <div class="align-self-center">
-                            <i class="fas fa-users fa-2x"></i>
-                        </div>
+        
+        <div class="visa-card" style="background: var(--visa-success); color: white; border: none;">
+            <div class="visa-card-body">
+                <div class="visa-flex-between">
+                    <div>
+                        <h4 style="margin: 0; font-size: 2rem; font-weight: 700;">{{ stats_summary.unique_visitors }}</h4>
+                        <p style="margin: 0.5rem 0 0 0; opacity: 0.9;">独立访客</p>
+                    </div>
+                    <div>
+                        <i class="fas fa-users fa-2x" style="opacity: 0.8;"></i>
                     </div>
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card bg-info text-white">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between">
-                        <div>
-                            <h4 class="card-title">{{ stats_summary.stats_by_type|length }}</h4>
-                            <p class="card-text">产品类型</p>
-                        </div>
-                        <div class="align-self-center">
-                            <i class="fas fa-th-large fa-2x"></i>
-                        </div>
+        
+        <div class="visa-card" style="background: var(--visa-info); color: white; border: none;">
+            <div class="visa-card-body">
+                <div class="visa-flex-between">
+                    <div>
+                        <h4 style="margin: 0; font-size: 2rem; font-weight: 700;">{{ stats_summary.stats_by_type|length }}</h4>
+                        <p style="margin: 0.5rem 0 0 0; opacity: 0.9;">产品类型</p>
+                    </div>
+                    <div>
+                        <i class="fas fa-th-large fa-2x" style="opacity: 0.8;"></i>
                     </div>
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card bg-warning text-white">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between">
-                        <div>
-                            <h4 class="card-title">{{ days }}</h4>
-                            <p class="card-text">统计天数</p>
-                        </div>
-                        <div class="align-self-center">
-                            <i class="fas fa-calendar fa-2x"></i>
-                        </div>
+        
+        <div class="visa-card" style="background: var(--visa-warning); color: white; border: none;">
+            <div class="visa-card-body">
+                <div class="visa-flex-between">
+                    <div>
+                        <h4 style="margin: 0; font-size: 2rem; font-weight: 700;">{{ days }}</h4>
+                        <p style="margin: 0.5rem 0 0 0; opacity: 0.9;">统计天数</p>
+                    </div>
+                    <div>
+                        <i class="fas fa-calendar fa-2x" style="opacity: 0.8;"></i>
                     </div>
                 </div>
             </div>
@@ -75,189 +72,166 @@
     </div>
 
     <!-- 产品类型统计 -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="card-title">各产品类型访问统计</h5>
-                </div>
-                <div class="card-body">
-                    <div class="row">
-                        {% for product_type, visit_count in stats_summary.stats_by_type.items() %}
-                        <div class="col-md-3 mb-3">
-                            <div class="card border-left-primary">
-                                <div class="card-body">
-                                    <div class="d-flex justify-content-between">
-                                        <div>
-                                            <h6 class="text-primary">{{ product_type_names.get(product_type, product_type) }}</h6>
-                                            <h4 class="mb-0">{{ visit_count }}</h4>
-                                        </div>
-                                        <div class="align-self-center">
-                                            {% if product_type == 'visa' %}
-                                                <i class="fas fa-passport fa-2x text-primary"></i>
-                                            {% elif product_type == 'tour' %}
-                                                <i class="fas fa-map-marked-alt fa-2x text-success"></i>
-                                            {% elif product_type == 'flight' %}
-                                                <i class="fas fa-plane fa-2x text-info"></i>
-                                            {% elif product_type == 'hotel' %}
-                                                <i class="fas fa-bed fa-2x text-warning"></i>
-                                            {% else %}
-                                                <i class="fas fa-box fa-2x text-secondary"></i>
-                                            {% endif %}
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+    <div class="visa-card visa-mb-4">
+        <div class="visa-card-header">
+            <h2><i class="fas fa-chart-pie"></i> 各产品类型访问统计</h2>
+        </div>
+        <div class="visa-card-body">
+            <div class="visa-grid-4">
+                {% for product_type, visit_count in stats_summary.stats_by_type.items() %}
+                <div class="visa-card-simple visa-card-accent">
+                    <div class="visa-flex-between">
+                        <div>
+                            <h6 style="color: var(--visa-primary); margin: 0 0 0.5rem 0; font-size: 0.875rem;">{{ product_type_names.get(product_type, product_type) }}</h6>
+                            <h4 style="margin: 0; font-size: 1.75rem; font-weight: 700;">{{ visit_count }}</h4>
                         </div>
-                        {% endfor %}
+                        <div>
+                            {% if product_type == 'visa' %}
+                                <i class="fas fa-passport fa-2x" style="color: var(--visa-primary);"></i>
+                            {% elif product_type == 'tour' %}
+                                <i class="fas fa-map-marked-alt fa-2x" style="color: var(--visa-success);"></i>
+                            {% elif product_type == 'flight' %}
+                                <i class="fas fa-plane fa-2x" style="color: var(--visa-info);"></i>
+                            {% elif product_type == 'hotel' %}
+                                <i class="fas fa-bed fa-2x" style="color: var(--visa-warning);"></i>
+                            {% else %}
+                                <i class="fas fa-box fa-2x" style="color: #6b7280;"></i>
+                            {% endif %}
+                        </div>
                     </div>
                 </div>
+                {% endfor %}
             </div>
         </div>
     </div>
 
     <!-- 筛选控件 -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-body">
-                    <form method="GET" class="row g-3">
-                        <div class="col-md-3">
-                            <label for="days" class="form-label">统计天数</label>
-                            <select name="days" id="days" class="form-select">
-                                <option value="7" {% if days == 7 %}selected{% endif %}>最近7天</option>
-                                <option value="30" {% if days == 30 %}selected{% endif %}>最近30天</option>
-                                <option value="90" {% if days == 90 %}selected{% endif %}>最近90天</option>
-                                <option value="365" {% if days == 365 %}selected{% endif %}>最近一年</option>
-                            </select>
-                        </div>
-                        <div class="col-md-3">
-                            <label for="product_type" class="form-label">产品类型</label>
-                            <select name="product_type" id="product_type" class="form-select">
-                                <option value="">全部产品类型</option>
-                                {% for type_key, type_name in product_type_names.items() %}
-                                <option value="{{ type_key }}" {% if selected_product_type == type_key %}selected{% endif %}>
-                                    {{ type_name }}
-                                </option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <div class="col-md-3">
-                            <label for="product_id" class="form-label">具体产品</label>
-                            <select name="product_id" id="product_id" class="form-select">
-                                <option value="">全部产品</option>
-                                <!-- 这里可以通过JavaScript动态加载 -->
-                            </select>
-                        </div>
-                        <div class="col-md-3">
-                            <label class="form-label">&nbsp;</label>
-                            <div>
-                                <button type="submit" class="btn btn-primary">筛选</button>
-                                <a href="{{ url_for('visa_basic.universal_visit_stats') }}" class="btn btn-secondary">重置</a>
-                            </div>
-                        </div>
-                    </form>
-                </div>
+    <div class="visa-filter-bar">
+        <form method="GET" class="visa-flex visa-gap-2" style="flex: 1; align-items: flex-end; flex-wrap: wrap;">
+            <div class="visa-filter-item">
+                <label for="days" class="visa-form-label">统计天数</label>
+                <select name="days" id="days" class="visa-form-select">
+                    <option value="7" {% if days == 7 %}selected{% endif %}>最近7天</option>
+                    <option value="30" {% if days == 30 %}selected{% endif %}>最近30天</option>
+                    <option value="90" {% if days == 90 %}selected{% endif %}>最近90天</option>
+                    <option value="365" {% if days == 365 %}selected{% endif %}>最近一年</option>
+                </select>
             </div>
-        </div>
+            <div class="visa-filter-item">
+                <label for="product_type" class="visa-form-label">产品类型</label>
+                <select name="product_type" id="product_type" class="visa-form-select">
+                    <option value="">全部产品类型</option>
+                    {% for type_key, type_name in product_type_names.items() %}
+                    <option value="{{ type_key }}" {% if selected_product_type == type_key %}selected{% endif %}>
+                        {{ type_name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="visa-filter-item">
+                <label for="product_id" class="visa-form-label">具体产品</label>
+                <select name="product_id" id="product_id" class="visa-form-select">
+                    <option value="">全部产品</option>
+                </select>
+            </div>
+            <button type="submit" class="visa-btn visa-btn-primary">
+                <i class="fas fa-search"></i> 筛选
+            </button>
+            <a href="{{ url_for('visa_basic.universal_visit_stats') }}" class="visa-btn visa-btn-secondary">
+                <i class="fas fa-redo"></i> 重置
+            </a>
+        </form>
     </div>
 
     <!-- 访问趋势图表 -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="card-title">访问趋势</h5>
-                </div>
-                <div class="card-body">
-                    <canvas id="visitChart" height="100"></canvas>
-                </div>
-            </div>
+    <div class="visa-card visa-mb-4">
+        <div class="visa-card-header">
+            <h2><i class="fas fa-chart-line"></i> 访问趋势</h2>
+        </div>
+        <div class="visa-card-body">
+            <canvas id="visitChart" height="100"></canvas>
         </div>
     </div>
 
     <!-- 热门产品和最近访问记录 -->
-    <div class="row mb-4">
-        <div class="col-md-6">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="card-title">热门产品</h5>
+    <div class="visa-grid-2 visa-mb-4" style="align-items: start;">
+        <!-- 热门产品 -->
+        <div class="visa-card" style="height: 550px; display: flex; flex-direction: column;">
+            <div class="visa-card-header">
+                <h2><i class="fas fa-fire"></i> 热门产品</h2>
+            </div>
+            <div class="visa-card-body" style="flex: 1; overflow: hidden; padding: 0;">
+                {% if popular_products %}
+                <div style="max-height: 100%; overflow-y: auto; overflow-x: auto;">
+                    <table class="visa-table">
+                        <thead>
+                            <tr>
+                                <th class="text-center">排名</th>
+                                <th>产品类型</th>
+                                <th>产品名称</th>
+                                <th>分类</th>
+                                <th class="text-center">访问次数</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for product in popular_products %}
+                            <tr>
+                                <td class="text-center">{{ loop.index }}</td>
+                                <td>
+                                    <span class="visa-badge visa-badge-primary">{{ product_type_names.get(product.product_type, product.product_type) }}</span>
+                                </td>
+                                <td>{{ product.product_name }}</td>
+                                <td>{{ product.product_category or '-' }}</td>
+                                <td class="text-center">
+                                    <span class="visa-badge visa-badge-success">{{ product.visit_count }}</span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
                 </div>
-                <div class="card-body">
-                    {% if popular_products %}
-                    <div class="table-responsive">
-                        <table class="table table-sm">
-                            <thead>
-                                <tr>
-                                    <th>排名</th>
-                                    <th>产品类型</th>
-                                    <th>产品名称</th>
-                                    <th>分类</th>
-                                    <th>访问次数</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for product in popular_products %}
-                                <tr>
-                                    <td>{{ loop.index }}</td>
-                                    <td>
-                                        <span class="badge bg-primary">{{ product_type_names.get(product.product_type, product.product_type) }}</span>
-                                    </td>
-                                    <td>{{ product.product_name }}</td>
-                                    <td>{{ product.product_category or '-' }}</td>
-                                    <td>
-                                        <span class="badge bg-success">{{ product.visit_count }}</span>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                    {% else %}
-                    <p class="text-muted">暂无访问数据</p>
-                    {% endif %}
-                </div>
+                {% else %}
+                <p style="color: var(--visa-text-muted); text-align: center; padding: 2rem;">暂无访问数据</p>
+                {% endif %}
             </div>
         </div>
 
         <!-- 最近访问记录 -->
-        <div class="col-md-6">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="card-title">最近访问记录</h5>
+        <div class="visa-card" style="height: 550px; display: flex; flex-direction: column;">
+            <div class="visa-card-header">
+                <h2><i class="fas fa-history"></i> 最近访问记录</h2>
+            </div>
+            <div class="visa-card-body" style="flex: 1; overflow: hidden; padding: 0;">
+                {% if visit_stats %}
+                <div style="max-height: 100%; overflow-y: auto; overflow-x: auto;">
+                    <table class="visa-table">
+                        <thead>
+                            <tr>
+                                <th>产品类型</th>
+                                <th>产品名称</th>
+                                <th>分类</th>
+                                <th>访问时间</th>
+                                <th>IP地址</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for stat in visit_stats[:20] %}
+                            <tr>
+                                <td>
+                                    <span class="visa-badge visa-badge-info">{{ product_type_names.get(stat.product_type, stat.product_type) }}</span>
+                                </td>
+                                <td>{{ stat.product_name }}</td>
+                                <td>{{ stat.product_category or '-' }}</td>
+                                <td>{{ stat.visit_time.strftime('%m-%d %H:%M') }}</td>
+                                <td>{{ stat.visitor_ip or '-' }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
                 </div>
-                <div class="card-body">
-                    {% if visit_stats %}
-                    <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
-                        <table class="table table-sm">
-                            <thead>
-                                <tr>
-                                    <th>产品类型</th>
-                                    <th>产品名称</th>
-                                    <th>分类</th>
-                                    <th>访问时间</th>
-                                    <th>IP地址</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for stat in visit_stats[:20] %}
-                                <tr>
-                                    <td>
-                                        <span class="badge bg-secondary">{{ product_type_names.get(stat.product_type, stat.product_type) }}</span>
-                                    </td>
-                                    <td>{{ stat.product_name }}</td>
-                                    <td>{{ stat.product_category or '-' }}</td>
-                                    <td>{{ stat.visit_time.strftime('%m-%d %H:%M') }}</td>
-                                    <td>{{ stat.visitor_ip or '-' }}</td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                    {% else %}
-                    <p class="text-muted">暂无访问记录</p>
-                    {% endif %}
-                </div>
+                {% else %}
+                <p style="color: var(--visa-text-muted); text-align: center; padding: 2rem;">暂无访问记录</p>
+                {% endif %}
             </div>
         </div>
     </div>

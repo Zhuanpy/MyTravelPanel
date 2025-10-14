@@ -139,7 +139,7 @@
             {% for page in pagination.iter_pages(left_edge=2, left_current=2, right_current=3, right_edge=2) %}
                 {% if page %}
                     {% if page == pagination.page %}
-                        <span class="visa-pagination-btn visa-pagination-btn-active">
+                        <span class="visa-pagination-btn active">
                             {{ page }}
                         </span>
                     {% else %}
@@ -149,7 +149,7 @@
                         </a>
                     {% endif %}
                 {% else %}
-                    <span class="visa-pagination-ellipsis">...</span>
+                    <span class="visa-pagination-btn" style="cursor: default; pointer-events: none;">...</span>
                 {% endif %}
             {% endfor %}
             

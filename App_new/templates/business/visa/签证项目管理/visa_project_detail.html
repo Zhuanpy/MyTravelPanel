@@ -53,13 +53,13 @@
                     <a href="{{ url_for('visa_project.edit_project', project_id=project.id) }}" class="visa-btn visa-btn-sm visa-btn-primary">
                         <i class="fas fa-edit"></i> 编辑项目
                     </a>
-                    <button type="button" class="visa-btn visa-btn-sm visa-btn-secondary" data-action="open-project-folder" data-folder-name="{{ project.project_folder_name }}" data-visa-type="{{ project.visa_type }}">
+                    <button type="button" class="visa-btn visa-btn-sm visa-btn-success" data-action="open-project-folder" data-folder-name="{{ project.project_folder_name }}" data-visa-type="{{ project.visa_type }}">
                         <i class="fas fa-folder-open"></i> 项目文件夹
                     </button>
                     <button type="button" class="visa-btn visa-btn-sm visa-btn-secondary" data-action="open-visa-type-folder" data-visa-type="{{ project.visa_type }}">
                         <i class="fas fa-folder"></i> 资源文件夹
                     </button>
-                    <a href="{{ url_for('visa_basic.visa_type_document_manager', visa_type=project.visa_type) }}" class="visa-btn visa-btn-sm visa-btn-secondary">
+                    <a href="{{ url_for('visa_basic.visa_type_document_manager', visa_type=project.visa_type) }}" class="visa-btn visa-btn-sm visa-btn-warning">
                         <i class="fas fa-cogs"></i> 文档管理器
                     </a>
                     <a href="{{ url_for('visa_project.show_current_all_projects') }}" class="visa-btn visa-btn-sm visa-btn-secondary">
@@ -74,7 +74,7 @@
     <div class="visa-card visa-mb-3">
         <div class="visa-card-header">
             <h2><i class="fas fa-link"></i> 相关链接</h2>
-            <button type="button" class="visa-btn visa-btn-sm visa-btn-primary" data-action="show-add-link-modal">
+            <button type="button" class="visa-btn visa-btn-sm visa-btn-success" data-action="show-add-link-modal">
                 <i class="fas fa-plus"></i> 添加链接
             </button>
         </div>
@@ -150,10 +150,10 @@
         <div class="visa-card-header">
             <h2><i class="fas fa-file-alt"></i> 所需文件资料</h2>
             <div class="visa-flex visa-gap-2">
-                <button type="button" class="visa-btn visa-btn-sm visa-btn-secondary" data-action="sync-documents" data-project-id="{{ project.id }}">
+                <button type="button" class="visa-btn visa-btn-sm visa-btn-info" data-action="sync-documents" data-project-id="{{ project.id }}">
                     <i class="fas fa-sync"></i> 同步资料清单
                 </button>
-                <button type="button" class="visa-btn visa-btn-sm visa-btn-primary" data-action="show-add-document-modal">
+                <button type="button" class="visa-btn visa-btn-sm visa-btn-success" data-action="show-add-document-modal">
                     <i class="fas fa-plus"></i> 添加资料
                 </button>
             </div>
@@ -216,9 +216,14 @@
     <div class="visa-card visa-mb-3">
         <div class="visa-card-header">
             <h2><i class="fas fa-bell"></i> 提醒事件</h2>
-            <button type="button" class="visa-btn visa-btn-sm visa-btn-primary" data-bs-toggle="modal" data-bs-target="#reminderModal2">
-                <i class="fas fa-plus"></i> 添加提醒
-            </button>
+            <div style="display: flex; gap: 0.5rem;">
+                <a href="{{ url_for('utils_blue.render_todo_list') }}" class="visa-btn visa-btn-sm visa-btn-info" target="_blank">
+                    <i class="fas fa-tasks"></i> 任务中心
+                </a>
+                <button type="button" class="visa-btn visa-btn-sm visa-btn-success" data-bs-toggle="modal" data-bs-target="#reminderModal2">
+                    <i class="fas fa-plus"></i> 添加提醒
+                </button>
+            </div>
         </div>
         <div class="visa-card-body">
             <div id="remindersContainer">
@@ -251,7 +256,7 @@
                 </div>
             </div>
             <div class="visa-flex visa-gap-2" style="justify-content: flex-end;">
-                <button type="button" class="visa-btn visa-btn-sm visa-btn-secondary" data-action="copy-hid-ref">
+                <button type="button" class="visa-btn visa-btn-sm visa-btn-info" data-action="copy-hid-ref">
                     <i class="fas fa-copy"></i> 复制编号
                 </button>
                 <button type="button" class="visa-btn visa-btn-sm visa-btn-danger" data-action="unlink-hid-ref" data-project-id="{{ project.id }}">

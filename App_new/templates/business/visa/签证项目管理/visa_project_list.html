@@ -104,8 +104,9 @@
                 <td>{{ project.visa_type }}</td>
                 <td>{{ project.created_date.strftime('%Y-%m-%d') }}</td>
                 <td>
-                    <select name="visa_status" class="visa-form-select" style="width: 100px; padding: 0.25rem;" 
+                    <select name="visa_status" class="visa-form-select visa-status-select" style="width: 100px; padding: 0.25rem;" 
                             data-project-id="{{ project.id }}" 
+                            data-current-status="{{ project.visa_status }}"
                             onchange="updateVisaStatus(this)">
                         <option value="待递交" {% if project.visa_status == '待递交' %}selected{% endif %}>待递交</option>
                         <option value="待出签" {% if project.visa_status == '待出签' %}selected{% endif %}>待出签</option>
@@ -250,6 +251,9 @@
         const projectId = select.dataset.projectId;
         const newStatus = select.value;
         
+        // 立即更新data-current-status属性以改变颜色
+        select.setAttribute('data-current-status', newStatus);
+        
         fetch("{{ url_for('visa_project.update_visa_status') }}", {
             method: 'POST',
             headers: {
@@ -286,21 +290,23 @@
                 }, 500);
             } else {
                 showToast('error', data.message);
-                // 恢复原值
+                // 恢复原值和原颜色
                 select.value = select.dataset.originalValue;
+                select.setAttribute('data-current-status', select.dataset.originalValue);
             }
         })
         .catch(error => {
             console.error('Error:', error);
             showToast('error', '更新状态时出错');
-            // 恢复原值
+            // 恢复原值和原颜色
             select.value = select.dataset.originalValue;
+            select.setAttribute('data-current-status', select.dataset.originalValue);
         });
     }
     
     // 页面加载时保存原始状态
     document.addEventListener('DOMContentLoaded', function() {
-        const statusSelects = document.querySelectorAll('.visa-project-select-field');
+        const statusSelects = document.querySelectorAll('.visa-status-select');
         statusSelects.forEach(select => {
             const currentStatus = select.value;
             select.setAttribute('data-status', currentStatus);
