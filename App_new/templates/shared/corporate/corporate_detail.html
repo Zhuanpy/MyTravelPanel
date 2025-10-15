@@ -1,0 +1,353 @@
+{% extends "staff_base.html" %}
+{% block title %}{{ company.company_name }} - 公司详情 - MyTravelPanel{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/staff_common.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="visa-container">
+    <div style="max-width: 1400px; margin: 0 auto;">
+        <div class="visa-flex-between visa-mb-4">
+            <div>
+                <h1 class="visa-page-title" style="text-align: left; margin-bottom: 0.5rem;">
+                    <i class="fas fa-building"></i> {{ company.company_name }}
+                </h1>
+                <p class="visa-text-muted">客户公司详细信息</p>
+            </div>
+            <div class="visa-flex visa-gap-2">
+                <a href="{{ url_for('corporate.edit_company', company_id=company.id) }}" class="visa-btn visa-btn-warning">
+                    <i class="fas fa-edit"></i> 编辑
+                </a>
+                <a href="{{ url_for('corporate.list_companies') }}" class="visa-btn visa-btn-secondary" onclick="returnToList()">
+                    <i class="fas fa-arrow-left"></i> 返回列表
+                </a>
+            </div>
+        </div>
+        
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        
+        <div class="visa-grid-responsive" style="grid-template-columns: 2fr 1fr;">
+            <div>
+                <div class="visa-card">
+                    <div class="visa-card-header">
+                        <h3><i class="fas fa-info-circle"></i> 基本信息</h3>
+                    </div>
+                <div class="visa-card-body">
+                    <div class="visa-grid-2">
+                        <div class="info-item">
+                            <div class="info-icon" style="background: #3b82f6;">
+                                <i class="fas fa-building"></i>
+                            </div>
+                            <div class="info-content">
+                                <h6>公司名称</h6>
+                                <p>{{ company.company_name }}</p>
+                            </div>
+                        </div>
+                        
+                        {% if company.company_code %}
+                        <div class="info-item">
+                            <div class="info-icon" style="background: #10b981;">
+                                <i class="fas fa-barcode"></i>
+                            </div>
+                            <div class="info-content">
+                                <h6>公司代码</h6>
+                                <p>{{ company.company_code }}</p>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        {% if company.contact_person %}
+                        <div class="info-item">
+                            <div class="info-icon" style="background: #f59e0b;">
+                                <i class="fas fa-user"></i>
+                            </div>
+                            <div class="info-content">
+                                <h6>联系人</h6>
+                                <p>{{ company.contact_person }}</p>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        {% if company.contact_phone %}
+                        <div class="info-item">
+                            <div class="info-icon" style="background: #06b6d4;">
+                                <i class="fas fa-phone"></i>
+                            </div>
+                            <div class="info-content">
+                                <h6>联系电话</h6>
+                                <p>{{ company.contact_phone }}</p>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        {% if company.contact_email %}
+                        <div class="info-item">
+                            <div class="info-icon" style="background: #8b5cf6;">
+                                <i class="fas fa-envelope"></i>
+                            </div>
+                            <div class="info-content">
+                                <h6>联系邮箱</h6>
+                                <p>{{ company.contact_email }}</p>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        {% if company.industry %}
+                        <div class="info-item">
+                            <div class="info-icon" style="background: #ec4899;">
+                                <i class="fas fa-industry"></i>
+                            </div>
+                            <div class="info-content">
+                                <h6>行业</h6>
+                                <p>
+                                    {% set industry_map = {
+                                        'technology': '科技',
+                                        'finance': '金融',
+                                        'manufacturing': '制造业',
+                                        'healthcare': '医疗健康',
+                                        'education': '教育',
+                                        'retail': '零售',
+                                        'tourism': '旅游',
+                                        'real_estate': '房地产',
+                                        'consulting': '咨询',
+                                        'other': '其他'
+                                    } %}
+                                    {{ industry_map.get(company.industry, company.industry) }}
+                                </p>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        {% if company.company_size %}
+                        <div class="info-item">
+                            <div class="info-icon" style="background: #6366f1;">
+                                <i class="fas fa-chart-bar"></i>
+                            </div>
+                            <div class="info-content">
+                                <h6>公司规模</h6>
+                                <p>
+                                    {% set size_map = {
+                                        'startup': '初创公司',
+                                        'small': '小型公司',
+                                        'medium': '中型公司',
+                                        'large': '大型公司',
+                                        'enterprise': '企业级'
+                                    } %}
+                                    {{ size_map.get(company.company_size, company.company_size) }}
+                                </p>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        {% if company.credit_limit %}
+                        <div class="info-item">
+                            <div class="info-icon" style="background: #10b981;">
+                                <i class="fas fa-dollar-sign"></i>
+                            </div>
+                            <div class="info-content">
+                                <h6>信用额度</h6>
+                                <p>{{ company.currency }} {{ "{:,.2f}".format(company.credit_limit) }}</p>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        <div class="info-item">
+                            <div class="info-icon" style="background: {% if company.status == 'active' %}#10b981{% elif company.status == 'suspended' %}#f59e0b{% else %}#6b7280{% endif %};">
+                                <i class="fas fa-toggle-{{ 'on' if company.status == 'active' else 'off' }}"></i>
+                            </div>
+                            <div class="info-content">
+                                <h6>状态</h6>
+                                <p>
+                                    {% if company.status == 'active' %}
+                                        <span class="visa-badge visa-badge-success">活跃</span>
+                                    {% elif company.status == 'inactive' %}
+                                        <span class="visa-badge" style="background: #e5e7eb; color: #6b7280;">非活跃</span>
+                                    {% elif company.status == 'suspended' %}
+                                        <span class="visa-badge visa-badge-warning">暂停</span>
+                                    {% endif %}
+                                </p>
+                            </div>
+                        </div>
+                        
+                        <div class="info-item">
+                            <div class="info-icon" style="background: #06b6d4;">
+                                <i class="fas fa-mouse-pointer"></i>
+                            </div>
+                            <div class="info-content">
+                                <h6>访问次数</h6>
+                                <p>
+                                    <span class="visa-badge visa-badge-info">{{ company.click_count or 0 }}</span>
+                                    {% if company.last_clicked_at %}
+                                        <br><small style="color: #94a3b8; font-size: 0.75rem;">最后访问：{{ company.last_clicked_at.strftime('%Y-%m-%d %H:%M') }}</small>
+                                    {% endif %}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {% if company.address %}
+                    <div class="visa-mt-3" style="padding-top: 1rem; border-top: 1px solid #e2e8f0;">
+                        <div class="info-item" style="border-left: 4px solid #3b82f6;">
+                            <div class="info-icon" style="background: #3b82f6;">
+                                <i class="fas fa-map-marker-alt"></i>
+                            </div>
+                            <div class="info-content">
+                                <h6>公司地址</h6>
+                                <p style="color: #64748b;">{{ company.address }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    {% if company.remarks %}
+                    <div class="visa-mt-3">
+                        <div class="info-item" style="border-left: 4px solid #f59e0b;">
+                            <div class="info-icon" style="background: #f59e0b;">
+                                <i class="fas fa-sticky-note"></i>
+                            </div>
+                            <div class="info-content">
+                                <h6>备注</h6>
+                                <p style="color: #64748b; white-space: pre-wrap; word-wrap: break-word;">{{ company.remarks }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+                </div>
+            </div>
+            
+            <div>
+                <!-- 统计卡片 -->
+                <div class="visa-card visa-mb-3">
+                    <div class="visa-card-header">
+                        <h3><i class="fas fa-chart-line"></i> 统计信息</h3>
+                    </div>
+                    <div class="visa-card-body">
+                    <div class="stat-item visa-mb-3">
+                        <div class="stat-number" style="color: #3b82f6;">
+                            <i class="fas fa-calendar-plus"></i>
+                        </div>
+                        <div class="stat-label">创建时间</div>
+                        <div style="font-size: 0.875rem; color: #64748b; margin-top: 0.25rem;">
+                            {{ company.created_at.strftime('%Y-%m-%d %H:%M') if company.created_at else '-' }}
+                        </div>
+                    </div>
+                    
+                    <div class="stat-item visa-mb-3">
+                        <div class="stat-number" style="color: #10b981;">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                        <div class="stat-label">最后更新</div>
+                        <div style="font-size: 0.875rem; color: #64748b; margin-top: 0.25rem;">
+                            {{ company.updated_at.strftime('%Y-%m-%d %H:%M') if company.updated_at else '-' }}
+                        </div>
+                    </div>
+                    
+                    {% if company.created_by %}
+                    <div class="stat-item">
+                        <div class="stat-number" style="color: #f59e0b;">
+                            <i class="fas fa-user-tag"></i>
+                        </div>
+                        <div class="stat-label">创建人</div>
+                        <div style="font-size: 0.875rem; color: #64748b; margin-top: 0.25rem;">
+                            {{ company.created_by }}
+                        </div>
+                    </div>
+                    {% endif %}
+                    </div>
+                </div>
+                
+                <!-- 关联项目卡片 -->
+                <div class="visa-card">
+                    <div class="visa-card-header">
+                        <h3><i class="fas fa-project-diagram"></i> 关联项目</h3>
+                        <span class="visa-badge visa-badge-primary">
+                            {{ company.projects.count() }}
+                        </span>
+                    </div>
+                    <div class="visa-card-body">
+                    {% if company.projects.count() > 0 %}
+                        <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                            {% for project in company.projects.limit(5).all() %}
+                            <div style="padding: 0.75rem; background: #f8fafc; border-left: 3px solid #3b82f6; border-radius: 0.375rem;">
+                                <a href="{{ url_for('business_projects.project_header.header_detail', header_id=project.id) }}" 
+                                   class="visa-btn-link visa-btn-link-primary" style="font-weight: 600;">
+                                    {{ project.hid }} - {{ project.desc }}
+                                </a>
+                                <div style="font-size: 0.75rem; color: #94a3b8; margin-top: 0.25rem;">
+                                    <i class="fas fa-calendar"></i> {{ project.created_at.strftime('%Y-%m-%d') if project.created_at else '' }}
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% if company.projects.count() > 5 %}
+                        <div class="visa-mt-2 visa-text-center">
+                            <small style="color: #94a3b8;">还有 {{ company.projects.count() - 5 }} 个项目未显示</small>
+                        </div>
+                        {% endif %}
+                    {% else %}
+                        <div class="visa-loading" style="padding: 2rem;">
+                            <i class="fas fa-inbox"></i>
+                            <p style="margin-top: 0.5rem;">暂无关联项目</p>
+                        </div>
+                    {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// 返回列表页面，保持排序状态
+function returnToList() {
+    // 使用sessionStorage保存返回标识
+    sessionStorage.setItem('company_return_from_detail', 'true');
+    
+    // 正常跳转到列表页面
+    window.location.href = "{{ url_for('corporate.list_companies') }}";
+}
+
+// 页面加载时显示访问成功提示
+document.addEventListener('DOMContentLoaded', function() {
+    // 检查是否是从列表页面跳转过来的
+    const referrer = document.referrer;
+    if (referrer.includes('/company/') && !referrer.includes('/company/{{ company.id }}')) {
+        // 显示访问成功提示
+        const successToast = document.createElement('div');
+        successToast.className = 'position-fixed top-0 end-0 p-3';
+        successToast.style.zIndex = '9999';
+        successToast.innerHTML = `
+            <div class="toast show" role="alert">
+                <div class="toast-header bg-success text-white">
+                    <strong class="me-auto">访问记录成功</strong>
+                    <button type="button" class="btn-close btn-close-white" onclick="this.parentElement.parentElement.remove()"></button>
+                </div>
+                <div class="toast-body">
+                    访问次数已更新为 <strong>{{ company.click_count }}</strong>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(successToast);
+        
+        // 3秒后自动移除提示
+        setTimeout(() => {
+            if (successToast.parentNode) {
+                successToast.remove();
+            }
+        }, 3000);
+    }
+});
+</script>
+
+{% endblock %} 

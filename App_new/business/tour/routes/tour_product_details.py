@@ -46,12 +46,54 @@ def get_image_base64(image_path):
         print(f"Error reading image: {str(e)}")  # 调试信息
         return None
 
-# 显示所有产品
+# 产品列表页 - 显示所有产品卡片（支持筛选）
+@product_details.route('/tour_product_list')
+def tour_product_list():
+    # 获取筛选参数
+    country_filter = request.args.get('country', '')
+    city_filter = request.args.get('city', '')
+    
+    # 构建查询
+    query = TourProduct.query
+    
+    # 应用筛选条件
+    if country_filter:
+        query = query.filter(TourProduct.country == country_filter)
+    if city_filter:
+        query = query.filter(TourProduct.city == city_filter)
+    
+    # 执行查询
+    products = query.order_by(TourProduct.created_at.desc()).all()
+    
+    # 获取所有可用的国家和城市（用于下拉框）
+    all_countries = db.session.query(TourProduct.country).filter(TourProduct.country.isnot(None)).distinct().order_by(TourProduct.country).all()
+    all_cities = db.session.query(TourProduct.city).filter(TourProduct.city.isnot(None)).distinct().order_by(TourProduct.city).all()
+    
+    # 转换为列表
+    countries = [c[0] for c in all_countries if c[0]]
+    cities = [c[0] for c in all_cities if c[0]]
+    
+    return render_template('business/tour/package/tour_product_list.html', 
+                         products=products,
+                         countries=countries,
+                         cities=cities,
+                         selected_country=country_filter,
+                         selected_city=city_filter)
+
+# 单个产品详情页
+@product_details.route('/tour_product_detail/<int:id>')
+def tour_product_detail(id):
+    product = TourProduct.query.get_or_404(id)
+    company = CompanyInfo.query.first()
+    return render_template('business/tour/package/tour_product_detail.html', 
+                         products=[product],  # 传递单个产品作为列表
+                         company=company, 
+                         is_pdf_export=False)
+
+# 兼容旧路由 - 重定向到列表页
 @product_details.route('/tour_product_details')
 def tour_product_details():
-    products = TourProduct.query.order_by(TourProduct.created_at.desc()).all()
-    company = CompanyInfo.query.first()
-    return render_template('business/tour/package/tour_product_detail.html', products=products, company=company, is_pdf_export=False)
+    return redirect(url_for('product_details.tour_product_list'))
 
 # 添加新产品
 @product_details.route('/tour_product/add', methods=['GET', 'POST'])
@@ -60,6 +102,8 @@ def add_product():
         try:
             new_product = TourProduct(
                 title=clean_text(request.form['title']),
+                country=clean_text(request.form.get('country', '')),
+                city=clean_text(request.form.get('city', '')),
                 itinerary=clean_text(request.form['itinerary']),
                 included=clean_text(request.form['included']),
                 not_included=clean_text(request.form['not_included']),
@@ -74,7 +118,7 @@ def add_product():
                 return jsonify({'success': True, 'message': '产品添加成功'})
             else:
                 flash('产品添加成功！', 'success')
-                return redirect(url_for('product_details.tour_product_details'))
+                return redirect(url_for('product_details.tour_product_list'))
         except Exception as e:
             db.session.rollback()
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -93,6 +137,8 @@ def edit_product(id):
     if request.method == 'POST':
         try:
             product.title = clean_text(request.form['title'])
+            product.country = clean_text(request.form.get('country', ''))
+            product.city = clean_text(request.form.get('city', ''))
             product.itinerary = clean_text(request.form['itinerary'])
             product.included = clean_text(request.form['included'])
             product.not_included = clean_text(request.form['not_included'])
@@ -106,7 +152,7 @@ def edit_product(id):
                 return jsonify({'success': True, 'message': '产品更新成功'})
             else:
                 flash('产品更新成功！', 'success')
-                return redirect(url_for('product_details.tour_product_details'))
+                return redirect(url_for('product_details.tour_product_list'))
         except Exception as e:
             db.session.rollback()
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -128,7 +174,7 @@ def delete_product(id):
         db.session.rollback()
         flash(f'删除失败：{str(e)}', 'error')
     
-    return redirect(url_for('product_details.tour_product_details'))
+    return redirect(url_for('product_details.tour_product_list'))
 
 # 导出 PDF
 @product_details.route('/generate_pdf/<int:id>')
@@ -196,4 +242,4 @@ def generate_pdf(id):
     except Exception as e:
         print(f"PDF generation error: {str(e)}")  # 调试信息
         flash(f'PDF生成失败：{str(e)}', 'error')
-        return redirect(url_for('product_details.tour_product_details'))
+        return redirect(url_for('product_details.tour_product_list'))

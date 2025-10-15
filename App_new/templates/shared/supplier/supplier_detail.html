@@ -1,190 +1,291 @@
 {% extends "shared/staff_base.html" %}
 {% block title %}{{ supplier.name }} - 供应商详情 - MyTravelPanel{% endblock %}
-{% block head %}
-<style>
-    .card {
-        border-radius: 0.5rem;
-        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
-    }
-    
-    .alert {
-        border-radius: 0.375rem;
-        border: none;
-    }
-    
-    .alert-info {
-        background-color: #d1ecf1;
-        color: #0c5460;
-    }
-    
-    .alert-warning {
-        background-color: #fff3cd;
-        color: #856404;
-    }
-    
-    .alert-danger {
-        background-color: #f8d7da;
-        color: #721c24;
-    }
-    
-    .alert-success {
-        background-color: #d4edda;
-        color: #155724;
-    }
-    
-    .badge {
-        font-size: 0.75em;
-    }
-    
-    .supplier-link {
-        color: #007bff;
-        text-decoration: none;
-        font-weight: 500;
-    }
-    
-    .supplier-link:hover {
-        color: #0056b3;
-        text-decoration: underline;
-    }
-</style>
+
+{% block extra_css %}
+<!-- 引入统一设计系统 -->
+<link rel="stylesheet" href="{{ url_for('static', filename='css/staff_common.css') }}">
+
 {% endblock %}
 {% block content %}
-<div class="container-fluid">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h1 class="h3 mb-0">
-                <i class="fas fa-truck text-primary"></i>
-                {{ supplier.name }}
-            </h1>
-            <p class="text-muted">供应商详细信息</p>
-        </div>
-        <div>
-            <a href="{{ url_for('supplier.edit_supplier', supplier_id=supplier.supplier_id) }}" class="btn btn-warning">
-                <i class="fas fa-edit"></i> 编辑
-            </a>
-            <a href="{{ url_for('supplier.suppliers') }}" class="btn btn-outline-secondary">
-                <i class="fas fa-arrow-left"></i> 返回列表
-            </a>
-        </div>
-    </div>
-    
-    {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-            {% for category, message in messages %}
-                <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
-                    {{ message }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                </div>
-            {% endfor %}
-        {% endif %}
-    {% endwith %}
-    
-    <div class="row">
-        <div class="col-md-8">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="card-title mb-0">基本信息</h5>
-                </div>
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <p><strong>供应商名称：</strong>{{ supplier.name }}</p>
-                            {% if supplier.supplier_type %}
-                                <p><strong>供应商类型：</strong>
-                                    <span class="badge bg-info">{{ supplier.supplier_type_display }}</span>
-                                </p>
-                            {% endif %}
-                            {% if supplier.contact_person %}
-                                <p><strong>联系人：</strong>{{ supplier.contact_person }}</p>
-                            {% endif %}
-                            {% if supplier.phone %}
-                                <p><strong>联系电话：</strong>{{ supplier.phone }}</p>
-                            {% endif %}
-                            {% if supplier.email %}
-                                <p><strong>联系邮箱：</strong>{{ supplier.email }}</p>
-                            {% endif %}
-                        </div>
-                        <div class="col-md-6">
-                            {% if supplier.country %}
-                                <p><strong>国家：</strong>{{ supplier.country }}</p>
-                            {% endif %}
-                            {% if supplier.region %}
-                                <p><strong>地区：</strong>{{ supplier.region }}</p>
-                            {% endif %}
-                            {% if supplier.address %}
-                                <p><strong>地址：</strong>{{ supplier.address }}</p>
-                            {% endif %}
-                            <p><strong>状态：</strong>
-                                {% if supplier.status == 'active' %}
-                                    <span class="badge bg-success">活跃</span>
-                                {% else %}
-                                    <span class="badge bg-secondary">非活跃</span>
-                                {% endif %}
-                            </p>
-                            <p><strong>访问次数：</strong>
-                                <span class="badge bg-info">{{ supplier.click_count or 0 }}</span>
-                            </p>
-                            {% if supplier.created_at %}
-                                <p><strong>创建时间：</strong>{{ supplier.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
-                            {% endif %}
-                            {% if supplier.last_updated %}
-                                <p><strong>最后更新：</strong>{{ supplier.last_updated.strftime('%Y-%m-%d %H:%M') }}</p>
-                            {% endif %}
-                        </div>
-                    </div>
-                </div>
+<div class="visa-container">
+    <div style="max-width: 1400px; margin: 0 auto;">
+        <!-- 页面头部 -->
+        <div class="visa-flex-between visa-mb-4">
+            <div>
+                <h1 class="visa-page-title" style="text-align: left; margin-bottom: 0.5rem;">
+                    <i class="fas fa-truck"></i> {{ supplier.name }}
+                </h1>
+                <p class="visa-text-muted">供应商详细信息</p>
             </div>
-            
-            {% if supplier.notes %}
-            <div class="card mt-4">
-                <div class="card-header">
-                    <h5 class="card-title mb-0">备注信息</h5>
-                </div>
-                <div class="card-body">
-                    <p>{{ supplier.notes }}</p>
-                </div>
+            <div class="visa-flex visa-gap-2">
+                <a href="{{ url_for('supplier.edit_supplier', supplier_id=supplier.supplier_id) }}" class="visa-btn visa-btn-warning">
+                    <i class="fas fa-edit"></i> 编辑
+                </a>
+                <a href="{{ url_for('supplier.suppliers') }}" class="visa-btn visa-btn-secondary">
+                    <i class="fas fa-arrow-left"></i> 返回列表
+                </a>
             </div>
-            {% endif %}
         </div>
         
-        <div class="col-md-4">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="card-title mb-0">快速操作</h5>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        
+        <div class="visa-grid-responsive" style="grid-template-columns: 2fr 1fr;">
+            <!-- 左侧：基本信息 -->
+            <div>
+                <div class="visa-card">
+                    <div class="visa-card-header">
+                        <h3><i class="fas fa-info-circle"></i> 基本信息</h3>
+                    </div>
+                    <div class="visa-card-body">
+                        <div class="visa-grid-2">
+                            <div class="info-item">
+                                <div class="info-icon" style="background: #3b82f6;">
+                                    <i class="fas fa-truck"></i>
+                                </div>
+                                <div class="info-content">
+                                    <h6>供应商名称</h6>
+                                    <p>{{ supplier.name }}</p>
+                                </div>
+                            </div>
+                            
+                            {% if supplier.supplier_type %}
+                            <div class="info-item">
+                                <div class="info-icon" style="background: #10b981;">
+                                    <i class="fas fa-tag"></i>
+                                </div>
+                                <div class="info-content">
+                                    <h6>供应商类型</h6>
+                                    <p>
+                                        <span class="visa-badge supplier-type-{{ supplier.supplier_type }}">
+                                            {{ supplier.supplier_type_display }}
+                                        </span>
+                                    </p>
+                                </div>
+                            </div>
+                            {% endif %}
+                            
+                            {% if supplier.contact_person %}
+                            <div class="info-item">
+                                <div class="info-icon" style="background: #f59e0b;">
+                                    <i class="fas fa-user"></i>
+                                </div>
+                                <div class="info-content">
+                                    <h6>联系人</h6>
+                                    <p>{{ supplier.contact_person }}</p>
+                                </div>
+                            </div>
+                            {% endif %}
+                            
+                            {% if supplier.phone %}
+                            <div class="info-item">
+                                <div class="info-icon" style="background: #06b6d4;">
+                                    <i class="fas fa-phone"></i>
+                                </div>
+                                <div class="info-content">
+                                    <h6>联系电话</h6>
+                                    <p>{{ supplier.phone }}</p>
+                                </div>
+                            </div>
+                            {% endif %}
+                            
+                            {% if supplier.email %}
+                            <div class="info-item">
+                                <div class="info-icon" style="background: #8b5cf6;">
+                                    <i class="fas fa-envelope"></i>
+                                </div>
+                                <div class="info-content">
+                                    <h6>联系邮箱</h6>
+                                    <p>{{ supplier.email }}</p>
+                                </div>
+                            </div>
+                            {% endif %}
+                            
+                            {% if supplier.country %}
+                            <div class="info-item">
+                                <div class="info-icon" style="background: #ec4899;">
+                                    <i class="fas fa-globe"></i>
+                                </div>
+                                <div class="info-content">
+                                    <h6>国家</h6>
+                                    <p>{{ supplier.country }}</p>
+                                </div>
+                            </div>
+                            {% endif %}
+                            
+                            {% if supplier.region %}
+                            <div class="info-item">
+                                <div class="info-icon" style="background: #6366f1;">
+                                    <i class="fas fa-map-marker-alt"></i>
+                                </div>
+                                <div class="info-content">
+                                    <h6>地区</h6>
+                                    <p>{{ supplier.region }}</p>
+                                </div>
+                            </div>
+                            {% endif %}
+                            
+                            <div class="info-item">
+                                <div class="info-icon" style="background: {% if supplier.status == 'active' %}#10b981{% else %}#6b7280{% endif %};">
+                                    <i class="fas fa-toggle-{{ 'on' if supplier.status == 'active' else 'off' }}"></i>
+                                </div>
+                                <div class="info-content">
+                                    <h6>状态</h6>
+                                    <p>
+                                        {% if supplier.status == 'active' %}
+                                            <span class="visa-badge visa-badge-success">活跃</span>
+                                        {% else %}
+                                            <span class="visa-badge visa-badge-secondary" style="background: #e5e7eb; color: #6b7280;">非活跃</span>
+                                        {% endif %}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        {% if supplier.address %}
+                        <div class="visa-mt-3" style="padding-top: 1rem; border-top: 1px solid #e2e8f0;">
+                            <div class="info-item" style="border-left: 4px solid #3b82f6;">
+                                <div class="info-icon" style="background: #3b82f6;">
+                                    <i class="fas fa-map-pin"></i>
+                                </div>
+                                <div class="info-content">
+                                    <h6>详细地址</h6>
+                                    <p style="color: #64748b;">{{ supplier.address }}</p>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
                 </div>
-                <div class="card-body">
-                    <div class="d-grid gap-2">
-                        <a href="{{ url_for('supplier.edit_supplier', supplier_id=supplier.supplier_id) }}" class="btn btn-warning">
-                            <i class="fas fa-edit"></i> 编辑供应商信息
-                        </a>
-                        <a href="{{ url_for('supplier.suppliers') }}" class="btn btn-outline-primary">
-                            <i class="fas fa-list"></i> 查看所有供应商
-                        </a>
-                        <button type="button" class="btn btn-outline-danger" onclick="deleteSupplier({{ supplier.supplier_id }}, '{{ supplier.name }}')">
-                            <i class="fas fa-trash"></i> 删除供应商
-                        </button>
+                
+                {% if supplier.notes %}
+                <div class="visa-card visa-mt-3">
+                    <div class="visa-card-header">
+                        <h3><i class="fas fa-sticky-note"></i> 备注信息</h3>
+                    </div>
+                    <div class="visa-card-body">
+                        <div class="info-item" style="border-left: 4px solid #f59e0b;">
+                            <div class="info-icon" style="background: #f59e0b;">
+                                <i class="fas fa-sticky-note"></i>
+                            </div>
+                            <div class="info-content">
+                                <p style="color: #64748b; white-space: pre-wrap; word-wrap: break-word;">{{ supplier.notes }}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            
+                <!-- 关联账号列表 -->
+                <div class="visa-card visa-mt-3">
+                    <div class="visa-card-header">
+                        <h3><i class="fas fa-user-lock"></i> 关联账号</h3>
+                        <span class="visa-badge visa-badge-primary">{{ supplier.accounts|length if supplier.accounts else 0 }} 个账号</span>
+                    </div>
+                    <div class="visa-card-body">
+                        {% if supplier.accounts %}
+                            <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                                {% for account in supplier.accounts %}
+                                <div style="padding: 0.75rem; background: #f8fafc; border-left: 3px solid #3b82f6; border-radius: 0.375rem;">
+                                    <div style="display: flex; justify-content: space-between; align-items: start;">
+                                        <div style="flex: 1;">
+                                            {% if account.website_url %}
+                                                <a href="{{ account.website_url }}" target="_blank" class="visa-btn-link visa-btn-link-primary" style="font-weight: 600;">
+                                                    {{ account.platform }}
+                                                    <i class="fas fa-external-link-alt" style="font-size: 0.75rem;"></i>
+                                                </a>
+                                            {% else %}
+                                                <div style="font-weight: 600; color: #1e293b;">{{ account.platform }}</div>
+                                            {% endif %}
+                                            <div style="font-size: 0.875rem; color: #64748b; margin-top: 0.25rem;">
+                                                <i class="fas fa-user"></i> {{ account.username }}
+                                                {% if account.category %}
+                                                    <span class="visa-badge visa-badge-info" style="margin-left: 0.5rem;">{{ account.category }}</span>
+                                                {% endif %}
+                                            </div>
+                                            <div style="font-size: 0.75rem; color: #94a3b8; margin-top: 0.25rem;">
+                                                归属: {{ account.owner or '-' }}
+                                                {% if account.updated_at %}
+                                                    • 更新: {{ account.updated_at.strftime('%Y-%m-%d') }}
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                        <a href="{{ url_for('account_routes.account_page') }}?edit={{ account.id }}" 
+                                           class="visa-btn visa-btn-sm visa-btn-primary">
+                                            <i class="fas fa-edit"></i> 编辑
+                                        </a>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <div class="visa-loading" style="padding: 2rem;">
+                                <i class="fas fa-inbox"></i>
+                                <p style="margin-top: 0.5rem;">暂无关联账号</p>
+                            </div>
+                        {% endif %}
                     </div>
                 </div>
             </div>
             
-            <div class="card mt-4">
-                <div class="card-header">
-                    <h5 class="card-title mb-0">统计信息</h5>
-                </div>
-                <div class="card-body">
-                    <div class="row text-center">
-                        <div class="col-6">
-                            <div class="border-end">
-                                <h4 class="text-primary">{{ supplier.click_count or 0 }}</h4>
-                                <small class="text-muted">访问次数</small>
+            <div>
+                <!-- 统计卡片 -->
+                <div class="visa-card visa-mb-3">
+                    <div class="visa-card-header">
+                        <h3><i class="fas fa-chart-line"></i> 统计信息</h3>
+                    </div>
+                    <div class="visa-card-body">
+                        <div class="stat-item visa-mb-3">
+                            <div class="stat-number" style="color: #3b82f6;">
+                                <i class="fas fa-mouse-pointer"></i>
+                            </div>
+                            <div class="stat-label">访问次数</div>
+                            <div style="font-size: 0.875rem; color: #64748b; margin-top: 0.25rem;">
+                                <span class="visa-badge visa-badge-info">{{ supplier.click_count or 0 }}</span>
                             </div>
                         </div>
-                        <div class="col-6">
-                            <h4 class="text-success">
-                                {% if supplier.status == 'active' %}活跃{% else %}非活跃{% endif %}
-                            </h4>
-                            <small class="text-muted">当前状态</small>
+                        
+                        <div class="stat-item visa-mb-3">
+                            <div class="stat-number" style="color: #10b981;">
+                                <i class="fas fa-user-lock"></i>
+                            </div>
+                            <div class="stat-label">关联账号</div>
+                            <div style="font-size: 0.875rem; color: #64748b; margin-top: 0.25rem;">
+                                <span class="visa-badge visa-badge-primary">{{ supplier.accounts|length if supplier.accounts else 0 }}</span>
+                            </div>
                         </div>
+                        
+                        {% if supplier.created_at %}
+                        <div class="stat-item visa-mb-3">
+                            <div class="stat-number" style="color: #f59e0b;">
+                                <i class="fas fa-calendar-plus"></i>
+                            </div>
+                            <div class="stat-label">创建时间</div>
+                            <div style="font-size: 0.875rem; color: #64748b; margin-top: 0.25rem;">
+                                {{ supplier.created_at.strftime('%Y-%m-%d %H:%M') }}
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        {% if supplier.last_updated %}
+                        <div class="stat-item">
+                            <div class="stat-number" style="color: #06b6d4;">
+                                <i class="fas fa-clock"></i>
+                            </div>
+                            <div class="stat-label">最后更新</div>
+                            <div style="font-size: 0.875rem; color: #64748b; margin-top: 0.25rem;">
+                                {{ supplier.last_updated.strftime('%Y-%m-%d %H:%M') }}
+                            </div>
+                        </div>
+                        {% endif %}
                     </div>
                 </div>
             </div>

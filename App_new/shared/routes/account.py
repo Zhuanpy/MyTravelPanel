@@ -9,6 +9,7 @@ from datetime import datetime
 import pandas as pd
 from io import BytesIO
 from App_new.shared.models.account import Account
+from App_new.shared.models.Suppliers import Supplier
 
 # 创建蓝图
 account_routes = Blueprint('account_routes', __name__)
@@ -211,7 +212,9 @@ def get_accounts():
             'notes': account.notes,
             'click_count': account.click_count or 0,
             'created_at': account.created_at.isoformat() if account.created_at else None,
-            'updated_at': account.updated_at.isoformat() if account.updated_at else None
+            'updated_at': account.updated_at.isoformat() if account.updated_at else None,
+            'supplier_id': account.supplier_id,
+            'supplier_name': account.supplier.name if account.supplier else None
         } for account in accounts]
         
         logger.info(f"Successfully fetched {len(accounts_data)} accounts")
@@ -265,7 +268,9 @@ def get_account(account_id):
                 'notes': account.notes,
                 'click_count': account.click_count or 0,
                 'created_at': account.created_at.isoformat() if account.created_at else None,
-                'updated_at': account.updated_at.isoformat() if account.updated_at else None
+                'updated_at': account.updated_at.isoformat() if account.updated_at else None,
+                'supplier_id': account.supplier_id,
+                'supplier_name': account.supplier.name if account.supplier else None
             }
         })
     except Exception as e:
@@ -307,6 +312,27 @@ def create_account():
                     'message': f'缺少必填字段: {field}'
                 }), 400
 
+        # 验证供应商ID（如果提供）
+        supplier_id = data.get('supplier_id')
+        # 处理空字符串和 null
+        if supplier_id == '' or supplier_id == 'null':
+            supplier_id = None
+        
+        if supplier_id is not None:
+            try:
+                supplier_id = int(supplier_id)
+                supplier = Supplier.query.get(supplier_id)
+                if not supplier:
+                    return jsonify({
+                        'success': False,
+                        'message': f'供应商ID {supplier_id} 不存在'
+                    }), 400
+            except (ValueError, TypeError):
+                return jsonify({
+                    'success': False,
+                    'message': '供应商ID格式错误'
+                }), 400
+        
         # 创建新账号
         new_account = Account(
             platform=data['platform'],
@@ -318,7 +344,8 @@ def create_account():
             country=data.get('country'),
             region=data.get('region'),
             description=data.get('description'),
-            notes=data.get('notes')
+            notes=data.get('notes'),
+            supplier_id=supplier_id
         )
 
         db.session.add(new_account)
@@ -377,6 +404,32 @@ def update_account(account_id):
 
         data = request.get_json()
         logger.info(f"Update data received: {data}")
+
+        # 验证并更新供应商ID
+        if 'supplier_id' in data:
+            supplier_id = data.get('supplier_id')
+            # 处理空字符串和 null
+            if supplier_id == '' or supplier_id == 'null':
+                supplier_id = None
+            
+            if supplier_id is not None:
+                # 验证供应商是否存在
+                try:
+                    supplier_id = int(supplier_id)
+                    supplier = Supplier.query.get(supplier_id)
+                    if not supplier:
+                        return jsonify({
+                            'success': False,
+                            'message': f'供应商ID {supplier_id} 不存在'
+                        }), 400
+                except (ValueError, TypeError):
+                    return jsonify({
+                        'success': False,
+                        'message': '供应商ID格式错误'
+                    }), 400
+            
+            account.supplier_id = supplier_id
+            logger.info(f"Updated supplier_id to: {supplier_id}")
 
         # 更新账号信息
         account.platform = data.get('platform', account.platform)
@@ -685,4 +738,38 @@ def download_template():
         return jsonify({
             'success': False,
             'message': f'生成模板失败: {str(e)}'
+        }), 500
+
+@account_routes.route('/api/suppliers', methods=['GET'])
+@login_required
+@staff_only
+def get_suppliers():
+    """获取供应商列表，用于账号管理页面的下拉选择"""
+    try:
+        logger.info("Fetching suppliers for account management")
+        
+        # 获取所有活跃的供应商
+        suppliers = Supplier.query.filter_by(status='active').order_by(Supplier.name).all()
+        logger.info(f"Found {len(suppliers)} active suppliers")
+        
+        suppliers_data = [{
+            'supplier_id': supplier.supplier_id,
+            'name': supplier.name,
+            'supplier_type': supplier.supplier_type,
+            'supplier_type_display': supplier.supplier_type_display,
+            'country': supplier.country
+        } for supplier in suppliers]
+        
+        logger.info(f"Returning {len(suppliers_data)} suppliers to frontend")
+        return jsonify({
+            'success': True,
+            'suppliers': suppliers_data
+        })
+    except Exception as e:
+        logger.error(f"Error fetching suppliers: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({
+            'success': False,
+            'message': f'获取供应商列表失败: {str(e)}'
         }), 500 

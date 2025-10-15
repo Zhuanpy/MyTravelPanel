@@ -1,0 +1,204 @@
+{% extends "shared/staff_base.html" %}
+{% block title %}{% if supplier %}编辑供应商 - {{ supplier.name }}{% else %}新增供应商{% endif %} - MyTravelPanel{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/staff_common.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="visa-container">
+    <div style="max-width: 1200px; margin: 0 auto;">
+        <div class="visa-flex-between visa-mb-4">
+            <div>
+                <h1 class="visa-page-title" style="text-align: left; margin-bottom: 0.5rem;">
+                    <i class="fas fa-truck"></i> 
+                    {% if supplier %}编辑供应商 - {{ supplier.name }}{% else %}新增供应商{% endif %}
+                </h1>
+                <p class="visa-text-muted">{% if supplier %}修改供应商信息{% else %}添加新的供应商信息{% endif %}</p>
+            </div>
+            <div class="visa-flex visa-gap-2">
+                {% if supplier %}
+                <a href="{{ url_for('supplier.view_supplier', supplier_id=supplier.supplier_id) }}" class="visa-btn visa-btn-info">
+                    <i class="fas fa-eye"></i> 查看详情
+                </a>
+                {% endif %}
+                <a href="{{ url_for('supplier.suppliers') }}" class="visa-btn visa-btn-secondary">
+                    <i class="fas fa-arrow-left"></i> 返回列表
+                </a>
+            </div>
+        </div>
+        
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        
+        <div class="visa-card">
+            <div class="visa-card-header">
+                <h3>
+                    <i class="fas fa-info-circle"></i> 供应商信息
+                </h3>
+            </div>
+            <div class="visa-card-body">
+                <form method="POST" action="{% if supplier %}{{ url_for('supplier.edit_supplier', supplier_id=supplier.supplier_id) }}{% else %}{{ url_for('supplier.add_supplier') }}{% endif %}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    
+                    <!-- 第一行：供应商名称、类型、联系人、电话 -->
+                    <div class="visa-grid-4">
+                        <div class="visa-form-group">
+                            <label for="name" class="visa-form-label">
+                                供应商名称 <span style="color: #ef4444;">*</span>
+                            </label>
+                            <input type="text" 
+                                   class="visa-form-control" 
+                                   id="name" 
+                                   name="name" 
+                                   required 
+                                   placeholder="请输入供应商名称" 
+                                   value="{% if supplier %}{{ supplier.name }}{% else %}{{ request.form.get('name', '') }}{% endif %}">
+                        </div>
+                        
+                        <div class="visa-form-group">
+                            <label for="supplier_type" class="visa-form-label">
+                                供应商类型
+                            </label>
+                            <select class="visa-form-select" id="supplier_type" name="supplier_type">
+                                {% for type_code, type_name in supplier_types %}
+                                <option value="{{ type_code }}" 
+                                        {% if supplier %}
+                                            {{ 'selected' if supplier.supplier_type == type_code }}
+                                        {% else %}
+                                            {{ 'selected' if request.form.get('supplier_type') == type_code }}
+                                        {% endif %}>
+                                    {{ type_name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="visa-form-group">
+                            <label for="contact_person" class="visa-form-label">
+                                联系人
+                            </label>
+                            <input type="text" 
+                                   class="visa-form-control" 
+                                   id="contact_person" 
+                                   name="contact_person" 
+                                   placeholder="请输入联系人姓名" 
+                                   value="{% if supplier %}{{ supplier.contact_person or '' }}{% else %}{{ request.form.get('contact_person', '') }}{% endif %}">
+                        </div>
+                        
+                        <div class="visa-form-group">
+                            <label for="phone" class="visa-form-label">
+                                联系电话
+                            </label>
+                            <input type="text" 
+                                   class="visa-form-control" 
+                                   id="phone" 
+                                   name="phone" 
+                                   placeholder="请输入联系电话" 
+                                   value="{% if supplier %}{{ supplier.phone or '' }}{% else %}{{ request.form.get('phone', '') }}{% endif %}">
+                        </div>
+                    </div>
+                    
+                    <!-- 第二行：邮箱、状态、国家、地区 -->
+                    <div class="visa-grid-4">
+                        <div class="visa-form-group">
+                            <label for="email" class="visa-form-label">
+                                邮箱地址
+                            </label>
+                            <input type="email" 
+                                   class="visa-form-control" 
+                                   id="email" 
+                                   name="email" 
+                                   placeholder="请输入邮箱地址" 
+                                   value="{% if supplier %}{{ supplier.email or '' }}{% else %}{{ request.form.get('email', '') }}{% endif %}">
+                        </div>
+                        
+                        <div class="visa-form-group">
+                            <label for="status" class="visa-form-label">
+                                状态
+                            </label>
+                            <select class="visa-form-select" id="status" name="status">
+                                {% if supplier %}
+                                    <option value="active" {{ 'selected' if supplier.status == 'active' }}>活跃</option>
+                                    <option value="inactive" {{ 'selected' if supplier.status == 'inactive' }}>非活跃</option>
+                                {% else %}
+                                    <option value="active" {{ 'selected' if request.form.get('status') == 'active' or not request.form.get('status') }}>活跃</option>
+                                    <option value="inactive" {{ 'selected' if request.form.get('status') == 'inactive' }}>非活跃</option>
+                                {% endif %}
+                            </select>
+                        </div>
+                        
+                        <div class="visa-form-group">
+                            <label for="country" class="visa-form-label">
+                                国家
+                            </label>
+                            <input type="text" 
+                                   class="visa-form-control" 
+                                   id="country" 
+                                   name="country" 
+                                   placeholder="请输入国家" 
+                                   value="{% if supplier %}{{ supplier.country or '' }}{% else %}{{ request.form.get('country', '') }}{% endif %}">
+                        </div>
+                        
+                        <div class="visa-form-group">
+                            <label for="region" class="visa-form-label">
+                                地区
+                            </label>
+                            <input type="text" 
+                                   class="visa-form-control" 
+                                   id="region" 
+                                   name="region" 
+                                   placeholder="请输入地区" 
+                                   value="{% if supplier %}{{ supplier.region or '' }}{% else %}{{ request.form.get('region', '') }}{% endif %}">
+                        </div>
+                    </div>
+                    
+                    <!-- 详细地址 -->
+                    <div class="visa-form-group">
+                        <label for="address" class="visa-form-label">
+                            详细地址
+                        </label>
+                        <textarea class="visa-form-control" 
+                                  id="address" 
+                                  name="address" 
+                                  rows="3" 
+                                  placeholder="请输入详细地址">{% if supplier %}{{ supplier.address or '' }}{% else %}{{ request.form.get('address', '') }}{% endif %}</textarea>
+                    </div>
+                    
+                    <!-- 备注信息 -->
+                    <div class="visa-form-group">
+                        <label for="notes" class="visa-form-label">
+                            备注信息
+                        </label>
+                        <textarea class="visa-form-control" 
+                                  id="notes" 
+                                  name="notes" 
+                                  rows="4" 
+                                  placeholder="请输入备注信息">{% if supplier %}{{ supplier.notes or '' }}{% else %}{{ request.form.get('notes', '') }}{% endif %}</textarea>
+                    </div>
+                    
+                    <!-- 按钮 -->
+                    <div class="visa-flex-end visa-gap-2">
+                        <a href="{% if supplier %}{{ url_for('supplier.view_supplier', supplier_id=supplier.supplier_id) }}{% else %}{{ url_for('supplier.suppliers') }}{% endif %}" 
+                           class="visa-btn visa-btn-secondary">
+                            <i class="fas fa-times"></i> 取消
+                        </a>
+                        <button type="submit" class="visa-btn {% if supplier %}visa-btn-warning{% else %}visa-btn-primary{% endif %}">
+                            <i class="fas fa-save"></i> {% if supplier %}更新供应商{% else %}保存供应商{% endif %}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

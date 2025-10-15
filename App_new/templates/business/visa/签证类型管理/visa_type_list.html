@@ -1,11 +1,11 @@
-{% extends "staff_base.html" %}
+﻿{% extends "staff_base.html" %}
 
 {% block title %}Visa Type List - MyTravelPanel{% endblock %}
 
 {% block page_title %}Visa Type List{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/visa_common.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/staff_common.css') }}">
 {% endblock %}
 
 {% block content %}
@@ -596,7 +596,7 @@ function openEditModal(field, visaType, currentValue = '') {
                 <input type="text" 
                        name="value" 
                        value="${currentValue}" 
-                       class="form-control" 
+                       class="visa-form-control" 
                        style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
             </div>
         `;

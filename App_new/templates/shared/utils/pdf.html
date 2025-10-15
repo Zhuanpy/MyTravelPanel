@@ -5,27 +5,27 @@
 {% block page_title %}PDF处理{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/utils_common.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/staff_common.css') }}">
 {% endblock %}
 
 {% block content %}
-<div id="successMessage" class="utils-flash" style="display: none;"></div>
+<div id="successMessage" class="visa-flash" style="display: none;"></div>
 
-<div class="utils-container-sm">
-    <h1 class="utils-page-title">PDF文件处理</h1>
-    <p class="utils-page-subtitle">高效处理PDF和Office文档</p>
+<div class="visa-container-sm">
+    <h1 class="visa-page-title">PDF文件处理</h1>
+    <p class="visa-text-center visa-text-muted">高效处理PDF和Office文档</p>
 
     <!-- 图片合并为PDF -->
-    <div class="utils-card utils-mb-3">
-        <div class="utils-card-header" style="background: #fef2f2;">
+    <div class="visa-card visa-mb-3">
+        <div class="visa-card-header" style="background: #fef2f2;">
             <h2 style="color: #dc2626;"><i class="fas fa-images"></i> 图片合并为PDF</h2>
         </div>
-        <div class="utils-card-body">
+        <div class="visa-card-body">
             <form id="imageForm" method="post" action="{{url_for('utils_process.merge_images_to_pdf')}}" onsubmit="return handleSubmit(this, event)">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <div class="utils-form-group">
-                    <label for="imageFolderPath" class="utils-form-label">图片路径</label>
-                    <input type="text" id="imageFolderPath" name="imageFolderPath" class="utils-form-control" 
+                <div class="visa-form-group">
+                    <label for="imageFolderPath" class="visa-form-label">图片路径</label>
+                    <input type="text" id="imageFolderPath" name="imageFolderPath" class="visa-form-control" 
                            placeholder="支持文件夹路径或单个图片文件路径">
                     <div class="tw-mt-2 tw-text-sm tw-text-gray-600">
                         <p class="tw-mb-1"><i class="fas fa-info-circle tw-text-blue-500"></i> <strong>文件夹路径：</strong>合并文件夹内所有图片，PDF文件名为文件夹名</p>
@@ -34,7 +34,7 @@
                         <p class="tw-ml-5 tw-text-xs">示例: C:\Users\User\Downloads\JPG\497.png → 生成 497.pdf</p>
                     </div>
                 </div>
-                <button type="submit" name="submit_button" value="merge_images" class="utils-btn utils-btn-accent utils-btn-lg">
+                <button type="submit" name="submit_button" value="merge_images" class="visa-btn visa-btn-accent visa-btn-lg">
                     <i class="fas fa-file-pdf"></i> 图片合并为PDF
                 </button>
             </form>
@@ -42,19 +42,19 @@
     </div>
 
     <!-- 多个PDF合并 -->
-    <div class="utils-card utils-mb-3">
-        <div class="utils-card-header" style="background: #fff7ed;">
+    <div class="visa-card visa-mb-3">
+        <div class="visa-card-header" style="background: #fff7ed;">
             <h2 style="color: #ea580c;"><i class="fas fa-object-group"></i> 多个PDF合并</h2>
         </div>
-        <div class="utils-card-body">
+        <div class="visa-card-body">
             <form id="pdfForm" method="post" action="{{url_for('utils_process.merge_pdf_to_pdf')}}" onsubmit="return handleSubmit(this, event)">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <div class="utils-form-group">
-                    <label for="pdfFolderPath" class="utils-form-label">PDF文件夹路径</label>
-                    <input type="text" id="pdfFolderPath" name="pdfFolderPath" class="utils-form-control" 
+                <div class="visa-form-group">
+                    <label for="pdfFolderPath" class="visa-form-label">PDF文件夹路径</label>
+                    <input type="text" id="pdfFolderPath" name="pdfFolderPath" class="visa-form-control" 
                            placeholder="输入包含PDF文件的文件夹路径">
                 </div>
-                <button type="submit" name="submit_button" value="merge_pdfs" class="utils-btn utils-btn-accent utils-btn-lg">
+                <button type="submit" name="submit_button" value="merge_pdfs" class="visa-btn visa-btn-accent visa-btn-lg">
                     <i class="fas fa-compress"></i> 多个PDF合并
                 </button>
             </form>
@@ -62,19 +62,19 @@
     </div>
 
     <!-- Word转换PDF -->
-    <div class="utils-card utils-mb-3">
-        <div class="utils-card-header" style="background: #dbeafe;">
+    <div class="visa-card visa-mb-3">
+        <div class="visa-card-header" style="background: #dbeafe;">
             <h2 style="color: #1e40af;"><i class="fas fa-file-word"></i> Word转换PDF</h2>
         </div>
-        <div class="utils-card-body">
+        <div class="visa-card-body">
             <form id="wordForm" method="post" action="{{url_for('utils_process.word_to_pdf')}}" onsubmit="return handleSubmit(this, event)">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="utils-form-group">
-                    <label for="wordFolderPath" class="utils-form-label">Word文件夹路径</label>
-                    <input type="text" id="wordFolderPath" name="wordFolderPath" class="utils-form-control" required
+                    <label for="wordFolderPath" class="visa-form-label">Word文件夹路径</label>
+                    <input type="text" id="wordFolderPath" name="wordFolderPath" class="visa-form-control" required
                            placeholder="输入包含Word文件的文件夹路径">
                 </div>
-                <button type="submit" name="submit_button" value="word_to_pdf" class="utils-btn utils-btn-info utils-btn-lg">
+                <button type="submit" name="submit_button" value="word_to_pdf" class="visa-btn visa-btn-info visa-btn-lg">
                     <i class="fas fa-exchange-alt"></i> Word转PDF
                 </button>
             </form>
@@ -82,24 +82,24 @@
     </div>
 
     <!-- 长截图切分打印 -->
-    <div class="utils-card utils-mb-3">
-        <div class="utils-card-header" style="background: #faf5ff;">
+    <div class="visa-card visa-mb-3">
+        <div class="visa-card-header" style="background: #faf5ff;">
             <h2 style="color: #7c3aed;"><i class="fas fa-cut"></i> 长截图切分打印</h2>
         </div>
-        <div class="utils-card-body">
+        <div class="visa-card-body">
             <form id="screenshotForm" method="post" action="{{url_for('utils_process.split_screenshot_to_pdf')}}" onsubmit="return handleSubmit(this, event)">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <div class="utils-form-group">
-                    <label for="screenshotFolderPath" class="utils-form-label">长截图文件夹路径</label>
-                    <input type="text" id="screenshotFolderPath" name="screenshotFolderPath" class="utils-form-control" required
+                <div class="visa-form-group">
+                    <label for="screenshotFolderPath" class="visa-form-label">长截图文件夹路径</label>
+                    <input type="text" id="screenshotFolderPath" name="screenshotFolderPath" class="visa-form-control" required
                            placeholder="输入包含长截图的文件夹路径">
                 </div>
-                <div class="utils-form-group">
-                    <label for="marginSize" class="utils-form-label">上下边距 (毫米)</label>
-                    <input type="number" id="marginSize" name="marginSize" class="utils-form-control" 
+                <div class="visa-form-group">
+                    <label for="marginSize" class="visa-form-label">上下边距 (毫米)</label>
+                    <input type="number" id="marginSize" name="marginSize" class="visa-form-control" 
                            value="20" min="0" max="50" style="width: 200px;">
                 </div>
-                <button type="submit" name="submit_button" value="split_screenshot" class="utils-btn utils-btn-warning utils-btn-lg">
+                <button type="submit" name="submit_button" value="split_screenshot" class="visa-btn visa-btn-warning visa-btn-lg">
                     <i class="fas fa-scissors"></i> 长截图切分打印
                 </button>
             </form>
@@ -168,7 +168,7 @@ function handleSubmit(form, event) {
 function showSuccessMessage(message) {
     const messageDiv = document.getElementById('successMessage');
     messageDiv.textContent = message;
-    messageDiv.className = 'utils-flash utils-flash-success';
+    messageDiv.className = 'visa-flash visa-flash-success';
     messageDiv.style.display = 'block';
     setTimeout(() => {
         messageDiv.style.opacity = '0';
@@ -182,7 +182,7 @@ function showSuccessMessage(message) {
 function showErrorMessage(message) {
     const messageDiv = document.getElementById('successMessage');
     messageDiv.textContent = message;
-    messageDiv.className = 'utils-flash utils-flash-error';
+    messageDiv.className = 'visa-flash visa-flash-error';
     messageDiv.style.display = 'block';
     setTimeout(() => {
         messageDiv.style.opacity = '0';

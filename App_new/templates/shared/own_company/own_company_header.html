@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>公司抬头 - LEGEND TRAVEL PTE LTD</title>
+    <style>
+        /* A4纸张设置 */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', 'Microsoft YaHei', sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+
+        /* A4容器 */
+        .a4-container {
+            width: 210mm;
+            min-height: 297mm;
+            margin: 0 auto;
+            background: white;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            position: relative;
+            border: 1px solid #e5e7eb;
+        }
+
+        /* 公司抬头区域 - 图片样式 */
+        .company-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 30px 60px;
+            background: white;
+            margin: 0;
+            border: none;
+            min-height: 120px;
+        }
+
+        /* Logo区域 */
+        .company-logo {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+            flex-shrink: 0;
+        }
+
+        .logo-image-section img {
+            height: 120px;
+            width: 120px;
+            object-fit: contain;
+            border-radius: 50%;
+        }
+
+        .logo-text-section {
+            text-align: center;
+        }
+
+        .company-abbrev-en {
+            font-size: 16px;
+            font-weight: 700;
+            color: #000;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+
+        .company-abbrev-cn {
+            font-size: 14px;
+            font-weight: 500;
+            color: #000;
+            margin-top: 2px;
+        }
+
+        /* 公司信息区域 - 右对齐 */
+        .company-info {
+            text-align: right;
+            flex: 1;
+            margin-left: 60px;
+        }
+
+        .company-name-container {
+            margin-bottom: 20px;
+        }
+
+        .company-name-container h1 {
+            font-size: 16px;
+            font-weight: 400;
+            color: #000;
+            line-height: 1.6;
+            margin: 0;
+        }
+
+        .company-name-container h1:first-child {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .company-name-container h1:last-child {
+            font-size: 20px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .company-details-container {
+            font-size: 14px;
+            line-height: 2;
+            color: #000;
+        }
+
+        .company-details-container p {
+            margin: 0;
+            font-weight: 400;
+        }
+
+        /* 打印样式 */
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+            }
+
+            .a4-container {
+                width: 100%;
+                min-height: auto;
+                box-shadow: none;
+                margin: 0;
+                border: 1px solid #e5e7eb;
+            }
+
+            .company-header {
+                padding: 20px 40px;
+                border-bottom: none;
+                min-height: 100px;
+            }
+
+            .print-controls {
+                display: none;
+            }
+        }
+
+        /* 打印控制按钮 */
+        .print-controls {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            display: flex;
+            gap: 10px;
+        }
+
+        .print-btn {
+            background: #1a56db;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 2px 8px rgba(26, 86, 219, 0.3);
+            transition: all 0.3s ease;
+        }
+
+        .print-btn:hover {
+            background: #1e40af;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(26, 86, 219, 0.4);
+        }
+
+        .back-btn {
+            background: #6b7280;
+        }
+
+        .back-btn:hover {
+            background: #4b5563;
+        }
+
+        /* 水印区域（可选） */
+        .watermark {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 100px;
+            color: rgba(26, 86, 219, 0.03);
+            font-weight: 700;
+            pointer-events: none;
+            z-index: 0;
+        }
+    </style>
+</head>
+<body>
+    <!-- 打印控制按钮 -->
+    <div class="print-controls">
+        <button class="print-btn back-btn" onclick="window.history.back()">
+            <i class="fas fa-arrow-left"></i> 返回
+        </button>
+        <button class="print-btn" onclick="window.print()">
+            <i class="fas fa-print"></i> 打印
+        </button>
+    </div>
+
+    <!-- A4容器 -->
+    <div class="a4-container">
+        <!-- 水印（可选） -->
+        <!-- <div class="watermark">LEGEND TRAVEL</div> -->
+        
+        {% include 'shared/own_company/own_company_header_component.html' %}
+        
+        <!-- 这里可以添加其他内容，例如：信纸内容区域 -->
+        <div style="padding: 40px; min-height: 200mm;">
+            <!-- 预留空白区域，可用于手写或添加其他内容 -->
+        </div>
+    </div>
+
+    <!-- Font Awesome图标 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</body>
+</html> 

@@ -33,11 +33,11 @@
                 <div class="row">
                     <div class="col-md-6">
                         <div class="form-group">
-                            <label for="first_name" class="form-label">
+                            <label for="first_name" class="visa-form-label">
                                 姓名 <span class="required">*</span>
                             </label>
                             <input type="text" 
-                                   class="form-control" 
+                                   class="visa-form-control" 
                                    id="first_name" 
                                    name="first_name" 
                                    value="{{ user.profile.first_name if user.profile else '' }}"
@@ -48,9 +48,9 @@
                     
                     <div class="col-md-6">
                         <div class="form-group">
-                            <label for="last_name" class="form-label">姓氏</label>
+                            <label for="last_name" class="visa-form-label">姓氏</label>
                             <input type="text" 
-                                   class="form-control" 
+                                   class="visa-form-control" 
                                    id="last_name" 
                                    name="last_name" 
                                    value="{{ user.profile.last_name if user.profile else '' }}">
@@ -60,9 +60,9 @@
                 </div>
                 
                 <div class="form-group">
-                    <label for="phone" class="form-label">联系电话</label>
+                    <label for="phone" class="visa-form-label">联系电话</label>
                     <input type="tel" 
-                           class="form-control" 
+                           class="visa-form-control" 
                            id="phone" 
                            name="phone" 
                            value="{{ user.profile.phone if user.profile else '' }}"
@@ -71,9 +71,9 @@
                 </div>
                 
                 <div class="form-group">
-                    <label for="company" class="form-label">公司</label>
+                    <label for="company" class="visa-form-label">公司</label>
                     <input type="text" 
-                           class="form-control" 
+                           class="visa-form-control" 
                            id="company" 
                            name="company" 
                            value="{{ user.profile.company if user.profile else '' }}"
@@ -83,9 +83,9 @@
                 </div>
                 
                 <div class="form-group">
-                    <label for="position" class="form-label">职位</label>
+                    <label for="position" class="visa-form-label">职位</label>
                     <input type="text" 
-                           class="form-control" 
+                           class="visa-form-control" 
                            id="position" 
                            name="position" 
                            value="{{ user.profile.position if user.profile else '' }}"
@@ -94,8 +94,8 @@
                 </div>
                 
                 <div class="form-group">
-                    <label for="address" class="form-label">地址</label>
-                    <textarea class="form-control" 
+                    <label for="address" class="visa-form-label">地址</label>
+                    <textarea class="visa-form-control" 
                               id="address" 
                               name="address" 
                               rows="3" 

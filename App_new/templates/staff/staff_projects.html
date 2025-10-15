@@ -10,7 +10,7 @@
 
 {% block page_actions %}
 <div class="btn-group" role="group">
-         <a href="{{ url_for('business_projects.project_create.create_header') }}" class="btn btn-success">
+         <a href="{{ url_for('business_projects.project_create.create_header') }}" class="visa-btn visa-btn-success">
         <i class="fas fa-plus me-1"></i>新建项目
     </a>
     <button type="button" class="btn btn-outline-secondary dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown">
@@ -29,13 +29,13 @@
     <div class="card-body">
         <form method="GET" class="row g-3">
             <div class="col-md-3">
-                <label for="search" class="form-label">搜索</label>
-                <input type="text" class="form-control" id="search" name="search" 
+                <label for="search" class="visa-form-label">搜索</label>
+                <input type="text" class="visa-form-control" id="search" name="search" 
                        value="{{ search }}" placeholder="项目名称或客户">
             </div>
             <div class="col-md-2">
-                <label for="type" class="form-label">项目类型</label>
-                <select class="form-select" id="type" name="type">
+                <label for="type" class="visa-form-label">项目类型</label>
+                <select class="visa-form-select" id="type" name="type">
                     <option value="">全部类型</option>
                     <option value="visa" {% if project_type == 'visa' %}selected{% endif %}>签证服务</option>
                     <option value="tour" {% if project_type == 'tour' %}selected{% endif %}>旅游配套</option>
@@ -45,8 +45,8 @@
                 </select>
             </div>
             <div class="col-md-2">
-                <label for="status" class="form-label">状态</label>
-                <select class="form-select" id="status" name="status">
+                <label for="status" class="visa-form-label">状态</label>
+                <select class="visa-form-select" id="status" name="status">
                     <option value="">全部状态</option>
                     <option value="active" {% if status == 'active' %}selected{% endif %}>进行中</option>
                     <option value="pending" {% if status == 'pending' %}selected{% endif %}>待开始</option>
@@ -55,9 +55,9 @@
                 </select>
             </div>
             <div class="col-md-3">
-                <label class="form-label">&nbsp;</label>
+                <label class="visa-form-label">&nbsp;</label>
                 <div class="d-flex gap-2">
-                    <button type="submit" class="btn btn-primary">
+                    <button type="submit" class="visa-btn visa-btn-primary">
                         <i class="fas fa-search me-1"></i>搜索
                     </button>
                     <a href="{{ url_for('business_projects.list.list_projects') }}" class="btn btn-outline-secondary">
@@ -209,7 +209,7 @@
             <i class="fas fa-project-diagram fa-3x text-gray-300 mb-3"></i>
             <h4 class="text-gray-500">暂无项目</h4>
             <p class="text-gray-400">您还没有任何项目，快去创建第一个项目吧！</p>
-            <a href="{{ url_for('business_projects.project_create.create_header') }}" class="btn btn-success">
+            <a href="{{ url_for('business_projects.project_create.create_header') }}" class="visa-btn visa-btn-success">
                 <i class="fas fa-plus me-1"></i>创建项目
             </a>
         </div>

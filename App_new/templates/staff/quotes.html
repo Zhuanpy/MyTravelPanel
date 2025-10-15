@@ -10,7 +10,7 @@
 
 {% block page_actions %}
 <div class="btn-group" role="group">
-    <a href="{{ url_for('staff.create_quote') }}" class="btn btn-success">
+    <a href="{{ url_for('staff.create_quote') }}" class="visa-btn visa-btn-success">
         <i class="fas fa-plus me-1"></i>新建报价
     </a>
     <button type="button" class="btn btn-outline-secondary dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown">
@@ -31,13 +31,13 @@
     <div class="card-body">
         <form method="GET" class="row g-3">
             <div class="col-md-3">
-                <label for="search" class="form-label">搜索</label>
-                <input type="text" class="form-control" id="search" name="search" 
+                <label for="search" class="visa-form-label">搜索</label>
+                <input type="text" class="visa-form-control" id="search" name="search" 
                        value="{{ search }}" placeholder="客户名称或项目名称">
             </div>
             <div class="col-md-2">
-                <label for="status" class="form-label">状态</label>
-                <select class="form-select" id="status" name="status">
+                <label for="status" class="visa-form-label">状态</label>
+                <select class="visa-form-select" id="status" name="status">
                     <option value="">全部状态</option>
                     <option value="pending" {% if status == 'pending' %}selected{% endif %}>待审核</option>
                     <option value="approved" {% if status == 'approved' %}selected{% endif %}>已批准</option>
@@ -46,9 +46,9 @@
                 </select>
             </div>
             <div class="col-md-3">
-                <label class="form-label">&nbsp;</label>
+                <label class="visa-form-label">&nbsp;</label>
                 <div class="d-flex gap-2">
-                    <button type="submit" class="btn btn-primary">
+                    <button type="submit" class="visa-btn visa-btn-primary">
                         <i class="fas fa-search me-1"></i>搜索
                     </button>
                     <a href="{{ url_for('staff.quotes') }}" class="btn btn-outline-secondary">
@@ -251,7 +251,7 @@
                 <i class="fas fa-file-invoice-dollar fa-3x text-muted mb-3"></i>
                 <h4>暂无报价</h4>
                 <p class="text-muted">您还没有创建任何报价，快去创建第一个报价吧！</p>
-                <a href="{{ url_for('staff.create_quote') }}" class="btn btn-success">
+                <a href="{{ url_for('staff.create_quote') }}" class="visa-btn visa-btn-success">
                     <i class="fas fa-plus me-1"></i>创建报价
                 </a>
             </div>

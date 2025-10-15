@@ -81,7 +81,7 @@
                     <div class="row mb-3">
                         <div class="col-md-2">
                             <label for="filterCountry">国家筛选:</label>
-                            <select class="form-control" id="filterCountry">
+                            <select class="visa-form-control" id="filterCountry">
                                 <option value="">全部国家</option>
                                 {% for country in countries %}
                                 <option value="{{ country.country_name_CN }}">{{ country.country_name_CN }}</option>
@@ -90,7 +90,7 @@
                         </div>
                         <div class="col-md-2">
                             <label for="filterVisaType">签证类型筛选:</label>
-                            <select class="form-control" id="filterVisaType">
+                            <select class="visa-form-control" id="filterVisaType">
                                 <option value="">全部签证类型</option>
                                 {% for visa_type in visa_types %}
                                 <option value="{{ visa_type.visa_type }}">{{ visa_type.visa_type }}</option>
@@ -99,7 +99,7 @@
                         </div>
                         <div class="col-md-2">
                             <label for="filterIdentity">身份筛选:</label>
-                            <select class="form-control" id="filterIdentity">
+                            <select class="visa-form-control" id="filterIdentity">
                                 <option value="">全部身份</option>
                                 <option value="SHARE">SHARE</option>
                                 {% for identity in identities %}
@@ -109,7 +109,7 @@
                         </div>
                         <div class="col-md-2">
                             <label for="filterResponsibleParty">准备方筛选:</label>
-                            <select class="form-control" id="filterResponsibleParty">
+                            <select class="visa-form-control" id="filterResponsibleParty">
                                 <option value="">全部</option>
                                 <option value="FOR_APPLICATION">申请人准备</option>
                                 <option value="FOR_AGENT">旅行社准备</option>

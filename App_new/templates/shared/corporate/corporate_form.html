@@ -1,0 +1,249 @@
+{% extends "staff_base.html" %}
+{% block title %}{{ '编辑公司 - ' + company.company_name if company else '新增客户公司' }} - MyTravelPanel{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/staff_common.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="visa-container">
+    <div style="max-width: 1200px; margin: 0 auto;">
+        <div class="visa-flex-between visa-mb-4">
+            <div>
+                <h1 class="visa-page-title" style="text-align: left; margin-bottom: 0.5rem;">
+                    {% if company %}
+                        <i class="fas fa-edit"></i> 编辑公司 - {{ company.company_name }}
+                    {% else %}
+                        <i class="fas fa-building"></i> 新增客户公司
+                    {% endif %}
+                </h1>
+                <p class="visa-text-muted">{{ '修改客户公司信息' if company else '添加新的客户公司信息' }}</p>
+            </div>
+            <div class="visa-flex visa-gap-2">
+                {% if company %}
+                <a href="{{ url_for('corporate.company_detail', company_id=company.id) }}" class="visa-btn visa-btn-info">
+                    <i class="fas fa-eye"></i> 查看详情
+                </a>
+                {% endif %}
+                <a href="{{ url_for('corporate.list_companies') }}" class="visa-btn visa-btn-secondary">
+                    <i class="fas fa-arrow-left"></i> 返回列表
+                </a>
+            </div>
+        </div>
+        
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        
+        <div class="visa-card">
+            <div class="visa-card-header">
+                <h3>
+                    <i class="fas fa-{{ 'edit' if company else 'info-circle' }}"></i> 
+                    {{ '编辑公司信息' if company else '公司基本信息' }}
+                </h3>
+            </div>
+            <div class="visa-card-body">
+                <form method="post" action="{{ url_for('corporate.edit_company', company_id=company.id) if company else url_for('corporate.create_company') }}">
+                    {{ form.hidden_tag() }}
+                    
+                    <!-- 第一行：公司名称*、公司代码、联系人、联系电话 -->
+                    <div class="visa-grid-4">
+                        <div class="visa-form-group">
+                            <label class="visa-form-label">
+                                {{ form.company_name.label.text }} <span style="color: #ef4444;">*</span>
+                            </label>
+                            {{ form.company_name(class="visa-form-control", oninput="this.value = this.value.toUpperCase()") }}
+                            {% if form.company_name.errors %}
+                                <div style="color: #ef4444; font-size: 0.875rem; margin-top: 0.25rem;">
+                                    {% for error in form.company_name.errors %}
+                                        <small>{{ error }}</small>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="visa-form-group">
+                            <label class="visa-form-label">{{ form.company_code.label.text }}</label>
+                            {{ form.company_code(class="visa-form-control") }}
+                            {% if form.company_code.errors %}
+                                <div style="color: #ef4444; font-size: 0.875rem; margin-top: 0.25rem;">
+                                    {% for error in form.company_code.errors %}
+                                        <small>{{ error }}</small>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="visa-form-group">
+                            <label class="visa-form-label">{{ form.contact_person.label.text }}</label>
+                            {{ form.contact_person(class="visa-form-control") }}
+                            {% if form.contact_person.errors %}
+                                <div style="color: #ef4444; font-size: 0.875rem; margin-top: 0.25rem;">
+                                    {% for error in form.contact_person.errors %}
+                                        <small>{{ error }}</small>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="visa-form-group">
+                            <label class="visa-form-label">{{ form.contact_phone.label.text }}</label>
+                            {{ form.contact_phone(class="visa-form-control") }}
+                            {% if form.contact_phone.errors %}
+                                <div style="color: #ef4444; font-size: 0.875rem; margin-top: 0.25rem;">
+                                    {% for error in form.contact_phone.errors %}
+                                        <small>{{ error }}</small>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- 第二行：联系邮箱、行业、公司规模、状态 -->
+                        <div class="visa-form-group">
+                            <label class="visa-form-label">{{ form.contact_email.label.text }}</label>
+                            {{ form.contact_email(class="visa-form-control") }}
+                            {% if form.contact_email.errors %}
+                                <div style="color: #ef4444; font-size: 0.875rem; margin-top: 0.25rem;">
+                                    {% for error in form.contact_email.errors %}
+                                        <small>{{ error }}</small>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="visa-form-group">
+                            <label class="visa-form-label">{{ form.industry.label.text }}</label>
+                            {{ form.industry(class="visa-form-select") }}
+                            {% if form.industry.errors %}
+                                <div style="color: #ef4444; font-size: 0.875rem; margin-top: 0.25rem;">
+                                    {% for error in form.industry.errors %}
+                                        <small>{{ error }}</small>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="visa-form-group">
+                            <label class="visa-form-label">{{ form.company_size.label.text }}</label>
+                            {{ form.company_size(class="visa-form-select") }}
+                            {% if form.company_size.errors %}
+                                <div style="color: #ef4444; font-size: 0.875rem; margin-top: 0.25rem;">
+                                    {% for error in form.company_size.errors %}
+                                        <small>{{ error }}</small>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="visa-form-group">
+                            <label class="visa-form-label">
+                                {{ form.status.label.text }} <span style="color: #ef4444;">*</span>
+                            </label>
+                            {{ form.status(class="visa-form-select") }}
+                            {% if form.status.errors %}
+                                <div style="color: #ef4444; font-size: 0.875rem; margin-top: 0.25rem;">
+                                    {% for error in form.status.errors %}
+                                        <small>{{ error }}</small>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <!-- 第三行：信用额度、币种、创建时间 -->
+                    <div class="visa-grid-3">
+                        <div class="visa-form-group">
+                            <label class="visa-form-label">{{ form.credit_limit.label.text }}</label>
+                            {{ form.credit_limit(class="visa-form-control") }}
+                            {% if form.credit_limit.errors %}
+                                <div style="color: #ef4444; font-size: 0.875rem; margin-top: 0.25rem;">
+                                    {% for error in form.credit_limit.errors %}
+                                        <small>{{ error }}</small>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="visa-form-group">
+                            <label class="visa-form-label">
+                                {{ form.currency.label.text }} <span style="color: #ef4444;">*</span>
+                            </label>
+                            {{ form.currency(class="visa-form-select") }}
+                            {% if form.currency.errors %}
+                                <div style="color: #ef4444; font-size: 0.875rem; margin-top: 0.25rem;">
+                                    {% for error in form.currency.errors %}
+                                        <small>{{ error }}</small>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="visa-form-group">
+                            <label class="visa-form-label">
+                                {{ form.created_at.label.text }} <small style="color: #94a3b8;">(可选)</small>
+                            </label>
+                            {{ form.created_at(class="visa-form-control") }}
+                            {% if form.created_at.errors %}
+                                <div style="color: #ef4444; font-size: 0.875rem; margin-top: 0.25rem;">
+                                    {% for error in form.created_at.errors %}
+                                        <small>{{ error }}</small>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <!-- 公司地址 -->
+                    <div class="visa-form-group">
+                        <label class="visa-form-label">{{ form.address.label.text }}</label>
+                        {{ form.address(class="visa-form-control", rows=3) }}
+                        {% if form.address.errors %}
+                            <div style="color: #ef4444; font-size: 0.875rem; margin-top: 0.25rem;">
+                                {% for error in form.address.errors %}
+                                    <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- 备注 -->
+                    <div class="visa-form-group">
+                        <label class="visa-form-label">
+                            {{ form.remarks.label.text }} <small style="color: #94a3b8;">(可选)</small>
+                        </label>
+                        {{ form.remarks(class="visa-form-control", rows=3) }}
+                        {% if form.remarks.errors %}
+                            <div style="color: #ef4444; font-size: 0.875rem; margin-top: 0.25rem;">
+                                {% for error in form.remarks.errors %}
+                                    <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="visa-flex visa-gap-2 visa-mt-4">
+                        {{ form.submit(class="visa-btn visa-btn-primary") }}
+                        {% if company %}
+                        <a href="{{ url_for('corporate.company_detail', company_id=company.id) }}" class="visa-btn visa-btn-secondary">
+                            <i class="fas fa-times"></i> {{ form.cancel.label }}
+                        </a>
+                        {% else %}
+                        <a href="{{ url_for('corporate.list_companies') }}" class="visa-btn visa-btn-secondary">
+                            <i class="fas fa-times"></i> {{ form.cancel.label }}
+                        </a>
+                        {% endif %}
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

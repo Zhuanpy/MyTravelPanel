@@ -71,11 +71,12 @@ def add_supplier():
         )
         db.session.add(new_supplier)
         db.session.commit()
+        flash('供应商添加成功！', 'success')
         return redirect(url_for('supplier.suppliers'))
     
     # 从模型中获取供应商类型列表
     supplier_types = Supplier.get_supplier_type_choices()
-    return render_template('shared/supplier/supplier_add.html', supplier_types=supplier_types)
+    return render_template('shared/supplier/supplier_form.html', supplier=None, supplier_types=supplier_types)
 
 @supplier.route('/edit/<int:supplier_id>', methods=['GET', 'POST'])
 def edit_supplier(supplier_id):
@@ -95,8 +96,9 @@ def edit_supplier(supplier_id):
         supplier.status = request.form.get('status')
         supplier.notes = request.form.get('notes')
         db.session.commit()
+        flash('供应商更新成功！', 'success')
         return redirect(url_for('supplier.suppliers'))
-    return render_template('shared/supplier/supplier_edit.html', supplier=supplier, supplier_types=supplier_types)
+    return render_template('shared/supplier/supplier_form.html', supplier=supplier, supplier_types=supplier_types)
 
 @supplier.route('/delete/<int:supplier_id>', methods=['GET', 'DELETE'])
 @csrf.exempt

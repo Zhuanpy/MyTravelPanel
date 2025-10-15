@@ -274,6 +274,8 @@ class TourProduct(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(200), nullable=False)
+    country = db.Column(db.String(100), nullable=True, comment='国家')
+    city = db.Column(db.String(100), nullable=True, comment='城市')
     itinerary = db.Column(db.Text, nullable=False)
     included = db.Column(db.Text, nullable=False)
     not_included = db.Column(db.Text, nullable=False)
@@ -289,6 +291,8 @@ class TourProduct(db.Model):
         return {
             'id': self.id,
             'title': self.title,
+            'country': self.country,
+            'city': self.city,
             'itinerary': self.itinerary,
             'included': self.included,
             'not_included': self.not_included,

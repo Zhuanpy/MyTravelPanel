@@ -296,6 +296,7 @@ async function initializeApp() {
             category: document.getElementById('categorySelect'),
             country: document.getElementById('countrySelect'),
             owner: document.getElementById('ownerSelect'),
+            supplier: document.getElementById('supplierSelect'),
             search: document.getElementById('searchInput'),
             sort: document.getElementById('sortSelect')
         };
@@ -320,13 +321,21 @@ async function initializeApp() {
             }
         });
 
-        // 并行加载数据
+        // 并行加载所有数据（包括供应商）
         console.log('开始加载数据...');
-        await Promise.all([
+        const loadPromises = [
             loadAccounts(),
             loadCategories(),
             loadPopularWebsites()
-        ]);
+        ];
+        
+        // 如果供应商加载函数存在，添加到并行加载列表
+        if (typeof window.loadSuppliers === 'function') {
+            console.log('添加供应商数据到加载列表...');
+            loadPromises.push(window.loadSuppliers());
+        }
+        
+        await Promise.all(loadPromises);
         
         console.log('应用初始化完成');
     } catch (error) {
@@ -676,12 +685,22 @@ function renderAccounts() {
         const matchesCountry = !currentFilters.country || account.country === currentFilters.country;
         const matchesOwner = !currentFilters.owner || account.owner === currentFilters.owner;
         
+        // 供应商筛选
+        let matchesSupplier = true;
+        if (currentFilters.supplier) {
+            if (currentFilters.supplier === 'no_supplier') {
+                matchesSupplier = !account.supplier_id;
+            } else {
+                matchesSupplier = account.supplier_id == currentFilters.supplier;
+            }
+        }
+        
         const searchLower = currentFilters.search.toLowerCase();
         const matchesSearch = !searchLower || 
                               (account.platform && account.platform.toLowerCase().includes(searchLower)) ||
                               (account.username && account.username.toLowerCase().includes(searchLower));
         
-        return matchesCategory && matchesCountry && matchesOwner && matchesSearch;
+        return matchesCategory && matchesCountry && matchesOwner && matchesSupplier && matchesSearch;
     });
 
     // 排序账号
@@ -721,7 +740,7 @@ function renderAccounts() {
     if (paginatedAccounts.length === 0) {
         accountListElement.innerHTML = `
             <tr>
-                <td colspan="7" class="text-center">没有找到匹配的账号</td>
+                <td colspan="8" class="text-center">没有找到匹配的账号</td>
             </tr>
         `;
     } else {
@@ -768,6 +787,23 @@ function renderAccountRow(account) {
     const ownerCell = document.createElement('td');
     ownerCell.textContent = account.owner || '';
     row.appendChild(ownerCell);
+    
+    // 关联供应商
+    const supplierCell = document.createElement('td');
+    // 优先使用从服务器返回的 supplier_name
+    if (account.supplier_name) {
+        supplierCell.textContent = account.supplier_name;
+    } else if (account.supplier_id) {
+        // 如果有 supplier_id 但没有 supplier_name，尝试从本地查找
+        if (typeof getSupplierName === 'function') {
+            supplierCell.textContent = getSupplierName(account.supplier_id);
+        } else {
+            supplierCell.textContent = `ID:${account.supplier_id}`;
+        }
+    } else {
+        supplierCell.textContent = '无关联';
+    }
+    row.appendChild(supplierCell);
     
     // 用户名
     const usernameCell = document.createElement('td');
@@ -1147,6 +1183,12 @@ async function editAccount(id) {
         document.getElementById('editNotes').value = account.notes || '';
         document.getElementById('editOwner').value = account.owner || '';
         
+        // 设置供应商
+        const editSupplier = document.getElementById('editSupplier');
+        if (editSupplier) {
+            editSupplier.value = account.supplier_id || '';
+        }
+        
         // 设置类别选择器
         const editCategory = document.getElementById('editCategory');
         if (editCategory) {
@@ -1203,8 +1245,16 @@ async function submitEditForm() {
             notes: document.getElementById('editNotes').value,
             owner: document.getElementById('editOwner').value
         };
+        
+        // 处理供应商ID（空值转为 null）
+        const supplierValue = document.getElementById('editSupplier').value;
+        formData.supplier_id = supplierValue ? parseInt(supplierValue) : null;
+        
         const password = document.getElementById('editPassword').value;
         if (password) formData.password = password;
+        
+        console.log('提交的编辑数据:', formData);
+        
         if (!formData.platform || !formData.username) {
             throw new Error('平台/网址和用户名为必填项');
         }

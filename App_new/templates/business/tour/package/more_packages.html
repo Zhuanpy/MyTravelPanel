@@ -3,6 +3,7 @@
 {% block title %}{{ country }}所有配套信息{% endblock %}
 
 {% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/staff_common.css') }}">
 <script src="https://cdn.tailwindcss.com"></script>
 <style>
     .card-hover {

@@ -1,11 +1,11 @@
-{% extends "staff_base.html" %}
+﻿{% extends "staff_base.html" %}
 
 {% block title %}签证访问统计 - MyTravelPanel{% endblock %}
 
 {% block page_title %}签证访问统计{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/visa_common.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/staff_common.css') }}">
 {% endblock %}
 
 {% block content %}
@@ -81,8 +81,8 @@
                 <div class="card-body">
                     <form method="GET" class="row g-3">
                         <div class="col-md-4">
-                            <label for="days" class="form-label">统计天数</label>
-                            <select name="days" id="days" class="form-select">
+                            <label for="days" class="visa-form-label">统计天数</label>
+                            <select name="days" id="days" class="visa-form-select">
                                 <option value="7" {% if days == 7 %}selected{% endif %}>最近7天</option>
                                 <option value="30" {% if days == 30 %}selected{% endif %}>最近30天</option>
                                 <option value="90" {% if days == 90 %}selected{% endif %}>最近90天</option>
@@ -90,8 +90,8 @@
                             </select>
                         </div>
                         <div class="col-md-4">
-                            <label for="visa_type_id" class="form-label">签证类型</label>
-                            <select name="visa_type_id" id="visa_type_id" class="form-select">
+                            <label for="visa_type_id" class="visa-form-label">签证类型</label>
+                            <select name="visa_type_id" id="visa_type_id" class="visa-form-select">
                                 <option value="">全部签证类型</option>
                                 {% for visa_type in all_visa_types %}
                                 <option value="{{ visa_type.id }}" {% if selected_visa_type_id == visa_type.id %}selected{% endif %}>
@@ -101,10 +101,10 @@
                             </select>
                         </div>
                         <div class="col-md-4">
-                            <label class="form-label">&nbsp;</label>
+                            <label class="visa-form-label">&nbsp;</label>
                             <div>
-                                <button type="submit" class="btn btn-primary">筛选</button>
-                                <a href="{{ url_for('visa_basic.visa_visit_stats') }}" class="btn btn-secondary">重置</a>
+                                <button type="submit" class="visa-btn visa-btn-primary">筛选</button>
+                                <a href="{{ url_for('visa_basic.visa_visit_stats') }}" class="visa-btn visa-btn-secondary">重置</a>
                             </div>
                         </div>
                     </form>

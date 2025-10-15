@@ -155,15 +155,16 @@ def create_app():
     from .shared.routes.tasks import utils_blue
     from .shared.routes.utils import utils_process
     from .shared.routes.account import account_routes
-    from .shared.routes.company_info import company_info
-    from .shared.routes.company import company
+    from .shared.routes.own_company import own_company
+    from .shared.routes.corporate import corporate
     from .shared.routes.business_type import business_types
     from .shared.routes.supplier import supplier
+    
     app.register_blueprint(utils_blue, url_prefix='/utils')
     app.register_blueprint(utils_process, url_prefix='/utils_process')
     app.register_blueprint(account_routes, url_prefix='/account')
-    app.register_blueprint(company_info, url_prefix='/company_info')
-    app.register_blueprint(company, url_prefix='/company')
+    app.register_blueprint(own_company, url_prefix='/own_company')
+    app.register_blueprint(corporate, url_prefix='/company')
     app.register_blueprint(business_types, url_prefix='/business_types')
     app.register_blueprint(supplier, url_prefix='/supplier')
 

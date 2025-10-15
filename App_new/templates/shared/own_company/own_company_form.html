@@ -1,0 +1,101 @@
+{% extends "shared/staff_base.html" %}
+
+{% block title %}编辑公司信息 - MyTravelPanel{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/staff_common.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="visa-container">
+    <h1 class="visa-page-title">
+        <i class="fas fa-building"></i> 编辑公司信息
+    </h1>
+    
+    <!-- 闪现消息 -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <!-- 编辑表单 -->
+    <div class="visa-card" style="max-width: 800px; margin: 0 auto;">
+        <div class="visa-card-header">
+            <h3><i class="fas fa-edit"></i> 公司信息</h3>
+        </div>
+        <div class="visa-card-body">
+            <form method="POST" enctype="multipart/form-data">
+                <div class="visa-form-group">
+                    <label for="company_name" class="visa-form-label">
+                        <i class="fas fa-building"></i> 公司名称
+                    </label>
+                    <input type="text" class="visa-form-control" id="company_name" name="company_name" 
+                           value="{{ company.company_name if company else '' }}" required>
+                </div>
+                
+                <div class="visa-form-group">
+                    <label for="company_description" class="visa-form-label">
+                        <i class="fas fa-align-left"></i> 公司简介
+                    </label>
+                    <textarea class="visa-form-control" id="company_description" name="company_description" 
+                              rows="3" required>{{ company.company_description if company else '' }}</textarea>
+                </div>
+                
+                <div class="visa-grid-2">
+                    <div class="visa-form-group">
+                        <label for="phone" class="visa-form-label">
+                            <i class="fas fa-phone"></i> 联系电话
+                        </label>
+                        <input type="text" class="visa-form-control" id="phone" name="phone" 
+                               value="{{ company.phone if company else '' }}" required>
+                    </div>
+                    
+                    <div class="visa-form-group">
+                        <label for="email" class="visa-form-label">
+                            <i class="fas fa-envelope"></i> 电子邮箱
+                        </label>
+                        <input type="email" class="visa-form-control" id="email" name="email" 
+                               value="{{ company.email if company else '' }}" required>
+                    </div>
+                </div>
+                
+                <div class="visa-form-group">
+                    <label for="address" class="visa-form-label">
+                        <i class="fas fa-map-marker-alt"></i> 公司地址
+                    </label>
+                    <textarea class="visa-form-control" id="address" name="address" 
+                              rows="2" required>{{ company.address if company else '' }}</textarea>
+                </div>
+                
+                <div class="visa-form-group">
+                    <label for="logo" class="visa-form-label">
+                        <i class="fas fa-image"></i> 公司Logo
+                    </label>
+                    <input type="file" class="visa-form-control" id="logo" name="logo" accept="image/*">
+                    {% if company and company.logo_path %}
+                    <div class="visa-mt-2">
+                        <img src="{{ url_for('static', filename=company.logo_path.replace('static/', '')) }}" 
+                             alt="Company Logo" style="max-width: 200px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <div class="visa-flex-center visa-gap-2 visa-mt-4">
+                    <button type="submit" class="visa-btn visa-btn-primary">
+                        <i class="fas fa-save"></i> 保存更改
+                    </button>
+                    <a href="{{ url_for('product_details.tour_product_list') }}" class="visa-btn visa-btn-secondary">
+                        <i class="fas fa-arrow-left"></i> 返回
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

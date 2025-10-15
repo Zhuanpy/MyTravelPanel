@@ -15,42 +15,42 @@
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="mb-3">
-                                    <label for="name" class="form-label">名称 *</label>
-                                    <input type="text" class="form-control" id="name" name="name" required>
+                                    <label for="name" class="visa-form-label">名称 *</label>
+                                    <input type="text" class="visa-form-control" id="name" name="name" required>
                                 </div>
                                 <div class="mb-3">
-                                    <label for="supplier_type" class="form-label">类型</label>
-                                    <select class="form-control" id="supplier_type" name="supplier_type">
+                                    <label for="supplier_type" class="visa-form-label">类型</label>
+                                    <select class="visa-form-control" id="supplier_type" name="supplier_type">
                                         {% for type_code, type_name in supplier_types %}
                                         <option value="{{ type_code }}">{{ type_name }}</option>
                                         {% endfor %}
                                     </select>
                                 </div>
                                 <div class="mb-3">
-                                    <label for="contact_person" class="form-label">联系人</label>
-                                    <input type="text" class="form-control" id="contact_person" name="contact_person">
+                                    <label for="contact_person" class="visa-form-label">联系人</label>
+                                    <input type="text" class="visa-form-control" id="contact_person" name="contact_person">
                                 </div>
                                 <div class="mb-3">
-                                    <label for="phone" class="form-label">电话</label>
-                                    <input type="text" class="form-control" id="phone" name="phone">
+                                    <label for="phone" class="visa-form-label">电话</label>
+                                    <input type="text" class="visa-form-control" id="phone" name="phone">
                                 </div>
                             </div>
                             <div class="col-md-6">
                                 <div class="mb-3">
-                                    <label for="email" class="form-label">邮箱</label>
-                                    <input type="email" class="form-control" id="email" name="email">
+                                    <label for="email" class="visa-form-label">邮箱</label>
+                                    <input type="email" class="visa-form-control" id="email" name="email">
                                 </div>
                                 <div class="mb-3">
-                                    <label for="country" class="form-label">国家</label>
-                                    <input type="text" class="form-control" id="country" name="country">
+                                    <label for="country" class="visa-form-label">国家</label>
+                                    <input type="text" class="visa-form-control" id="country" name="country">
                                 </div>
                                 <div class="mb-3">
-                                    <label for="region" class="form-label">地区</label>
-                                    <input type="text" class="form-control" id="region" name="region">
+                                    <label for="region" class="visa-form-label">地区</label>
+                                    <input type="text" class="visa-form-control" id="region" name="region">
                                 </div>
                                 <div class="mb-3">
-                                    <label for="status" class="form-label">状态</label>
-                                    <select class="form-control" id="status" name="status">
+                                    <label for="status" class="visa-form-label">状态</label>
+                                    <select class="visa-form-control" id="status" name="status">
                                         <option value="active">活跃</option>
                                         <option value="inactive">非活跃</option>
                                     </select>
@@ -60,21 +60,21 @@
                         <div class="row">
                             <div class="col-12">
                                 <div class="mb-3">
-                                    <label for="address" class="form-label">地址</label>
-                                    <textarea class="form-control" id="address" name="address" rows="3"></textarea>
+                                    <label for="address" class="visa-form-label">地址</label>
+                                    <textarea class="visa-form-control" id="address" name="address" rows="3"></textarea>
                                 </div>
                                 <div class="mb-3">
-                                    <label for="notes" class="form-label">备注</label>
-                                    <textarea class="form-control" id="notes" name="notes" rows="3"></textarea>
+                                    <label for="notes" class="visa-form-label">备注</label>
+                                    <textarea class="visa-form-control" id="notes" name="notes" rows="3"></textarea>
                                 </div>
                             </div>
                         </div>
                         <div class="row">
                             <div class="col-12">
-                                <button type="submit" class="btn btn-primary">
+                                <button type="submit" class="visa-btn visa-btn-primary">
                                     <i class="fas fa-save"></i> 保存
                                 </button>
-                                <a href="{{ url_for('supplier.suppliers') }}" class="btn btn-secondary">
+                                <a href="{{ url_for('supplier.suppliers') }}" class="visa-btn visa-btn-secondary">
                                     <i class="fas fa-arrow-left"></i> 取消
                                 </a>
                             </div>

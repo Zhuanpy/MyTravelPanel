@@ -1,12 +1,16 @@
 /* 
- * Staff Common Styles - 员工工作台通用样式
+ * Staff Common Styles - 员工工作台统一设计系统
+ * 合并了 visa_common.css 和 staff_common.css
  * 统一按钮、表单、输入框、卡片、表格等基础元素的样式
  * 确保整个系统风格一致，易于维护
- * 合并了原 staff.css 的内容
+ * 
+ * 版本：2.0 (合并版)
+ * 更新日期：2025-01-15
  */
 
 /* ==================== CSS变量定义 ==================== */
 :root {
+    /* Staff 主题色系统 - 绿色为主 */
     --primary-color: #28a745;
     --secondary-color: #6c757d;
     --success-color: #28a745;
@@ -17,9 +21,54 @@
     --dark-color: #343a40;
     --sidebar-width: 250px;
     
-    /* 页面主题色系统 - Profile模块统一紫色主题 */
+    /* Visa/紫色主题系统 - 用于特定模块 */
+    --visa-primary: #1a56db;
+    --visa-primary-light: #3b82f6;
+    --visa-primary-dark: #1e40af;
+    
+    /* 通用辅助色 */
+    --visa-success: #10b981;
+    --visa-warning: #f59e0b;
+    --visa-danger: #ef4444;
+    --visa-info: #06b6d4;
+    
+    /* 紫色渐变 - 用于 Profile、Supplier 等模块 */
     --profile-gradient-start: #667eea;
     --profile-gradient-end: #764ba2;
+    --visa-gradient-start: #667eea;
+    --visa-gradient-end: #764ba2;
+    
+    /* 背景色系统 */
+    --visa-bg-page: #f8f9fa;
+    --visa-bg-card: #ffffff;
+    --visa-bg-light: #f8fafc;
+    --visa-bg-hover: #f1f5f9;
+    
+    /* 边框系统 */
+    --visa-border: #e2e8f0;
+    --visa-border-dark: #cbd5e1;
+    
+    /* 阴影系统 */
+    --visa-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
+    --visa-shadow-md: 0 2px 10px rgba(0, 0, 0, 0.05);
+    --visa-shadow-lg: 0 4px 20px rgba(0, 0, 0, 0.1);
+    --visa-shadow-hover: 0 10px 25px rgba(0, 0, 0, 0.08);
+    
+    /* 文字颜色系统 */
+    --visa-text-primary: #1e293b;
+    --visa-text-secondary: #64748b;
+    --visa-text-muted: #94a3b8;
+    
+    /* 圆角系统 */
+    --visa-radius-sm: 6px;
+    --visa-radius-md: 10px;
+    --visa-radius-lg: 15px;
+    
+    /* 间距系统 */
+    --visa-spacing-xs: 0.5rem;
+    --visa-spacing-sm: 1rem;
+    --visa-spacing-md: 1.5rem;
+    --visa-spacing-lg: 2rem;
 }
 
 /* ==================== 全局样式 ==================== */
@@ -244,836 +293,9 @@ main {
     font-size: 1rem;
 }
 
-/* 按钮颜色主题 */
-.btn-primary-modern {
-    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-    color: white;
-    border-color: #3b82f6;
-}
-
-.btn-primary-modern:hover {
-    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
-    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
-    color: white;
-}
-
-.btn-success-modern {
-    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-    color: white;
-    border-color: #10b981;
-}
-
-.btn-success-modern:hover {
-    background: linear-gradient(135deg, #059669 0%, #047857 100%);
-    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
-    color: white;
-}
-
-.btn-warning-modern {
-    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-    color: white;
-    border-color: #f59e0b;
-}
-
-.btn-warning-modern:hover {
-    background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
-    box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
-    color: white;
-}
-
-.btn-danger-modern {
-    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-    color: white;
-    border-color: #ef4444;
-}
-
-.btn-danger-modern:hover {
-    background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
-    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
-    color: white;
-}
-
-.btn-info-modern {
-    background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
-    color: white;
-    border-color: #06b6d4;
-}
-
-.btn-info-modern:hover {
-    background: linear-gradient(135deg, #0891b2 0%, #0e7490 100%);
-    box-shadow: 0 4px 12px rgba(6, 182, 212, 0.4);
-    color: white;
-}
-
-.btn-secondary-modern {
-    background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
-    color: white;
-    border-color: #6b7280;
-}
-
-.btn-secondary-modern:hover {
-    background: linear-gradient(135deg, #4b5563 0%, #374151 100%);
-    box-shadow: 0 4px 12px rgba(107, 114, 128, 0.4);
-    color: white;
-}
-
-/* 轮廓按钮 */
-.btn-outline-modern {
-    background: white;
-    border: 2px solid #e5e7eb;
-    color: #4b5563;
-}
-
-.btn-outline-modern:hover {
-    background: #f9fafb;
-    border-color: #3b82f6;
-    color: #3b82f6;
-}
-
-/* 按钮尺寸 */
-.btn-sm-modern {
-    padding: 0.5rem 1rem;
-    font-size: 0.8125rem;
-}
-
-.btn-lg-modern {
-    padding: 0.875rem 1.75rem;
-    font-size: 1rem;
-}
-
-/* ==================== 表单样式 ==================== */
-.form-modern {
-    background: white;
-    border-radius: 12px;
-    padding: 1.5rem;
-}
-
-.form-group-modern {
-    margin-bottom: 1.25rem;
-}
-
-.form-label-modern {
-    display: block;
-    font-size: 0.875rem;
-    font-weight: 600;
-    color: #374151;
-    margin-bottom: 0.5rem;
-}
-
-.form-label-modern.required::after {
-    content: ' *';
-    color: #ef4444;
-}
-
-.form-control-modern {
-    width: 100%;
-    padding: 0.625rem 1rem;
-    font-size: 0.875rem;
-    color: #1f2937;
-    background: white;
-    border: 1px solid #d1d5db;
-    border-radius: 8px;
-    transition: all 0.2s ease;
-}
-
-.form-control-modern:focus {
-    outline: none;
-    border-color: #3b82f6;
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-}
-
-.form-control-modern:disabled {
-    background: #f3f4f6;
-    color: #9ca3af;
-    cursor: not-allowed;
-}
-
-.form-control-modern.is-invalid {
-    border-color: #ef4444;
-}
-
-.form-control-modern.is-invalid:focus {
-    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
-}
-
-.form-control-modern.is-valid {
-    border-color: #10b981;
-}
-
-.form-control-modern.is-valid:focus {
-    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
-}
-
-/* 文本域 */
-.form-textarea-modern {
-    min-height: 120px;
-    resize: vertical;
-}
-
-/* 选择框 */
-.form-select-modern {
-    width: 100%;
-    padding: 0.625rem 2.5rem 0.625rem 1rem;
-    font-size: 0.875rem;
-    color: #1f2937;
-    background: white url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23343a40' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e") no-repeat right 0.75rem center/12px 12px;
-    border: 1px solid #d1d5db;
-    border-radius: 8px;
-    appearance: none;
-    transition: all 0.2s ease;
-}
-
-.form-select-modern:focus {
-    outline: none;
-    border-color: #3b82f6;
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-}
-
-/* 复选框和单选框 */
-.form-check-modern {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    margin-bottom: 0.75rem;
-}
-
-.form-check-input-modern {
-    width: 1.125rem;
-    height: 1.125rem;
-    border: 2px solid #d1d5db;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.form-check-input-modern:checked {
-    background-color: #3b82f6;
-    border-color: #3b82f6;
-}
-
-.form-check-label-modern {
-    font-size: 0.875rem;
-    color: #4b5563;
-    cursor: pointer;
-}
-
-/* 表单验证消息 */
-.form-error-message {
-    color: #ef4444;
-    font-size: 0.8125rem;
-    margin-top: 0.375rem;
-    display: flex;
-    align-items: center;
-    gap: 0.25rem;
-}
-
-.form-success-message {
-    color: #10b981;
-    font-size: 0.8125rem;
-    margin-top: 0.375rem;
-    display: flex;
-    align-items: center;
-    gap: 0.25rem;
-}
-
-.form-help-text {
-    color: #6b7280;
-    font-size: 0.8125rem;
-    margin-top: 0.375rem;
-}
-
-/* 表单布局 */
-.form-row-modern {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: 1.25rem;
-    margin-bottom: 1.25rem;
-}
-
-.form-actions-modern {
-    display: flex;
-    gap: 0.75rem;
-    justify-content: flex-end;
-    padding-top: 1.5rem;
-    border-top: 1px solid #e5e7eb;
-    margin-top: 1.5rem;
-}
-
-/* ==================== 卡片样式 ==================== */
-.card-modern {
-    background: white;
-    border-radius: 12px;
-    border: 1px solid #e5e7eb;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-    overflow: hidden;
-    transition: all 0.3s ease;
-}
-
-.card-modern:hover {
-    box-shadow: 0 8px 20px rgba(0,0,0,0.1);
-    transform: translateY(-3px);
-}
-
-.card-header-modern {
-    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-    padding: 1.25rem;
-    border-bottom: 1px solid #e5e7eb;
-    font-weight: 600;
-    color: #1f2937;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.card-body-modern {
-    padding: 1.5rem;
-}
-
-.card-footer-modern {
-    background: #f9fafb;
-    padding: 1rem 1.5rem;
-    border-top: 1px solid #e5e7eb;
-}
-
-/* ==================== 表格样式 ==================== */
-.table-modern {
-    width: 100%;
-    border-collapse: collapse;
-    background: white;
-    border-radius: 12px;
-    overflow: hidden;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-}
-
-.table-modern thead {
-    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-}
-
-.table-modern th {
-    padding: 1rem 1.25rem;
-    text-align: left;
-    font-size: 0.875rem;
-    font-weight: 600;
-    color: #374151;
-    border-bottom: 2px solid #e5e7eb;
-}
-
-.table-modern td {
-    padding: 1rem 1.25rem;
-    font-size: 0.875rem;
-    color: #4b5563;
-    border-bottom: 1px solid #f3f4f6;
-}
-
-.table-modern tbody tr {
-    transition: background-color 0.2s ease;
-}
-
-.table-modern tbody tr:hover {
-    background-color: #f9fafb;
-}
-
-.table-modern tbody tr:last-child td {
-    border-bottom: none;
-}
-
-/* 表格操作列 */
-.table-actions {
-    display: flex;
-    gap: 0.5rem;
-    justify-content: center;
-}
-
-.table-actions .common-btn {
-    padding: 0.375rem 0.75rem;
-    font-size: 0.8125rem;
-}
-
-/* 表格响应式包装器 */
-.table-responsive-modern {
-    overflow-x: auto;
-    border-radius: 12px;
-}
-
-/* ==================== 徽章样式 ==================== */
-.badge-modern {
-    display: inline-flex;
-    align-items: center;
-    padding: 0.375rem 0.75rem;
-    font-size: 0.75rem;
-    font-weight: 600;
-    border-radius: 6px;
-    text-transform: uppercase;
-    letter-spacing: 0.025em;
-}
-
-.badge-primary-modern {
-    background: #dbeafe;
-    color: #1e40af;
-}
-
-.badge-success-modern {
-    background: #d1fae5;
-    color: #065f46;
-}
-
-.badge-warning-modern {
-    background: #fef3c7;
-    color: #92400e;
-}
-
-.badge-danger-modern {
-    background: #fee2e2;
-    color: #991b1b;
-}
-
-.badge-info-modern {
-    background: #cffafe;
-    color: #155e75;
-}
-
-.badge-secondary-modern {
-    background: #f3f4f6;
-    color: #374151;
-}
-
-/* ==================== 提示消息样式 ==================== */
-.alert-modern {
-    padding: 1rem 1.25rem;
-    border-radius: 8px;
-    margin-bottom: 1.25rem;
-    display: flex;
-    align-items: flex-start;
-    gap: 0.75rem;
-    border-left: 4px solid;
-}
-
-.alert-modern i {
-    font-size: 1.25rem;
-    flex-shrink: 0;
-    margin-top: 0.125rem;
-}
-
-.alert-success-modern {
-    background: #d1fae5;
-    border-color: #10b981;
-    color: #065f46;
-}
-
-.alert-warning-modern {
-    background: #fef3c7;
-    border-color: #f59e0b;
-    color: #92400e;
-}
-
-.alert-danger-modern {
-    background: #fee2e2;
-    border-color: #ef4444;
-    color: #991b1b;
-}
-
-.alert-info-modern {
-    background: #dbeafe;
-    border-color: #3b82f6;
-    color: #1e40af;
-}
-
-/* ==================== 输入框组合 ==================== */
-.input-group-modern {
-    display: flex;
-    align-items: stretch;
-}
-
-.input-group-modern .form-control-modern {
-    border-top-right-radius: 0;
-    border-bottom-right-radius: 0;
-}
-
-.input-group-modern .common-btn {
-    border-top-left-radius: 0;
-    border-bottom-left-radius: 0;
-}
-
-.input-group-prepend {
-    display: flex;
-    align-items: center;
-    padding: 0.625rem 1rem;
-    background: #f3f4f6;
-    border: 1px solid #d1d5db;
-    border-right: none;
-    border-top-left-radius: 8px;
-    border-bottom-left-radius: 8px;
-    color: #6b7280;
-    font-size: 0.875rem;
-}
-
-/* ==================== 模态框样式 ==================== */
-.modal-modern {
-    display: none;
-    position: fixed;
-    z-index: 1050;
-    left: 0;
-    top: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0,0,0,0.5);
-    backdrop-filter: blur(2px);
-    align-items: center;
-    justify-content: center;
-}
-
-.modal-modern.show {
-    display: flex;
-}
-
-.modal-dialog-modern {
-    background: white;
-    border-radius: 12px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-    width: 90%;
-    max-width: 600px;
-    max-height: 90vh;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-}
-
-.modal-header-modern {
-    padding: 1.25rem 1.5rem;
-    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-    border-bottom: 1px solid #e5e7eb;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.modal-title-modern {
-    font-size: 1.25rem;
-    font-weight: 600;
-    color: #1f2937;
-    margin: 0;
-}
-
-.modal-close-modern {
-    background: none;
-    border: none;
-    font-size: 1.5rem;
-    color: #6b7280;
-    cursor: pointer;
-    padding: 0;
-    width: 32px;
-    height: 32px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 6px;
-    transition: all 0.2s ease;
-}
-
-.modal-close-modern:hover {
-    background: #e5e7eb;
-    color: #1f2937;
-}
-
-.modal-body-modern {
-    padding: 1.5rem;
-    overflow-y: auto;
-    flex: 1;
-}
-
-.modal-footer-modern {
-    padding: 1rem 1.5rem;
-    background: #f9fafb;
-    border-top: 1px solid #e5e7eb;
-    display: flex;
-    justify-content: flex-end;
-    gap: 0.75rem;
-}
-
-/* ==================== 分页样式 ==================== */
-.pagination-modern {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 0.5rem;
-    margin-top: 1.5rem;
-}
-
-.pagination-info-modern {
-    color: #6b7280;
-    font-size: 0.875rem;
-    margin-right: 1rem;
-}
-
-.pagination-btn-modern {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 36px;
-    height: 36px;
-    padding: 0 0.75rem;
-    border-radius: 6px;
-    background: white;
-    border: 1px solid #d1d5db;
-    color: #4b5563;
-    font-size: 0.875rem;
-    text-decoration: none;
-    transition: all 0.2s ease;
-}
-
-.pagination-btn-modern:hover {
-    background: #f9fafb;
-    border-color: #3b82f6;
-    color: #3b82f6;
-    text-decoration: none;
-}
-
-.pagination-btn-modern.active {
-    background: #3b82f6;
-    border-color: #3b82f6;
-    color: white;
-}
-
-.pagination-btn-modern.disabled {
-    color: #d1d5db;
-    pointer-events: none;
-    background: #f9fafb;
-}
-
-/* ==================== 标签页样式 ==================== */
-.tabs-modern {
-    display: flex;
-    gap: 0.5rem;
-    border-bottom: 2px solid #e5e7eb;
-    margin-bottom: 1.5rem;
-}
-
-.tab-item-modern {
-    padding: 0.75rem 1.5rem;
-    background: transparent;
-    border: none;
-    border-bottom: 2px solid transparent;
-    color: #6b7280;
-    font-size: 0.875rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    margin-bottom: -2px;
-}
-
-.tab-item-modern:hover {
-    color: #3b82f6;
-    background: #f9fafb;
-}
-
-.tab-item-modern.active {
-    color: #3b82f6;
-    border-bottom-color: #3b82f6;
-}
-
-.tab-content-modern {
-    display: none;
-}
-
-.tab-content-modern.active {
-    display: block;
-}
-
-/* ==================== 加载状态 ==================== */
-.loading-spinner-modern {
-    display: inline-block;
-    width: 1.25rem;
-    height: 1.25rem;
-    border: 2px solid #f3f4f6;
-    border-top-color: #3b82f6;
-    border-radius: 50%;
-    animation: spin-modern 0.6s linear infinite;
-}
-
-@keyframes spin-modern {
-    to { transform: rotate(360deg); }
-}
-
-.loading-container-modern {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 3rem;
-    color: #6b7280;
-    gap: 1rem;
-}
-
-.loading-container-modern .loading-spinner-modern {
-    width: 3rem;
-    height: 3rem;
-    border-width: 3px;
-}
-
-/* ==================== 空状态样式 ==================== */
-.empty-state-modern {
-    text-align: center;
-    padding: 4rem 2rem;
-    color: #9ca3af;
-}
-
-.empty-state-modern i {
-    font-size: 4rem;
-    margin-bottom: 1rem;
-    color: #d1d5db;
-}
-
-.empty-state-modern h3 {
-    font-size: 1.25rem;
-    font-weight: 600;
-    color: #6b7280;
-    margin-bottom: 0.5rem;
-}
-
-.empty-state-modern p {
-    font-size: 0.875rem;
-    color: #9ca3af;
-    margin-bottom: 1.5rem;
-}
-
-/* ==================== 工具提示样式 ==================== */
-.tooltip-modern {
-    position: relative;
-    display: inline-block;
-}
-
-.tooltip-modern .tooltip-text {
-    visibility: hidden;
-    background-color: #1f2937;
-    color: white;
-    text-align: center;
-    border-radius: 6px;
-    padding: 0.5rem 0.75rem;
-    position: absolute;
-    z-index: 1;
-    bottom: 125%;
-    left: 50%;
-    transform: translateX(-50%);
-    font-size: 0.8125rem;
-    white-space: nowrap;
-    opacity: 0;
-    transition: opacity 0.3s;
-}
-
-.tooltip-modern .tooltip-text::after {
-    content: "";
-    position: absolute;
-    top: 100%;
-    left: 50%;
-    margin-left: -5px;
-    border-width: 5px;
-    border-style: solid;
-    border-color: #1f2937 transparent transparent transparent;
-}
-
-.tooltip-modern:hover .tooltip-text {
-    visibility: visible;
-    opacity: 1;
-}
-
-/* ==================== 进度条样式 ==================== */
-.progress-modern {
-    height: 8px;
-    background: #e5e7eb;
-    border-radius: 4px;
-    overflow: hidden;
-}
-
-.progress-bar-modern {
-    height: 100%;
-    background: linear-gradient(90deg, #3b82f6 0%, #2563eb 100%);
-    transition: width 0.3s ease;
-}
-
-/* ==================== 分隔线 ==================== */
-.divider-modern {
-    border: none;
-    border-top: 1px solid #e5e7eb;
-    margin: 1.5rem 0;
-}
-
-.divider-modern.thick {
-    border-top-width: 2px;
-}
-
-/* ==================== 按钮组 ==================== */
-.btn-group-modern {
-    display: inline-flex;
-    gap: 0.5rem;
-}
-
-.btn-group-modern .common-btn {
-    border-radius: 8px;
-}
-
-/* ==================== 文件上传样式 ==================== */
-.file-upload-modern {
-    position: relative;
-    display: inline-block;
-    cursor: pointer;
-}
-
-.file-upload-modern input[type="file"] {
-    position: absolute;
-    opacity: 0;
-    width: 0;
-    height: 0;
-}
-
-.file-upload-label-modern {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.625rem 1.25rem;
-    background: white;
-    border: 2px dashed #d1d5db;
-    border-radius: 8px;
-    color: #6b7280;
-    font-size: 0.875rem;
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.file-upload-label-modern:hover {
-    border-color: #3b82f6;
-    color: #3b82f6;
-    background: #f0f9ff;
-}
-
-/* ==================== 搜索框样式 ==================== */
-.search-box-modern {
-    position: relative;
-    max-width: 400px;
-}
-
-.search-box-modern input {
-    width: 100%;
-    padding: 0.625rem 1rem 0.625rem 2.75rem;
-    border: 1px solid #d1d5db;
-    border-radius: 25px;
-    font-size: 0.875rem;
-    transition: all 0.2s ease;
-}
-
-.search-box-modern input:focus {
-    outline: none;
-    border-color: #3b82f6;
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-}
-
-.search-box-modern i {
-    position: absolute;
-    left: 1rem;
-    top: 50%;
-    transform: translateY(-50%);
-    color: #9ca3af;
-    font-size: 1rem;
-}
+/* ==================== Modern系列组件已删除 ==================== */
+/* 已统一使用 visa- 系列：visa-btn, visa-form-control, visa-card, visa-table, visa-badge 等 */
+/* 删除了所有 -modern 后缀的类：btn-*-modern, form-*-modern, card-*-modern, table-modern 等 */
 
 /* ==================== 状态指示器 ==================== */
 .status-dot {
@@ -1089,77 +311,8 @@ main {
 .status-inactive { background: #6b7280; }
 .status-error { background: #ef4444; }
 
-/* ==================== 统计卡片 ==================== */
-.stat-card-modern {
-    background: white;
-    border-radius: 12px;
-    padding: 1.5rem;
-    border: 1px solid #e5e7eb;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-    transition: all 0.3s ease;
-}
-
-.stat-card-modern:hover {
-    box-shadow: 0 8px 20px rgba(0,0,0,0.1);
-    transform: translateY(-3px);
-}
-
-.stat-card-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: 1rem;
-}
-
-.stat-card-icon {
-    width: 48px;
-    height: 48px;
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.5rem;
-}
-
-.stat-card-icon.blue {
-    background: #dbeafe;
-    color: #2563eb;
-}
-
-.stat-card-icon.green {
-    background: #d1fae5;
-    color: #059669;
-}
-
-.stat-card-icon.yellow {
-    background: #fef3c7;
-    color: #d97706;
-}
-
-.stat-card-icon.red {
-    background: #fee2e2;
-    color: #dc2626;
-}
-
-.stat-card-value {
-    font-size: 2rem;
-    font-weight: 700;
-    color: #1f2937;
-    margin-bottom: 0.25rem;
-}
-
-.stat-card-label {
-    font-size: 0.875rem;
-    color: #6b7280;
-    font-weight: 500;
-}
-
-/* ==================== 响应式调整 ==================== */
+/* ==================== 响应式调整 - Modern系列已删除 ==================== */
 @media (max-width: 992px) {
-    .form-row-modern {
-        grid-template-columns: 1fr;
-    }
-    
     .section-header {
         flex-direction: column;
         align-items: flex-start;
@@ -1176,86 +329,13 @@ main {
         padding: 1rem;
     }
     
-    .card-header-modern,
-    .card-body-modern,
-    .card-footer-modern {
-        padding: 1rem;
-    }
-    
-    .table-modern th,
-    .table-modern td {
-        padding: 0.75rem 0.5rem;
-        font-size: 0.8125rem;
-    }
-    
     .common-btn {
         padding: 0.5rem 1rem;
         font-size: 0.8125rem;
     }
-    
-    .form-actions-modern {
-        flex-direction: column;
-    }
-    
-    .form-actions-modern .common-btn {
-        width: 100%;
-    }
-    
-    .modal-dialog-modern {
-        width: 95%;
-        max-height: 95vh;
-    }
-    
-    .btn-group-modern {
-        flex-direction: column;
-        width: 100%;
-    }
-    
-    .btn-group-modern .common-btn {
-        width: 100%;
-    }
 }
 
-/* ==================== 辅助类 ==================== */
-.text-muted-modern { color: #6b7280; }
-.text-primary-modern { color: #3b82f6; }
-.text-success-modern { color: #10b981; }
-.text-warning-modern { color: #f59e0b; }
-.text-danger-modern { color: #ef4444; }
-
-.bg-light-modern { background-color: #f9fafb; }
-.bg-primary-light-modern { background-color: #eff6ff; }
-.bg-success-light-modern { background-color: #ecfdf5; }
-.bg-warning-light-modern { background-color: #fffbeb; }
-.bg-danger-light-modern { background-color: #fef2f2; }
-
-.rounded-modern { border-radius: 8px; }
-.rounded-lg-modern { border-radius: 12px; }
-.rounded-xl-modern { border-radius: 16px; }
-
-.shadow-sm-modern { box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
-.shadow-modern { box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
-.shadow-lg-modern { box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
-
-.mt-1-modern { margin-top: 0.5rem; }
-.mt-2-modern { margin-top: 1rem; }
-.mt-3-modern { margin-top: 1.5rem; }
-.mt-4-modern { margin-top: 2rem; }
-
-.mb-1-modern { margin-bottom: 0.5rem; }
-.mb-2-modern { margin-bottom: 1rem; }
-.mb-3-modern { margin-bottom: 1.5rem; }
-.mb-4-modern { margin-bottom: 2rem; }
-
-.gap-1-modern { gap: 0.5rem; }
-.gap-2-modern { gap: 1rem; }
-.gap-3-modern { gap: 1.5rem; }
-
-.flex-modern { display: flex; }
-.flex-column-modern { flex-direction: column; }
-.align-items-center-modern { align-items: center; }
-.justify-content-between-modern { justify-content: space-between; }
-.justify-content-center-modern { justify-content: center; }
+/* ==================== 辅助类 - Modern系列已删除 ==================== */
 
 /* ==================== 原staff.css的特殊样式 ==================== */
 
@@ -2384,5 +1464,1315 @@ main {
         float: left;
         font-weight: 600;
     }
+}
+
+/* ==================== VISA模块组件样式（从 visa_common.css 合并）==================== */
+
+/* ==================== Visa容器布局 ==================== */
+.visa-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: var(--visa-spacing-md);
+}
+
+.visa-container-lg {
+    max-width: 1800px;
+    margin: 0 auto;
+    padding: var(--visa-spacing-md);
+}
+
+.visa-container-sm {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: var(--visa-spacing-md);
+}
+
+/* ==================== Visa页面标题系统 ==================== */
+.visa-page-title {
+    font-size: 1.75rem;
+    font-weight: 600;
+    color: var(--visa-text-primary);
+    margin-bottom: var(--visa-spacing-lg);
+    text-align: center;
+}
+
+.visa-page-title-with-line {
+    text-align: center;
+    color: var(--visa-primary-dark);
+    margin: var(--visa-spacing-lg) 0 3rem;
+    font-weight: 600;
+    position: relative;
+    padding-bottom: var(--visa-spacing-sm);
+}
+
+.visa-page-title-with-line:after {
+    content: "";
+    position: absolute;
+    width: 100px;
+    height: 3px;
+    background: linear-gradient(to right, var(--visa-gradient-start), var(--visa-gradient-end));
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    border-radius: 3px;
+}
+
+/* ==================== Visa统一卡片组件 ==================== */
+.visa-card {
+    background: var(--visa-bg-card);
+    border-radius: var(--visa-radius-md);
+    box-shadow: var(--visa-shadow-md);
+    margin-bottom: var(--visa-spacing-md);
+    overflow: hidden;
+}
+
+.visa-card-header {
+    background: #f8fafc;
+    color: var(--visa-text-primary);
+    padding: var(--visa-spacing-md);
+    border-bottom: 2px solid #e2e8f0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.visa-card-header h2,
+.visa-card-header h3 {
+    margin: 0;
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--visa-primary);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.visa-card-header h2::before {
+    content: '';
+    display: inline-block;
+    width: 4px;
+    height: 1.2em;
+    background: var(--visa-primary);
+    border-radius: 2px;
+}
+
+.visa-card-body {
+    padding: var(--visa-spacing-md);
+}
+
+.visa-card-footer {
+    padding: var(--visa-spacing-sm) var(--visa-spacing-md);
+    background: var(--visa-bg-light);
+    border-top: 1px solid var(--visa-border);
+    display: flex;
+    gap: var(--visa-spacing-xs);
+    justify-content: flex-end;
+}
+
+/* 卡片变体 */
+.visa-card-simple {
+    background: var(--visa-bg-card);
+    border-radius: var(--visa-radius-sm);
+    box-shadow: var(--visa-shadow-sm);
+    padding: var(--visa-spacing-md);
+    margin-bottom: var(--visa-spacing-md);
+}
+
+.visa-card-accent {
+    border-left: 4px solid var(--visa-primary);
+}
+
+.visa-card-hover {
+    transition: all 0.3s ease;
+}
+
+.visa-card-hover:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--visa-shadow-hover);
+}
+
+/* 信息提示框 */
+.visa-info-box {
+    padding: 0.75rem 1rem;
+    background: #f0f9ff;
+    border: 1px solid #bae6fd;
+    border-radius: 0.375rem;
+    margin-bottom: 1rem;
+    font-size: 0.875rem;
+    color: #0369a1;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+}
+
+.visa-info-box i {
+    color: #0284c7;
+    margin-top: 0.125rem;
+}
+
+/* ==================== Visa统一按钮系统 ==================== */
+.visa-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.375rem;
+    height: 40px;
+    padding: 0 1rem;
+    border: none;
+    border-radius: 0.375rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-decoration: none;
+    line-height: 1.5;
+}
+
+/* 按钮颜色变体 */
+.visa-btn-primary {
+    background: var(--visa-primary);
+    color: white;
+}
+
+.visa-btn-primary:hover {
+    background: var(--visa-primary-dark);
+    color: white;
+}
+
+.visa-btn-success {
+    background: var(--visa-success);
+    color: white;
+}
+
+.visa-btn-success:hover {
+    background: #059669;
+    color: white;
+}
+
+.visa-btn-warning {
+    background: var(--visa-warning);
+    color: white;
+}
+
+.visa-btn-warning:hover {
+    background: #d97706;
+    color: white;
+}
+
+.visa-btn-danger {
+    background: var(--visa-danger);
+    color: white;
+}
+
+.visa-btn-danger:hover {
+    background: #dc2626;
+    color: white;
+}
+
+.visa-btn-secondary {
+    background: #6b7280;
+    color: white;
+}
+
+.visa-btn-secondary:hover {
+    background: #4b5563;
+    color: white;
+}
+
+.visa-btn-info {
+    background: var(--visa-info);
+    color: white;
+}
+
+.visa-btn-info:hover {
+    background: #0891b2;
+    color: white;
+}
+
+.visa-btn-accent {
+    background: #ecc94b;
+    color: #2d3748;
+}
+
+.visa-btn-accent:hover {
+    background: #d69e2e;
+    color: #2d3748;
+}
+
+/* 按钮大小变体 */
+.visa-btn-sm {
+    height: 32px;
+    padding: 0 0.75rem;
+    font-size: 0.8125rem;
+}
+
+.visa-btn-lg {
+    height: 48px;
+    padding: 0 1.5rem;
+    font-size: 1rem;
+}
+
+/* 文字链接按钮 */
+.visa-btn-link {
+    background: none;
+    border: none;
+    padding: 0.25rem 0.5rem;
+    font-weight: 500;
+    transition: opacity 0.2s;
+    height: auto;
+}
+
+.visa-btn-link:hover {
+    opacity: 0.7;
+}
+
+.visa-btn-link-primary { color: var(--visa-primary); }
+.visa-btn-link-success { color: var(--visa-success); }
+.visa-btn-link-warning { color: var(--visa-warning); }
+.visa-btn-link-danger { color: var(--visa-danger); }
+.visa-btn-link-info { color: var(--visa-info); font-weight: 600; }
+
+/* ==================== Visa统一表格系统 ==================== */
+.visa-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--visa-bg-card);
+    font-size: 0.875rem;
+}
+
+.visa-table thead {
+    background: var(--visa-bg-light);
+}
+
+.visa-table th {
+    padding: 0.75rem 1rem;
+    text-align: left;
+    font-weight: 600;
+    color: var(--visa-text-primary);
+    border-bottom: 2px solid var(--visa-border);
+}
+
+.visa-table td {
+    padding: 0.75rem 1rem;
+    color: var(--visa-text-secondary);
+    border-bottom: 1px solid var(--visa-border);
+}
+
+.visa-table tbody tr {
+    transition: background-color 0.2s;
+}
+
+.visa-table tbody tr:hover {
+    background: var(--visa-bg-hover);
+}
+
+.visa-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* 表格文字对齐 */
+.visa-table .text-center { text-align: center; }
+.visa-table .text-right { text-align: right; }
+.visa-table .text-muted { color: var(--visa-text-muted); }
+
+/* ==================== Visa统一表单系统 ==================== */
+.visa-form-group {
+    margin-bottom: var(--visa-spacing-md);
+}
+
+.visa-form-label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    color: #4a5568;
+    font-size: 0.875rem;
+}
+
+.visa-form-control,
+.visa-form-select,
+.visa-form-textarea {
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.375rem;
+    font-size: 0.875rem;
+    color: #2d3748;
+    background: #ffffff;
+    transition: all 0.2s ease;
+    line-height: 1.5;
+}
+
+/* 输入框和下拉框固定高度 */
+.visa-form-control:not(textarea),
+.visa-form-select {
+    height: 40px;
+}
+
+.visa-form-control:hover,
+.visa-form-select:hover {
+    border-color: #cbd5e0;
+}
+
+.visa-form-control:focus,
+.visa-form-select:focus,
+.visa-form-textarea:focus {
+    outline: none;
+    border-color: var(--visa-primary);
+    box-shadow: 0 0 0 3px rgba(26, 86, 219, 0.1);
+    background: #ffffff;
+}
+
+.visa-form-control::placeholder {
+    color: #a0aec0;
+}
+
+/* Textarea 专用样式 */
+.visa-form-control[rows],
+textarea.visa-form-control,
+.visa-form-textarea {
+    min-height: 120px;
+    height: auto;
+    resize: vertical;
+    line-height: 1.6;
+}
+
+.visa-form-select {
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236b7280' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    background-color: #ffffff;
+    padding-right: 2.5rem;
+}
+
+/* ==================== Visa统一徽章系统 ==================== */
+.visa-badge {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-align: center;
+}
+
+.visa-badge-primary { background: #dbeafe; color: #1e40af; }
+.visa-badge-success { background: #d1fae5; color: #065f46; }
+.visa-badge-warning { background: #fef3c7; color: #92400e; }
+.visa-badge-danger { background: #fee2e2; color: #991b1b; }
+.visa-badge-info { background: #e0f2fe; color: #075985; }
+
+/* ==================== Visa统一筛选和搜索栏 ==================== */
+.visa-filter-bar {
+    background: var(--visa-bg-card);
+    border-radius: var(--visa-radius-md);
+    box-shadow: var(--visa-shadow-md);
+    padding: var(--visa-spacing-md);
+    margin-bottom: var(--visa-spacing-lg);
+    display: flex;
+    gap: var(--visa-spacing-sm);
+    align-items: flex-end;
+    flex-wrap: wrap;
+}
+
+.visa-search-box {
+    flex: 1;
+    min-width: 250px;
+    position: relative;
+}
+
+.visa-search-box input {
+    width: 100%;
+    padding: 0.625rem 0.875rem 0.625rem 2.5rem;
+    border: 2px solid var(--visa-border);
+    border-radius: var(--visa-radius-sm);
+    font-size: 0.875rem;
+}
+
+.visa-search-box i {
+    position: absolute;
+    left: 0.875rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--visa-text-muted);
+}
+
+.visa-filter-item {
+    min-width: 180px;
+}
+
+/* ==================== Visa统一分页系统 ==================== */
+.visa-pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: var(--visa-spacing-lg);
+    padding: var(--visa-spacing-sm);
+}
+
+.visa-pagination-btn {
+    min-width: 36px;
+    height: 36px;
+    padding: 0 0.75rem;
+    border: 1px solid var(--visa-border);
+    border-radius: var(--visa-radius-sm);
+    background: var(--visa-bg-card);
+    color: var(--visa-text-secondary);
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.visa-pagination-btn:hover:not(.active):not(:disabled) {
+    background: var(--visa-bg-hover);
+    border-color: var(--visa-primary);
+    color: var(--visa-primary);
+    text-decoration: none;
+}
+
+.visa-pagination-btn.active {
+    background: var(--visa-primary);
+    border-color: var(--visa-primary);
+    color: white;
+}
+
+.visa-pagination-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.visa-pagination-info {
+    font-size: 0.8125rem;
+    color: var(--visa-text-muted);
+    margin: 0 var(--visa-spacing-sm);
+}
+
+/* ==================== Visa网格布局系统 ==================== */
+.visa-grid {
+    display: grid;
+    gap: var(--visa-spacing-md);
+}
+
+.visa-grid-2 { 
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--visa-spacing-md);
+}
+
+.visa-grid-3 { 
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--visa-spacing-md);
+}
+
+.visa-grid-4 { 
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--visa-spacing-md);
+}
+
+/* 自适应网格 */
+.visa-grid-auto-fit {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: var(--visa-spacing-md);
+}
+
+.visa-grid-responsive {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: var(--visa-spacing-md);
+}
+
+/* ==================== Visa加载动画 ==================== */
+.visa-loading {
+    text-align: center;
+    padding: 3rem;
+    color: var(--visa-text-muted);
+}
+
+.visa-loading i {
+    font-size: 2rem;
+    margin-bottom: 1rem;
+    display: block;
+    animation: visa-spin 1s linear infinite;
+}
+
+@keyframes visa-spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* ==================== Visa闪现消息系统 ==================== */
+.visa-flash-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1050;
+    max-width: 400px;
+}
+
+.visa-flash {
+    padding: 0.875rem 1.25rem;
+    border-radius: var(--visa-radius-sm);
+    margin-bottom: var(--visa-spacing-sm);
+    box-shadow: var(--visa-shadow-lg);
+    color: white;
+    font-size: 0.875rem;
+    animation: slideInRight 0.3s ease;
+}
+
+.visa-flash-success { background: var(--visa-success); }
+.visa-flash-error { background: var(--visa-danger); }
+.visa-flash-warning { background: var(--visa-warning); }
+.visa-flash-info { background: var(--visa-info); }
+
+@keyframes slideInRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* ==================== Visa工具类 ==================== */
+/* 文本对齐 */
+.visa-text-left { text-align: left; }
+.visa-text-center { text-align: center; }
+.visa-text-right { text-align: right; }
+
+/* 间距 */
+.visa-mb-1 { margin-bottom: var(--visa-spacing-xs); }
+.visa-mb-2 { margin-bottom: var(--visa-spacing-sm); }
+.visa-mb-3 { margin-bottom: var(--visa-spacing-md); }
+.visa-mb-4 { margin-bottom: var(--visa-spacing-lg); }
+
+.visa-mt-1 { margin-top: var(--visa-spacing-xs); }
+.visa-mt-2 { margin-top: var(--visa-spacing-sm); }
+.visa-mt-3 { margin-top: var(--visa-spacing-md); }
+.visa-mt-4 { margin-top: var(--visa-spacing-lg); }
+
+/* Flex布局 */
+.visa-flex { display: flex; }
+.visa-flex-center { display: flex; justify-content: center; align-items: center; }
+.visa-flex-between { display: flex; justify-content: space-between; align-items: center; }
+.visa-flex-end { display: flex; justify-content: flex-end; align-items: center; }
+.visa-flex-wrap { flex-wrap: wrap; }
+
+.visa-gap-1 { gap: var(--visa-spacing-xs); }
+.visa-gap-2 { gap: var(--visa-spacing-sm); }
+.visa-gap-3 { gap: var(--visa-spacing-md); }
+
+/* ==================== Visa响应式设计 ==================== */
+@media (max-width: 1200px) {
+    .visa-grid-4 { grid-template-columns: repeat(3, 1fr); }
+    .visa-grid-3 { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 768px) {
+    .visa-container,
+    .visa-container-lg,
+    .visa-container-sm {
+        padding: var(--visa-spacing-sm);
+    }
+    
+    .visa-grid-4,
+    .visa-grid-3,
+    .visa-grid-2 {
+        grid-template-columns: 1fr;
+    }
+    
+    .visa-filter-bar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .visa-search-box,
+    .visa-filter-item {
+        width: 100%;
+    }
+    
+    .visa-table {
+        font-size: 0.75rem;
+    }
+    
+    .visa-table th,
+    .visa-table td {
+        padding: 0.5rem;
+    }
+    
+    .visa-btn {
+        width: 100%;
+        justify-content: center;
+    }
+    
+    .visa-card-footer {
+        flex-direction: column;
+    }
+}
+
+/* ==================== 资源管理卡片样式（从 package_home 提取）==================== */
+
+/* 功能卡片 - 带渐变背景和图标 */
+.resource-card {
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    border: 1px solid #e5e7eb;
+    padding: 1.25rem;
+    transition: all 0.3s ease;
+    background: white;
+}
+
+.resource-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+/* 渐变背景变体 */
+.resource-card-blue {
+    background: linear-gradient(135deg, #eff6ff 0%, #ffffff 100%);
+}
+
+.resource-card-green {
+    background: linear-gradient(135deg, #f0fdf4 0%, #ffffff 100%);
+}
+
+.resource-card-pink {
+    background: linear-gradient(135deg, #fdf2f8 0%, #ffffff 100%);
+}
+
+.resource-card-purple {
+    background: linear-gradient(135deg, #faf5ff 0%, #ffffff 100%);
+}
+
+.resource-card-yellow {
+    background: linear-gradient(135deg, #fefce8 0%, #ffffff 100%);
+}
+
+.resource-card-indigo {
+    background: linear-gradient(135deg, #eef2ff 0%, #ffffff 100%);
+}
+
+.resource-card-red {
+    background: linear-gradient(135deg, #fef2f2 0%, #ffffff 100%);
+}
+
+.resource-card-orange {
+    background: linear-gradient(135deg, #fff7ed 0%, #ffffff 100%);
+}
+
+/* 卡片头部（图标+标题） */
+.resource-card-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.resource-card-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 0.75rem;
+    font-size: 1.125rem;
+}
+
+/* 图标容器颜色变体 */
+.resource-icon-blue {
+    background: #dbeafe;
+    color: #3b82f6;
+}
+
+.resource-icon-green {
+    background: #d1fae5;
+    color: #10b981;
+}
+
+.resource-icon-pink {
+    background: #fce7f3;
+    color: #ec4899;
+}
+
+.resource-icon-purple {
+    background: #f3e8ff;
+    color: #a855f7;
+}
+
+.resource-icon-yellow {
+    background: #fef3c7;
+    color: #f59e0b;
+}
+
+.resource-icon-indigo {
+    background: #e0e7ff;
+    color: #6366f1;
+}
+
+.resource-icon-red {
+    background: #fee2e2;
+    color: #ef4444;
+}
+
+.resource-icon-orange {
+    background: #ffedd5;
+    color: #f97316;
+}
+
+/* 卡片标题 */
+.resource-card-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: #1f2937;
+    margin: 0;
+}
+
+/* 卡片描述 */
+.resource-card-description {
+    font-size: 0.875rem;
+    color: #6b7280;
+    margin-bottom: 1rem;
+    line-height: 1.6;
+}
+
+/* 卡片底部（按钮+统计） */
+.resource-card-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.resource-card-footer .visa-btn {
+    font-size: 0.875rem;
+    height: 36px;
+}
+
+.resource-card-stats {
+    font-size: 0.75rem;
+    color: #9ca3af;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+/* 快速操作按钮 */
+.quick-action-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    font-weight: 500;
+    font-size: 0.875rem;
+    text-decoration: none;
+    transition: all 0.3s ease;
+}
+
+.quick-action-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+    text-decoration: none;
+}
+
+/* 快速操作按钮颜色变体 */
+.quick-action-btn.btn-blue {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+.quick-action-btn.btn-blue:hover {
+    background: #bfdbfe;
+    color: #1e3a8a;
+}
+
+.quick-action-btn.btn-green {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.quick-action-btn.btn-green:hover {
+    background: #a7f3d0;
+    color: #064e3b;
+}
+
+.quick-action-btn.btn-purple {
+    background: #f3e8ff;
+    color: #6b21a8;
+}
+
+.quick-action-btn.btn-purple:hover {
+    background: #e9d5ff;
+    color: #581c87;
+}
+
+.quick-action-btn.btn-yellow {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.quick-action-btn.btn-yellow:hover {
+    background: #fde68a;
+    color: #78350f;
+}
+
+.quick-action-btn.btn-pink {
+    background: #fce7f3;
+    color: #9f1239;
+}
+
+.quick-action-btn.btn-pink:hover {
+    background: #fbcfe8;
+    color: #831843;
+}
+
+.quick-action-btn.btn-indigo {
+    background: #e0e7ff;
+    color: #3730a3;
+}
+
+.quick-action-btn.btn-indigo:hover {
+    background: #c7d2fe;
+    color: #312e81;
+}
+
+.quick-action-btn.btn-red {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.quick-action-btn.btn-red:hover {
+    background: #fecaca;
+    color: #7f1d1d;
+}
+
+/* 分类标题 - 带左边框 */
+.category-header {
+    position: relative;
+    padding-left: 1rem;
+    margin-bottom: 1rem;
+}
+
+.category-header::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+    width: 4px;
+    border-radius: 2px;
+}
+
+.category-header h3 {
+    font-size: 1.125rem;
+    font-weight: 500;
+    color: #374151;
+    margin-bottom: 0.25rem;
+}
+
+.category-header p {
+    font-size: 0.875rem;
+    color: #9ca3af;
+    margin: 0;
+}
+
+/* 分类颜色变体 */
+.category-resources .category-header::before {
+    background-color: #3b82f6;
+}
+
+.category-management .category-header::before {
+    background-color: #10b981;
+}
+
+.category-creation .category-header::before {
+    background-color: #f59e0b;
+}
+
+.category-info .category-header::before {
+    background-color: #06b6d4;
+}
+
+.category-danger .category-header::before {
+    background-color: #ef4444;
+}
+
+/* 统计卡片（用于 package_home 等页面） */
+.stats-card-small {
+    background: white;
+    border-radius: 8px;
+    padding: 1rem;
+    transition: all 0.3s ease;
+}
+
+.stats-card-small:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+}
+
+.stats-card-small .stats-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.875rem;
+}
+
+/* 统计卡片颜色变体 */
+.stats-card-blue { background: #eff6ff; }
+.stats-card-green { background: #f0fdf4; }
+.stats-card-purple { background: #faf5ff; }
+.stats-card-yellow { background: #fefce8; }
+
+.stats-icon-blue { background: #dbeafe; color: #3b82f6; }
+.stats-icon-green { background: #d1fae5; color: #10b981; }
+.stats-icon-purple { background: #f3e8ff; color: #a855f7; }
+.stats-icon-yellow { background: #fef3c7; color: #f59e0b; }
+
+/* ==================== 响应式优化 ==================== */
+@media (max-width: 768px) {
+    .resource-card {
+        padding: 1rem;
+    }
+    
+    .resource-card-icon {
+        width: 36px;
+        height: 36px;
+        font-size: 1rem;
+    }
+    
+    .resource-card-title {
+        font-size: 1rem;
+    }
+    
+    .quick-action-btn {
+        padding: 0.5rem 0.75rem;
+        font-size: 0.8125rem;
+    }
+}
+
+/* ==================== 供应商类型徽章样式 ==================== */
+
+/* 供应商类型徽章基础样式 */
+.visa-badge[class*="supplier-type-"] {
+    font-size: 0.8125rem;
+    padding: 0.25rem 0.75rem;
+    border-radius: 12px;
+    font-weight: 500;
+}
+
+/* 酒店 */
+.supplier-type-hotel,
+.supplier-type-accommodation {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+/* 航空公司 */
+.supplier-type-airline,
+.supplier-type-flight {
+    background: #e0f2fe;
+    color: #0369a1;
+}
+
+/* 旅行社/旅游运营商 */
+.supplier-type-tour_operator,
+.supplier-type-travel_agency {
+    background: #d1fae5;
+    color: #047857;
+}
+
+/* 签证代理 */
+.supplier-type-visa_agency,
+.supplier-type-visa {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+/* 交通运输 */
+.supplier-type-transport,
+.supplier-type-transportation {
+    background: #fce7f3;
+    color: #9f1239;
+}
+
+/* 餐饮 */
+.supplier-type-restaurant,
+.supplier-type-catering {
+    background: #f3e8ff;
+    color: #6b21a8;
+}
+
+/* 景点/门票 */
+.supplier-type-attraction,
+.supplier-type-ticket {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+/* 导游服务 */
+.supplier-type-guide,
+.supplier-type-tour_guide {
+    background: #e0e7ff;
+    color: #3730a3;
+}
+
+/* 保险 */
+.supplier-type-insurance {
+    background: #ddd6fe;
+    color: #5b21b6;
+}
+
+/* 其他/默认 */
+.supplier-type-other,
+.supplier-type-misc {
+    background: #e5e7eb;
+    color: #374151;
+}
+
+/* ==================== 详情页信息项样式 ==================== */
+
+/* 信息项容器 */
+.info-item {
+    display: flex;
+    gap: 0.75rem;
+    align-items: start;
+    padding: 0.75rem;
+    background: #f8fafc;
+    border-radius: 0.5rem;
+    transition: all 0.2s ease;
+}
+
+.info-item:hover {
+    background: #f1f5f9;
+}
+
+/* 信息项图标 */
+.info-icon {
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1.125rem;
+}
+
+/* 信息项内容 */
+.info-content {
+    flex: 1;
+}
+
+.info-content h6 {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #64748b;
+    margin: 0 0 0.25rem 0;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.info-content p {
+    font-size: 0.9375rem;
+    font-weight: 500;
+    color: #1e293b;
+    margin: 0;
+}
+
+/* 统计项样式 */
+.stat-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 0.5rem;
+}
+
+.stat-number {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: 0.25rem;
+}
+
+.stat-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.25rem;
+}
+
+/* ==================== 账号管理特定样式 ==================== */
+
+/* 密码字段专用样式 */
+.password-field {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.password-text-container {
+    display: flex;
+    align-items: center;
+    background: #f1f1f1;
+    border-radius: var(--visa-radius-sm);
+    overflow: hidden;
+    border: 1px solid var(--visa-border);
+}
+
+.password-text {
+    font-family: monospace;
+    padding: 0.25rem 0.5rem;
+    font-weight: 600;
+    letter-spacing: 1px;
+    color: #555;
+    transition: all 0.2s;
+    font-size: 0.875rem;
+}
+
+.password-text.visible-password {
+    color: #28a745;
+    background: #e8f5e9;
+    letter-spacing: normal;
+}
+
+.btn-toggle,
+.btn-copy {
+    border: none;
+    padding: 0.25rem 0.5rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 32px;
+    font-size: 0.75rem;
+}
+
+.btn-toggle {
+    background: var(--visa-primary);
+    color: white;
+    border-radius: 0;
+    border-left: 1px solid var(--visa-border);
+}
+
+.btn-toggle:hover {
+    background: var(--visa-primary-dark);
+}
+
+.btn-copy {
+    background: var(--visa-success);
+    color: white;
+    border-radius: var(--visa-radius-sm);
+}
+
+.btn-copy:hover {
+    background: #218838;
+}
+
+/* 热门网站侧边栏样式 */
+.popular-websites {
+    width: 300px;
+    background: var(--visa-bg-card);
+    border-radius: var(--visa-radius-md);
+    padding: var(--visa-spacing-md);
+    box-shadow: var(--visa-shadow-md);
+}
+
+.popular-websites h3 {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--visa-text-primary);
+    margin-bottom: 1rem;
+}
+
+.popular-list {
+    max-height: 600px;
+    overflow-y: auto;
+}
+
+.popular-item {
+    display: flex;
+    align-items: center;
+    padding: 0.625rem;
+    border-bottom: 1px solid var(--visa-border);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border-radius: var(--visa-radius-sm);
+}
+
+.popular-item:hover {
+    background: var(--visa-bg-hover);
+    transform: translateX(5px);
+}
+
+.popular-item.active {
+    background: #e8f5e9;
+    border-left: 4px solid #28a745;
+    font-weight: 600;
+}
+
+.website-rank {
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--visa-primary);
+    color: white;
+    border-radius: 50%;
+    margin-right: 0.75rem;
+    font-weight: 600;
+    font-size: 0.875rem;
+}
+
+.website-info {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+}
+
+.website-name {
+    font-size: 0.875rem;
+    color: var(--visa-text-primary);
+    font-weight: 500;
+}
+
+.website-link {
+    font-size: 0.75rem;
+    color: var(--visa-primary);
+    white-space: nowrap;
+}
+
+.click-count {
+    color: var(--visa-text-muted);
+    font-size: 0.75rem;
+    white-space: nowrap;
+}
+
+.popular-stats {
+    margin-top: 1rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--visa-border);
+    text-align: center;
+    font-size: 0.8125rem;
 }
 

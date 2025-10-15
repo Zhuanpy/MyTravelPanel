@@ -35,10 +35,15 @@ class Supplier(db.Model):
     services = db.relationship('SupplierService', backref='supplier', cascade="all, delete-orphan")
     contracts = db.relationship('SupplierContract', backref='supplier', cascade="all, delete-orphan")
     payments = db.relationship('SupplierPayment', backref='supplier', cascade="all, delete-orphan")
+    # accounts 关联通过 Account 模型的 backref 自动创建
 
-    def to_dict(self):
-        """将供应商对象转换为字典，用于JSON序列化"""
-        return {
+    def to_dict(self, include_accounts=False):
+        """将供应商对象转换为字典，用于JSON序列化
+        
+        Args:
+            include_accounts: 是否包含关联的账号信息
+        """
+        result = {
             'supplier_id': self.supplier_id,
             'name': self.name,
             'supplier_type': self.supplier_type,
@@ -55,6 +60,24 @@ class Supplier(db.Model):
             'click_count': self.click_count,
             'notes': self.notes
         }
+        
+        # 添加关联账号数量
+        if hasattr(self, 'accounts'):
+            result['accounts_count'] = len(self.accounts) if self.accounts else 0
+            
+            # 如果需要包含详细账号信息
+            if include_accounts:
+                result['accounts'] = [
+                    {
+                        'id': acc.id,
+                        'platform': acc.platform,
+                        'username': acc.username,
+                        'category': acc.category,
+                        'owner': acc.owner
+                    } for acc in self.accounts
+                ] if self.accounts else []
+        
+        return result
 
     @classmethod
     def get_supplier_types(cls):

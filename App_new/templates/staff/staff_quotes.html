@@ -22,8 +22,8 @@
         <div class="card-body">
             <form method="GET" class="row g-3">
                 <div class="col-md-3">
-                    <label for="status" class="form-label">状态</label>
-                    <select class="form-select" id="status" name="status">
+                    <label for="status" class="visa-form-label">状态</label>
+                    <select class="visa-form-select" id="status" name="status">
                         <option value="">全部状态</option>
                         <option value="pending" {% if status == 'pending' %}selected{% endif %}>待审核</option>
                         <option value="approved" {% if status == 'approved' %}selected{% endif %}>已批准</option>
@@ -32,17 +32,17 @@
                     </select>
                 </div>
                 <div class="col-md-6">
-                    <label for="search" class="form-label">搜索</label>
-                    <input type="text" class="form-control" id="search" name="search" 
+                    <label for="search" class="visa-form-label">搜索</label>
+                    <input type="text" class="visa-form-control" id="search" name="search" 
                            value="{{ search }}" placeholder="搜索客户名称或项目名称...">
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label">&nbsp;</label>
+                    <label class="visa-form-label">&nbsp;</label>
                     <div>
-                        <button type="submit" class="btn btn-primary">
+                        <button type="submit" class="visa-btn visa-btn-primary">
                             <i class="fas fa-search"></i> 搜索
                         </button>
-                        <a href="{{ url_for('staff.quotes') }}" class="btn btn-secondary">
+                        <a href="{{ url_for('staff.quotes') }}" class="visa-btn visa-btn-secondary">
                             <i class="fas fa-times"></i> 重置
                         </a>
                     </div>
@@ -196,8 +196,8 @@
                 确定要删除这个报价吗？此操作无法撤销。
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-                <button type="button" class="btn btn-danger" id="confirmDeleteBtn">确认删除</button>
+                <button type="button" class="visa-btn visa-btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="visa-btn visa-btn-danger" id="confirmDeleteBtn">确认删除</button>
             </div>
         </div>
     </div>

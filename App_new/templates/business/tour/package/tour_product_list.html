@@ -1,0 +1,188 @@
+{% extends "shared/staff_base.html" %}
+
+{% block title %}旅游产品列表{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/staff_common.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="visa-container">
+    <h1 class="visa-page-title">
+        <i class="fas fa-plane-departure"></i> 旅游产品列表
+    </h1>
+    <p class="visa-text-center visa-text-muted visa-mb-4">探索世界的每一个角落</p>
+
+    <!-- 闪现消息显示区域 -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="visa-flash visa-flash-{{ category }}" style="position:relative; top:0; right:0; margin-bottom:1rem;">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <!-- 筛选栏 -->
+    <div class="visa-filter-bar">
+        <form method="GET" action="{{ url_for('product_details.tour_product_list') }}" class="visa-flex visa-gap-2" style="width: 100%; align-items: flex-end;">
+            <!-- 国家筛选 -->
+            <div class="visa-filter-item">
+                <label for="countryFilter" class="visa-form-label">
+                    <i class="fas fa-globe"></i> 国家
+                </label>
+                <select name="country" id="countryFilter" class="visa-form-select" onchange="this.form.submit()">
+                    <option value="">全部国家</option>
+                    {% for country in countries %}
+                    <option value="{{ country }}" {% if selected_country == country %}selected{% endif %}>
+                        {{ country }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- 城市筛选 -->
+            <div class="visa-filter-item">
+                <label for="cityFilter" class="visa-form-label">
+                    <i class="fas fa-city"></i> 城市
+                </label>
+                <select name="city" id="cityFilter" class="visa-form-select" onchange="this.form.submit()">
+                    <option value="">全部城市</option>
+                    {% for city in cities %}
+                    <option value="{{ city }}" {% if selected_city == city %}selected{% endif %}>
+                        {{ city }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- 操作按钮 -->
+            <div class="visa-flex visa-gap-2">
+                {% if selected_country or selected_city %}
+                <a href="{{ url_for('product_details.tour_product_list') }}" class="visa-btn visa-btn-secondary">
+                    <i class="fas fa-redo"></i> 清除筛选
+                </a>
+                {% endif %}
+                <a href="{{ url_for('product_details.add_product') }}" class="visa-btn visa-btn-success">
+                    <i class="fas fa-plus"></i> 添加产品
+                </a>
+            </div>
+        </form>
+    </div>
+
+    <!-- 筛选结果提示 -->
+    <div class="visa-flex-between visa-mb-3">
+        <div>
+            <span class="visa-badge visa-badge-info">
+                <i class="fas fa-list"></i> 
+                {% if selected_country or selected_city %}
+                    筛选结果: {{ products|length }} 个产品
+                    {% if selected_country %}
+                    <span class="visa-badge visa-badge-primary" style="margin-left: 0.5rem;">
+                        <i class="fas fa-globe"></i> {{ selected_country }}
+                    </span>
+                    {% endif %}
+                    {% if selected_city %}
+                    <span class="visa-badge visa-badge-success" style="margin-left: 0.5rem;">
+                        <i class="fas fa-city"></i> {{ selected_city }}
+                    </span>
+                    {% endif %}
+                {% else %}
+                    共 {{ products|length }} 个产品
+                {% endif %}
+            </span>
+        </div>
+    </div>
+
+    <!-- 产品列表 -->
+    {% if products %}
+    <div class="visa-grid-responsive">
+        {% for product in products %}
+        <div class="resource-card resource-card-blue">
+            <div class="resource-card-header">
+                <div class="resource-card-icon resource-icon-blue">
+                    <i class="fas fa-map-marked-alt"></i>
+                </div>
+                <h4 class="resource-card-title">{{ product.title }}</h4>
+            </div>
+            
+            <div class="resource-card-description">
+                <!-- 国家和城市 -->
+                {% if product.country or product.city %}
+                <div class="visa-flex visa-gap-1 visa-mb-2">
+                    {% if product.country %}
+                    <span class="visa-badge visa-badge-primary">
+                        <i class="fas fa-globe"></i> {{ product.country }}
+                    </span>
+                    {% endif %}
+                    {% if product.city %}
+                    <span class="visa-badge visa-badge-success">
+                        <i class="fas fa-city"></i> {{ product.city }}
+                    </span>
+                    {% endif %}
+                </div>
+                {% endif %}
+                
+                <div class="visa-flex-between visa-mb-2">
+                    <span class="visa-badge visa-badge-warning">
+                        <i class="fas fa-clock"></i> {{ product.duration }}
+                    </span>
+                    <span style="font-size: 1.125rem; font-weight: 700; color: #ef4444;">
+                        SGD {{ "%.2f"|format(product.price) }}
+                    </span>
+                </div>
+                
+                <!-- 快速预览 -->
+                <div style="font-size: 0.8125rem; color: #6b7280; margin-top: 0.75rem;">
+                    <div style="margin-bottom: 0.5rem;">
+                        <i class="fas fa-route" style="color: #3b82f6; width: 16px;"></i> 
+                        <strong>行程:</strong> {{ (product.itinerary|striptags|truncate(50)) }}
+                    </div>
+                    <div>
+                        <i class="fas fa-check-circle" style="color: #10b981; width: 16px;"></i> 
+                        <strong>包含:</strong> {{ (product.included|striptags|truncate(50)) }}
+                    </div>
+                </div>
+            </div>
+
+            <div class="resource-card-footer">
+                <span class="resource-card-stats">
+                    <i class="fas fa-calendar-alt"></i> 
+                    {{ product.created_at.strftime('%Y-%m-%d') if product.created_at else '未知' }}
+                </span>
+                <div class="visa-flex visa-gap-1">
+                    <a href="{{ url_for('product_details.tour_product_detail', id=product.id) }}" 
+                       class="visa-btn visa-btn-primary visa-btn-sm">
+                        <i class="fas fa-eye"></i> 查看详情
+                    </a>
+                    <a href="{{ url_for('product_details.edit_product', id=product.id) }}" 
+                       class="visa-btn visa-btn-warning visa-btn-sm">
+                        <i class="fas fa-edit"></i> 编辑
+                    </a>
+                    <a href="{{ url_for('product_details.generate_pdf', id=product.id) }}" 
+                       class="visa-btn visa-btn-info visa-btn-sm">
+                        <i class="fas fa-file-pdf"></i> PDF
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="visa-loading">
+        <i class="fas fa-inbox"></i>
+        <p style="margin-top: 1rem;">暂无产品数据</p>
+        <a href="{{ url_for('product_details.add_product') }}" class="visa-btn visa-btn-primary" style="margin-top: 1rem;">
+            <i class="fas fa-plus"></i> 添加第一个产品
+        </a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.min.js"></script>
+{% endblock %}
+

@@ -3,317 +3,12 @@
 {% block title %}旅游产品详情{% endblock %}
 
 {% block extra_css %}
-<script src="https://cdn.tailwindcss.com"></script>
-<style>
-    .product-card {
-        background: rgba(255, 255, 255, 0.9);
-        backdrop-filter: blur(10px);
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        transition: all 0.3s ease;
-    }
-    .product-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-    }
-    .product-title {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-    }
-    .section-title {
-        color: #e67e22;
-        font-size: 1.2rem;
-        margin-top: 15px;
-        margin-bottom: 10px;
-    }
-    .feature-list {
-        background: rgba(248, 249, 250, 0.8);
-        backdrop-filter: blur(10px);
-        padding: 15px 20px;
-        border-radius: 8px;
-        margin: 10px 0;
-        white-space: pre-line;
-        word-wrap: break-word;
-        font-size: 1rem;
-        line-height: 1.6;
-        text-align: left;
-        font-family: Arial, sans-serif;
-    }
-    
-    .feature-list * {
-        margin: 0;
-        padding: 0;
-        text-indent: 0;
-    }
-
-    .feature-list div,
-    .feature-list p,
-    .feature-list span {
-        margin: 0;
-        padding: 0;
-        text-indent: 0;
-        display: block;
-    }
-
-    .feature-list ul,
-    .feature-list ol {
-        margin: 10px 0;
-        padding-left: 25px;
-    }
-
-    .feature-list li {
-        margin-bottom: 5px;
-        padding-left: 5px;
-    }
-
-    .btn-action {
-        transition: all 0.3s ease;
-        backdrop-filter: blur(10px);
-    }
-    .btn-action:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
-    }
-    .btn-export { background-color: #3498db; }
-    .btn-add { background-color: #2ecc71; }
-    .btn-edit {
-        background-color: #f39c12;
-        font-size: 0.9rem;
-        padding: 5px 15px;
-    }
-    .btn-action:hover { transform: scale(1.05); color: white; }
-    .btn-export:hover { background-color: #2980b9; }
-    .btn-add:hover { background-color: #27ae60; }
-    .btn-edit:hover { background-color: #d35400; }
-
-    .header-section {
-        background: linear-gradient(135deg, #3498db, #2c3e50);
-        color: white;
-        padding: 40px 0;
-        margin-bottom: 30px;
-    }
-
-    .price-tag {
-        color: #e74c3c;
-        font-size: 1.2rem;
-        font-weight: bold;
-    }
-    .duration-tag {
-        color: #7f8c8d;
-        font-size: 0.9rem;
-    }
-
-        /* A4纸张标准样式 */
-        @page {
-            size: A4;
-            margin: 0;
-        }
-
-        /* 打印样式 - 用于PDF导出 */
-        @media print {
-            /* 重置基本样式 */
-            body {
-                background-color: white !important;
-                margin: 0 !important;
-                padding: 0 !important;
-                min-height: 0 !important;
-                font-family: Arial, sans-serif !important;
-                width: 210mm !important;
-            }
-            
-            /* 容器样式 */
-            .container {
-                width: 190mm !important;
-                padding: 15mm 10mm 15mm 5mm !important;
-                margin: 0 auto !important;
-                box-sizing: border-box !important;
-            }
-
-            /* 公司抬头图片样式 */
-            .company-header-image {
-                display: block !important;
-                width: 175mm !important;
-                height: auto !important;
-                margin: -10mm 0 20mm 0 !important;
-                max-height: 40mm !important;
-                object-fit: contain !important;
-            }
-
-            /* 产品内容区域样式 */
-            .product-content {
-                padding: 0 !important;
-            }
-
-            /* 产品标题样式 */
-            .product-title {
-                font-size: 18px !important;
-                color: #333 !important;
-                border-bottom: 1px solid #ddd !important;
-                padding-bottom: 10px !important;
-                margin-bottom: 20px !important;
-                font-weight: normal !important;
-                line-height: 1.4 !important;
-            }
-
-            /* 包类型标签样式 */
-            .package-type {
-                color: #666 !important;
-                font-size: 14px !important;
-                margin: 15px 0 25px 0 !important;
-            }
-
-            /* 章节标题样式 */
-            .section-title {
-                font-size: 16px !important;
-                color: #333 !important;
-                font-weight: bold !important;
-                margin: 25px 0 15px 0 !important;
-                padding-left: 25px !important;
-                position: relative !important;
-            }
-            
-            .section-title::before {
-                content: '' !important;
-                position: absolute !important;
-                left: 0 !important;
-                top: 50% !important;
-                transform: translateY(-50%) !important;
-                width: 20px !important;
-                height: 20px !important;
-                background-repeat: no-repeat !important;
-                background-position: center !important;
-                background-size: contain !important;
-            }
-
-            .section-title.itinerary::before {
-                background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23333"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>') !important;
-            }
-
-            .section-title.included::before {
-                background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23333"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg>') !important;
-            }
-
-            .section-title.not-included::before {
-                background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23333"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41z"/></svg>') !important;
-            }
-
-            .section-title.quotation::before {
-                background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23333"><path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/></svg>') !important;
-            }
-
-            /* 特性列表样式 */
-            .feature-list {
-                font-size: 14px !important;
-                line-height: 1.6 !important;
-                color: #333 !important;
-                margin: 0 0 20px 0 !important;
-                padding: 10px 15px !important;
-                background: none !important;
-                border-left: 2px solid #ddd !important;
-                position: relative !important;
-            }
-
-            .feature-list::before {
-                content: '' !important;
-                position: absolute !important;
-                left: -6px !important;
-                top: -6px !important;
-                width: 10px !important;
-                height: 10px !important;
-                border-radius: 50% !important;
-                background-color: #333 !important;
-            }
-
-            .feature-list::after {
-                content: '' !important;
-                position: absolute !important;
-                left: -6px !important;
-                bottom: -6px !important;
-                width: 10px !important;
-                height: 10px !important;
-                border-radius: 50% !important;
-                background-color: #333 !important;
-            }
-
-            .feature-list ul {
-                list-style-type: none !important;
-                padding-left: 0 !important;
-            }
-
-            .feature-list ul li {
-                position: relative !important;
-                padding-left: 20px !important;
-                margin-bottom: 8px !important;
-            }
-
-            .feature-list ul li::before {
-                content: '•' !important;
-                position: absolute !important;
-                left: 0 !important;
-                color: #666 !important;
-            }
-
-            /* 报价区域样式 */
-            .quotation-section {
-                margin-top: 40px !important;
-            }
-
-            /* 价格标签样式 */
-            .price-tag {
-                font-size: 14px !important;
-                color: #333 !important;
-                margin: 0 !important;
-                padding: 10px 15px !important;
-                background: none !important;
-                border-left: 2px solid #ddd !important;
-                position: relative !important;
-            }
-
-            .price-tag::before {
-                content: '' !important;
-                position: absolute !important;
-                left: -6px !important;
-                top: -6px !important;
-                width: 10px !important;
-                height: 10px !important;
-                border-radius: 50% !important;
-                background-color: #333 !important;
-            }
-
-            .price-tag::after {
-                content: '' !important;
-                position: absolute !important;
-                left: -6px !important;
-                bottom: -6px !important;
-                width: 10px !important;
-                height: 10px !important;
-                border-radius: 50% !important;
-                background-color: #333 !important;
-            }
-        }
-
-        /* 提示框样式 */
-        .alert {
-            border-radius: 15px;
-            margin-bottom: 20px;
-        }
-        .alert-success {
-            background-color: #d4edda;
-            border-color: #c3e6cb;
-            color: #155724;
-        }
-        .alert-error {
-            background-color: #f8d7da;
-            border-color: #f5c6cb;
-            color: #721c24;
-        }
-    </style>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/staff_common.css') }}">
 {% endblock %}
 
 {% block content %}
-<div class="bg-gray-50 min-h-screen p-4 md:p-6">
-    <div class="max-w-7xl mx-auto">
+<div style="background: #f8f9fa; min-height: 100vh; padding: 1.5rem;">
+    <div style="max-width: 1400px; margin: 0 auto;">
         <!-- PDF导出模式下的公司信息头部 -->
         {% if is_pdf_export %}
         <div class="container">
@@ -327,90 +22,117 @@
 
         <!-- 网页版头部 -->
         {% if not is_pdf_export %}
-        <div class="header-section">
-            <div class="container">
-                <h1 class="text-center">精选旅游产品</h1>
-                <p class="text-center mb-0">探索世界的每一个角落</p>
+        <div class="visa-container">
+            <!-- 返回按钮 -->
+            <div class="visa-mb-3">
+                <a href="{{ url_for('product_details.tour_product_list') }}" class="visa-btn visa-btn-secondary visa-btn-sm">
+                    <i class="fas fa-arrow-left"></i> 返回列表
+                </a>
             </div>
-        </div>
 
-        <div class="container">
+            <h1 class="visa-page-title">
+                <i class="fas fa-file-alt"></i> 产品详情
+            </h1>
+
             <!-- 闪现消息显示区域 -->
             {% with messages = get_flashed_messages(with_categories=true) %}
                 {% if messages %}
                     {% for category, message in messages %}
-                        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                        <div class="visa-flash visa-flash-{{ category }}" style="position:relative; top:0; right:0; margin-bottom:1rem;">
                             {{ message }}
-                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                         </div>
                     {% endfor %}
                 {% endif %}
             {% endwith %}
-
-            <!-- 操作按钮区域 -->
-            <div class="row mb-4">
-                <div class="col-12 text-end">
-                    <a href="{{ url_for('product_details.add_product') }}" class="btn btn-action btn-add">
-                        <i class="fas fa-plus me-2"></i>添加产品
-                    </a>
-                </div>
-            </div>
         {% endif %}
 
         <!-- 产品列表循环 -->
         {% for product in products %}
-        <div class="{% if not is_pdf_export %}product-card{% endif %}">
+        <div class="{% if not is_pdf_export %}visa-card visa-mb-4{% endif %}">
             <!-- 产品标题 -->
-            <h2 class="product-title">{{ product.title }}</h2>
+            <div class="{% if not is_pdf_export %}visa-card-header{% endif %}" style="{% if not is_pdf_export %}background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;{% endif %}">
+                <div>
+                    <h2 style="{% if not is_pdf_export %}color: white; margin: 0 0 0.5rem 0;{% endif %}">{{ product.title }}</h2>
+                    <!-- 国家和城市信息 -->
+                    {% if not is_pdf_export and (product.country or product.city) %}
+                    <div class="visa-flex visa-gap-1" style="margin-top: 0.5rem;">
+                        {% if product.country %}
+                        <span class="visa-badge" style="background: rgba(255, 255, 255, 0.2); color: white;">
+                            <i class="fas fa-globe"></i> {{ product.country }}
+                        </span>
+                        {% endif %}
+                        {% if product.city %}
+                        <span class="visa-badge" style="background: rgba(255, 255, 255, 0.2); color: white;">
+                            <i class="fas fa-city"></i> {{ product.city }}
+                        </span>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <!-- 网页版显示时长和编辑按钮 -->
+                {% if not is_pdf_export %}
+                <div class="visa-flex visa-gap-2">
+                    <span class="visa-badge visa-badge-warning">
+                        <i class="fas fa-clock"></i> {{ product.duration }}
+                    </span>
+                    <a href="{{ url_for('product_details.edit_product', id=product.id) }}" class="visa-btn visa-btn-sm visa-btn-warning">
+                        <i class="fas fa-edit"></i> 编辑
+                    </a>
+                    <a href="{{ url_for('product_details.generate_pdf', id=product.id) }}" class="visa-btn visa-btn-sm visa-btn-info">
+                        <i class="fas fa-file-pdf"></i> 导出 PDF
+                    </a>
+                </div>
+                {% endif %}
+            </div>
             
             <!-- PDF导出模式下显示包类型 -->
             {% if is_pdf_export %}
-            <div class="package-type">1DayTour Package</div>
+            <div style="color: #6b7280; font-size: 0.875rem; margin: 1rem 0;">1DayTour Package</div>
             {% endif %}
-            
-            <!-- 网页版显示时长和编辑按钮 -->
-            {% if not is_pdf_export %}
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <div class="duration-tag"><i class="fas fa-clock me-1"></i>{{ product.duration }}</div>
-                <div>
-                    <a href="{{ url_for('product_details.edit_product', id=product.id) }}" class="btn btn-action btn-edit">
-                        <i class="fas fa-edit me-1"></i>编辑
-                    </a>
-                    <a href="{{ url_for('product_details.generate_pdf', id=product.id) }}" class="btn btn-action btn-export">
-                        <i class="fas fa-file-pdf me-1"></i>导出 PDF
-                    </a>
+
+            <div class="{% if not is_pdf_export %}visa-card-body{% endif %}">
+                <!-- 行程信息 -->
+                <div class="category-resources visa-mb-3">
+                    <div class="category-header">
+                        <h3><i class="fas fa-map-marked-alt"></i> Itinerary</h3>
+                    </div>
+                    <div class="visa-card-simple" style="background: #f8fafc; border-left: 2px solid #3b82f6;">
+                        {{ product.itinerary | safe }}
+                    </div>
                 </div>
-            </div>
-            {% endif %}
 
-            <!-- 行程信息 -->
-            <div class="section-title itinerary">
-                Itinerary
-            </div>
-            <div class="feature-list">
-                {{ product.itinerary | safe }}
-            </div>
+                <!-- 包含项目 -->
+                <div class="category-management visa-mb-3">
+                    <div class="category-header">
+                        <h3><i class="fas fa-check-circle"></i> Included</h3>
+                    </div>
+                    <div class="visa-card-simple" style="background: #f0fdf4; border-left: 2px solid #10b981;">
+                        {{ product.included | safe }}
+                    </div>
+                </div>
 
-            <!-- 包含项目 -->
-            <div class="section-title included">
-                Included
-            </div>
-            <div class="feature-list">
-                {{ product.included | safe }}
-            </div>
+                <!-- 不包含项目 -->
+                <div class="category-danger visa-mb-3">
+                    <div class="category-header">
+                        <h3><i class="fas fa-times-circle"></i> Not Included</h3>
+                    </div>
+                    <div class="visa-card-simple" style="background: #fef2f2; border-left: 2px solid #ef4444;">
+                        {{ product.not_included | safe }}
+                    </div>
+                </div>
 
-            <!-- 不包含项目 -->
-            <div class="section-title not-included">
-                Not Included
-            </div>
-            <div class="feature-list">
-                {{ product.not_included | safe }}
-            </div>
-
-            <!-- 报价部分 -->
-            <div class="quotation-section">
-                <div class="section-title quotation">QUOTATION</div>
-                <div class="price-tag">SGD {{ "%.2f"|format(product.price) }} /PAX</div>
+                <!-- 报价部分 -->
+                <div class="category-creation">
+                    <div class="category-header">
+                        <h3><i class="fas fa-dollar-sign"></i> QUOTATION</h3>
+                    </div>
+                    <div class="visa-card-simple" style="background: #fffbeb; border-left: 2px solid #f59e0b; text-align: center; padding: 1.5rem;">
+                        <div style="font-size: 1.5rem; font-weight: 700; color: #ef4444;">
+                            SGD {{ "%.2f"|format(product.price) }} /PAX
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
         {% endfor %}

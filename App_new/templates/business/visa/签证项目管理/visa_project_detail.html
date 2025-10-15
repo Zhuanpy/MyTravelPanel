@@ -1,9 +1,9 @@
-{% extends "staff_base.html" %}
+﻿{% extends "staff_base.html" %}
 
 {% block page_title %}签证项目详情{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/visa_common.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/staff_common.css') }}">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 {% endblock %}
 
@@ -400,13 +400,13 @@
             </div>
             <div class="modal-body">
                 <div class="mb-3">
-                    <label class="form-label">收件邮箱（可多个，逗号/分号分隔）</label>
-                    <input type="text" id="reminderRecipient" class="form-control" placeholder="a@b.com, c@d.com">
+                    <label class="visa-form-label">收件邮箱（可多个，逗号/分号分隔）</label>
+                    <input type="text" id="reminderRecipient" class="visa-form-control" placeholder="a@b.com, c@d.com">
                     <div class="form-text">留空则默认发送至当前登录用户邮箱</div>
                 </div>
                 <div class="mb-3">
-                    <label class="form-label">提醒时间</label>
-                    <input type="text" id="reminderDue" class="form-control" placeholder="选择日期时间">
+                    <label class="visa-form-label">提醒时间</label>
+                    <input type="text" id="reminderDue" class="visa-form-control" placeholder="选择日期时间">
                 </div>
                 <div class="form-check">
                     <input type="checkbox" class="form-check-input" id="reminderSendEmail" checked>
@@ -415,8 +415,8 @@
                 <small class="text-muted">将创建一条"签证提醒"待办，并按到期时间自动发送邮件。</small>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-                <button type="button" class="btn btn-primary" id="btnCreateReminder">保存</button>
+                <button type="button" class="visa-btn visa-btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="visa-btn visa-btn-primary" id="btnCreateReminder">保存</button>
             </div>
         </div>
     </div>

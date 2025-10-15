@@ -153,7 +153,7 @@
             <p class="text-muted">管理您负责的项目和任务</p>
         </div>
         <div>
-                                                         <a href="{{ url_for('business_projects.project_create.create_header') }}" class="btn btn-primary">
+                                                         <a href="{{ url_for('business_projects.project_create.create_header') }}" class="visa-btn visa-btn-primary">
                                  <i class="fas fa-plus"></i> 创建新项目
                              </a>
         </div>
@@ -163,8 +163,8 @@
     <div class="filter-card">
         <form method="GET" class="row g-3 align-items-end">
             <div class="col-md-3">
-                <label for="status" class="form-label">项目状态</label>
-                <select class="form-select" id="status" name="status">
+                <label for="status" class="visa-form-label">项目状态</label>
+                <select class="visa-form-select" id="status" name="status">
                     <option value="">全部状态</option>
                     <option value="pending" {% if status == 'pending' %}selected{% endif %}>待处理</option>
                     <option value="active" {% if status == 'active' %}selected{% endif %}>进行中</option>
@@ -173,8 +173,8 @@
                 </select>
             </div>
             <div class="col-md-3">
-                <label for="type" class="form-label">项目类型</label>
-                <select class="form-select" id="type" name="type">
+                <label for="type" class="visa-form-label">项目类型</label>
+                <select class="visa-form-select" id="type" name="type">
                     <option value="">全部类型</option>
                     <option value="tour" {% if project_type == 'tour' %}selected{% endif %}>旅游项目</option>
                     <option value="visa" {% if project_type == 'visa' %}selected{% endif %}>签证项目</option>
@@ -183,8 +183,8 @@
                 </select>
             </div>
             <div class="col-md-3">
-                <label for="search" class="form-label">搜索项目</label>
-                <input type="text" class="form-control" id="search" name="search" 
+                <label for="search" class="visa-form-label">搜索项目</label>
+                <input type="text" class="visa-form-control" id="search" name="search" 
                        placeholder="项目名称或ID" value="{{ search }}">
             </div>
             <div class="col-md-3">

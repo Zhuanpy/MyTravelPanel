@@ -29,20 +29,20 @@
                     <div class="row">
                         <!-- 基本信息 -->
                         <div class="col-md-6 mb-3">
-                            <label for="client" class="form-label">客户名称 <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" id="client" name="client" required
+                            <label for="client" class="visa-form-label">客户名称 <span class="text-danger">*</span></label>
+                            <input type="text" class="visa-form-control" id="client" name="client" required
                                    placeholder="请输入客户名称">
                         </div>
                         
                         <div class="col-md-6 mb-3">
-                            <label for="project_name" class="form-label">项目名称 <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" id="project_name" name="project_name" required
+                            <label for="project_name" class="visa-form-label">项目名称 <span class="text-danger">*</span></label>
+                            <input type="text" class="visa-form-control" id="project_name" name="project_name" required
                                    placeholder="请输入项目名称">
                         </div>
                         
                         <div class="col-12 mb-3">
-                            <label for="description" class="form-label">项目描述</label>
-                            <textarea class="form-control" id="description" name="description" rows="3"
+                            <label for="description" class="visa-form-label">项目描述</label>
+                            <textarea class="visa-form-control" id="description" name="description" rows="3"
                                       placeholder="请详细描述项目内容、服务范围和要求..."></textarea>
                         </div>
                     </div>
@@ -58,15 +58,15 @@
                             <div id="quoteItems">
                                 <div class="quote-item row g-2 mb-2">
                                     <div class="col-md-4">
-                                        <input type="text" class="form-control" name="items[]" 
+                                        <input type="text" class="visa-form-control" name="items[]" 
                                                placeholder="服务项目名称" required>
                                     </div>
                                     <div class="col-md-2">
-                                        <input type="number" class="form-control" name="quantities[]" 
+                                        <input type="number" class="visa-form-control" name="quantities[]" 
                                                placeholder="数量" min="1" value="1" required>
                                     </div>
                                     <div class="col-md-2">
-                                        <input type="number" class="form-control" name="unit_prices[]" 
+                                        <input type="number" class="visa-form-control" name="unit_prices[]" 
                                                placeholder="单价" step="0.01" min="0" required>
                                     </div>
                                     <div class="col-md-2">
@@ -95,15 +95,15 @@
                     <div class="row">
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label for="valid_days" class="form-label">有效期（天）</label>
-                                <input type="number" class="form-control" id="valid_days" name="valid_days" 
+                                <label for="valid_days" class="visa-form-label">有效期（天）</label>
+                                <input type="number" class="visa-form-control" id="valid_days" name="valid_days" 
                                        value="30" min="1" max="365">
                                 <small class="form-text text-muted">报价的有效期，从创建日期开始计算</small>
                             </div>
                             
                             <div class="mb-3">
-                                <label for="payment_terms" class="form-label">付款条件</label>
-                                <select class="form-select" id="payment_terms" name="payment_terms">
+                                <label for="payment_terms" class="visa-form-label">付款条件</label>
+                                <select class="visa-form-select" id="payment_terms" name="payment_terms">
                                     <option value="immediate">立即付款</option>
                                     <option value="net30" selected>30天付款</option>
                                     <option value="net60">60天付款</option>
@@ -113,8 +113,8 @@
                             </div>
                             
                             <div class="mb-3" id="customPaymentTerms" style="display: none;">
-                                <label for="custom_payment_text" class="form-label">自定义付款条件</label>
-                                <textarea class="form-control" id="custom_payment_text" name="custom_payment_text" 
+                                <label for="custom_payment_text" class="visa-form-label">自定义付款条件</label>
+                                <textarea class="visa-form-control" id="custom_payment_text" name="custom_payment_text" 
                                           rows="2" placeholder="请输入自定义付款条件..."></textarea>
                             </div>
                         </div>
@@ -160,8 +160,8 @@
                     <!-- 其他设置 -->
                     <div class="row">
                         <div class="col-md-6 mb-3">
-                            <label for="currency" class="form-label">货币</label>
-                            <select class="form-select" id="currency" name="currency">
+                            <label for="currency" class="visa-form-label">货币</label>
+                            <select class="visa-form-select" id="currency" name="currency">
                                 <option value="CNY" selected>人民币 (CNY)</option>
                                 <option value="USD">美元 (USD)</option>
                                 <option value="EUR">欧元 (EUR)</option>
@@ -170,14 +170,14 @@
                         </div>
                         
                         <div class="col-md-6 mb-3">
-                            <label for="tax_rate" class="form-label">税率 (%)</label>
-                            <input type="number" class="form-control" id="tax_rate" name="tax_rate" 
+                            <label for="tax_rate" class="visa-form-label">税率 (%)</label>
+                            <input type="number" class="visa-form-control" id="tax_rate" name="tax_rate" 
                                    value="0" min="0" max="100" step="0.01">
                         </div>
                         
                         <div class="col-md-6 mb-3">
-                            <label for="discount_rate" class="form-label">折扣率 (%)</label>
-                            <input type="number" class="form-control" id="discount_rate" name="discount_rate" 
+                            <label for="discount_rate" class="visa-form-label">折扣率 (%)</label>
+                            <input type="number" class="visa-form-control" id="discount_rate" name="discount_rate" 
                                    value="0" min="0" max="100" step="0.01">
                         </div>
                         
@@ -191,8 +191,8 @@
                         </div>
                         
                         <div class="col-12 mb-3">
-                            <label for="notes" class="form-label">备注说明</label>
-                            <textarea class="form-control" id="notes" name="notes" rows="3"
+                            <label for="notes" class="visa-form-label">备注说明</label>
+                            <textarea class="visa-form-control" id="notes" name="notes" rows="3"
                                       placeholder="其他需要说明的事项..."></textarea>
                         </div>
                     </div>
@@ -201,7 +201,7 @@
                         <button type="button" class="btn btn-outline-secondary me-md-2" onclick="resetForm()">
                             <i class="fas fa-undo me-1"></i>重置
                         </button>
-                        <button type="submit" class="btn btn-success">
+                        <button type="submit" class="visa-btn visa-btn-success">
                             <i class="fas fa-save me-1"></i>创建报价
                         </button>
                     </div>
@@ -255,15 +255,15 @@ document.getElementById('addItem').addEventListener('click', function() {
     newItem.className = 'quote-item row g-2 mb-2';
     newItem.innerHTML = `
         <div class="col-md-4">
-            <input type="text" class="form-control" name="items[]" 
+            <input type="text" class="visa-form-control" name="items[]" 
                    placeholder="服务项目名称" required>
         </div>
         <div class="col-md-2">
-            <input type="number" class="form-control" name="quantities[]" 
+            <input type="number" class="visa-form-control" name="quantities[]" 
                    placeholder="数量" min="1" value="1" required>
         </div>
         <div class="col-md-2">
-            <input type="number" class="form-control" name="unit_prices[]" 
+            <input type="number" class="visa-form-control" name="unit_prices[]" 
                    placeholder="单价" step="0.01" min="0" required>
         </div>
         <div class="col-md-2">
@@ -411,15 +411,15 @@ function resetForm() {
         quoteItems.innerHTML = `
             <div class="quote-item row g-2 mb-2">
                 <div class="col-md-4">
-                    <input type="text" class="form-control" name="items[]" 
+                    <input type="text" class="visa-form-control" name="items[]" 
                            placeholder="服务项目名称" required>
                 </div>
                 <div class="col-md-2">
-                    <input type="number" class="form-control" name="quantities[]" 
+                    <input type="number" class="visa-form-control" name="quantities[]" 
                            placeholder="数量" min="1" value="1" required>
                 </div>
                 <div class="col-md-2">
-                    <input type="number" class="form-control" name="unit_prices[]" 
+                    <input type="number" class="visa-form-control" name="unit_prices[]" 
                            placeholder="单价" step="0.01" min="0" required>
                 </div>
                 <div class="col-md-2">

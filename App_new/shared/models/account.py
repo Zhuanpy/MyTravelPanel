@@ -22,13 +22,19 @@ class Account(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     click_count = db.Column(db.Integer, default=0)  # 添加点击统计字段
+    
+    # 供应商关联字段 - 一个账号可以属于一个供应商或没有供应商
+    supplier_id = db.Column(db.Integer, db.ForeignKey('suppliers.supplier_id'), nullable=True, comment='关联的供应商ID')
+    
+    # 关联关系
+    supplier = db.relationship('Supplier', backref='accounts', foreign_keys=[supplier_id])
 
     def __repr__(self):
         return f'<Account {self.platform}>'
 
     def __init__(self, platform, username, password, category=None, website_url=None, 
                  owner=None, country=None, region=None, description=None, notes=None,
-                 file_materials=None, additional_info=None):
+                 file_materials=None, additional_info=None, supplier_id=None):
         self.platform = platform
         self.website_url = website_url
         self.username = username
@@ -41,6 +47,7 @@ class Account(db.Model):
         self.notes = notes
         self.file_materials = file_materials
         self.additional_info = additional_info
+        self.supplier_id = supplier_id
 
     def to_dict(self):
         return {
@@ -59,5 +66,7 @@ class Account(db.Model):
             'additional_info': json.loads(self.additional_info) if self.additional_info else [],
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
-            'click_count': self.click_count
+            'click_count': self.click_count,
+            'supplier_id': self.supplier_id,
+            'supplier_name': self.supplier.name if self.supplier else None
         } 

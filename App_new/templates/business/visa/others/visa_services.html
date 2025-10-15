@@ -1,9 +1,9 @@
-{% extends "public/base.html" %}
+﻿{% extends "public/base.html" %}
 
 {% block title %}签证服务 - MyTravelPanel{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/visa_common.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/staff_common.css') }}">
 {% endblock %}
 
 {% block content %}
@@ -29,7 +29,7 @@
                 <div class="input-group">
                     <input type="text" class="form-control search-box" id="searchCountry" 
                            placeholder="搜索国家或签证类型...">
-                    <button class="btn btn-primary" type="button" id="searchBtn">
+                    <button class="visa-btn visa-btn-primary" type="button" id="searchBtn">
                         <i class="fas fa-search"></i> 搜索
                     </button>
                 </div>

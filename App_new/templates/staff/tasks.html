@@ -10,7 +10,7 @@
 
 {% block page_actions %}
 <div class="btn-group" role="group">
-    <button type="button" class="btn btn-success" onclick="alert('新建任务功能开发中...')">
+    <button type="button" class="visa-btn visa-btn-success" onclick="alert('新建任务功能开发中...')">
         <i class="fas fa-plus me-1"></i>新建任务
     </button>
     <button type="button" class="btn btn-outline-secondary dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown">
@@ -33,8 +33,8 @@
             <div class="card-body">
                 <form method="GET" class="row g-3">
                     <div class="col-md-3">
-                        <label for="priority" class="form-label">优先级</label>
-                        <select class="form-select" id="priority" name="priority">
+                        <label for="priority" class="visa-form-label">优先级</label>
+                        <select class="visa-form-select" id="priority" name="priority">
                             <option value="">全部优先级</option>
                             <option value="high" {% if priority == 'high' %}selected{% endif %}>高</option>
                             <option value="medium" {% if priority == 'medium' %}selected{% endif %}>中</option>
@@ -42,8 +42,8 @@
                         </select>
                     </div>
                     <div class="col-md-3">
-                        <label for="status" class="form-label">状态</label>
-                        <select class="form-select" id="status" name="status">
+                        <label for="status" class="visa-form-label">状态</label>
+                        <select class="visa-form-select" id="status" name="status">
                             <option value="">全部状态</option>
                             <option value="pending" {% if status == 'pending' %}selected{% endif %}>待处理</option>
                             <option value="in_progress" {% if status == 'in_progress' %}selected{% endif %}>进行中</option>
@@ -52,14 +52,14 @@
                         </select>
                     </div>
                     <div class="col-md-4">
-                        <label for="search" class="form-label">搜索</label>
-                        <input type="text" class="form-control" id="search" name="search" 
+                        <label for="search" class="visa-form-label">搜索</label>
+                        <input type="text" class="visa-form-control" id="search" name="search" 
                                value="{{ search }}" placeholder="搜索任务标题或描述...">
                     </div>
                     <div class="col-md-2">
-                        <label class="form-label">&nbsp;</label>
+                        <label class="visa-form-label">&nbsp;</label>
                         <div class="d-grid">
-                            <button type="submit" class="btn btn-primary">
+                            <button type="submit" class="visa-btn visa-btn-primary">
                                 <i class="fas fa-search me-1"></i>搜索
                             </button>
                         </div>

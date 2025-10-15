@@ -1,9 +1,9 @@
-{% extends "shared/staff_base.html" %}
+﻿{% extends "shared/staff_base.html" %}
 
 {% block title %}添加旅游产品{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/tour_common.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/staff_common.css') }}">
 <script src="https://cdn.tailwindcss.com"></script>
 <style>
     .form-container {
@@ -69,10 +69,30 @@
                                id="title" name="title" required>
                     </div>
 
+                    <!-- 国家 -->
+                    <div>
+                        <label for="country" class="block text-sm font-medium text-gray-700 mb-2">
+                            <i class="fas fa-globe mr-2 text-blue-500"></i>国家
+                        </label>
+                        <input type="text" 
+                               class="form-input w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-400 focus:border-blue-400" 
+                               id="country" name="country" placeholder="例如：新加坡">
+                    </div>
+
+                    <!-- 城市 -->
+                    <div>
+                        <label for="city" class="block text-sm font-medium text-gray-700 mb-2">
+                            <i class="fas fa-city mr-2 text-green-500"></i>城市
+                        </label>
+                        <input type="text" 
+                               class="form-input w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-400 focus:border-blue-400" 
+                               id="city" name="city" placeholder="例如：新加坡">
+                    </div>
+
                     <!-- 行程时长 -->
                     <div>
                         <label for="duration" class="block text-sm font-medium text-gray-700 mb-2">
-                            <i class="fas fa-clock mr-2 text-green-500"></i>行程时长
+                            <i class="fas fa-clock mr-2 text-purple-500"></i>行程时长
                         </label>
                         <input type="text" 
                                class="form-input w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-400 focus:border-blue-400" 

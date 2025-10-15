@@ -48,14 +48,14 @@
                     <!-- 文件信息表单 -->
                     <div class="row">
                         <div class="col-md-6 mb-3">
-                            <label for="filename" class="form-label">文件名 <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" id="filename" name="filename" required
+                            <label for="filename" class="visa-form-label">文件名 <span class="text-danger">*</span></label>
+                            <input type="text" class="visa-form-control" id="filename" name="filename" required
                                    placeholder="请输入文件名">
                         </div>
                         
                         <div class="col-md-6 mb-3">
-                            <label for="category" class="form-label">文件分类</label>
-                            <select class="form-select" id="category" name="category">
+                            <label for="category" class="visa-form-label">文件分类</label>
+                            <select class="visa-form-select" id="category" name="category">
                                 <option value="">请选择分类</option>
                                 <option value="visa">签证资料</option>
                                 <option value="tour">旅游资料</option>
@@ -67,8 +67,8 @@
                         </div>
                         
                         <div class="col-md-6 mb-3">
-                            <label for="project" class="form-label">关联项目</label>
-                            <select class="form-select" id="project" name="project">
+                            <label for="project" class="visa-form-label">关联项目</label>
+                            <select class="visa-form-select" id="project" name="project">
                                 <option value="">请选择项目</option>
                                 <option value="PRJ240001">PRJ240001 - 新加坡商务团队签证</option>
                                 <option value="PRJ240002">PRJ240002 - 泰国旅游团队套餐</option>
@@ -77,15 +77,15 @@
                         </div>
                         
                         <div class="col-md-6 mb-3">
-                            <label for="tags" class="form-label">标签</label>
-                            <input type="text" class="form-control" id="tags" name="tags"
+                            <label for="tags" class="visa-form-label">标签</label>
+                            <input type="text" class="visa-form-control" id="tags" name="tags"
                                    placeholder="用逗号分隔多个标签">
                             <small class="form-text text-muted">例如：重要,合同,客户资料</small>
                         </div>
                         
                         <div class="col-12 mb-3">
-                            <label for="description" class="form-label">文件描述</label>
-                            <textarea class="form-control" id="description" name="description" rows="3"
+                            <label for="description" class="visa-form-label">文件描述</label>
+                            <textarea class="visa-form-control" id="description" name="description" rows="3"
                                       placeholder="请描述文件内容、用途等信息..."></textarea>
                         </div>
                     </div>
@@ -93,8 +93,8 @@
                     <!-- 上传设置 -->
                     <div class="row">
                         <div class="col-md-6 mb-3">
-                            <label for="access_level" class="form-label">访问权限</label>
-                            <select class="form-select" id="access_level" name="access_level">
+                            <label for="access_level" class="visa-form-label">访问权限</label>
+                            <select class="visa-form-select" id="access_level" name="access_level">
                                 <option value="public" selected>公开</option>
                                 <option value="staff">仅员工</option>
                                 <option value="admin">仅管理员</option>
@@ -103,8 +103,8 @@
                         </div>
                         
                         <div class="col-md-6 mb-3">
-                            <label for="expiry_date" class="form-label">过期时间</label>
-                            <input type="date" class="form-control" id="expiry_date" name="expiry_date">
+                            <label for="expiry_date" class="visa-form-label">过期时间</label>
+                            <input type="date" class="visa-form-control" id="expiry_date" name="expiry_date">
                             <small class="form-text text-muted">留空表示永不过期</small>
                         </div>
                         
@@ -122,7 +122,7 @@
                         <button type="button" class="btn btn-outline-secondary me-md-2" onclick="resetForm()">
                             <i class="fas fa-undo me-1"></i>重置
                         </button>
-                        <button type="submit" class="btn btn-success" id="uploadBtn" disabled>
+                        <button type="submit" class="visa-btn visa-btn-success" id="uploadBtn" disabled>
                             <i class="fas fa-upload me-1"></i>上传文件
                         </button>
                     </div>

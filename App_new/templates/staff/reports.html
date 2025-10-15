@@ -10,7 +10,7 @@
 
 {% block page_actions %}
 <div class="btn-group" role="group">
-    <button type="button" class="btn btn-success" onclick="generateReport()">
+    <button type="button" class="visa-btn visa-btn-success" onclick="generateReport()">
         <i class="fas fa-download me-1"></i>生成报告
     </button>
     <button type="button" class="btn btn-outline-secondary dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown">
@@ -33,8 +33,8 @@
             <div class="card-body">
                 <form method="GET" class="row g-3">
                     <div class="col-md-3">
-                        <label for="report_type" class="form-label">报告类型</label>
-                        <select class="form-select" id="report_type" name="type">
+                        <label for="report_type" class="visa-form-label">报告类型</label>
+                        <select class="visa-form-select" id="report_type" name="type">
                             <option value="daily" {% if report_type == 'daily' %}selected{% endif %}>日报</option>
                             <option value="weekly" {% if report_type == 'weekly' %}selected{% endif %}>周报</option>
                             <option value="monthly" {% if report_type == 'monthly' %}selected{% endif %}>月报</option>
@@ -44,19 +44,19 @@
                         </select>
                     </div>
                     <div class="col-md-3">
-                        <label for="start_date" class="form-label">开始日期</label>
-                        <input type="date" class="form-control" id="start_date" name="start_date" 
+                        <label for="start_date" class="visa-form-label">开始日期</label>
+                        <input type="date" class="visa-form-control" id="start_date" name="start_date" 
                                value="{{ start_date }}">
                     </div>
                     <div class="col-md-3">
-                        <label for="end_date" class="form-label">结束日期</label>
-                        <input type="date" class="form-control" id="end_date" name="end_date" 
+                        <label for="end_date" class="visa-form-label">结束日期</label>
+                        <input type="date" class="visa-form-control" id="end_date" name="end_date" 
                                value="{{ end_date }}">
                     </div>
                     <div class="col-md-3">
-                        <label class="form-label">&nbsp;</label>
+                        <label class="visa-form-label">&nbsp;</label>
                         <div class="d-grid">
-                            <button type="submit" class="btn btn-primary">
+                            <button type="submit" class="visa-btn visa-btn-primary">
                                 <i class="fas fa-search me-1"></i>生成报告
                             </button>
                         </div>

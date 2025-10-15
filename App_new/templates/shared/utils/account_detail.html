@@ -5,6 +5,9 @@
 {% block page_title %}账号详情{% endblock %}
 
 {% block extra_css %}
+<!-- 引入统一CSS -->
+<link rel="stylesheet" href="{{ url_for('static', filename='css/staff_common.css') }}">
+
 <meta name="csrf-token" content="{{ csrf_token() }}">
 <style>
     .account-detail-container {

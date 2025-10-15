@@ -10,7 +10,7 @@
 
 {% block page_actions %}
 <div class="btn-group" role="group">
-    <button type="button" class="btn btn-success" onclick="createBusinessType()">
+    <button type="button" class="visa-btn visa-btn-success" onclick="createBusinessType()">
         <i class="fas fa-plus me-1"></i>新建类型
     </button>
     <button type="button" class="btn btn-outline-secondary dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown">
@@ -33,8 +33,8 @@
             <div class="card-body">
                 <form method="GET" class="row g-3">
                     <div class="col-md-3">
-                        <label for="category" class="form-label">业务分类</label>
-                        <select class="form-select" id="category" name="category">
+                        <label for="category" class="visa-form-label">业务分类</label>
+                        <select class="visa-form-select" id="category" name="category">
                             <option value="">全部分类</option>
                             <option value="visa" {% if category == 'visa' %}selected{% endif %}>签证服务</option>
                             <option value="flight" {% if category == 'flight' %}selected{% endif %}>机票服务</option>
@@ -44,22 +44,22 @@
                         </select>
                     </div>
                     <div class="col-md-3">
-                        <label for="status" class="form-label">状态</label>
-                        <select class="form-select" id="status" name="status">
+                        <label for="status" class="visa-form-label">状态</label>
+                        <select class="visa-form-select" id="status" name="status">
                             <option value="">全部状态</option>
                             <option value="active" {% if status == 'active' %}selected{% endif %}>启用</option>
                             <option value="inactive" {% if status == 'inactive' %}selected{% endif %}>禁用</option>
                         </select>
                     </div>
                     <div class="col-md-4">
-                        <label for="search" class="form-label">搜索</label>
-                        <input type="text" class="form-control" id="search" name="search" 
+                        <label for="search" class="visa-form-label">搜索</label>
+                        <input type="text" class="visa-form-control" id="search" name="search" 
                                value="{{ search }}" placeholder="搜索类型名称、代码、描述...">
                     </div>
                     <div class="col-md-2">
-                        <label class="form-label">&nbsp;</label>
+                        <label class="visa-form-label">&nbsp;</label>
                         <div class="d-grid">
-                            <button type="submit" class="btn btn-primary">
+                            <button type="submit" class="visa-btn visa-btn-primary">
                                 <i class="fas fa-search me-1"></i>搜索
                             </button>
                         </div>
@@ -256,7 +256,7 @@
                     <i class="fas fa-tags fa-3x text-muted mb-3"></i>
                     <h5 class="text-muted">暂无业务类型</h5>
                     <p class="text-muted">当前没有符合条件的业务类型</p>
-                    <button type="button" class="btn btn-primary" onclick="createBusinessType()">
+                    <button type="button" class="visa-btn visa-btn-primary" onclick="createBusinessType()">
                         <i class="fas fa-plus me-1"></i>创建第一个业务类型
                     </button>
                 </div>
