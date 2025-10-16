@@ -465,7 +465,10 @@ class ProjectDetailManager {
      */
     setupReminderManager() {
         document.addEventListener('click', (event) => {
-            const target = event.target;
+            // 向上查找最近的带有 data-action 的元素
+            const target = event.target.closest('[data-action]');
+            if (!target) return;
+            
             const action = target.getAttribute('data-action');
             
             switch(action) {
@@ -599,7 +602,10 @@ class ProjectDetailManager {
     setupEventDelegation() {
         // 快速创建EO
         document.addEventListener('click', (event) => {
-            const target = event.target;
+            // 向上查找最近的带有 data-action 的元素
+            const target = event.target.closest('[data-action]');
+            if (!target) return;
+            
             const action = target.getAttribute('data-action');
             
             if (action === 'quick-create-eo') {
@@ -621,7 +627,14 @@ class ProjectDetailManager {
      * 快速创建EO
      */
     async quickCreateEO(refId) {
-        if (!confirm('确定要为这个REF快速生成EO编号吗？')) return;
+        // 找到对应的按钮
+        const button = document.querySelector(`[data-action="quick-create-eo"][data-ref-id="${refId}"]`);
+        if (!button) return;
+
+        // 显示加载状态
+        const originalHTML = button.innerHTML;
+        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        button.disabled = true;
 
         try {
             const response = await this.makeRequest(
@@ -632,12 +645,30 @@ class ProjectDetailManager {
 
             if (response.success) {
                 this.showMessage('EO编号生成成功', 'success');
-                setTimeout(() => window.location.reload(), 1000);
+                
+                // 局部更新：将按钮替换为EO编号链接
+                if (response.eo_number && response.eo_id) {
+                    const eoUrl = `/projects/eo/detail/${response.eo_id}`;
+                    const td = button.closest('td');
+                    if (td) {
+                        td.innerHTML = `
+                            <a href="${eoUrl}" class="eo-number-link" title="点击查看EO详情">
+                                <span class="badge bg-info">${response.eo_number}</span>
+                            </a>
+                        `;
+                    }
+                }
             } else {
                 this.showMessage(response.message || '生成EO编号失败', 'error');
+                // 恢复按钮状态
+                button.innerHTML = originalHTML;
+                button.disabled = false;
             }
         } catch (error) {
             this.showMessage('网络错误，生成EO编号失败', 'error');
+            // 恢复按钮状态
+            button.innerHTML = originalHTML;
+            button.disabled = false;
         }
     }
 

@@ -142,11 +142,13 @@ def create_app():
     # 旅游模块
     from .business.tour.routes.routes import tour_bp
     from .business.tour.routes.tour_projects import tour_projects
+    from .business.tour.routes.tour_products import tour_products_bp
     from .business.tour.routes.package_budget import package_budget
     from .business.tour.routes.tour_package import package_blue
     from .business.tour.routes.tour_product_details import product_details
     app.register_blueprint(tour_bp, url_prefix='/tour')
     app.register_blueprint(tour_projects, url_prefix='/tour/projects')
+    app.register_blueprint(tour_products_bp)  # 已包含 url_prefix='/tour/products'
     app.register_blueprint(package_budget, url_prefix='/package_budget')
     app.register_blueprint(package_blue, url_prefix='/package')
     app.register_blueprint(product_details, url_prefix='/tour/product_details')

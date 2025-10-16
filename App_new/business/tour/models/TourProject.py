@@ -2,6 +2,9 @@ from App_new.exts import db
 from datetime import datetime
 import json
 
+# 导入 Product 模型用于关联
+from App_new.business.tour.models.Packagemodels import Product
+
 # tour_group 行程团信息表
 class TourGroup(db.Model):
     """行程团信息模型"""
@@ -92,22 +95,40 @@ class TourItinerary(db.Model):
 
 # 定义 tour_project 表的模型
 class TourProject(db.Model):
-
+    """旅游项目/订单管理"""
     __tablename__ = 'tour_project'
 
     id = db.Column(db.Integer, primary_key=True)  # 自增主键
-    project_name = db.Column(db.String(100), nullable=False)  # 项目名称
+    project_name = db.Column(db.String(200), nullable=False)  # 项目名称
     project_hid = db.Column(db.String(255), nullable=True)  # 项目HID，允许为空
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)  # 创建时间
-    project_status = db.Column(db.String(50), nullable=False)  # 项目状态
-    folder_name = db.Column(db.String(100), nullable=False)  # 项目状态
+    
+    # 关联基础产品（可选）
+    base_product_id = db.Column(db.Integer, db.ForeignKey('travelproducts.id'), nullable=True, comment='基于哪个产品模板')
+    
+    # 项目信息
+    project_type = db.Column(db.String(50), nullable=True, comment='项目类型')
+    project_status = db.Column(db.String(50), nullable=False, comment='项目状态：处理中/待出行/已完成/忽略单')
+    
+    # 客户信息
     contact_person = db.Column(db.String(100), nullable=False)  # 联系人
     contact_info = db.Column(db.String(100), nullable=False)  # 联系方式
-    remarks = db.Column(db.Text, nullable=True)  # 备注
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)  # 更新时间
-    project_type = db.Column(db.String(50), nullable=True, comment='项目类型')
+    
+    # 财务
     budget = db.Column(db.Float, nullable=True, comment='项目预算')
+    currency = db.Column(db.String(10), default='SGD', comment='货币单位')
+    
+    # 其他
+    folder_name = db.Column(db.String(100), nullable=False)  # 文件夹名称
     departure_date = db.Column(db.Date, nullable=True, comment='出发日期')
+    remarks = db.Column(db.Text, nullable=True)  # 备注
+    
+    # 时间戳
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)  # 创建时间
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)  # 更新时间
+    created_by = db.Column(db.String(100), nullable=True, comment='创建人')
+    
+    # 关联关系
+    base_product = db.relationship('Product', backref=db.backref('derived_projects', lazy='dynamic'), foreign_keys=[base_product_id])
 
     def __init__(self, project_name, project_hid, project_status, folder_name, contact_person, contact_info, remarks,
                  created_at=None, project_type=None, budget=None, departure_date=None):

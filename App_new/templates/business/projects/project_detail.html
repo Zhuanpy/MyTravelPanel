@@ -18,12 +18,13 @@
 {% endblock %}
 
 {% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/staff_common.css') }}">
 <link href="{{ url_for('static', filename='css/project_detail.css') }}" rel="stylesheet">
 {% endblock %}
 
 {% block content %}
 
-<div class="container-fluid tw-px-2" style="max-width: 1400px;">
+<div class="container-fluid tw-px-2" style="max-width: 1600px;">
          <!-- 项目详情布局 -->
      <div class="project-detail-layout">
          
@@ -236,6 +237,12 @@
         <div class="section-header tw:flex tw:flex-col md:tw:flex-row tw:items-start md:tw:items-center tw:justify-between tw:gap-2">
             <h3 class="section-title tw:text-lg tw:font-semibold tw:w-full md:tw:w-auto">REF明细列表</h3>
             <div class="add-ref-buttons tw:flex tw:flex-wrap tw:gap-2 tw:w-full md:tw:w-auto tw:mt-1 md:tw:mt-0">
+                <a href="{{ url_for('business_projects.project_receipt.header_receipts', header_id=header.id) }}" class="btn btn-info btn-sm">
+                    <i class="fas fa-money-bill-wave"></i> 收款管理
+                </a>
+                <a href="{{ url_for('business_projects.project_receipt.create_header_receipt', header_id=header.id) }}" class="btn btn-warning btn-sm">
+                    <i class="fas fa-plus-circle"></i> 新增收款
+                </a>
                 <a href="{{ url_for('business_projects.project_ref.create_flight_ref', header_id=header.id) }}" class="btn btn-success btn-sm">
                     <i class="fas fa-plane"></i> 机票
                 </a>
@@ -275,7 +282,6 @@
                         <th class="tw-min-w-[120px]">利润</th>
                         <th class="tw-min-w-[110px]">未付款</th>
                         <th class="tw-min-w-[160px]">供应商</th>
-                        <th class="tw-min-w-[80px]">状态</th>
                         <th class="tw-min-w-[200px]">操作</th>
                     </tr>
                 </thead>
@@ -384,26 +390,6 @@
                         </td>
                         <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ ref.supplier.name if ref.supplier else '-' }}">{{ ref.supplier.name if ref.supplier else '-' }}</td>
                         <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                            <span class="status-badge status-{{ ref.status }}" 
-                                  id="ref-status-{{ ref.id }}" 
-                                  data-ref-id="{{ ref.id }}" 
-                                  style="cursor: pointer;">
-                                {% if ref.status == 'draft' %}草稿
-                                {% elif ref.status == 'processing' %}处理中
-                                {% elif ref.status == 'completed' %}已完成
-                                {% else %}已取消
-                                {% endif %}
-                            </span>
-                            <select class="form-select form-select-sm ref-status-select" 
-                                    id="ref-status-select-{{ ref.id }}" 
-                                    style="display: none;">
-                                <option value="draft" {% if ref.status == 'draft' %}selected{% endif %}>草稿</option>
-                                <option value="processing" {% if ref.status == 'processing' %}selected{% endif %}>处理中</option>
-                                <option value="completed" {% if ref.status == 'completed' %}selected{% endif %}>已完成</option>
-                                <option value="cancelled" {% if ref.status == 'cancelled' %}selected{% endif %}>已取消</option>
-                            </select>
-                        </td>
-                        <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                             <div class="action-buttons">
                                 {% if ref.ref_type and ref.ref_type.name == '机票' %}
                                     <a href="{{ url_for('business_projects.project_ref.flight_ref_detail', ref_id=ref.id) }}" class="btn btn-sm btn-info" title="查看详情">
@@ -459,7 +445,7 @@
                     <td class="text-danger">
                         <strong>{{ header.currency or 'SGD' }} {{ "%.2f"|format(header.total_unpaid_amount) }}</strong>
                     </td>
-                    <td colspan="3"></td>
+                    <td colspan="2"></td>
                 </tr>
                 </tbody>
             </table>
@@ -473,109 +459,6 @@
         {% endif %}
     </div>
 
-    <!-- 余额和付款状态 -->
-    <div class="info-card">
-        <div class="d-flex justify-content-between align-items-center mb-2">
-            <h3 class="section-title mb-3">财务概览</h3>
-            <a href="{{ url_for('business_projects.project_receipt.header_receipts', header_id=header.id) }}" class="btn btn-outline-success btn-sm">
-                <i class="fas fa-money-bill-wave"></i> 项目收款管理
-            </a>
-        </div>
-        
-        <div class="row">
-            <!-- 金额统计 -->
-            <div class="col-md-8">
-                <div class="info-grid">
-                    <div class="info-item">
-                        <span class="info-label">总销售金额</span>
-                        <span class="info-value text-success">
-                            {{ header.currency or 'SGD' }} {{ "%.2f"|format(header.total_selling_amount) }}
-                        </span>
-                    </div>
-                    
-                    <div class="info-item">
-                        <span class="info-label">总成本金额</span>
-                        <span class="info-value text-info">
-                            {{ header.currency or 'SGD' }} {{ "%.2f"|format(header.total_cost_amount) }}
-                        </span>
-                    </div>
-                    
-                    <div class="info-item">
-                        <span class="info-label">总利润</span>
-                        <span class="info-value {% if header.total_profit >= 0 %}text-success{% else %}text-danger{% endif %}">
-                            {{ header.currency or 'SGD' }} {{ "%.2f"|format(header.total_profit) }}
-                        </span>
-                    </div>
-                    
-                    <div class="info-item">
-                        <span class="info-label">已付款金额</span>
-                        <span class="info-value text-primary">
-                            {{ header.currency or 'SGD' }} {{ "%.2f"|format(header.total_paid_amount) }}
-                        </span>
-                    </div>
-                    
-                    <div class="info-item">
-                        <span class="info-label">未付款金额</span>
-                        <span class="info-value text-danger">
-                            {{ header.currency or 'SGD' }} {{ "%.2f"|format(header.total_unpaid_amount) }}
-                        </span>
-                    </div>
-                    
-                    <div class="info-item">
-                        <span class="info-label">付款进度</span>
-                        <span class="info-value">
-                            {% if header.total_selling_amount > 0 %}
-                                {{ "%.1f"|format((header.total_paid_amount / header.total_selling_amount) * 100) }}%
-                            {% else %}
-                                0%
-                            {% endif %}
-                        </span>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- 付款状态统计 -->
-            <div class="col-md-4">
-                <div class="payment-status-summary">
-                    <h6 class="text-muted mb-3">付款状态统计</h6>
-                    
-                    <div class="status-item">
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <span class="status-label">已付款</span>
-                            <span class="status-count">{{ header.payment_status_summary.paid }}</span>
-                        </div>
-                        <div class="progress" style="height: 6px;">
-                            <div class="progress-bar bg-success" style="width: '{% if header.payment_status_summary.total > 0 %}{{ (header.payment_status_summary.paid / header.payment_status_summary.total) * 100 }}{% else %}0{% endif %}%';"></div>
-                        </div>
-                    </div>
-                    
-                    <div class="status-item">
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <span class="status-label">部分付款</span>
-                            <span class="status-count">{{ header.payment_status_summary.partial }}</span>
-                        </div>
-                        <div class="progress" style="height: 6px;">
-                            <div class="progress-bar bg-warning" style="width: '{% if header.payment_status_summary.total > 0 %}{{ (header.payment_status_summary.partial / header.payment_status_summary.total) * 100 }}{% else %}0{% endif %}%';"></div>
-                        </div>
-                    </div>
-                    
-                    <div class="status-item">
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <span class="status-label">未付款</span>
-                            <span class="status-count">{{ header.payment_status_summary.unpaid }}</span>
-                        </div>
-                        <div class="progress" style="height: 6px;">
-                            <div class="progress-bar bg-danger" style="width: '{% if header.payment_status_summary.total > 0 %}{{ (header.payment_status_summary.unpaid / header.payment_status_summary.total) * 100 }}{% else %}0{% endif %}%';"></div>
-                        </div>
-                    </div>
-                    
-                    <div class="text-center mt-3">
-                        <small class="text-muted">总计: {{ header.payment_status_summary.total }} 个REF</small>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
 </div>
 
     

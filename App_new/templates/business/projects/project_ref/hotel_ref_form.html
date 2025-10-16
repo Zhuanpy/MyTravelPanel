@@ -53,7 +53,7 @@
                                 <div class="form-group">
                                     <label>酒店名称 <span class="text-danger">*</span></label>
                                     <input type="text" name="hotel_name" class="form-control" required value="{{ hotel_info.hotel_name if hotel_info else '' }}">
-                                    <div class="invalid-feedback">请输入酒店名�?/div>
+                                    <div class="invalid-feedback">请输入酒店名�?/div>
                                 </div>
                             </div>
                         </div>
@@ -77,9 +77,9 @@
                             </div>
                             <div class="col-md-6">
                                 <div class="form-group">
-                                    <label>退房日�?<span class="text-danger">*</span></label>
+                                    <label>退房日�?<span class="text-danger">*</span></label>
                                     <input type="date" name="checkout_date" class="form-control" required max="2050-12-31" value="{{ hotel_info.checkout_date if hotel_info else '' }}">
-                                    <div class="invalid-feedback">请选择退房日�?/div>
+                                    <div class="invalid-feedback">请选择退房日�?/div>
                                 </div>
                             </div>
                         </div>
@@ -132,7 +132,7 @@
                         <div class="row mb-4">
                             <div class="col-md-6">
                                 <div class="form-group">
-                                    <label>供应�?/label>
+                                    <label>供应�?/label>
                                     {% if is_edit %}
                                         {{ form.supplier_id(class="form-control") }}
                                         {% if form.supplier_id.errors %}
@@ -144,7 +144,7 @@
                                         {% endif %}
                                     {% else %}
                                         <select name="supplier_id" class="form-control">
-                                            <option value="">请选择供应�?/option>
+                                            <option value="">请选择供应�?/option>
                                             {% for supplier in suppliers %}
                                                 <option value="{{ supplier.supplier_id }}">{{ supplier.name }}</option>
                                             {% endfor %}
@@ -154,7 +154,7 @@
                             </div>
                             <div class="col-md-6">
                                 <div class="form-group">
-                                    <label>负责人姓�?/label>
+                                    <label>负责人姓�?/label>
                                     {% if is_edit %}
                                         {{ form.leader_name(class="form-control", placeholder="请输入负责人姓名") }}
                                         {% if form.leader_name.errors %}
@@ -175,7 +175,7 @@
                         <div class="row mb-4">
                             <div class="col-md-6">
                                 <div class="form-group">
-                                    <label>状�?/label>
+                                    <label>状�?/label>
                                     {% if is_edit %}
                                         {{ form.status(class="form-control") }}
                                         {% if form.status.errors %}
@@ -188,9 +188,9 @@
                                     {% else %}
                                         <select name="status" class="form-control">
                                             <option value="draft">草稿</option>
-                                            <option value="processing">处理�?/option>
-                                            <option value="completed">已完�?/option>
-                                            <option value="cancelled">已取�?/option>
+                                            <option value="processing">处理�?/option>
+                                            <option value="completed">已完�?/option>
+                                            <option value="cancelled">已取�?/option>
                                         </select>
                                     {% endif %}
                                 </div>
@@ -213,7 +213,7 @@
                             <div class="col-12 text-center">
                                 {% if is_edit %}
                                     {{ form.submit(class="btn btn-success btn-lg px-5", value="保存修改") }}
-                                    <a href="{{ url_for('business_projects.project_header.header_detail', header_id=ref.header_id) }}" class="btn btn-secondary btn-lg px-5 ms-2">取消</a>
+                                    <a href="{{ url_for('business_projects.detail.project_detail', project_id=ref.header_id) }}" class="btn btn-secondary btn-lg px-5 ms-2">取消</a>
                                 {% else %}
                                     <button type="submit" class="btn btn-success btn-lg px-5">提交</button>
                                     <a href="javascript:history.back()" class="btn btn-secondary btn-lg px-5 ms-2">返回</a>
@@ -242,14 +242,14 @@ function getCsrfToken() {
     return document.querySelector('meta[name="csrf-token"]').getAttribute('content');
 }
 
-// 表单校验和用户反�?
+// 表单校验和用户反�?
 document.addEventListener('DOMContentLoaded', function() {
     const form = document.querySelector('form');
     const inputs = form.querySelectorAll('input, select, textarea');
     
     // 调试信息
-    console.log('酒店REF表单初始�?);
-    console.log('是否为编辑模�?', '{{ "true" if is_edit else "false" }}');
+    console.log('酒店REF表单初始�?);
+    console.log('是否为编辑模�?', '{{ "true" if is_edit else "false" }}');
     console.log('表单字段数量:', inputs.length);
     
     // 调试价格字段
@@ -287,7 +287,7 @@ document.addEventListener('DOMContentLoaded', function() {
             return true; // 如果找不到日期字段，跳过校验
         }
         
-        // 检查日期范�?
+        // 检查日期范�?
         if (checkinDate.value) {
             const checkin = new Date(checkinDate.value);
             const maxDate = new Date('2050-12-31');
@@ -295,10 +295,10 @@ document.addEventListener('DOMContentLoaded', function() {
             if (checkin > maxDate) {
                 checkinDate.classList.remove('is-valid');
                 checkinDate.classList.add('is-invalid');
-                // 安全地设置错误信�?
+                // 安全地设置错误信�?
                 const errorElement = checkinDate.nextElementSibling;
                 if (errorElement && errorElement.classList.contains('invalid-feedback')) {
-                    errorElement.textContent = '入住日期不能超过2050�?;
+                    errorElement.textContent = '入住日期不能超过2050�?;
                 }
                 return false;
             }
@@ -311,10 +311,10 @@ document.addEventListener('DOMContentLoaded', function() {
             if (checkout > maxDate) {
                 checkoutDate.classList.remove('is-valid');
                 checkoutDate.classList.add('is-invalid');
-                // 安全地设置错误信�?
+                // 安全地设置错误信�?
                 const errorElement = checkoutDate.nextElementSibling;
                 if (errorElement && errorElement.classList.contains('invalid-feedback')) {
-                    errorElement.textContent = '退房日期不能超�?050�?;
+                    errorElement.textContent = '退房日期不能超�?050�?;
                 }
                 return false;
             }
@@ -327,19 +327,19 @@ document.addEventListener('DOMContentLoaded', function() {
             if (checkout <= checkin) {
                 checkoutDate.classList.remove('is-valid');
                 checkoutDate.classList.add('is-invalid');
-                // 安全地设置错误信�?
+                // 安全地设置错误信�?
                 const errorElement = checkoutDate.nextElementSibling;
                 if (errorElement && errorElement.classList.contains('invalid-feedback')) {
-                    errorElement.textContent = '退房日期必须晚于入住日�?;
+                    errorElement.textContent = '退房日期必须晚于入住日�?;
                 }
                 return false;
             } else {
                 checkoutDate.classList.remove('is-invalid');
                 checkoutDate.classList.add('is-valid');
-                // 安全地设置错误信�?
+                // 安全地设置错误信�?
                 const errorElement = checkoutDate.nextElementSibling;
                 if (errorElement && errorElement.classList.contains('invalid-feedback')) {
-                    errorElement.textContent = '请选择退房日�?;
+                    errorElement.textContent = '请选择退房日�?;
                 }
             }
         }
@@ -348,7 +348,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // 价格校验函数
     function validatePrices() {
-        // 在编辑模式下，价格字段是Flask-WTF表单字段，需要特殊处�?
+        // 在编辑模式下，价格字段是Flask-WTF表单字段，需要特殊处�?
         let sellingPrice = document.querySelector('input[name="selling_price"]');
         let costPrice = document.querySelector('input[name="cost_price"]');
         
@@ -397,7 +397,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 // 查找错误提示元素
                 const errorElement = sellingPrice.nextElementSibling || sellingPrice.parentElement.nextElementSibling;
                 if (errorElement && errorElement.classList.contains('invalid-feedback')) {
-                    errorElement.textContent = '请输入有效的售价（支�?和小数）';
+                    errorElement.textContent = '请输入有效的售价（支�?和小数）';
                 }
                 return false;
             } else {
@@ -415,7 +415,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 // 查找错误提示元素
                 const errorElement = costPrice.nextElementSibling || costPrice.parentElement.nextElementSibling;
                 if (errorElement && errorElement.classList.contains('invalid-feedback')) {
-                    errorElement.textContent = '请输入有效的成本（支�?和小数）';
+                    errorElement.textContent = '请输入有效的成本（支�?和小数）';
                 }
                 return false;
             } else {
@@ -424,7 +424,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
         
-        // 比较售价和成�?
+        // 比较售价和成�?
         if (sellingPrice.value && costPrice.value) {
             const selling = parseFloat(sellingPrice.value);
             const cost = parseFloat(costPrice.value);
@@ -446,7 +446,7 @@ document.addEventListener('DOMContentLoaded', function() {
         return true;
     }
     
-    // 为每个输入字段添加实时校�?
+    // 为每个输入字段添加实时校�?
     inputs.forEach(input => {
         input.addEventListener('blur', function() {
             validateField(this);
@@ -455,7 +455,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (this.name === 'checkout_date') {
                 validateDates();
             }
-            // 在编辑模式下，价格字段名称可能不�?
+            // 在编辑模式下，价格字段名称可能不�?
             if (this.name === 'selling_price' || this.name === 'cost_price' || 
                 this.id === 'selling_price' || this.id === 'cost_price' ||
                 this.name.includes('selling_price') || this.name.includes('cost_price') ||
@@ -473,12 +473,12 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // 表单提交处理
     form.addEventListener('submit', function(e) {
-        // 清除之前的校验状�?
+        // 清除之前的校验状�?
         inputs.forEach(input => {
             input.classList.remove('is-valid', 'is-invalid');
         });
         
-        // 校验所有字�?
+        // 校验所有字�?
         let isValid = true;
         inputs.forEach(input => {
             if (!validateField(input)) {
@@ -510,16 +510,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 remarks: guestInfoField ? guestInfoField.value : ''
             };
             
-            // 将数据转换为JSON字符串并存储到隐藏字�?
+            // 将数据转换为JSON字符串并存储到隐藏字�?
             const extraInfoField = document.getElementById('extra_info');
             if (extraInfoField) {
                 extraInfoField.value = JSON.stringify(hotelExtraInfo);
             }
             
-            // 显示提交中状�?
+            // 显示提交中状�?
             const submitBtn = form.querySelector('button[type="submit"]');
             if (submitBtn) {
-                submitBtn.textContent = '{{ "保存�?.." if is_edit else "提交�?.." }}';
+                submitBtn.textContent = '{{ "保存�?.." if is_edit else "提交�?.." }}';
                 submitBtn.disabled = true;
             }
             
@@ -529,7 +529,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // 阻止表单提交
             e.preventDefault();
             
-            // 滚动到第一个错误字�?
+            // 滚动到第一个错误字�?
             const firstInvalid = form.querySelector('.is-invalid');
             if (firstInvalid) {
                 firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -537,7 +537,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             // 显示错误提示
-            showAlert('请检查表单中的错误信�?, 'danger');
+            showAlert('请检查表单中的错误信�?, 'danger');
             return false;
         }
     });
@@ -568,15 +568,15 @@ document.addEventListener('DOMContentLoaded', function() {
         'hotel_name': '请输入完整的酒店名称',
         'room_type': '如：标准间、豪华套房等',
         'checkin_date': '选择客人入住日期',
-        'checkout_date': '选择客人退房日�?,
+        'checkout_date': '选择客人退房日�?,
         'selling_price': '向客户收取的价格',
-        'cost_price': '酒店预订的实际成�?,
+        'cost_price': '酒店预订的实际成�?,
         'supplier_id': '选择提供酒店预订的供应商',
-        'status': '选择当前订单状�?,
+        'status': '选择当前订单状�?,
         'guest_info': '可填写客人信息、特殊要求等'
     };
     
-    // 为字段添加提�?
+    // 为字段添加提�?
     Object.keys(tooltips).forEach(fieldName => {
         const field = form.querySelector(`[name="${fieldName}"]`);
         if (field) {
@@ -588,7 +588,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function generateHotelRefName() {
         const hotelNameField = document.querySelector('input[name="hotel_name"]');
         const checkinDateField = document.querySelector('input[name="checkin_date"]');
-        const nameField = document.querySelector('input[readonly]'); // 只读的名称字�?
+        const nameField = document.querySelector('input[readonly]'); // 只读的名称字�?
         
         if (!hotelNameField || !checkinDateField || !nameField) return;
         
@@ -607,11 +607,11 @@ document.addEventListener('DOMContentLoaded', function() {
             const month = dateObj.toLocaleDateString('en-US', { month: 'short' }).toUpperCase();
             const formattedDate = `${day}${month}`;
             
-            // 生成名称：入住日�?+ 酒店名称
+            // 生成名称：入住日�?+ 酒店名称
             const refName = `${formattedDate} ${hotelName}`;
             nameField.value = refName;
         } catch (error) {
-            console.error('生成REF名称时出�?', error);
+            console.error('生成REF名称时出�?', error);
             nameField.value = '自动生成';
         }
     }
@@ -628,7 +628,7 @@ document.addEventListener('DOMContentLoaded', function() {
         checkinDateField.addEventListener('change', generateHotelRefName);
     }
     
-    // 页面加载时生成一次名�?
+    // 页面加载时生成一次名�?
     generateHotelRefName();
 });
 </script>
@@ -636,7 +636,7 @@ document.addEventListener('DOMContentLoaded', function() {
 <script>
 // 一键生成EO函数
 function quickCreateEO(refId) {
-    if (confirm('确定要生成EO吗？系统将自动创建EO并填充所有数据�?)) {
+    if (confirm('确定要生成EO吗？系统将自动创建EO并填充所有数据�?)) {
         fetch(`/projects/eo/quick_create/${refId}`, {
             method: 'POST',
             headers: {
@@ -651,7 +651,7 @@ function quickCreateEO(refId) {
                 // 刷新页面以显示新创建的EO
                 location.reload();
             } else {
-                alert('生成失败�? + data.message);
+                alert('生成失败�? + data.message);
             }
         })
         .catch(error => {

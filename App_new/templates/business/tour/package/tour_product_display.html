@@ -43,9 +43,9 @@
                     <h1 class="text-3xl font-bold text-gray-800">{{ city_name }}旅游产品展示</h1>
                     <p class="text-gray-600 mt-2">探索{{ city_name }}的精彩旅游产品</p>
                 </div>
-                <a href="{{ url_for('package_routes.package_home') }}" 
+                <a href="{{ url_for('tour_products.product_list') }}" 
                    class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors">
-                    <i class="fas fa-home mr-2"></i>返回首页
+                    <i class="fas fa-list mr-2"></i>产品管理
                 </a>
             </div>
         </div>
@@ -53,92 +53,125 @@
         {% if products %}
             <!-- 操作按钮区域 -->
             <div class="bg-white rounded-2xl shadow-md p-6 mb-8">
-                <div class="flex flex-wrap gap-3 justify-end">
-                    <a href="#" id="openPackageFolder" 
-                       class="action-btn bg-purple-100 text-purple-700 hover:bg-purple-200 px-4 py-2 rounded-lg font-medium">
-                        <i class="fas fa-folder mr-2"></i>打开资源文件夹
-                    </a>
-                    <a href="{{ url_for('package_routes.update_city_products', city_name=city_name) }}" 
-                       class="action-btn bg-green-100 text-green-700 hover:bg-green-200 px-4 py-2 rounded-lg font-medium">
-                        <i class="fas fa-sync-alt mr-2"></i>更新{{city_name}}全部产品
-                    </a>
+                <div class="flex flex-wrap gap-3 justify-between">
+                    <div class="flex items-center gap-4">
+                        <span class="text-lg font-semibold text-gray-700">产品总数：{{ products|length }}</span>
+                        <span class="text-sm text-gray-500">来自 {{ products|groupby('supplier_display_name')|list|length }} 个供应商</span>
+                        <span class="text-xs text-gray-400">(筛选条件: {{ city_name }})</span>
+                    </div>
+                    <div class="flex flex-wrap gap-3">
+                        <a href="{{ url_for('tour_products.add_product') }}" 
+                           class="action-btn bg-blue-100 text-blue-700 hover:bg-blue-200 px-4 py-2 rounded-lg font-medium">
+                            <i class="fas fa-plus mr-2"></i>添加新产品
+                        </a>
+                        <a href="{{ url_for('tour_products.product_list') }}" 
+                           class="action-btn bg-green-100 text-green-700 hover:bg-green-200 px-4 py-2 rounded-lg font-medium">
+                            <i class="fas fa-list mr-2"></i>管理产品
+                        </a>
+                    </div>
                 </div>
             </div>
 
-            <!-- 产品展示区域 -->
+            <!-- 产品展示区域（按供应商分组） -->
             <div class="space-y-6">
-                {% for company, company_products in products|groupby('company_name') %}
+                {% for supplier_name, supplier_products in products|groupby('supplier_display_name') %}
                     <div class="company-card rounded-2xl shadow-md p-6 card-hover">
-                        <!-- 公司标题 -->
+                        <!-- 供应商标题 -->
                         <div class="flex items-center justify-between mb-6">
                             <div class="flex items-center">
                                 <div class="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center mr-3">
                                     <i class="fas fa-building text-blue-500 text-lg"></i>
                                 </div>
                                 <div>
-                                    <h2 class="text-xl font-semibold text-gray-800">{{ company }}</h2>
-                                    <p class="text-sm text-gray-500">{{ company_products|list|length }}个产品</p>
+                                    <h2 class="text-xl font-semibold text-gray-800">{{ supplier_name or '未设置供应商' }}</h2>
+                                    <p class="text-sm text-gray-500">{{ supplier_products|list|length }}个产品</p>
                                 </div>
                             </div>
-                            <a href="{{ url_for('package_routes.show_supplier_info', supplier_name=company) }}" 
+                            {% if supplier_products|first|attr('supplier_id') %}
+                            <a href="{{ url_for('supplier.view_supplier', supplier_id=supplier_products|first|attr('supplier_id')) }}" 
                                class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors text-sm">
-                                <i class="fas fa-info-circle mr-1"></i>公司介绍
+                                <i class="fas fa-info-circle mr-1"></i>供应商详情
                             </a>
+                            {% endif %}
                         </div>
 
                         <!-- 产品列表 -->
                         <div class="space-y-4">
-                            {% for product in company_products %}
+                            {% for product in supplier_products %}
                                 <div class="product-card rounded-xl p-4 card-hover">
                                     <div class="flex items-center justify-between">
                                         <div class="flex-1">
                                             <h3 class="text-lg font-semibold text-gray-800 mb-2">{{ product.product_name }}</h3>
-                                            <div class="flex items-center text-sm text-gray-500 mb-3">
-                                                <i class="fas fa-calendar-alt mr-2"></i>
-                                                <span>开始：{{ product.created_at.strftime('%Y-%m-%d') }}</span>
-                                                <span class="mx-2">|</span>
-                                                <span>截止：{{ product.valid_until.strftime('%Y-%m-%d') }}</span>
+                                            
+                                            <!-- 产品基本信息 -->
+                                            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-gray-600 mb-3">
+                                                {% if product.duration_days %}
+                                                <div class="flex items-center">
+                                                    <i class="fas fa-calendar-alt mr-2 text-blue-500"></i>
+                                                    <span>{{ product.duration_days }}天{% if product.duration_nights %}{{ product.duration_nights }}晚{% endif %}</span>
+                                                </div>
+                                                {% endif %}
+                                                
+                                                {% if product.min_pax or product.max_pax %}
+                                                <div class="flex items-center">
+                                                    <i class="fas fa-users mr-2 text-green-500"></i>
+                                                    <span>{{ product.min_pax or 1 }}{% if product.max_pax %}-{{ product.max_pax }}{% endif %}人</span>
+                                                </div>
+                                                {% endif %}
+                                                
+                                                {% if product.base_price %}
+                                                <div class="flex items-center">
+                                                    <i class="fas fa-tag mr-2 text-purple-500"></i>
+                                                    <span class="font-semibold">{{ product.currency }} {{ product.base_price }}</span>
+                                                </div>
+                                                {% endif %}
+                                                
+                                                <div class="flex items-center">
+                                                    <i class="fas fa-globe mr-2 text-orange-500"></i>
+                                                    <span>{{ product.country }}</span>
+                                                </div>
                                             </div>
-                                            <a href="{{ url_for('static', filename='资源/旅游产品/' + country_name + '/' + product.city_name + '/' + product.company_name + '/' + product.product_name + '.pdf') }}" 
-                                               target="_blank"
-                                               class="inline-flex items-center text-blue-600 hover:text-blue-800 transition-colors">
-                                                <i class="fas fa-file-pdf mr-2"></i>查看详细 (PDF)
-                                            </a>
+                                            
+                                            <!-- 产品描述 -->
+                                            {% if product.product_description %}
+                                            <p class="text-sm text-gray-500 mb-3 line-clamp-2">{{ product.product_description[:100] }}{% if product.product_description|length > 100 %}...{% endif %}</p>
+                                            {% endif %}
+                                            
+                                            <!-- 操作链接 -->
+                                            <div class="flex items-center gap-4">
+                                                <a href="{{ url_for('tour_products.product_detail', product_id=product.id) }}" 
+                                                   class="inline-flex items-center text-blue-600 hover:text-blue-800 transition-colors text-sm">
+                                                    <i class="fas fa-eye mr-2"></i>查看详情
+                                                </a>
+                                                <a href="{{ url_for('tour_products.edit_product', product_id=product.id) }}" 
+                                                   class="inline-flex items-center text-green-600 hover:text-green-800 transition-colors text-sm">
+                                                    <i class="fas fa-edit mr-2"></i>编辑产品
+                                                </a>
+                                                {% if product.cover_image %}
+                                                <a href="{{ url_for('static', filename=product.cover_image) }}" 
+                                                   target="_blank"
+                                                   class="inline-flex items-center text-purple-600 hover:text-purple-800 transition-colors text-sm">
+                                                    <i class="fas fa-image mr-2"></i>查看图片
+                                                </a>
+                                                {% endif %}
+                                            </div>
                                         </div>
-                                        <form action="{{ url_for('package_routes.delete_product', product_id=product.id, city_name=product.city_name) }}" 
-                                              method="post" 
-                                              onsubmit="return confirm('确定要删除该产品吗？');"
-                                              class="ml-4">
-                                            <button type="submit" 
-                                                    class="bg-red-500 text-white px-3 py-2 rounded-lg hover:bg-red-600 transition-colors text-sm">
-                                                <i class="fas fa-trash mr-1"></i>删除
-                                            </button>
-                                        </form>
+                                        
+                                        <!-- 状态标签 -->
+                                        <div class="ml-4 flex flex-col items-end gap-2">
+                                            <span class="px-3 py-1 rounded-full text-xs font-medium
+                                                {% if product.product_status == 'active' %}bg-green-100 text-green-800
+                                                {% elif product.product_status == 'draft' %}bg-yellow-100 text-yellow-800
+                                                {% else %}bg-gray-100 text-gray-800{% endif %}">
+                                                {{ product.product_status }}
+                                            </span>
+                                            <div class="text-xs text-gray-500">
+                                                {{ product.created_at.strftime('%Y-%m-%d') }}
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             {% endfor %}
-                        </div>
-
-                        <!-- 公司操作按钮 -->
-                        <div class="mt-6 pt-4 border-t border-gray-200">
-                            <div class="flex flex-wrap gap-3 justify-end">
-                                <a href="" class="action-btn bg-yellow-100 text-yellow-700 hover:bg-yellow-200 px-4 py-2 rounded-lg font-medium text-sm">
-                                    <i class="fas fa-plus mr-1"></i>创建{{ company }}项目
-                                </a>
-                                <a href="{{ url_for('package_routes.update_company_products', city_name=city_name, company_name=company) }}" 
-                                   class="action-btn bg-green-100 text-green-700 hover:bg-green-200 px-4 py-2 rounded-lg font-medium text-sm">
-                                    <i class="fas fa-sync-alt mr-1"></i>更新{{ company }}产品
-                                </a>
-                                <a href="#" id="postOpenFolder" data-company="{{ company|trim }}" 
-                                   class="action-btn bg-purple-100 text-purple-700 hover:bg-purple-200 px-4 py-2 rounded-lg font-medium text-sm">
-                                    <i class="fas fa-folder mr-1"></i>打开文件夹
-                                </a>
-                                <a href="{{ url_for('package_routes.delete_all_company_product', city_name=city_name, company_name=company) }}" 
-                                   method="POST"
-                                   class="action-btn bg-red-100 text-red-700 hover:bg-red-200 px-4 py-2 rounded-lg font-medium text-sm">
-                                    <i class="fas fa-trash mr-1"></i>删除全部产品
-                                </a>
-                            </div>
                         </div>
                     </div>
                 {% endfor %}
@@ -149,16 +182,52 @@
                 <div class="mb-6">
                     <i class="fas fa-box-open text-6xl text-gray-300 mb-4"></i>
                     <h2 class="text-2xl font-semibold text-gray-800 mb-2">{{ city_name }}暂无旅游产品</h2>
-                    <p class="text-gray-500">该城市还没有添加任何旅游产品</p>
+                    <p class="text-gray-500 mb-4">该城市还没有添加任何旅游产品</p>
+                    <p class="text-sm text-gray-400 mb-2">请先添加产品到系统中，然后它们将自动显示在这里</p>
+                    <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mt-4 text-left max-w-2xl mx-auto">
+                        <p class="text-sm text-yellow-800 mb-2"><strong>🔍 调试信息：</strong></p>
+                        <ul class="text-xs text-yellow-700 space-y-1">
+                            <li>• 查询城市名称：<code class="bg-yellow-100 px-1 rounded">{{ city_name }}</code></li>
+                            <li>• URL 编码：<code class="bg-yellow-100 px-1 rounded">{{ city_name|urlencode }}</code></li>
+                            <li>• 字符串长度：{{ city_name|length }} 字符</li>
+                            {% if debug_info %}
+                            <li>• <strong>数据库查询结果：</strong></li>
+                            <li class="ml-4">- 精确匹配找到：{{ debug_info.total_found }} 个产品</li>
+                            <li class="ml-4">- 其中 active 状态：{{ debug_info.active_count }} 个</li>
+                            <li class="ml-4">- 最终返回：{{ debug_info.returned_count }} 个</li>
+                            {% endif %}
+                        </ul>
+                        <div class="mt-3 pt-3 border-t border-yellow-200">
+                            <p class="text-xs text-yellow-600">💡 问题诊断：</p>
+                            <ul class="text-xs text-yellow-700 space-y-1 mt-1">
+                                {% if debug_info and debug_info.total_found > 0 and debug_info.returned_count == 0 %}
+                                <li class="text-red-600"><strong>⚠️ 找到了产品但被过滤掉了！</strong></li>
+                                <li>可能原因：产品状态不是 'active'，请检查数据库中的 product_status 字段</li>
+                                {% elif debug_info and debug_info.total_found == 0 %}
+                                <li class="text-red-600"><strong>⚠️ 数据库中没有 city_name='{{ city_name }}' 的产品！</strong></li>
+                                <li>1. 检查数据库中的 city_name 字段值（可能有空格或其他字符）</li>
+                                <li>2. 点击下方"查看所有产品"查看所有城市列表</li>
+                                <li>3. 使用"添加新产品"创建数据</li>
+                                {% else %}
+                                <li>1. 点击下方"查看所有产品"查看数据库中是否有产品</li>
+                                <li>2. 使用"添加新产品"创建测试数据</li>
+                                {% endif %}
+                            </ul>
+                        </div>
+                    </div>
                 </div>
-                <div class="flex flex-wrap gap-3 justify-center">
-                    <a href="#" id="openPackageFolder" 
-                       class="action-btn bg-purple-100 text-purple-700 hover:bg-purple-200 px-4 py-2 rounded-lg font-medium">
-                        <i class="fas fa-folder mr-2"></i>打开资源文件夹
+                <div class="flex flex-wrap gap-3 justify-center mt-6">
+                    <a href="{{ url_for('tour_products.add_product') }}" 
+                       class="action-btn bg-blue-100 text-blue-700 hover:bg-blue-200 px-6 py-3 rounded-lg font-medium">
+                        <i class="fas fa-plus mr-2"></i>添加新产品
                     </a>
-                    <a href="{{ url_for('package_routes.update_city_products', city_name=city_name) }}" 
-                       class="action-btn bg-green-100 text-green-700 hover:bg-green-200 px-4 py-2 rounded-lg font-medium">
-                        <i class="fas fa-sync-alt mr-2"></i>更新{{ city_name }}全部产品
+                    <a href="{{ url_for('tour_products.product_list') }}" 
+                       class="action-btn bg-green-100 text-green-700 hover:bg-green-200 px-6 py-3 rounded-lg font-medium">
+                        <i class="fas fa-list mr-2"></i>管理产品库
+                    </a>
+                    <a href="{{ url_for('tour_products.product_list', city=city_name) }}" 
+                       class="action-btn bg-purple-100 text-purple-700 hover:bg-purple-200 px-6 py-3 rounded-lg font-medium">
+                        <i class="fas fa-search mr-2"></i>查看所有"{{ city_name }}"产品
                     </a>
                 </div>
             </div>
@@ -168,36 +237,8 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="/static/Js/ff.js"></script>
 <script>
-    document.addEventListener('DOMContentLoaded', () => {
-        // 打开城市文件夹
-        document.getElementById('openPackageFolder').addEventListener('click', (event) => {
-            event.preventDefault();
-            sendPostRequest('{{ url_for("package_routes.open_city_package_folder", country_name = country_name,  city_name=city_name) }}', '资源文件夹已打开!');
-        });
-
-        // 打开公司文件夹
-        document.getElementById('postOpenFolder').addEventListener('click', (event) => {
-            event.preventDefault();
-
-            // 获取动态参数
-            const company = encodeURIComponent(event.target.getAttribute('data-company')); // 编码公司名
-            const country_name = encodeURIComponent("{{ country_name }}"); // 编码国家名
-            const city_name = encodeURIComponent("{{ city_name }}"); // 编码城市名
-
-            // 调试输出变量
-            console.log('country_name:', country_name);
-            console.log('city_name:', city_name);
-            console.log('company_name:', company);
-
-            // 构造完整的 URL
-            const url = `/open_company_package_folder/${country_name}/${city_name}/${company}`;
-            console.log('Generated URL:', url);
-
-            // 发起 POST 请求
-            sendPostRequest(url, '文件夹已打开!');
-        });
-    });
+    console.log('台湾产品页面已加载');
+    // 如果需要打开文件夹功能，可以在这里添加
 </script>
 {% endblock %}

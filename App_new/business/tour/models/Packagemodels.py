@@ -6,32 +6,44 @@ from flask_sqlalchemy import SQLAlchemy
 
 
 class Product(db.Model):
+    """旅游产品模板库（供应商提供的标准产品）"""
+    __tablename__ = 'travelproducts'
 
-    __tablename__ = 'travelproducts'  # 可选：定义表名
-
-    id = db.Column(db.Integer, primary_key=True)  # 主键
-    city_name = db.Column(db.String(100), nullable=False)  # 新增城市名字
-    company_name = db.Column(db.String(100), nullable=False)  # 公司名字
-    product_name = db.Column(db.String(100), nullable=False)  # 产品名字
-    created_at = db.Column(Date, default=datetime.utcnow().date)  # 创建时间，默认当前时间
-    valid_until = db.Column(Date)  # 有效期
+    id = db.Column(db.Integer, primary_key=True)
     
-    # 旅游产品基本信息
-    product_type = db.Column(db.String(50), nullable=True, comment='产品类型：跟团游/自由行/定制游')
-    duration_days = db.Column(db.Integer, nullable=True, comment='行程天数')
+    # 供应商关联
+    supplier_id = db.Column(db.Integer, db.ForeignKey('suppliers.supplier_id'), nullable=True, comment='供应商ID')
+    
+    # 产品编号和名称
+    product_code = db.Column(db.String(50), unique=True, nullable=True, comment='产品编号')
+    product_name = db.Column(db.String(200), nullable=False, comment='产品名字')
+    company_name = db.Column(db.String(100), nullable=True, comment='公司名字（兼容旧数据）')
+    
+    # 地理信息
+    country = db.Column(db.String(100), nullable=True, comment='国家')
+    city_name = db.Column(db.String(100), nullable=True, comment='城市名字')
     departure_city = db.Column(db.String(100), nullable=True, comment='出发城市')
     destination_city = db.Column(db.String(100), nullable=True, comment='目的地城市')
-    min_pax = db.Column(db.Integer, nullable=True, comment='最少成团人数')
+    
+    # 产品基本信息
+    product_type = db.Column(db.String(50), nullable=True, comment='产品类型：跟团游/自由行/定制游/当地游')
+    duration_days = db.Column(db.Integer, nullable=True, comment='行程天数')
+    duration_nights = db.Column(db.Integer, nullable=True, comment='住宿晚数')
+    
+    # 人数限制
+    min_pax = db.Column(db.Integer, default=1, comment='最少成团人数')
     max_pax = db.Column(db.Integer, nullable=True, comment='最大成团人数')
+    
+    # 适用条件
     suitable_season = db.Column(db.String(200), nullable=True, comment='适合季节')
     difficulty_level = db.Column(db.String(50), nullable=True, comment='难度等级：简单/中等/困难')
-    product_status = db.Column(db.String(50), default='active', comment='产品状态：active/inactive/draft')
+    tags = db.Column(db.Text, nullable=True, comment='标签（JSON格式）：蜜月/亲子/豪华/经济')
     
-    # 价格预算信息
-    base_price = db.Column(db.Float, nullable=True, comment='基础价格')
-    single_room_supplement = db.Column(db.Float, nullable=True, comment='单房差')
+    # 价格信息（参考价）
+    base_price = db.Column(db.Float, nullable=True, comment='基础价格（成人）')
     child_price = db.Column(db.Float, nullable=True, comment='儿童价格')
     infant_price = db.Column(db.Float, nullable=True, comment='婴儿价格')
+    single_room_supplement = db.Column(db.Float, nullable=True, comment='单房差')
     currency = db.Column(db.String(10), default='SGD', comment='货币单位')
     
     # 详细描述
@@ -41,46 +53,44 @@ class Product(db.Model):
     excluded_services = db.Column(db.Text, nullable=True, comment='不包含服务')
     important_notes = db.Column(db.Text, nullable=True, comment='重要提示')
     
+    # 图片
+    cover_image = db.Column(db.String(500), nullable=True, comment='封面图')
+    gallery_images = db.Column(db.Text, nullable=True, comment='图片库（JSON数组）')
+    
     # 联系信息
     contact_person = db.Column(db.String(100), nullable=True, comment='联系人')
     contact_phone = db.Column(db.String(50), nullable=True, comment='联系电话')
     contact_email = db.Column(db.String(100), nullable=True, comment='联系邮箱')
     
-    # 更新时间
+    # 状态管理
+    product_status = db.Column(db.String(50), default='active', comment='产品状态：active/inactive/draft')
+    is_featured = db.Column(db.Boolean, default=False, comment='是否精选')
+    
+    # 有效期
+    valid_from = db.Column(Date, nullable=True, comment='有效开始日期')
+    valid_until = db.Column(Date, nullable=True, comment='有效结束日期')
+    created_at = db.Column(Date, default=datetime.utcnow().date, comment='创建时间')
+    
+    # 版本管理（可选）
+    version = db.Column(db.Integer, default=1, comment='版本号')
+    parent_product_id = db.Column(db.Integer, db.ForeignKey('travelproducts.id'), nullable=True, comment='父产品ID')
+    
+    # 更新时间和创建人
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, comment='更新时间')
+    created_by = db.Column(db.String(100), nullable=True, comment='创建人')
+    
+    # 关联关系
+    supplier = db.relationship('Supplier', backref=db.backref('travel_products', lazy='dynamic'), foreign_keys=[supplier_id])
+    parent_product = db.relationship('Product', remote_side=[id], backref='versions', foreign_keys=[parent_product_id])
 
-    def __init__(self, city_name: str, company_name: str, product_name: str, created_at: date, valid_until: date,
-                 product_type=None, duration_days=None, departure_city=None, destination_city=None,
-                 min_pax=None, max_pax=None, suitable_season=None, difficulty_level=None,
-                 base_price=None, single_room_supplement=None, child_price=None, infant_price=None,
-                 product_description=None, highlights=None, included_services=None, excluded_services=None,
-                 important_notes=None, contact_person=None, contact_phone=None, contact_email=None):
-        self.id = None  # id由数据库自动生成
-        self.city_name = city_name
-        self.company_name = company_name
+    def __init__(self, product_name: str, **kwargs):
+        """初始化产品实例"""
         self.product_name = product_name
-        self.created_at = created_at
-        self.valid_until = valid_until
-        self.product_type = product_type
-        self.duration_days = duration_days
-        self.departure_city = departure_city
-        self.destination_city = destination_city
-        self.min_pax = min_pax
-        self.max_pax = max_pax
-        self.suitable_season = suitable_season
-        self.difficulty_level = difficulty_level
-        self.base_price = base_price
-        self.single_room_supplement = single_room_supplement
-        self.child_price = child_price
-        self.infant_price = infant_price
-        self.product_description = product_description
-        self.highlights = highlights
-        self.included_services = included_services
-        self.excluded_services = excluded_services
-        self.important_notes = important_notes
-        self.contact_person = contact_person
-        self.contact_phone = contact_phone
-        self.contact_email = contact_email
+        
+        # 设置可选字段
+        for key, value in kwargs.items():
+            if hasattr(self, key):
+                setattr(self, key, value)
 
     @classmethod
     def add_product(cls, city_name: str, company_name: str, product_name: str, created_at: date,
@@ -122,56 +132,66 @@ class Product(db.Model):
 
     def to_dict(self):
         """将产品转换为字典格式"""
+        import json
+        
         return {
             'id': self.id,
-            'city_name': self.city_name,
-            'company_name': self.company_name,
+            'supplier_id': self.supplier_id,
+            'supplier_name': self.supplier.name if self.supplier else self.company_name,
+            'product_code': self.product_code,
             'product_name': self.product_name,
-            'created_at': self.created_at.strftime('%Y-%m-%d') if self.created_at else None,
-            'valid_until': self.valid_until.strftime('%Y-%m-%d') if self.valid_until else None,
-            'product_type': self.product_type,
-            'duration_days': self.duration_days,
+            'company_name': self.company_name,
+            'country': self.country,
+            'city_name': self.city_name,
             'departure_city': self.departure_city,
             'destination_city': self.destination_city,
+            'product_type': self.product_type,
+            'duration_days': self.duration_days,
+            'duration_nights': self.duration_nights,
             'min_pax': self.min_pax,
             'max_pax': self.max_pax,
             'suitable_season': self.suitable_season,
             'difficulty_level': self.difficulty_level,
+            'tags': json.loads(self.tags) if self.tags else [],
             'base_price': self.base_price,
-            'single_room_supplement': self.single_room_supplement,
             'child_price': self.child_price,
             'infant_price': self.infant_price,
+            'single_room_supplement': self.single_room_supplement,
             'currency': self.currency,
             'product_description': self.product_description,
             'highlights': self.highlights,
             'included_services': self.included_services,
             'excluded_services': self.excluded_services,
             'important_notes': self.important_notes,
+            'cover_image': self.cover_image,
+            'gallery_images': json.loads(self.gallery_images) if self.gallery_images else [],
             'contact_person': self.contact_person,
             'contact_phone': self.contact_phone,
             'contact_email': self.contact_email,
             'product_status': self.product_status,
+            'is_featured': self.is_featured,
+            'valid_from': self.valid_from.strftime('%Y-%m-%d') if self.valid_from else None,
+            'valid_until': self.valid_until.strftime('%Y-%m-%d') if self.valid_until else None,
+            'created_at': self.created_at.strftime('%Y-%m-%d') if self.created_at else None,
+            'version': self.version,
+            'parent_product_id': self.parent_product_id,
+            'created_by': self.created_by,
             'updated_at': self.updated_at.strftime('%Y-%m-%d %H:%M:%S') if self.updated_at else None
         }
 
 
-# 新增：产品行程详情表
+# 新增：产品行程详情表（参考 tour_itinerary）
 class ProductItinerary(db.Model):
-    """产品行程详情模型"""
+    """产品行程详情模型（参考 tour_itinerary，支持图片上传）"""
     __tablename__ = 'product_itinerary'
 
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     product_id = db.Column(db.Integer, db.ForeignKey('travelproducts.id'), nullable=False, comment='产品ID')
     day_number = db.Column(db.Integer, nullable=False, comment='第几天')
-    day_title = db.Column(db.String(200), nullable=False, comment='日期标题')
-    morning_activity = db.Column(db.Text, nullable=True, comment='上午活动')
-    afternoon_activity = db.Column(db.Text, nullable=True, comment='下午活动')
-    evening_activity = db.Column(db.Text, nullable=True, comment='晚上活动')
-    meals = db.Column(db.String(200), nullable=True, comment='用餐安排')
-    accommodation = db.Column(db.String(200), nullable=True, comment='住宿安排')
-    transport = db.Column(db.String(200), nullable=True, comment='交通安排')
-    highlights = db.Column(db.Text, nullable=True, comment='当日亮点')
-    notes = db.Column(db.Text, nullable=True, comment='注意事项')
+    day_title = db.Column(db.Text, nullable=False, comment='行程安排')
+    image1 = db.Column(db.String(500), nullable=True, comment='图片1路径')
+    image2 = db.Column(db.String(500), nullable=True, comment='图片2路径')
+    image3 = db.Column(db.String(500), nullable=True, comment='图片3路径')
     created_at = db.Column(db.DateTime, default=datetime.utcnow, comment='创建时间')
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, comment='更新时间')
 
@@ -179,22 +199,31 @@ class ProductItinerary(db.Model):
     product = db.relationship('Product', backref=db.backref('itineraries', lazy='dynamic', order_by='ProductItinerary.day_number'))
 
     def __repr__(self):
-        return f'<ProductItinerary Day {self.day_number}: {self.day_title}>'
-
+        return f'<ProductItinerary Day {self.day_number}>'
+    
+    @property
+    def images(self):
+        """获取所有图片路径列表"""
+        images = []
+        if self.image1:
+            images.append(self.image1)
+        if self.image2:
+            images.append(self.image2)
+        if self.image3:
+            images.append(self.image3)
+        return images
+    
     def to_dict(self):
+        """转换为字典"""
         return {
             'id': self.id,
             'product_id': self.product_id,
             'day_number': self.day_number,
             'day_title': self.day_title,
-            'morning_activity': self.morning_activity,
-            'afternoon_activity': self.afternoon_activity,
-            'evening_activity': self.evening_activity,
-            'meals': self.meals,
-            'accommodation': self.accommodation,
-            'transport': self.transport,
-            'highlights': self.highlights,
-            'notes': self.notes,
+            'image1': self.image1,
+            'image2': self.image2,
+            'image3': self.image3,
+            'images': self.images,
             'created_at': self.created_at.strftime('%Y-%m-%d %H:%M:%S') if self.created_at else None,
             'updated_at': self.updated_at.strftime('%Y-%m-%d %H:%M:%S') if self.updated_at else None
         }

@@ -74,9 +74,127 @@ def add_product():
 def our_package(city_name):
     if not city_name:
         return jsonify({"error": "City parameter is required"}), 400
-    country_name = ProductCity.get_country_name_by_city(city_name=city_name)
-    products = Product.query.filter_by(city_name=city_name).all()
-    return render_template('business/tour/package/tour_product_display.html', country_name=country_name,  city_name=city_name, products=products)
+    
+    # 使用新的产品管理系统
+    try:
+        # 从新的 Product 模型获取产品数据
+        from ..models.Packagemodels import Product as NewProduct
+        
+        app.logger.info(f"正在查询城市: {city_name}")
+        
+        # 先尝试精确匹配 city_name（不限制状态）
+        all_city_products = NewProduct.query.filter_by(city_name=city_name).all()
+        app.logger.info(f"精确匹配 city_name='{city_name}' 找到 {len(all_city_products)} 个产品（所有状态）")
+        
+        # 筛选 active 状态的产品
+        products = [p for p in all_city_products if p.product_status == 'active']
+        app.logger.info(f"其中 active 状态的产品: {len(products)} 个")
+        
+        # 如果没有 active 产品，记录所有产品的状态
+        if not products and all_city_products:
+            status_info = {}
+            for p in all_city_products:
+                status = p.product_status or 'NULL'
+                status_info[status] = status_info.get(status, 0) + 1
+            app.logger.warning(f"没有 active 产品！当前状态分布: {status_info}")
+            # 如果没有 active 产品，显示所有产品（不限制状态）
+            products = all_city_products
+        
+        # 如果精确匹配没找到任何产品，尝试模糊匹配
+        if not products:
+            app.logger.info(f"精确匹配 '{city_name}' 无结果，尝试模糊匹配...")
+            products = NewProduct.query.filter(
+                db.or_(
+                    Product.city_name.like(f'%{city_name}%'),
+                    Product.country.like(f'%{city_name}%')
+                )
+            ).all()
+            app.logger.info(f"模糊匹配找到 {len(products)} 个产品")
+        
+        # 为每个产品添加 supplier_display_name 属性（处理 None 的情况）
+        for product in products:
+            if product.supplier:
+                product.supplier_display_name = product.supplier.name
+            else:
+                product.supplier_display_name = '未设置供应商'
+        
+        # 获取国家名称（从产品中获取或使用默认逻辑）
+        if products:
+            country_name = products[0].country
+        else:
+            # 如果没有产品，尝试从 ProductCity 获取
+            try:
+                country_name = ProductCity.get_country_name_by_city(city_name=city_name)
+            except:
+                country_name = "未知国家"
+        
+        app.logger.info(f"最终返回 {len(products)} 个 '{city_name}' 相关产品")
+        
+        # 准备调试信息
+        debug_info = {
+            'total_found': len(all_city_products),
+            'active_count': len([p for p in all_city_products if p.product_status == 'active']),
+            'returned_count': len(products),
+            'query_executed': True
+        }
+        
+        return render_template('business/tour/package/tour_product_display.html', 
+                             country_name=country_name, 
+                             city_name=city_name, 
+                             products=products,
+                             debug_info=debug_info)
+    except Exception as e:
+        app.logger.error(f"加载 {city_name} 产品失败: {e}")
+        import traceback
+        app.logger.error(traceback.format_exc())
+        return render_template('business/tour/package/tour_product_display.html', 
+                             country_name="未知国家", 
+                             city_name=city_name, 
+                             products=[])
+
+
+@package_blue.route('/debug/check_products/<city_keyword>')
+@login_required
+@staff_only
+def debug_check_products(city_keyword):
+    """临时调试端点：检查产品数据"""
+    from ..models.Packagemodels import Product as NewProduct
+    
+    # 查询所有产品
+    all_products = NewProduct.query.all()
+    
+    # 查询包含关键词的产品
+    matched_products = NewProduct.query.filter(
+        db.or_(
+            Product.city_name.like(f'%{city_keyword}%'),
+            Product.country.like(f'%{city_keyword}%'),
+            Product.product_name.like(f'%{city_keyword}%')
+        )
+    ).all()
+    
+    # 获取所有唯一的城市名和国家名
+    cities = db.session.query(Product.city_name).distinct().all()
+    countries = db.session.query(Product.country).distinct().all()
+    
+    debug_info = {
+        'search_keyword': city_keyword,
+        'total_products': len(all_products),
+        'matched_products': len(matched_products),
+        'all_cities': [c[0] for c in cities if c[0]],
+        'all_countries': [c[0] for c in countries if c[0]],
+        'matched_details': [
+            {
+                'id': p.id,
+                'name': p.product_name,
+                'city': p.city_name,
+                'country': p.country,
+                'status': p.product_status,
+                'supplier_id': p.supplier_id
+            } for p in matched_products[:10]  # 只显示前10个
+        ]
+    }
+    
+    return f"<html><body><h1>产品调试信息</h1><pre>{str(debug_info)}</pre></body></html>"
 
 
 @package_blue.route('/open_company_package_folder/<country_name>/<city_name>/<company_name>', methods=['GET', 'POST'])

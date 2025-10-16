@@ -29,19 +29,19 @@ def test_detail():
 def project_detail(project_id):
     """项目详情页面"""
     try:
-        print(f"DEBUG: 访问项目详情页面，project_id: {project_id}")  # 调试信息
+        print(f"DEBUG: 访问项目详情页面，project_id: {project_id}")
         
         from App_new.business.projects.models.project import ProjectHeader
         from App_new.business.projects.models.project import CustomerCompany
         
         # 使用project_id查询ProjectHeader
         header = ProjectHeader.query.get_or_404(project_id)
-        print(f"DEBUG: 找到项目: {header.hid}")  # 调试信息
+        print(f"DEBUG: 找到项目 HID: {header.hid}, 描述: {header.desc}")
         
         # 手动加载相关的REF数据
         refs = ProjectRef.query.filter_by(header_id=project_id).all()
         header.refs = refs
-        print(f"DEBUG: 加载了 {len(refs)} 个REF记录")  # 调试信息
+        print(f"DEBUG: 加载了 {len(refs)} 个REF记录")
 
         # 获取上一个和下一个项目（优化查询）
         prev_header = ProjectHeader.query.filter(
@@ -54,23 +54,36 @@ def project_detail(project_id):
 
         # 获取公司信息（通过backref自动关联）
         company = header.company
-        print(f"DEBUG: 公司信息: {company.company_name if company else 'None'}")  # 调试信息
+        print(f"DEBUG: 公司信息: {company.company_name if company else 'None'}")
 
         # 获取所有活跃的公司列表供选择
         companies = CustomerCompany.query.filter_by(status='active').order_by(CustomerCompany.company_name).all()
+        print(f"DEBUG: 加载了 {len(companies)} 个活跃公司")
 
-        print(f"DEBUG: 准备渲染模板")  # 调试信息
+        print(f"DEBUG: 准备渲染模板 business/projects/project_detail.html")
         return render_template('business/projects/project_detail.html',
                                header=header,
                                company=company,
                                companies=companies,
                                prev_header=prev_header,
                                next_header=next_header)
+                               
     except Exception as e:
-        print(f"DEBUG: 错误: {str(e)}")  # 调试信息
+        error_msg = str(e)
+        print(f"ERROR: 加载项目详情失败")
+        print(f"ERROR: 错误类型: {type(e).__name__}")
+        print(f"ERROR: 错误信息: {error_msg}")
         import traceback
-        traceback.print_exc()  # 打印完整错误堆栈
-        flash(f'加载项目详情失败：{str(e)}', 'error')
+        error_trace = traceback.format_exc()
+        print(f"ERROR: 完整堆栈:\n{error_trace}")
+        
+        # 记录到日志文件
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"项目详情页面加载失败 [project_id={project_id}]: {error_msg}")
+        logger.error(f"完整堆栈: {error_trace}")
+        
+        flash(f'加载项目详情失败：{error_msg}', 'error')
         return redirect(url_for('business_projects.list.list_projects'))
 
 @bp.route('/<int:project_id>/refs')

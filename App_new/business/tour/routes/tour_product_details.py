@@ -46,39 +46,23 @@ def get_image_base64(image_path):
         print(f"Error reading image: {str(e)}")  # 调试信息
         return None
 
-# 产品列表页 - 显示所有产品卡片（支持筛选）
+# 产品列表页 - 重定向到新系统
 @product_details.route('/tour_product_list')
 def tour_product_list():
-    # 获取筛选参数
+    """旧路由 - 重定向到新的产品管理系统"""
+    # 保留筛选参数
     country_filter = request.args.get('country', '')
     city_filter = request.args.get('city', '')
     
-    # 构建查询
-    query = TourProduct.query
-    
-    # 应用筛选条件
+    # 构建新URL的参数
+    params = {}
     if country_filter:
-        query = query.filter(TourProduct.country == country_filter)
+        params['country'] = country_filter
     if city_filter:
-        query = query.filter(TourProduct.city == city_filter)
+        params['city'] = city_filter
     
-    # 执行查询
-    products = query.order_by(TourProduct.created_at.desc()).all()
-    
-    # 获取所有可用的国家和城市（用于下拉框）
-    all_countries = db.session.query(TourProduct.country).filter(TourProduct.country.isnot(None)).distinct().order_by(TourProduct.country).all()
-    all_cities = db.session.query(TourProduct.city).filter(TourProduct.city.isnot(None)).distinct().order_by(TourProduct.city).all()
-    
-    # 转换为列表
-    countries = [c[0] for c in all_countries if c[0]]
-    cities = [c[0] for c in all_cities if c[0]]
-    
-    return render_template('business/tour/package/tour_product_list.html', 
-                         products=products,
-                         countries=countries,
-                         cities=cities,
-                         selected_country=country_filter,
-                         selected_city=city_filter)
+    # 重定向到新系统
+    return redirect(url_for('tour_products.product_list', **params))
 
 # 单个产品详情页
 @product_details.route('/tour_product_detail/<int:id>')
@@ -95,39 +79,11 @@ def tour_product_detail(id):
 def tour_product_details():
     return redirect(url_for('product_details.tour_product_list'))
 
-# 添加新产品
+# 添加新产品 - 重定向到新系统
 @product_details.route('/tour_product/add', methods=['GET', 'POST'])
 def add_product():
-    if request.method == 'POST':
-        try:
-            new_product = TourProduct(
-                title=clean_text(request.form['title']),
-                country=clean_text(request.form.get('country', '')),
-                city=clean_text(request.form.get('city', '')),
-                itinerary=clean_text(request.form['itinerary']),
-                included=clean_text(request.form['included']),
-                not_included=clean_text(request.form['not_included']),
-                price=float(request.form['price']),
-                duration=clean_text(request.form['duration'])
-            )
-            db.session.add(new_product)
-            db.session.commit()
-            
-            # 检查是否是AJAX请求
-            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                return jsonify({'success': True, 'message': '产品添加成功'})
-            else:
-                flash('产品添加成功！', 'success')
-                return redirect(url_for('product_details.tour_product_list'))
-        except Exception as e:
-            db.session.rollback()
-            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                return jsonify({'success': False, 'message': str(e)})
-            else:
-                flash(f'添加失败：{str(e)}', 'error')
-                return redirect(url_for('product_details.add_product'))
-    
-    return render_template('business/tour/package/add_product.html')
+    """旧路由 - 重定向到新的产品添加页面"""
+    return redirect(url_for('tour_products.add_product'))
 
 # 编辑产品
 @product_details.route('/tour_product/edit/<int:id>', methods=['GET', 'POST'])

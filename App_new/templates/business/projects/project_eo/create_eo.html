@@ -148,7 +148,7 @@
                 <a href="{{ url_for('projects.ref_detail', ref_id=ref.id) }}" class="btn btn-outline-light">
                     <i class="fas fa-arrow-left"></i> 返回REF
                 </a>
-                <a href="{{ url_for('business_projects.project_header.header_detail', header_id=ref.header.id) }}" class="btn btn-outline-light">
+                <a href="{{ url_for('business_projects.detail.project_detail', project_id=ref.header.id) }}" class="btn btn-outline-light">
                     <i class="fas fa-home"></i> 返回HID
                 </a>
             </div>
@@ -433,7 +433,7 @@
                 <a href="{{ url_for('projects.ref_detail', ref_id=ref.id) }}" class="btn btn-secondary">
                     <i class="fas fa-times"></i> 取消
                 </a>
-                <a href="{{ url_for('business_projects.project_header.header_detail', header_id=ref.header.id) }}" class="btn btn-outline-secondary">
+                <a href="{{ url_for('business_projects.detail.project_detail', project_id=ref.header.id) }}" class="btn btn-outline-secondary">
                     <i class="fas fa-home"></i> 返回HID
                 </a>
             </div>

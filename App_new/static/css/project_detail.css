@@ -1,30 +1,52 @@
+/**
+ * 项目管理模块样式 (Projects Module Styles)
+ * 合并了 project_detail.css 和 projects_common.css
+ * 用于统一项目管理、REF、EO、Receipt等页面的样式
+ */
+
+/* ==================== CSS变量定义 ==================== */
 :root {
+    /* 主题色系 - 绿色 */
     --primary-color: #198754;
     --primary-light: #d1ecf1;
     --primary-dark: #0c5460;
+    
+    /* 功能色 */
     --secondary-color: #007bff;
     --success-color: #d4edda;
     --warning-color: #fff3cd;
     --danger-color: #f8d7da;
+    
+    /* 通用色 */
     --light-color: #f8f9fa;
     --dark-color: #212529;
-    --border-color: #e9ecef;
     --text-muted: #6c757d;
+    
+    /* 边框和阴影 */
+    --border-color: #e9ecef;
     --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.1);
     --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.15);
+    
+    /* 圆角 */
     --border-radius: 8px;
     --border-radius-sm: 4px;
     --border-radius-lg: 20px;
+    
+    /* 间距 */
     --spacing-xs: 0.25rem;
     --spacing-sm: 0.5rem;
     --spacing-md: 1rem;
     --spacing-lg: 1.5rem;
     --spacing-xl: 2rem;
+    
+    /* 响应式字体 */
     --font-size-sm: clamp(0.75rem, 0.8vw, 0.875rem);
     --font-size-base: clamp(0.875rem, 0.9vw, 1rem);
     --font-size-lg: clamp(1rem, 1.1vw, 1.25rem);
     --font-size-xl: clamp(1.25rem, 1.3vw, 1.5rem);
 }
+
+/* ==================== 通用样式（可被多个页面复用） ==================== */
 
 .project-header {
     background: white;
@@ -96,33 +118,21 @@
     position: relative;
 }
 
-/* 备注信息内容区域 */
-#existing-remarks {
-    flex: 1;
-}
-
-/* 确保项目详情卡片高度一致 */
+/* 卡片高度和内容区域 */
 .project-left-sidebar .info-card,
 .project-right-sidebar .info-card {
-    display: flex !important;
-    flex-direction: column !important;
-    height: 100% !important;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
 }
 
-/* 确保内容区域能够正确填充 */
-.project-info-container {
-    flex: 1 !important;
-    overflow-y: auto !important;
-    min-height: 0 !important;
-}
-
+.project-info-container,
 #existing-remarks {
-    overflow-y: auto !important;
-    display: flex !important;
-    flex-direction: column !important;
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
 }
 
-/* 新增备注输入框动画效果 */
 #new-remarks-section {
     transition: opacity 0.3s ease, transform 0.3s ease;
 }
@@ -154,17 +164,9 @@
     position: relative;
 }
 
-/* 项目信息两行布局样式 */
+/* 项目信息布局 */
 .basic-info-row {
     margin-bottom: var(--spacing-md);
-}
-
-.basic-info-row .info-item .info-value {
-    max-width: 100%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    display: block;
 }
 
 .reminder-info-row {
@@ -173,7 +175,11 @@
     border-top: 1px solid var(--border-color);
 }
 
-/* 提醒事件行样式 */
+.reminder-info-row .info-item:first-child {
+    grid-column: span 2;
+}
+
+.basic-info-row .info-item .info-value,
 .reminder-info-row .info-item .info-value {
     max-width: 100%;
     overflow: hidden;
@@ -182,36 +188,17 @@
     display: block;
 }
 
-/* 提醒事件占据2个网格 */
-.reminder-info-row .info-item:first-child {
-    grid-column: span 2;
-}
-
-/* 项目信息容器的滚动条样式 */
+/* 滚动条样式 */
 .project-info-container {
     overflow-y: auto;
     overflow-x: hidden;
     padding-right: 5px;
 }
 
-/* 自定义滚动条样式 */
-.project-info-container::-webkit-scrollbar {
-    width: 6px;
-}
-
-.project-info-container::-webkit-scrollbar-track {
-    background: #f1f1f1;
-    border-radius: 3px;
-}
-
-.project-info-container::-webkit-scrollbar-thumb {
-    background: #c1c1c1;
-    border-radius: 3px;
-}
-
-.project-info-container::-webkit-scrollbar-thumb:hover {
-    background: #a8a8a8;
-}
+.project-info-container::-webkit-scrollbar { width: 6px; }
+.project-info-container::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 3px; }
+.project-info-container::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 3px; }
+.project-info-container::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
 
 .info-item {
     display: flex;
@@ -249,6 +236,7 @@
     word-wrap: break-word;
 }
 
+/* 状态徽章 */
 .status-badge {
     display: inline-block;
     padding: var(--spacing-xs) 0.75rem;
@@ -260,43 +248,17 @@
     transition: all 0.2s ease;
 }
 
-.status-badge:hover {
-    transform: scale(1.05);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-}
+.status-badge:hover { transform: scale(1.05); box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2); }
 
-.status-draft { background-color: var(--warning-color); color: #856404; }
-.status-active { background-color: var(--primary-light); color: var(--primary-dark); }
-.status-completed { background-color: var(--success-color); color: #155724; }
-.status-cancelled { background-color: var(--danger-color); color: #721c24; }
+.status-draft { background: var(--warning-color); color: #856404; }
+.status-active { background: var(--primary-light); color: var(--primary-dark); }
+.status-completed { background: var(--success-color); color: #155724; }
+.status-cancelled { background: var(--danger-color); color: #721c24; }
 
-.action-buttons {
-    display: flex;
-    gap: var(--spacing-sm);
-    flex-wrap: wrap;
-}
+/* 操作按钮和链接 */
+.action-buttons { display: flex; gap: var(--spacing-sm); flex-wrap: wrap; }
 
-.ref-number-link {
-    color: var(--secondary-color);
-    text-decoration: none;
-    transition: all 0.2s ease;
-    border-radius: var(--border-radius-sm);
-    padding: 2px var(--border-radius-sm);
-}
-
-.ref-number-link:hover {
-    color: #0056b3;
-    background-color: var(--light-color);
-    text-decoration: none;
-    transform: translateY(-1px);
-    box-shadow: var(--shadow-sm);
-}
-
-.ref-number-link:active {
-    transform: translateY(0);
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-}
-
+.ref-number-link,
 .eo-number-link {
     text-decoration: none;
     transition: all 0.2s ease;
@@ -304,22 +266,25 @@
     display: inline-block;
 }
 
-.eo-number-link:hover {
-    text-decoration: none;
-    transform: scale(1.05);
-    box-shadow: 0 2px 8px rgba(0, 123, 255, 0.3);
+.ref-number-link {
+    color: var(--secondary-color);
+    padding: 2px var(--border-radius-sm);
 }
 
-.eo-number-link:active {
-    transform: scale(1.02);
-    box-shadow: 0 1px 4px rgba(0, 123, 255, 0.2);
+.ref-number-link:hover {
+    color: #0056b3;
+    background: var(--light-color);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-sm);
 }
 
-.btn-group-vertical {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-sm);
-}
+.ref-number-link:active { transform: translateY(0); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1); }
+
+.eo-number-link:hover { transform: scale(1.05); box-shadow: 0 2px 8px rgba(0, 123, 255, 0.3); }
+.eo-number-link:active { transform: scale(1.02); box-shadow: 0 1px 4px rgba(0, 123, 255, 0.2); }
+
+/* REF列表区域 */
+.btn-group-vertical { display: flex; flex-direction: column; gap: var(--spacing-sm); }
 
 .ref-section {
     background: white;
@@ -338,27 +303,12 @@
     border-bottom: 2px solid var(--light-color);
 }
 
-.section-title {
-    font-size: var(--font-size-xl);
-    font-weight: 600;
-    color: var(--dark-color);
-    margin: 0;
-}
+.section-title { font-size: var(--font-size-xl); font-weight: 600; color: var(--dark-color); margin: 0; }
+.add-ref-buttons { display: flex; gap: var(--spacing-sm); flex-wrap: wrap; }
 
-.add-ref-buttons {
-    display: flex;
-    gap: var(--spacing-sm);
-    flex-wrap: wrap;
-}
-
-.table-responsive {
-    border-radius: var(--border-radius);
-    overflow: hidden;
-    box-shadow: var(--shadow-sm);
-}
-
+.table-responsive { border-radius: var(--border-radius); overflow: hidden; box-shadow: var(--shadow-sm); }
 .table th {
-    background-color: var(--light-color);
+    background: var(--light-color);
     border-bottom: 2px solid #dee2e6;
     font-weight: 600;
     color: #495057;
@@ -366,200 +316,70 @@
     font-size: 0.875rem;
     letter-spacing: 0.5px;
 }
+.table td { vertical-align: middle; }
 
-.table td {
-    vertical-align: middle;
-}
+/* 导航和财务统计 */
+.navigation-info { background: rgba(255, 255, 255, 0.1); padding: var(--spacing-sm) var(--spacing-md); border-radius: var(--border-radius-lg); font-size: 0.875rem; }
 
-.navigation-info {
-    background: rgba(255, 255, 255, 0.1);
-    padding: var(--spacing-sm) var(--spacing-md);
-    border-radius: var(--border-radius-lg);
-    font-size: 0.875rem;
-}
+.payment-status-summary { background: var(--light-color); padding: var(--spacing-lg); border-radius: var(--border-radius); border: 1px solid var(--border-color); }
+.status-item { margin-bottom: var(--spacing-md); }
+.status-label { font-size: 0.875rem; color: #495057; font-weight: 500; }
+.status-count { font-size: 0.875rem; font-weight: 600; color: var(--dark-color); background: white; padding: var(--spacing-xs) var(--spacing-sm); border-radius: 12px; min-width: 30px; text-align: center; }
 
-.payment-status-summary {
-    background: var(--light-color);
-    padding: var(--spacing-lg);
-    border-radius: var(--border-radius);
-    border: 1px solid var(--border-color);
-}
+.progress { background: var(--border-color); border-radius: 3px; }
+.progress-bar { border-radius: 3px; }
 
-.status-item {
-    margin-bottom: var(--spacing-md);
-}
+/* REF状态和提醒 */
+.ref-status-select { border: 1px solid var(--secondary-color); border-radius: var(--border-radius-lg); padding: var(--spacing-xs) var(--spacing-sm); font-size: 0.875rem; background: white; min-width: 80px; }
 
-.status-label {
-    font-size: 0.875rem;
-    color: #495057;
-    font-weight: 500;
-}
+.reminder-event { color: #dc3545; font-weight: 600; background: var(--danger-color); padding: 2px 6px; border-radius: var(--border-radius-sm); border: 1px solid #f5c6cb; }
+.reminder-date { color: #0d6efd; font-weight: 500; background: #cff4fc; padding: 2px 6px; border-radius: var(--border-radius-sm); border: 1px solid #b6effb; }
+.reminder-status .badge { font-size: 0.75rem; padding: var(--spacing-xs) var(--spacing-sm); }
 
-.status-count {
-    font-size: 0.875rem;
-    font-weight: 600;
-    color: var(--dark-color);
-    background: white;
-    padding: var(--spacing-xs) var(--spacing-sm);
-    border-radius: 12px;
-    min-width: 30px;
-    text-align: center;
-}
-
-.progress {
-    background-color: var(--border-color);
-    border-radius: 3px;
-}
-
-.progress-bar {
-    border-radius: 3px;
-}
-
-/* REF状态编辑样式 */
-.ref-status-select {
-    border: 1px solid var(--secondary-color);
-    border-radius: var(--border-radius-lg);
-    padding: var(--spacing-xs) var(--spacing-sm);
-    font-size: 0.875rem;
-    background-color: white;
-    min-width: 80px;
-}
-
-/* 提醒信息样式 */
-.reminder-event {
-    color: #dc3545;
-    font-weight: 600;
-    background-color: var(--danger-color);
-    padding: 2px 6px;
-    border-radius: var(--border-radius-sm);
-    border: 1px solid #f5c6cb;
-}
-
-.reminder-date {
-    color: #0d6efd;
-    font-weight: 500;
-    background-color: #cff4fc;
-    padding: 2px 6px;
-    border-radius: var(--border-radius-sm);
-    border: 1px solid #b6effb;
-}
-
-.reminder-status .badge {
-    font-size: 0.75rem;
-    padding: var(--spacing-xs) var(--spacing-sm);
-}
-
-/* 响应式断点优化 - 使用Bootstrap标准断点 */
+/* ==================== 响应式设计 ==================== */
 @media (max-width: 1199.98px) {
-    .info-grid {
-        grid-template-columns: repeat(4, 1fr);
-    }
+    .info-grid { grid-template-columns: repeat(4, 1fr); }
 }
 
-@media (max-width: 767.98px) {
-    .info-grid {
-        grid-template-columns: repeat(2, 1fr);
-    }
-}
-
-/* 手机端优化 */
 @media (max-width: 768px) {
-    .project-detail-layout {
-        display: block;
-        height: auto;
-    }
-
-    .project-left-sidebar,
-    .project-right-sidebar {
-        width: 100%;
-        height: auto;
-    }
-
-    .project-header {
-        padding: 0.75rem var(--spacing-md);
-        margin-bottom: var(--spacing-md);
-    }
-
-    .project-title {
-        font-size: var(--font-size-lg);
-    }
-
-    .project-subtitle {
-        font-size: 0.85rem;
-    }
-
-    .project-info-card {
-        height: auto !important;
-    }
-
-    .project-info-container {
-        max-height: none;
-        overflow: visible;
-    }
-
-    .project-info-grid {
-        grid-template-columns: repeat(2, 1fr);
-        gap: 0.6rem;
-    }
-
-    .info-item .info-label { font-size: 0.78rem; }
-    .info-item .info-value { font-size: 0.9rem; -webkit-line-clamp: 3; }
-
-    .action-buttons {
-        flex-wrap: wrap;
-        gap: 0.4rem;
-    }
-
-    /* 表格横向滚动容器 */
-    .table-responsive,
-    .table-container,
-    .table-wrapper {
-        width: 100%;
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-    }
-
-    table {
-        min-width: 720px;
-    }
-
-    /* 按钮尺寸在手机端更易点按 */
-    .btn,
-    .btn-sm {
-        padding: 0.4rem 0.6rem;
-        font-size: 0.9rem;
-    }
-
-    /* 顶部左右导航区域压缩布局 */
-    .navigation-info { display: none; }
-
-    .d-flex.gap-2 > .btn,
-    .d-flex.gap-3 > .btn {
-        margin-right: 0.4rem;
-    }
-
-    /* 备注卡片堆叠显示 */
+    .info-grid { grid-template-columns: repeat(2, 1fr); }
+    
+    /* 布局调整 */
+    .project-detail-layout { display: block; height: auto; }
+    .project-left-sidebar, .project-right-sidebar { width: 100%; height: auto; }
+    .project-info-card { height: auto !important; }
+    .project-info-container { max-height: none; overflow: visible; }
     .remarks-info-card { margin-top: var(--spacing-md); }
-
-    /* REF明细列表：按钮与表格在手机端的表现 */
-    .ref-section .section-header { gap: var(--spacing-sm); }
-    .ref-section .section-header { flex-direction: column !important; align-items: flex-start !important; }
-    .ref-section .add-ref-buttons { display: flex; flex-wrap: wrap; gap: var(--spacing-sm); }
-    .ref-section .section-title { margin-bottom: var(--spacing-xs); }
-    .ref-section .add-ref-buttons .btn { padding: 0.35rem var(--spacing-sm); font-size: 0.9rem; }
-
-    .ref-section .table-responsive { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-    .ref-section table { min-width: 900px; }
-    .ref-section th, 
-    .ref-section td { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-
-    /* 项目信息卡片字体与布局压缩，避免遮挡 */
+    
+    /* 字体和尺寸 */
     .project-header { padding: var(--spacing-sm) 0.75rem; }
+    .project-title { font-size: var(--font-size-lg); }
+    .project-subtitle { font-size: 0.85rem; }
     .section-title { font-size: 1.05rem !important; }
-    .project-info-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--spacing-sm) 0.6rem; }
     .info-item .info-label { font-size: 0.75rem; }
     .info-item .info-value { font-size: 0.9rem; line-height: 1.2; -webkit-line-clamp: 2; }
     .status-badge { padding: 0.2rem var(--spacing-sm); font-size: 0.8rem; }
+    
+    /* 网格布局 */
+    .project-info-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--spacing-sm) 0.6rem; }
+    
+    /* 按钮和导航 */
+    .btn, .btn-sm { padding: 0.4rem 0.6rem; font-size: 0.9rem; }
+    .d-flex.gap-2 > .btn, .d-flex.gap-3 > .btn { margin-right: 0.4rem; }
+    .navigation-info { display: none; }
+    .action-buttons { flex-wrap: wrap; gap: 0.4rem; }
     #status-select { width: 100% !important; }
-    .btn.btn-sm { padding: 0.35rem var(--spacing-sm); font-size: 0.9rem; }
+    
+    /* 表格 */
+    .table-responsive, .table-container, .table-wrapper { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    table { min-width: 720px; }
+    .ref-section table { min-width: 900px; }
+    .ref-section th, .ref-section td { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    
+    /* REF区域 */
+    .ref-section .section-header { gap: var(--spacing-sm); flex-direction: column !important; align-items: flex-start !important; }
+    .ref-section .section-title { margin-bottom: var(--spacing-xs); }
+    .ref-section .add-ref-buttons { display: flex; flex-wrap: wrap; gap: var(--spacing-sm); }
+    .ref-section .add-ref-buttons .btn { padding: 0.35rem var(--spacing-sm); font-size: 0.9rem; }
+    .ref-section .table-responsive { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 }

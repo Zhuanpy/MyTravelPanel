@@ -789,8 +789,8 @@
                 }
             }, 1500);
         }
-    }
-    
+        }
+        
     /**
      * 绑定添加账号按钮事件
      */
@@ -802,23 +802,23 @@
             return;
         }
         
-        submitAddAccountBtn.addEventListener('click', async function() {
-            try {
-                const form = document.getElementById('addAccountForm');
-                
-                // 表单验证
-                if (!form.checkValidity()) {
-                    form.reportValidity();
-                    return;
-                }
-                
-                // 收集表单数据
-                const formData = new FormData(form);
-                const accountData = {};
-                
-                formData.forEach((value, key) => {
-                    accountData[key] = value;
-                });
+            submitAddAccountBtn.addEventListener('click', async function() {
+                try {
+                    const form = document.getElementById('addAccountForm');
+                    
+                    // 表单验证
+                    if (!form.checkValidity()) {
+                        form.reportValidity();
+                        return;
+                    }
+                    
+                    // 收集表单数据
+                    const formData = new FormData(form);
+                    const accountData = {};
+                    
+                    formData.forEach((value, key) => {
+                        accountData[key] = value;
+                    });
                 
                 // 处理 supplier_id
                 if (accountData.supplier_id === '' || accountData.supplier_id === undefined) {
@@ -828,61 +828,61 @@
                 }
                 
                 console.log('提交的账号数据:', accountData);
-                
-                // 获取CSRF令牌
-                const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-                
+                    
+                    // 获取CSRF令牌
+                    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+                    
                 // 发送API请求
-                const response = await fetch('/account/api/accounts', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': csrfToken
-                    },
-                    body: JSON.stringify(accountData)
-                });
-                
-                const result = await response.json();
-                
-                if (result.success) {
-                    // 显示成功消息
-                    window.showAlert('账号添加成功!', true);
+                    const response = await fetch('/account/api/accounts', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': csrfToken
+                        },
+                        body: JSON.stringify(accountData)
+                    });
                     
-                    // 关闭模态框
-                    const modal = bootstrap.Modal.getInstance(document.getElementById('addAccountModal'));
-                    if (modal) {
-                        modal.hide();
-                    }
+                    const result = await response.json();
                     
-                    // 手动移除模态框背景
-                    setTimeout(() => {
-                        document.querySelectorAll('.modal-backdrop').forEach(backdrop => {
+                    if (result.success) {
+                        // 显示成功消息
+                        window.showAlert('账号添加成功!', true);
+                        
+                        // 关闭模态框
+                        const modal = bootstrap.Modal.getInstance(document.getElementById('addAccountModal'));
+                        if (modal) {
+                            modal.hide();
+                        }
+                        
+                        // 手动移除模态框背景
+                        setTimeout(() => {
+                            document.querySelectorAll('.modal-backdrop').forEach(backdrop => {
                             backdrop.classList.remove('show', 'fade');
-                            backdrop.remove();
-                        });
-                        document.body.classList.remove('modal-open');
-                        document.body.style.removeProperty('overflow');
-                        document.body.style.removeProperty('padding-right');
-                    }, 300);
-                    
-                    // 重新加载账号列表
-                    if (typeof loadAccounts === 'function') {
-                        await loadAccounts();
-                    } else {
+                                backdrop.remove();
+                            });
+                            document.body.classList.remove('modal-open');
+                            document.body.style.removeProperty('overflow');
+                            document.body.style.removeProperty('padding-right');
+                        }, 300);
+                        
+                        // 重新加载账号列表
+                        if (typeof loadAccounts === 'function') {
+                            await loadAccounts();
+                        } else {
                         setTimeout(() => window.location.reload(), 1000);
+                        }
+                    } else {
+                        window.showAlert(result.message || '添加账号失败', false);
                     }
-                } else {
-                    window.showAlert(result.message || '添加账号失败', false);
+                } catch (error) {
+                    console.error('添加账号出错:', error);
+                    window.showAlert('添加账号时发生错误: ' + error.message, false);
                 }
-            } catch (error) {
-                console.error('添加账号出错:', error);
-                window.showAlert('添加账号时发生错误: ' + error.message, false);
-            }
-        });
-        
-        console.log('添加账号按钮事件监听器已设置');
-    }
-    
+            });
+            
+            console.log('添加账号按钮事件监听器已设置');
+        }
+
     /**
      * 绑定编辑账号按钮事件
      */

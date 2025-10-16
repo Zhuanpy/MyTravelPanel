@@ -211,13 +211,17 @@ def quick_create_eo(ref_id):
                             'message': '您没有权限访问此项目'
                         }), 403
         
-        # 检查REF是否已经有EO
+        # 检查REF是否已经有EO (使用ref_id检查，加上数据库刷新)
+        db.session.expire_all()  # 刷新会话，确保获取最新数据
         existing_eo = ProjectEO.query.filter_by(ref_id=ref.id).first()
         if existing_eo:
+            print(f"DEBUG: REF {ref.id} (ref_number: {ref.ref_number}) 已经存在EO {existing_eo.eo_number} (id: {existing_eo.id})")
             return jsonify({
                 'success': False,
-                'message': f'REF {ref.ref_number} 已经存在EO编号 {existing_eo.eo_number}'
+                'message': f'此REF已存在EO编号 {existing_eo.eo_number}，无法重复创建'
             }), 400
+        
+        print(f"DEBUG: REF {ref.id} 没有EO记录，准备创建...")
         
         # 根据REF类型推断供应商类型
         supplier_type = 'other'
@@ -264,14 +268,38 @@ def quick_create_eo(ref_id):
         return jsonify({
             'success': True,
             'message': f'EO {eo.eo_number} 创建成功！',
-            'eo_number': eo.eo_number
+            'eo_number': eo.eo_number,
+            'eo_id': eo.id
         })
         
     except Exception as e:
         db.session.rollback()
+        error_msg = str(e)
+        
+        # 特殊处理重复键错误
+        if 'Duplicate entry' in error_msg and 'unique_ref_eo' in error_msg:
+            print(f"ERROR: REF {ref_id} 存在重复的EO记录")
+            # 尝试查找已存在的EO
+            existing_eo = ProjectEO.query.filter_by(ref_id=ref_id).first()
+            if existing_eo:
+                return jsonify({
+                    'success': False,
+                    'message': f'此REF已存在EO编号 {existing_eo.eo_number}，请勿重复创建'
+                }), 400
+            else:
+                return jsonify({
+                    'success': False,
+                    'message': '此REF已存在EO记录，请刷新页面查看'
+                }), 400
+        
+        # 其他错误
+        print(f"ERROR: 快速创建EO失败 [ref_id={ref_id}]: {error_msg}")
+        import traceback
+        traceback.print_exc()
+        
         return jsonify({
             'success': False,
-            'message': f'创建失败：{str(e)}'
+            'message': f'创建失败：{error_msg}'
         }), 500
 
 
