@@ -1,8 +1,11 @@
-from flask import Blueprint, render_template, request, redirect, url_for, jsonify
+from flask import Blueprint, render_template, request, redirect, url_for, jsonify, flash
 from App_new.exts import db, csrf
 from App_new.shared.models.Suppliers import Supplier
 from sqlalchemy.dialects.mysql import ENUM
 from sqlalchemy import desc
+import os
+import subprocess
+import platform
 
 # 创建蓝图
 supplier = Blueprint('supplier', __name__)
@@ -65,6 +68,7 @@ def add_supplier():
             email=request.form.get('email'),
             address=request.form.get('address'),
             country=request.form.get('country'),
+            city=request.form.get('city'),
             region=request.form.get('region'),
             status=request.form.get('status', 'active'),
             notes=request.form.get('notes')
@@ -92,6 +96,7 @@ def edit_supplier(supplier_id):
         supplier.email = request.form.get('email')
         supplier.address = request.form.get('address')
         supplier.country = request.form.get('country')
+        supplier.city = request.form.get('city')
         supplier.region = request.form.get('region')
         supplier.status = request.form.get('status')
         supplier.notes = request.form.get('notes')
@@ -151,4 +156,128 @@ def track_supplier_click(supplier_id):
         return jsonify({
             'success': False,
             'message': f'点击统计更新失败: {str(e)}'
+        })
+
+
+@supplier.route('/open-folder/<int:supplier_id>', methods=['POST'])
+def open_supplier_folder(supplier_id):
+    """打开供应商本地文件夹"""
+    try:
+        supplier = Supplier.query.get_or_404(supplier_id)
+        
+        # 构建文件夹路径
+        base_path = r"E:\MyProject\MyTravelWork\MyTravelPanel\资源\Supplier"
+        
+        # 获取供应商的国家和城市信息
+        country = supplier.country or '未知国家'
+        city = supplier.city or '未知城市'
+        supplier_name = supplier.name
+        
+        # 清理供应商名称，移除特殊字符
+        clean_name = supplier_name.replace('"', '').replace("'", "").replace('\\', '').replace('/', '').replace(':', '').replace('*', '').replace('?', '').replace('<', '').replace('>', '').replace('|', '')
+        
+        # 构建可能的路径
+        possible_paths = [
+            os.path.join(base_path, country, city, supplier_name),
+            os.path.join(base_path, country, city, clean_name),
+            os.path.join(base_path, supplier_name),
+            os.path.join(base_path, clean_name),
+        ]
+        
+        # 查找存在的文件夹
+        folder_path = None
+        folder_created = False
+        
+        for path in possible_paths:
+            if os.path.exists(path) and os.path.isdir(path):
+                folder_path = path
+                break
+        
+        if not folder_path:
+            try:
+                # 使用第一个可能的路径作为目标路径
+                folder_path = possible_paths[0]
+                
+                # 创建目录（包括所有父目录）
+                os.makedirs(folder_path, exist_ok=True)
+                
+                # 验证目录是否创建成功
+                if os.path.exists(folder_path) and os.path.isdir(folder_path):
+                    # 标记为新创建的文件夹
+                    folder_created = True
+                else:
+                    return jsonify({
+                        'success': False,
+                        'message': f'文件夹创建失败：{folder_path}'
+                    })
+                    
+            except Exception as e:
+                return jsonify({
+                    'success': False,
+                    'message': f'创建文件夹时发生错误：{str(e)}'
+                })
+        
+        # 根据操作系统打开文件夹
+        system = platform.system()
+        
+        if system == "Windows":
+            # Windows 系统
+            try:
+                # 使用 explorer 命令打开文件夹
+                subprocess.Popen(['explorer', folder_path])
+                message = f'已创建并打开文件夹：{folder_path}' if folder_created else f'已打开文件夹：{folder_path}'
+                return jsonify({
+                    'success': True,
+                    'message': message,
+                    'folder_path': folder_path,
+                    'created': folder_created
+                })
+            except Exception as e:
+                return jsonify({
+                    'success': False,
+                    'message': f'打开文件夹失败：{str(e)}'
+                })
+        
+        elif system == "Darwin":  # macOS
+            try:
+                subprocess.Popen(['open', folder_path])
+                message = f'已创建并打开文件夹：{folder_path}' if folder_created else f'已打开文件夹：{folder_path}'
+                return jsonify({
+                    'success': True,
+                    'message': message,
+                    'folder_path': folder_path,
+                    'created': folder_created
+                })
+            except Exception as e:
+                return jsonify({
+                    'success': False,
+                    'message': f'打开文件夹失败：{str(e)}'
+                })
+        
+        elif system == "Linux":
+            try:
+                subprocess.Popen(['xdg-open', folder_path])
+                message = f'已创建并打开文件夹：{folder_path}' if folder_created else f'已打开文件夹：{folder_path}'
+                return jsonify({
+                    'success': True,
+                    'message': message,
+                    'folder_path': folder_path,
+                    'created': folder_created
+                })
+            except Exception as e:
+                return jsonify({
+                    'success': False,
+                    'message': f'打开文件夹失败：{str(e)}'
+                })
+        
+        else:
+            return jsonify({
+                'success': False,
+                'message': f'不支持的操作系统：{system}'
+            })
+            
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'打开文件夹时发生错误：{str(e)}'
         })

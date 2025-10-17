@@ -149,6 +149,18 @@
                         </div>
                         
                         <div class="visa-form-group">
+                            <label for="city" class="visa-form-label">
+                                城市
+                            </label>
+                            <input type="text" 
+                                   class="visa-form-control" 
+                                   id="city" 
+                                   name="city" 
+                                   placeholder="请输入城市" 
+                                   value="{% if supplier %}{{ supplier.city or '' }}{% else %}{{ request.form.get('city', '') }}{% endif %}">
+                        </div>
+                        
+                        <div class="visa-form-group">
                             <label for="region" class="visa-form-label">
                                 地区
                             </label>

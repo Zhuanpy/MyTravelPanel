@@ -24,6 +24,7 @@ class Supplier(db.Model):
     email = db.Column(db.String(255))
     address = db.Column(db.Text)
     country = db.Column(db.String(50))
+    city = db.Column(db.String(50))
     region = db.Column(db.String(50))
     status = db.Column(db.Enum('active', 'inactive'), default='active')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -53,6 +54,7 @@ class Supplier(db.Model):
             'email': self.email,
             'address': self.address,
             'country': self.country,
+            'city': self.city,
             'region': self.region,
             'status': self.status,
             'created_at': self.created_at.isoformat() if self.created_at else None,

@@ -56,19 +56,26 @@ def save_uploaded_file(file, upload_folder='uploads/tour_products'):
 @login_required
 @staff_only
 def product_list():
-    """产品列表页面 - 支持筛选和关键字搜索"""
+    """产品列表页面 - 支持筛选、搜索和分页"""
+    # 获取筛选参数
     supplier_id = request.args.get('supplier', type=int)
     country = request.args.get('country', '')
     city = request.args.get('city', '')
     status = request.args.get('status', '')
     keyword = request.args.get('keyword', '')
+    
+    # 获取分页参数
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 20, type=int)  # 每页20个产品
 
     query = Product.query
 
     if supplier_id:
         query = query.filter(Product.supplier_id == supplier_id)
     if country:
-        query = query.filter(Product.country == country)
+        # 通过 city 关联筛选国家
+        from App_new.business.tour.models.Packagemodels import ProductCity
+        query = query.join(ProductCity, Product.city_id == ProductCity.id).filter(ProductCity.country_name == country)
     if city:
         query = query.filter(Product.city_name == city)
     if status:
@@ -81,21 +88,48 @@ def product_list():
             )
         )
 
-    products = query.order_by(Product.created_at.desc()).all()
+    # 执行分页查询
+    pagination = query.order_by(Product.created_at.desc()).paginate(
+        page=page, 
+        per_page=per_page, 
+        error_out=False
+    )
+    
+    products = pagination.items
 
+    # 添加产品显示属性
+    from datetime import date
+    today = date.today()
     for product in products:
         if product.supplier:
             product.supplier_display_name = product.supplier.name
         else:
             product.supplier_display_name = '未指定供应商'
+        
+        # 判断是否过期
+        product.is_expired = (product.valid_until and product.valid_until < today)
+        
+        # 确保所有字段都不显示 None
+        if product.product_description == 'None':
+            product.product_description = None
+        if product.country == 'None':
+            product.country = '未知'
+        if product.city_name == 'None':
+            product.city_name = None
+        if product.departure_city == 'None':
+            product.departure_city = None
+        if product.destination_city == 'None':
+            product.destination_city = None
 
     suppliers = Supplier.query.filter(
         Supplier.supplier_type.in_(['tour_operator', 'travel_agency', 'local_operator'])
     ).order_by(Supplier.name).all()
 
-    countries = db.session.query(Product.country).filter(
-        Product.country.isnot(None)
-    ).distinct().order_by(Product.country).all()
+    # 从 ProductCity 表获取国家列表
+    from App_new.business.tour.models.Packagemodels import ProductCity
+    countries = db.session.query(ProductCity.country_name).filter(
+        ProductCity.country_name.isnot(None)
+    ).distinct().order_by(ProductCity.country_name).all()
     countries = [c[0] for c in countries if c[0]]
 
     cities = db.session.query(Product.city_name).filter(
@@ -105,6 +139,7 @@ def product_list():
 
     return render_template('business/tour/products/product_list.html',
                          products=products,
+                         pagination=pagination,
                          suppliers=suppliers,
                          countries=countries,
                          cities=cities,
@@ -151,45 +186,77 @@ def add_product():
                 except ValueError:
                     supplier_id = None
 
-            duration_days = int(request.form['duration_days']) if request.form.get('duration_days') else None
-            duration_nights = int(request.form['duration_nights']) if request.form.get('duration_nights') else None
-            min_pax = int(request.form.get('min_pax', 1))
-            max_pax = int(request.form['max_pax']) if request.form.get('max_pax') else None
+            # 处理 city_id（从 city_name 获取）
+            city_name = request.form.get('city_name')
+            city_id = None
+            if city_name:
+                from App_new.business.tour.models.Packagemodels import ProductCity
+                city = ProductCity.query.filter_by(city_name=city_name).first()
+                if city:
+                    city_id = city.id
+
+            # 安全转换数字字段
+            duration_days = request.form.get('duration_days', '').strip()
+            duration_days_val = int(duration_days) if duration_days else None
+            
+            min_pax = request.form.get('min_pax', '1').strip()
+            min_pax_val = int(min_pax) if min_pax else 1
+            
+            max_pax = request.form.get('max_pax', '').strip()
+            max_pax_val = int(max_pax) if max_pax else None
+            
+            base_price = request.form.get('base_price', '').strip()
+            base_price_val = float(base_price) if base_price else None
+            
+            child_price = request.form.get('child_price', '').strip()
+            child_price_val = float(child_price) if child_price else None
+            
+            infant_price = request.form.get('infant_price', '').strip()
+            infant_price_val = float(infant_price) if infant_price else None
+            
+            single_supplement = request.form.get('single_room_supplement', '').strip()
+            single_supplement_val = float(single_supplement) if single_supplement else None
+            
+            is_featured = request.form.get('is_featured', '0').strip()
+            is_featured_val = bool(int(is_featured)) if is_featured else False
+            
+            valid_from = request.form.get('valid_from', '').strip()
+            valid_from_val = datetime.strptime(valid_from, '%Y-%m-%d').date() if valid_from else None
+            
+            valid_until = request.form.get('valid_until', '').strip()
+            valid_until_val = datetime.strptime(valid_until, '%Y-%m-%d').date() if valid_until else None
 
             product = Product(
                 product_name=request.form['product_name'],
                 supplier_id=supplier_id,
                 product_code=request.form.get('product_code') or None,
-                country=request.form.get('country'),
-                city_name=request.form.get('city_name'),
-                departure_city=request.form.get('departure_city'),
-                destination_city=request.form.get('destination_city'),
-                product_type=request.form.get('product_type'),
-                duration_days=duration_days,
-                duration_nights=duration_nights,
-                min_pax=min_pax,
-                max_pax=max_pax,
-                base_price=float(request.form['base_price']) if request.form.get('base_price') else None,
-                child_price=float(request.form['child_price']) if request.form.get('child_price') else None,
-                infant_price=float(request.form['infant_price']) if request.form.get('infant_price') else None,
-                single_room_supplement=float(request.form['single_room_supplement']) if request.form.get('single_room_supplement') else None,
+                city_id=city_id,
+                city_name=city_name,
+                departure_city=request.form.get('departure_city') or None,
+                destination_city=request.form.get('destination_city') or None,
+                product_type=request.form.get('product_type') or None,
+                duration_days=duration_days_val,
+                min_pax=min_pax_val,
+                max_pax=max_pax_val,
+                base_price=base_price_val,
+                child_price=child_price_val,
+                infant_price=infant_price_val,
+                single_room_supplement=single_supplement_val,
                 currency=request.form.get('currency', 'SGD'),
-                product_description=request.form.get('product_description'),
-                highlights=request.form.get('highlights'),
-                included_services=request.form.get('included_services'),
-                excluded_services=request.form.get('excluded_services'),
-                important_notes=request.form.get('important_notes'),
-                suitable_season=request.form.get('suitable_season'),
-                difficulty_level=request.form.get('difficulty_level'),
+                product_description=request.form.get('product_description') or None,
+                highlights=request.form.get('highlights') or None,
+                included_services=request.form.get('included_services') or None,
+                excluded_services=request.form.get('excluded_services') or None,
+                important_notes=request.form.get('important_notes') or None,
+                suitable_season=request.form.get('suitable_season') or None,
+                difficulty_level=request.form.get('difficulty_level') or None,
                 tags=tags_json,
                 cover_image=cover_image_path,
                 gallery_images=gallery_json,
-                contact_person=request.form.get('contact_person'),
-                contact_phone=request.form.get('contact_phone'),
                 product_status=request.form.get('product_status', 'draft'),
-                is_featured=bool(int(request.form.get('is_featured', 0))),
-                valid_from=datetime.strptime(request.form['valid_from'], '%Y-%m-%d').date() if request.form.get('valid_from') else None,
-                valid_until=datetime.strptime(request.form['valid_until'], '%Y-%m-%d').date() if request.form.get('valid_until') else None,
+                is_featured=is_featured_val,
+                valid_from=valid_from_val,
+                valid_until=valid_until_val,
                 created_by=current_user.username
             )
 
@@ -358,37 +425,67 @@ def edit_product(product_id):
                 except ValueError:
                     supplier_id = None
 
+            # 处理 city_id（从 city_name 获取）
+            city_name = request.form.get('city_name')
+            city_id = None
+            if city_name:
+                from App_new.business.tour.models.Packagemodels import ProductCity
+                city = ProductCity.query.filter_by(city_name=city_name).first()
+                if city:
+                    city_id = city.id
+
             product.product_name = request.form['product_name']
             product.supplier_id = supplier_id
             product.product_code = request.form.get('product_code') or None
-            product.country = request.form.get('country')
-            product.city_name = request.form.get('city_name')
-            product.departure_city = request.form.get('departure_city')
-            product.destination_city = request.form.get('destination_city')
-            product.product_type = request.form.get('product_type')
-            product.duration_days = int(request.form['duration_days']) if request.form.get('duration_days') else None
-            product.duration_nights = int(request.form['duration_nights']) if request.form.get('duration_nights') else None
-            product.min_pax = int(request.form.get('min_pax', 1))
-            product.max_pax = int(request.form['max_pax']) if request.form.get('max_pax') else None
-            product.base_price = float(request.form['base_price']) if request.form.get('base_price') else None
-            product.child_price = float(request.form['child_price']) if request.form.get('child_price') else None
-            product.infant_price = float(request.form['infant_price']) if request.form.get('infant_price') else None
-            product.single_room_supplement = float(request.form['single_room_supplement']) if request.form.get('single_room_supplement') else None
+            product.city_id = city_id
+            product.city_name = city_name
+            product.departure_city = request.form.get('departure_city') or None
+            product.destination_city = request.form.get('destination_city') or None
+            product.product_type = request.form.get('product_type') or None
+            
+            # 安全转换数字字段
+            duration_days = request.form.get('duration_days', '').strip()
+            product.duration_days = int(duration_days) if duration_days else None
+            
+            min_pax = request.form.get('min_pax', '1').strip()
+            product.min_pax = int(min_pax) if min_pax else 1
+            
+            max_pax = request.form.get('max_pax', '').strip()
+            product.max_pax = int(max_pax) if max_pax else None
+            
+            base_price = request.form.get('base_price', '').strip()
+            product.base_price = float(base_price) if base_price else None
+            
+            child_price = request.form.get('child_price', '').strip()
+            product.child_price = float(child_price) if child_price else None
+            
+            infant_price = request.form.get('infant_price', '').strip()
+            product.infant_price = float(infant_price) if infant_price else None
+            
+            single_supplement = request.form.get('single_room_supplement', '').strip()
+            product.single_room_supplement = float(single_supplement) if single_supplement else None
+            
             product.currency = request.form.get('currency', 'SGD')
-            product.product_description = request.form.get('product_description')
-            product.highlights = request.form.get('highlights')
-            product.included_services = request.form.get('included_services')
-            product.excluded_services = request.form.get('excluded_services')
-            product.important_notes = request.form.get('important_notes')
-            product.suitable_season = request.form.get('suitable_season')
-            product.difficulty_level = request.form.get('difficulty_level')
+            product.product_description = request.form.get('product_description') or None
+            product.highlights = request.form.get('highlights') or None
+            product.included_services = request.form.get('included_services') or None
+            product.excluded_services = request.form.get('excluded_services') or None
+            product.important_notes = request.form.get('important_notes') or None
+            product.suitable_season = request.form.get('suitable_season') or None
+            product.difficulty_level = request.form.get('difficulty_level') or None
             product.tags = tags_json
-            product.contact_person = request.form.get('contact_person')
-            product.contact_phone = request.form.get('contact_phone')
             product.product_status = request.form.get('product_status', 'draft')
-            product.is_featured = bool(int(request.form.get('is_featured', 0)))
-            product.valid_from = datetime.strptime(request.form['valid_from'], '%Y-%m-%d').date() if request.form.get('valid_from') else None
-            product.valid_until = datetime.strptime(request.form['valid_until'], '%Y-%m-%d').date() if request.form.get('valid_until') else None
+            
+            # 安全转换 is_featured
+            is_featured = request.form.get('is_featured', '0').strip()
+            product.is_featured = bool(int(is_featured)) if is_featured else False
+            
+            # 安全转换日期字段
+            valid_from = request.form.get('valid_from', '').strip()
+            product.valid_from = datetime.strptime(valid_from, '%Y-%m-%d').date() if valid_from else None
+            
+            valid_until = request.form.get('valid_until', '').strip()
+            product.valid_until = datetime.strptime(valid_until, '%Y-%m-%d').date() if valid_until else None
             product.updated_at = datetime.utcnow()
 
             db.session.commit()
@@ -562,7 +659,6 @@ def export_excel():
                 '出发城市': product.departure_city or '',
                 '目的地城市': product.destination_city or '',
                 '行程天数': product.duration_days or '',
-                '住宿晚数': product.duration_nights or '',
                 '最少人数': product.min_pax or '',
                 '最多人数': product.max_pax or '',
                 '成人价格': product.base_price or '',
@@ -647,17 +743,25 @@ def import_excel():
                 elif pd.notna(row.get('产品编号')) and str(row['产品编号']).strip():
                     product = Product.query.filter_by(product_code=str(row['产品编号']).strip()).first()
 
+                # 处理 city_id（从 city_name 获取）
+                city_name = str(row['城市']).strip() if pd.notna(row.get('城市')) else None
+                city_id = None
+                if city_name:
+                    from App_new.business.tour.models.Packagemodels import ProductCity
+                    city = ProductCity.query.filter_by(city_name=city_name).first()
+                    if city:
+                        city_id = city.id
+
                 product_data = {
                     'supplier_id': supplier.id if supplier else None,
                     'product_code': str(row['产品编号']).strip() if pd.notna(row.get('产品编号')) else None,
                     'product_name': str(row['产品名称']).strip(),
                     'product_type': str(row['产品类型']).strip() if pd.notna(row.get('产品类型')) else None,
-                    'country': str(row['国家']).strip() if pd.notna(row.get('国家')) else None,
-                    'city_name': str(row['城市']).strip() if pd.notna(row.get('城市')) else None,
+                    'city_id': city_id,
+                    'city_name': city_name,
                     'departure_city': str(row['出发城市']).strip() if pd.notna(row.get('出发城市')) else None,
                     'destination_city': str(row['目的地城市']).strip() if pd.notna(row.get('目的地城市')) else None,
                     'duration_days': int(row['行程天数']) if pd.notna(row.get('行程天数')) else None,
-                    'duration_nights': int(row['住宿晚数']) if pd.notna(row.get('住宿晚数')) else None,
                     'min_pax': int(row['最少人数']) if pd.notna(row.get('最少人数')) else 1,
                     'max_pax': int(row['最多人数']) if pd.notna(row.get('最多人数')) else None,
                     'base_price': float(row['成人价格']) if pd.notna(row.get('成人价格')) else None,
@@ -739,7 +843,6 @@ def download_template():
             '出发城市': ['北京', '可选'],
             '目的地城市': ['新加坡', '可选'],
             '行程天数': [3, '必填，数字'],
-            '住宿晚数': [2, '可选，数字'],
             '最少人数': [2, '可选，默认1'],
             '最多人数': [40, '可选'],
             '成人价格': [1200, '可选，数字'],

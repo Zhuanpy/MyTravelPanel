@@ -136,17 +136,39 @@
                                     <i class="fas fa-map-marked-alt" style="color: #10b981;"></i> {{ product.product_name }}
                                 </h3>
                                 <div style="display: flex; flex-wrap: wrap; gap: 1.5rem; font-size: 0.875rem; color: #64748b; margin-bottom: 0.75rem;">
+                                    {% if product.country and product.country != 'None' %}
                                     <span><i class="fas fa-globe" style="color: #3b82f6;"></i> {{ product.country }}</span>
+                                    {% endif %}
                                     {% if product.city_name %}
                                     <span><i class="fas fa-map-marker-alt" style="color: #ef4444;"></i> {{ product.city_name }}</span>
                                     {% endif %}
-                                    <span><i class="fas fa-calendar-alt" style="color: #f59e0b;"></i> {{ product.duration_days }}天{% if product.duration_nights %}{{ product.duration_nights }}晚{% endif %}</span>
-                                    <span><i class="fas fa-users" style="color: #8b5cf6;"></i> {{ product.min_pax }}{% if product.max_pax %}-{{ product.max_pax }}{% endif %}人</span>
+                                    {% if product.duration_days %}
+                                    <span><i class="fas fa-calendar-alt" style="color: #f59e0b;"></i> {{ product.duration_days }}天</span>
+                                    {% endif %}
+                                    {% if product.min_pax %}
+                                    <span><i class="fas fa-users" style="color: #8b5cf6;"></i> {{ product.min_pax }}{% if product.max_pax and product.max_pax != 'None' %}-{{ product.max_pax }}{% endif %}人</span>
+                                    {% endif %}
                                     {% if product.base_price %}
                                     <span><i class="fas fa-tag" style="color: #10b981;"></i> <strong style="color: #059669;">{{ product.currency }} {{ product.base_price }}</strong></span>
                                     {% endif %}
                                 </div>
-                                {% if product.product_description %}
+                                <!-- 有效期显示 -->
+                                {% if product.valid_from or product.valid_until %}
+                                <div style="display: flex; align-items: center; gap: 1rem; font-size: 0.8125rem; color: #64748b; margin-bottom: 0.5rem; padding: 0.5rem; background: {% if product.is_expired %}#fef2f2{% else %}#f8fafc{% endif %}; border-radius: 0.375rem; border-left: 3px solid {% if product.is_expired %}#ef4444{% else %}#e2e8f0{% endif %};">
+                                    {% if product.valid_from and product.valid_from != None %}
+                                    <span><i class="fas fa-calendar-check" style="color: #10b981;"></i> 开始：<strong>{{ product.valid_from }}</strong></span>
+                                    {% endif %}
+                                    {% if product.valid_until and product.valid_until != None %}
+                                    <span><i class="fas fa-calendar-times" style="color: {% if product.is_expired %}#ef4444{% else %}#f59e0b{% endif %};"></i> 结束：<strong>{{ product.valid_until }}</strong></span>
+                                    {% endif %}
+                                    {% if product.is_expired %}
+                                    <span style="margin-left: auto; color: #dc2626; font-weight: 600;">
+                                        <i class="fas fa-exclamation-triangle"></i> 已过期
+                                    </span>
+                                    {% endif %}
+                                </div>
+                                {% endif %}
+                                {% if product.product_description and product.product_description != 'None' %}
                                 <p style="margin: 0; color: #64748b; font-size: 0.875rem; line-height: 1.5;">
                                     {{ product.product_description[:100] }}{% if product.product_description|length > 100 %}...{% endif %}
                                 </p>
@@ -173,6 +195,75 @@
         </div>
         {% endfor %}
     </div>
+    
+    <!-- 分页组件 -->
+    {% if pagination and pagination.pages > 1 %}
+    <div class="visa-card" style="margin-top: 1.5rem;">
+        <div class="visa-card-body">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+                <!-- 分页信息 -->
+                <div style="color: #64748b; font-size: 0.875rem;">
+                    显示 <strong>{{ pagination.total }}</strong> 个产品中的第 
+                    <strong>{{ (pagination.page - 1) * pagination.per_page + 1 }}</strong> - 
+                    <strong>{{ pagination.page * pagination.per_page if pagination.page * pagination.per_page < pagination.total else pagination.total }}</strong> 个
+                </div>
+                
+                <!-- 分页按钮 -->
+                <div class="visa-pagination">
+                    {% if pagination.has_prev %}
+                    <a href="{{ url_for('tour_products.product_list', page=1, supplier=current_filters.supplier, country=current_filters.country, city=current_filters.city, status=current_filters.status, keyword=current_filters.keyword) }}" 
+                       class="visa-pagination-btn">
+                        <i class="fas fa-angle-double-left"></i>
+                    </a>
+                    <a href="{{ url_for('tour_products.product_list', page=pagination.prev_num, supplier=current_filters.supplier, country=current_filters.country, city=current_filters.city, status=current_filters.status, keyword=current_filters.keyword) }}" 
+                       class="visa-pagination-btn">
+                        <i class="fas fa-angle-left"></i>
+                    </a>
+                    {% else %}
+                    <span class="visa-pagination-btn" style="opacity: 0.3; cursor: not-allowed;">
+                        <i class="fas fa-angle-double-left"></i>
+                    </span>
+                    <span class="visa-pagination-btn" style="opacity: 0.3; cursor: not-allowed;">
+                        <i class="fas fa-angle-left"></i>
+                    </span>
+                    {% endif %}
+                    
+                    {% for page_num in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+                        {% if page_num %}
+                            {% if page_num == pagination.page %}
+                            <span class="visa-pagination-btn visa-pagination-active">{{ page_num }}</span>
+                            {% else %}
+                            <a href="{{ url_for('tour_products.product_list', page=page_num, supplier=current_filters.supplier, country=current_filters.country, city=current_filters.city, status=current_filters.status, keyword=current_filters.keyword) }}" 
+                               class="visa-pagination-btn">{{ page_num }}</a>
+                            {% endif %}
+                        {% else %}
+                        <span class="visa-pagination-btn" style="border: none; cursor: default;">...</span>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if pagination.has_next %}
+                    <a href="{{ url_for('tour_products.product_list', page=pagination.next_num, supplier=current_filters.supplier, country=current_filters.country, city=current_filters.city, status=current_filters.status, keyword=current_filters.keyword) }}" 
+                       class="visa-pagination-btn">
+                        <i class="fas fa-angle-right"></i>
+                    </a>
+                    <a href="{{ url_for('tour_products.product_list', page=pagination.pages, supplier=current_filters.supplier, country=current_filters.country, city=current_filters.city, status=current_filters.status, keyword=current_filters.keyword) }}" 
+                       class="visa-pagination-btn">
+                        <i class="fas fa-angle-double-right"></i>
+                    </a>
+                    {% else %}
+                    <span class="visa-pagination-btn" style="opacity: 0.3; cursor: not-allowed;">
+                        <i class="fas fa-angle-right"></i>
+                    </span>
+                    <span class="visa-pagination-btn" style="opacity: 0.3; cursor: not-allowed;">
+                        <i class="fas fa-angle-double-right"></i>
+                    </span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
     {% else %}
     <div class="visa-card">
         <div class="visa-card-body">

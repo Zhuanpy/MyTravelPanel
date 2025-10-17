@@ -60,6 +60,179 @@
             });
         }
     }
+    
+    // 打开供应商本地文件夹
+    function openSupplierFolder(supplierId) {
+        // 显示确认对话框
+        if (confirm('确定要打开供应商的本地文件夹吗？')) {
+            // 显示加载状态
+            const button = event.target;
+            const originalText = button.innerHTML;
+            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 打开中...';
+            button.disabled = true;
+            
+            // 调用后端API
+            fetch(`/supplier/open-folder/${supplierId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('meta[name=csrf-token]')?.getAttribute('content') || ''
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                // 恢复按钮状态
+                button.innerHTML = originalText;
+                button.disabled = false;
+                
+                if (data.success) {
+                    // 显示成功消息
+                    showToast('success', data.message);
+                    console.log('文件夹路径:', data.folder_path);
+                } else {
+                    // 显示错误消息
+                    showToast('error', data.message);
+                    console.error('打开文件夹失败:', data.message);
+                }
+            })
+            .catch(error => {
+                // 恢复按钮状态
+                button.innerHTML = originalText;
+                button.disabled = false;
+                
+                // 显示错误消息
+                showToast('error', '打开文件夹时发生错误，请稍后重试');
+                console.error('请求失败:', error);
+            });
+        }
+    }
+    
+    // 显示提示消息
+    function showToast(type, message) {
+        const toast = document.createElement('div');
+        toast.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 1rem 1.5rem;
+            border-radius: 0.5rem;
+            color: white;
+            font-weight: 500;
+            z-index: 10000;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        `;
+        
+        if (type === 'success') {
+            toast.style.background = '#10b981';
+        } else if (type === 'error') {
+            toast.style.background = '#ef4444';
+        } else {
+            toast.style.background = '#6b7280';
+        }
+        
+        toast.textContent = message;
+        document.body.appendChild(toast);
+        
+        setTimeout(() => {
+            toast.remove();
+        }, 3000);
+    }
+    
+    // 显示文件夹路径模态对话框
+    function showFolderPathModal(supplierName, possiblePaths, basePath) {
+        // 创建模态对话框
+        const modal = document.createElement('div');
+        modal.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 10000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        `;
+        
+        const modalContent = document.createElement('div');
+        modalContent.style.cssText = `
+            background: white;
+            padding: 2rem;
+            border-radius: 0.5rem;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+        `;
+        
+        modalContent.innerHTML = `
+            <h3 style="margin: 0 0 1rem 0; color: #1e293b;">
+                <i class="fas fa-folder-open" style="color: #3b82f6;"></i> 打开供应商文件夹
+            </h3>
+            <p style="margin: 0 0 1rem 0; color: #64748b;">供应商：<strong>${supplierName}</strong></p>
+            
+            <div style="background: #f8fafc; padding: 1rem; border-radius: 0.375rem; margin: 1rem 0;">
+                <h4 style="margin: 0 0 0.5rem 0; color: #374151;">手动操作步骤：</h4>
+                <ol style="margin: 0; padding-left: 1.5rem; color: #4b5563;">
+                    <li>打开文件管理器</li>
+                    <li>导航到：<code style="background: #e5e7eb; padding: 0.25rem; border-radius: 0.25rem;">${basePath}</code></li>
+                    <li>查找以下文件夹之一：</li>
+                </ol>
+            </div>
+            
+            <div style="margin: 1rem 0;">
+                <h4 style="margin: 0 0 0.5rem 0; color: #374151;">可能的文件夹路径：</h4>
+                <div style="background: #fef3c7; padding: 1rem; border-radius: 0.375rem; border-left: 4px solid #f59e0b;">
+                    ${possiblePaths.slice(0, 4).map(path => 
+                        `<div style="margin: 0.5rem 0; font-family: monospace; background: white; padding: 0.5rem; border-radius: 0.25rem; cursor: pointer;" onclick="copyToClipboard('${path}')" title="点击复制路径">${path}</div>`
+                    ).join('')}
+                </div>
+            </div>
+            
+            <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 1.5rem;">
+                <button onclick="this.closest('.modal').remove()" style="padding: 0.5rem 1rem; background: #6b7280; color: white; border: none; border-radius: 0.375rem; cursor: pointer;">
+                    关闭
+                </button>
+            </div>
+        `;
+        
+        modal.className = 'modal';
+        modal.appendChild(modalContent);
+        document.body.appendChild(modal);
+        
+        // 点击背景关闭模态框
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.remove();
+            }
+        });
+    }
+    
+    // 复制到剪贴板
+    function copyToClipboard(text) {
+        navigator.clipboard.writeText(text).then(() => {
+            // 显示复制成功提示
+            const toast = document.createElement('div');
+            toast.textContent = '路径已复制到剪贴板！';
+            toast.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: #10b981;
+                color: white;
+                padding: 0.75rem 1rem;
+                border-radius: 0.375rem;
+                z-index: 10001;
+                box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            `;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }).catch(err => {
+            console.error('复制失败:', err);
+            alert('复制失败，请手动复制路径：\n' + text);
+        });
+    }
 </script>
 {% endblock %}
 
@@ -161,6 +334,7 @@
                             <tr>
                                 <th>供应商名称</th>
                                 <th>国家</th>
+                                <th>城市</th>
                                 <th>地区</th>
                                 <th>类型</th>
                                 <th>联系人</th>
@@ -183,6 +357,7 @@
                                     </a>
                                 </td>
                                 <td>{{ supplier.country or '-' }}</td>
+                                <td>{{ supplier.city or '-' }}</td>
                                 <td>{{ supplier.region or '-' }}</td>
                                 <td>
                                     <span class="visa-badge supplier-type-{{ supplier.supplier_type }}">
@@ -210,6 +385,13 @@
                                            onclick="trackSupplierClick(this.dataset.supplierId)">
                                             <i class="fas fa-eye"></i> 查看
                                         </a>
+                                        <button type="button" 
+                                                class="visa-btn visa-btn-sm visa-btn-info" 
+                                                data-supplier-id="{{ supplier.supplier_id }}"
+                                                onclick="openSupplierFolder(this.dataset.supplierId)"
+                                                title="打开本地供应商文件夹">
+                                            <i class="fas fa-folder-open"></i> 文件夹
+                                        </button>
                                         <a href="{{ url_for('supplier.edit_supplier', supplier_id=supplier.supplier_id) }}" 
                                            class="visa-btn visa-btn-sm visa-btn-warning">
                                             <i class="fas fa-edit"></i> 编辑

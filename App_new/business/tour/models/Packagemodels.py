@@ -17,18 +17,16 @@ class Product(db.Model):
     # 产品编号和名称
     product_code = db.Column(db.String(50), unique=True, nullable=True, comment='产品编号')
     product_name = db.Column(db.String(200), nullable=False, comment='产品名字')
-    company_name = db.Column(db.String(100), nullable=True, comment='公司名字（兼容旧数据）')
     
     # 地理信息
-    country = db.Column(db.String(100), nullable=True, comment='国家')
-    city_name = db.Column(db.String(100), nullable=True, comment='城市名字')
+    city_id = db.Column(db.Integer, db.ForeignKey('travel_products_city.id'), nullable=True, comment='城市ID')
+    city_name = db.Column(db.String(100), nullable=True, comment='城市名字（冗余字段，方便查询）')
     departure_city = db.Column(db.String(100), nullable=True, comment='出发城市')
     destination_city = db.Column(db.String(100), nullable=True, comment='目的地城市')
     
     # 产品基本信息
     product_type = db.Column(db.String(50), nullable=True, comment='产品类型：跟团游/自由行/定制游/当地游')
     duration_days = db.Column(db.Integer, nullable=True, comment='行程天数')
-    duration_nights = db.Column(db.Integer, nullable=True, comment='住宿晚数')
     
     # 人数限制
     min_pax = db.Column(db.Integer, default=1, comment='最少成团人数')
@@ -57,11 +55,6 @@ class Product(db.Model):
     cover_image = db.Column(db.String(500), nullable=True, comment='封面图')
     gallery_images = db.Column(db.Text, nullable=True, comment='图片库（JSON数组）')
     
-    # 联系信息
-    contact_person = db.Column(db.String(100), nullable=True, comment='联系人')
-    contact_phone = db.Column(db.String(50), nullable=True, comment='联系电话')
-    contact_email = db.Column(db.String(100), nullable=True, comment='联系邮箱')
-    
     # 状态管理
     product_status = db.Column(db.String(50), default='active', comment='产品状态：active/inactive/draft')
     is_featured = db.Column(db.Boolean, default=False, comment='是否精选')
@@ -82,6 +75,21 @@ class Product(db.Model):
     # 关联关系
     supplier = db.relationship('Supplier', backref=db.backref('travel_products', lazy='dynamic'), foreign_keys=[supplier_id])
     parent_product = db.relationship('Product', remote_side=[id], backref='versions', foreign_keys=[parent_product_id])
+    city = db.relationship('ProductCity', backref=db.backref('products', lazy='dynamic'), foreign_keys=[city_id])
+    
+    @property
+    def display_company_name(self):
+        """获取显示用的公司名称"""
+        if self.supplier:
+            return self.supplier.name
+        return '未设置供应商'
+    
+    @property
+    def country(self):
+        """智能获取国家（从城市关联获取）"""
+        if self.city:
+            return self.city.country_name
+        return '未知'
 
     def __init__(self, product_name: str, **kwargs):
         """初始化产品实例"""
@@ -93,13 +101,13 @@ class Product(db.Model):
                 setattr(self, key, value)
 
     @classmethod
-    def add_product(cls, city_name: str, company_name: str, product_name: str, created_at: date,
+    def add_product(cls, city_name: str, supplier_id: int, product_name: str, created_at: date,
                     valid_until: date, **kwargs) -> 'Product':
         """添加新产品到数据库。
 
         Args:
             city_name (str): 城市名称。
-            company_name (str): 公司名称。
+            supplier_id (int): 供应商ID。
             product_name (str): 产品名称。
             created_at (date): 创建时间。
             valid_until (date): 产品有效期。
@@ -109,7 +117,7 @@ class Product(db.Model):
             Product: 返回新创建的产品实例。
         """
         # 创建新产品实例
-        new_product = cls(city_name=city_name, company_name=company_name,
+        new_product = cls(city_name=city_name, supplier_id=supplier_id,
                           product_name=product_name, created_at=created_at,
                           valid_until=valid_until, **kwargs)
 
@@ -122,13 +130,12 @@ class Product(db.Model):
         return new_product
 
     @staticmethod
-    def product_exists(city_name: str, company_name: str, product_name: str):
-        # 查询数据库以检查产品是否存在
-        return db.session.query(Product).filter_by(
-            city_name=city_name,
-            company_name=company_name,
-            product_name=product_name
-        ).first() is not None
+    def product_exists(product_name: str, supplier_id: int = None):
+        """检查产品是否存在"""
+        query = db.session.query(Product).filter_by(product_name=product_name)
+        if supplier_id:
+            query = query.filter_by(supplier_id=supplier_id)
+        return query.first() is not None
 
     def to_dict(self):
         """将产品转换为字典格式"""
@@ -137,17 +144,17 @@ class Product(db.Model):
         return {
             'id': self.id,
             'supplier_id': self.supplier_id,
-            'supplier_name': self.supplier.name if self.supplier else self.company_name,
+            'supplier_name': self.display_company_name,
             'product_code': self.product_code,
             'product_name': self.product_name,
-            'company_name': self.company_name,
+            'company_name': self.display_company_name,
             'country': self.country,
+            'city_id': self.city_id,
             'city_name': self.city_name,
             'departure_city': self.departure_city,
             'destination_city': self.destination_city,
             'product_type': self.product_type,
             'duration_days': self.duration_days,
-            'duration_nights': self.duration_nights,
             'min_pax': self.min_pax,
             'max_pax': self.max_pax,
             'suitable_season': self.suitable_season,
@@ -165,9 +172,6 @@ class Product(db.Model):
             'important_notes': self.important_notes,
             'cover_image': self.cover_image,
             'gallery_images': json.loads(self.gallery_images) if self.gallery_images else [],
-            'contact_person': self.contact_person,
-            'contact_phone': self.contact_phone,
-            'contact_email': self.contact_email,
             'product_status': self.product_status,
             'is_featured': self.is_featured,
             'valid_from': self.valid_from.strftime('%Y-%m-%d') if self.valid_from else None,

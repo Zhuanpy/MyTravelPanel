@@ -173,14 +173,17 @@
                         </select>
                     </div>
                     <div class="visa-form-group">
-                        <label class="visa-form-label">国家 <span style="color: red;">*</span></label>
-                        <input type="text" name="country" value="{{ product.country if product else '' }}" 
+                        <label class="visa-form-label">城市 <span style="color: red;">*</span></label>
+                        <input type="text" name="city_name" value="{{ product.city_name if product else '' }}" 
                                class="visa-form-control" required placeholder="如：新加坡">
+                        <small style="color: #666; font-size: 12px;">💡 国家信息将自动从城市获取</small>
                     </div>
                     <div class="visa-form-group">
-                        <label class="visa-form-label">城市</label>
-                        <input type="text" name="city_name" value="{{ product.city_name if product else '' }}" 
-                               class="visa-form-control" placeholder="如：新加坡">
+                        <label class="visa-form-label">国家（只读）</label>
+                        <input type="text" value="{{ product.country if product else '' }}" 
+                               class="visa-form-control" readonly disabled 
+                               style="background-color: #f5f5f5; cursor: not-allowed;" 
+                               placeholder="自动从城市获取">
                     </div>
                     <div class="visa-form-group">
                         <label class="visa-form-label">出发城市</label>
@@ -194,22 +197,17 @@
                     </div>
                     <div class="visa-form-group">
                         <label class="visa-form-label">行程天数 <span style="color: red;">*</span></label>
-                        <input type="number" name="duration_days" value="{{ product.duration_days if product else '' }}" 
+                        <input type="number" name="duration_days" value="{{ product.duration_days if product and product.duration_days else '' }}" 
                                class="visa-form-control" required min="1" placeholder="如：3">
                     </div>
                     <div class="visa-form-group">
-                        <label class="visa-form-label">住宿晚数</label>
-                        <input type="number" name="duration_nights" value="{{ product.duration_nights if product else '' }}" 
-                               class="visa-form-control" min="0" placeholder="如：2">
-                    </div>
-                    <div class="visa-form-group">
                         <label class="visa-form-label">最少人数</label>
-                        <input type="number" name="min_pax" value="{{ product.min_pax if product else '1' }}" 
+                        <input type="number" name="min_pax" value="{{ product.min_pax if product and product.min_pax else '1' }}" 
                                class="visa-form-control" min="1" placeholder="1">
                     </div>
                     <div class="visa-form-group">
                         <label class="visa-form-label">最多人数</label>
-                        <input type="number" name="max_pax" value="{{ product.max_pax if product else '' }}" 
+                        <input type="number" name="max_pax" value="{{ product.max_pax if product and product.max_pax else '' }}" 
                                class="visa-form-control" min="1" placeholder="如：40">
                     </div>
                 </div>
@@ -233,22 +231,22 @@
                 <div class="visa-grid-4">
                     <div class="visa-form-group">
                         <label class="visa-form-label">基础价格（成人）</label>
-                        <input type="number" step="0.01" name="base_price" value="{{ product.base_price if product else '' }}" 
+                        <input type="number" step="0.01" name="base_price" value="{{ product.base_price if product and product.base_price else '' }}" 
                                class="visa-form-control" placeholder="如：1200.00">
                     </div>
                     <div class="visa-form-group">
                         <label class="visa-form-label">儿童价格</label>
-                        <input type="number" step="0.01" name="child_price" value="{{ product.child_price if product else '' }}" 
+                        <input type="number" step="0.01" name="child_price" value="{{ product.child_price if product and product.child_price else '' }}" 
                                class="visa-form-control" placeholder="如：800.00">
                     </div>
                     <div class="visa-form-group">
                         <label class="visa-form-label">婴儿价格</label>
-                        <input type="number" step="0.01" name="infant_price" value="{{ product.infant_price if product else '' }}" 
+                        <input type="number" step="0.01" name="infant_price" value="{{ product.infant_price if product and product.infant_price else '' }}" 
                                class="visa-form-control" placeholder="如：200.00">
                     </div>
                     <div class="visa-form-group">
                         <label class="visa-form-label">单房差</label>
-                        <input type="number" step="0.01" name="single_room_supplement" value="{{ product.single_room_supplement if product else '' }}" 
+                        <input type="number" step="0.01" name="single_room_supplement" value="{{ product.single_room_supplement if product and product.single_room_supplement else '' }}" 
                                class="visa-form-control" placeholder="如：300.00">
                     </div>
                     <div class="visa-form-group">
@@ -334,23 +332,13 @@
                     </div>
                     <div class="visa-form-group">
                         <label class="visa-form-label">有效开始日期</label>
-                        <input type="date" name="valid_from" value="{{ product.valid_from if product else '' }}" 
+                        <input type="date" name="valid_from" value="{{ product.valid_from if product and product.valid_from else '' }}" 
                                class="visa-form-control">
                     </div>
                     <div class="visa-form-group">
                         <label class="visa-form-label">有效结束日期</label>
-                        <input type="date" name="valid_until" value="{{ product.valid_until if product else '' }}" 
+                        <input type="date" name="valid_until" value="{{ product.valid_until if product and product.valid_until else '' }}" 
                                class="visa-form-control">
-                    </div>
-                    <div class="visa-form-group">
-                        <label class="visa-form-label">联系人</label>
-                        <input type="text" name="contact_person" value="{{ product.contact_person if product else '' }}" 
-                               class="visa-form-control" placeholder="如：张三">
-                    </div>
-                    <div class="visa-form-group">
-                        <label class="visa-form-label">联系电话</label>
-                        <input type="text" name="contact_phone" value="{{ product.contact_phone if product else '' }}" 
-                               class="visa-form-control" placeholder="如：+86 138****">
                     </div>
                 </div>
                 <div class="visa-form-group">

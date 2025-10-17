@@ -27,7 +27,7 @@
         <div style="opacity: 0.9; font-size: 0.875rem;">
             {% if product.supplier %}{{ product.supplier.name }} | {% endif %}
             {{ product.country }} - {{ product.city_name }} | 
-            {{ product.duration_days }}天{% if product.duration_nights %}{{ product.duration_nights }}晚{% endif %}
+            {{ product.duration_days }}天
         </div>
     </div>
 
@@ -76,7 +76,7 @@
                 <div class="info-item">
                     <div class="info-content">
                         <h6>行程天数</h6>
-                        <p>{{ product.duration_days }}天{% if product.duration_nights %}{{ product.duration_nights }}晚{% endif %}</p>
+                        <p>{{ product.duration_days }}天</p>
                     </div>
                 </div>
                 <div class="info-item">
