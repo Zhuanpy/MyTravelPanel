@@ -94,16 +94,10 @@
                             {% if service.flag_file %}
                             <div class="visa-flag-overlay"></div>
                             {% endif %}
-                            {% if service.visa_count %}
-                            <div class="visa-count">{{ service.visa_count }}种签证</div>
-                            {% endif %}
                         </div>
                         <div class="visa-meta px-2 py-2">
-                            {% if service.price_range %}
-                            <div class="visa-price text-accent fw-bold mb-1">{{ service.price_range }}</div>
-                            {% endif %}
                             {% if service.services %}
-                            <div class="visa-services">
+                            <div class="visa-services mb-2">
                                 {% for visa_service in service.services[:2] %}
                                 <span class="badge bg-light text-dark me-1 mb-1">{{ visa_service }}</span>
                                 {% endfor %}
@@ -112,7 +106,12 @@
                                 {% endif %}
                             </div>
                             {% endif %}
-                            <div class="text-end">
+                            <div class="d-flex justify-content-between align-items-center">
+                                {% if service.visa_count %}
+                                <div class="visa-count-text">{{ service.visa_count }}种签证</div>
+                                {% else %}
+                                <div></div>
+                                {% endif %}
                                 <i class="fas fa-chevron-right text-muted small"></i>
                             </div>
                         </div>
@@ -162,27 +161,6 @@
     </div>
 </section>
 
-<!-- 联系咨询 -->
-<!-- <section class="py-5">
-    <div class="container">
-        <div class="rounded-3 text-center p-5" style="background: linear-gradient(135deg, var(--primary-color), var(--primary-dark)); color: white;">
-            <h3 class="fw-bold mb-3">需要签证办理服务？</h3>
-            <p class="mb-4">我们的专业顾问团队随时为您提供咨询和服务</p>
-            <div class="row g-3 justify-content-center">
-                <div class="col-md-3 col-sm-6">
-                    <a href="{{ url_for('public.contact') }}" class="btn btn-light btn-lg w-100">
-                        <i class="fas fa-envelope me-2"></i>在线咨询
-                    </a>
-                </div>
-                <div class="col-md-3 col-sm-6">
-                    <a href="tel:{{ company.phone if company else '+65 1234 5678' }}" class="btn btn-outline-light btn-lg w-100">
-                        <i class="fas fa-phone me-2"></i>电话咨询
-                    </a>
-                </div>
-            </div>
-        </div>
-    </div>
-</section> -->
 {% endblock %}
 
 {% block extra_css %}
@@ -250,15 +228,10 @@
         z-index: 2;
         text-shadow: 0 2px 4px rgba(0,0,0,0.7);
     }
-    .visa-grid .visa-count{
-        color: rgba(255,255,255,0.95);
-        font-size: 0.85rem;
-        background: rgba(0,0,0,0.4);
-        padding: 4px 10px;
-        border-radius: 12px;
-        display: inline-block;
-        text-shadow: 0 1px 3px rgba(0,0,0,0.8);
-        font-weight: 500;
+    .visa-grid .visa-count-text{
+        color: #666;
+        font-size: 0.8rem;
+        font-weight: 400;
     }
     .visa-grid .visa-meta{
         background: #fff;
