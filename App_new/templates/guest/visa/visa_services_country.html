@@ -4,25 +4,21 @@
 
 {% block content %}
 <!-- 页面标题区域 -->
-<section class="hero-section text-center" style="padding: 60px 0;">
+<section class="py-4">
     <div class="container">
-        <div class="row justify-content-center">
-            <div class="col-lg-8">
-                <nav aria-label="breadcrumb" class="mb-4">
-                    <ol class="breadcrumb justify-content-center bg-transparent">
-                        <li class="breadcrumb-item">
-                            <a href="{{ url_for('public.index') }}" class="text-white-50">首页</a>
-                        </li>
-                        <li class="breadcrumb-item">
-                            <a href="{{ url_for('public.visa_services') }}" class="text-white-50">签证服务</a>
-                        </li>
-                        <li class="breadcrumb-item active text-white" aria-current="page">{{ country_info.country }}</li>
-                    </ol>
-                </nav>
-                <h1 class="display-4 fw-bold mb-3">{{ country_info.country }}签证服务</h1>
-                <p class="lead">{{ country_info.description }}</p>
-            </div>
-        </div>
+        <nav aria-label="breadcrumb" class="mb-3">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item">
+                    <a href="{{ url_for('public.index') }}">首页</a>
+                </li>
+                <li class="breadcrumb-item">
+                    <a href="{{ url_for('public.visa_services') }}">签证服务</a>
+                </li>
+                <li class="breadcrumb-item active" aria-current="page">{{ country_info.country }}</li>
+            </ol>
+        </nav>
+        <h2 class="fw-bold mb-2">{{ country_info.country }}签证服务</h2>
+        <!-- <p class="text-muted mb-0">{{ country_info.description }}</p> -->
     </div>
 </section>
 
@@ -31,57 +27,47 @@
 <section class="py-5">
     <div class="container">
         {% if country_info.visa_types %}
-        <div class="row g-4">
+        <div class="visa-services-list">
             {% for visa_type in country_info.visa_types %}
-            <div class="col-lg-6 mx-auto">
-                <div class="service-card h-100 d-flex flex-column">
-                    <div class="service-card-body d-flex flex-column">
-                        <!-- 签证类型标题 -->
-                        <div class="d-flex align-items-center mb-3">
-                            <div class="bg-success text-white rounded-circle me-3 d-flex align-items-center justify-content-center" style="width: 50px; height: 50px;">
-                                <i class="fas fa-passport"></i>
-                            </div>
-                            <div>
-                                <h4 class="mb-1 text-dark">{{ visa_type.visa_type }}</h4>
-                                <p class="text-muted mb-0 small">{{ visa_type.visa_type }}办理服务</p>
-                            </div>
+            <div class="visa-service-card">
+                <!-- 内容区域 -->
+                <div class="visa-service-content">
+                    <div class="visa-service-header">
+                        <h3 class="visa-service-title">{{ visa_type.visa_type }}</h3>
+                        <div class="visa-service-rating">
+                            <span class="rating-badge">4.7/5</span>
+                            <span class="rating-text">28289 reviews</span>
                         </div>
-                        
-                        <!-- 基本信息 -->
-                        <div class="flex-grow-1 mb-3">
-                            {% if visa_type.fee %}
-                            <div class="mb-2">
-                                <div class="d-flex align-items-center">
-                                    <i class="fas fa-dollar-sign text-warning me-2"></i>
-                                    <span class="text-success fw-bold small">费用</span>
-                                </div>
-                                <div class="d-flex align-items-center ms-4">
-                                    <i class="fas fa-info-circle text-info me-2 small"></i>
-                                    <span class="text-dark">{{ visa_type.fee }}</span>
-                                </div>
-                            </div>
-                            {% endif %}
-                            
-                            {% if visa_type.processing_time %}
-                            <div class="mb-2">
-                                <div class="d-flex align-items-center">
-                                    <i class="fas fa-clock text-success me-2"></i>
-                                    <span class="text-success fw-bold small">处理时间</span>
-                                </div>
-                                <div class="d-flex align-items-center ms-4">
-                                    <i class="fas fa-info-circle text-info me-2 small"></i>
-                                    <span class="text-dark">{{ visa_type.processing_time }}</span>
-                                </div>
-                            </div>
-                            {% endif %}
-                        </div>
-                        
-                        <!-- 操作按钮 -->
-                        <div class="d-grid mt-auto">
-                            <a href="{{ url_for('public.visa_detail', visa_type_name=visa_type.visa_type) }}" class="btn btn-primary btn-sm">
-                                <i class="fas fa-info-circle me-1"></i>查看详情
-                            </a>
-                        </div>
+                    </div>
+                    
+                    <div class="visa-service-tags">
+                        <span class="visa-tag visa-tag-award">
+                            <i class="fas fa-star"></i>
+                            2025 Global 100 - Best Things to Do
+                        </span>
+                        <span class="visa-tag visa-tag-category">签证服务</span>
+                    </div>
+                    
+                    <div class="visa-service-location">
+                        <i class="fas fa-map-marker-alt"></i>
+                        {{ country_info.country }} | 专业签证代办
+                    </div>
+                </div>
+                
+                <!-- 右侧操作和价格区域 -->
+                <div class="visa-service-pricing">
+                    {% if visa_type.fee %}
+                    <div class="visa-price-container">
+                        <div class="visa-price-current">{{ visa_type.fee }}<span class="visa-price-label">起</span></div>
+                    </div>
+                    {% endif %}
+                    <div class="visa-service-actions">
+                        <a href="{{ url_for('public.visa_detail', visa_type_name=visa_type.visa_type) }}" class="visa-detail-link">
+                            签证详细
+                        </a>
+                        <a href="{{ url_for('orders.apply_service', service_type='visa') }}" class="visa-book-link">
+                            立即预订
+                        </a>
                     </div>
                 </div>
             </div>
@@ -113,19 +99,213 @@
         color: rgba(255,255,255,0.5);
     }
     
-    .service-card {
-        border: none;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    /* 签证服务列表样式 */
+    .visa-services-list {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+    }
+    
+    .visa-service-card {
+        display: flex;
+        background: #fff;
+        border-radius: 12px;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+        overflow: hidden;
         transition: all 0.3s ease;
+        min-height: 180px;
+        border: 1px solid #f0f0f0;
     }
     
-    .service-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+    .visa-service-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 24px rgba(0,0,0,0.12);
     }
     
-    .service-card {
-        min-height: 280px;
+    /* 中间内容区域 */
+    .visa-service-content {
+        flex: 1;
+        padding: 20px 24px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+    }
+    
+    .visa-service-header {
+        margin-bottom: 20px;
+    }
+    
+    .visa-service-title {
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: #1a1a1a;
+        margin-bottom: 12px;
+        line-height: 1.2;
+    }
+    
+    .visa-service-rating {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .rating-badge {
+        background: #34c759;
+        color: white;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 0.9rem;
+        font-weight: 600;
+    }
+    
+    .rating-text {
+        color: #666;
+        font-size: 0.9rem;
+    }
+    
+    .visa-service-tags {
+        margin-bottom: 20px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+    
+    .visa-tag {
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: 500;
+    }
+    
+    .visa-tag-award {
+        background: #fff3cd;
+        color: #856404;
+        border: 1px solid #ffeaa7;
+    }
+    
+    .visa-tag-category {
+        background: #f8f9fa;
+        color: #6c757d;
+        border: 1px solid #e9ecef;
+    }
+    
+    .visa-service-location {
+        color: #666;
+        font-size: 0.9rem;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    
+    .visa-service-location i {
+        color: #999;
+    }
+    
+    /* 右侧操作和价格区域 */
+    .visa-service-pricing {
+        width: 200px;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        align-items: flex-end;
+        background: #f8f9fa;
+        gap: 16px;
+        flex-shrink: 0;
+    }
+    
+    .visa-service-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        width: 100%;
+    }
+    
+    .visa-detail-link {
+        color: #666;
+        background: white;
+        text-decoration: none;
+        font-weight: 500;
+        font-size: 0.85rem;
+        padding: 6px 12px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        transition: all 0.3s ease;
+        display: inline-block;
+        text-align: center;
+        width: 100%;
+    }
+    
+    .visa-detail-link:hover {
+        background: #f8f9fa;
+        color: #333;
+        text-decoration: none;
+        border-color: #999;
+    }
+    
+    .visa-service-action {
+        margin-bottom: 0;
+    }
+    
+    .visa-book-link {
+        color: white;
+        background: #34c759;
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 0.9rem;
+        padding: 8px 16px;
+        border: none;
+        border-radius: 6px;
+        transition: all 0.3s ease;
+        display: inline-block;
+        text-align: center;
+        min-width: 90px;
+    }
+    
+    .visa-book-link:hover {
+        background: #2fb84d;
+        color: white;
+        text-decoration: none;
+        transform: translateY(-1px);
+    }
+    
+    .visa-price-container {
+        text-align: right;
+    }
+    
+    .visa-price-current {
+        font-size: 1.4rem;
+        font-weight: 700;
+        color: #34c759;
+        margin-bottom: 4px;
+    }
+    
+    .visa-price-label {
+        font-size: 0.8rem;
+        color: #666;
+        font-weight: 400;
+        margin-left: 4px;
+    }
+    
+    /* 响应式设计 */
+    @media (max-width: 768px) {
+        .visa-service-card {
+            flex-direction: column;
+            min-height: auto;
+        }
+        
+        .visa-service-content {
+            padding: 20px;
+        }
+        
+        .visa-service-pricing {
+            width: 100%;
+            flex-direction: row;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px;
+        }
     }
     
 </style>

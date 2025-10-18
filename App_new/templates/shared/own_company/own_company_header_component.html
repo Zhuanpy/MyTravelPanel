@@ -1,29 +1,50 @@
 <!-- 公司抬头组件 -->
+{% set company = get_company_info() %}
 <div class="company-header">
     <!-- 左侧logo区域 -->
     <div class="company-logo">
         <!-- 上部分：logo图片 -->
         <div class="logo-image-section">
-            <img src="{{ url_for('static', filename='JE/LOGO.jpg') }}" alt="JOYFUL ESCAPES">
+            {% if company and company.logo_path %}
+                <img src="{{ url_for('static', filename=company.logo_path) }}" alt="{{ company.company_name }}">
+            {% else %}
+                <img src="{{ url_for('static', filename='JE/LOGO.jpg') }}" alt="公司Logo">
+            {% endif %}
         </div>
         <!-- 下部分：公司缩写 -->
         <div class="logo-text-section">
-            <div class="company-abbrev-en">JOYFUL ESCAPES</div>
-            <div class="company-abbrev-cn">悦行假期</div>
+            {% if company %}
+                <div class="company-abbrev-en">{{ company.company_short_name or company.company_name.split()[0] if company.company_name else 'JOYFUL ESCAPES' }}</div>
+                <div class="company-abbrev-cn">{{ company.company_short_name or company.company_name_cn or company.company_name }}</div>
+            {% else %}
+                <div class="company-abbrev-en">JOYFUL ESCAPES</div>
+                <div class="company-abbrev-cn">悦行假期</div>
+            {% endif %}
         </div>
     </div>
     <!-- 右侧信息区域 -->
     <div class="company-info">
         <!-- 上容器：公司名称 -->
         <div class="company-name-container">
-            <h1>悦行假期有限公司</h1>
-            <h1>JOYFUL ESCAPES PTE LTD</h1>
+            {% if company %}
+                <h1>{{ company.company_name_cn or company.company_name }}</h1>
+                <h1>{{ company.company_name }}</h1>
+            {% else %}
+                <h1>悦行假期有限公司</h1>
+                <h1>JOYFUL ESCAPES PTE LTD</h1>
+            {% endif %}
         </div>
         <!-- 下容器：公司详细信息 -->
         <div class="company-details-container">
-            <p>TA License No.: TA03652</p>
-            <p>TEL: 9106 8716 / 9627 5316</p>
-            <p>Email: info@joyesc.com</p>
+            {% if company %}
+                {% if company.phone %}<p>TEL: {{ company.phone }}</p>{% endif %}
+                {% if company.email %}<p>Email: {{ company.email }}</p>{% endif %}
+                {% if company.address %}<p>{{ company.address }}</p>{% endif %}
+            {% else %}
+                <p>TA License No.: TA03652</p>
+                <p>TEL: 9106 8716 / 9627 5316</p>
+                <p>Email: info@joyesc.com</p>
+            {% endif %}
         </div>
     </div>
 </div> 

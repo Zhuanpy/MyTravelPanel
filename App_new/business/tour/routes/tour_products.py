@@ -16,7 +16,7 @@ from io import BytesIO
 from sqlalchemy import or_
 from openpyxl.utils import get_column_letter
 
-from App_new.exts import db
+from App_new.exts import db, csrf
 from App_new.business.tour.models.Packagemodels import Product, ProductItinerary, ProductPriceVariant
 from App_new.shared.models.Suppliers import Supplier
 from App_new.utils.decorators import staff_only
@@ -309,17 +309,31 @@ def get_itinerary(product_id, itinerary_id):
 
 
 @tour_products_bp.route('/<int:product_id>/itinerary/add', methods=['POST'])
+@csrf.exempt
 @login_required
 @staff_only
 def add_itinerary(product_id):
     """添加行程 - API"""
     try:
+        # 添加调试日志
+        print(f"=== 添加行程 ===")
+        print(f"Product ID: {product_id}")
+        print(f"Form data: {dict(request.form)}")
+        print(f"Files: {list(request.files.keys())}")
+        
         product = Product.query.get_or_404(product_id)
 
+        # 获取表单数据，使用 get 方法防止 KeyError
+        day_number = request.form.get('day_number')
+        day_title = request.form.get('day_title')
+        
+        if not day_number or not day_title:
+            return jsonify({'success': False, 'message': '天数和行程安排不能为空'}), 400
+        
         itinerary = ProductItinerary(
             product_id=product_id,
-            day_number=int(request.form['day_number']),
-            day_title=request.form['day_title']
+            day_number=int(day_number),
+            day_title=day_title
         )
 
         for i in range(1, 4):
@@ -333,25 +347,43 @@ def add_itinerary(product_id):
 
         db.session.add(itinerary)
         db.session.commit()
-
+        
+        print(f"✅ 行程添加成功！ID: {itinerary.id}")
         return jsonify({'success': True, 'message': '行程添加成功！'})
 
     except Exception as e:
         db.session.rollback()
-        return jsonify({'success': False, 'message': str(e)}), 500
+        print(f"❌ 添加行程失败: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': f'保存失败：{str(e)}'}), 500
 
 
 @tour_products_bp.route('/<int:product_id>/itinerary/<int:itinerary_id>/update', methods=['POST'])
+@csrf.exempt
 @login_required
 @staff_only
 def update_itinerary(product_id, itinerary_id):
     try:
+        # 添加调试日志
+        print(f"=== 更新行程 ===")
+        print(f"Product ID: {product_id}, Itinerary ID: {itinerary_id}")
+        print(f"Form data: {dict(request.form)}")
+        print(f"Files: {list(request.files.keys())}")
+        
         itinerary = ProductItinerary.query.get_or_404(itinerary_id)
         if itinerary.product_id != product_id:
             return jsonify({'success': False, 'message': '行程不属于该产品'}), 400
 
-        itinerary.day_number = int(request.form['day_number'])
-        itinerary.day_title = request.form['day_title']
+        # 获取表单数据，使用 get 方法防止 KeyError
+        day_number = request.form.get('day_number')
+        day_title = request.form.get('day_title')
+        
+        if not day_number or not day_title:
+            return jsonify({'success': False, 'message': '天数和行程安排不能为空'}), 400
+        
+        itinerary.day_number = int(day_number)
+        itinerary.day_title = day_title
 
         for i in range(1, 4):
             img_field = f'image{i}'
@@ -364,15 +396,20 @@ def update_itinerary(product_id, itinerary_id):
 
         itinerary.updated_at = datetime.utcnow()
         db.session.commit()
-
+        
+        print(f"✅ 行程更新成功！ID: {itinerary.id}")
         return jsonify({'success': True, 'message': '行程更新成功！'})
 
     except Exception as e:
         db.session.rollback()
-        return jsonify({'success': False, 'message': str(e)}), 500
+        print(f"❌ 更新行程失败: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': f'保存失败：{str(e)}'}), 500
 
 
 @tour_products_bp.route('/<int:product_id>/itinerary/<int:itinerary_id>/delete', methods=['POST'])
+@csrf.exempt
 @login_required
 @staff_only
 def delete_itinerary(product_id, itinerary_id):
@@ -558,6 +595,7 @@ def get_price_variant(product_id, variant_id):
 
 
 @tour_products_bp.route('/<int:product_id>/price-variants/add', methods=['POST'])
+@csrf.exempt
 @login_required
 @staff_only
 def add_price_variant(product_id):
@@ -590,6 +628,7 @@ def add_price_variant(product_id):
 
 
 @tour_products_bp.route('/<int:product_id>/price-variants/<int:variant_id>/update', methods=['POST'])
+@csrf.exempt
 @login_required
 @staff_only
 def update_price_variant(product_id, variant_id):
@@ -621,6 +660,7 @@ def update_price_variant(product_id, variant_id):
 
 
 @tour_products_bp.route('/<int:product_id>/price-variants/<int:variant_id>/delete', methods=['POST'])
+@csrf.exempt
 @login_required
 @staff_only
 def delete_price_variant(product_id, variant_id):

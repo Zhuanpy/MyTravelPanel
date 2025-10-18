@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, request, flash, redirect, url_for, jsonify
-from App_new.exts import db
+from App_new.exts import db, csrf
 from App_new.business.tour.models.Packagemodels import CompanyInfo
 import os
 
@@ -9,6 +9,23 @@ own_company = Blueprint('own_company', __name__)
 def normalize_path(path):
     """统一路径格式，将反斜杠转换为正斜杠"""
     return path.replace('\\', '/')
+
+def get_company_info():
+    """获取公司信息（用于模板）"""
+    company = CompanyInfo.query.first()
+    if company and company.logo_path:
+        # 标准化路径并移除多余的前缀
+        path = normalize_path(company.logo_path)
+        # 移除可能存在的 'static/' 或 'App_new/static/' 前缀
+        path = path.replace('App_new/static/', '')
+        path = path.replace('static/', '')
+        company.logo_path = path
+    return company
+
+# 注册context processor，让模板可以访问公司信息
+@own_company.app_context_processor
+def inject_company_info():
+    return dict(get_company_info=get_company_info)
 
 @own_company.route('/company_info')
 def company_info_page():
@@ -80,7 +97,9 @@ def update_company_info(company_id):
     })
 
 @own_company.route('/company/edit', methods=['GET', 'POST'])
+@csrf.exempt  # 暂时豁免CSRF，后续可以改进
 def edit_company_info():
+    """编辑公司信息"""
     company = CompanyInfo.query.first()
     
     if request.method == 'POST':
@@ -89,6 +108,8 @@ def edit_company_info():
                 company = CompanyInfo()
             
             company.company_name = request.form['company_name']
+            company.company_name_cn = request.form.get('company_name_cn', '')
+            company.company_short_name = request.form.get('company_short_name', '')
             company.company_description = request.form['company_description']
             company.phone = request.form['phone']
             company.email = request.form['email']
@@ -97,20 +118,36 @@ def edit_company_info():
             # 处理logo上传
             if 'logo' in request.files:
                 logo = request.files['logo']
-                if logo.filename != '':
+                if logo and logo.filename != '':
                     # 确保文件名安全
                     from werkzeug.utils import secure_filename
+                    from datetime import datetime as dt
+                    
+                    # 获取文件扩展名
                     filename = secure_filename(logo.filename)
-                    # 构建相对路径（不包含static前缀）
-                    logo_path = 'images/' + filename
-                    # 构建完整的文件系统路径用于保存文件
-                    full_path = os.path.join(os.getcwd(), 'static', 'images', filename)
+                    name, ext = os.path.splitext(filename)
+                    
+                    # 生成新文件名（添加时间戳避免覆盖）
+                    timestamp = dt.now().strftime('%Y%m%d_%H%M%S')
+                    new_filename = f'company_logo_{timestamp}{ext}'
+                    
+                    # 构建保存路径（相对于 App_new/static）
+                    logo_relative_path = os.path.join('company', new_filename).replace('\\', '/')
+                    
+                    # 构建完整的文件系统路径
+                    full_path = os.path.join('App_new', 'static', 'company', new_filename)
+                    
                     # 确保目录存在
                     os.makedirs(os.path.dirname(full_path), exist_ok=True)
+                    
                     # 保存文件
                     logo.save(full_path)
-                    # 保存相对路径到数据库
-                    company.logo_path = logo_path
+                    
+                    # 保存相对路径到数据库（不包含App_new/static前缀）
+                    company.logo_path = logo_relative_path
+                    
+                    print(f"✅ Logo保存成功: {full_path}")
+                    print(f"✅ 数据库路径: {logo_relative_path}")
             
             if company.id is None:
                 db.session.add(company)
@@ -122,11 +159,18 @@ def edit_company_info():
             
         except Exception as e:
             db.session.rollback()
+            print(f"❌ 更新失败: {str(e)}")
+            import traceback
+            traceback.print_exc()
             flash(f'更新失败：{str(e)}', 'error')
     
     # 如果是现有记录，确保显示时路径格式正确
     if company and company.logo_path:
-        company.logo_path = normalize_path(company.logo_path)
+        path = normalize_path(company.logo_path)
+        # 移除可能存在的多余前缀
+        path = path.replace('App_new/static/', '')
+        path = path.replace('static/', '')
+        company.logo_path = path
     
     return render_template('shared/own_company/own_company_form.html', company=company)
 
@@ -134,5 +178,8 @@ def edit_company_info():
 def company_header():
     company = CompanyInfo.query.first()
     if company and company.logo_path:
-        company.logo_path = normalize_path(company.logo_path)
+        path = normalize_path(company.logo_path)
+        path = path.replace('App_new/static/', '')
+        path = path.replace('static/', '')
+        company.logo_path = path
     return render_template('shared/own_company/own_company_header.html', company=company)

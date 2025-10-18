@@ -3,14 +3,46 @@
 {% block title %}旅游配套 - MyTravelPanel{% endblock %}
 
 {% block content %}
-<!-- 页面标题区域 -->
-<section class="hero-section text-center" style="padding: 80px 0;">
+<!-- 搜索模块 -->
+<section class="py-4">
     <div class="container">
-        <div class="row justify-content-center">
-            <div class="col-lg-8">
-                <h1 class="display-4 fw-bold mb-4">精选旅游配套</h1>
-                <p class="lead mb-4">精心设计的旅游路线，包含机票、酒店、景点门票等一站式服务</p>
-            </div>
+        <div class="rounded-3 shadow-lg p-4" style="background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));">
+            <h3 class="text-white text-center mb-4">
+                <i class="fas fa-search me-2"></i>查找您的理想行程
+            </h3>
+            <form action="{{ url_for('public.tour_packages') }}" method="GET">
+                <div class="row g-3">
+                    <div class="col-lg-3 col-md-6">
+                        <label class="text-white mb-2"><i class="fas fa-map-marker-alt me-2"></i>目的地</label>
+                        <input type="text" name="destination" class="form-control form-control-lg" placeholder="如：新加坡、巴厘岛" value="{{ request.args.get('destination', '') }}">
+                    </div>
+                    <div class="col-lg-2 col-md-6">
+                        <label class="text-white mb-2"><i class="fas fa-calendar me-2"></i>出发日期</label>
+                        <input type="date" name="departure_date" class="form-control form-control-lg" value="{{ request.args.get('departure_date', '') }}">
+                    </div>
+                    <div class="col-lg-2 col-md-6">
+                        <label class="text-white mb-2"><i class="fas fa-calendar-check me-2"></i>返回日期</label>
+                        <input type="date" name="return_date" class="form-control form-control-lg" value="{{ request.args.get('return_date', '') }}">
+                    </div>
+                    <div class="col-lg-2 col-md-6">
+                        <label class="text-white mb-2"><i class="fas fa-users me-2"></i>人数</label>
+                        <select name="pax" class="form-select form-select-lg">
+                            <option value="">选择人数</option>
+                            <option value="1" {% if request.args.get('pax') == '1' %}selected{% endif %}>1人</option>
+                            <option value="2" {% if request.args.get('pax') == '2' %}selected{% endif %}>2人</option>
+                            <option value="3-5" {% if request.args.get('pax') == '3-5' %}selected{% endif %}>3-5人</option>
+                            <option value="6-10" {% if request.args.get('pax') == '6-10' %}selected{% endif %}>6-10人</option>
+                            <option value="10+" {% if request.args.get('pax') == '10+' %}selected{% endif %}>10人以上</option>
+                        </select>
+                    </div>
+                    <div class="col-lg-3 col-md-12">
+                        <label class="text-white mb-2 d-none d-lg-block">&nbsp;</label>
+                        <button type="submit" class="btn btn-light btn-lg w-100">
+                            <i class="fas fa-search me-2"></i>搜索行程
+                        </button>
+                    </div>
+                </div>
+            </form>
         </div>
     </div>
 </section>

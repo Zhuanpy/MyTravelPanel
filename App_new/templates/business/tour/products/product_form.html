@@ -4,20 +4,17 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/staff_common.css') }}">
+<script src="https://cdn.tailwindcss.com"></script>
 <style>
     /* 标签页样式 */
-    .tabs-container {
-        background: white;
-        border-radius: var(--visa-radius-lg);
-        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        margin-bottom: 2rem;
-    }
     .tabs-header {
         display: flex;
         border-bottom: 2px solid #e5e7eb;
         padding: 0;
         margin: 0;
         overflow-x: auto;
+        background: #f9fafb;
+        border-radius: 1rem 1rem 0 0;
     }
     .tab-button {
         padding: 1rem 1.5rem;
@@ -35,13 +32,13 @@
         gap: 0.5rem;
     }
     .tab-button:hover {
-        background: #f9fafb;
+        background: #f3f4f6;
         color: #374151;
     }
     .tab-button.active {
-        color: var(--visa-success);
-        border-bottom-color: var(--visa-success);
-        background: #f0fdf4;
+        color: #10b981;
+        border-bottom-color: #10b981;
+        background: white;
     }
     .tab-content {
         display: none;
@@ -70,33 +67,39 @@
 {% endblock %}
 
 {% block content %}
-<div class="visa-container-lg">
-    <!-- 页面头部 -->
-    <div class="visa-card visa-text-center visa-mb-4" style="background: linear-gradient(135deg, var(--visa-success), #059669); color: white; padding: 2rem;">
-        <h1 class="visa-page-title" style="color: white; margin-bottom: 0.5rem;">
-            {% if product %}编辑产品{% else %}添加产品{% endif %}
-        </h1>
-        <p style="margin: 0; opacity: 0.9;">
-            {% if product %}产品ID: {{ product.id }}{% else %}创建新的旅游产品模板{% endif %}
-        </p>
-    </div>
+<div class="bg-gray-50 min-h-screen p-4 md:p-6">
+    <div class="max-w-7xl mx-auto">
+        <!-- 页面头部 -->
+        <div class="mb-8">
+            <div class="text-center">
+                <h1 class="text-4xl font-bold mb-4 text-gray-800">
+                    {% if product %}编辑产品{% else %}添加产品{% endif %}
+                </h1>
+                <p class="text-gray-600 text-lg">
+                    {% if product %}产品ID: {{ product.id }}{% else %}创建新的旅游产品模板{% endif %}
+                </p>
+            </div>
+        </div>
 
-    <!-- 闪现消息 -->
-    {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-            {% for category, message in messages %}
-                <div class="visa-card visa-mb-2" style="{% if category == 'success' %}background: #d1fae5; border-left: 4px solid #10b981; color: #065f46;{% else %}background: #fee2e2; border-left: 4px solid #ef4444; color: #991b1b;{% endif %}">
-                    {{ message }}
-                </div>
-            {% endfor %}
-        {% endif %}
-    {% endwith %}
+        <!-- 闪现消息 -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="mb-4 p-4 rounded-xl {% if category == 'success' %}bg-green-50 border-l-4 border-green-500 text-green-700{% else %}bg-red-50 border-l-4 border-red-500 text-red-700{% endif %}">
+                        <div class="flex items-center gap-2">
+                            <i class="fas {% if category == 'success' %}fa-check-circle{% else %}fa-exclamation-circle{% endif %}"></i>
+                            <span>{{ message }}</span>
+                        </div>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
 
-    <form method="POST" id="productForm" enctype="multipart/form-data">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        
-        <!-- 标签页容器 -->
-        <div class="tabs-container">
+        <form method="POST" id="productForm" enctype="multipart/form-data">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            
+            <!-- 标签页容器 -->
+            <div class="tabs-container bg-white rounded-2xl shadow-md mb-8">
             <!-- 标签页头部 -->
             <div class="tabs-header">
                 <button type="button" class="tab-button active" data-tab="basic">
@@ -526,10 +529,13 @@
                             </td>
                             <td>
                                 <div class="visa-flex visa-gap-1">
-                                    <button type="button" onclick="editPriceVariant({{ variant.id }})" class="visa-btn visa-btn-primary visa-btn-sm">
+                                    <button type="button" onclick="editPriceVariant({{ variant.id }})" class="visa-btn visa-btn-primary visa-btn-sm" title="编辑">
                                         <i class="fas fa-edit"></i>
                                     </button>
-                                    <button type="button" onclick="deletePriceVariant({{ variant.id }})" class="visa-btn visa-btn-danger visa-btn-sm">
+                                    <button type="button" onclick="copyPriceVariant({{ variant.id }})" class="visa-btn visa-btn-sm" style="background: #0ea5e9; color: white;" title="复制">
+                                        <i class="fas fa-copy"></i>
+                                    </button>
+                                    <button type="button" onclick="deletePriceVariant({{ variant.id }})" class="visa-btn visa-btn-danger visa-btn-sm" title="删除">
                                         <i class="fas fa-trash"></i>
                                     </button>
                                 </div>
@@ -555,14 +561,15 @@
         
     </form>
 
-    <!-- 操作按钮（底部固定） -->
-    <div class="visa-card visa-mt-4">
-        <div class="visa-card-body">
-            <div class="visa-text-center visa-flex-center visa-gap-2">
-                <a href="{{ url_for('tour_products.product_list') }}" class="visa-btn visa-btn-secondary visa-btn-lg">
+        <!-- 操作按钮（底部固定） -->
+        <div class="bg-white rounded-2xl shadow-md p-6">
+            <div class="flex flex-col sm:flex-row justify-center gap-4">
+                <a href="{{ url_for('tour_products.product_list') }}" 
+                   class="inline-flex items-center justify-center gap-2 px-6 py-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors font-medium">
                     <i class="fas fa-arrow-left"></i> 返回列表
                 </a>
-                <button type="submit" form="productForm" class="visa-btn visa-btn-success visa-btn-lg">
+                <button type="submit" form="productForm" 
+                        class="inline-flex items-center justify-center gap-2 px-6 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors font-medium">
                     <i class="fas fa-save"></i> {{ '保存修改' if product else '创建产品' }}
                 </button>
             </div>
@@ -575,7 +582,7 @@
     <div class="visa-modal-dialog visa-modal-dialog-lg">
         <div class="visa-modal-header" style="background: linear-gradient(135deg, #f59e0b, #d97706); color: white;">
             <h3 class="visa-modal-title" style="color: white;" id="priceModalTitle">添加价格变体</h3>
-            <button class="visa-modal-close" onclick="closePriceVariantModal()" style="color: white;">&times;</button>
+            <button class="visa-modal-close" onclick="closePriceVariantModal()" style="color: white; font-size: 1.5rem;" title="关闭">&times;</button>
         </div>
         <div class="visa-modal-body">
             <form id="priceVariantForm">
@@ -665,7 +672,7 @@
     <div class="visa-modal-dialog visa-modal-dialog-lg">
         <div class="visa-modal-header" style="background: linear-gradient(135deg, var(--visa-success), #059669); color: white;">
             <h3 class="visa-modal-title" style="color: white;" id="modalTitle">添加行程</h3>
-            <button class="visa-modal-close" onclick="closeItineraryModal()" style="color: white;">&times;</button>
+            <button class="visa-modal-close" onclick="closeItineraryModal()" style="color: white; font-size: 1.5rem;" title="关闭">&times;</button>
         </div>
         <div class="visa-modal-body">
             <form id="itineraryForm">
@@ -737,6 +744,30 @@ document.querySelector('[name="city_name"]').addEventListener('change', function
 // 价格变体管理功能
 // ========================================
 
+// 日期格式化辅助函数
+function formatDate(dateString) {
+    if (!dateString) return '';
+    
+    // 如果已经是 YYYY-MM-DD 格式，直接返回
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+        return dateString;
+    }
+    
+    // 尝试解析日期
+    try {
+        const date = new Date(dateString);
+        if (isNaN(date.getTime())) return '';
+        
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    } catch (e) {
+        console.error('日期格式化错误:', e);
+        return '';
+    }
+}
+
 // 显示添加价格变体模态框
 function showAddPriceVariantModal() {
     document.getElementById('priceModalTitle').textContent = '添加价格变体';
@@ -760,8 +791,8 @@ function editPriceVariant(id) {
         if (data.success) {
             const v = data.variant;
             document.getElementById('variantName').value = v.variant_name;
-            document.getElementById('startDate').value = v.start_date || '';
-            document.getElementById('endDate').value = v.end_date || '';
+            document.getElementById('startDate').value = formatDate(v.start_date);
+            document.getElementById('endDate').value = formatDate(v.end_date);
             document.getElementById('minPax').value = v.min_pax || '';
             document.getElementById('maxPax').value = v.max_pax || '';
             document.getElementById('adultPrice').value = v.adult_price;
@@ -778,6 +809,45 @@ function editPriceVariant(id) {
     .catch(error => {
         console.error('Error:', error);
         alert('获取价格变体时发生错误');
+    });
+}
+
+// 复制价格变体
+function copyPriceVariant(id) {
+    document.getElementById('priceModalTitle').textContent = '复制价格变体';
+    document.getElementById('variantId').value = ''; // 清空ID，创建新变体
+    
+    fetch(`{{ url_for('tour_products.get_price_variant', product_id=product.id, variant_id=0) }}`.replace('/0', `/${id}`), {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const v = data.variant;
+            console.log('复制变体数据:', v); // 调试信息
+            console.log('开始日期:', v.start_date, '格式化后:', formatDate(v.start_date));
+            console.log('结束日期:', v.end_date, '格式化后:', formatDate(v.end_date));
+            
+            // 在名称后添加"（副本）"标识
+            document.getElementById('variantName').value = v.variant_name + '（副本）';
+            document.getElementById('startDate').value = formatDate(v.start_date);
+            document.getElementById('endDate').value = formatDate(v.end_date);
+            document.getElementById('minPax').value = v.min_pax || '';
+            document.getElementById('maxPax').value = v.max_pax || '';
+            document.getElementById('adultPrice').value = v.adult_price;
+            document.getElementById('childPrice').value = v.child_price || '';
+            document.getElementById('infantPrice').value = v.infant_price || '';
+            document.getElementById('singleSupplement').value = v.single_room_supplement || '';
+            document.getElementById('variantCurrency').value = v.currency || 'SGD';
+            document.getElementById('isActive').value = v.is_active ? '1' : '0';
+            showModal('priceVariantModal');
+        } else {
+            alert('获取价格变体失败：' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('复制价格变体时发生错误');
     });
 }
 
@@ -799,6 +869,8 @@ function savePriceVariant() {
     .then(data => {
         if (data.success) {
             alert(data.message);
+            // 保存当前活动标签到 sessionStorage
+            sessionStorage.setItem('activeTab', 'variants');
             location.reload();
         } else {
             alert('保存失败：' + data.message);
@@ -825,6 +897,8 @@ function deletePriceVariant(id) {
         .then(data => {
             if (data.success) {
                 alert('删除成功！');
+                // 保存当前活动标签到 sessionStorage
+                sessionStorage.setItem('activeTab', 'variants');
                 location.reload();
             } else {
                 alert('删除失败：' + data.message);
@@ -837,8 +911,18 @@ function deletePriceVariant(id) {
     }
 }
 
-// 关闭模态框
+// 关闭价格变体模态框
 function closePriceVariantModal() {
+    // 检查表单是否有数据，提示用户确认关闭
+    const variantName = document.getElementById('variantName').value;
+    const adultPrice = document.getElementById('adultPrice').value;
+    
+    if (variantName || adultPrice) {
+        if (!confirm('关闭弹窗将丢失未保存的数据，确定要关闭吗？')) {
+            return;
+        }
+    }
+    
     document.getElementById('priceVariantModal').style.display = 'none';
 }
 
@@ -933,9 +1017,17 @@ function saveItinerary() {
     const itineraryId = document.getElementById('itineraryId').value;
     const formData = new FormData(document.getElementById('itineraryForm'));
     
+    // 打印调试信息
+    console.log('=== 保存行程 ===');
+    console.log('行程ID:', itineraryId || '新增');
+    console.log('天数:', formData.get('day_number'));
+    console.log('行程内容长度:', formData.get('day_title')?.length || 0);
+    
     const url = itineraryId 
         ? `{{ url_for('tour_products.update_itinerary', product_id=product.id, itinerary_id=0) }}`.replace('/0', `/${itineraryId}`)
         : `{{ url_for('tour_products.add_itinerary', product_id=product.id) }}`;
+    
+    console.log('请求URL:', url);
     
     fetch(url, {
         method: 'POST',
@@ -944,10 +1036,21 @@ function saveItinerary() {
             'X-Requested-With': 'XMLHttpRequest'
         }
     })
-    .then(response => response.json())
+    .then(response => {
+        console.log('响应状态:', response.status);
+        if (!response.ok) {
+            return response.json().then(data => {
+                throw new Error(data.message || `服务器错误 ${response.status}`);
+            });
+        }
+        return response.json();
+    })
     .then(data => {
+        console.log('响应数据:', data);
         if (data.success) {
             alert(data.message);
+            // 保存当前活动标签到 sessionStorage
+            sessionStorage.setItem('activeTab', 'itinerary');
             location.reload();
         } else {
             alert('保存失败：' + data.message);
@@ -955,7 +1058,7 @@ function saveItinerary() {
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('保存行程时发生错误');
+        alert('保存行程时发生错误：' + error.message);
     });
 }
 
@@ -976,6 +1079,8 @@ function deleteItinerary(id) {
         .then(data => {
             if (data.success) {
                 alert('删除成功！');
+                // 保存当前活动标签到 sessionStorage
+                sessionStorage.setItem('activeTab', 'itinerary');
                 location.reload();
             } else {
                 alert('删除失败：' + data.message);
@@ -994,18 +1099,21 @@ function showModal(modalId) {
 }
 
 function closeItineraryModal() {
+    // 检查表单是否有数据，提示用户确认关闭
+    const dayNumber = document.getElementById('dayNumber').value;
+    const dayTitle = document.getElementById('dayTitle').value;
+    
+    if (dayNumber || dayTitle) {
+        if (!confirm('关闭弹窗将丢失未保存的数据，确定要关闭吗？')) {
+            return;
+        }
+    }
+    
     document.getElementById('itineraryModal').style.display = 'none';
 }
 
-// 点击模态框外部关闭
-window.onclick = function(event) {
-    if (event.target.id === 'itineraryModal') {
-        closeItineraryModal();
-    }
-    if (event.target.id === 'priceVariantModal') {
-        closePriceVariantModal();
-    }
-}
+// 移除点击模态框外部关闭功能，防止意外关闭
+// 用户必须点击关闭按钮或取消按钮才能关闭
 {% endif %}
 
 // ========================================
@@ -1015,22 +1123,40 @@ document.addEventListener('DOMContentLoaded', function() {
     const tabButtons = document.querySelectorAll('.tab-button');
     const tabContents = document.querySelectorAll('.tab-content');
     
+    // 标签切换函数
+    function switchTab(targetTab) {
+        // 移除所有活动状态
+        tabButtons.forEach(btn => btn.classList.remove('active'));
+        tabContents.forEach(content => content.classList.remove('active'));
+        
+        // 添加活动状态到目标标签
+        const targetButton = document.querySelector(`.tab-button[data-tab="${targetTab}"]`);
+        const targetContent = document.getElementById('tab-' + targetTab);
+        
+        if (targetButton && targetContent) {
+            targetButton.classList.add('active');
+            targetContent.classList.add('active');
+        }
+    }
+    
+    // 绑定点击事件
     tabButtons.forEach(button => {
         button.addEventListener('click', function() {
             const targetTab = this.getAttribute('data-tab');
-            
-            // 移除所有活动状态
-            tabButtons.forEach(btn => btn.classList.remove('active'));
-            tabContents.forEach(content => content.classList.remove('active'));
-            
-            // 添加活动状态到当前标签
-            this.classList.add('active');
-            const targetContent = document.getElementById('tab-' + targetTab);
-            if (targetContent) {
-                targetContent.classList.add('active');
-            }
+            switchTab(targetTab);
+            // 保存当前标签到 sessionStorage
+            sessionStorage.setItem('activeTab', targetTab);
         });
     });
+    
+    // 页面加载时恢复活动标签
+    const savedTab = sessionStorage.getItem('activeTab');
+    if (savedTab) {
+        // 恢复保存的标签
+        switchTab(savedTab);
+        // 清除保存的标签（避免下次进入时自动跳转）
+        sessionStorage.removeItem('activeTab');
+    }
 });
 
 </script>

@@ -3,21 +3,17 @@
 {% block title %}联系我们 - MyTravelPanel{% endblock %}
 
 {% block content %}
-<!-- 页面标题区域 -->
-<section class="hero-section text-center" style="padding: 80px 0;">
-    <div class="container">
-        <div class="row justify-content-center">
-            <div class="col-lg-8">
-                <h1 class="display-4 fw-bold mb-4">联系我们</h1>
-                <p class="lead mb-4">我们随时为您提供专业的旅游咨询服务</p>
-            </div>
-        </div>
-    </div>
-</section>
-
 <!-- 联系方式 -->
 <section class="py-5">
     <div class="container">
+        <!-- 页面标题 -->
+        <div class="row text-center mb-5">
+            <div class="col-12">
+                <h1 class="fw-bold mb-3">联系我们</h1>
+                <p class="text-muted lead">我们随时为您提供专业的旅游咨询服务</p>
+            </div>
+        </div>
+        
         <div class="row g-4 mb-5">
             <div class="col-lg-4 col-md-6">
                 <div class="feature-card text-center">
@@ -120,23 +116,12 @@
                     </div>
                 </div>
                 
-                <div class="bg-light rounded-3 p-4 mb-4">
+                <div class="bg-light rounded-3 p-4">
                     <h5 class="mb-3">
                         <i class="fas fa-clock text-primary me-2"></i>营业时间
                     </h5>
                     <p class="mb-2">{{ contact.business_hours }}</p>
                     <p class="mb-0 text-muted">周六周日：预约服务</p>
-                </div>
-                
-                <div class="bg-success text-white rounded-3 p-4">
-                    <h5 class="mb-3">
-                        <i class="fas fa-language me-2"></i>服务语言
-                    </h5>
-                    <div class="d-flex flex-wrap gap-2">
-                        {% for language in contact.languages %}
-                        <span class="badge bg-light text-dark">{{ language }}</span>
-                        {% endfor %}
-                    </div>
                 </div>
             </div>
         </div>

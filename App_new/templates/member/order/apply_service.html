@@ -76,39 +76,6 @@
         color: #6c757d;
     }
     
-    .file-upload-area {
-        border: 2px dashed #dee2e6;
-        border-radius: 10px;
-        padding: 2rem;
-        text-align: center;
-        transition: all 0.3s ease;
-        cursor: pointer;
-    }
-    
-    .file-upload-area:hover {
-        border-color: #48b968;
-        background-color: rgba(72, 185, 104, 0.05);
-    }
-    
-    .file-upload-area.dragover {
-        border-color: #48b968;
-        background-color: rgba(72, 185, 104, 0.1);
-    }
-    
-    .uploaded-files {
-        margin-top: 1rem;
-    }
-    
-    .uploaded-file {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 0.75rem;
-        background: #f8f9fa;
-        border-radius: 8px;
-        margin-bottom: 0.5rem;
-    }
-    
     .order-items-section {
         background: #f8f9fa;
         border-radius: 10px;
@@ -120,23 +87,7 @@
         background: white;
         border-radius: 8px;
         padding: 1rem;
-        margin-bottom: 1rem;
         border: 1px solid #dee2e6;
-    }
-    
-    .add-item-btn {
-        width: 100%;
-        border: 2px dashed #48b968;
-        background: transparent;
-        color: #48b968;
-        padding: 1rem;
-        border-radius: 8px;
-        transition: all 0.3s ease;
-    }
-    
-    .add-item-btn:hover {
-        background: #48b968;
-        color: white;
     }
     
     .price-summary {
@@ -165,11 +116,18 @@
         padding-top: 0.5rem;
         margin-top: 1rem;
     }
+    
+    /* 只读单价字段样式 */
+    input[name="item_price[]"][readonly] {
+        background-color: #e9ecef;
+        cursor: not-allowed;
+        opacity: 0.8;
+    }
 </style>
 {% endblock %}
 
 {% block member_content %}
-<div class="container-fluid">
+<div class="container">
     <!-- 服务信息卡片 -->
     <div class="service-info-card">
         <div class="row align-items-center">
@@ -193,36 +151,15 @@
         <input type="hidden" name="description" value="{{ service.description }}">
         <input type="hidden" name="base_price" value="{{ service.base_price }}">
 
+        <!-- 隐藏字段：自动填充会员信息 -->
+        <input type="hidden" name="customer_name" value="{{ user_profile.first_name + ' ' + user_profile.last_name if user_profile else current_user.username }}">
+        <input type="hidden" name="customer_email" value="{{ current_user.email }}">
+        <input type="hidden" name="customer_phone" value="{{ user_profile.phone if user_profile else '' }}">
+        <input type="hidden" name="customer_address" value="{{ user_profile.address if user_profile else '' }}">
+
         <div class="row">
             <!-- 左侧：表单 -->
             <div class="col-lg-8">
-                <!-- 客户信息 -->
-                <div class="form-section">
-                    <h5><i class="fas fa-user me-2"></i>客户信息</h5>
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label for="customer_name" class="form-label">姓名 <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" id="customer_name" name="customer_name" 
-                                   value="{{ user_profile.first_name + ' ' + user_profile.last_name if user_profile else '' }}" required>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label for="customer_email" class="form-label">邮箱 <span class="text-danger">*</span></label>
-                            <input type="email" class="form-control" id="customer_email" name="customer_email" 
-                                   value="{{ current_user.email }}" required>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label for="customer_phone" class="form-label">联系电话</label>
-                            <input type="tel" class="form-control" id="customer_phone" name="customer_phone" 
-                                   value="{{ user_profile.phone if user_profile else '' }}">
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label for="customer_address" class="form-label">地址</label>
-                            <input type="text" class="form-control" id="customer_address" name="customer_address" 
-                                   value="{{ user_profile.address if user_profile else '' }}">
-                        </div>
-                    </div>
-                </div>
-
                 <!-- 订单项目 -->
                 <div class="form-section">
                     <h5><i class="fas fa-list me-2"></i>订单项目</h5>
@@ -231,7 +168,7 @@
                             <!-- 默认项目 -->
                             <div class="order-item">
                                 <div class="row">
-                                    <div class="col-md-5">
+                                    <div class="col-md-6">
                                         <label class="form-label">项目名称</label>
                                         <input type="text" class="form-control" name="item_name[]" value="{{ service.service_name }}" required>
                                     </div>
@@ -241,25 +178,11 @@
                                     </div>
                                     <div class="col-md-3">
                                         <label class="form-label">单价</label>
-                                        <input type="number" class="form-control" name="item_price[]" value="{{ service.base_price }}" step="0.01" required>
-                                    </div>
-                                    <div class="col-md-1 d-flex align-items-end">
-                                        <button type="button" class="btn btn-outline-danger btn-sm remove-item" style="display: none;">
-                                            <i class="fas fa-trash"></i>
-                                        </button>
-                                    </div>
-                                </div>
-                                <div class="row mt-2">
-                                    <div class="col-12">
-                                        <label class="form-label">项目描述</label>
-                                        <textarea class="form-control" name="item_description[]" rows="2">{{ service.description }}</textarea>
+                                        <input type="number" class="form-control" name="item_price[]" value="{{ service.base_price }}" step="0.01" required readonly>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                        <button type="button" class="add-item-btn" id="addItemBtn">
-                            <i class="fas fa-plus me-2"></i>添加项目
-                        </button>
                     </div>
                 </div>
 
@@ -268,27 +191,11 @@
                     <h5><i class="fas fa-star me-2"></i>特殊要求</h5>
                     <div class="mb-3">
                         <label for="special_requirements" class="form-label">特殊要求或备注</label>
-                        <textarea class="form-control" id="special_requirements" name="special_requirements" rows="4" 
-                                  placeholder="请详细描述您的特殊要求，我们会根据您的要求提供个性化服务..."></textarea>
-                    </div>
-                    <div class="mb-3">
-                        <label for="notes" class="form-label">其他备注</label>
-                        <textarea class="form-control" id="notes" name="notes" rows="3" 
-                                  placeholder="其他需要说明的信息..."></textarea>
+                        <textarea class="form-control" id="special_requirements" name="special_requirements" rows="5" 
+                                  placeholder="请详细描述您的特殊要求或其他需要说明的信息，我们会根据您的要求提供个性化服务..."></textarea>
                     </div>
                 </div>
 
-                <!-- 文档上传 -->
-                <div class="form-section">
-                    <h5><i class="fas fa-file-upload me-2"></i>相关文档</h5>
-                    <div class="file-upload-area" id="fileUploadArea">
-                        <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
-                        <h6>拖拽文件到此处或点击选择文件</h6>
-                        <p class="text-muted">支持 PDF, JPG, PNG 格式，单个文件不超过 10MB</p>
-                        <input type="file" id="fileInput" name="documents[]" multiple accept=".pdf,.jpg,.jpeg,.png" style="display: none;">
-                    </div>
-                    <div class="uploaded-files" id="uploadedFiles"></div>
-                </div>
             </div>
 
             <!-- 右侧：信息面板 -->
@@ -359,123 +266,8 @@ document.addEventListener('DOMContentLoaded', function() {
         form.insertBefore(csrfInput, form.firstChild);
     }
     
-    // 文件上传处理
-    const fileUploadArea = document.getElementById('fileUploadArea');
-    const fileInput = document.getElementById('fileInput');
-    const uploadedFiles = document.getElementById('uploadedFiles');
-    
-    fileUploadArea.addEventListener('click', () => fileInput.click());
-    
-    fileUploadArea.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        fileUploadArea.classList.add('dragover');
-    });
-    
-    fileUploadArea.addEventListener('dragleave', () => {
-        fileUploadArea.classList.remove('dragover');
-    });
-    
-    fileUploadArea.addEventListener('drop', (e) => {
-        e.preventDefault();
-        fileUploadArea.classList.remove('dragover');
-        handleFiles(e.dataTransfer.files);
-    });
-    
-    fileInput.addEventListener('change', (e) => {
-        handleFiles(e.target.files);
-    });
-    
-    function handleFiles(files) {
-        Array.from(files).forEach(file => {
-            if (file.size > 10 * 1024 * 1024) {
-                alert('文件 ' + file.name + ' 超过 10MB 限制');
-                return;
-            }
-            
-            const fileDiv = document.createElement('div');
-            fileDiv.className = 'uploaded-file';
-            fileDiv.innerHTML = `
-                <div>
-                    <i class="fas fa-file me-2"></i>
-                    <span>${file.name}</span>
-                    <small class="text-muted ms-2">(${(file.size / 1024 / 1024).toFixed(2)} MB)</small>
-                </div>
-                <button type="button" class="btn btn-sm btn-outline-danger remove-file">
-                    <i class="fas fa-times"></i>
-                </button>
-            `;
-            
-            uploadedFiles.appendChild(fileDiv);
-        });
-    }
-    
-    // 移除文件
-    uploadedFiles.addEventListener('click', (e) => {
-        if (e.target.closest('.remove-file')) {
-            e.target.closest('.uploaded-file').remove();
-        }
-    });
-    
-    // 添加订单项目
-    const addItemBtn = document.getElementById('addItemBtn');
+    // 订单项目（固定单个项目，无需添加/删除功能）
     const orderItems = document.getElementById('orderItems');
-    
-    addItemBtn.addEventListener('click', () => {
-        const itemDiv = document.createElement('div');
-        itemDiv.className = 'order-item';
-        itemDiv.innerHTML = `
-            <div class="row">
-                <div class="col-md-5">
-                    <label class="form-label">项目名称</label>
-                    <input type="text" class="form-control" name="item_name[]" required>
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label">数量</label>
-                    <input type="number" class="form-control" name="item_quantity[]" value="1" min="1" required>
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label">单价</label>
-                    <input type="number" class="form-control" name="item_price[]" step="0.01" required>
-                </div>
-                <div class="col-md-1 d-flex align-items-end">
-                    <button type="button" class="btn btn-outline-danger btn-sm remove-item">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                </div>
-            </div>
-            <div class="row mt-2">
-                <div class="col-12">
-                    <label class="form-label">项目描述</label>
-                    <textarea class="form-control" name="item_description[]" rows="2"></textarea>
-                </div>
-            </div>
-        `;
-        
-        orderItems.appendChild(itemDiv);
-        updateRemoveButtons();
-        updatePriceSummary();
-    });
-    
-    // 移除订单项目
-    orderItems.addEventListener('click', (e) => {
-        if (e.target.closest('.remove-item')) {
-            e.target.closest('.order-item').remove();
-            updateRemoveButtons();
-            updatePriceSummary();
-        }
-    });
-    
-    function updateRemoveButtons() {
-        const items = orderItems.querySelectorAll('.order-item');
-        items.forEach((item, index) => {
-            const removeBtn = item.querySelector('.remove-item');
-            if (items.length === 1) {
-                removeBtn.style.display = 'none';
-            } else {
-                removeBtn.style.display = 'block';
-            }
-        });
-    }
     
     // 更新价格摘要
     function updatePriceSummary() {
@@ -519,7 +311,6 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     // 初始化
-    updateRemoveButtons();
     updatePriceSummary();
 });
 

@@ -338,14 +338,16 @@ class TourProduct(db.Model):
 class CompanyInfo(db.Model):
     __tablename__ = 'company_info'
     id = db.Column(db.Integer, primary_key=True)
-    company_name = db.Column(db.String(100), nullable=False)
-    company_description = db.Column(db.Text, nullable=False)
-    phone = db.Column(db.String(20), nullable=False)
-    email = db.Column(db.String(100), nullable=False)
-    address = db.Column(db.Text, nullable=False)
-    logo_path = db.Column(db.String(200), nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    company_name = db.Column(db.String(100), nullable=False, comment='公司英文名/全称')
+    company_name_cn = db.Column(db.String(100), nullable=True, comment='公司中文名')
+    company_short_name = db.Column(db.String(50), nullable=True, comment='公司简称')
+    company_description = db.Column(db.Text, nullable=False, comment='公司简介')
+    phone = db.Column(db.String(20), nullable=False, comment='联系电话')
+    email = db.Column(db.String(100), nullable=False, comment='电子邮箱')
+    address = db.Column(db.Text, nullable=False, comment='公司地址')
+    logo_path = db.Column(db.String(200), nullable=True, comment='Logo路径')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, comment='创建时间')
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, comment='更新时间')
 
     def __repr__(self):
-        return f'<CompanyInfo {self.company_name}>'
+        return f'<CompanyInfo {self.company_name_cn or self.company_name}>'

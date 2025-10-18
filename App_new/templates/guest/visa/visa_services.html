@@ -3,31 +3,13 @@
 {% block title %}签证服务 - MyTravelPanel{% endblock %}
 
 {% block content %}
-<!-- 页面标题区域 -->
-<section class="hero-section text-center" style="padding: 80px 0;">
-    <div class="container">
-        <div class="row justify-content-center">
-            <div class="col-lg-8">
-                <h1 class="display-4 fw-bold mb-4">签证办理服务</h1>
-                <p class="lead mb-4">专业的签证代办服务，覆盖全球多个国家，快速高效，成功率高</p>
-            </div>
-        </div>
-    </div>
-</section>
-
-
 <!-- 筛选区域 -->
-<section class="py-3 bg-light">
+<section class="py-4">
     <div class="container">
-        <form method="GET" action="{{ url_for('public.visa_services') }}" class="row g-3 align-items-end">
-            <div class="col-md-4">
-                <label for="search" class="form-label fw-bold">搜索国家或签证类型</label>
-                <input type="text" class="form-control" id="search" name="search" 
-                       value="{{ search_query }}" placeholder="输入国家名称或签证类型（如：申根）...">
-            </div>
-            <div class="col-md-3">
-                <label for="region" class="form-label fw-bold">地区筛选</label>
-                <select class="form-select" id="region" name="region">
+        <h2 class="fw-bold mb-4">签证服务</h2>
+        <form method="GET" action="{{ url_for('public.visa_services') }}" class="mb-3">
+            <div class="d-flex flex-wrap gap-2 align-items-center">
+                <select class="form-select form-select-lg" id="region" name="region" style="height: 48px; width: 200px;">
                     <option value="">全部地区</option>
                     {% for region_key, region_name in region_options.items() %}
                     <option value="{{ region_key }}" {% if region_filter == region_key %}selected{% endif %}>
@@ -35,106 +17,104 @@
                     </option>
                     {% endfor %}
                 </select>
-            </div>
-            <div class="col-md-2">
-                <button type="submit" class="btn btn-primary w-100">
-                    <i class="fas fa-search"></i> 搜索
+
+                <input type="text" class="form-control form-control-lg" id="search" name="search" 
+                       value="{{ search_query }}" placeholder="搜索国家或签证类型..." style="height: 48px; width: 400px;">
+                
+                <button type="submit" class="btn btn-primary btn-lg" style="height: 48px; width: 200px;">
+                    <i class="fas fa-search me-1"></i>搜索
                 </button>
-            </div>
-            <div class="col-md-3 text-end">
-                <a href="{{ url_for('public.visa_services') }}" class="btn btn-outline-secondary">
-                    <i class="fas fa-refresh"></i> 重置
+                
+                <a href="{{ url_for('public.visa_services') }}" class="btn btn-outline-secondary btn-lg" style="height: 48px; width: 200px;">
+                    <i class="fas fa-redo me-1"></i>重置
                 </a>
             </div>
         </form>
         
-        <!-- 快速筛选标签 -->
-        <div class="row mt-3">
-            <div class="col-12">
-                <div class="d-flex flex-wrap gap-2">
-                    <span class="text-muted me-2">快速筛选：</span>
-                    <a href="{{ url_for('public.visa_services', region='asia') }}" 
-                       class="badge {% if region_filter == 'asia' %}bg-primary{% else %}bg-light text-dark{% endif %} text-decoration-none">
-                        亚洲
-                    </a>
-                    <a href="{{ url_for('public.visa_services', region='europe') }}" 
-                       class="badge {% if region_filter == 'europe' %}bg-primary{% else %}bg-light text-dark{% endif %} text-decoration-none">
-                        欧洲
-                    </a>
-                    <a href="{{ url_for('public.visa_services', region='america') }}" 
-                       class="badge {% if region_filter == 'america' %}bg-primary{% else %}bg-light text-dark{% endif %} text-decoration-none">
-                        美洲
-                    </a>
-                    <a href="{{ url_for('public.visa_services', region='oceania') }}" 
-                       class="badge {% if region_filter == 'oceania' %}bg-primary{% else %}bg-light text-dark{% endif %} text-decoration-none">
-                        大洋洲
-                    </a>
-                    <a href="{{ url_for('public.visa_services', region='middle_east') }}" 
-                       class="badge {% if region_filter == 'middle_east' %}bg-primary{% else %}bg-light text-dark{% endif %} text-decoration-none">
-                        中东
-                    </a>
-                    <a href="{{ url_for('public.visa_services', search='申根') }}" 
-                       class="badge {% if search_query == '申根' %}bg-success{% else %}bg-light text-dark{% endif %} text-decoration-none">
-                        申根签证
-                    </a>
-                </div>
-            </div>
+        <!-- 快速筛选 -->
+        <div class="d-flex flex-wrap gap-2 align-items-center">
+            <small class="text-muted">快速：</small>
+            <a href="{{ url_for('public.visa_services', region='asia') }}" 
+               class="badge {% if region_filter == 'asia' %}bg-primary{% else %}bg-light text-dark{% endif %} text-decoration-none">
+                亚洲
+            </a>
+            <a href="{{ url_for('public.visa_services', region='europe') }}" 
+               class="badge {% if region_filter == 'europe' %}bg-primary{% else %}bg-light text-dark{% endif %} text-decoration-none">
+                欧洲
+            </a>
+            <a href="{{ url_for('public.visa_services', region='america') }}" 
+               class="badge {% if region_filter == 'america' %}bg-primary{% else %}bg-light text-dark{% endif %} text-decoration-none">
+                美洲
+            </a>
+            <a href="{{ url_for('public.visa_services', region='oceania') }}" 
+               class="badge {% if region_filter == 'oceania' %}bg-primary{% else %}bg-light text-dark{% endif %} text-decoration-none">
+                大洋洲
+            </a>
+            <a href="{{ url_for('public.visa_services', search='申根') }}" 
+               class="badge {% if search_query == '申根' %}bg-success{% else %}bg-light text-dark{% endif %} text-decoration-none">
+                申根签证
+            </a>
         </div>
     </div>
 </section>
 
-<!-- 签证服务列表（仿截图卡片栅格） -->
-<section class="py-4">
+<!-- 签证服务列表 -->
+<section class="py-3">
     <div class="container">
-        <div class="row mb-3">
-            <div class="col-12">
-                <h5 class="mb-0">
-                    {% if search_query or region_filter %}
+        {% if visa_services %}
+        <div class="mb-3 d-flex justify-content-between align-items-center">
+            <div>
+                {% if search_query or region_filter %}
+                    <small class="text-muted">
                         搜索结果
-                        {% if search_query %}<span class="text-muted">({{ search_query }})</span>{% endif %}
-                        {% if region_filter %}<span class="text-muted">- {{ region_options.get(region_filter, region_filter) }}</span>{% endif %}
-                    {% else %}
-                        热门目的地
-                    {% endif %}
-                </h5>
-                {% if visa_services %}
-                <small class="text-muted">找到 {{ visa_services|length }} 个国家和地区</small>
+                        {% if search_query %}"{{ search_query }}"{% endif %}
+                        {% if region_filter %}- {{ region_options.get(region_filter, '') }}{% endif %}
+                    </small>
                 {% endif %}
             </div>
+            <small class="text-muted">{{ visa_services|length }} 个国家</small>
         </div>
+        {% endif %}
 
         {% if visa_services %}
         <div class="row g-3 visa-grid">
             {% for service in visa_services %}
             <div class="col-6 col-sm-4 col-md-3 col-lg-3">
-                <div class="visa-card position-relative h-100">
-                    <a class="stretched-link" href="{{ url_for('public.visa_services_by_country', country_name=service.country) }}"></a>
-                    <div class="visa-thumb" {% if service.flag_file %}style="background-image: url('{{ url_for('static', filename='images/flags/' + service.flag_file) }}'); background-size: cover; background-position: center; background-repeat: no-repeat;"{% endif %}>
-                        {% if service.flag_file %}
-                        <div class="visa-flag-overlay"></div>
-                        {% endif %}
-                        <div class="visa-country">{{ service.country }}</div>
-                        <div class="visa-country-en">{{ service.country_en }}</div>
-                        {% if service.visa_count %}
-                        <div class="visa-count">{{ service.visa_count }}种签证</div>
-                        {% endif %}
+                <div class="position-relative">
+                    <!-- 国家名字 - 在卡片外左上方 -->
+                    <div class="mb-2">
+                        <div class="visa-country-external fw-bold">{{ service.country }}</div>
+                        <div class="visa-country-en-external text-muted small">{{ service.country_en }}</div>
                     </div>
-                    <div class="visa-meta px-2 py-2">
-                        {% if service.price_range %}
-                        <div class="visa-price text-accent fw-bold mb-1">{{ service.price_range }}</div>
-                        {% endif %}
-                        {% if service.services %}
-                        <div class="visa-services">
-                            {% for visa_service in service.services[:2] %}
-                            <span class="badge bg-light text-dark me-1 mb-1">{{ visa_service }}</span>
-                            {% endfor %}
-                            {% if service.services|length > 2 %}
-                            <span class="badge bg-light text-dark">+{{ service.services|length - 2 }}</span>
+                    
+                    <!-- 卡片主体 -->
+                    <div class="visa-card position-relative h-100">
+                        <a class="stretched-link" href="{{ url_for('public.visa_services_by_country', country_name=service.country) }}"></a>
+                        <div class="visa-thumb" {% if service.flag_file %}style="background-image: url('{{ url_for('static', filename='images/flags/' + service.flag_file) }}'); background-size: cover; background-position: center; background-repeat: no-repeat;"{% endif %}>
+                            {% if service.flag_file %}
+                            <div class="visa-flag-overlay"></div>
+                            {% endif %}
+                            {% if service.visa_count %}
+                            <div class="visa-count">{{ service.visa_count }}种签证</div>
                             {% endif %}
                         </div>
-                        {% endif %}
-                        <div class="text-end">
-                            <i class="fas fa-chevron-right text-muted small"></i>
+                        <div class="visa-meta px-2 py-2">
+                            {% if service.price_range %}
+                            <div class="visa-price text-accent fw-bold mb-1">{{ service.price_range }}</div>
+                            {% endif %}
+                            {% if service.services %}
+                            <div class="visa-services">
+                                {% for visa_service in service.services[:2] %}
+                                <span class="badge bg-light text-dark me-1 mb-1">{{ visa_service }}</span>
+                                {% endfor %}
+                                {% if service.services|length > 2 %}
+                                <span class="badge bg-light text-dark">+{{ service.services|length - 2 }}</span>
+                                {% endif %}
+                            </div>
+                            {% endif %}
+                            <div class="text-end">
+                                <i class="fas fa-chevron-right text-muted small"></i>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -179,140 +159,30 @@
             </div>
         </div>
         {% endif %}
-
-        <div class="text-center mt-3">
-            <a href="{{ url_for('public.visa_services') }}" class="text-primary text-decoration-none">
-                查看全部国家和地区 <i class="fas fa-arrow-right"></i>
-            </a>
-        </div>
     </div>
 </section>
-
-<!-- 办理流程 -->
-<section class="py-5 bg-light">
-    <div class="container">
-        <div class="row text-center mb-5">
-            <div class="col-12">
-                <h2 class="fw-bold mb-3">签证办理流程</h2>
-                <p class="text-muted lead">简单四步，轻松办理签证</p>
-            </div>
-        </div>
-        
-        <div class="row g-4 process-row">
-            <div class="col-lg-3 col-md-6 process-item">
-                <div class="text-center">
-                    <div class="bg-primary text-white rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
-                        <span class="fs-3 fw-bold">1</span>
-                    </div>
-                    <h5>咨询选择</h5>
-                    <p class="text-muted">联系我们的专业顾问，选择适合的签证类型</p>
-                </div>
-            </div>
-            <div class="col-lg-3 col-md-6 process-item">
-                <div class="text-center">
-                    <div class="bg-success text-white rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
-                        <span class="fs-3 fw-bold">2</span>
-                    </div>
-                    <h5>准备材料</h5>
-                    <p class="text-muted">根据清单准备所需文件，我们协助审核</p>
-                </div>
-            </div>
-            <div class="col-lg-3 col-md-6 process-item">
-                <div class="text-center">
-                    <div class="bg-warning text-white rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
-                        <span class="fs-3 fw-bold">3</span>
-                    </div>
-                    <h5>提交申请</h5>
-                    <p class="text-muted">我们代为提交申请并跟踪办理进度</p>
-                </div>
-            </div>
-            <div class="col-lg-3 col-md-6 process-item">
-                <div class="text-center">
-                    <div class="bg-info text-white rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
-                        <span class="fs-3 fw-bold">4</span>
-                    </div>
-                    <h5>获得签证</h5>
-                    <p class="text-muted">签证获批后，安全快速送达您手中</p>
-                </div>
-            </div>
-        </div>
-    </div>
-</section>
-
-
-<!-- 服务优势 -->
-<!-- 
-<section class="py-5 bg-light">
-    <div class="container">
-        <div class="row text-center mb-5">
-            <div class="col-12">
-                <h2 class="fw-bold mb-3">为什么选择我们的签证服务？</h2>
-                <p class="text-muted lead">专业团队，丰富经验，让您的签证申请更加顺利</p>
-            </div>
-        </div>
-        
-        <div class="row g-4 advantages-row">
-            <div class="col-md-3 advantage-item">
-                <div class="text-center">
-                    <div class="bg-primary text-white rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
-                        <i class="fas fa-clock fa-2x"></i>
-                    </div>
-                    <h5>快速办理</h5>
-                    <p class="text-muted">高效流程，及时出签</p>
-                </div>
-            </div>
-            <div class="col-md-3 advantage-item">
-                <div class="text-center">
-                    <div class="bg-success text-white rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
-                        <i class="fas fa-percentage fa-2x"></i>
-                    </div>
-                    <h5>高成功率</h5>
-                    <p class="text-muted">签证顺利，安心无忧</p>
-                </div>
-            </div>
-            <div class="col-md-3 advantage-item">
-                <div class="text-center">
-                    <div class="bg-warning text-white rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
-                        <i class="fas fa-headset fa-2x"></i>
-                    </div>
-                    <h5>专业服务</h5>
-                    <p class="text-muted">一对一指导，全程支持</p>
-                </div>
-            </div>
-            <div class="col-md-3 advantage-item">
-                <div class="text-center">
-                    <div class="bg-info text-white rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
-                        <i class="fas fa-shield-alt fa-2x"></i>
-                    </div>
-                    <h5>安全保障</h5>
-                    <p class="text-muted">严格保密，信息安全</p>
-                </div>
-            </div>
-        </div>
-    </div>
-</section>
--->
-
 
 <!-- 联系咨询 -->
-<section class="py-5 bg-primary text-white">
-    <div class="container text-center">
-        <div class="row justify-content-center">
-            <div class="col-lg-8">
-                <h2 class="fw-bold mb-3">需要签证办理服务？</h2>
-                <p class="lead mb-4">我们的专业顾问团队随时为您提供咨询和服务</p>
-                <div>
-                    <a href="{{ url_for('public.contact') }}" class="btn btn-light btn-lg me-3">
-                        <i class="fas fa-phone"></i> 立即咨询
+<!-- <section class="py-5">
+    <div class="container">
+        <div class="rounded-3 text-center p-5" style="background: linear-gradient(135deg, var(--primary-color), var(--primary-dark)); color: white;">
+            <h3 class="fw-bold mb-3">需要签证办理服务？</h3>
+            <p class="mb-4">我们的专业顾问团队随时为您提供咨询和服务</p>
+            <div class="row g-3 justify-content-center">
+                <div class="col-md-3 col-sm-6">
+                    <a href="{{ url_for('public.contact') }}" class="btn btn-light btn-lg w-100">
+                        <i class="fas fa-envelope me-2"></i>在线咨询
                     </a>
-                    <a href="tel:+6512345678" class="btn btn-outline-light btn-lg">
-                        <i class="fas fa-phone-alt"></i> +65 1234 5678
+                </div>
+                <div class="col-md-3 col-sm-6">
+                    <a href="tel:{{ company.phone if company else '+65 1234 5678' }}" class="btn btn-outline-light btn-lg w-100">
+                        <i class="fas fa-phone me-2"></i>电话咨询
                     </a>
                 </div>
             </div>
         </div>
     </div>
-</section>
+</section> -->
 {% endblock %}
 
 {% block extra_css %}
@@ -330,6 +200,18 @@
         font-size: 0.75rem;
     }
 
+    /* 卡片外的国家名字样式 */
+    .visa-country-external {
+        font-size: 1rem;
+        font-weight: 700;
+        color: var(--text-dark);
+        margin-bottom: 2px;
+    }
+    .visa-country-en-external {
+        font-size: 0.8rem;
+        color: var(--text-light);
+    }
+
     /* 新增：仿小程序卡片样式 */
     .visa-grid .visa-card{
         border-radius: 10px;
@@ -343,12 +225,13 @@
         box-shadow: 0 8px 24px rgba(0,0,0,0.12);
     }
     .visa-grid .visa-thumb{
-        height: 130px;
+        height: 100px;
         background: linear-gradient(135deg, rgba(52,199,89,0.25), rgba(255,138,0,0.25));
         display: flex;
         flex-direction: column;
-        justify-content: flex-end;
-        padding: 12px 10px 8px;
+        justify-content: center;
+        align-items: center;
+        padding: 12px 10px;
         position: relative;
         border-radius: 8px 8px 0 0;
         overflow: hidden;
@@ -367,32 +250,20 @@
         z-index: 2;
         text-shadow: 0 2px 4px rgba(0,0,0,0.7);
     }
-    .visa-grid .visa-country{
-        color: #fff;
-        font-weight: 700;
-        font-size: 1.1rem;
-        text-shadow: 0 2px 8px rgba(0,0,0,0.8);
-        margin-bottom: 2px;
-    }
-    .visa-grid .visa-country-en{
-        color: rgba(255,255,255,0.95);
-        font-size: 0.8rem;
-        text-shadow: 0 2px 6px rgba(0,0,0,0.8);
-        margin-bottom: 4px;
-    }
     .visa-grid .visa-count{
         color: rgba(255,255,255,0.95);
-        font-size: 0.75rem;
+        font-size: 0.85rem;
         background: rgba(0,0,0,0.4);
-        padding: 2px 6px;
-        border-radius: 10px;
+        padding: 4px 10px;
+        border-radius: 12px;
         display: inline-block;
         text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+        font-weight: 500;
     }
     .visa-grid .visa-meta{
         background: #fff;
         padding: 12px 10px;
-        min-height: 80px;
+        min-height: 70px;
         display: flex;
         flex-direction: column;
         justify-content: space-between;
@@ -411,7 +282,7 @@
     }
 
     @media (min-width: 992px){
-        .visa-grid .visa-thumb{ height: 130px; }
+        .visa-grid .visa-thumb{ height: 100px; }
     }
     
     /* 筛选区域样式 */

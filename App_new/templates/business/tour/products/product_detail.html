@@ -4,242 +4,307 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/staff_common.css') }}">
+<script src="https://cdn.tailwindcss.com"></script>
 {% endblock %}
 
 {% block content %}
-<div class="visa-container-lg">
-    <!-- 返回按钮 -->
-    <div class="visa-mb-3">
-        <a href="{{ url_for('tour_products.product_list') }}" class="visa-btn visa-btn-secondary visa-btn-sm">
-            <i class="fas fa-arrow-left"></i> 返回列表
-        </a>
-    </div>
-
-    <!-- 产品头部 -->
-    <div class="visa-card visa-text-center visa-mb-4" style="background: linear-gradient(135deg, var(--visa-success), #059669); color: white; padding: 2rem;">
-        <h1 class="visa-page-title" style="color: white; margin-bottom: 0.5rem;">{{ product.product_name }}</h1>
-        <div class="visa-mb-2">
-            <span class="visa-badge" style="background: white; color: var(--visa-success);">{{ product.product_type or '旅游产品' }}</span>
-            {% if product.is_featured %}
-            <span class="visa-badge" style="background: #fbbf24; color: white;"><i class="fas fa-star"></i> 精选</span>
-            {% endif %}
-        </div>
-        <div style="opacity: 0.9; font-size: 0.875rem;">
-            {% if product.supplier %}{{ product.supplier.name }} | {% endif %}
-            {{ product.country }} - {{ product.city_name }} | 
-            {{ product.duration_days }}天
-        </div>
-    </div>
-
-    <!-- 封面图 -->
-    {% if product.cover_image %}
-    <div class="visa-card visa-mb-4">
-        <img src="{{ url_for('static', filename=product.cover_image) }}" 
-             style="width: 100%; max-height: 400px; object-fit: cover; border-radius: var(--visa-radius-md);">
-    </div>
-    {% endif %}
-
-    <!-- 基本信息 -->
-    <div class="visa-card visa-mb-4">
-        <div class="visa-card-header" style="background: linear-gradient(135deg, var(--visa-success), #059669); color: white;">
-            <h2 style="color: white; margin: 0;"><i class="fas fa-info-circle"></i> 基本信息</h2>
-            <a href="{{ url_for('tour_products.edit_product', product_id=product.id) }}" class="visa-btn visa-btn-sm" style="background: white; color: var(--visa-success);">
-                <i class="fas fa-edit"></i> 编辑
+<div class="bg-gray-50 min-h-screen p-4 md:p-6">
+    <div class="max-w-7xl mx-auto">
+        <!-- 返回按钮 -->
+        <!-- <div class="mb-6">
+            <a href="{{ url_for('tour_products.product_list') }}" class="inline-flex items-center gap-2 px-4 py-2 bg-white text-gray-700 rounded-lg shadow-sm border border-gray-200 hover:bg-gray-50 transition-colors">
+                <i class="fas fa-arrow-left"></i> 返回列表
             </a>
+        </div> -->
+
+        <!-- 产品头部 -->
+        <div class="mb-8">
+            <div class="text-center">
+                <h1 class="text-4xl font-bold mb-4 text-gray-800">{{ product.product_name }}</h1>
+                <div class="flex justify-center gap-3 mb-4">
+                    <span class="bg-blue-100 text-blue-700 px-4 py-2 rounded-full text-sm font-medium">
+                        {{ product.product_type or '旅游产品' }}
+                    </span>
+                    {% if product.is_featured %}
+                    <span class="bg-yellow-100 text-yellow-700 px-4 py-2 rounded-full text-sm font-medium">
+                        <i class="fas fa-star"></i> 精选产品
+                    </span>
+                    {% endif %}
+                </div>
+                <div class="text-gray-600 text-lg">
+                    <div class="flex justify-center items-center gap-4 flex-wrap">
+                        {% if product.supplier %}
+                        <span class="flex items-center">
+                            <i class="fas fa-building mr-2 text-blue-500"></i>{{ product.supplier.name }}
+                        </span>
+                        {% endif %}
+                        <span class="flex items-center">
+                            <i class="fas fa-map-marker-alt mr-2 text-red-500"></i>{{ product.country }} - {{ product.city_name }}
+                        </span>
+                        <span class="flex items-center">
+                            <i class="fas fa-calendar mr-2 text-green-500"></i>{{ product.duration_days }}天
+                        </span>
+                    </div>
+                </div>
+            </div>
         </div>
-        <div class="visa-card-body">
-            <div class="visa-grid-4 visa-mb-3">
-                <div class="info-item">
-                    <div class="info-content">
-                        <h6>产品编号</h6>
-                        <p>{{ product.product_code or '未设置' }}</p>
+
+        <!-- 封面图 -->
+        {% if product.cover_image %}
+        <div class="bg-white rounded-2xl shadow-md overflow-hidden mb-8">
+            <img src="{{ url_for('static', filename=product.cover_image) }}" 
+                 class="w-full h-96 object-cover">
+        </div>
+        {% endif %}
+
+        <!-- 基本信息 -->
+        <div class="bg-white rounded-2xl shadow-md p-6 mb-8">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-semibold text-gray-800 flex items-center">
+                    <i class="fas fa-info-circle text-blue-500 mr-3"></i> 基本信息
+                </h2>
+                <a href="{{ url_for('tour_products.edit_product', product_id=product.id) }}" 
+                   class="inline-flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
+                    <i class="fas fa-edit"></i> 编辑产品
+                </a>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div class="bg-gradient-to-br from-blue-50 to-white p-4 rounded-xl border border-blue-100">
+                    <div class="flex items-center mb-3">
+                        <div class="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center mr-3">
+                            <i class="fas fa-barcode text-blue-500"></i>
+                        </div>
+                        <h6 class="text-sm font-medium text-gray-600">产品编号</h6>
                     </div>
+                    <p class="text-lg font-semibold text-gray-800">{{ product.product_code or '未设置' }}</p>
                 </div>
-                <div class="info-item">
-                    <div class="info-content">
-                        <h6>供应商</h6>
-                        <p>{{ product.supplier.name if product.supplier else '未设置' }}</p>
+                
+                <div class="bg-gradient-to-br from-green-50 to-white p-4 rounded-xl border border-green-100">
+                    <div class="flex items-center mb-3">
+                        <div class="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center mr-3">
+                            <i class="fas fa-building text-green-500"></i>
+                        </div>
+                        <h6 class="text-sm font-medium text-gray-600">供应商</h6>
                     </div>
+                    <p class="text-lg font-semibold text-gray-800">{{ product.supplier.name if product.supplier else '未设置' }}</p>
                 </div>
-                <div class="info-item">
-                    <div class="info-content">
-                        <h6>国家</h6>
-                        <p>{{ product.country }}</p>
+                
+                <div class="bg-gradient-to-br from-purple-50 to-white p-4 rounded-xl border border-purple-100">
+                    <div class="flex items-center mb-3">
+                        <div class="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center mr-3">
+                            <i class="fas fa-map-marker-alt text-purple-500"></i>
+                        </div>
+                        <h6 class="text-sm font-medium text-gray-600">目的地</h6>
                     </div>
+                    <p class="text-lg font-semibold text-gray-800">{{ product.country }} - {{ product.city_name or '未设置' }}</p>
                 </div>
-                <div class="info-item">
-                    <div class="info-content">
-                        <h6>城市</h6>
-                        <p>{{ product.city_name or '未设置' }}</p>
+                
+                <div class="bg-gradient-to-br from-yellow-50 to-white p-4 rounded-xl border border-yellow-100">
+                    <div class="flex items-center mb-3">
+                        <div class="w-10 h-10 rounded-lg bg-yellow-100 flex items-center justify-center mr-3">
+                            <i class="fas fa-calendar text-yellow-500"></i>
+                        </div>
+                        <h6 class="text-sm font-medium text-gray-600">行程天数</h6>
                     </div>
+                    <p class="text-lg font-semibold text-gray-800">{{ product.duration_days }}天</p>
                 </div>
-                <div class="info-item">
-                    <div class="info-content">
-                        <h6>行程天数</h6>
-                        <p>{{ product.duration_days }}天</p>
+                
+                <div class="bg-gradient-to-br from-red-50 to-white p-4 rounded-xl border border-red-100">
+                    <div class="flex items-center mb-3">
+                        <div class="w-10 h-10 rounded-lg bg-red-100 flex items-center justify-center mr-3">
+                            <i class="fas fa-users text-red-500"></i>
+                        </div>
+                        <h6 class="text-sm font-medium text-gray-600">人数范围</h6>
                     </div>
+                    <p class="text-lg font-semibold text-gray-800">{{ product.min_pax }}{% if product.max_pax %}-{{ product.max_pax }}{% endif %}人</p>
                 </div>
-                <div class="info-item">
-                    <div class="info-content">
-                        <h6>人数范围</h6>
-                        <p>{{ product.min_pax }}{% if product.max_pax %}-{{ product.max_pax }}{% endif %}人</p>
+                
+                <div class="bg-gradient-to-br from-indigo-50 to-white p-4 rounded-xl border border-indigo-100">
+                    <div class="flex items-center mb-3">
+                        <div class="w-10 h-10 rounded-lg bg-indigo-100 flex items-center justify-center mr-3">
+                            <i class="fas fa-chart-line text-indigo-500"></i>
+                        </div>
+                        <h6 class="text-sm font-medium text-gray-600">难度等级</h6>
                     </div>
+                    <p class="text-lg font-semibold text-gray-800">{{ product.difficulty_level or '未设置' }}</p>
                 </div>
-                <div class="info-item">
-                    <div class="info-content">
-                        <h6>难度等级</h6>
-                        <p>{{ product.difficulty_level or '未设置' }}</p>
+                
+                <div class="bg-gradient-to-br from-pink-50 to-white p-4 rounded-xl border border-pink-100">
+                    <div class="flex items-center mb-3">
+                        <div class="w-10 h-10 rounded-lg bg-pink-100 flex items-center justify-center mr-3">
+                            <i class="fas fa-leaf text-pink-500"></i>
+                        </div>
+                        <h6 class="text-sm font-medium text-gray-600">适合季节</h6>
                     </div>
-                </div>
-                <div class="info-item">
-                    <div class="info-content">
-                        <h6>适合季节</h6>
-                        <p>{{ product.suitable_season or '全年' }}</p>
-                    </div>
+                    <p class="text-lg font-semibold text-gray-800">{{ product.suitable_season or '全年' }}</p>
                 </div>
             </div>
 
             <!-- 标签 -->
             {% if product.tags %}
-            <div class="visa-mb-3">
-                <label class="visa-form-label">产品标签</label>
-                <div class="visa-flex visa-gap-1" style="flex-wrap: wrap;">
+            <div class="mt-6">
+                <h6 class="text-sm font-medium text-gray-700 mb-3">产品标签</h6>
+                <div class="flex flex-wrap gap-2">
                     {% set tags = product.tags|from_json if product.tags else [] %}
                     {% for tag in tags %}
-                    <span class="visa-badge visa-badge-success">{{ tag }}</span>
+                    <span class="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-sm font-medium">{{ tag }}</span>
                     {% endfor %}
                 </div>
             </div>
             {% endif %}
         </div>
-    </div>
 
-    <!-- 价格信息 -->
-    {% if product.base_price %}
-    <div class="visa-card visa-mb-4">
-        <div class="visa-card-header">
-            <h3><i class="fas fa-dollar-sign"></i> 价格信息</h3>
-        </div>
-        <div class="visa-card-body">
-            <div class="stats-grid">
-                <div class="stat-item">
-                    <p class="stat-number" style="color: var(--visa-success);">{{ product.currency }} {{ product.base_price }}</p>
-                    <p class="stat-label">成人价格</p>
+        <!-- 价格信息 -->
+        {% if product.base_price %}
+        <div class="bg-white rounded-2xl shadow-md p-6 mb-8">
+            <h2 class="text-2xl font-semibold text-gray-800 mb-6 flex items-center">
+                <i class="fas fa-dollar-sign text-green-500 mr-3"></i> 价格信息
+            </h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div class="bg-gradient-to-br from-green-50 to-white p-6 rounded-xl border border-green-100 text-center">
+                    <div class="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-user text-green-500 text-xl"></i>
+                    </div>
+                    <p class="text-2xl font-bold text-green-600 mb-2">{{ product.currency }} {{ product.base_price }}</p>
+                    <p class="text-sm text-gray-600">成人价格</p>
                 </div>
+                
                 {% if product.child_price %}
-                <div class="stat-item">
-                    <p class="stat-number" style="color: var(--visa-info);">{{ product.currency }} {{ product.child_price }}</p>
-                    <p class="stat-label">儿童价格</p>
+                <div class="bg-gradient-to-br from-blue-50 to-white p-6 rounded-xl border border-blue-100 text-center">
+                    <div class="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-child text-blue-500 text-xl"></i>
+                    </div>
+                    <p class="text-2xl font-bold text-blue-600 mb-2">{{ product.currency }} {{ product.child_price }}</p>
+                    <p class="text-sm text-gray-600">儿童价格</p>
                 </div>
                 {% endif %}
+                
                 {% if product.infant_price %}
-                <div class="stat-item">
-                    <p class="stat-number" style="color: var(--visa-warning);">{{ product.currency }} {{ product.infant_price }}</p>
-                    <p class="stat-label">婴儿价格</p>
+                <div class="bg-gradient-to-br from-yellow-50 to-white p-6 rounded-xl border border-yellow-100 text-center">
+                    <div class="w-12 h-12 rounded-full bg-yellow-100 flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-baby text-yellow-500 text-xl"></i>
+                    </div>
+                    <p class="text-2xl font-bold text-yellow-600 mb-2">{{ product.currency }} {{ product.infant_price }}</p>
+                    <p class="text-sm text-gray-600">婴儿价格</p>
                 </div>
                 {% endif %}
+                
                 {% if product.single_room_supplement %}
-                <div class="stat-item">
-                    <p class="stat-number" style="color: var(--visa-danger);">{{ product.currency }} {{ product.single_room_supplement }}</p>
-                    <p class="stat-label">单房差</p>
+                <div class="bg-gradient-to-br from-red-50 to-white p-6 rounded-xl border border-red-100 text-center">
+                    <div class="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-bed text-red-500 text-xl"></i>
+                    </div>
+                    <p class="text-2xl font-bold text-red-600 mb-2">{{ product.currency }} {{ product.single_room_supplement }}</p>
+                    <p class="text-sm text-gray-600">单房差</p>
                 </div>
                 {% endif %}
             </div>
         </div>
-    </div>
-    {% endif %}
+        {% endif %}
 
-    <!-- 产品描述 -->
-    {% if product.product_description or product.highlights %}
-    <div class="visa-card visa-mb-4">
-        <div class="visa-card-header">
-            <h3><i class="fas fa-file-alt"></i> 产品描述</h3>
-        </div>
-        <div class="visa-card-body">
+        <!-- 产品描述 -->
+        {% if product.product_description or product.highlights %}
+        <div class="bg-white rounded-2xl shadow-md p-6 mb-8">
+            <h2 class="text-2xl font-semibold text-gray-800 mb-6 flex items-center">
+                <i class="fas fa-file-alt text-purple-500 mr-3"></i> 产品描述
+            </h2>
+            
             {% if product.product_description %}
-            <div class="visa-form-group">
-                <label class="visa-form-label">产品介绍</label>
-                <div style="padding: 0.75rem; background: var(--visa-bg-light); border-radius: var(--visa-radius-sm); white-space: pre-wrap;">
-                    {{ product.product_description }}
+            <div class="mb-6">
+                <h3 class="text-lg font-medium text-gray-700 mb-3">产品介绍</h3>
+                <div class="bg-gray-50 p-6 rounded-xl border border-gray-200">
+                    <p class="text-gray-700 leading-relaxed whitespace-pre-wrap">{{ product.product_description }}</p>
                 </div>
             </div>
             {% endif %}
+            
             {% if product.highlights %}
-            <div class="visa-form-group">
-                <label class="visa-form-label">产品亮点</label>
-                <div style="padding: 0.75rem; background: var(--visa-bg-light); border-radius: var(--visa-radius-sm); white-space: pre-wrap;">
-                    {{ product.highlights }}
+            <div>
+                <h3 class="text-lg font-medium text-gray-700 mb-3">产品亮点</h3>
+                <div class="bg-yellow-50 p-6 rounded-xl border border-yellow-200">
+                    <p class="text-gray-700 leading-relaxed whitespace-pre-wrap">{{ product.highlights }}</p>
                 </div>
             </div>
             {% endif %}
         </div>
-    </div>
-    {% endif %}
+        {% endif %}
 
-    <!-- 服务说明 -->
-    <div class="visa-card visa-mb-4">
-        <div class="visa-card-header">
-            <h3><i class="fas fa-list-check"></i> 服务说明</h3>
-        </div>
-        <div class="visa-card-body">
-            <div class="visa-grid-2">
-                <div class="visa-form-group">
-                    <label class="visa-form-label" style="color: var(--visa-success);">包含服务</label>
-                    <div style="padding: 0.75rem; background: #d1fae5; border-radius: var(--visa-radius-sm); white-space: pre-wrap; color: #065f46;">
+        <!-- 服务说明 -->
+        <div class="bg-white rounded-2xl shadow-md p-6 mb-8">
+            <h2 class="text-2xl font-semibold text-gray-800 mb-6 flex items-center">
+                <i class="fas fa-list-check text-indigo-500 mr-3"></i> 服务说明
+            </h2>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="bg-gradient-to-br from-green-50 to-white p-6 rounded-xl border border-green-200">
+                    <h3 class="text-lg font-semibold text-green-700 mb-4 flex items-center">
+                        <i class="fas fa-check-circle text-green-500 mr-2"></i> 包含服务
+                    </h3>
+                    <div class="text-gray-700 leading-relaxed whitespace-pre-wrap">
                         {{ product.included_services or '未设置' }}
                     </div>
                 </div>
-                <div class="visa-form-group">
-                    <label class="visa-form-label" style="color: var(--visa-danger);">不包含服务</label>
-                    <div style="padding: 0.75rem; background: #fee2e2; border-radius: var(--visa-radius-sm); white-space: pre-wrap; color: #991b1b;">
+                
+                <div class="bg-gradient-to-br from-red-50 to-white p-6 rounded-xl border border-red-200">
+                    <h3 class="text-lg font-semibold text-red-700 mb-4 flex items-center">
+                        <i class="fas fa-times-circle text-red-500 mr-2"></i> 不包含服务
+                    </h3>
+                    <div class="text-gray-700 leading-relaxed whitespace-pre-wrap">
                         {{ product.excluded_services or '未设置' }}
                     </div>
                 </div>
             </div>
+            
             {% if product.important_notes %}
-            <div class="visa-form-group">
-                <label class="visa-form-label" style="color: var(--visa-warning);">重要提示</label>
-                <div style="padding: 0.75rem; background: #fef3c7; border-radius: var(--visa-radius-sm); white-space: pre-wrap; color: #92400e;">
+            <div class="mt-6 bg-gradient-to-br from-yellow-50 to-white p-6 rounded-xl border border-yellow-200">
+                <h3 class="text-lg font-semibold text-yellow-700 mb-4 flex items-center">
+                    <i class="fas fa-exclamation-triangle text-yellow-500 mr-2"></i> 重要提示
+                </h3>
+                <div class="text-gray-700 leading-relaxed whitespace-pre-wrap">
                     {{ product.important_notes }}
                 </div>
             </div>
             {% endif %}
         </div>
-    </div>
 
-    <!-- 图片库 -->
-    {% if product.gallery_images %}
-    {% set images = product.gallery_images|from_json if product.gallery_images else [] %}
-    {% if images %}
-    <div class="visa-card visa-mb-4">
-        <div class="visa-card-header">
-            <h3><i class="fas fa-images"></i> 图片库</h3>
-        </div>
-        <div class="visa-card-body">
-            <div class="visa-grid-4">
+        <!-- 图片库 -->
+        {% if product.gallery_images %}
+        {% set images = product.gallery_images|from_json if product.gallery_images else [] %}
+        {% if images %}
+        <div class="bg-white rounded-2xl shadow-md p-6 mb-8">
+            <h2 class="text-2xl font-semibold text-gray-800 mb-6 flex items-center">
+                <i class="fas fa-images text-pink-500 mr-3"></i> 图片库
+            </h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                 {% for image in images %}
-                <div style="border: 1px solid var(--visa-border); border-radius: var(--visa-radius-sm); overflow: hidden;">
-                    <img src="{{ url_for('static', filename=image) }}" 
-                         style="width: 100%; height: 200px; object-fit: cover;">
+                <div class="group cursor-pointer overflow-hidden rounded-xl border border-gray-200 hover:shadow-lg transition-all duration-300">
+                    <div class="aspect-square overflow-hidden">
+                        <img src="{{ url_for('static', filename=image) }}" 
+                             class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300">
+                    </div>
                 </div>
                 {% endfor %}
             </div>
         </div>
-    </div>
-    {% endif %}
-    {% endif %}
+        {% endif %}
+        {% endif %}
 
-    <!-- 操作按钮 -->
-    <div class="visa-card">
-        <div class="visa-card-body">
-            <div class="visa-flex-center visa-gap-2">
-                <a href="{{ url_for('tour_products.edit_product', product_id=product.id) }}" class="visa-btn visa-btn-primary">
+        <!-- 操作按钮 -->
+        <div class="bg-white rounded-2xl shadow-md p-6">
+            <div class="flex flex-col sm:flex-row justify-center gap-4">
+                <a href="{{ url_for('tour_products.edit_product', product_id=product.id) }}" 
+                   class="inline-flex items-center justify-center gap-2 px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium">
                     <i class="fas fa-edit"></i> 编辑产品
                 </a>
-                <a href="{{ url_for('tour_products.product_list') }}" class="visa-btn visa-btn-secondary">
+                <a href="{{ url_for('tour_products.product_list') }}" 
+                   class="inline-flex items-center justify-center gap-2 px-6 py-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors font-medium">
                     <i class="fas fa-arrow-left"></i> 返回列表
                 </a>
-                <button onclick="deleteProduct({{ product.id }})" class="visa-btn visa-btn-danger">
+                <button onclick="deleteProduct('{{ product.id }}')" 
+                        class="inline-flex items-center justify-center gap-2 px-6 py-3 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors font-medium">
                     <i class="fas fa-trash"></i> 删除产品
                 </button>
             </div>

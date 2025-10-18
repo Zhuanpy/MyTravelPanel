@@ -13,6 +13,23 @@ from App_new.exts import cache
 # 创建访客蓝图
 public = Blueprint('public', __name__, url_prefix='/public')
 
+def get_company_info():
+    """获取公司信息（用于模板）"""
+    company = CompanyInfo.query.first()
+    if company and company.logo_path:
+        # 标准化路径并移除多余的前缀
+        path = company.logo_path.replace('\\', '/')
+        # 移除可能存在的 'static/' 或 'App_new/static/' 前缀
+        path = path.replace('App_new/static/', '')
+        path = path.replace('static/', '')
+        company.logo_path = path
+    return company
+
+# 注册context processor，让所有模板可以访问公司信息
+@public.app_context_processor
+def inject_company_info():
+    return dict(company=get_company_info())
+
 @public.route('/')
 def index():
     """公开首页 - 所有用户都可以访问"""
@@ -325,8 +342,7 @@ def contact():
             'phone': company_info.phone,
             'email': company_info.email,
             'wechat': 'MyTravelPanel',  # 默认微信
-            'business_hours': '周一至周五: 9:00 AM - 6:00 PM',  # 默认营业时间
-            'languages': ['中文', 'English', 'Bahasa']  # 默认语言
+            'business_hours': '周一至周五: 9:00 AM - 6:00 PM'  # 默认营业时间
         }
     else:
         # 默认联系信息
@@ -335,8 +351,7 @@ def contact():
             'phone': '+65 1234 5678',
             'email': 'info@joyesc.com',
             'wechat': 'MyTravelPanel',
-            'business_hours': '周一至周五: 9:00 AM - 6:00 PM',
-            'languages': ['中文', 'English', 'Bahasa']
+            'business_hours': '周一至周五: 9:00 AM - 6:00 PM'
         }
     
     return render_template('guest/main/contact.html', contact=contact_info)

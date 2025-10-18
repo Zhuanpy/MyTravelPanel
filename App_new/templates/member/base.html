@@ -48,10 +48,15 @@
 
     /* Responsive spacing for container */
     @media (min-width: 768px) {
-        .member-layout.container-fluid {
-            padding-left: 1rem;
-            padding-right: 1rem;
+        .member-layout.container {
+            max-width: 1400px;
         }
+    }
+    
+    /* 确保row在container内不会溢出 */
+    .member-layout .row {
+        margin-left: 0;
+        margin-right: 0;
     }
 </style>
 {% endblock %}
@@ -59,7 +64,7 @@
 {% block content %}
 {{ super() }}
 <!-- 会员侧边栏和内容区域 -->
-<div class="{% block outer_container_class %}container-fluid{% endblock %} member-layout">
+<div class="{% block outer_container_class %}container{% endblock %} member-layout">
     <div class="row">
         {% block member_sidebar %}
         {% if current_user.is_authenticated %}

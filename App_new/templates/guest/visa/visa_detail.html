@@ -3,38 +3,32 @@
 {% block title %}{{ visa_type.visa_type }} - MyTravelPanel{% endblock %}
 
 {% block content %}
-<!-- 页面标题区域 -->
-<section class="hero-section text-center" style="padding: 60px 0;">
+<!-- 面包屑导航区域 -->
+<section class="py-3">
     <div class="container">
-        <div class="row justify-content-center">
-            <div class="col-lg-8">
-                <nav aria-label="breadcrumb" class="mb-4">
-                    <ol class="breadcrumb justify-content-center bg-transparent">
-                        <li class="breadcrumb-item">
-                            <a href="{{ url_for('public.index') }}" class="text-white-50">首页</a>
-                        </li>
-                        <li class="breadcrumb-item">
-                            <a href="{{ url_for('public.visa_services') }}" class="text-white-50">签证服务</a>
-                        </li>
-                        <li class="breadcrumb-item">
-                            <a href="{{ url_for('public.visa_services_by_country', country_name=visa_type.country.country_name_CN) }}" class="text-white-50">{{ visa_type.country.country_name_CN }}</a>
-                        </li>
-                        <li class="breadcrumb-item active text-white" aria-current="page">{{ visa_type.visa_type }}</li>
-                    </ol>
-                </nav>
-                <h1 class="display-4 fw-bold mb-3">{{ visa_type.visa_type }}</h1>
-                <p class="lead">{{ visa_type.description }}</p>
-            </div>
-        </div>
+        <nav aria-label="breadcrumb" class="mb-3">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item">
+                    <a href="{{ url_for('public.index') }}" class="text-dark">首页</a>
+                </li>
+                <li class="breadcrumb-item">
+                    <a href="{{ url_for('public.visa_services') }}" class="text-dark">签证服务</a>
+                </li>
+                <li class="breadcrumb-item">
+                    <a href="{{ url_for('public.visa_services_by_country', country_name=visa_type.country.country_name_CN) }}" class="text-dark">{{ visa_type.country.country_name_CN }}</a>
+                </li>
+                <li class="breadcrumb-item active text-dark" aria-current="page">{{ visa_type.visa_type }}</li>
+            </ol>
+        </nav>
     </div>
 </section>
 
 <!-- 签证详情内容 -->
 <section class="py-5">
     <div class="container">
-        <div class="row">
-            <!-- 左侧：签证详细信息 -->
-            <div class="col-lg-8">
+        <div class="visa-detail-container">
+            <!-- 上方：签证详细信息 -->
+            <div class="visa-info-section">
                 <!-- 签证信息卡片 -->
                 <div class="visa-info-card">
                     <!-- 签证类型标题 -->
@@ -116,48 +110,41 @@
                         </div>
                     </div>
                         
-                        
-                        <!-- 补充信息 -->
-                        {% if visa_type.additional_info %}
-                        <div class="mb-4">
-                            <h5 class="text-info mb-3">
-                                <i class="fas fa-info-circle me-2"></i>补充信息
-                            </h5>
-                            <p class="text-muted">{{ visa_type.additional_info }}</p>
-                        </div>
-                        {% endif %}
+                    <!-- 补充信息 -->
+                    {% if visa_type.additional_info %}
+                    <div class="mb-4">
+                        <h5 class="text-info mb-3">
+                            <i class="fas fa-info-circle me-2"></i>补充信息
+                        </h5>
+                        <p class="text-muted">{{ visa_type.additional_info }}</p>
                     </div>
+                    {% endif %}
                 </div>
             </div>
             
-            <!-- 右侧：下单操作面板 -->
-            <div class="col-lg-4">
-                <div class="order-sidebar-panel sticky-top" style="top: 80px;">
-                    <!-- 操作卡片 -->
-                    <div class="visa-info-card">
+            <!-- 下方：下单操作面板 -->
+            <div class="visa-action-section">
+                <div class="visa-info-card">
+                    <div class="visa-header">
+                        <div class="visa-icon">
+                            <i class="fas fa-shopping-cart"></i>
+                        </div>
+                        <div>
+                            <h3 class="visa-title">立即下单</h3>
+                            <p class="visa-subtitle">安全快捷的在线服务</p>
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex justify-content-end mt-auto">
                         {% if current_user.is_authenticated %}
-                            <a href="{{ url_for('orders.apply_service', service_type='visa') }}" class="btn btn-success btn-lg w-100 mb-3">
-                                <i class="fas fa-cart-plus me-2"></i>立即下单
+                            <a href="{{ url_for('orders.apply_service', service_type='visa') }}" class="btn btn-success btn-lg">
+                                <i class="fas fa-cart-plus me-2"></i>立即预订
                             </a>
-                            <p class="text-muted text-center mb-3" style="font-size: 0.9rem;">
-                                <i class="fas fa-shield-alt me-1"></i>安全快捷的在线下单服务
-                            </p>
                         {% else %}
-                            <button type="button" class="btn btn-success btn-lg w-100 mb-3" onclick="showLoginPrompt()">
-                                <i class="fas fa-cart-plus me-2"></i>立即下单
+                            <button type="button" class="btn btn-success btn-lg" onclick="showLoginPrompt()">
+                                <i class="fas fa-cart-plus me-2"></i>立即预订
                             </button>
-                            <p class="text-warning text-center mb-3" style="font-size: 0.9rem;">
-                                <i class="fas fa-exclamation-circle me-1"></i>请先登录后才能下单
-                            </p>
                         {% endif %}
-                        
-                        <a href="{{ url_for('guest.main.contact') }}" class="btn btn-outline-primary w-100 mb-2">
-                            <i class="fas fa-headset me-2"></i>咨询客服
-                        </a>
-                        
-                        <a href="{{ url_for('public.visa_services') }}" class="btn btn-outline-secondary w-100">
-                            <i class="fas fa-passport me-2"></i>浏览其他签证
-                        </a>
                     </div>
                 </div>
             </div>
@@ -167,10 +154,28 @@
 
 {% block extra_css %}
 <style>
+    /* 签证详情容器 */
+    .visa-detail-container {
+        display: flex;
+        flex-direction: column;
+        gap: 2rem;
+        max-width: 800px;
+        margin: 0 auto;
+    }
+    
+    .visa-info-section {
+        width: 100%;
+    }
+    
+    .visa-action-section {
+        width: 100%;
+    }
+    
     /* 右侧下单面板样式 */
     .order-sidebar-panel {
         position: sticky;
         top: 80px;
+        margin-top: 0;
     }
     
     .order-sidebar-panel .btn-success {
@@ -188,7 +193,7 @@
     @media (max-width: 991.98px) {
         .order-sidebar-panel {
             position: static;
-            margin-top: 2rem;
+            margin-top: 1rem;
         }
     }
 
@@ -197,15 +202,18 @@
         background: white;
         border-radius: 12px;
         box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-        padding: 2rem;
-        margin-bottom: 2rem;
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+        width: 100%;
+        display: flex;
+        flex-direction: column;
     }
     
     /* 签证类型标题区域 */
     .visa-header {
         display: flex;
         align-items: center;
-        margin-bottom: 2rem;
+        margin-bottom: 1.5rem;
     }
     
     .visa-icon {
@@ -240,7 +248,7 @@
     
     /* 信息项样式 */
     .info-item {
-        margin-bottom: 1.5rem;
+        margin-bottom: 1rem;
     }
     
     .info-label {
@@ -432,6 +440,35 @@
     .detail-value {
         color: #2c3e50;
         font-size: 0.9rem;
+    }
+    
+    /* 面包屑导航样式 */
+    .breadcrumb-item + .breadcrumb-item::before {
+        color: rgba(0,0,0,0.5);
+    }
+    
+    .breadcrumb-item a {
+        color: #333 !important;
+        text-decoration: none;
+    }
+    
+    .breadcrumb-item a:hover {
+        color: #007bff !important;
+        text-decoration: underline;
+    }
+    
+    .breadcrumb-item.active {
+        color: #333 !important;
+    }
+    
+    /* 确保内容居中 */
+    .container {
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+    
+    .col-lg-8 {
+        margin: 0 auto;
     }
     
     /* 响应式调整 */
