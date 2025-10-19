@@ -2921,6 +2921,10 @@ textarea.visa-form-control,
     padding: 1rem;
 }
 
+.visa-modal.active {
+    display: flex;
+}
+
 .visa-modal-dialog {
     background: white;
     border-radius: var(--visa-radius-lg);
