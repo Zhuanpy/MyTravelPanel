@@ -48,7 +48,6 @@ def submit_order():
         print("所有表单数据:", request.form.to_dict(flat=False))
         print("乘客姓名列表:", request.form.getlist('passenger_name[]'))
         print("第一个乘客姓名:", request.form.getlist('passenger_name[]')[0] if request.form.getlist('passenger_name[]') else "无")
-        print("联系人姓名:", request.form.get('contact_name'))
         
         # 1. 获取第一个航段的信息用于主表
         first_flight_number = request.form.getlist('flight_number[]')[0]
@@ -61,6 +60,10 @@ def submit_order():
             
         first_departure_airport = request.form.getlist('departure_airport[]')[0]
         last_arrival_airport = request.form.getlist('arrival_airport[]')[-1]
+        
+        # 获取第一个乘客姓名作为联系人（如果存在）
+        passenger_names_list = request.form.getlist('passenger_name[]')
+        contact_name = passenger_names_list[0] if passenger_names_list else '未设置'
         
         # 2. 自动生成HID和REF
         print("开始生成HID和REF...")
@@ -83,9 +86,9 @@ def submit_order():
         hid = ProjectHeader.generate_hid()
         project_header = ProjectHeader(
             hid=hid,
-            desc=f"机票订单 - {request.form['contact_name']} - {first_departure_airport}>{last_arrival_airport}",
+            desc=f"机票订单 - {contact_name} - {first_departure_airport}>{last_arrival_airport}",
             company_id=personal_company.id,  # 自动设置为"个人"公司
-            contact=request.form['contact_name'],
+            contact=contact_name,
             staff_id=current_user.id if current_user else None,
             staff_name=current_user.profile.get_full_name() if current_user and current_user.profile and current_user.profile.get_full_name() != "未设置姓名" else (current_user.profile.first_name if current_user and current_user.profile else '系统'),
             currency='SGD',  # 默认货币
@@ -109,10 +112,11 @@ def submit_order():
             db.session.add(flight_business_type)
             db.session.flush()
         
-        # 读取前端供应商/状态字段
+        # 读取前端供应商字段
         selected_supplier_id = request.form.get('supplier_id')
-        selected_status = request.form.get('status') or 'processing'
-        selected_payment_status = request.form.get('payment_status') or 'unpaid'
+        # 状态和支付状态字段已从表单中移除，使用默认值
+        selected_status = 'processing'  # 默认设置为"处理中"
+        selected_payment_status = 'unpaid'  # 默认设置为"未付款"
 
         # 创建项目明细表（REF）
         ref_number = ProjectRef.generate_ref_number()
@@ -168,7 +172,7 @@ def submit_order():
 
         # 取第一个乘客作为出行人(leader_name)
         passenger_names_for_leader = request.form.getlist('passenger_name[]')
-        first_passenger_name_for_leader = passenger_names_for_leader[0] if passenger_names_for_leader else request.form['contact_name']
+        first_passenger_name_for_leader = passenger_names_for_leader[0] if passenger_names_for_leader else contact_name
 
         # 生成REF名称
         dep_airports_list = request.form.getlist('departure_airport[]')
@@ -179,18 +183,13 @@ def submit_order():
         project_ref = ProjectRef(
             header_id=project_header.id,
             ref_number=ref_number,
-            name=generated_ref_name,
+            description=generated_ref_name,
             ref_type_id=flight_business_type.id,
-            description=f"{first_departure_airport} > {last_arrival_airport} 机票订单",
+            detailed_description=f"{first_departure_airport} > {last_arrival_airport} 机票订单",
             supplier_id=int(selected_supplier_id) if selected_supplier_id else None,
-            contact_name=request.form['contact_name'],
-            contact_phone=request.form.get('contact_phone', ''),
-            contact_email=request.form.get('contact_email', ''),
-            leader_name=first_passenger_name_for_leader,
             selling_price=total_selling_price,
             cost_price=total_cost_price,
             currency='SGD',
-            expected_delivery_date=first_departure_time.date(),
             remarks=request.form.get('remarks', ''),
             status=selected_status,
             payment_status=selected_payment_status
@@ -295,9 +294,9 @@ def submit_order():
             order_number=generate_order_number(),
             project_header_id=project_header.id,  # 关联HID
             project_ref_id=project_ref.id,        # 关联REF
-            contact_name=request.form['contact_name'],
-            contact_person=request.form['contact_name'],  # 使用联系人姓名作为联系人
-            contact_phone=request.form.get('contact_phone', ''),  # 修改为get方法，允许为空
+            contact_name=contact_name,
+            contact_person=contact_name,  # 使用第一个乘客姓名作为联系人
+            contact_phone='',  # 联系人电话字段已从表单中移除
             supplier_name=supplier_name_value or '',
             passenger_name=passenger_names[0],  # 确保使用第一个乘客姓名
             departure_date=first_departure_time.date(),
@@ -416,8 +415,8 @@ def submit_order():
         db.session.commit()
         print("事务提交成功!")  # 调试日志
 
-        # 跳转到订单详情：此处详情页按 ProjectRef.id 展示
-        return redirect(url_for('flights_booking.order_detail', order_id=project_ref.id))
+        # 跳转到项目详细页面
+        return redirect(url_for('business_projects.detail.project_detail', project_id=project_header.id))
 
     except Exception as e:
         db.session.rollback()
@@ -475,8 +474,8 @@ def order_detail(order_id):
         'cost_price': float(ref.cost_price or 0),
         'supplier_name': ref.supplier.name if getattr(ref, 'supplier', None) else '',
         'supplier_type': ref.supplier.supplier_type if getattr(ref, 'supplier', None) else '',
-        'contact_person': ref.contact_name,
-        'contact_phone': ref.contact_phone,
+        'contact_person': ref.header.contact if ref.header else '',
+        'contact_phone': '',  # contact_phone 已从 ProjectRef 中移除，如需可从其他地方获取
         'remarks': ref.remarks,
         'project_header': header,
         'passengers': passengers,
@@ -611,7 +610,7 @@ def order_list():
     if ref_number:
         query = query.filter(ProjectRef.ref_number.like(f'%{ref_number}%'))
     if contact_name:
-        query = query.filter(ProjectRef.contact_name.like(f'%{contact_name}%'))
+        query = query.filter(ProjectHeader.contact.like(f'%{contact_name}%'))
     
     # 修复订单状态筛选逻辑
     if ref_status and ref_status != 'all':
@@ -654,9 +653,9 @@ def order_list():
         order_data = {
             'id': ref.id,
             'order_number': ref.ref_number,  # 使用REF编号作为订单号
-            'contact_name': ref.contact_name,
-            'contact_person': ref.contact_name,
-            'contact_phone': ref.contact_phone,
+            'contact_name': ref.header.contact if ref.header else '',
+            'contact_person': ref.header.contact if ref.header else '',
+            'contact_phone': '',  # contact_phone 已从 ProjectRef 中移除
             'supplier_name': ref.supplier.name if ref.supplier else '',
             'passenger_name': f"{passenger_count}人" if passenger_count else "0人",
             'departure_date': first_departure_time.date() if first_departure_time else None,
@@ -721,9 +720,10 @@ def edit_order(order_id):
     if request.method == 'POST':
         try:
             # 基本信息
-            ref.contact_name = request.form.get('contact_name', ref.contact_name)
-            ref.contact_phone = request.form.get('contact_phone', ref.contact_phone)
-            ref.contact_email = request.form.get('contact_email', ref.contact_email)
+            # contact_name, contact_phone, contact_email 已从 ProjectRef 中移除
+            # 如需更新联系人信息，应更新 ProjectHeader
+            if ref.header:
+                ref.header.contact = request.form.get('contact_name', ref.header.contact)
             ref.remarks = request.form.get('remarks', ref.remarks)
 
             # 供应商更新（按名称选择）
@@ -817,9 +817,9 @@ def edit_order(order_id):
     order = {
         'id': ref.id,
         'order_number': ref.ref_number,
-        'contact_name': ref.contact_name,
-        'contact_phone': ref.contact_phone,
-        'contact_email': ref.contact_email,
+        'contact_name': ref.header.contact if ref.header else '',
+        'contact_phone': '',  # contact_phone 已从 ProjectRef 中移除
+        'contact_email': '',  # contact_email 已从 ProjectRef 中移除
         'supplier_name': ref.supplier.name if getattr(ref, 'supplier', None) else '',
         'remarks': ref.remarks,
         'passengers': passengers,

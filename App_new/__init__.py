@@ -161,6 +161,7 @@ def create_app():
     from .shared.routes.corporate import corporate
     from .shared.routes.business_type import business_types
     from .shared.routes.supplier import supplier
+    from .utils.routes.checklist import checklist_bp
     
     app.register_blueprint(utils_blue, url_prefix='/utils')
     app.register_blueprint(utils_process, url_prefix='/utils_process')
@@ -169,6 +170,7 @@ def create_app():
     app.register_blueprint(corporate, url_prefix='/company')
     app.register_blueprint(business_types, url_prefix='/business_types')
     app.register_blueprint(supplier, url_prefix='/supplier')
+    app.register_blueprint(checklist_bp)  # 任务清单蓝图，已包含 url_prefix='/utils/checklists'
 
     # 财务模块 - 银行对账单路由
     from .finance.routes.uob_routes import uob_blue
@@ -191,6 +193,71 @@ def create_app():
     # 关键词管理模块
     from .finance.routes.keyword_routes import keyword_blue
     app.register_blueprint(keyword_blue, url_prefix='/statement')
+
+    # 注册应用级别的上下文处理器，让所有模板可以访问公司信息
+    @app.context_processor
+    def inject_company_info():
+        def get_company_info():
+            """获取公司信息（用于模板）"""
+            try:
+                from App_new.business.tour.models.Packagemodels import CompanyInfo
+                from App_new.exts import db
+                import os
+                
+                # 确保在应用上下文中
+                if not hasattr(db, 'session'):
+                    return None
+                
+                try:
+                    company = CompanyInfo.query.first()
+                    if not company:
+                        return None
+                    
+                    # 处理logo_path
+                    if company.logo_path:
+                        try:
+                            # 标准化路径并移除多余的前缀
+                            path = str(company.logo_path).strip().replace('\\', '/')
+                            original_path = path
+                            
+                            # 移除可能存在的 'static/' 或 'App_new/static/' 前缀
+                            if path.startswith('App_new/static/'):
+                                path = path[len('App_new/static/'):]
+                            elif path.startswith('static/'):
+                                path = path[len('static/'):]
+                            
+                            # 如果路径已经是 company/ 开头，保持原样
+                            # 如果路径不包含 'company/' 前缀，且不是绝对路径，且是纯文件名，则添加 'company/' 前缀
+                            if not path.startswith('company/') and not os.path.isabs(path):
+                                # 检查是否是文件名（不包含路径分隔符）
+                                if '/' not in path and '\\' not in path:
+                                    path = 'company/' + path
+                            
+                            # 确保路径不为空
+                            if path:
+                                company.logo_path = path
+                                print(f"✅ Logo路径处理: {original_path} -> {path}")
+                            else:
+                                print(f"⚠️ Logo路径处理后为空，保持原值: {original_path}")
+                        except Exception as path_error:
+                            print(f"❌ 处理logo_path失败: {str(path_error)}")
+                            import traceback
+                            print(traceback.format_exc())
+                            # 如果路径处理失败，保持原值
+                            pass
+                    
+                    return company
+                except Exception as query_error:
+                    print(f"查询公司信息失败: {str(query_error)}")
+                    return None
+            except Exception as e:
+                # 如果查询失败，返回None而不是抛出异常
+                print(f"获取公司信息失败: {str(e)}")
+                import traceback
+                print(traceback.format_exc())
+                return None
+        
+        return dict(get_company_info=get_company_info)
 
     # 统一设置响应编码
     @app.after_request
@@ -247,7 +314,7 @@ def import_all_models():
         try:
             from .shared.models.business_types import BusinessType, BusinessTypeExtension, BusinessTypeRelation
             from .shared.models.Suppliers import Supplier
-            from .shared.models.Utilsmodels import Todo
+            from .shared.models.Utilsmodels import Todo, TodoChecklist, TodoChecklistItem
         except Exception:
             pass
     except Exception:

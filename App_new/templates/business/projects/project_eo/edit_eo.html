@@ -99,7 +99,7 @@
         <div class="d-flex justify-content-between align-items-center">
             <div>
                 <h1 class="eo-title mb-0">编辑EO</h1>
-                <p class="eo-subtitle mb-0">{{ eo.eo_number }} - {{ eo.name or '未命名EO' }}</p>
+                <p class="eo-subtitle mb-0">{{ eo.eo_number }} - {{ eo.ref.description if eo.ref and eo.ref.description else '未命名EO' }}</p>
             </div>
             <div class="d-flex gap-2">
                 <a href="{{ url_for('business_projects.project_eo.eo_detail', eo_id=eo.id) }}" class="btn btn-outline-light">
@@ -149,17 +149,16 @@
                         {% endif %}
                     </div>
                 </div>
-                <div class="col-md-6">
-                    <div class="mb-3">
-                        {{ form.name.label(class="form-label") }}
-                        {{ form.name(class="form-control", placeholder="请输入EO订单名称") }}
-                        {% if form.name.errors %}
-                            <div class="text-danger mt-1">
-                                {% for error in form.name.errors %}
-                                    <small>{{ error }}</small>
-                                {% endfor %}
-                            </div>
-                        {% endif %}
+            </div>
+            
+            <!-- REF关联信息（只读） -->
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="alert alert-info">
+                        <strong>关联REF信息：</strong>
+                        <span>{{ eo.ref.description if eo.ref and eo.ref.description else '未设置' }}</span>
+                        <span class="ms-2">业务类型：{{ eo.ref.ref_type.name if eo.ref and eo.ref.ref_type else '未知' }}</span>
+                        <span class="ms-2">供应商：{{ eo.ref.supplier.name if eo.ref and eo.ref.supplier else '未设置' }}</span>
                     </div>
                 </div>
             </div>
@@ -204,22 +203,10 @@
                     <div class="mb-3">
                         {{ form.amount.label(class="form-label") }}
                         {{ form.amount(class="form-control", placeholder="0.00", step="0.01", min="0") }}
+                        <small class="text-muted">货币：{{ eo.ref.currency if eo.ref and eo.ref.currency else 'SGD' }}</small>
                         {% if form.amount.errors %}
                             <div class="text-danger mt-1">
                                 {% for error in form.amount.errors %}
-                                    <small>{{ error }}</small>
-                                {% endfor %}
-                            </div>
-                        {% endif %}
-                    </div>
-                </div>
-                <div class="col-md-6">
-                    <div class="mb-3">
-                        {{ form.currency.label(class="form-label") }}
-                        {{ form.currency(class="form-select") }}
-                        {% if form.currency.errors %}
-                            <div class="text-danger mt-1">
-                                {% for error in form.currency.errors %}
                                     <small>{{ error }}</small>
                                 {% endfor %}
                             </div>
@@ -299,23 +286,6 @@
             </div>
         </div>
         
-        <!-- 备注信息 -->
-        <div class="form-section">
-            <h4 class="section-title">
-                <i class="fas fa-sticky-note text-secondary"></i> 备注信息
-            </h4>
-            <div class="mb-3">
-                {{ form.remarks.label(class="form-label") }}
-                {{ form.remarks(class="form-control", rows=4, placeholder="请输入备注信息...") }}
-                {% if form.remarks.errors %}
-                    <div class="text-danger mt-1">
-                        {% for error in form.remarks.errors %}
-                            <small>{{ error }}</small>
-                        {% endfor %}
-                    </div>
-                {% endif %}
-            </div>
-        </div>
         
         <!-- 操作按钮 -->
         <div class="info-card text-center">

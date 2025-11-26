@@ -282,17 +282,17 @@
             <div class="row">
                 <div class="col-md-6">
                     <div class="mb-3">
-                        {{ form.name.label(class="form-label required") }}
+                        {{ form.description.label(class="form-label required") }}
                         <div class="form-field-large">
-                            {{ form.name(class="form-control", id="ref_name", placeholder="请输入REF订单名称") }}
+                            {{ form.description(class="form-control", id="ref_description", placeholder="请输入描述") }}
                         </div>
                         <small class="form-text text-muted">
                             <i class="fas fa-info-circle me-1"></i>
-                            请输入详细的订单名称，便于后续管理
+                            请输入简要描述，便于后续管理
                         </small>
-                        {% if form.name.errors %}
+                        {% if form.description.errors %}
                             <div class="text-danger">
-                                {% for error in form.name.errors %}
+                                {% for error in form.description.errors %}
                                     <small>{{ error }}</small>
                                 {% endfor %}
                             </div>
@@ -304,19 +304,13 @@
                     <div class="mb-3">
                         <label class="form-label">负责人</label>
                         <div class="form-field-large">
-                            {{ form.leader_name(class="form-control", placeholder="请输入负责人") }}
+                            <input type="text" class="form-control" readonly
+                                   value="{% if header and header.leader_name %}{{ header.leader_name }}{% else %}未设置{% endif %}">
                         </div>
                         <small class="form-text text-muted">
                             <i class="fas fa-user-tie me-1"></i>
-                            负责此订单的员工
+                            负责人信息保存在项目主表中
                         </small>
-                        {% if form.leader_name.errors %}
-                            <div class="text-danger">
-                                {% for error in form.leader_name.errors %}
-                                    <small>{{ error }}</small>
-                                {% endfor %}
-                            </div>
-                        {% endif %}
                     </div>
                 </div>
             </div>
@@ -465,15 +459,33 @@
             </div>
         {% endif %}
         
-        <!-- 描述字段隐藏，自动同步REF订单名称 -->
-        {{ form.description(class="form-control", id="ref_description", style="display: none;") }}
-        {% if form.description.errors %}
-            <div class="text-danger">
-                {% for error in form.description.errors %}
-                    <small>{{ error }}</small>
-                {% endfor %}
+        <!-- 详细描述字段 -->
+        <div class="form-section">
+            <h5 class="section-title">
+                <i class="fas fa-align-left me-2"></i>详细描述
+            </h5>
+            <div class="row">
+                <div class="col-12">
+                    <div class="mb-3">
+                        {{ form.detailed_description.label(class="form-label required") }}
+                        <div class="form-field-large">
+                            {{ form.detailed_description(class="form-control", id="ref_detailed_description", placeholder="请输入详细描述") }}
+                        </div>
+                        <small class="form-text text-muted">
+                            <i class="fas fa-info-circle me-1"></i>
+                            请输入详细描述信息
+                        </small>
+                        {% if form.detailed_description.errors %}
+                            <div class="text-danger">
+                                {% for error in form.detailed_description.errors %}
+                                    <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
             </div>
-        {% endif %}
+        </div>
         
         <!-- 货币类型字段隐藏，自动设置为"新加坡元" -->
         {{ form.currency(class="form-select", style="display: none;") }}
@@ -525,26 +537,21 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const nameField = document.getElementById('ref_name');
     const descriptionField = document.getElementById('ref_description');
+    const detailedDescriptionField = document.getElementById('ref_detailed_description');
     const form = document.querySelector('form');
     
-    if (nameField && descriptionField) {
-        // 当REF订单名称字段内容改变时，自动同步到描述字段
-        nameField.addEventListener('input', function() {
-            descriptionField.value = this.value;
+    if (descriptionField && detailedDescriptionField) {
+        // 当描述字段内容改变时，自动同步到详细描述字段
+        descriptionField.addEventListener('input', function() {
+            if (!detailedDescriptionField.value) {
+                detailedDescriptionField.value = this.value;
+            }
         });
         
-        // 页面加载时，如果描述字段为空但名称字段有值，则同步
-        if (!descriptionField.value && nameField.value) {
-            descriptionField.value = nameField.value;
-        }
-        
-        // 表单提交前确保描述字段同步
-        if (form) {
-            form.addEventListener('submit', function() {
-                descriptionField.value = nameField.value;
-            });
+        // 页面加载时，如果详细描述字段为空但描述字段有值，则同步
+        if (!detailedDescriptionField.value && descriptionField.value) {
+            detailedDescriptionField.value = descriptionField.value;
         }
     }
 });

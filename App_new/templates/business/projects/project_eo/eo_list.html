@@ -161,19 +161,19 @@
                     </thead>
                     <tbody>
                         {% for eo in eos %}
-                        <tr data-eo-id="{{ eo.id }}" data-supplier-type="{{ eo.supplier_type }}">
+                        <tr data-eo-id="{{ eo.id }}">
                             <td>
                                 <span class="badge bg-primary">{{ eo.eo_number }}</span>
                             </td>
-                            <td title="{{ eo.name or '未命名' }}{% if eo.remarks and eo.remarks != eo.name %} - {{ eo.remarks }}{% endif %}">
-                                <strong>{{ eo.name or '未命名' }}</strong>
-                                {% if eo.remarks and eo.remarks != eo.name %}
-                                <br><small class="text-muted">{{ eo.remarks }}</small>
+                            <td title="{{ eo.ref_description or '未命名' }}{% if eo.ref and eo.ref.remarks and eo.ref.remarks != eo.ref_description %} - {{ eo.ref.remarks }}{% endif %}">
+                                <strong>{{ eo.ref_description or '未命名' }}</strong>
+                                {% if eo.ref and eo.ref.remarks and eo.ref.remarks != eo.ref_description %}
+                                <br><small class="text-muted">{{ eo.ref.remarks }}</small>
                                 {% endif %}
                             </td>
                             <td>
-                                <span class="badge bg-{{ eo.supplier_type_color }}">
-                                    {{ eo.supplier_type_display or '未知' }}
+                                <span class="badge bg-info">
+                                    {{ eo.ref_type_name or '未知' }}
                                 </span>
                             </td>
                             <td>
@@ -212,8 +212,8 @@
                                  {% endif %}
                              </td>
                              <td>
-                                 {% if eo.amount %}
-                                 <span class="text-success">{{ eo.currency }} {{ "%.2f"|format(eo.amount) }}</span>
+                                 {% if eo.ref and eo.ref.cost_price %}
+                                 <span class="text-success">{{ eo.ref.currency if eo.ref.currency else 'SGD' }} {{ "%.2f"|format(eo.ref.cost_price) }}</span>
                                  {% else %}
                                  <span class="text-muted">-</span>
                                  {% endif %}

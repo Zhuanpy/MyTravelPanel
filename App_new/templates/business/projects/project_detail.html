@@ -261,7 +261,7 @@
                 <a href="{{ url_for('business_projects.project_ref.create_transport_ref', header_id=header.id) }}" class="btn btn-success btn-sm">
                     <i class="fas fa-car"></i> 交通
                 </a>
-                <a href="{{ url_for('business_projects.project_ref.create_ref', header_id=header.id) }}" class="btn btn-success btn-sm">
+                <a href="{{ url_for('business_projects.project_ref.create_other_ref', header_id=header.id) }}" class="btn btn-success btn-sm">
                     <i class="fas fa-plus"></i> 其他
                 </a>
             </div>
@@ -274,7 +274,6 @@
                     <tr>
                         <th class="tw-min-w-[90px]">REF编号</th>
                         <th class="tw-min-w-[64px]">类型</th>
-                        <th class="tw-min-w-[160px]">出行人</th>
                         <th class="tw-min-w-[200px]">名称</th>
                         <th class="tw-min-w-[110px]">EO编号</th>
                         <th class="tw-min-w-[100px]">售价</th>
@@ -324,14 +323,7 @@
                             {% endif %}
                         </td>
                         <td class="tw-max-w-[100px]" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ ref.ref_type.name if ref.ref_type else '未分类' }}</td>
-                        <td class="tw-max-w-[220px]" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{% if ref.flight_passengers %}{{ ref.flight_passengers | map(attribute='name') | join(', ') }}{% else %}{{ ref.leader_name or '-' }}{% endif %}">
-                            {% if ref.flight_passengers %}
-                                {{ ref.flight_passengers | map(attribute='name') | join(', ') }}
-                            {% else %}
-                                {{ ref.leader_name or '-' }}
-                            {% endif %}
-                        </td>
-                        <td class="tw-max-w-[260px]" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ ref.name or ref.description }}">{{ ref.name or ref.description }}</td>
+                        <td class="tw-max-w-[260px]" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ ref.description or ref.detailed_description }}">{{ ref.description or ref.detailed_description }}</td>
                         <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                             {% if ref.eos %}
                                 <a href="{{ url_for('business_projects.project_eo.eo_detail', eo_id=ref.eos.id) }}" 

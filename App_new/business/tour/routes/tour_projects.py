@@ -437,15 +437,55 @@ def view_tour_group(group_id):
 @tour_projects.route('/groups/<int:group_id>/itinerary', methods=['GET'])
 def view_tour_itinerary(group_id):
     """查看行程单（仅包含每日行程安排和价格信息）"""
-    group = TourGroup.query.get_or_404(group_id)
-    itineraries = TourItinerary.query.filter_by(tour_id=group_id).order_by(TourItinerary.date.asc()).all()
-    company = CompanyInfo.query.first()
-    current_time = datetime.now()
-    return render_template('business/tour/package/TourProjects/tour_project_print_itinerary.html',
-                         tour=group, 
-                         itinerary=itineraries,
-                         company=company,
-                         current_time=current_time)
+    group = None
+    try:
+        # 使用 joinload 或 joinedload 预加载 project 关系，避免懒加载问题
+        from sqlalchemy.orm import joinedload
+        group = TourGroup.query.options(joinedload(TourGroup.project)).get_or_404(group_id)
+        print(f"✅ 找到团组: {group_id}, 标题: {group.title}")
+        
+        itineraries = TourItinerary.query.filter_by(tour_id=group_id).order_by(TourItinerary.date.asc()).all()
+        print(f"✅ 找到 {len(itineraries)} 条行程")
+        
+        company = CompanyInfo.query.first()
+        print(f"✅ 公司信息: {company.company_name if company else 'None'}")
+        
+        current_time = datetime.now()
+        
+        # 验证 project 关系是否正常
+        if group.project_id:
+            if group.project is None:
+                print(f"⚠️ 警告: 团组 {group_id} 的 project_id={group.project_id} 但对应的项目不存在")
+            else:
+                print(f"✅ 项目关系已加载: {group.project.project_name}")
+        
+        return render_template('business/tour/package/TourProjects/tour_project_print_itinerary.html',
+                             tour=group, 
+                             itinerary=itineraries,
+                             company=company,
+                             current_time=current_time)
+    except Exception as e:
+        import traceback
+        error_msg = f"❌ 渲染行程单时出错: {str(e)}\n{traceback.format_exc()}"
+        print(error_msg)
+        flash(f'加载行程单失败：{str(e)}', 'error')
+        try:
+            if group and group.project_id:
+                return redirect(url_for('tour_projects.edit_tour_project', project_id=group.project_id))
+        except Exception as redirect_error:
+            print(f"⚠️ 重定向失败: {str(redirect_error)}")
+        # 如果无法重定向，返回错误信息
+        from flask import render_template_string
+        return render_template_string('''
+        <html>
+        <head><title>错误</title></head>
+        <body>
+            <h1>加载行程单失败</h1>
+            <p>{{ error }}</p>
+            <a href="javascript:history.back()">返回</a>
+        </body>
+        </html>
+        ''', error=str(e)), 500
 
 @tour_projects.route('/groups/<int:group_id>/edit', methods=['GET', 'POST'])
 @csrf.exempt
@@ -832,26 +872,55 @@ def edit_tour_project(project_id):
                 return jsonify({'success': False, 'message': f'保存失败：{str(e)}'})
             return redirect(url_for('tour_projects.edit_tour_project', project_id=project_id))
     
-    # 获取项目的团信息
-    groups = TourGroup.query.filter_by(project_id=project_id).all()
-    
-    # 为每个团获取行程信息并按日期排序
-    for group in groups:
-        # 使用数据库排序，按date字段升序排列
-        itineraries = TourItinerary.query.filter_by(tour_id=group.id).order_by(TourItinerary.date.asc()).all()
-        group.itineraries = itineraries
-
-    # 配套价格预算：获取最近的预算单用于页面快速查看
     try:
-        from App_new.business.tour.models.PackageBudget import BudgetHeader
-        recent_budgets = BudgetHeader.query.order_by(BudgetHeader.created_at.desc()).limit(10).all()
-    except Exception:
-        recent_budgets = []
-    
-    return render_template('business/tour/package/TourProjects/tour_project_edit.html',
-                         project=project, 
-                         groups=groups,
-                         recent_budgets=recent_budgets)
+        # 获取项目的团信息
+        groups = TourGroup.query.filter_by(project_id=project_id).all()
+        print(f"✅ 找到 {len(groups)} 个团组")
+        
+        # 为每个团获取行程信息并按日期排序
+        for group in groups:
+            try:
+                # 使用数据库排序，按date字段升序排列
+                itineraries = TourItinerary.query.filter_by(tour_id=group.id).order_by(TourItinerary.date.asc()).all()
+                group.itineraries = itineraries
+                print(f"✅ 团组 {group.id} 有 {len(itineraries)} 条行程")
+            except Exception as e:
+                print(f"⚠️ 获取团组 {group.id} 的行程失败: {str(e)}")
+                group.itineraries = []
+
+        # 配套价格预算：获取最近的预算单用于页面快速查看
+        try:
+            from App_new.business.tour.models.PackageBudget import BudgetHeader
+            recent_budgets = BudgetHeader.query.order_by(BudgetHeader.created_at.desc()).limit(10).all()
+            print(f"✅ 找到 {len(recent_budgets)} 个预算单")
+        except Exception as e:
+            print(f"⚠️ 获取预算单失败: {str(e)}")
+            recent_budgets = []
+        
+        return render_template('business/tour/package/TourProjects/tour_project_edit.html',
+                             project=project, 
+                             groups=groups,
+                             recent_budgets=recent_budgets)
+    except Exception as e:
+        import traceback
+        error_msg = f"❌ 渲染项目编辑页面时出错: {str(e)}\n{traceback.format_exc()}"
+        print(error_msg)
+        flash(f'加载项目编辑页面失败：{str(e)}', 'error')
+        # 尝试重定向到项目详情页
+        try:
+            return redirect(url_for('tour_projects.project_details', project_id=project_id))
+        except:
+            from flask import render_template_string
+            return render_template_string('''
+            <html>
+            <head><title>错误</title></head>
+            <body>
+                <h1>加载项目编辑页面失败</h1>
+                <p>{{ error }}</p>
+                <a href="javascript:history.back()">返回</a>
+            </body>
+            </html>
+            ''', error=str(e)), 500
 
 @tour_projects.route('/detail/<int:project_id>', methods=['GET'])
 def project_details(project_id):

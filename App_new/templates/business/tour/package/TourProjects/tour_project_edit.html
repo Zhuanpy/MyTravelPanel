@@ -265,7 +265,7 @@
                 <a href="{{ url_for('tour_projects.manage_tour_projects') }}" class="visa-btn visa-btn-secondary visa-btn-lg">
                     <i class="fas fa-arrow-left"></i> 返回项目列表
                 </a>
-                <a href="{{ url_for('tour_projects.tour_project_detail', project_id=project.id) }}" class="visa-btn visa-btn-info visa-btn-lg">
+                <a href="{{ url_for('tour_projects.project_details', project_id=project.id) }}" class="visa-btn visa-btn-info visa-btn-lg">
                     <i class="fas fa-eye"></i> 查看项目详情
                 </a>
             </div>
@@ -571,6 +571,39 @@
         </div>
     </div>
 </div>
+
+<!-- 编辑项目信息模态框 -->
+<div id="editProjectInfoModal" class="visa-modal" data-backdrop-close="false">
+    <div class="visa-modal-dialog visa-modal-dialog-lg">
+        <div class="visa-modal-header" style="background: linear-gradient(135deg, var(--visa-success), #059669); color: white;">
+            <h3 class="visa-modal-title" style="color: white;">编辑项目信息</h3>
+            <button class="visa-modal-close" onclick="closeModal('editProjectInfoModal')" style="color: white;">&times;</button>
+        </div>
+        <div class="visa-modal-body">
+            <form id="editProjectInfoForm">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="visa-grid-2">
+                    <div class="visa-form-group">
+                        <label class="visa-form-label">项目名称</label>
+                        <input type="text" name="project_name" id="editProjectName" class="visa-form-control" required>
+                    </div>
+                    <div class="visa-form-group">
+                        <label class="visa-form-label">项目类型</label>
+                        <input type="text" name="project_type" id="editProjectType" class="visa-form-control">
+                    </div>
+                </div>
+                <div class="visa-form-group">
+                    <label class="visa-form-label">项目预算 (SGD)</label>
+                    <input type="number" name="budget" id="editProjectBudget" class="visa-form-control" step="0.01" min="0">
+                </div>
+            </form>
+        </div>
+        <div class="visa-modal-footer">
+            <button type="button" class="visa-btn visa-btn-secondary" onclick="closeModal('editProjectInfoModal')">取消</button>
+            <button type="button" class="visa-btn visa-btn-primary" onclick="updateProjectInfo()">更新项目</button>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
@@ -674,23 +707,91 @@ function markRemoveImage(field) {
     if (c) c.style.display = 'none';
 }
 
-// 项目表单提交
-document.getElementById('projectForm').addEventListener('submit', function(e) {
-    e.preventDefault();
+// 编辑项目信息
+function editProjectInfo() {
+    // 填充当前项目数据到表单
+    document.getElementById('editProjectName').value = '{{ project.project_name }}';
+    document.getElementById('editProjectType').value = '{{ project.project_type or "" }}';
+    var budgetValue = {% if project.budget %}{{ project.budget }}{% else %}null{% endif %};
+    document.getElementById('editProjectBudget').value = budgetValue !== null ? budgetValue : '';
     
-    const formData = new FormData(this);
-    
-    // 添加调试信息
-    console.log('表单提交数据:');
-    for (let [key, value] of formData.entries()) {
-        console.log(`${key}: ${value}`);
+    showModal('editProjectInfoModal');
+}
+
+function updateProjectInfo() {
+    const form = document.getElementById('editProjectInfoForm');
+    if (!form) {
+        showAlert('表单未找到', 'danger');
+        return;
     }
+    const formData = new FormData(form);
     
     // 显示加载状态
-    const submitBtn = this.querySelector('button[type="submit"]');
-    const originalText = submitBtn.textContent;
-    submitBtn.textContent = '保存中...';
-    submitBtn.disabled = true;
+    const updateBtn = document.querySelector('#editProjectInfoModal .visa-btn-primary');
+    if (!updateBtn) {
+        showAlert('更新按钮未找到', 'danger');
+        return;
+    }
+    const originalText = updateBtn.textContent;
+    updateBtn.textContent = '更新中...';
+    updateBtn.disabled = true;
+    
+    fetch('{{ url_for("tour_projects.edit_tour_project", project_id=project.id) }}', {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            showAlert('项目信息更新成功！', 'success');
+            setTimeout(() => {
+                location.reload();
+            }, 1000);
+        } else {
+            showAlert('更新项目失败: ' + data.message, 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showAlert('更新项目时发生错误，请稍后重试', 'danger');
+    })
+    .finally(() => {
+        // 恢复按钮状态
+        if (updateBtn) {
+            updateBtn.textContent = originalText;
+            updateBtn.disabled = false;
+        }
+    });
+}
+
+// 项目表单提交
+const projectForm = document.getElementById('projectForm');
+if (projectForm) {
+    projectForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(this);
+        
+        // 添加调试信息
+        console.log('表单提交数据:');
+        for (let [key, value] of formData.entries()) {
+            console.log(`${key}: ${value}`);
+        }
+        
+        // 显示加载状态
+        const submitBtn = this.querySelector('button[type="submit"]');
+        if (!submitBtn) return;
+        const originalText = submitBtn.textContent;
+        submitBtn.textContent = '保存中...';
+        submitBtn.disabled = true;
     
     fetch(window.location.href, {
         method: 'POST',
@@ -720,10 +821,13 @@ document.getElementById('projectForm').addEventListener('submit', function(e) {
     })
     .finally(() => {
         // 恢复按钮状态
-        submitBtn.textContent = originalText;
-        submitBtn.disabled = false;
+        if (submitBtn) {
+            submitBtn.textContent = originalText;
+            submitBtn.disabled = false;
+        }
     });
-});
+    });
+}
 
 // 创建团队
 function showCreateGroupModal() {
@@ -732,10 +836,18 @@ function showCreateGroupModal() {
 
 function createGroup() {
     const form = document.getElementById('createGroupForm');
+    if (!form) {
+        showAlert('表单未找到', 'danger');
+        return;
+    }
     const formData = new FormData(form);
     
     // 显示加载状态
-    const createBtn = document.querySelector('#createGroupModal .btn-primary');
+    const createBtn = document.querySelector('#createGroupModal .visa-btn-primary');
+    if (!createBtn) {
+        showAlert('创建按钮未找到', 'danger');
+        return;
+    }
     const originalText = createBtn.textContent;
     createBtn.textContent = '创建中...';
     createBtn.disabled = true;
@@ -769,8 +881,10 @@ function createGroup() {
     })
     .finally(() => {
         // 恢复按钮状态
-        createBtn.textContent = originalText;
-        createBtn.disabled = false;
+        if (createBtn) {
+            createBtn.textContent = originalText;
+            createBtn.disabled = false;
+        }
     });
 }
 
@@ -829,21 +943,28 @@ function updateGroup() {
     let originalReturnDate = '';
     
     if (groupCard) {
-        const departureText = groupCard.querySelector('.info-item:nth-child(1) .info-value').textContent.trim();
-        const returnText = groupCard.querySelector('.info-item:nth-child(2) .info-value').textContent.trim();
+        const departureElement = groupCard.querySelector('.info-item:nth-child(1) .info-content p');
+        const returnElement = groupCard.querySelector('.info-item:nth-child(2) .info-content p');
         
-        // 转换日期格式
-        if (departureText) {
-            const parts = departureText.split('-');
-            if (parts.length === 3) {
-                originalDepartureDate = `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+        if (departureElement) {
+            const departureText = departureElement.textContent.trim();
+            // 转换日期格式
+            if (departureText) {
+                const parts = departureText.split('-');
+                if (parts.length === 3) {
+                    originalDepartureDate = `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+                }
             }
         }
         
-        if (returnText) {
-            const parts = returnText.split('-');
-            if (parts.length === 3) {
-                originalReturnDate = `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+        if (returnElement) {
+            const returnText = returnElement.textContent.trim();
+            // 转换日期格式
+            if (returnText) {
+                const parts = returnText.split('-');
+                if (parts.length === 3) {
+                    originalReturnDate = `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+                }
             }
         }
     }
@@ -859,7 +980,11 @@ function updateGroup() {
     }
     
     // 显示加载状态
-    const updateBtn = document.querySelector('#editGroupModal .btn-primary');
+    const updateBtn = document.querySelector('#editGroupModal .visa-btn-primary');
+    if (!updateBtn) {
+        showAlert('更新按钮未找到', 'danger');
+        return;
+    }
     const originalText = updateBtn.textContent;
     updateBtn.textContent = '更新中...';
     updateBtn.disabled = true;
@@ -1093,7 +1218,11 @@ function createItinerary() {
     const groupId = document.getElementById('addItineraryGroupId').value;
     
     // 显示加载状态
-    const createBtn = document.querySelector('#addItineraryModal .btn-primary');
+    const createBtn = document.querySelector('#addItineraryModal .visa-btn-primary');
+    if (!createBtn) {
+        showAlert('创建按钮未找到', 'danger');
+        return;
+    }
     const originalText = createBtn.textContent;
     createBtn.textContent = '添加中...';
     createBtn.disabled = true;
@@ -1187,7 +1316,11 @@ function updateItinerary() {
     const itineraryId = document.getElementById('editItineraryId').value;
     
     // 显示加载状态
-    const updateBtn = document.querySelector('#editItineraryModal .btn-primary');
+    const updateBtn = document.querySelector('#editItineraryModal .visa-btn-primary');
+    if (!updateBtn) {
+        showAlert('更新按钮未找到', 'danger');
+        return;
+    }
     const originalText = updateBtn.textContent;
     updateBtn.textContent = '更新中...';
     updateBtn.disabled = true;

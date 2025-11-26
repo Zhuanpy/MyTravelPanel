@@ -51,10 +51,10 @@
                         <div class="row mb-4">
                             <div class="col-md-6">
                                 <div class="form-group">
-                                    <label>负责人姓名</label>
-                                    <input type="text" name="leader_name" class="form-control"
-                                           placeholder="请输入负责人姓名"
-                                           value="{{ ref.leader_name if ref and not is_create else '' }}">
+                                    <label>负责人</label>
+                                    <input type="text" class="form-control" readonly
+                                           value="{% if ref and ref.header and ref.header.leader_name %}{{ ref.header.leader_name }}{% else %}未设置{% endif %}">
+                                    <small class="text-muted">负责人信息保存在项目主表中</small>
                                 </div>
                             </div>
 

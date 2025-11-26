@@ -6,7 +6,7 @@
         <!-- 上部分：logo图片 -->
         <div class="logo-image-section">
             {% if company and company.logo_path %}
-                <img src="{{ url_for('static', filename=company.logo_path) }}" alt="{{ company.company_name }}">
+                <img src="{{ url_for('static', filename=company.logo_path) }}" alt="{% if company.company_name %}{{ company.company_name }}{% else %}公司Logo{% endif %}" onerror="this.onerror=null; this.src='{{ url_for('static', filename='JE/LOGO.jpg') }}';">
             {% else %}
                 <img src="{{ url_for('static', filename='JE/LOGO.jpg') }}" alt="公司Logo">
             {% endif %}
@@ -14,8 +14,26 @@
         <!-- 下部分：公司缩写 -->
         <div class="logo-text-section">
             {% if company %}
-                <div class="company-abbrev-en">{{ company.company_short_name or company.company_name.split()[0] if company.company_name else 'JOYFUL ESCAPES' }}</div>
-                <div class="company-abbrev-cn">{{ company.company_short_name or company.company_name_cn or company.company_name }}</div>
+                <div class="company-abbrev-en">
+                    {% if company.company_short_name %}
+                        {{ company.company_short_name }}
+                    {% elif company.company_name %}
+                        {{ company.company_name.split()[0] if company.company_name.split() else 'JOYFUL ESCAPES' }}
+                    {% else %}
+                        JOYFUL ESCAPES
+                    {% endif %}
+                </div>
+                <div class="company-abbrev-cn">
+                    {% if company.company_short_name %}
+                        {{ company.company_short_name }}
+                    {% elif company.company_name_cn %}
+                        {{ company.company_name_cn }}
+                    {% elif company.company_name %}
+                        {{ company.company_name }}
+                    {% else %}
+                        悦行假期
+                    {% endif %}
+                </div>
             {% else %}
                 <div class="company-abbrev-en">JOYFUL ESCAPES</div>
                 <div class="company-abbrev-cn">悦行假期</div>
@@ -27,8 +45,8 @@
         <!-- 上容器：公司名称 -->
         <div class="company-name-container">
             {% if company %}
-                <h1>{{ company.company_name_cn or company.company_name }}</h1>
-                <h1>{{ company.company_name }}</h1>
+                <h1>{% if company.company_name_cn %}{{ company.company_name_cn }}{% elif company.company_name %}{{ company.company_name }}{% else %}悦行假期有限公司{% endif %}</h1>
+                <h1>{% if company.company_name %}{{ company.company_name }}{% else %}JOYFUL ESCAPES PTE LTD{% endif %}</h1>
             {% else %}
                 <h1>悦行假期有限公司</h1>
                 <h1>JOYFUL ESCAPES PTE LTD</h1>

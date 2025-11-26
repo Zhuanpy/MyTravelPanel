@@ -167,7 +167,7 @@
             </div>
             <div class="ref-info-item">
                 <div class="ref-info-label">REF名称</div>
-                <div class="ref-info-value">{{ ref.name or ref.description or '未设�? }}</div>
+                <div class="ref-info-value">{{ ref.description or ref.detailed_description or '未设�? }}</div>
             </div>
             <div class="ref-info-item">
                 <div class="ref-info-label">REF类型</div>
@@ -243,57 +243,6 @@
                         {% endif %}
                     </div>
                 </div>
-                <div class="col-md-6">
-                    <div class="mb-3">
-                        {{ form.name.label(class="form-label") }}
-                        {{ form.name(class="form-control", placeholder="请输入EO订单名称") }}
-                        <small class="text-muted">从REF名称自动填充</small>
-                        {% if form.name.errors %}
-                            <div class="text-danger mt-1">
-                                {% for error in form.name.errors %}
-                                    <small>{{ error }}</small>
-                                {% endfor %}
-                            </div>
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
-            
-            <div class="row">
-                <div class="col-md-6">
-                    <div class="mb-3">
-                        {{ form.supplier_type.label(class="form-label") }}
-                        {{ form.supplier_type(class="form-select") }}
-                        <small class="text-muted">根据REF类型自动推断</small>
-                        {% if form.supplier_type.errors %}
-                            <div class="text-danger mt-1">
-                                {% for error in form.supplier_type.errors %}
-                                    <small>{{ error }}</small>
-                                {% endfor %}
-                            </div>
-                        {% endif %}
-                    </div>
-                </div>
-                <div class="col-md-6">
-                    <div class="mb-3">
-                        {{ form.supplier_id.label(class="form-label") }}
-                        {{ form.supplier_id(class="form-select") }}
-                        <small class="text-muted">
-                            {% if ref.supplier %}
-                                从REF供应商自动填充：{{ ref.supplier.name }}
-                            {% else %}
-                                请选择供应商（REF中未设置供应商）
-                            {% endif %}
-                        </small>
-                        {% if form.supplier_id.errors %}
-                            <div class="text-danger mt-1">
-                                {% for error in form.supplier_id.errors %}
-                                    <small>{{ error }}</small>
-                                {% endfor %}
-                            </div>
-                        {% endif %}
-                    </div>
-                </div>
             </div>
         </div>
         
@@ -307,24 +256,10 @@
                     <div class="mb-3">
                         {{ form.amount.label(class="form-label") }}
                         {{ form.amount(class="form-control", placeholder="0.00", step="0.01", min="0") }}
-                        <small class="text-muted">从REF成本价格自动填充</small>
+                        <small class="text-muted">从REF成本价格自动填充，货币：{{ ref.currency if ref.currency else 'SGD' }}</small>
                         {% if form.amount.errors %}
                             <div class="text-danger mt-1">
                                 {% for error in form.amount.errors %}
-                                    <small>{{ error }}</small>
-                                {% endfor %}
-                            </div>
-                        {% endif %}
-                    </div>
-                </div>
-                <div class="col-md-6">
-                    <div class="mb-3">
-                        {{ form.currency.label(class="form-label") }}
-                        {{ form.currency(class="form-select") }}
-                        <small class="text-muted">从REF货币自动填充</small>
-                        {% if form.currency.errors %}
-                            <div class="text-danger mt-1">
-                                {% for error in form.currency.errors %}
                                     <small>{{ error }}</small>
                                 {% endfor %}
                             </div>

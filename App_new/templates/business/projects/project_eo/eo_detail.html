@@ -143,7 +143,7 @@
         <div class="d-flex justify-content-between align-items-center">
             <div>
                 <h1 class="eo-title mb-0">{{ eo.eo_number }}</h1>
-                <p class="eo-subtitle mb-0">{{ eo.name or '未命名EO' }}</p>
+                <p class="eo-subtitle mb-0">{{ eo.ref.description if eo.ref and eo.ref.description else '未命名EO' }}</p>
             </div>
             <div class="action-buttons">
                 <a href="{{ url_for('business_projects.project_eo.edit_eo', eo_id=eo.id) }}" class="btn btn-light">
@@ -170,24 +170,18 @@
                 <span class="info-value">{{ eo.eo_number }}</span>
             </div>
             <div class="info-item">
-                <span class="info-label">订单名称</span>
-                <span class="info-value">{{ eo.name or '未设置' }}</span>
+                <span class="info-label">描述</span>
+                <span class="info-value">{{ eo.ref.description if eo.ref and eo.ref.description else '未设置' }}</span>
             </div>
             <div class="info-item">
-                <span class="info-label">供应商类型</span>
+                <span class="info-label">业务类型</span>
                 <span class="supplier-type-badge">
-                    {% if eo.supplier_type == 'visa' %}签证
-                    {% elif eo.supplier_type == 'flight' %}机票
-                    {% elif eo.supplier_type == 'hotel' %}酒店
-                    {% elif eo.supplier_type == 'transport' %}交通
-                    {% elif eo.supplier_type == 'local_operator' %}地接
-                    {% else %}其他
-                    {% endif %}
+                    {{ eo.ref.ref_type.name if eo.ref and eo.ref.ref_type else '未知' }}
                 </span>
             </div>
             <div class="info-item">
                 <span class="info-label">供应商</span>
-                <span class="info-value">{{ eo.supplier.name if eo.supplier else '未设置' }}</span>
+                <span class="info-value">{{ eo.ref.supplier.name if eo.ref and eo.ref.supplier else '未设置' }}</span>
             </div>
             <div class="info-item">
                 <span class="info-label">状态</span>
@@ -216,8 +210,8 @@
             <i class="fas fa-money-bill-wave text-success"></i> 金额信息
         </h4>
         <div class="text-center">
-            {% set display_currency = eo.currency or (eo.ref.currency if eo.ref else 'SGD') %}
-            {% set display_amount = (eo.amount if (eo.amount is not none and (eo.amount|float) > 0) else (eo.ref.cost_price if eo.ref and eo.ref.cost_price else 0)) %}
+            {% set display_currency = eo.ref.currency if eo.ref and eo.ref.currency else 'SGD' %}
+            {% set display_amount = (eo.ref.cost_price if eo.ref and eo.ref.cost_price else 0) %}
             <div class="amount-display">
                 {{ display_currency }} {{ "%.2f"|format(display_amount|float) }}
             </div>
@@ -250,13 +244,13 @@
     {% endif %}
     
     <!-- 备注信息 -->
-    {% if eo.remarks %}
+    {% if eo.ref and eo.ref.remarks %}
     <div class="info-card">
         <h4 class="mb-3">
             <i class="fas fa-sticky-note text-info"></i> 备注信息
         </h4>
         <div class="remarks-section" style="white-space: pre-wrap; word-wrap: break-word;">
-            {{ eo.remarks }}
+            {{ eo.ref.remarks }}
         </div>
     </div>
     {% endif %}
@@ -277,7 +271,7 @@
             </div>
             <div class="info-item">
                 <span class="info-label">REF名称</span>
-                <span class="info-value">{{ eo.ref.name or eo.ref.description if eo.ref else '未设置' }}</span>
+                <span class="info-value">{{ eo.ref.description or eo.ref.detailed_description if eo.ref else '未设置' }}</span>
             </div>
             <div class="info-item">
                 <span class="info-label">REF类型</span>

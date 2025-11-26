@@ -217,12 +217,12 @@
             <tr>
                 <th>REF编号</th>
                 <td>{{ ref.ref_number }}</td>
-                <th>REF名称</th>
-                <td>{{ ref.name }}</td>
+                <th>描述</th>
+                <td>{{ ref.description }}</td>
             </tr>
             <tr>
-                <th>描述</th>
-                <td colspan="3">{{ ref.description }}</td>
+                <th>详细描述</th>
+                <td colspan="3">{{ ref.detailed_description }}</td>
             </tr>
             <tr>
                 <th>供应商</th>
@@ -240,13 +240,7 @@
             </tr>
             <tr>
                 <th>联系人</th>
-                <td>{{ ref.contact_name }}</td>
-                <th>联系电话</th>
-                <td>{{ ref.contact_phone or '未填写' }}</td>
-            </tr>
-            <tr>
-                <th>电子邮箱</th>
-                <td colspan="3">{{ ref.contact_email or '未填写' }}</td>
+                <td colspan="3">{{ ref.header.contact if ref.header and ref.header.contact else '未填写' }}</td>
             </tr>
             <tr>
                 <th>创建时间</th>

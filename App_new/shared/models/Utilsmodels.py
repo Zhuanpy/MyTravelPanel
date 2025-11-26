@@ -1,7 +1,8 @@
 from App_new.exts import db  # 确保你已正确导入 db 对象
 from datetime import datetime
+import json
 
-# Task模型已删除，现在只保留Todo模型
+# Task模型已删除，现在只保留Todo模型及相关的任务模板和清单功能
 
 class Todo(db.Model):
     """待办事项模型"""
@@ -138,3 +139,71 @@ class Todo(db.Model):
         if user_id:
             query = query.filter_by(user_id=user_id)
         return query.all()
+
+
+class TodoChecklist(db.Model):
+    """任务清单模型 - 用于管理一组相关的任务"""
+    __tablename__ = 'todo_checklists'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(255), nullable=False, comment='清单名称')
+    description = db.Column(db.Text, comment='清单描述')
+    category = db.Column(db.String(50), nullable=True, comment='分类')
+    
+    # 重复设置
+    is_recurring = db.Column(db.Boolean, default=False, comment='是否为重复任务')
+    recurrence_type = db.Column(db.String(20), comment='重复类型: daily, weekly, monthly')
+    recurrence_days = db.Column(db.String(50), comment='重复的星期几（用于weekly）：1,2,3,4,5,6,0（周一到周日）')
+    recurrence_time = db.Column(db.String(10), comment='重复的时间: HH:MM')
+    
+    is_active = db.Column(db.Boolean, default=True, comment='是否启用')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    user_id = db.Column(db.Integer, db.ForeignKey('auth_users.id', ondelete='CASCADE'), nullable=True)
+    
+    # 最后生成任务的时间
+    last_generated_at = db.Column(db.DateTime, nullable=True, comment='最后一次生成任务的时间')
+    
+    # 任务项（一对多）
+    items = db.relationship('TodoChecklistItem', backref='checklist', lazy='dynamic', cascade='all, delete-orphan')
+    
+    def to_dict(self):
+        """转换为字典"""
+        return {
+            'id': self.id,
+            'name': self.name,
+            'description': self.description,
+            'category': self.category,
+            'is_recurring': self.is_recurring,
+            'recurrence_type': self.recurrence_type,
+            'recurrence_days': self.recurrence_days,
+            'recurrence_time': self.recurrence_time,
+            'is_active': self.is_active,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+            'last_generated_at': self.last_generated_at.isoformat() if self.last_generated_at else None,
+            'items': [item.to_dict() for item in self.items.all()]
+        }
+
+
+class TodoChecklistItem(db.Model):
+    """任务清单项目模型 - 清单中的具体任务"""
+    __tablename__ = 'todo_checklist_items'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    checklist_id = db.Column(db.Integer, db.ForeignKey('todo_checklists.id', ondelete='CASCADE'), nullable=False)
+    title = db.Column(db.String(255), nullable=False, comment='任务标题')
+    description = db.Column(db.Text, comment='任务描述')
+    priority = db.Column(db.Integer, default=2, comment='优先级：1=高，2=中，3=低')
+    order_index = db.Column(db.Integer, default=0, comment='排序索引')
+    
+    def to_dict(self):
+        """转换为字典"""
+        return {
+            'id': self.id,
+            'checklist_id': self.checklist_id,
+            'title': self.title,
+            'description': self.description,
+            'priority': self.priority,
+            'order_index': self.order_index
+        }

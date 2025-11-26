@@ -268,7 +268,7 @@ def header_receipts(header_id):
                                 distributed_refs.append({
                                     'id': ref.id,
                                     'ref_number': ref.ref_number,
-                                    'name': ref.name or ref.description,
+                                    'name': ref.description or ref.detailed_description,
                                     'amount': dist.get('amount', 0)
                                 })
                 receipt.distributed_refs = distributed_refs
@@ -306,7 +306,7 @@ def create_header_receipt(header_id):
             total_received = ProjectReceipt.get_ref_total_received(ref.id, header_id)
             ref_unpaid = float(ref.selling_price) - total_received
             if ref_unpaid > 0:
-                unpaid_refs.append((ref.id, f"{ref.ref_number} - {ref.name or ref.description} (未收款: {ref.currency or 'SGD'} {ref_unpaid:.2f})"))
+                unpaid_refs.append((ref.id, f"{ref.ref_number} - {ref.description or ref.detailed_description or '其他服务'} (未收款: {ref.currency or 'SGD'} {ref_unpaid:.2f})"))
     
     form.selected_refs.choices = unpaid_refs
     
@@ -757,7 +757,7 @@ def get_header_unpaid_refs(header_id):
                 unpaid_refs.append({
                     'ref_id': ref.id,
                     'ref_number': ref.ref_number,
-                    'ref_name': ref.name or ref.description,
+                    'ref_name': ref.description or ref.detailed_description or '其他服务',
                     'ref_type': ref.ref_type.name if ref.ref_type else '未分类',
                     'selling_price': float(ref.selling_price),
                     'received_amount': ref_received,

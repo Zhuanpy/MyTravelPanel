@@ -416,7 +416,7 @@
             
             <!-- 添加项目按钮 -->
             <div class="mt-3 text-end">
-                <button class="btn btn-primary btn-sm" data-bs-toggle="collapse" data-bs-target="#addItemForm">
+                <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="collapse" data-bs-target="#addItemForm">
                     <i class="fas fa-plus"></i> 添加项目
                 </button>
             </div>
@@ -426,8 +426,9 @@
     <!-- 添加项目表单 -->
     <div class="collapse" id="addItemForm">
         <div class="card mt-3">
-            <div class="card-header">
+            <div class="card-header d-flex justify-content-between align-items-center">
                 <h6 class="card-title mb-0"><i class="fas fa-plus"></i> 添加明细项目</h6>
+                <button type="button" class="btn-close" data-bs-toggle="collapse" data-bs-target="#addItemForm" aria-label="Close"></button>
             </div>
             <div class="card-body">
                 <form method="post" action="{{ url_for('package_budget.add_item', budget_id=budget.id) }}" id="itemForm">
@@ -597,7 +598,12 @@
 function deleteItem(itemId) {
     if (confirm('确定要删除这个项目吗？')) {
         // 获取CSRF token
-        const csrfToken = document.querySelector('input[name="csrf_token"]').value;
+        const csrfTokenElement = document.querySelector('input[name="csrf_token"]');
+        if (!csrfTokenElement) {
+            alert('CSRF令牌未找到');
+            return;
+        }
+        const csrfToken = csrfTokenElement.value;
         
         fetch(`/package_budget/{{ budget.id }}/item/${itemId}/delete`, {
             method: 'POST',
@@ -627,9 +633,20 @@ function editItem(itemId) {
 }
 
 // 表单验证
-document.getElementById('itemForm').addEventListener('submit', function(e) {
-    const itemName = document.querySelector('input[name="item_name"]').value.trim();
-    const pricingMethod = document.querySelector('input[name="pricing_method"]:checked').value;
+const itemForm = document.getElementById('itemForm');
+if (itemForm) {
+    itemForm.addEventListener('submit', function(e) {
+        const itemNameInput = document.querySelector('input[name="item_name"]');
+        const pricingMethodInput = document.querySelector('input[name="pricing_method"]:checked');
+        
+        if (!itemNameInput || !pricingMethodInput) {
+            e.preventDefault();
+            alert('表单字段未找到');
+            return false;
+        }
+        
+        const itemName = itemNameInput.value.trim();
+        const pricingMethod = pricingMethodInput.value;
     
     if (!itemName) {
         e.preventDefault();
@@ -658,13 +675,38 @@ document.getElementById('itemForm').addEventListener('submit', function(e) {
             return false;
         }
     }
-});
+    });
+}
 
 // 计价方式切换
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOMContentLoaded 事件触发');
+    
+    // 监听 collapse 事件
+    const addItemFormCollapse = document.getElementById('addItemForm');
+    if (addItemFormCollapse) {
+        addItemFormCollapse.addEventListener('show.bs.collapse', function () {
+            console.log('Collapse 正在展开');
+        });
+        addItemFormCollapse.addEventListener('shown.bs.collapse', function () {
+            console.log('Collapse 已完全展开');
+        });
+        addItemFormCollapse.addEventListener('hide.bs.collapse', function () {
+            console.log('Collapse 正在关闭');
+        });
+        addItemFormCollapse.addEventListener('hidden.bs.collapse', function () {
+            console.log('Collapse 已完全关闭');
+        });
+    }
+    
     const pricingMethodInputs = document.querySelectorAll('input[name="pricing_method"]');
     const itemBasedPricing = document.getElementById('itemBasedPricing');
     const personBasedPricing = document.getElementById('personBasedPricing');
+    
+    if (!itemBasedPricing || !personBasedPricing) {
+        console.warn('计价方式容器未找到');
+        return;
+    }
     
     // 计价方式切换事件
     pricingMethodInputs.forEach(input => {
@@ -673,14 +715,18 @@ document.addEventListener('DOMContentLoaded', function() {
                 itemBasedPricing.style.display = 'block';
                 personBasedPricing.style.display = 'none';
                 // 清空模板2的字段
-                document.querySelector('input[name="adult_price"]').value = '';
-                document.querySelector('input[name="child_price"]').value = '';
+                const adultPriceInput = document.querySelector('input[name="adult_price"]');
+                const childPriceInput = document.querySelector('input[name="child_price"]');
+                if (adultPriceInput) adultPriceInput.value = '';
+                if (childPriceInput) childPriceInput.value = '';
             } else {
                 itemBasedPricing.style.display = 'none';
                 personBasedPricing.style.display = 'block';
                 // 清空模板1的字段
-                document.querySelector('input[name="item_unit_price"]').value = '';
-                document.querySelector('input[name="item_quantity"]').value = '1';
+                const itemUnitPriceInput = document.querySelector('input[name="item_unit_price"]');
+                const itemQuantityInput = document.querySelector('input[name="item_quantity"]');
+                if (itemUnitPriceInput) itemUnitPriceInput.value = '';
+                if (itemQuantityInput) itemQuantityInput.value = '1';
             }
             updateCalculations();
         });
@@ -691,18 +737,25 @@ document.addEventListener('DOMContentLoaded', function() {
     const itemQuantityInput = document.querySelector('input[name="item_quantity"]');
     
     function updateItemBasedCalculations() {
+        if (!itemUnitPriceInput || !itemQuantityInput) return;
+        
         const itemUnitPrice = parseFloat(itemUnitPriceInput.value) || 0;
         const itemQuantity = parseInt(itemQuantityInput.value) || 0;
         const totalCost = itemUnitPrice * itemQuantity;
         
         // 更新总价显示
-        document.getElementById('itemTotalCost').value = totalCost.toFixed(2);
+        const itemTotalCostInput = document.getElementById('itemTotalCost');
+        if (itemTotalCostInput) {
+            itemTotalCostInput.value = totalCost.toFixed(2);
+        }
         
         // 计算人均价格
         const adultCount = parseInt('{{ budget.adult_count }}') || 0;
         const childCount = parseInt('{{ budget.child_count }}') || 0;
-        const countAdultApply = document.querySelector('input[name="count_adult_apply"]').checked;
-        const countChildApply = document.querySelector('input[name="count_child_apply"]').checked;
+        const countAdultApplyInput = document.querySelector('input[name="count_adult_apply"]');
+        const countChildApplyInput = document.querySelector('input[name="count_child_apply"]');
+        const countAdultApply = countAdultApplyInput ? countAdultApplyInput.checked : false;
+        const countChildApply = countChildApplyInput ? countChildApplyInput.checked : false;
         
         let totalPersons = 0;
         if (countAdultApply) totalPersons += adultCount;
@@ -710,11 +763,15 @@ document.addEventListener('DOMContentLoaded', function() {
         
         if (totalPersons > 0) {
             const unitPrice = totalCost / totalPersons;
-            document.getElementById('itemAdultUnitPrice').value = countAdultApply ? unitPrice.toFixed(2) : '0.00';
-            document.getElementById('itemChildUnitPrice').value = countChildApply ? unitPrice.toFixed(2) : '0.00';
+            const itemAdultUnitPriceEl = document.getElementById('itemAdultUnitPrice');
+            const itemChildUnitPriceEl = document.getElementById('itemChildUnitPrice');
+            if (itemAdultUnitPriceEl) itemAdultUnitPriceEl.value = countAdultApply ? unitPrice.toFixed(2) : '0.00';
+            if (itemChildUnitPriceEl) itemChildUnitPriceEl.value = countChildApply ? unitPrice.toFixed(2) : '0.00';
         } else {
-            document.getElementById('itemAdultUnitPrice').value = '0.00';
-            document.getElementById('itemChildUnitPrice').value = '0.00';
+            const itemAdultUnitPriceEl = document.getElementById('itemAdultUnitPrice');
+            const itemChildUnitPriceEl = document.getElementById('itemChildUnitPrice');
+            if (itemAdultUnitPriceEl) itemAdultUnitPriceEl.value = '0.00';
+            if (itemChildUnitPriceEl) itemChildUnitPriceEl.value = '0.00';
         }
     }
     
@@ -723,36 +780,53 @@ document.addEventListener('DOMContentLoaded', function() {
     const childPriceInput = document.querySelector('input[name="child_price"]');
     
     function updatePersonBasedCalculations() {
+        if (!adultPriceInput || !childPriceInput) return;
+        
         const adultPrice = parseFloat(adultPriceInput.value) || 0;
         const childPrice = parseFloat(childPriceInput.value) || 0;
         const adultCount = parseInt('{{ budget.adult_count }}') || 0;
         const childCount = parseInt('{{ budget.child_count }}') || 0;
-        const countAdultApply = document.querySelector('input[name="count_adult_apply"]').checked;
-        const countChildApply = document.querySelector('input[name="count_child_apply"]').checked;
+        const countAdultApplyInput = document.querySelector('input[name="count_adult_apply"]');
+        const countChildApplyInput = document.querySelector('input[name="count_child_apply"]');
+        const countAdultApply = countAdultApplyInput ? countAdultApplyInput.checked : false;
+        const countChildApply = countChildApplyInput ? countChildApplyInput.checked : false;
         
         let totalCost = 0;
         if (countAdultApply) totalCost += adultPrice * adultCount;
         if (countChildApply) totalCost += childPrice * childCount;
         
-        document.getElementById('personTotalCost').value = totalCost.toFixed(2);
+        const personTotalCostEl = document.getElementById('personTotalCost');
+        if (personTotalCostEl) {
+            personTotalCostEl.value = totalCost.toFixed(2);
+        }
     }
     
     // 绑定计算事件
-    itemUnitPriceInput.addEventListener('input', updateItemBasedCalculations);
-    itemQuantityInput.addEventListener('input', updateItemBasedCalculations);
-    adultPriceInput.addEventListener('input', updatePersonBasedCalculations);
-    childPriceInput.addEventListener('input', updatePersonBasedCalculations);
+    if (itemUnitPriceInput) itemUnitPriceInput.addEventListener('input', updateItemBasedCalculations);
+    if (itemQuantityInput) itemQuantityInput.addEventListener('input', updateItemBasedCalculations);
+    if (adultPriceInput) adultPriceInput.addEventListener('input', updatePersonBasedCalculations);
+    if (childPriceInput) childPriceInput.addEventListener('input', updatePersonBasedCalculations);
     
     // 人数变化时重新计算
-    document.querySelector('input[name="count_adult_apply"]').addEventListener('change', function() {
-        updateCalculations();
-    });
-    document.querySelector('input[name="count_child_apply"]').addEventListener('change', function() {
-        updateCalculations();
-    });
+    const countAdultApplyEl = document.querySelector('input[name="count_adult_apply"]');
+    const countChildApplyEl = document.querySelector('input[name="count_child_apply"]');
+    
+    if (countAdultApplyEl) {
+        countAdultApplyEl.addEventListener('change', function() {
+            updateCalculations();
+        });
+    }
+    if (countChildApplyEl) {
+        countChildApplyEl.addEventListener('change', function() {
+            updateCalculations();
+        });
+    }
     
     function updateCalculations() {
-        const currentMethod = document.querySelector('input[name="pricing_method"]:checked').value;
+        const currentMethodInput = document.querySelector('input[name="pricing_method"]:checked');
+        if (!currentMethodInput) return;
+        
+        const currentMethod = currentMethodInput.value;
         if (currentMethod === 'item_based') {
             updateItemBasedCalculations();
         } else {

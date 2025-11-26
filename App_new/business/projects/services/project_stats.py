@@ -44,7 +44,7 @@ class ProjectStatsService:
             # 获取EO记录统计（通过REF关联）
             ref_ids = [ref.id for ref in refs]
             eos = ProjectEO.query.filter(ProjectEO.ref_id.in_(ref_ids)).all() if ref_ids else []
-            total_eo_amount = sum([float(eo.amount or 0) for eo in eos])
+            total_eo_amount = sum([float(eo.ref.cost_price or 0) for eo in eos if eo.ref])
             
             return {
                 'project_id': project_id,

@@ -173,9 +173,9 @@
                                 <span class="badge bg-secondary">{{ ref.ref_number }}</span>
                             </td>
                             <td>
-                                <strong>{{ ref.name }}</strong>
-                                {% if ref.description and ref.description != ref.name %}
-                                <br><small class="text-muted">{{ ref.description }}</small>
+                                <strong>{{ ref.description }}</strong>
+                                {% if ref.detailed_description and ref.detailed_description != ref.description %}
+                                <br><small class="text-muted">{{ ref.detailed_description }}</small>
                                 {% endif %}
                             </td>
                             <td>
@@ -197,8 +197,8 @@
                                 {% endif %}
                             </td>
                             <td>
-                                {% if ref.leader_name %}
-                                <span class="text-primary">{{ ref.leader_name }}</span>
+                                {% if ref.header and ref.header.leader_name %}
+                                <span class="text-primary">{{ ref.header.leader_name }}</span>
                                 {% else %}
                                 <span class="text-muted">未指定</span>
                                 {% endif %}

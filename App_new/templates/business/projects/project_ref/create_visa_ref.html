@@ -12,12 +12,19 @@
                     <h2 class="mb-0">{% if ref %}编辑签证明细{% else %}新建签证明细{% endif %}</h2>
                 </div>
                 <div class="card-body">
-                    <form method="post">
+                    <form method="post" action="{% if ref %}{{ url_for('business_projects.project_ref.edit_visa_ref', ref_id=ref.id) }}{% else %}{{ url_for('business_projects.project_ref.submit_visa_ref') }}{% endif %}">
                         <!-- CSRF令牌 -->
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-
-                        <!-- 隐藏的名称字段，自动生成 -->
-                        <input type="hidden" name="name" id="auto_name" value="{{ ref.name if ref and not is_create else '' }}">
+                        
+                        <!-- 隐藏字段 -->
+                        <input type="hidden" name="header_id" value="{{ header_id }}">
+                        {% if ref and not is_create %}
+                        <input type="hidden" name="ref_id" value="{{ ref.id }}">
+                        {% endif %}
+                        
+                        <!-- 描述字段（自动生成，可通过 JavaScript 更新） -->
+                        <input type="hidden" name="description" id="auto_description" value="{{ ref.description if ref and not is_create else '' }}">
+                        <input type="hidden" name="detailed_description" id="auto_detailed_description" value="{{ ref.detailed_description if ref and not is_create else '' }}">
 
                         <div class="row mb-4">
                             <div class="col-md-6">
@@ -55,8 +62,9 @@
                             </div>
                         </div>
 
+                        <!-- 售价、成本、供应商 - 同一行 -->
                         <div class="row mb-4">
-                            <div class="col-md-6">
+                            <div class="col-md-4">
                                 <div class="form-group">
                                     <label>售价 (SGD) <span class="text-danger">*</span></label>
                                     <div class="input-group">
@@ -67,7 +75,7 @@
                                     <div class="invalid-feedback">请输入有效的售价</div>
                                 </div>
                             </div>
-                            <div class="col-md-6">
+                            <div class="col-md-4">
                                 <div class="form-group">
                                     <label>成本 (SGD) <span class="text-danger">*</span></label>
                                     <div class="input-group">
@@ -78,10 +86,7 @@
                                     <div class="invalid-feedback">请输入有效的成本价格</div>
                                 </div>
                             </div>
-                        </div>
-
-                        <div class="row mb-4">
-                            <div class="col-md-6">
+                            <div class="col-md-4">
                                 <div class="form-group">
                                     <label>供应商</label>
                                     <select name="supplier_id" class="form-control">
@@ -93,58 +98,6 @@
                                             </option>
                                         {% endfor %}
                                     </select>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="form-group">
-                                    <label>负责人姓名 <span class="text-danger">*</span></label>
-                                    <input type="text" name="leader_name" class="form-control" required
-                                           placeholder="请输入负责人姓名"
-                                           value="{{ ref.leader_name if ref and not is_create else '' }}">
-                                    <div class="invalid-feedback">请输入负责人姓名</div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="row mb-4">
-                            <div class="col-md-6">
-                                <div class="form-group">
-                                    <label>状态 <span class="text-danger">*</span></label>
-                                    <select name="status" class="form-control" required>
-                                        <option value="draft" {% if ref and ref.status == 'draft' and not is_create %}selected{% endif %}>草稿</option>
-                                        <option value="processing" {% if ref and ref.status == 'processing' and not is_create %}selected{% endif %}>处理中</option>
-                                        <option value="completed" {% if ref and ref.status == 'completed' and not is_create %}selected{% endif %}>已完成</option>
-                                        <option value="cancelled" {% if ref and ref.status == 'cancelled' and not is_create %}selected{% endif %}>已取消</option>
-                                    </select>
-                                    <div class="invalid-feedback">请选择状态</div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="row mb-4">
-                            <div class="col-md-6">
-                                <div class="form-group">
-                                    <label>出行日期 <span class="text-danger">*</span></label>
-                                    <input type="date" name="expected_delivery_date" class="form-control" max="2050-12-31" required
-                                           value="{{ ref.expected_delivery_date.strftime('%Y-%m-%d') if ref and ref.expected_delivery_date and not is_create else '' }}">
-                                    <div class="invalid-feedback">请选择有效的出行日期</div>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="form-group">
-                                    <label>结束日期</label>
-                                    <input type="date" name="actual_delivery_date" class="form-control" max="2050-12-31"
-                                           value="{{ ref.actual_delivery_date.strftime('%Y-%m-%d') if ref and ref.actual_delivery_date and not is_create else '' }}">
-                                    <div class="invalid-feedback">请选择有效的结束日期</div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="row mb-4">
-                            <div class="col-md-12">
-                                <div class="form-group">
-                                    <label>申请人信息</label>
-                                    <textarea name="applicant_info" class="form-control" rows="3" placeholder="请输入申请人信息，如姓名、护照号、联系方式等">{{ visa_info.get('applicant_info', '') if visa_info else '' }}</textarea>
                                 </div>
                             </div>
                         </div>
@@ -169,7 +122,7 @@
                                             <i class="fas fa-check"></i> EO: {{ ref.eos.eo_number }}
                                         </span>
                                 {% else %}
-                                    <button type="button" class="btn btn-primary btn-lg px-5 ms-2" onclick="quickCreateEO({{ ref.id if ref else 'null' }})">
+                                    <button type="button" class="btn btn-primary btn-lg px-5 ms-2" onclick="quickCreateEO({% if ref %}{{ ref.id }}{% else %}null{% endif %})">
                                         <i class="fas fa-plus"></i> 生成EO
                                     </button>
                                 {% endif %}
@@ -204,38 +157,6 @@ document.addEventListener('DOMContentLoaded', function() {
         return isValid;
     }
 
-    // 日期校验函数
-    function validateDates() {
-        const expectedDate = document.querySelector('input[name="expected_delivery_date"]');
-        const actualDate = document.querySelector('input[name="actual_delivery_date"]');
-
-        // 检查日期范围
-        if (expectedDate.value) {
-            const expected = new Date(expectedDate.value);
-            const maxDate = new Date('2050-12-31');
-
-            if (expected > maxDate) {
-                expectedDate.classList.remove('is-valid');
-                expectedDate.classList.add('is-invalid');
-                expectedDate.nextElementSibling.textContent = '出行日期不能超过2050年';
-                return false;
-            }
-        }
-
-        if (actualDate.value) {
-            const actual = new Date(actualDate.value);
-            const maxDate = new Date('2050-12-31');
-
-            if (actual > maxDate) {
-                actualDate.classList.remove('is-valid');
-                actualDate.classList.add('is-invalid');
-                actualDate.nextElementSibling.textContent = '结束日期不能超过2050年';
-                return false;
-            }
-        }
-
-        return true;
-    }
 
     // 价格校验函数
     function validatePrices() {
@@ -295,9 +216,6 @@ document.addEventListener('DOMContentLoaded', function() {
             validateField(this);
 
             // 特殊校验
-            if (this.name === 'expected_delivery_date' || this.name === 'actual_delivery_date') {
-                validateDates();
-            }
             if (this.name === 'selling_price' || this.name === 'cost_price') {
                 validatePrices();
             }
@@ -328,9 +246,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
 
         // 特殊校验
-        if (!validateDates()) {
-            isValid = false;
-        }
         if (!validatePrices()) {
             isValid = false;
         }
@@ -376,63 +291,76 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 3000);
     }
 
-    // 国家选择变化时更新签证类型
-    document.getElementById('country').addEventListener('change', function() {
-        const countrySelect = this;
-        const visaTypeSelect = document.getElementById('visa_type');
-        const selectedCountry = countrySelect.value;
+    // 获取国家选择元素
+    const countrySelectEl = document.getElementById('country');
+    const visaTypeSelect = document.getElementById('visa_type');
+    
+    // 国家选择变化时更新签证类型和描述
+    if (countrySelectEl) {
+        countrySelectEl.addEventListener('change', function() {
+            const selectedCountry = this.value;
 
-        // 清空签证类型下拉框
-        visaTypeSelect.innerHTML = '<option value="">请先选择国家</option>';
+            // 清空签证类型下拉框
+            if (visaTypeSelect) {
+                visaTypeSelect.innerHTML = '<option value="">请先选择国家</option>';
+            }
 
-        if (selectedCountry) {
-            // 根据国家名称找到对应的国家ID
-            const countryOption = countrySelect.options[countrySelect.selectedIndex];
-            const countryId = countryOption.getAttribute('data-country-id');
+            if (selectedCountry) {
+                // 根据国家名称找到对应的国家ID
+                const countryOption = this.options[this.selectedIndex];
+                const countryId = countryOption.getAttribute('data-country-id');
 
-            if (countryId) {
-                // 显示加载状态
-                visaTypeSelect.disabled = true;
+                if (countryId && visaTypeSelect) {
+                    // 显示加载状态
+                    visaTypeSelect.disabled = true;
 
-                // 获取该国家的签证类型
-                fetch(`/projects/ref/api/get_visa_types/${countryId}`)
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            data.visa_types.forEach(type => {
-                                const option = document.createElement('option');
-                                option.value = type.visa_type;
-                                option.textContent = type.visa_type;
-                                visaTypeSelect.appendChild(option);
-                            });
+                    // 获取该国家的签证类型
+                    fetch(`/projects/ref/api/get_visa_types/${countryId}`)
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                data.visa_types.forEach(type => {
+                                    const option = document.createElement('option');
+                                    option.value = type.visa_type;
+                                    option.textContent = type.visa_type;
+                                    visaTypeSelect.appendChild(option);
+                                });
 
-                            // 如果是编辑模式，尝试恢复之前选择的签证类型
-                            {% if visa_info and visa_info.get('visa_type') %}
-                            const savedVisaType = '{{ visa_info.get("visa_type", "") }}';
-                            if (savedVisaType) {
-                                for (let option of visaTypeSelect.options) {
-                                    if (option.value === savedVisaType) {
-                                        option.selected = true;
-                                        // 更新自动生成的名称
-                                        updateAutoName(savedVisaType);
-                                        break;
+                                // 如果是编辑模式，尝试恢复之前选择的签证类型
+                                {% if visa_info and visa_info.get('visa_type') %}
+                                const savedVisaType = '{{ visa_info.get("visa_type", "") }}';
+                                if (savedVisaType) {
+                                    for (let option of visaTypeSelect.options) {
+                                        if (option.value === savedVisaType) {
+                                            option.selected = true;
+                                            // 更新自动生成的描述
+                                            updateAutoName(savedVisaType);
+                                            break;
+                                        }
                                     }
                                 }
+                                {% endif %}
+                            } else {
+                                console.error('获取签证类型失败:', data.message);
                             }
-                            {% endif %}
-                        } else {
-                            console.error('获取签证类型失败:', data.message);
-                        }
-                    })
-                    .catch(error => {
-                        console.error('请求签证类型时出错:', error);
-                    })
-                    .finally(() => {
-                        visaTypeSelect.disabled = false;
-                    });
+                        })
+                        .catch(error => {
+                            console.error('请求签证类型时出错:', error);
+                        })
+                        .finally(() => {
+                            if (visaTypeSelect) {
+                                visaTypeSelect.disabled = false;
+                            }
+                        });
+                }
             }
-        }
-    });
+            
+            // 更新详细描述（如果已有签证类型）
+            if (visaTypeSelect && visaTypeSelect.value) {
+                updateAutoName(visaTypeSelect.value);
+            }
+        });
+    }
 
     // 签证类型选择变化时自动更新名称
     document.getElementById('visa_type').addEventListener('change', function() {
@@ -440,13 +368,38 @@ document.addEventListener('DOMContentLoaded', function() {
         updateAutoName(selectedVisaType);
     });
 
-    // 更新自动生成的名称
+    // 更新自动生成的描述
     function updateAutoName(visaType) {
-        const nameField = document.getElementById('auto_name');
-        if (visaType) {
-            nameField.value = visaType + '申请';
+        const descriptionField = document.getElementById('auto_description');
+        const detailedDescriptionField = document.getElementById('auto_detailed_description');
+        const countryField = document.getElementById('country');
+        
+        if (visaType && countryField && countryField.value) {
+            const countryName = countryField.options[countryField.selectedIndex].text;
+            const description = visaType + '申请';
+            const detailedDescription = countryName + ' ' + visaType + '申请服务';
+            
+            if (descriptionField) {
+                descriptionField.value = description;
+            }
+            if (detailedDescriptionField) {
+                detailedDescriptionField.value = detailedDescription;
+            }
+        } else if (visaType) {
+            const description = visaType + '申请';
+            if (descriptionField) {
+                descriptionField.value = description;
+            }
+            if (detailedDescriptionField) {
+                detailedDescriptionField.value = description;
+            }
         } else {
-            nameField.value = '';
+            if (descriptionField) {
+                descriptionField.value = '';
+            }
+            if (detailedDescriptionField) {
+                detailedDescriptionField.value = '';
+            }
         }
     }
 
@@ -457,12 +410,9 @@ document.addEventListener('DOMContentLoaded', function() {
         'selling_price': '向客户收取的价格',
         'cost_price': '签证申请的实际成本',
         'supplier_id': '选择提供签证服务的供应商',
-        'status': '选择当前签证申请状态',
-        'expected_delivery_date': '选择出行或申请日期',
-        'actual_delivery_date': '选择签证有效期结束日期',
-        'applicant_info': '填写申请人的详细信息',
         'remarks': '可填写特殊要求、注意事项等'
     };
+    
 
     // 为字段添加提示
     Object.keys(tooltips).forEach(fieldName => {
@@ -474,13 +424,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // 编辑模式：如果有预选的国家，触发change事件来加载签证类型
     {% if not is_create and visa_info and (visa_info.get('country') or visa_info.get('visa_country')) %}
-    const countrySelect = document.getElementById('country');
-    if (countrySelect && countrySelect.value) {
-        const countryValue = '{{ visa_info.get("country", visa_info.get("visa_country", "")) }}';
+    if (countrySelectEl && countrySelectEl.value) {
+        var countryValue = '{{ visa_info.get("country", visa_info.get("visa_country", "")) }}';
         console.log('编辑模式，预选国家:', countryValue);
         // 延迟触发change事件，确保DOM完全加载
         setTimeout(function() {
-            countrySelect.dispatchEvent(new Event('change'));
+            if (countrySelectEl) {
+                countrySelectEl.dispatchEvent(new Event('change'));
+            }
         }, 100);
     }
     {% endif %}

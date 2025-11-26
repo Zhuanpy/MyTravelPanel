@@ -1,10 +1,6 @@
 {% extends "shared/staff_base.html" %}
 
-
-
 {% block page_title %}Visa Ref Detail{% endblock %}
-
-
 
 {% block content %}
 <style>
@@ -126,106 +122,81 @@
                 <th>REF编号</th>
                 <td>{{ ref.ref_number }}</td>
                 <th>REF名称</th>
-                <td>{{ ref.name or '未设�? }}</td>
+                <td>{{ ref.description or ref.detailed_description or '未设定' }}</td>
             </tr>
             <tr>
                 <th>业务类型</th>
-                <td>{{ ref_type_name if ref_type_name else '未设�? }}</td>
+                <td>{{ ref_type_name if ref_type_name else '未设定' }}</td>
                 <th>描述</th>
-                <td>{{ ref.description or '未设�? }}</td>
+                <td>{{ ref.detailed_description or '未设定' }}</td>
             </tr>
             <tr>
-                <th>供应�?/th>
-                <td>{{ supplier_name if supplier_name else '未设�? }}</td>
+                <th>供应商</th>
+                <td>{{ supplier_name if supplier_name else '未设定' }}</td>
                 <th>供应商联系人</th>
-                <td>{{ ref.supplier_contact or '未设�? }}</td>
+                <td>{{ ref.supplier.contact_person if ref.supplier and ref.supplier.contact_person else '未设定' }}</td>
             </tr>
             <tr>
-                <th>供应商电�?/th>
-                <td>{{ ref.supplier_phone or '未设�? }}</td>
+                <th>供应商电话</th>
+                <td>{{ ref.supplier.phone if ref.supplier and ref.supplier.phone else '未设定' }}</td>
                 <th>货币</th>
                 <td>{{ ref.currency or 'SGD' }}</td>
             </tr>
             <tr>
-                <th>销售价�?/th>
-                <td>{{ "%.2f"|format(ref.selling_price) if ref.selling_price else '未设�? }}</td>
+                <th>销售价格</th>
+                <td>{{ "%.2f"|format(ref.selling_price) if ref.selling_price else '未设定' }}</td>
                 <th>成本价格</th>
-                <td>{{ "%.2f"|format(ref.cost_price) if ref.cost_price else '未设�? }}</td>
+                <td>{{ "%.2f"|format(ref.cost_price) if ref.cost_price else '未设定' }}</td>
             </tr>
             <tr>
                 <th>利润</th>
-                <td>{{ "%.2f"|format(ref.selling_price - ref.cost_price) if ref.selling_price and ref.cost_price else '未设�? }}</td>
-                <th>利润�?/th>
-                <td>{{ "%.2f%%"|format((ref.selling_price - ref.cost_price) / ref.selling_price * 100) if ref.selling_price and ref.cost_price and ref.selling_price > 0 else '未设�? }}</td>
+                <td>{{ "%.2f"|format(ref.selling_price - ref.cost_price) if ref.selling_price and ref.cost_price else '未设定' }}</td>
+                <th>利润率</th>
+                <td>{{ "%.2f%%"|format((ref.selling_price - ref.cost_price) / ref.selling_price * 100) if ref.selling_price and ref.cost_price and ref.selling_price > 0 else '未设定' }}</td>
             </tr>
             <tr>
-                <th>联系�?/th>
-                <td>{{ ref.contact_name or '未设�? }}</td>
-                <th>联系电话</th>
-                <td>{{ ref.contact_phone or '未设�? }}</td>
-            </tr>
-            <tr>
-                <th>电子邮箱</th>
-                <td>{{ ref.contact_email or '未设�? }}</td>
-                <th>状�?/th>
+                <th>联系人</th>
+                <td>{{ ref.header.contact if ref.header and ref.header.contact else '未设定' }}</td>
+                <th>状态</th>
                 <td><span class="status-badge status-{{ ref.status }}">{{ ref.status }}</span></td>
             </tr>
             <tr>
-                <th>支付状�?/th>
+                <th>支付状态</th>
                 <td><span class="status-badge status-{{ ref.payment_status }}">{{ ref.payment_status }}</span></td>
-                <th>预计交付日期</th>
-                <td>{{ ref.expected_delivery_date.strftime('%Y-%m-%d') if ref.expected_delivery_date else '未设�? }}</td>
-            </tr>
-            <tr>
-                <th>实际交付日期</th>
-                <td>{{ ref.actual_delivery_date.strftime('%Y-%m-%d') if ref.actual_delivery_date else '未设�? }}</td>
                 <th>创建时间</th>
-                <td>{{ ref.created_at.strftime('%Y-%m-%d %H:%M') if ref.created_at else '未设�? }}</td>
+                <td>{{ ref.created_at.strftime('%Y-%m-%d %H:%M') if ref.created_at else '未设定' }}</td>
             </tr>
             <tr>
                 <th>备注</th>
-                <td colspan="3">{{ ref.remarks or '�? }}</td>
+                <td colspan="3">{{ ref.remarks or '无' }}</td>
             </tr>
         </table>
     </div>
 
-    <!-- 签证申请人信�?-->
+    <!-- 签证申请人信息 -->
     <div class="detail-card">
-        <h2 class="detail-title">签证申请人信�?/h2>
+        <h2 class="detail-title">签证申请人信息</h2>
         <div class="visa-applicant-card">
             <div class="visa-applicant-header">
-                <span>申请人信�?/span>
+                <span>申请人信息</span>
                 <span class="status-badge status-{{ ref.status }}">{{ ref.status }}</span>
             </div>
             <div class="applicant-info">
                 <div class="applicant-info-item">
                     <span class="applicant-info-label">申请国家</span>
-                    <span class="applicant-info-value">{{ visa_info.get('country', '未设�?) }}</span>
+                    <span class="applicant-info-value">{{ visa_info.get('country', '未设定') }}</span>
                 </div>
                 <div class="applicant-info-item">
                     <span class="applicant-info-label">签证类型</span>
-                    <span class="applicant-info-value">{{ visa_info.get('visa_type', '未设�?) }}</span>
-                </div>
-                <div class="applicant-info-item">
-                    <span class="applicant-info-label">申请人信�?/span>
-                    <span class="applicant-info-value">{{ visa_info.get('applicant_info', '未设�?) }}</span>
-                </div>
-                <div class="applicant-info-item">
-                    <span class="applicant-info-label">出行日期</span>
-                    <span class="applicant-info-value">{{ ref.expected_delivery_date.strftime('%Y-%m-%d') if ref.expected_delivery_date else '未设�? }}</span>
-                </div>
-                <div class="applicant-info-item">
-                    <span class="applicant-info-label">结束日期</span>
-                    <span class="applicant-info-value">{{ ref.actual_delivery_date.strftime('%Y-%m-%d') if ref.actual_delivery_date else '未设�? }}</span>
+                    <span class="applicant-info-value">{{ visa_info.get('visa_type', '未设定') }}</span>
                 </div>
             </div>
         </div>
-
     </div>
 
     <!-- 操作按钮 -->
     <div class="action-buttons">
-        <a href="{{ url_for('business_projects.project_ref.edit_ref', ref_id=ref.id) }}" class="btn btn-warning">
+        <a href="{{ url_for('business_projects.project_ref.edit_visa_ref', ref_id=ref.id) }}" class="btn btn-warning">
             编辑REF
         </a>
         <a href="{{ url_for('business_projects.detail.project_detail', project_id=ref.header_id) }}" class="btn btn-secondary">
@@ -233,4 +204,6 @@
         </a>
     </div>
 </div>
-{% endblock %} \n\n{% block title %}签证REF详情 - {{ ref.ref_number }}{% endblock %}
+{% endblock %}
+
+{% block title %}签证REF详情 - {{ ref.ref_number }}{% endblock %}

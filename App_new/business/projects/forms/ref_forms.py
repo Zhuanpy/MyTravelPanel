@@ -12,48 +12,23 @@ class ProjectRefForm(FlaskForm):
         Length(max=30, message='REF编号不能超过30个字符')
     ])
     
-    name = StringField('REF订单名称', [
-        Length(max=100, message='订单名称不能超过100个字符')
+    description = StringField('描述', [
+        Length(max=100, message='描述不能超过100个字符')
     ])
     
     ref_type_id = SelectField('REF类型', [
         Optional()  # 改为可选，因为代码中会自动设置
     ], coerce=int)
     
-    description = StringField('描述', [
-        DataRequired(message='描述不能为空'),
-        Length(max=200, message='描述不能超过200个字符')
+    detailed_description = StringField('详细描述', [
+        Optional(),  # 改为可选，如果为空会自动使用 description
+        Length(max=200, message='详细描述不能超过200个字符')
     ])
     
     # 供应商信息
     supplier_id = SelectField('供应商', [
         Optional()
     ], coerce=int, choices=[])
-    
-    supplier_contact = StringField('供应商联系人', [
-        Length(max=50, message='供应商联系人不能超过50个字符')
-    ])
-    
-    supplier_phone = StringField('供应商联系电话', [
-        Length(max=20, message='供应商联系电话不能超过20个字符')
-    ])
-    
-    # 联系人信息
-    contact_name = StringField('联系人姓名', [
-        Length(max=50, message='联系人姓名不能超过50个字符')
-    ])
-    
-    contact_phone = StringField('联系电话', [
-        Length(max=20, message='联系电话不能超过20个字符')
-    ])
-    
-    contact_email = StringField('电子邮箱', [
-        Length(max=100, message='电子邮箱不能超过100个字符')
-    ])
-    
-    leader_name = StringField('负责人姓名', [
-        Length(max=100, message='负责人姓名不能超过100个字符')
-    ])
     
     # 出行人信息
     passenger_names = StringField('Leader name', [
@@ -85,15 +60,6 @@ class ProjectRefForm(FlaskForm):
         ('IDR', '印尼盾'),
         ('VND', '越南盾')
     ])
-    
-    # 日期信息
-    expected_delivery_date = DateField('预计交付日期', [
-        Optional()
-    ], format='%Y-%m-%d')
-    
-    actual_delivery_date = DateField('实际交付日期', [
-        Optional()
-    ], format='%Y-%m-%d')
     
     # 备注
     remarks = TextAreaField('备注', [

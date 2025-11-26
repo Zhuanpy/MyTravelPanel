@@ -56,20 +56,20 @@ def create_ref(header_id):
                     db.session.add(other_business_type)
                     db.session.flush()
                 
+                # 处理描述字段，如果 detailed_description 为空，使用 description
+                description = form.description.data or '其他服务'
+                detailed_description = form.detailed_description.data or description
+                
                 ref = ProjectRef(
                     header_id=header.id,
                     ref_number=ref_number,
-                    name=form.name.data,
+                    description=description,
                     ref_type_id=other_business_type.id,  # 强制使用"其他"类型
-                    description=form.description.data,
+                    detailed_description=detailed_description,
                     supplier_id=form.supplier_id.data if form.supplier_id.data and form.supplier_id.data != 0 else None,
-                    supplier_contact=form.supplier_contact.data,
-                    supplier_phone=form.supplier_phone.data,
                     selling_price=form.selling_price.data,
                     cost_price=form.cost_price.data,
                     currency='SGD',  # 强制使用新加坡元
-                    expected_delivery_date=form.expected_delivery_date.data,
-                    actual_delivery_date=form.actual_delivery_date.data,
                     remarks=form.remarks.data,
                     status='processing',  # 强制使用"处理中"
                     payment_status='unpaid'  # 强制使用"未支付"
@@ -196,17 +196,12 @@ def submit_flight_ref():
         if ref_id:
             ref = ProjectRef.query.get_or_404(ref_id)
             # 更新REF基本信息
-            ref.name = '机票订单'
             ref.description = '机票订单'
+            ref.detailed_description = '机票订单'
             ref.supplier_id = request.form.get('supplier_id') if request.form.get('supplier_id') and request.form.get(
                 'supplier_id') != '0' else None
-            ref.leader_name = request.form.get('leader_name', '')
-            ref.contact_name = request.form.get('contact_name')
-            ref.contact_phone = request.form.get('contact_phone')
-            ref.contact_email = request.form.get('contact_email')
             ref.remarks = request.form.get('remarks')
-            ref.status = request.form.get('status', 'draft')
-            ref.payment_status = request.form.get('payment_status', 'unpaid')
+            # 状态和支付状态字段已从表单中移除，保持现有值不变
         else:
             # 创建新的REF
             header = ProjectHeader.query.get_or_404(header_id)
@@ -222,18 +217,14 @@ def submit_flight_ref():
             ref = ProjectRef(
                 header_id=header.id,
                 ref_number=ref_number,
-                name='机票订单',
-                ref_type_id=flight_business_type.id,
                 description='机票订单',
+                ref_type_id=flight_business_type.id,
+                detailed_description='机票订单',
                 supplier_id=request.form.get('supplier_id') if request.form.get('supplier_id') and request.form.get(
                     'supplier_id') != '0' else None,
-                leader_name=request.form.get('leader_name', ''),
-                contact_name=request.form.get('contact_name'),
-                contact_phone=request.form.get('contact_phone'),
-                contact_email=request.form.get('contact_email'),
                 remarks=request.form.get('remarks'),
-                status=request.form.get('status', 'draft'),
-                payment_status=request.form.get('payment_status', 'unpaid')
+                status='processing',  # 默认设置为"处理中"
+                payment_status='unpaid'  # 默认设置为"未付款"
             )
             db.session.add(ref)
             db.session.flush()  # 获取ref.id
@@ -370,8 +361,8 @@ def submit_flight_ref():
 
         # 生成REF名称并更新
         generated_name = generate_flight_ref_name(departure_airports, arrival_airports, departure_dates)
-        ref.name = generated_name
         ref.description = generated_name
+        ref.detailed_description = generated_name
 
         # 删除现有航段
         ProjectFlightSegment.query.filter_by(ref_id=ref.id).delete()
@@ -489,14 +480,10 @@ def submit_hotel_ref():
         if ref_id:
             ref = ProjectRef.query.get_or_404(ref_id)
             # 更新REF基本信息
-            ref.name = request.form.get('name', '酒店订单')
             ref.description = request.form.get('description', '酒店订单')
+            ref.detailed_description = request.form.get('detailed_description', '酒店订单')
             ref.supplier_id = request.form.get('supplier_id') if request.form.get('supplier_id') and request.form.get(
                 'supplier_id') != '0' else None
-            ref.leader_name = request.form.get('leader_name', '')
-            ref.contact_name = request.form.get('contact_name')
-            ref.contact_phone = request.form.get('contact_phone')
-            ref.contact_email = request.form.get('contact_email')
             ref.remarks = request.form.get('remarks')
             ref.status = request.form.get('status', 'draft')
             ref.payment_status = request.form.get('payment_status', 'unpaid')
@@ -523,15 +510,11 @@ def submit_hotel_ref():
             ref = ProjectRef(
                 header_id=header.id,
                 ref_number=ref_number,
-                name=request.form.get('name', '酒店订单'),
-                ref_type_id=hotel_business_type.id,
                 description=request.form.get('description', '酒店订单'),
+                ref_type_id=hotel_business_type.id,
+                detailed_description=request.form.get('detailed_description', '酒店订单'),
                 supplier_id=request.form.get('supplier_id') if request.form.get('supplier_id') and request.form.get(
                     'supplier_id') != '0' else None,
-                leader_name=request.form.get('leader_name', ''),
-                contact_name=request.form.get('contact_name'),
-                contact_phone=request.form.get('contact_phone'),
-                contact_email=request.form.get('contact_email'),
                 remarks=request.form.get('remarks'),
                 status=request.form.get('status', 'draft'),
                 payment_status=request.form.get('payment_status', 'unpaid'),
@@ -570,13 +553,9 @@ def edit_hotel_ref(ref_id):
     if request.method == 'POST':
         try:
             # 更新REF数据
-            ref.name = request.form.get('name', '酒店订单')
             ref.description = request.form.get('description', '酒店订单')
+            ref.detailed_description = request.form.get('detailed_description', '酒店订单')
             ref.supplier_id = request.form.get('supplier_id') if request.form.get('supplier_id') and request.form.get('supplier_id') != '0' else None
-            ref.leader_name = request.form.get('leader_name', '')
-            ref.contact_name = request.form.get('contact_name')
-            ref.contact_phone = request.form.get('contact_phone')
-            ref.contact_email = request.form.get('contact_email')
             ref.remarks = request.form.get('remarks')
             ref.status = request.form.get('status', 'draft')
             ref.payment_status = request.form.get('payment_status', 'unpaid')
@@ -661,15 +640,27 @@ def submit_visa_ref():
         if ref_id:
             ref = ProjectRef.query.get_or_404(ref_id)
             # 更新REF基本信息
-            ref.name = request.form.get('name', '签证订单')
-            ref.description = request.form.get('description', '签证订单')
+            # 处理描述字段，如果表单中有description则使用，否则使用默认值
+            description = request.form.get('description')
+            if not description:
+                # 如果没有description，尝试从签证类型自动生成
+                visa_type = request.form.get('visa_type', '')
+                country = request.form.get('country', '')
+                if visa_type:
+                    description = visa_type + '申请'
+                    detailed_description = (country + ' ' + visa_type + '申请服务') if country else description
+                else:
+                    description = ref.description or '签证订单'
+                    detailed_description = ref.detailed_description or '签证订单'
+            else:
+                detailed_description = request.form.get('detailed_description', description)
+            
+            ref.description = description
+            ref.detailed_description = detailed_description
             ref.supplier_id = request.form.get('supplier_id') if request.form.get('supplier_id') and request.form.get('supplier_id') != '0' else None
-            ref.leader_name = request.form.get('leader_name', '')
-            ref.contact_name = request.form.get('contact_name')
-            ref.contact_phone = request.form.get('contact_phone')
-            ref.contact_email = request.form.get('contact_email')
             ref.remarks = request.form.get('remarks')
-            ref.status = request.form.get('status', 'draft')
+            # 状态字段已从表单中移除，保持原有状态不变
+            # ref.status 保持不变
             ref.payment_status = request.form.get('payment_status', 'unpaid')
             ref.selling_price = float(request.form.get('selling_price', 0)) if request.form.get('selling_price') else None
             ref.cost_price = float(request.form.get('cost_price', 0)) if request.form.get('cost_price') else None
@@ -684,19 +675,30 @@ def submit_visa_ref():
                 flash('未找到签证业务类型，请先创建', 'error')
                 return redirect(url_for('business_projects.detail.project_detail', project_id=header_id))
             
+            # 处理描述字段
+            description = request.form.get('description')
+            if not description:
+                # 如果没有description，尝试从签证类型自动生成
+                visa_type = request.form.get('visa_type', '')
+                country = request.form.get('country', '')
+                if visa_type:
+                    description = visa_type + '申请'
+                    detailed_description = (country + ' ' + visa_type + '申请服务') if country else description
+                else:
+                    description = ref.description or '签证订单'
+                    detailed_description = ref.detailed_description or '签证订单'
+            else:
+                detailed_description = request.form.get('detailed_description', description)
+            
             ref = ProjectRef(
                 header_id=header.id,
                 ref_number=ref_number,
-                name=request.form.get('name', '签证订单'),
+                description=description,
                 ref_type_id=visa_business_type.id,
-                description=request.form.get('description', '签证订单'),
+                detailed_description=detailed_description,
                 supplier_id=request.form.get('supplier_id') if request.form.get('supplier_id') and request.form.get('supplier_id') != '0' else None,
-                leader_name=request.form.get('leader_name', ''),
-                contact_name=request.form.get('contact_name'),
-                contact_phone=request.form.get('contact_phone'),
-                contact_email=request.form.get('contact_email'),
                 remarks=request.form.get('remarks'),
-                status=request.form.get('status', 'draft'),
+                status='processing',  # 创建时默认设置为"处理中"
                 payment_status=request.form.get('payment_status', 'unpaid'),
                 selling_price=float(request.form.get('selling_price', 0)) if request.form.get('selling_price') else None,
                 cost_price=float(request.form.get('cost_price', 0)) if request.form.get('cost_price') else None
@@ -751,18 +753,14 @@ def create_tour_ref(header_id):
                 ref = ProjectRef(
                     header_id=header.id,
                     ref_number=ref_number,
-                    name=request.form.get('name', '旅游团订购'),
-                    ref_type_id=tour_business_type.id,
                     description=request.form.get('description', '旅游团订购'),
+                    ref_type_id=tour_business_type.id,
+                    detailed_description=request.form.get('detailed_description', '旅游团订购'),
                     supplier_id=(
                         request.form.get('supplier_id')
                         if request.form.get('supplier_id') and request.form.get('supplier_id') != '0'
                         else None
                     ),
-                    leader_name=request.form.get('leader_name', ''),
-                    contact_name=request.form.get('contact_name'),
-                    contact_phone=request.form.get('contact_phone'),
-                    contact_email=request.form.get('contact_email'),
                     remarks=request.form.get('remarks'),
                     status=request.form.get('status', 'draft'),
                     payment_status=request.form.get('payment_status', 'unpaid'),
@@ -806,17 +804,13 @@ def submit_tour_ref():
         if ref_id:
             ref = ProjectRef.query.get_or_404(ref_id)
             # 更新REF基本信息
-            ref.name = request.form.get('name', '旅游团订购')
             ref.description = request.form.get('description', '旅游团订购')
+            ref.detailed_description = request.form.get('detailed_description', '旅游团订购')
             ref.supplier_id = (
                 request.form.get('supplier_id')
                 if request.form.get('supplier_id') and request.form.get('supplier_id') != '0'
                 else None
             )
-            ref.leader_name = request.form.get('leader_name', '')
-            ref.contact_name = request.form.get('contact_name')
-            ref.contact_phone = request.form.get('contact_phone')
-            ref.contact_email = request.form.get('contact_email')
             ref.remarks = request.form.get('remarks')
             ref.status = request.form.get('status', 'draft')
             ref.payment_status = request.form.get('payment_status', 'unpaid')
@@ -847,10 +841,6 @@ def submit_tour_ref():
                     if request.form.get('supplier_id') and request.form.get('supplier_id') != '0'
                     else None
                 ),
-                leader_name=request.form.get('leader_name', ''),
-                contact_name=request.form.get('contact_name'),
-                contact_phone=request.form.get('contact_phone'),
-                contact_email=request.form.get('contact_email'),
                 remarks=request.form.get('remarks'),
                 status=request.form.get('status', 'draft'),
                 payment_status=request.form.get('payment_status', 'unpaid'),
@@ -916,18 +906,25 @@ def submit_insurance_ref():
         if ref_id:
             ref = ProjectRef.query.get_or_404(ref_id)
             # 更新REF基本信息
-            ref.name = request.form.get('name', '保险订单')
-            ref.description = request.form.get('description', '保险订单')
+            description = request.form.get('description')
+            if not description:
+                description = ref.description or '保险订单'
+            ref.description = description
+            ref.detailed_description = request.form.get('detailed_description', description)
             ref.supplier_id = request.form.get('supplier_id') if request.form.get('supplier_id') and request.form.get('supplier_id') != '0' else None
-            ref.leader_name = request.form.get('leader_name', '')
-            ref.contact_name = request.form.get('contact_name')
-            ref.contact_phone = request.form.get('contact_phone')
-            ref.contact_email = request.form.get('contact_email')
             ref.remarks = request.form.get('remarks')
             ref.status = request.form.get('status', 'draft')
             ref.payment_status = request.form.get('payment_status', 'unpaid')
             ref.selling_price = float(request.form.get('selling_price', 0)) if request.form.get('selling_price') else None
             ref.cost_price = float(request.form.get('cost_price', 0)) if request.form.get('cost_price') else None
+            
+            # 处理保险专属字段（保存到 extra_info）
+            insurance_extra_info = {
+                'insurance_type': request.form.get('insurance_type', ''),
+                'insured_person': request.form.get('insured_person', ''),
+                'insurance_details': request.form.get('insurance_details', '')
+            }
+            ref.extra_info = json.dumps(insurance_extra_info)
         else:
             # 创建新的REF
             header = ProjectHeader.query.get_or_404(header_id)
@@ -937,19 +934,20 @@ def submit_insurance_ref():
             insurance_business_type = BusinessType.query.filter_by(name='保险').first()
             if not insurance_business_type:
                 flash('未找到保险业务类型，请先创建', 'error')
-                return redirect(url_for('business_projects.detail.project_detail', header_id=header_id))
+                return redirect(url_for('business_projects.detail.project_detail', project_id=header_id))
+            
+            description = request.form.get('description')
+            if not description:
+                description = '保险订单'
+            detailed_description = request.form.get('detailed_description', description)
             
             ref = ProjectRef(
                 header_id=header.id,
                 ref_number=ref_number,
-                name=request.form.get('name', '保险订单'),
+                description=description,
                 ref_type_id=insurance_business_type.id,
-                description=request.form.get('description', '保险订单'),
+                detailed_description=detailed_description,
                 supplier_id=request.form.get('supplier_id') if request.form.get('supplier_id') and request.form.get('supplier_id') != '0' else None,
-                leader_name=request.form.get('leader_name', ''),
-                contact_name=request.form.get('contact_name'),
-                contact_phone=request.form.get('contact_phone'),
-                contact_email=request.form.get('contact_email'),
                 remarks=request.form.get('remarks'),
                 status=request.form.get('status', 'draft'),
                 payment_status=request.form.get('payment_status', 'unpaid'),
@@ -958,15 +956,23 @@ def submit_insurance_ref():
             )
             db.session.add(ref)
             db.session.flush()  # 获取ref.id
+            
+            # 处理保险专属字段（保存到 extra_info）
+            insurance_extra_info = {
+                'insurance_type': request.form.get('insurance_type', ''),
+                'insured_person': request.form.get('insured_person', ''),
+                'insurance_details': request.form.get('insurance_details', '')
+            }
+            ref.extra_info = json.dumps(insurance_extra_info)
         
-            db.session.commit()
+        db.session.commit()
         flash('保险REF保存成功', 'success')
-        return redirect(url_for('business_projects.detail.project_detail', header_id=header_id))
+        return redirect(url_for('business_projects.detail.project_detail', project_id=header_id))
             
     except Exception as e:
         db.session.rollback()
         flash(f'保存失败：{str(e)}', 'error')
-        return redirect(url_for('business_projects.detail.project_detail', header_id=header_id))
+        return redirect(url_for('business_projects.detail.project_detail', project_id=header_id))
 
 # 交通REF相关函数
 @project_ref.route('/transport/create/<int:header_id>', methods=['GET'])
@@ -1021,14 +1027,10 @@ def submit_transport_ref():
         if ref_id:
             ref = ProjectRef.query.get_or_404(ref_id)
             # 更新REF基本信息
-            ref.name = request.form.get('name', '交通订单')
             ref.description = request.form.get('description', '交通订单')
+            ref.detailed_description = request.form.get('detailed_description', '交通订单')
             ref.supplier_id = request.form.get('supplier_id') if request.form.get('supplier_id') and request.form.get(
                 'supplier_id') != '0' else None
-            ref.leader_name = request.form.get('leader_name', '')
-            ref.contact_name = request.form.get('contact_name')
-            ref.contact_phone = request.form.get('contact_phone')
-            ref.contact_email = request.form.get('contact_email')
             ref.remarks = request.form.get('remarks')
             ref.status = request.form.get('status', 'draft')
             ref.payment_status = request.form.get('payment_status', 'unpaid')
@@ -1054,10 +1056,6 @@ def submit_transport_ref():
                 description=request.form.get('description', '交通订单'),
                 supplier_id=request.form.get('supplier_id') if request.form.get('supplier_id') and request.form.get(
                     'supplier_id') != '0' else None,
-                leader_name=request.form.get('leader_name', ''),
-                contact_name=request.form.get('contact_name'),
-                contact_phone=request.form.get('contact_phone'),
-                contact_email=request.form.get('contact_email'),
                 remarks=request.form.get('remarks'),
                 status=request.form.get('status', 'draft'),
                 payment_status=request.form.get('payment_status', 'unpaid'),
@@ -1178,21 +1176,28 @@ def edit_visa_ref(ref_id):
     if request.method == 'POST':
         try:
             # 更新REF数据
-            ref.name = request.form.get('name', '签证服务')
-            ref.description = request.form.get('description', '签证服务')
+            # 处理描述字段，如果表单中有description则使用，否则使用默认值或从签证类型自动生成
+            description = request.form.get('description')
+            if not description:
+                # 如果没有description，尝试从签证类型自动生成
+                visa_type = request.form.get('visa_type', '')
+                country = request.form.get('country', '')
+                if visa_type:
+                    description = visa_type + '申请'
+                    detailed_description = (country + ' ' + visa_type + '申请服务') if country else description
+                else:
+                    description = ref.description or '签证订单'
+                    detailed_description = ref.detailed_description or '签证订单'
+            else:
+                detailed_description = request.form.get('detailed_description', description)
+            
+            ref.description = description
+            ref.detailed_description = detailed_description
             ref.supplier_id = request.form.get('supplier_id') if request.form.get('supplier_id') and request.form.get('supplier_id') != '0' else None
-            ref.supplier_contact = request.form.get('supplier_contact', '')
-            ref.supplier_phone = request.form.get('supplier_phone', '')
-            ref.leader_name = request.form.get('leader_name', '')
             ref.selling_price = float(request.form.get('selling_price', 0)) if request.form.get('selling_price') else None
             ref.cost_price = float(request.form.get('cost_price', 0)) if request.form.get('cost_price') else None
             
             # 处理日期字段，空字符串转换为None
-            expected_date = request.form.get('expected_delivery_date')
-            ref.expected_delivery_date = datetime.strptime(expected_date, '%Y-%m-%d').date() if expected_date else None
-            
-            actual_date = request.form.get('actual_delivery_date')
-            ref.actual_delivery_date = datetime.strptime(actual_date, '%Y-%m-%d').date() if actual_date else None
             
             ref.status = request.form.get('status') or 'draft'
             ref.remarks = request.form.get('remarks', '')
@@ -1200,14 +1205,11 @@ def edit_visa_ref(ref_id):
             # 处理签证专属字段
             visa_extra_info = {
                 'country': request.form.get('country', ''),
-                'visa_type': request.form.get('visa_type', ''),
-                'applicant_info': request.form.get('applicant_info', '')
+                'visa_type': request.form.get('visa_type', '')
             }
             ref.extra_info = json.dumps(visa_extra_info)
             
-            # 同步更新相关EO的价格
-            from App_new.business.projects.models.eo import ProjectEO
-            ProjectEO.sync_eo_prices_from_ref(ref.id, ref.cost_price, ref.currency)
+            # 注意：EO的金额现在直接从REF的cost_price获取，无需同步
             
             # 提交数据库更改
             db.session.commit()
@@ -1351,6 +1353,86 @@ def update_ref_status():
             'message': f'更新失败：{str(e)}'
         }), 500
 
+@project_ref.route('/other/create/<int:header_id>', methods=['GET', 'POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def create_other_ref(header_id):
+    """创建其他类型REF页面"""
+    try:
+        header = ProjectHeader.query.get_or_404(header_id)
+        
+        # 员工等级权限检查
+        if current_user.role and current_user.role.name == 'staff':
+            staff_level = 1  # 默认等级
+            if current_user.profile:
+                staff_level = current_user.profile.staff_level or 1
+            
+            if staff_level == 1:
+                # 1级员工只能操作自己创建的项目
+                if header.staff_name != current_user.username:
+                    flash('您没有权限访问此项目', 'error')
+                    return redirect(url_for('business_projects.list.list_projects'))
+        
+        if request.method == 'POST':
+            try:
+                # 获取表单数据
+                description = request.form.get('description') or '其他服务'
+                detailed_description = request.form.get('detailed_description') or description
+                
+                # 自动设置REF类型为"其他"
+                other_business_type = BusinessType.query.filter_by(name='其他').first()
+                if not other_business_type:
+                    # 如果"其他"类型不存在，创建一个
+                    other_business_type = BusinessType(name='其他', code='other', description='其他服务')
+                    db.session.add(other_business_type)
+                    db.session.flush()
+                
+                # 生成REF编号
+                ref_number = ProjectRef.generate_ref_number("")
+                
+                # 创建REF
+                ref = ProjectRef(
+                    header_id=header.id,
+                    ref_number=ref_number,
+                    description=description,
+                    ref_type_id=other_business_type.id,
+                    detailed_description=detailed_description,
+                    supplier_id=request.form.get('supplier_id') if request.form.get('supplier_id') and request.form.get('supplier_id') != '0' else None,
+                    selling_price=float(request.form.get('selling_price', 0)) if request.form.get('selling_price') else None,
+                    cost_price=float(request.form.get('cost_price', 0)) if request.form.get('cost_price') else None,
+                    currency='SGD',
+                    remarks=request.form.get('remarks', ''),
+                    status='processing',
+                    payment_status='unpaid'
+                )
+                db.session.add(ref)
+                db.session.commit()
+                
+                flash('其他REF创建成功', 'success')
+                return redirect(url_for('business_projects.detail.project_detail', project_id=header.id))
+                
+            except Exception as e:
+                db.session.rollback()
+                flash(f'创建失败：{str(e)}', 'error')
+                return redirect(url_for('business_projects.detail.project_detail', project_id=header.id))
+        
+        # GET请求 - 显示创建页面
+        suppliers = Supplier.query.all()
+        
+        return render_template(
+            'business/projects/project_ref/create_other_ref.html',
+            ref=None,
+            suppliers=suppliers,
+            header=header,
+            header_id=header_id,
+            is_create=True
+        )
+    except Exception as e:
+        flash(f'页面加载失败：{str(e)}', 'error')
+        return redirect(url_for('business_projects.list.list_projects'))
+
+
 @project_ref.route('/other/edit/<int:ref_id>', methods=['GET', 'POST'])
 @csrf.exempt
 def edit_other_ref(ref_id):
@@ -1366,28 +1448,20 @@ def edit_other_ref(ref_id):
     if request.method == 'POST':
         try:
             # 更新REF数据
-            ref.name = request.form.get('name', '其他服务')
-            ref.description = request.form.get('description', '其他服务')
+            description = request.form.get('description') or ref.description or '其他服务'
+            detailed_description = request.form.get('detailed_description') or description
+            ref.description = description
+            ref.detailed_description = detailed_description
             ref.supplier_id = request.form.get('supplier_id') if request.form.get('supplier_id') and request.form.get('supplier_id') != '0' else None
-            ref.supplier_contact = request.form.get('supplier_contact', '')
-            ref.supplier_phone = request.form.get('supplier_phone', '')
-            ref.leader_name = request.form.get('leader_name', '')
             ref.selling_price = float(request.form.get('selling_price', 0)) if request.form.get('selling_price') else None
             ref.cost_price = float(request.form.get('cost_price', 0)) if request.form.get('cost_price') else None
             
-            # 处理日期字段，空字符串转换为None
-            expected_date = request.form.get('expected_delivery_date')
-            ref.expected_delivery_date = datetime.strptime(expected_date, '%Y-%m-%d').date() if expected_date else None
+            # 状态字段已从表单中移除，保持原有状态不变
+            # ref.status 保持不变
             
-            actual_date = request.form.get('actual_delivery_date')
-            ref.actual_delivery_date = datetime.strptime(actual_date, '%Y-%m-%d').date() if actual_date else None
-            
-            ref.status = request.form.get('status') or 'draft'
             ref.remarks = request.form.get('remarks', '')
             
-            # 同步更新相关EO的价格
-            from App_new.business.projects.models.eo import ProjectEO
-            ProjectEO.sync_eo_prices_from_ref(ref.id, ref.cost_price, ref.currency)
+            # 注意：EO的金额现在直接从REF的cost_price获取，无需同步
             
             # 提交数据库更改
             db.session.commit()
@@ -1404,7 +1478,7 @@ def edit_other_ref(ref_id):
     header = ProjectHeader.query.get(ref.header_id)
     
     return render_template(
-        'business/projects/project_ref/create_tour_ref.html',
+        'business/projects/project_ref/create_other_ref.html',
         ref=ref,
         suppliers=suppliers,
         header=header,
@@ -1427,28 +1501,24 @@ def edit_insurance_ref(ref_id):
     if request.method == 'POST':
         try:
             # 更新REF数据
-            ref.name = request.form.get('name', '保险服务')
-            ref.description = request.form.get('description', '保险服务')
+            description = request.form.get('description')
+            if not description:
+                description = ref.description or '保险订单'
+            ref.description = description
+            ref.detailed_description = request.form.get('detailed_description', description)
             ref.supplier_id = request.form.get('supplier_id') if request.form.get('supplier_id') and request.form.get('supplier_id') != '0' else None
-            ref.supplier_contact = request.form.get('supplier_contact', '')
-            ref.supplier_phone = request.form.get('supplier_phone', '')
-            ref.leader_name = request.form.get('leader_name', '')
             ref.selling_price = float(request.form.get('selling_price', 0)) if request.form.get('selling_price') else None
             ref.cost_price = float(request.form.get('cost_price', 0)) if request.form.get('cost_price') else None
-            
-            # 处理日期字段，空字符串转换为None
-            expected_date = request.form.get('expected_delivery_date')
-            ref.expected_delivery_date = datetime.strptime(expected_date, '%Y-%m-%d').date() if expected_date else None
-            
-            actual_date = request.form.get('actual_delivery_date')
-            ref.actual_delivery_date = datetime.strptime(actual_date, '%Y-%m-%d').date() if actual_date else None
-            
-            ref.status = request.form.get('status') or 'draft'
             ref.remarks = request.form.get('remarks', '')
+            ref.status = request.form.get('status', 'draft')
             
-            # 同步更新相关EO的价格
-            from App_new.business.projects.models.eo import ProjectEO
-            ProjectEO.sync_eo_prices_from_ref(ref.id, ref.cost_price, ref.currency)
+            # 处理保险专属字段（保存到 extra_info）
+            insurance_extra_info = {
+                'insurance_type': request.form.get('insurance_type', ''),
+                'insured_person': request.form.get('insured_person', ''),
+                'insurance_details': request.form.get('insurance_details', '')
+            }
+            ref.extra_info = json.dumps(insurance_extra_info)
             
             # 提交数据库更改
             db.session.commit()
@@ -1463,9 +1533,19 @@ def edit_insurance_ref(ref_id):
     # 获取供应商数据
     suppliers = Supplier.query.all()
     
-    return render_template('business/projects/project_ref/create_ref.html', 
+    # 解析保险专属信息
+    insurance_info = {}
+    if ref and ref.extra_info:
+        try:
+            insurance_info = json.loads(ref.extra_info)
+        except json.JSONDecodeError:
+            insurance_info = {}
+    
+    return render_template('business/projects/project_ref/create_insurance_ref.html', 
                          ref=ref, 
+                         header_id=ref.header_id,
                          suppliers=suppliers,
+                         insurance_info=insurance_info,
                          is_create=False)
 
 @project_ref.route('/tour/edit/<int:ref_id>', methods=['GET', 'POST'])
@@ -1483,28 +1563,18 @@ def edit_tour_ref(ref_id):
     if request.method == 'POST':
         try:
             # 更新REF数据
-            ref.name = request.form.get('name', '旅游团服务')
             ref.description = request.form.get('description', '旅游团服务')
+            ref.detailed_description = request.form.get('detailed_description', '旅游团服务')
             ref.supplier_id = request.form.get('supplier_id') if request.form.get('supplier_id') and request.form.get('supplier_id') != '0' else None
-            ref.supplier_contact = request.form.get('supplier_contact', '')
-            ref.supplier_phone = request.form.get('supplier_phone', '')
-            ref.leader_name = request.form.get('leader_name', '')
             ref.selling_price = float(request.form.get('selling_price', 0)) if request.form.get('selling_price') else None
             ref.cost_price = float(request.form.get('cost_price', 0)) if request.form.get('cost_price') else None
             
             # 处理日期字段，空字符串转换为None
-            expected_date = request.form.get('expected_delivery_date')
-            ref.expected_delivery_date = datetime.strptime(expected_date, '%Y-%m-%d').date() if expected_date else None
-            
-            actual_date = request.form.get('actual_delivery_date')
-            ref.actual_delivery_date = datetime.strptime(actual_date, '%Y-%m-%d').date() if actual_date else None
             
             ref.status = request.form.get('status') or 'draft'
             ref.remarks = request.form.get('remarks', '')
             
-            # 同步更新相关EO的价格
-            from App_new.business.projects.models.eo import ProjectEO
-            ProjectEO.sync_eo_prices_from_ref(ref.id, ref.cost_price, ref.currency)
+            # 注意：EO的金额现在直接从REF的cost_price获取，无需同步
             
             # 提交数据库更改
             db.session.commit()
@@ -1604,7 +1674,7 @@ def ref_list():
             filters.append(ProjectRef.supplier_id == supplier_id)
         
         if leader_name:
-            filters.append(ProjectRef.leader_name.ilike(f'%{leader_name}%'))
+            filters.append(ProjectHeader.leader_name.ilike(f'%{leader_name}%'))
         
         if date_range:
             today = datetime.now().date()
@@ -1644,10 +1714,10 @@ def ref_list():
         
         if keyword:
             keyword_filter = or_(
-                ProjectRef.name.ilike(f'%{keyword}%'),
                 ProjectRef.description.ilike(f'%{keyword}%'),
+                ProjectRef.detailed_description.ilike(f'%{keyword}%'),
                 ProjectRef.ref_number.ilike(f'%{keyword}%'),
-                ProjectRef.leader_name.ilike(f'%{keyword}%'),
+                ProjectHeader.leader_name.ilike(f'%{keyword}%'),
                 ProjectHeader.desc.ilike(f'%{keyword}%')
             )
             filters.append(keyword_filter)
@@ -1660,7 +1730,7 @@ def ref_list():
         if sort_by == 'created_at':
             order_column = ProjectRef.created_at
         elif sort_by == 'name':
-            order_column = ProjectRef.name
+            order_column = ProjectRef.description
         elif sort_by == 'selling_price':
             order_column = ProjectRef.selling_price
         elif sort_by == 'status':
@@ -1757,14 +1827,14 @@ def ref_list():
             ref_dict = {
                 'id': ref.id,
                 'ref_number': str(ref.ref_number) if ref.ref_number else '',
-                'name': str(ref.name) if ref.name else '',
                 'description': str(ref.description) if ref.description else '',
+                'detailed_description': str(ref.detailed_description) if ref.detailed_description else '',
                 'business_type_name': str(business_type_name) if business_type_name else '未知',
                 'business_type_color': get_business_type_color(business_type_name),
                 'header_id': ref.header_id,
                 'project_name': str(project_name) if project_name else f'项目{ref.header_id}',
                 'supplier_name': str(supplier_name) if supplier_name else '',
-                'leader_name': str(ref.leader_name) if ref.leader_name else '',
+                'leader_name': str(ref.header.leader_name) if ref.header and ref.header.leader_name else '',
                 'status': str(ref.status) if ref.status else 'draft',
                 'status_display': get_status_display(ref.status),
                 'status_color': get_status_color(ref.status),
@@ -1873,24 +1943,16 @@ def edit_ref(ref_id):
             print(f"DEBUG: All form data: {dict(request.form)}")
             
             # 更新REF数据
-            ref.name = request.form.get('name', 'REF服务')
             ref.description = request.form.get('description', 'REF服务')
+            ref.detailed_description = request.form.get('detailed_description', 'REF服务')
             supplier_id = request.form.get('supplier_id')
             print(f"DEBUG: supplier_id from form: {supplier_id}, type: {type(supplier_id)}")
             ref.supplier_id = int(supplier_id) if supplier_id and supplier_id != '0' else None
             print(f"DEBUG: ref.supplier_id after update: {ref.supplier_id}")
-            ref.supplier_contact = request.form.get('supplier_contact', '')
-            ref.supplier_phone = request.form.get('supplier_phone', '')
-            ref.leader_name = request.form.get('leader_name', '')
             ref.selling_price = float(request.form.get('selling_price', 0)) if request.form.get('selling_price') else None
             ref.cost_price = float(request.form.get('cost_price', 0)) if request.form.get('cost_price') else None
             
             # 处理日期字段，空字符串转换为None
-            expected_date = request.form.get('expected_delivery_date')
-            ref.expected_delivery_date = datetime.strptime(expected_date, '%Y-%m-%d').date() if expected_date else None
-            
-            actual_date = request.form.get('actual_delivery_date')
-            ref.actual_delivery_date = datetime.strptime(actual_date, '%Y-%m-%d').date() if actual_date else None
             
             ref.status = request.form.get('status') or 'draft'
             ref.remarks = request.form.get('remarks', '')
@@ -1911,9 +1973,7 @@ def edit_ref(ref_id):
                     )
                     db.session.add(passenger)
             
-            # 同步更新相关EO的价格
-            from App_new.business.projects.models.eo import ProjectEO
-            ProjectEO.sync_eo_prices_from_ref(ref.id, ref.cost_price, ref.currency)
+            # 注意：EO的金额现在直接从REF的cost_price获取，无需同步
             
             # 提交数据库更改
             db.session.commit()
@@ -1935,18 +1995,13 @@ def edit_ref(ref_id):
     
     # 预填充表单数据
     form.ref_number.data = ref.ref_number
-    form.name.data = ref.name
     form.description.data = ref.description
+    form.detailed_description.data = ref.detailed_description
     form.ref_type_id.data = ref.ref_type_id
     form.supplier_id.data = ref.supplier_id
-    form.supplier_contact.data = ref.supplier_contact
-    form.supplier_phone.data = ref.supplier_phone
-    form.leader_name.data = ref.leader_name
     form.selling_price.data = ref.selling_price
     form.cost_price.data = ref.cost_price
     form.currency.data = ref.currency
-    form.expected_delivery_date.data = ref.expected_delivery_date
-    form.actual_delivery_date.data = ref.actual_delivery_date
     form.status.data = ref.status
     form.payment_status.data = ref.payment_status
     form.remarks.data = ref.remarks

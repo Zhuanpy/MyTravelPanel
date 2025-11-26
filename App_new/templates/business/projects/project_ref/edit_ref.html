@@ -31,11 +31,11 @@
                             </div>
                             <div class="col-md-6">
                                 <div class="form-group">
-                                    {{ form.name.label(class="form-label") }}
-                                    {{ form.name(class="form-control") }}
-                                    {% if form.name.errors %}
+                                    {{ form.description.label(class="form-label") }}
+                                    {{ form.description(class="form-control") }}
+                                    {% if form.description.errors %}
                                         <div class="text-danger">
-                                            {% for error in form.name.errors %}
+                                            {% for error in form.description.errors %}
                                                 <small>{{ error }}</small>
                                             {% endfor %}
                                         </div>

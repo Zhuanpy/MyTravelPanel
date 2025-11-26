@@ -25,15 +25,9 @@
                             </div>
                         </div>
                         
-                        <div class="row mb-4">
-                            <div class="col-md-12">
-                                <div class="form-group">
-                                    <label>REF名称</label>
-                                    <input type="text" name="name" class="form-control" readonly style="background-color: #f8f9fa;">
-                                    <small class="form-text text-muted">自动填入酒店名称</small>
-                                </div>
-                            </div>
-                        </div>
+                        <!-- 隐藏字段：描述（自动生成） -->
+                        <input type="hidden" name="description" id="auto_description" value="">
+                        <input type="hidden" name="detailed_description" id="auto_detailed_description" value="">
                         
                         <div class="row mb-4">
                             <div class="col-md-6">
@@ -98,9 +92,10 @@
                             </div>
                             <div class="col-md-6">
                                 <div class="form-group">
-                                    <label>负责人姓名</label>
-                                    <input type="text" name="leader_name" class="form-control" 
-                                           placeholder="请输入负责人姓名">
+                                    <label>负责人</label>
+                                    <input type="text" class="form-control" readonly
+                                           value="{% if header and header.leader_name %}{{ header.leader_name }}{% else %}未设置{% endif %}">
+                                    <small class="text-muted">负责人信息保存在项目主表中</small>
                                 </div>
                             </div>
                         </div>
@@ -125,33 +120,6 @@
                                         <option value="partial">部分付款</option>
                                         <option value="paid">已付款</option>
                                     </select>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="row mb-4">
-                            <div class="col-md-6">
-                                <div class="form-group">
-                                    <label>联系人姓名</label>
-                                    <input type="text" name="contact_name" class="form-control" 
-                                           placeholder="请输入联系人姓名">
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="form-group">
-                                    <label>联系人电话</label>
-                                    <input type="text" name="contact_phone" class="form-control" 
-                                           placeholder="请输入联系人电话">
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="row mb-4">
-                            <div class="col-md-12">
-                                <div class="form-group">
-                                    <label>联系人邮箱</label>
-                                    <input type="email" name="contact_email" class="form-control" 
-                                           placeholder="请输入联系人邮箱">
                                 </div>
                             </div>
                         </div>
@@ -188,12 +156,25 @@ document.addEventListener('DOMContentLoaded', function() {
     const form = document.querySelector('form');
     const inputs = form.querySelectorAll('input, select, textarea');
     
-    // 初始化REF名称字段
+    // 初始化描述字段（根据酒店名称自动生成）
     const hotelNameField = document.querySelector('input[name="hotel_name"]');
-    const refNameField = document.querySelector('input[name="name"]');
-    if (hotelNameField && refNameField) {
-        refNameField.value = hotelNameField.value;
+    const descriptionField = document.getElementById('auto_description');
+    const detailedDescriptionField = document.getElementById('auto_detailed_description');
+    
+    function updateDescription() {
+        if (hotelNameField && hotelNameField.value) {
+            const hotelName = hotelNameField.value.trim();
+            if (descriptionField) {
+                descriptionField.value = hotelName;
+            }
+            if (detailedDescriptionField) {
+                detailedDescriptionField.value = hotelName + ' 酒店预订';
+            }
+        }
     }
+    
+    // 初始化
+    updateDescription();
     
     // 实时校验函数
     function validateField(field) {
@@ -330,12 +311,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 validateField(this);
             }
             
-            // 当酒店名称变化时，自动更新REF名称
+            // 当酒店名称变化时，自动更新描述
             if (this.name === 'hotel_name') {
-                const refNameField = document.querySelector('input[name="name"]');
-                if (refNameField) {
-                    refNameField.value = this.value;
-                }
+                updateDescription();
             }
         });
     });

@@ -72,16 +72,16 @@
 
 
         <!-- 信息布局容器 -->
-        <div style="display: flex; gap: 20px; align-items: flex-start;">
+        <div style="display: flex; gap: 20px; align-items: stretch;">
             <!-- 左侧信息 -->
             <div style="flex: 2; min-width: 0;">
-                <!-- 供应商和状态信息 -->
-                <div class="order-card">
-                    <h2 class="order-section-title">供应商和状态信息</h2>
-                    <div style="display: flex; flex-wrap: nowrap; gap: 10px; align-items: flex-end; overflow-x: auto;">
-                        <div style="width: 150px; min-width: 150px; flex-shrink: 0;">
+                <!-- 供应商信息 -->
+                <div class="order-card" style="height: 100%; display: flex; flex-direction: column;">
+                    <h2 class="order-section-title">供应商信息</h2>
+                    <div style="display: flex; flex-direction: column; gap: 10px; flex: 1;">
+                        <div>
                             <label class="order-label">供应商类型</label>
-                            <select class="order-input" id="supplier_type" onchange="filterSuppliers()">
+                            <select class="order-input" id="supplier_type" onchange="filterSuppliers()" style="width: 100%;">
                                 <option value="">所有类型</option>
                                 {% for type in supplier_types %}
                                 <option value="{{ type }}">
@@ -96,51 +96,14 @@
                                 {% endfor %}
                             </select>
                         </div>
-                        <div style="width: 200px; min-width: 200px; flex-shrink: 0;">
+                        <div>
                             <label class="order-label">供应商名称</label>
-                            <select class="order-input" name="supplier_id" id="supplier_name" required>
+                            <select class="order-input" name="supplier_id" id="supplier_name" required style="width: 100%;">
                                 <option value="">请选择供应商</option>
                                 {% for supplier in suppliers %}
                                 <option value="{{ supplier.supplier_id }}" data-type="{{ supplier.supplier_type }}">{{ supplier.name }}</option>
                                 {% endfor %}
                             </select>
-                        </div>
-                        <div style="width: 150px; min-width: 150px; flex-shrink: 0;">
-                            <label class="order-label">状态</label>
-                            <select class="order-input" name="status">
-                                <option value="draft">草稿</option>
-                                <option value="processing">处理中</option>
-                                <option value="completed">已完成</option>
-                                <option value="cancelled">已取消</option>
-                            </select>
-                        </div>
-                        <div style="width: 150px; min-width: 150px; flex-shrink: 0;">
-                            <label class="order-label">支付状态</label>
-                            <select class="order-input" name="payment_status">
-                                <option value="unpaid">未付款</option>
-                                <option value="partial">部分付款</option>
-                                <option value="paid">已付款</option>
-                                <option value="refunded">已退款</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 联系人信息 -->
-                <div class="order-card">
-                    <h2 class="order-section-title">联系人信息</h2>
-                    <div style="display: flex; flex-wrap: nowrap; gap: 10px; align-items: flex-end; overflow-x: auto;">
-                        <div style="width: 220px; min-width: 220px; flex-shrink: 0;">
-                            <label class="order-label required">联系人姓名</label>
-                            <input type="text" class="order-input" name="contact_name" style="width: 100%; box-sizing: border-box;" required>
-                        </div>
-                        <div style="width: 170px; min-width: 170px; flex-shrink: 0;">
-                            <label class="order-label">联系电话</label>
-                            <input type="tel" class="order-input" name="contact_phone" style="width: 100%; box-sizing: border-box;">
-                        </div>
-                        <div style="width: 220px; min-width: 220px; flex-shrink: 0;">
-                            <label class="order-label">电子邮箱</label>
-                            <input type="email" class="order-input" name="contact_email" style="width: 100%; box-sizing: border-box;">
                         </div>
                     </div>
                 </div>
@@ -149,13 +112,11 @@
             <!-- 右侧备注信息 -->
             <div style="flex: 3; min-width: 0; max-width: 600px;">
                 <!-- 备注信息 -->
-                <div class="order-card">
+                <div class="order-card" style="height: 100%; display: flex; flex-direction: column;">
                     <h2 class="order-section-title">备注信息</h2>
-                    <div style="display: flex; gap: 20px; align-items: flex-start;">
-                        <div style="flex: 1; min-width: 0;">
-                            <label class="order-label">备注信息</label>
-                            <textarea class="order-input" name="remarks" rows="8" placeholder="请输入备注信息" style="width: 100%; box-sizing: border-box; min-height: 150px;"></textarea>
-                        </div>
+                    <div style="flex: 1; display: flex; flex-direction: column;">
+                        <label class="order-label">备注信息</label>
+                        <textarea class="order-input" name="remarks" rows="8" placeholder="请输入备注信息" style="width: 100%; box-sizing: border-box; flex: 1; min-height: 150px;"></textarea>
                     </div>
                 </div>
             </div>

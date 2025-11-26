@@ -6,35 +6,26 @@ from datetime import datetime
 
 
 class ProjectRef(db.Model):
+    
     """项目REF表"""
     __tablename__ = 'project_refs'
 
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     header_id = db.Column(db.Integer, db.ForeignKey('project_headers.id'), nullable=False, comment='HID主表ID')
     ref_number = db.Column(db.String(30), unique=True, nullable=False, comment='REF编号')
-    name = db.Column(db.String(100), nullable=True, comment='REF订单名称')
+    description = db.Column(db.String(100), nullable=True, comment='描述')
+    detailed_description = db.Column(db.String(200), nullable=False, comment='详细描述')
+    
     ref_type_id = db.Column(db.Integer, db.ForeignKey('business_types.id'), nullable=False, comment='REF类型ID')
-    description = db.Column(db.String(200), nullable=False, comment='描述')
+    
 
     # 供应商信息
     supplier_id = db.Column(db.Integer, db.ForeignKey('suppliers.supplier_id'), nullable=True, comment='供应商ID')
-    supplier_contact = db.Column(db.String(50), nullable=True, comment='供应商联系人')
-    supplier_phone = db.Column(db.String(20), nullable=True, comment='供应商联系电话')
-
-    # 联系人信息
-    contact_name = db.Column(db.String(50), nullable=True, comment='联系人姓名')
-    contact_phone = db.Column(db.String(20), nullable=True, comment='联系电话')
-    contact_email = db.Column(db.String(100), nullable=True, comment='电子邮箱')
-    leader_name = db.Column(db.String(100), nullable=True, comment='负责人姓名')
 
     # 价格信息
     selling_price = db.Column(db.Numeric(10, 2), nullable=True, comment='销售价格')
     cost_price = db.Column(db.Numeric(10, 2), nullable=True, comment='成本价格')
     currency = db.Column(db.String(3), default='SGD', nullable=False, comment='货币类型')
-
-    # 日期信息
-    expected_delivery_date = db.Column(db.Date, nullable=True, comment='预计交付日期')
-    actual_delivery_date = db.Column(db.Date, nullable=True, comment='实际交付日期')
 
     # 备注和附加信息
     remarks = db.Column(db.Text, nullable=True, comment='备注')
@@ -69,21 +60,13 @@ class ProjectRef(db.Model):
             'id': self.id,
             'header_id': self.header_id,
             'ref_number': self.ref_number,
-            'name': self.name,
-            'ref_type_id': self.ref_type_id,
             'description': self.description,
+            'ref_type_id': self.ref_type_id,
+            'detailed_description': self.detailed_description,
             'supplier_id': self.supplier_id,
-            'supplier_contact': self.supplier_contact,
-            'supplier_phone': self.supplier_phone,
-            'contact_name': self.contact_name,
-            'contact_phone': self.contact_phone,
-            'contact_email': self.contact_email,
-            'leader_name': self.leader_name,
             'selling_price': float(self.selling_price) if self.selling_price else None,
             'cost_price': float(self.cost_price) if self.cost_price else None,
             'currency': self.currency,
-            'expected_delivery_date': self.expected_delivery_date.isoformat() if self.expected_delivery_date else None,
-            'actual_delivery_date': self.actual_delivery_date.isoformat() if self.actual_delivery_date else None,
             'remarks': self.remarks,
             'status': self.status,
             'payment_status': self.payment_status,

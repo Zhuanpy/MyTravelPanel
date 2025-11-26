@@ -12,15 +12,25 @@ def normalize_path(path):
 
 def get_company_info():
     """获取公司信息（用于模板）"""
-    company = CompanyInfo.query.first()
-    if company and company.logo_path:
-        # 标准化路径并移除多余的前缀
-        path = normalize_path(company.logo_path)
-        # 移除可能存在的 'static/' 或 'App_new/static/' 前缀
-        path = path.replace('App_new/static/', '')
-        path = path.replace('static/', '')
-        company.logo_path = path
-    return company
+    try:
+        company = CompanyInfo.query.first()
+        if company and company.logo_path:
+            # 标准化路径并移除多余的前缀
+            path = normalize_path(company.logo_path)
+            # 移除可能存在的 'static/' 或 'App_new/static/' 前缀
+            path = path.replace('App_new/static/', '')
+            path = path.replace('static/', '')
+            # 如果路径不包含 'company/' 前缀，且不是绝对路径，则添加 'company/' 前缀
+            if not path.startswith('company/') and not os.path.isabs(path):
+                # 检查是否是文件名（不包含路径分隔符）
+                if '/' not in path and '\\' not in path:
+                    path = os.path.join('company', path).replace('\\', '/')
+            company.logo_path = path
+        return company
+    except Exception as e:
+        # 如果查询失败，返回None而不是抛出异常
+        print(f"获取公司信息失败: {str(e)}")
+        return None
 
 # 注册context processor，让模板可以访问公司信息
 @own_company.app_context_processor
@@ -33,18 +43,20 @@ def company_info_page():
     return render_template('utils/公司信息.html')
 
 @own_company.route('/api/company_info', methods=['GET'])
-def get_company_info():
+def get_company_info_api():
     """获取公司信息API"""
     company = CompanyInfo.query.first()
     if company:
         return jsonify({
             'id': company.id,
-            'name': company.name,
+            'company_name': company.company_name,
+            'company_name_cn': company.company_name_cn,
+            'company_short_name': company.company_short_name,
             'address': company.address,
             'phone': company.phone,
             'email': company.email,
-            'website': company.website,
-            'description': company.description
+            'company_description': company.company_description,
+            'logo_path': company.logo_path
         })
     return jsonify({}), 404
 
@@ -53,47 +65,55 @@ def create_company_info():
     """创建公司信息API"""
     data = request.get_json()
     company = CompanyInfo(
-        name=data['name'],
-        address=data.get('address'),
-        phone=data.get('phone'),
-        email=data.get('email'),
-        website=data.get('website'),
-        description=data.get('description')
+        company_name=data.get('company_name', ''),
+        company_name_cn=data.get('company_name_cn'),
+        company_short_name=data.get('company_short_name'),
+        address=data.get('address', ''),
+        phone=data.get('phone', ''),
+        email=data.get('email', ''),
+        company_description=data.get('company_description', ''),
+        logo_path=data.get('logo_path')
     )
     db.session.add(company)
     db.session.commit()
     return jsonify({
         'id': company.id,
-        'name': company.name,
+        'company_name': company.company_name,
+        'company_name_cn': company.company_name_cn,
+        'company_short_name': company.company_short_name,
         'address': company.address,
         'phone': company.phone,
         'email': company.email,
-        'website': company.website,
-        'description': company.description
+        'company_description': company.company_description,
+        'logo_path': company.logo_path
     })
 
 @own_company.route('/api/company_info/<int:company_id>', methods=['PUT'])
-def update_company_info(company_id):
+def update_company_info_api(company_id):
     """更新公司信息API"""
     company = CompanyInfo.query.get_or_404(company_id)
     data = request.get_json()
     
-    company.name = data.get('name', company.name)
+    company.company_name = data.get('company_name', company.company_name)
+    company.company_name_cn = data.get('company_name_cn', company.company_name_cn)
+    company.company_short_name = data.get('company_short_name', company.company_short_name)
     company.address = data.get('address', company.address)
     company.phone = data.get('phone', company.phone)
     company.email = data.get('email', company.email)
-    company.website = data.get('website', company.website)
-    company.description = data.get('description', company.description)
+    company.company_description = data.get('company_description', company.company_description)
+    company.logo_path = data.get('logo_path', company.logo_path)
     
     db.session.commit()
     return jsonify({
         'id': company.id,
-        'name': company.name,
+        'company_name': company.company_name,
+        'company_name_cn': company.company_name_cn,
+        'company_short_name': company.company_short_name,
         'address': company.address,
         'phone': company.phone,
         'email': company.email,
-        'website': company.website,
-        'description': company.description
+        'company_description': company.company_description,
+        'logo_path': company.logo_path
     })
 
 @own_company.route('/company/edit', methods=['GET', 'POST'])
@@ -121,15 +141,25 @@ def edit_company_info():
                 if logo and logo.filename != '':
                     # 确保文件名安全
                     from werkzeug.utils import secure_filename
-                    from datetime import datetime as dt
                     
                     # 获取文件扩展名
                     filename = secure_filename(logo.filename)
                     name, ext = os.path.splitext(filename)
                     
-                    # 生成新文件名（添加时间戳避免覆盖）
-                    timestamp = dt.now().strftime('%Y%m%d_%H%M%S')
-                    new_filename = f'company_logo_{timestamp}{ext}'
+                    # 使用固定的文件名（确保本地和服务器路径一致）
+                    # 如果已有logo，保持原有的文件名；否则使用 company_logo + 扩展名
+                    if company.logo_path:
+                        # 使用现有的文件名
+                        existing_filename = os.path.basename(company.logo_path)
+                        # 如果扩展名不同，更新扩展名
+                        existing_name, existing_ext = os.path.splitext(existing_filename)
+                        if existing_ext.lower() != ext.lower():
+                            new_filename = f'{existing_name}{ext}'
+                        else:
+                            new_filename = existing_filename
+                    else:
+                        # 首次上传，使用固定文件名
+                        new_filename = f'company_logo{ext}'
                     
                     # 构建保存路径（相对于 App_new/static）
                     logo_relative_path = os.path.join('company', new_filename).replace('\\', '/')
@@ -139,6 +169,11 @@ def edit_company_info():
                     
                     # 确保目录存在
                     os.makedirs(os.path.dirname(full_path), exist_ok=True)
+                    
+                    # 如果文件已存在，删除旧文件
+                    if os.path.exists(full_path):
+                        os.remove(full_path)
+                        print(f"🗑️ 删除旧Logo: {full_path}")
                     
                     # 保存文件
                     logo.save(full_path)
@@ -170,6 +205,11 @@ def edit_company_info():
         # 移除可能存在的多余前缀
         path = path.replace('App_new/static/', '')
         path = path.replace('static/', '')
+        # 如果路径不包含 'company/' 前缀，且不是绝对路径，则添加 'company/' 前缀
+        if not path.startswith('company/') and not os.path.isabs(path):
+            # 检查是否是文件名（不包含路径分隔符）
+            if '/' not in path and '\\' not in path:
+                path = os.path.join('company', path).replace('\\', '/')
         company.logo_path = path
     
     return render_template('shared/own_company/own_company_form.html', company=company)
@@ -181,5 +221,10 @@ def company_header():
         path = normalize_path(company.logo_path)
         path = path.replace('App_new/static/', '')
         path = path.replace('static/', '')
+        # 如果路径不包含 'company/' 前缀，且不是绝对路径，则添加 'company/' 前缀
+        if not path.startswith('company/') and not os.path.isabs(path):
+            # 检查是否是文件名（不包含路径分隔符）
+            if '/' not in path and '\\' not in path:
+                path = os.path.join('company', path).replace('\\', '/')
         company.logo_path = path
     return render_template('shared/own_company/own_company_header.html', company=company)

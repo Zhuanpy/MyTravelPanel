@@ -1,6 +1,7 @@
 {% extends "shared/staff_base.html" %}
 
-{% block page_title %}Create Insurance Ref{% endblock %}
+{% block title %}{% if ref %}编辑保险明细{% else %}新建保险明细{% endif %}{% endblock %}
+{% block page_title %}{% if ref %}编辑保险明细{% else %}新建保险明细{% endif %}{% endblock %}
 
 {% block content %}
 <div class="container mt-4">
@@ -11,21 +12,31 @@
                     <h2 class="mb-0">{% if ref %}编辑保险明细{% else %}新建保险明细{% endif %}</h2>
                 </div>
                 <div class="card-body">
-                    <form method="post">
+                    <form method="post" action="{% if ref %}{{ url_for('business_projects.project_ref.edit_insurance_ref', ref_id=ref.id) }}{% else %}{{ url_for('business_projects.project_ref.submit_insurance_ref') }}{% endif %}">
                         <!-- CSRF令牌 -->
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        
+                        <!-- 隐藏字段 -->
+                        <input type="hidden" name="header_id" value="{{ header_id }}">
+                        {% if ref and not is_create %}
+                        <input type="hidden" name="ref_id" value="{{ ref.id }}">
+                        {% endif %}
+                        
+                        <!-- 详细描述（自动生成） -->
+                        <input type="hidden" name="detailed_description" id="auto_detailed_description" 
+                               value="{{ ref.detailed_description if ref and ref.detailed_description else '' }}">
 
                         <div class="row mb-4">
-                            <div class="col-md-6">
+                            <div class="col-md-4">
                                 <div class="form-group">
-                                    <label>保险公司 <span class="text-danger">*</span></label>
-                                    <input type="text" name="insurance_company" class="form-control" required
-                                           placeholder="请输入保险公司名称"
-                                           value="{{ insurance_info.get('insurance_company', '') if insurance_info else '' }}">
-                                    <div class="invalid-feedback">请输入保险公司名称</div>
+                                    <label>保险名字 <span class="text-danger">*</span></label>
+                                    <input type="text" name="description" class="form-control" required
+                                           placeholder="请输入保险名字"
+                                           value="{{ ref.description if ref and ref.description else '' }}">
+                                    <div class="invalid-feedback">请输入保险名字</div>
                                 </div>
                             </div>
-                            <div class="col-md-6">
+                            <div class="col-md-4">
                                 <div class="form-group">
                                     <label>保险类型 <span class="text-danger">*</span></label>
                                     <select name="insurance_type" class="form-control" required>
@@ -41,38 +52,44 @@
                                     <div class="invalid-feedback">请选择保险类型</div>
                                 </div>
                             </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label>客人名字 <span class="text-danger">*</span></label>
+                                    <input type="text" name="insured_person" class="form-control" required
+                                           placeholder="请输入客人名字"
+                                           value="{{ insurance_info.get('insured_person', '') if insurance_info else '' }}">
+                                    <div class="invalid-feedback">请输入客人名字</div>
+                                </div>
+                            </div>
                         </div>
 
                         <div class="row mb-4">
-                            <div class="col-md-6">
+                            <div class="col-md-4">
                                 <div class="form-group">
-                                    <label>售价 (SGD)</label>
+                                    <label>售价 (SGD) <span class="text-danger">*</span></label>
                                     <div class="input-group">
-                                        <input type="number" name="selling_price" class="form-control" min="0" step="0.01" placeholder="0.00"
+                                        <input type="number" name="selling_price" class="form-control" min="0" step="0.01" placeholder="0.00" required
                                                value="{{ "%.2f"|format(ref.selling_price) if ref and ref.selling_price and not is_create else '' }}">
                                         <span class="input-group-text">SGD</span>
                                     </div>
                                     <div class="invalid-feedback">请输入有效的售价</div>
                                 </div>
                             </div>
-                            <div class="col-md-6">
+                            <div class="col-md-4">
                                 <div class="form-group">
-                                    <label>成本 (SGD)</label>
+                                    <label>成本 (SGD) <span class="text-danger">*</span></label>
                                     <div class="input-group">
-                                        <input type="number" name="cost_price" class="form-control" min="0" step="0.01" placeholder="0.00"
+                                        <input type="number" name="cost_price" class="form-control" min="0" step="0.01" placeholder="0.00" required
                                                value="{{ "%.2f"|format(ref.cost_price) if ref and ref.cost_price and not is_create else '' }}">
                                         <span class="input-group-text">SGD</span>
                                     </div>
                                     <div class="invalid-feedback">请输入有效的成本价格</div>
                                 </div>
                             </div>
-                        </div>
-
-                        <div class="row mb-4">
-                            <div class="col-md-6">
+                            <div class="col-md-4">
                                 <div class="form-group">
-                                    <label>供应商</label>
-                                    <select name="supplier_id" class="form-control">
+                                    <label>供应商 <span class="text-danger">*</span></label>
+                                    <select name="supplier_id" class="form-control" required>
                                         <option value="">请选择供应商</option>
                                         {% for supplier in suppliers %}
                                             <option value="{{ supplier.supplier_id }}"
@@ -81,67 +98,7 @@
                                             </option>
                                         {% endfor %}
                                     </select>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="form-group">
-                                    <label>负责人姓名</label>
-                                    <input type="text" name="leader_name" class="form-control"
-                                           placeholder="请输入负责人姓名"
-                                           value="{{ ref.leader_name if ref and not is_create else '' }}">
-                                </div>
-                            </div>
-
-                        </div>
-
-                        <div class="row mb-4">
-                            <div class="col-md-6">
-                                <div class="form-group">
-                                    <label>状态</label>
-                                    <select name="status" class="form-control">
-                                        <option value="draft" {% if ref and ref.status == 'draft' and not is_create %}selected{% endif %}>草稿</option>
-                                        <option value="processing" {% if ref and ref.status == 'processing' and not is_create %}selected{% endif %}>处理中</option>
-                                        <option value="completed" {% if ref and ref.status == 'completed' and not is_create %}selected{% endif %}>已完成</option>
-                                        <option value="cancelled" {% if ref and ref.status == 'cancelled' and not is_create %}selected{% endif %}>已取消</option>
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="row mb-4">
-                            <div class="col-md-6">
-                                <div class="form-group">
-                                    <label>保险生效日期</label>
-                                    <input type="date" name="expected_delivery_date" class="form-control" max="2050-12-31"
-                                           value="{{ ref.expected_delivery_date.strftime('%Y-%m-%d') if ref and ref.expected_delivery_date and not is_create else '' }}">
-                                    <div class="invalid-feedback">请选择有效的保险生效日期</div>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="form-group">
-                                    <label>保险到期日期</label>
-                                    <input type="date" name="actual_delivery_date" class="form-control" max="2050-12-31"
-                                           value="{{ ref.actual_delivery_date.strftime('%Y-%m-%d') if ref and ref.actual_delivery_date and not is_create else '' }}">
-                                    <div class="invalid-feedback">请选择有效的保险到期日期</div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="row mb-4">
-                            <div class="col-md-6">
-                                <div class="form-group">
-                                    <label>受保人姓名</label>
-                                    <input type="text" name="insured_person" class="form-control"
-                                           placeholder="请输入受保人姓名"
-                                           value="{{ insurance_info.get('insured_person', '') if insurance_info else '' }}">
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="form-group">
-                                    <label>受保人证件号</label>
-                                    <input type="text" name="insured_id_number" class="form-control"
-                                           placeholder="请输入护照号或身份证号"
-                                           value="{{ insurance_info.get('insured_id_number', '') if insurance_info else '' }}">
+                                    <div class="invalid-feedback">请选择供应商</div>
                                 </div>
                             </div>
                         </div>
@@ -177,7 +134,7 @@
                                             <i class="fas fa-check"></i> EO: {{ ref.eos.eo_number }}
                                         </span>
                                 {% else %}
-                                    <button type="button" class="btn btn-primary btn-lg px-5 ms-2" onclick="quickCreateEO({{ ref.id if ref else 'null' }})">
+                                    <button type="button" class="btn btn-primary btn-lg px-5 ms-2" onclick="quickCreateEO({% if ref %}{{ ref.id }}{% else %}null{% endif %})">
                                         <i class="fas fa-plus"></i> 生成EO
                                     </button>
                                 {% endif %}
@@ -217,101 +174,61 @@ document.addEventListener('DOMContentLoaded', function() {
         return isValid;
     }
 
-    // 日期校验函数
-    function validateDates() {
-        const expectedDate = document.querySelector('input[name="expected_delivery_date"]');
-        const actualDate = document.querySelector('input[name="actual_delivery_date"]');
-
-        // 检查日期范围
-        if (expectedDate.value) {
-            const expected = new Date(expectedDate.value);
-            const maxDate = new Date('2050-12-31');
-
-            if (expected > maxDate) {
-                expectedDate.classList.remove('is-valid');
-                expectedDate.classList.add('is-invalid');
-                expectedDate.nextElementSibling.textContent = '保险生效日期不能超过2050年';
-                return false;
-            }
-        }
-
-        if (actualDate.value) {
-            const actual = new Date(actualDate.value);
-            const maxDate = new Date('2050-12-31');
-
-            if (actual > maxDate) {
-                actualDate.classList.remove('is-valid');
-                actualDate.classList.add('is-invalid');
-                actualDate.nextElementSibling.textContent = '保险到期日期不能超过2050年';
-                return false;
-            }
-        }
-
-        // 检查生效日期和到期日期的逻辑关系
-        if (expectedDate.value && actualDate.value) {
-            const expected = new Date(expectedDate.value);
-            const actual = new Date(actualDate.value);
-
-            if (actual <= expected) {
-                actualDate.classList.remove('is-valid');
-                actualDate.classList.add('is-invalid');
-                actualDate.nextElementSibling.textContent = '保险到期日期必须晚于生效日期';
-                return false;
-            }
-        }
-
-        return true;
-    }
 
     // 价格校验函数
     function validatePrices() {
         const sellingPrice = document.querySelector('input[name="selling_price"]');
         const costPrice = document.querySelector('input[name="cost_price"]');
 
-        // 校验售价
-        if (sellingPrice.value !== '') {
-            const selling = parseFloat(sellingPrice.value);
-            if (isNaN(selling) || selling < 0) {
-                sellingPrice.classList.remove('is-valid');
-                sellingPrice.classList.add('is-invalid');
-                sellingPrice.nextElementSibling.textContent = '请输入有效的售价（支持0和小数）';
-                return false;
-            } else {
-                sellingPrice.classList.remove('is-invalid');
-                sellingPrice.classList.add('is-valid');
-            }
+        // 校验售价（必填）
+        if (!sellingPrice.value || sellingPrice.value.trim() === '') {
+            sellingPrice.classList.remove('is-valid');
+            sellingPrice.classList.add('is-invalid');
+            sellingPrice.parentElement.querySelector('.invalid-feedback').textContent = '请输入售价';
+            return false;
+        }
+        
+        const selling = parseFloat(sellingPrice.value);
+        if (isNaN(selling) || selling < 0) {
+            sellingPrice.classList.remove('is-valid');
+            sellingPrice.classList.add('is-invalid');
+            sellingPrice.parentElement.querySelector('.invalid-feedback').textContent = '请输入有效的售价（支持0和小数）';
+            return false;
+        } else {
+            sellingPrice.classList.remove('is-invalid');
+            sellingPrice.classList.add('is-valid');
         }
 
-        // 校验成本
-        if (costPrice.value !== '') {
-            const cost = parseFloat(costPrice.value);
-            if (isNaN(cost) || cost < 0) {
-                costPrice.classList.remove('is-valid');
-                costPrice.classList.add('is-invalid');
-                costPrice.nextElementSibling.textContent = '请输入有效的成本（支持0和小数）';
-                return false;
-            } else {
-                costPrice.classList.remove('is-invalid');
-                costPrice.classList.add('is-valid');
-            }
+        // 校验成本（必填）
+        if (!costPrice.value || costPrice.value.trim() === '') {
+            costPrice.classList.remove('is-valid');
+            costPrice.classList.add('is-invalid');
+            costPrice.parentElement.querySelector('.invalid-feedback').textContent = '请输入成本';
+            return false;
+        }
+        
+        const cost = parseFloat(costPrice.value);
+        if (isNaN(cost) || cost < 0) {
+            costPrice.classList.remove('is-valid');
+            costPrice.classList.add('is-invalid');
+            costPrice.parentElement.querySelector('.invalid-feedback').textContent = '请输入有效的成本（支持0和小数）';
+            return false;
+        } else {
+            costPrice.classList.remove('is-invalid');
+            costPrice.classList.add('is-valid');
         }
 
         // 比较售价和成本
-        if (sellingPrice.value && costPrice.value) {
-            const selling = parseFloat(sellingPrice.value);
-            const cost = parseFloat(costPrice.value);
-
-            if (selling < cost) {
-                sellingPrice.classList.remove('is-valid');
-                sellingPrice.classList.add('is-invalid');
-                sellingPrice.nextElementSibling.textContent = '售价不能低于成本价格';
-                return false;
-            } else {
-                sellingPrice.classList.remove('is-invalid');
-                sellingPrice.classList.add('is-valid');
-                sellingPrice.nextElementSibling.textContent = '请输入有效的售价（支持0和小数）';
-            }
+        if (selling < cost) {
+            sellingPrice.classList.remove('is-valid');
+            sellingPrice.classList.add('is-invalid');
+            sellingPrice.parentElement.querySelector('.invalid-feedback').textContent = '售价不能低于成本价格';
+            return false;
+        } else {
+            sellingPrice.classList.remove('is-invalid');
+            sellingPrice.classList.add('is-valid');
         }
+        
         return true;
     }
 
@@ -320,10 +237,6 @@ document.addEventListener('DOMContentLoaded', function() {
         input.addEventListener('blur', function() {
             validateField(this);
 
-            // 特殊校验
-            if (this.name === 'expected_delivery_date' || this.name === 'actual_delivery_date') {
-                validateDates();
-            }
             if (this.name === 'selling_price' || this.name === 'cost_price') {
                 validatePrices();
             }
@@ -353,10 +266,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
 
-        // 特殊校验
-        if (!validateDates()) {
-            isValid = false;
-        }
         if (!validatePrices()) {
             isValid = false;
         }
@@ -402,18 +311,44 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 3000);
     }
 
+    // 自动生成详细描述
+    function updateDetailedDescription() {
+        const descriptionField = document.querySelector('input[name="description"]');
+        const insuranceTypeField = document.querySelector('select[name="insurance_type"]');
+        const detailedDescriptionField = document.getElementById('auto_detailed_description');
+        
+        if (descriptionField && detailedDescriptionField) {
+            let description = descriptionField.value.trim();
+            if (insuranceTypeField && insuranceTypeField.value) {
+                const typeText = insuranceTypeField.options[insuranceTypeField.selectedIndex].text;
+                description = description ? `${description} - ${typeText}` : typeText;
+            }
+            detailedDescriptionField.value = description || '保险订单';
+        }
+    }
+    
+    // 监听字段变化，自动更新详细描述
+    const descriptionField = document.querySelector('input[name="description"]');
+    const insuranceTypeField = document.querySelector('select[name="insurance_type"]');
+    if (descriptionField) {
+        descriptionField.addEventListener('input', updateDetailedDescription);
+        descriptionField.addEventListener('blur', updateDetailedDescription);
+    }
+    if (insuranceTypeField) {
+        insuranceTypeField.addEventListener('change', updateDetailedDescription);
+    }
+    
+    // 初始化详细描述
+    updateDetailedDescription();
+    
     // 添加字段说明提示
     const tooltips = {
-        'insurance_company': '请输入提供保险服务的公司名称',
-        'insurance_type': '选择适合的保险类型',
-        'selling_price': '向客户收取的保险费用',
-        'cost_price': '保险的实际成本价格',
-        'supplier_id': '选择提供保险服务的供应商',
-        'status': '选择当前保险申请状态',
-        'expected_delivery_date': '选择保险生效日期',
-        'actual_delivery_date': '选择保险到期日期',
-        'insured_person': '填写受保人的姓名',
-        'insured_id_number': '填写受保人的证件号码',
+        'description': '请输入保险名字（必填）',
+        'insurance_type': '选择适合的保险类型（必填）',
+        'selling_price': '向客户收取的保险费用（必填）',
+        'cost_price': '保险的实际成本价格（必填）',
+        'supplier_id': '选择提供保险服务的供应商（必填）',
+        'insured_person': '填写客人名字（必填）',
         'insurance_details': '详细描述保险范围、保额等信息',
         'remarks': '可填写特殊要求、注意事项等'
     };
@@ -455,4 +390,4 @@ function quickCreateEO(refId) {
     }
 }
 </script>
-{% endblock %} \n\n{% block title %}{% if ref %}编辑保险明细{% else %}新建保险明细{% endif %}{% endblock %}
+{% endblock %}

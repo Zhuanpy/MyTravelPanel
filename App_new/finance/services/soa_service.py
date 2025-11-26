@@ -377,12 +377,11 @@ class SOAService:
                 except (ValueError, TypeError):
                     pass
             
-            # 添加余额大于0的筛选条件
-            if balance_positive is not None:
-                if balance_positive:
-                    query = query.filter(AthinaBookingHeader.sub_total_balance > 0)
-                else:
-                    query = query.filter(AthinaBookingHeader.sub_total_balance <= 0)
+            # 余额过滤 - 只显示余额大于0的记录（与get_soa_list逻辑一致）
+            # 当 balance_positive=True 时，只显示余额>0的数据
+            # 当 balance_positive=False 时，不进行余额过滤（显示所有数据）
+            if balance_positive:
+                query = query.filter(AthinaBookingHeader.sub_total_balance > 0)
             
             # 获取所有符合条件的头部
             headers = query.all()
@@ -535,12 +534,11 @@ class SOAService:
                 except (ValueError, TypeError):
                     pass
             
-            # 添加余额大于0的筛选条件
-            if balance_positive is not None:
-                if balance_positive:
-                    query = query.filter(AthinaBookingHeader.sub_total_balance > 0)
-                else:
-                    query = query.filter(AthinaBookingHeader.sub_total_balance <= 0)
+            # 余额过滤 - 只显示余额大于0的记录（与get_soa_list逻辑一致）
+            # 当 balance_positive=True 时，只显示余额>0的数据
+            # 当 balance_positive=False 时，不进行余额过滤（显示所有数据）
+            if balance_positive:
+                query = query.filter(AthinaBookingHeader.sub_total_balance > 0)
             
             # 获取所有符合条件的头部
             headers = query.all()

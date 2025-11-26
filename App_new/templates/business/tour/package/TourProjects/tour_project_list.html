@@ -174,12 +174,16 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="/static/js/ff.js"></script>
+<script src="{{ url_for('static', filename='js/ff.js') }}"></script>
 
 <script>
     // 显示闪现消息函数
     function showFlashMessage(message, isSuccess) {
         const flashMessage = document.getElementById("flash-message");
+        if (!flashMessage) {
+            console.warn('Flash message element not found');
+            return;
+        }
         flashMessage.textContent = message;
         flashMessage.style.backgroundColor = isSuccess ? 'green' : 'red';
         flashMessage.style.display = 'block';
@@ -193,7 +197,12 @@
         const projectId = element.getAttribute('data-project-id');
         if (confirm("确定要删除此项目吗？")) {
             // 获取CSRF令牌
-            const csrfToken = document.querySelector('input[name="csrf_token"]').value;
+            const csrfTokenElement = document.querySelector('input[name="csrf_token"]');
+            if (!csrfTokenElement) {
+                showFlashMessage("CSRF令牌未找到", false);
+                return;
+            }
+            const csrfToken = csrfTokenElement.value;
             
             fetch(`/tour_projects/delete/${projectId}`, {
                 method: 'POST',

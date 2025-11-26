@@ -29,7 +29,7 @@ def visa_link():
 @login_required
 @staff_only
 def render_todo_list():
-    return render_template('utils/todo_list.html')
+    return render_template('shared/utils/todo_list.html')
 
 # 待办事项列表API
 @utils_blue.route('/todos/list')

@@ -3,7 +3,7 @@
 SOA 相关路由 - 单独文件
 """
 
-from flask import Blueprint, render_template, jsonify, request, url_for, redirect, flash, make_response
+from flask import Blueprint, render_template, jsonify, request, url_for, redirect, flash, make_response, current_app
 from flask_login import login_required
 from App_new.exts import csrf, db
 from App_new.utils.decorators import staff_only
@@ -71,6 +71,9 @@ def soa_batch_download():
         balance_positive = request.args.get('balance_positive', 'false').lower() == 'true'
         format_type = request.args.get('format', 'excel')
         
+        # 记录请求参数用于调试
+        current_app.logger.info(f"SOA批量下载请求 - 公司: {company}, 月份: {month}, 余额正: {balance_positive}, 格式: {format_type}")
+        
         soa_service = SOAService()
         excel_content, error = soa_service.batch_download_soa(
             company=company if company else None,
@@ -79,9 +82,14 @@ def soa_batch_download():
             format=format_type
         )
         
-        if error:
+        if error or excel_content is None:
             # 返回错误信息而不是重定向
-            return jsonify({'success': False, 'message': f'批量下载失败: {error}'}), 400
+            error_msg = error or "没有找到匹配的SOA数据"
+            current_app.logger.error(f"SOA批量下载失败: {error_msg}")
+            # 确保返回 JSON 格式的错误响应
+            response = jsonify({'success': False, 'message': f'批量下载失败: {error_msg}'})
+            response.status_code = 400
+            return response
         
         # 生成文件名
         filename_parts = []
@@ -93,13 +101,21 @@ def soa_batch_download():
         
         filename = f"SOA_{'_'.join(filename_parts)}.xlsx"
         
+        # 确保 excel_content 不为空
+        if not excel_content:
+            current_app.logger.error("生成的Excel内容为空")
+            return jsonify({'success': False, 'message': '生成的Excel文件为空'}), 400
+        
         response = make_response(excel_content)
         response.headers['Content-Type'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
         response.headers['Content-Disposition'] = f'attachment; filename="{filename}"'
         
+        current_app.logger.info(f"SOA批量下载成功: {filename}")
         return response
         
     except Exception as e:
+        # 记录完整的错误堆栈
+        current_app.logger.exception(f"SOA批量下载异常: {str(e)}")
         # 返回错误信息而不是重定向
         return jsonify({'success': False, 'message': f'批量下载时出错: {str(e)}'}), 500
 
@@ -114,6 +130,9 @@ def soa_batch_download_pdf():
         month = request.args.get('month', '')
         balance_positive = request.args.get('balance_positive', 'false').lower() == 'true'
         
+        # 记录请求参数用于调试
+        current_app.logger.info(f"SOA批量下载PDF请求 - 公司: {company}, 月份: {month}, 余额正: {balance_positive}")
+        
         soa_service = SOAService()
         pdf_content, error = soa_service.batch_download_soa_pdf(
             company=company if company else None,
@@ -121,9 +140,14 @@ def soa_batch_download_pdf():
             balance_positive=balance_positive
         )
         
-        if error:
+        if error or pdf_content is None:
             # 返回错误信息而不是重定向
-            return jsonify({'success': False, 'message': f'批量下载PDF失败: {error}'}), 400
+            error_msg = error or "没有找到匹配的SOA数据"
+            current_app.logger.error(f"SOA批量下载PDF失败: {error_msg}")
+            # 确保返回 JSON 格式的错误响应
+            response = jsonify({'success': False, 'message': f'批量下载PDF失败: {error_msg}'})
+            response.status_code = 400
+            return response
         
         # 生成文件名
         filename_parts = []
@@ -135,13 +159,21 @@ def soa_batch_download_pdf():
         
         filename = f"SOA_{'_'.join(filename_parts)}.pdf"
         
+        # 确保 pdf_content 不为空
+        if not pdf_content:
+            current_app.logger.error("生成的PDF内容为空")
+            return jsonify({'success': False, 'message': '生成的PDF文件为空'}), 400
+        
         response = make_response(pdf_content)
         response.headers['Content-Type'] = 'application/pdf'
         response.headers['Content-Disposition'] = f'attachment; filename="{filename}"'
         
+        current_app.logger.info(f"SOA批量下载PDF成功: {filename}")
         return response
         
     except Exception as e:
+        # 记录完整的错误堆栈
+        current_app.logger.exception(f"SOA批量下载PDF异常: {str(e)}")
         # 返回错误信息而不是重定向
         return jsonify({'success': False, 'message': f'批量下载PDF时出错: {str(e)}'}), 500
 

@@ -34,20 +34,11 @@
         <div class="container-fluid">
             <a class="navbar-brand" href="{{ url_for('public.index') }}">
                 <div class="logo-container">
-                    {% if company and company.logo_path %}
-                        <img src="{{ url_for('static', filename=company.logo_path) }}" alt="{{ company.company_name }}" height="40">
-                    {% else %}
-                        <img src="{{ url_for('static', filename='JE/LOGO.png') }}" alt="悦行假期" height="40">
-                    {% endif %}
-                    <div class="logo-text">
-                        {% if company %}
-                            <div class="logo-chinese">{{ company.company_name_cn }}</div>
-                            <div class="logo-english">{{ company.company_short_name.upper() if company.company_short_name else '' }}</div>
-                        {% else %}
-                            <div class="logo-english">JOYFUL ESCAPES</div>
-                            <div class="logo-chinese">悦行假期</div>
-                        {% endif %}
-                    </div>
+                   <img src="{{ url_for('static', filename=company.logo_path) }}" alt="{{ company.company_name }}" height="40">
+                   <div class="logo-text">
+                       <div class="logo-chinese">{{ company.company_name_cn }}</div>
+                       <div class="logo-english">{{ company.company_short_name.upper() if company.company_short_name else '' }}</div>
+                   </div>
                 </div>
                 <span class="badge bg-light text-success ms-2">员工版</span>
             </a>
@@ -343,13 +334,6 @@
                                 项目管理
                             </a>
                         </li>
-                        <li class="nav-item">
-                            <a class="nav-link {% if request.endpoint == 'staff.quotes' %}active{% endif %}" 
-                               href="{{ url_for('staff.quotes') }}">
-                                <i class="fas fa-file-invoice-dollar me-2"></i>
-                                报价管理
-                            </a>
-                        </li>
 
                         <li class="nav-item">
                             <a class="nav-link {% if request.endpoint == 'staff.tasks' %}active{% endif %}" 
@@ -568,7 +552,8 @@
                 {% with messages = get_flashed_messages(with_categories=true) %}
                     {% if messages %}
                         {% for category, message in messages %}
-                            <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
+                            <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert" style="position: sticky; top: 70px; z-index: 1030; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+                                <strong>{% if category == 'success' %}<i class="fas fa-check-circle"></i>{% elif category == 'error' or category == 'danger' %}<i class="fas fa-exclamation-circle"></i>{% else %}<i class="fas fa-info-circle"></i>{% endif %}</strong>
                                 {{ message }}
                                 <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                             </div>
@@ -700,6 +685,16 @@
         // 初始化侧边栏控制器
         document.addEventListener('DOMContentLoaded', function() {
             new SidebarController();
+            
+            // 自动关闭 Flash 消息
+            const alerts = document.querySelectorAll('.alert-dismissible');
+            alerts.forEach(function(alert) {
+                // 5秒后自动淡出并移除
+                setTimeout(function() {
+                    const bsAlert = new bootstrap.Alert(alert);
+                    bsAlert.close();
+                }, 5000);
+            });
         });
     </script>
     

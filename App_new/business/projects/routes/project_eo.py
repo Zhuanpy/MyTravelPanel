@@ -34,24 +34,15 @@ def create_eo(ref_id):
     form = ProjectEOForm()
     form.ref_id.data = ref_id
     
-    # 确保供应商选项已加载
-    form._load_choices()
-    
     if form.validate_on_submit():
         try:
             eo_number = ProjectEO.generate_eo_number()
             eo = ProjectEO(
                 ref_id=ref.id,
                 eo_number=eo_number,
-                name=form.name.data,
-                supplier_type=form.supplier_type.data,
-                supplier_id=form.supplier_id.data,
                 external_system=form.external_system.data,
                 external_status=form.external_status.data,
                 external_reference=form.external_reference.data,
-                amount=form.amount.data,
-                currency=form.currency.data,
-                remarks=form.remarks.data,
                 status=form.status.data
             )
             db.session.add(eo)
@@ -72,47 +63,6 @@ def create_eo(ref_id):
     
     # 从REF中自动获取和预填充数据
     if request.method == 'GET':
-        # 预填充EO名称（使用REF名称）
-        if not form.name.data:
-            form.name.data = ref.name or ref.description or f"{ref.ref_type.name if ref.ref_type else 'REF'}订单"
-        
-        # 预填充供应商类型（根据REF类型推断）
-        if not form.supplier_type.data:
-            if ref.ref_type:
-                ref_type_name = ref.ref_type.name
-                if '机票' in ref_type_name:
-                    form.supplier_type.data = 'flight'
-                elif '酒店' in ref_type_name:
-                    form.supplier_type.data = 'hotel'
-                elif '签证' in ref_type_name:
-                    form.supplier_type.data = 'visa'
-                elif '交通' in ref_type_name or '用车' in ref_type_name:
-                    form.supplier_type.data = 'transport'
-                elif '旅游' in ref_type_name or '团' in ref_type_name:
-                    form.supplier_type.data = 'local_operator'
-                elif '保险' in ref_type_name:
-                    form.supplier_type.data = 'other'
-                else:
-                    form.supplier_type.data = 'other'
-        
-        # 预填充供应商ID（使用REF的供应商）
-        if not form.supplier_id.data and ref.supplier_id:
-            form.supplier_id.data = ref.supplier_id
-        
-        # 预填充金额（使用REF的成本价格）
-        if not form.amount.data and ref.cost_price:
-            form.amount.data = ref.cost_price
-        
-        # 预填充货币（使用REF的货币）
-        if not form.currency.data and ref.currency:
-            form.currency.data = ref.currency
-        elif not form.currency.data:
-            form.currency.data = 'SGD'  # 默认货币
-        
-        # 预填充备注（使用REF的备注）
-        if not form.remarks.data and ref.remarks:
-            form.remarks.data = ref.remarks
-        
         # 预填充状态（默认为已确认）
         if not form.status.data:
             form.status.data = 'confirmed'
@@ -223,35 +173,12 @@ def quick_create_eo(ref_id):
         
         print(f"DEBUG: REF {ref.id} 没有EO记录，准备创建...")
         
-        # 根据REF类型推断供应商类型
-        supplier_type = 'other'
-        if ref.ref_type:
-            ref_type_name = ref.ref_type.name
-            if '机票' in ref_type_name:
-                supplier_type = 'flight'
-            elif '酒店' in ref_type_name:
-                supplier_type = 'hotel'
-            elif '签证' in ref_type_name:
-                supplier_type = 'visa'
-            elif '交通' in ref_type_name or '用车' in ref_type_name:
-                supplier_type = 'transport'
-            elif '旅游' in ref_type_name or '团' in ref_type_name:
-                supplier_type = 'local_operator'
-            elif '保险' in ref_type_name:
-                supplier_type = 'other'
-        
         # 创建EO
         eo = ProjectEO(
             ref_id=ref.id,
-            name=ref.name or ref.description or f"{ref.ref_type.name if ref.ref_type else 'REF'}订单",
-            supplier_type=supplier_type,
-            supplier_id=ref.supplier_id or 1,  # 如果没有供应商，使用默认供应商
             external_system=None,
             external_status=None,
             external_reference=None,
-            amount=ref.cost_price or 0,
-            currency=ref.currency or 'SGD',
-            remarks=ref.remarks,
             status='confirmed'
         )
         
@@ -330,18 +257,23 @@ def eo_list():
         sort_order = request.args.get('sort_order', 'desc')
         
         # 构建查询
+        from App_new.shared.models.business_types import BusinessType
         query = db.session.query(
             ProjectEO,
             Supplier.name.label('supplier_name'),
-            ProjectRef.name.label('ref_name'),
+            BusinessType.name.label('ref_type_name'),
+            ProjectRef.description.label('ref_description'),
+            ProjectRef.detailed_description.label('ref_detailed_description'),
             ProjectRef.ref_number.label('ref_number'),
             ProjectRef.header_id.label('project_id'),
             ProjectHeader.desc.label('project_name'),
             CustomerCompany.company_name.label('company_name')
         ).join(
-            Supplier, ProjectEO.supplier_id == Supplier.supplier_id, isouter=True
-        ).join(
             ProjectRef, ProjectEO.ref_id == ProjectRef.id, isouter=True
+        ).join(
+            BusinessType, ProjectRef.ref_type_id == BusinessType.id, isouter=True
+        ).join(
+            Supplier, ProjectRef.supplier_id == Supplier.supplier_id, isouter=True
         ).join(
             ProjectHeader, ProjectRef.header_id == ProjectHeader.id, isouter=True
         ).join(
@@ -363,14 +295,26 @@ def eo_list():
                 filters.append(ProjectHeader.staff_name == current_user.username)
             # 2级员工可以看到所有EO，不需要额外过滤
         
-        if supplier_type:
-            filters.append(ProjectEO.supplier_type == supplier_type)
-        
         if status:
             filters.append(ProjectEO.status == status)
         
         if supplier_id:
-            filters.append(ProjectEO.supplier_id == supplier_id)
+            filters.append(ProjectRef.supplier_id == supplier_id)
+        
+        if supplier_type:
+            # 通过REF的ref_type_id关联到business_types来筛选
+            # 根据供应商类型枚举值匹配业务类型名称
+            supplier_type_map = {
+                'visa': '签证',
+                'flight': '机票',
+                'hotel': '酒店',
+                'transport': '用车',
+                'local_operator': '地接',
+                'other': '其他'
+            }
+            type_name = supplier_type_map.get(supplier_type)
+            if type_name:
+                filters.append(BusinessType.name == type_name)
         
         if external_system:
             filters.append(ProjectEO.external_system.ilike(f'%{external_system}%'))
@@ -406,19 +350,18 @@ def eo_list():
             ))
         
         if min_amount is not None and min_amount > 0:
-            filters.append(ProjectEO.amount >= float(min_amount))
+            filters.append(ProjectRef.cost_price >= float(min_amount))
         
         if max_amount is not None and max_amount > 0:
-            filters.append(ProjectEO.amount <= float(max_amount))
+            filters.append(ProjectRef.cost_price <= float(max_amount))
         
         if keyword:
             keyword_filter = or_(
-                ProjectEO.name.ilike(f'%{keyword}%'),
                 ProjectEO.eo_number.ilike(f'%{keyword}%'),
                 ProjectEO.external_system.ilike(f'%{keyword}%'),
                 ProjectEO.external_reference.ilike(f'%{keyword}%'),
-                ProjectEO.remarks.ilike(f'%{keyword}%'),
-                ProjectRef.name.ilike(f'%{keyword}%'),
+                ProjectRef.description.ilike(f'%{keyword}%'),
+                ProjectRef.detailed_description.ilike(f'%{keyword}%'),
                 ProjectRef.ref_number.ilike(f'%{keyword}%'),
                 ProjectHeader.desc.ilike(f'%{keyword}%'),
                 CustomerCompany.company_name.ilike(f'%{keyword}%')
@@ -432,10 +375,8 @@ def eo_list():
         # 排序
         if sort_by == 'created_at':
             order_column = ProjectEO.created_at
-        elif sort_by == 'name':
-            order_column = ProjectEO.name
         elif sort_by == 'amount':
-            order_column = ProjectEO.amount
+            order_column = ProjectRef.cost_price
         elif sort_by == 'status':
             order_column = ProjectEO.status
         else:
@@ -485,30 +426,28 @@ def eo_list():
         
         # 处理EO数据，添加显示属性
         eos = []
-        for eo, supplier_name, ref_name, ref_number, project_id, project_name, company_name in pagination.items:
+        for eo, supplier_name, ref_type_name, ref_description, ref_detailed_description, ref_number, project_id, project_name, company_name in pagination.items:
+            
             eo_dict = {
                 'id': eo.id,
                 'eo_number': str(eo.eo_number) if eo.eo_number else '',
-                'name': str(eo.name) if eo.name else '',
-                'supplier_type': str(eo.supplier_type) if eo.supplier_type else '',
-                'supplier_type_display': get_supplier_type_display(eo.supplier_type),
-                'supplier_type_color': get_supplier_type_color(eo.supplier_type),
-                'supplier_name': str(supplier_name) if supplier_name else '',
                 'ref_id': int(eo.ref_id) if eo.ref_id else None,
-                'ref_name': str(ref_name) if ref_name else '',
+                'ref_description': str(ref_description) if ref_description else '',
+                'ref_detailed_description': str(ref_detailed_description) if ref_detailed_description else '',
                 'ref_number': str(ref_number) if ref_number else '',
+                'supplier_name': str(supplier_name) if supplier_name else '',
+                'ref_type_name': str(ref_type_name) if ref_type_name else '',
                 'project_id': int(project_id) if project_id else None,
                 'project_name': str(project_name) if project_name else '',
                 'company_name': str(company_name) if company_name else '',
                 'external_system': str(eo.external_system) if eo.external_system else '',
                 'external_status': str(eo.external_status) if eo.external_status else '',
                 'external_reference': str(eo.external_reference) if eo.external_reference else '',
-                'amount': float(eo.amount) if eo.amount is not None else 0,
-                'currency': str(eo.currency) if eo.currency else 'SGD',
+                'amount': float(eo.ref.cost_price) if eo.ref and eo.ref.cost_price is not None else 0,
+                'currency': str(eo.ref.currency) if eo.ref and eo.ref.currency else 'SGD',
                 'status': str(eo.status) if eo.status else 'draft',
                 'status_display': get_status_display(eo.status),
                 'status_color': get_status_color(eo.status),
-                'remarks': str(eo.remarks) if eo.remarks else '',
                 'created_at': eo.created_at,
                 'updated_at': eo.updated_at
             }
