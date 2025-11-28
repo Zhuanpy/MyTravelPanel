@@ -695,7 +695,12 @@ def create_project_links(project_id):
                 'visa_fee': types_info.fee if types_info else None,
                 'source_system': 'visa_system',
                 'created_from_visa_project': True,
-                'visa_project_id': project.id
+                'visa_project_id': project.id,
+                # 联系人信息保存到extra_info
+                'contact_name': project.contact_name or project.applicant_name,
+                'contact_phone': project.contact_phone if hasattr(project, 'contact_phone') else None,
+                'contact_email': project.contact_email if hasattr(project, 'contact_email') else None,
+                'leader_name': project.applicant_name
             }
             
             # 解析申请费用，提取数字部分
@@ -718,10 +723,6 @@ def create_project_links(project_id):
                 description=f"{project.applicant_name} {project.visa_type}签证",
                 ref_type_id=visa_business_type.id,
                 detailed_description=f"{project.applicant_name}的{project.visa_type}签证申请",
-                contact_name=project.contact_name or project.applicant_name,
-                contact_phone=project.contact_phone if hasattr(project, 'contact_phone') else None,
-                contact_email=project.contact_email if hasattr(project, 'contact_email') else None,
-                leader_name=project.applicant_name,  # 使用申请人姓名作为负责人姓名
                 selling_price=selling_price,  # 使用申请费用作为售价
                 currency='SGD',
                 remarks=project.remarks,

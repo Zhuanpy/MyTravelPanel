@@ -697,15 +697,22 @@ function openVisaTypeFolder(visaType) {
 }
 
 // ==================== HID/REF管理功能 ====================
-function createProjectLinks() {
+function createProjectLinks(button) {
     if (!confirm('确定要为这个签证项目创建HID和REF关联吗？系统将自动使用当前登录员工的姓名作为经办人和负责人。')) return;
     
-    const button = event.target;
+    // 从按钮的 data-project-id 属性获取项目ID，如果没有则使用全局 PROJECT_ID
+    const projectId = button.dataset.projectId || PROJECT_ID;
+    
+    if (!projectId) {
+        showMessage('无法获取项目ID，请刷新页面重试', 'error');
+        return;
+    }
+    
     const originalText = button.innerHTML;
     button.disabled = true;
     button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 创建中...';
     
-    fetch(`/visa/project/create_project_links/${PROJECT_ID}`, {
+    fetch(`/visa/project/create_project_links/${projectId}`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -1045,7 +1052,7 @@ document.addEventListener('click', function(e) {
             openVisaTypeFolder(target.dataset.visaType);
             break;
         case 'create-project-links':
-            createProjectLinks();
+            createProjectLinks(target);
             break;
         case 'copy-hid-ref':
             copyHIDRef();

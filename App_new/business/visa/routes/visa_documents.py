@@ -294,8 +294,17 @@ def display_document_request(visa_type, singapore_status):
     - dict: 包含签证文件资料内容的 JSON 响应
     """
     try:
+        # URL解码参数
+        decoded_visa_type = unquote(visa_type)
+        decoded_visa_type = html.unescape(decoded_visa_type)
+        decoded_singapore_status = unquote(singapore_status)
+        decoded_singapore_status = html.unescape(decoded_singapore_status)
+        
+        print(f"DEBUG: 原始参数 - visa_type: '{visa_type}', singapore_status: '{singapore_status}'")
+        print(f"DEBUG: 解码后 - visa_type: '{decoded_visa_type}', singapore_status: '{decoded_singapore_status}'")
+        
         # 根据签证类型名称获取ID
-        visa_type_record = VisaTypes.query.filter_by(visa_type=visa_type).first()
+        visa_type_record = VisaTypes.query.filter_by(visa_type=decoded_visa_type).first()
         if not visa_type_record:
             return jsonify({
                 'document_info': '签证类型不存在',
@@ -304,13 +313,28 @@ def display_document_request(visa_type, singapore_status):
         
         # 根据身份名称获取ID
         identity_record = None
-        if singapore_status != 'SHARE':
-            identity_record = VisaSingaporeIdentity.query.filter_by(identity_zh=singapore_status).first()
+        if decoded_singapore_status != 'SHARE':
+            # 去除可能的前后空格
+            clean_status = decoded_singapore_status.strip()
+            print(f"DEBUG: 查询身份 - clean_status: '{clean_status}'")
+            
+            # 查询所有身份记录用于调试
+            all_identities = VisaSingaporeIdentity.query.all()
+            print(f"DEBUG: 数据库中所有身份: {[(i.id, i.identity_zh) for i in all_identities]}")
+            
+            identity_record = VisaSingaporeIdentity.query.filter_by(identity_zh=clean_status).first()
             if not identity_record:
+                print(f"DEBUG: 未找到身份记录 - clean_status: '{clean_status}'")
                 return jsonify({
-                    'document_info': '身份类型不存在',
-                    'additional_info': '身份类型不存在'
+                    'document_info': f'身份类型不存在: {clean_status}',
+                    'additional_info': f'身份类型不存在: {clean_status}'
                 }), 404
+        
+        print(f"DEBUG: visa_type_record.id: {visa_type_record.id}, identity_record.id: {identity_record.id if identity_record else None}")
+        
+        # 查询该签证类型下的所有文档记录用于调试
+        all_docs = VisaDocuments.query.filter_by(visa_type_id=visa_type_record.id).all()
+        print(f"DEBUG: 该签证类型下的所有文档记录: {[(d.id, d.singapore_identity_id) for d in all_docs]}")
         
         # 获取文档信息
         document_info = VisaDocuments.get_document_info(

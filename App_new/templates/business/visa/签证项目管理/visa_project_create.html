@@ -251,15 +251,7 @@
         document.getElementById('visa_type').addEventListener('input', updateProjectName);
         document.getElementById('applicant_name').addEventListener('input', updateProjectName);
         
-        // 身份选择下拉框事件监听器
-        document.getElementById('singapore_status').addEventListener('change', function() {
-            const selectedValue = this.value;
-            // 加载对应身份的文档资料
-            const visaType = document.getElementById('visa_type').value;
-            if (visaType && selectedValue) {
-                window.loadIdentityDocuments(visaType, selectedValue);
-            }
-        });
+        // 身份选择下拉框事件监听器已移至 loadIdentityOptions 函数中
     });
     // 自动隐藏警告消息
     setTimeout(function() {
@@ -619,6 +611,18 @@ window.loadIdentityOptions = function(visaType) {
                             option.textContent = identity;
                             selectElement.appendChild(option);
                         });
+                    
+                    // 绑定 change 事件监听器（移除旧的，添加新的）
+                    selectElement.onchange = function() {
+                        const selectedValue = this.value;
+                        console.log('DEBUG: 身份选择变更 - selectedValue:', selectedValue);
+                        if (visaType && selectedValue) {
+                            console.log('DEBUG: 调用 loadIdentityDocuments');
+                            window.loadIdentityDocuments(visaType, selectedValue);
+                        }
+                    };
+                    console.log('DEBUG: change 事件监听器已绑定');
+                    
                     // 如果有保存的选中身份，恢复它，否则默认选中第一个有效身份
                     const savedIdentity = localStorage.getItem('selectedIdentity');
                     if (savedIdentity && data.identity_options.includes(savedIdentity)) {
