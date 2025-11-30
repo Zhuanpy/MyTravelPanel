@@ -113,5 +113,11 @@ class CustomerCompanyForm(FlaskForm):
         Optional()
     ])
     
+    # 集团/关联标签（可自由输入，如 BAONENG, ALIBABA 等）
+    group_name = StringField('集团/关联', [
+        Optional(),
+        Length(max=100, message='集团/关联标签不能超过100个字符')
+    ])
+    
     submit = SubmitField('保存公司')
     cancel = SubmitField('取消') 

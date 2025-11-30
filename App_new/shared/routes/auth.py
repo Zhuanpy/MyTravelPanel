@@ -6,7 +6,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, session
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import check_password_hash, generate_password_hash
-from App_new.auth.models.auth import AuthUser, Role, UserProfile, InvitationCode
+from App_new.auth.models.auth import AuthUser, Role, UserProfile, InvitationCode, PasswordResetToken
 from App_new.utils.decorators import guest_only, member_only
 from App_new.exts import db
 import re
@@ -542,6 +542,128 @@ def admin_register():
         return _handle_role_register('admin', 'auth/admin_register.html')
     
     return render_template('auth/admin_register.html', role_type='admin')
+
+# ==================== 忘记密码功能 ====================
+
+@auth_profile.route('/forgot-password', methods=['GET', 'POST'])
+@guest_only
+def forgot_password():
+    """忘记密码页面"""
+    if request.method == 'POST':
+        email = request.form.get('email', '').strip()
+        
+        if not email:
+            flash('请输入邮箱地址', 'error')
+            return render_template('auth/forgot_password.html')
+        
+        # 验证邮箱格式
+        email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        if not re.match(email_pattern, email):
+            flash('请输入有效的邮箱地址', 'error')
+            return render_template('auth/forgot_password.html')
+        
+        # 查找用户
+        user = AuthUser.query.filter_by(email=email).first()
+        
+        # 无论用户是否存在，都显示相同的消息（防止邮箱枚举攻击）
+        if user:
+            try:
+                print(f"[忘记密码] 找到用户: {user.username} ({email})")
+                
+                # 生成重置令牌
+                reset_token, raw_token = PasswordResetToken.generate_token(user.id, email)
+                db.session.add(reset_token)
+                db.session.commit()
+                print(f"[忘记密码] 重置令牌已生成并保存")
+                
+                # 发送重置邮件
+                from App_new.utils.email_service import send_password_reset_email
+                reset_url = url_for('auth_profile.reset_password', token=raw_token, _external=True)
+                print(f"[忘记密码] 重置链接: {reset_url}")
+                
+                try:
+                    send_password_reset_email(email, user.username, reset_url)
+                    print(f"[忘记密码] 邮件发送成功!")
+                except Exception as e:
+                    import traceback
+                    print(f"[忘记密码] 发送邮件失败: {str(e)}")
+                    print(f"[忘记密码] 详细错误: {traceback.format_exc()}")
+                    # 即使邮件发送失败，也显示成功消息（安全考虑）
+                
+            except Exception as e:
+                import traceback
+                print(f"[忘记密码] 生成令牌失败: {str(e)}")
+                print(f"[忘记密码] 详细错误: {traceback.format_exc()}")
+                db.session.rollback()
+        else:
+            print(f"[忘记密码] 未找到用户: {email}")
+        
+        flash('如果该邮箱已注册，您将收到一封密码重置邮件，请查收。', 'success')
+        return redirect(url_for('auth_profile.forgot_password'))
+    
+    return render_template('auth/forgot_password.html')
+
+@auth_profile.route('/reset-password/<token>', methods=['GET', 'POST'])
+@guest_only
+def reset_password(token):
+    """重置密码页面"""
+    import hashlib
+    
+    # 验证令牌
+    token_hash = hashlib.sha256(token.encode()).hexdigest()
+    reset_token, is_valid, message = PasswordResetToken.verify_token(token_hash)
+    
+    if not is_valid:
+        flash(message, 'error')
+        return redirect(url_for('auth_profile.forgot_password'))
+    
+    if request.method == 'POST':
+        password = request.form.get('password', '')
+        confirm_password = request.form.get('confirm_password', '')
+        
+        # 验证密码
+        if not password or not confirm_password:
+            flash('请输入新密码', 'error')
+            return render_template('auth/reset_password.html', token=token)
+        
+        if password != confirm_password:
+            flash('两次输入的密码不一致', 'error')
+            return render_template('auth/reset_password.html', token=token)
+        
+        if len(password) < 6:
+            flash('密码长度至少6位', 'error')
+            return render_template('auth/reset_password.html', token=token)
+        
+        try:
+            # 更新用户密码
+            user = reset_token.user
+            user.set_password(password)
+            
+            # 标记令牌为已使用
+            reset_token.use_token()
+            
+            # 解锁账户（如果被锁定）
+            if user.is_locked:
+                user.unlock_account()
+            
+            db.session.commit()
+            
+            flash('密码重置成功！请使用新密码登录', 'success')
+            
+            # 根据用户角色重定向到对应登录页
+            if user.role.name == 'staff':
+                return redirect(url_for('auth_profile.staff_login'))
+            elif user.role.name == 'admin':
+                return redirect(url_for('admin_auth.login'))
+            else:
+                return redirect(url_for('auth_profile.member_login'))
+                
+        except Exception as e:
+            db.session.rollback()
+            flash(f'密码重置失败：{str(e)}', 'error')
+            return render_template('auth/reset_password.html', token=token)
+    
+    return render_template('auth/reset_password.html', token=token, email=reset_token.email)
 
 def _handle_role_login(role_name, template_name):
     """处理角色登录逻辑"""

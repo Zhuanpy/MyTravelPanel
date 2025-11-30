@@ -20,6 +20,7 @@ def list_companies():
     page = request.args.get('page', 1, type=int)
     search = request.args.get('search', '')
     status = request.args.get('status', '')
+    group_name_filter = request.args.get('group_name', '')
     
     query = CustomerCompany.query
     
@@ -35,13 +36,35 @@ def list_companies():
     if status:
         query = query.filter(CustomerCompany.status == status)
     
+    # 集团/关联标签筛选
+    if group_name_filter:
+        if group_name_filter == 'has_group':
+            query = query.filter(
+                CustomerCompany.group_name.isnot(None),
+                CustomerCompany.group_name != ''
+            )
+        elif group_name_filter == 'no_group':
+            query = query.filter(
+                or_(
+                    CustomerCompany.group_name.is_(None),
+                    CustomerCompany.group_name == ''
+                )
+            )
+        else:
+            query = query.filter(CustomerCompany.group_name == group_name_filter)
+    
     # 按点击次数降序排列，点击次数相同时按创建时间降序排列
     companies = query.order_by(
         CustomerCompany.click_count.desc(),
         CustomerCompany.created_at.desc()
     ).paginate(page=page, per_page=20, error_out=False)
     
-    return render_template('shared/corporate/corporate_list.html', companies=companies)
+    # 获取所有已使用的集团/关联标签，用于筛选下拉列表
+    group_names = get_existing_group_names()
+    
+    return render_template('shared/corporate/corporate_list.html', 
+                           companies=companies, 
+                           group_names=group_names)
 
 @corporate.route('/api/click/<int:company_id>', methods=['POST'])
 @csrf.exempt
@@ -66,6 +89,14 @@ def record_company_click(company_id):
             'message': str(e)
         }), 500
 
+def get_existing_group_names():
+    """获取已有的集团/关联标签列表（用于自动补全）"""
+    result = db.session.query(CustomerCompany.group_name).filter(
+        CustomerCompany.group_name.isnot(None),
+        CustomerCompany.group_name != ''
+    ).distinct().order_by(CustomerCompany.group_name).all()
+    return [r[0] for r in result]
+
 @corporate.route('/create', methods=['GET', 'POST'])
 @login_required
 @staff_only
@@ -77,6 +108,9 @@ def create_company():
         try:
             # 设置创建时间：如果表单中有值则使用表单值，否则使用当前时间
             created_at = form.created_at.data if form.created_at.data else datetime.utcnow()
+            
+            # 处理集团/关联标签（自动转大写）
+            group_name = form.group_name.data.strip().upper() if form.group_name.data else None
             
             company = CustomerCompany(
                 company_name=form.company_name.data.upper() if form.company_name.data else '',
@@ -92,7 +126,8 @@ def create_company():
                 status=form.status.data,
                 remarks=form.remarks.data,
                 created_at=created_at,
-                created_by=current_user.username if current_user.is_authenticated else 'system'
+                created_by=current_user.username if current_user.is_authenticated else 'system',
+                group_name=group_name
             )
             db.session.add(company)
             db.session.commit()
@@ -113,7 +148,7 @@ def create_company():
             for error in errors:
                 flash(f'{getattr(form, field).label.text}: {error}', 'error')
     
-    return render_template('shared/corporate/corporate_form.html', form=form, company=None)
+    return render_template('shared/corporate/corporate_form.html', form=form, company=None, existing_group_names=get_existing_group_names())
 
 @corporate.route('/<int:company_id>')
 @login_required
@@ -143,13 +178,16 @@ def edit_company(company_id):
             if company.company_name:
                 company.company_name = company.company_name.upper()
             
+            # 处理集团/关联标签（自动转大写）
+            if company.group_name:
+                company.group_name = company.group_name.strip().upper()
+            
             # 如果没有设置创建时间，自动设置为今天
             if not company.created_at:
                 company.created_at = datetime.utcnow()
             
             db.session.commit()
-            flash('公司信息更新成功！', 'success')
-            return redirect(url_for('corporate.company_detail', company_id=company.id))
+            return redirect(url_for('corporate.list_companies'))
         except Exception as e:
             db.session.rollback()
             flash(f'更新失败：{str(e)}', 'error')
@@ -158,7 +196,7 @@ def edit_company(company_id):
             for error in errors:
                 flash(f'{getattr(form, field).label.text}: {error}', 'error')
     
-    return render_template('shared/corporate/corporate_form.html', form=form, company=company)
+    return render_template('shared/corporate/corporate_form.html', form=form, company=company, existing_group_names=get_existing_group_names())
 
 @corporate.route('/<int:company_id>/delete', methods=['POST'])
 @login_required
@@ -191,6 +229,33 @@ def api_search_companies():
         'text': company.company_name,
         'contact_person': company.contact_person,
         'contact_phone': company.contact_phone
+    } for company in companies])
+
+@corporate.route('/api/search-group')
+@login_required
+@staff_only
+def api_search_group_companies():
+    """API搜索集团/关联公司（用于Select2下拉选择）"""
+    search = request.args.get('q', '')
+    exclude_id = request.args.get('exclude_id', '')
+    
+    query = CustomerCompany.query.filter(CustomerCompany.status == 'active')
+    
+    if search:
+        query = query.filter(CustomerCompany.company_name.ilike(f'%{search}%'))
+    
+    # 排除当前编辑的公司（避免自引用）
+    if exclude_id:
+        try:
+            query = query.filter(CustomerCompany.id != int(exclude_id))
+        except ValueError:
+            pass
+    
+    companies = query.order_by(CustomerCompany.company_name).limit(20).all()
+    
+    return jsonify([{
+        'id': company.id,
+        'company_name': company.company_name
     } for company in companies])
 
 @corporate.route('/api/<int:company_id>')

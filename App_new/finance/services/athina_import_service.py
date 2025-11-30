@@ -467,6 +467,13 @@ class AthinaImportService:
                         skipped_invalid_refs += 1
                         continue
                     
+                    # 检查Gross是否为0，如果为0则跳过（Gross在第10列，索引9）
+                    gross_value = self.parse_decimal(row_values[9]) if len(row_values) > 9 else None
+                    if gross_value is not None and gross_value == 0:
+                        print(f"第{index}行Gross为0，跳过")
+                        skipped_empty_rows += 1
+                        continue
+                    
                     # 检查是否包含有效业务数据
                     has_client_name = any(cell and str(cell).strip() and str(cell).strip() != 'nan' 
                                         for cell in row_values[2:4])

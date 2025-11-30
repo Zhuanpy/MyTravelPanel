@@ -8,7 +8,14 @@ from sqlalchemy import case
 from datetime import datetime
 import pandas as pd
 from io import BytesIO
-from App_new.shared.models.account import Account
+from App_new.shared.models.account import (
+    Account, 
+    ACCESS_LEVEL_CHOICES,
+    ACCESS_LEVEL_PRIVATE,
+    ACCESS_LEVEL_LEVEL_1,
+    ACCESS_LEVEL_LEVEL_2,
+    ACCESS_LEVEL_PUBLIC
+)
 from App_new.shared.models.Suppliers import Supplier
 
 # 创建蓝图
@@ -17,6 +24,44 @@ account_routes = Blueprint('account_routes', __name__)
 # 配置日志
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+def filter_accounts_by_access(query, user):
+    """根据用户权限过滤账号查询"""
+    from sqlalchemy import or_
+    
+    # 管理员可以看到所有账号
+    if user.role and user.role.name in ['admin', 'super_admin']:
+        return query
+    
+    # 获取用户的员工等级
+    staff_level = 1  # 默认等级
+    if user.profile:
+        staff_level = user.profile.staff_level or 1
+    
+    # 构建权限过滤条件
+    access_conditions = [
+        Account.access_level == ACCESS_LEVEL_PUBLIC,  # 公开权限
+        Account.access_level.is_(None),  # 空值视为公开
+    ]
+    
+    # 私有权限：仅创建者可见
+    access_conditions.append(
+        db.and_(
+            Account.access_level == ACCESS_LEVEL_PRIVATE,
+            or_(
+                Account.created_by == user.id,
+                Account.owner == user.username
+            )
+        )
+    )
+    
+    # 根据员工等级添加可见权限
+    if staff_level >= 1:
+        access_conditions.append(Account.access_level == ACCESS_LEVEL_LEVEL_1)
+    if staff_level >= 2:
+        access_conditions.append(Account.access_level == ACCESS_LEVEL_LEVEL_2)
+    
+    return query.filter(or_(*access_conditions))
 
 @account_routes.route('/accounts')
 @login_required
@@ -35,19 +80,11 @@ def account_detail(account_id):
         if not account:
             return render_template('errors/404.html'), 404
         
-        # 员工等级权限检查
-        if current_user.role and current_user.role.name == 'staff':
-            # 检查用户资料中的员工等级
-            staff_level = 1  # 默认等级
-            if current_user.profile:
-                staff_level = current_user.profile.staff_level or 1
-            
-            if staff_level == 1:
-                # 1级员工只能访问自己创建的账户
-                if account.owner != current_user.username:
-                    flash('您没有权限访问此账户', 'error')
-                    return redirect(url_for('account_routes.account_page'))
-            # 2级员工可以访问所有账户，不需要额外检查
+        # 使用新的权限检查方法
+        if not account.can_access(current_user):
+            from flask import flash, redirect, url_for
+            flash('您没有权限访问此账户', 'error')
+            return redirect(url_for('account_routes.account_page'))
         
         return render_template('utils/account_detail.html', account=account)
     except Exception as e:
@@ -65,21 +102,12 @@ def increment_click(account_id):
         if not account:
             return jsonify({'success': False, 'message': '账号不存在'}), 404
         
-        # 员工等级权限检查
-        if current_user.role and current_user.role.name == 'staff':
-            # 检查用户资料中的员工等级
-            staff_level = 1  # 默认等级
-            if current_user.profile:
-                staff_level = current_user.profile.staff_level or 1
-            
-            if staff_level == 1:
-                # 1级员工只能点击自己创建的账户
-                if account.owner != current_user.username:
-                    return jsonify({
-                        'success': False,
-                        'message': '您没有权限访问此账户'
-                    }), 403
-            # 2级员工可以点击所有账户，不需要额外检查
+        # 使用新的权限检查方法
+        if not account.can_access(current_user):
+            return jsonify({
+                'success': False,
+                'message': '您没有权限访问此账户'
+            }), 403
         
         # 增加点击次数
         if account.click_count is None:
@@ -98,6 +126,27 @@ def increment_click(account_id):
         logger.error(f"Error updating click count: {str(e)}")
         db.session.rollback()
         return jsonify({'success': False, 'message': str(e)}), 500
+
+@account_routes.route('/api/access_levels', methods=['GET'])
+@login_required
+@staff_only
+def get_access_levels():
+    """获取访问权限级别选项"""
+    try:
+        access_levels = [
+            {'value': value, 'label': label}
+            for value, label in ACCESS_LEVEL_CHOICES
+        ]
+        return jsonify({
+            'success': True,
+            'access_levels': access_levels
+        })
+    except Exception as e:
+        logger.error(f"Error fetching access levels: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f'获取访问权限级别失败: {str(e)}'
+        }), 500
 
 @account_routes.route('/api/categories', methods=['GET'])
 def get_categories():
@@ -136,17 +185,8 @@ def get_popular_accounts():
         # 构建基础查询
         base_query = Account.query
         
-        # 根据员工等级过滤账户
-        if current_user.role and current_user.role.name == 'staff':
-            # 检查用户资料中的员工等级
-            staff_level = 1  # 默认等级
-            if current_user.profile:
-                staff_level = current_user.profile.staff_level or 1
-            
-            if staff_level == 1:
-                # 1级员工只能看到自己创建的账户
-                base_query = base_query.filter(Account.owner == current_user.username)
-            # 2级员工可以看到所有账户，不需要额外过滤
+        # 使用新的权限过滤函数
+        base_query = filter_accounts_by_access(base_query, current_user)
         
         # 修复 case 语句的语法
         popular_accounts = base_query.order_by(
@@ -185,17 +225,8 @@ def get_accounts():
         # 构建查询
         query = Account.query
         
-        # 根据员工等级过滤账户
-        if current_user.role and current_user.role.name == 'staff':
-            # 检查用户资料中的员工等级
-            staff_level = 1  # 默认等级
-            if current_user.profile:
-                staff_level = current_user.profile.staff_level or 1
-            
-            if staff_level == 1:
-                # 1级员工只能看到自己创建的账户（通过owner字段关联）
-                query = query.filter(Account.owner == current_user.username)
-            # 2级员工可以看到所有账户，不需要额外过滤
+        # 使用新的权限过滤函数
+        query = filter_accounts_by_access(query, current_user)
         
         accounts = query.all()
         accounts_data = [{
@@ -214,7 +245,9 @@ def get_accounts():
             'created_at': account.created_at.isoformat() if account.created_at else None,
             'updated_at': account.updated_at.isoformat() if account.updated_at else None,
             'supplier_id': account.supplier_id,
-            'supplier_name': account.supplier.name if account.supplier else None
+            'supplier_name': account.supplier.name if account.supplier else None,
+            'access_level': account.access_level or ACCESS_LEVEL_PRIVATE,
+            'access_level_display': dict(ACCESS_LEVEL_CHOICES).get(account.access_level, '仅自己可见')
         } for account in accounts]
         
         logger.info(f"Successfully fetched {len(accounts_data)} accounts")
@@ -237,21 +270,13 @@ def get_account(account_id):
     try:
         account = Account.query.get_or_404(account_id)
         
-        # 员工等级权限检查
-        if current_user.role and current_user.role.name == 'staff':
-            # 检查用户资料中的员工等级
-            staff_level = 1  # 默认等级
-            if current_user.profile:
-                staff_level = current_user.profile.staff_level or 1
+        # 使用新的权限检查方法
+        if not account.can_access(current_user):
+            return jsonify({
+                'success': False,
+                'message': '您没有权限访问此账户'
+            }), 403
             
-            if staff_level == 1:
-                # 1级员工只能访问自己创建的账户
-                if account.owner != current_user.username:
-                    return jsonify({
-                        'success': False,
-                        'message': '您没有权限访问此账户'
-                    }), 403
-            # 2级员工可以访问所有账户，不需要额外检查
         return jsonify({
             'success': True,
             'account': {
@@ -270,7 +295,9 @@ def get_account(account_id):
                 'created_at': account.created_at.isoformat() if account.created_at else None,
                 'updated_at': account.updated_at.isoformat() if account.updated_at else None,
                 'supplier_id': account.supplier_id,
-                'supplier_name': account.supplier.name if account.supplier else None
+                'supplier_name': account.supplier.name if account.supplier else None,
+                'access_level': account.access_level or ACCESS_LEVEL_PRIVATE,
+                'access_level_display': dict(ACCESS_LEVEL_CHOICES).get(account.access_level, '仅自己可见')
             }
         })
     except Exception as e:
@@ -289,19 +316,6 @@ def create_account():
     try:
         logger.info("Creating new account")
         data = request.get_json()
-        
-        # 员工等级权限检查
-        if current_user.role and current_user.role.name == 'staff':
-            # 检查用户资料中的员工等级
-            staff_level = 1  # 默认等级
-            if current_user.profile:
-                staff_level = current_user.profile.staff_level or 1
-            
-            if staff_level == 1:
-                # 1级员工只能创建自己拥有的账户
-                # 强制设置owner为当前用户
-                data['owner'] = current_user.username
-            # 2级员工可以创建任何账户，不需要限制
         
         # 验证必填字段
         required_fields = ['platform', 'category', 'username', 'password']
@@ -333,6 +347,11 @@ def create_account():
                     'message': '供应商ID格式错误'
                 }), 400
         
+        # 处理访问权限
+        access_level = data.get('access_level', ACCESS_LEVEL_PRIVATE)
+        if access_level not in [ACCESS_LEVEL_PRIVATE, ACCESS_LEVEL_LEVEL_1, ACCESS_LEVEL_LEVEL_2, ACCESS_LEVEL_PUBLIC]:
+            access_level = ACCESS_LEVEL_PRIVATE
+        
         # 创建新账号
         new_account = Account(
             platform=data['platform'],
@@ -345,7 +364,9 @@ def create_account():
             region=data.get('region'),
             description=data.get('description'),
             notes=data.get('notes'),
-            supplier_id=supplier_id
+            supplier_id=supplier_id,
+            access_level=access_level,
+            created_by=current_user.id  # 记录创建者
         )
 
         db.session.add(new_account)
@@ -359,7 +380,8 @@ def create_account():
                 'id': new_account.id,
                 'platform': new_account.platform,
                 'category': new_account.category,
-                'username': new_account.username
+                'username': new_account.username,
+                'access_level': new_account.access_level
             }
         })
     except Exception as e:
@@ -386,21 +408,12 @@ def update_account(account_id):
                 'message': '账号不存在'
             }), 404
 
-        # 员工等级权限检查
-        if current_user.role and current_user.role.name == 'staff':
-            # 检查用户资料中的员工等级
-            staff_level = 1  # 默认等级
-            if current_user.profile:
-                staff_level = current_user.profile.staff_level or 1
-            
-            if staff_level == 1:
-                # 1级员工只能更新自己创建的账户
-                if account.owner != current_user.username:
-                    return jsonify({
-                        'success': False,
-                        'message': '您没有权限更新此账户'
-                    }), 403
-            # 2级员工可以更新所有账户，不需要额外检查
+        # 使用新的权限检查方法
+        if not account.can_access(current_user):
+            return jsonify({
+                'success': False,
+                'message': '您没有权限更新此账户'
+            }), 403
 
         data = request.get_json()
         logger.info(f"Update data received: {data}")
@@ -441,6 +454,13 @@ def update_account(account_id):
         account.region = data.get('region', account.region)
         account.description = data.get('description', account.description)
         account.notes = data.get('notes', account.notes)
+        
+        # 更新访问权限
+        if 'access_level' in data:
+            access_level = data.get('access_level')
+            if access_level in [ACCESS_LEVEL_PRIVATE, ACCESS_LEVEL_LEVEL_1, ACCESS_LEVEL_LEVEL_2, ACCESS_LEVEL_PUBLIC]:
+                account.access_level = access_level
+                logger.info(f"Updated access_level to: {access_level}")
 
         # 如果提供了新密码，则更新密码
         if 'password' in data and data['password']:
@@ -474,21 +494,12 @@ def delete_account(account_id):
         logger.info(f"Deleting account with id: {account_id}")
         account = Account.query.get_or_404(account_id)
         
-        # 员工等级权限检查
-        if current_user.role and current_user.role.name == 'staff':
-            # 检查用户资料中的员工等级
-            staff_level = 1  # 默认等级
-            if current_user.profile:
-                staff_level = current_user.profile.staff_level or 1
-            
-            if staff_level == 1:
-                # 1级员工只能删除自己创建的账户
-                if account.owner != current_user.username:
-                    return jsonify({
-                        'success': False,
-                        'message': '您没有权限删除此账户'
-                    }), 403
-            # 2级员工可以删除所有账户，不需要额外检查
+        # 使用新的权限检查方法
+        if not account.can_access(current_user):
+            return jsonify({
+                'success': False,
+                'message': '您没有权限删除此账户'
+            }), 403
         
         # 记录要删除的账号信息
         logger.info(f"Found account: {account.platform} - {account.username}")

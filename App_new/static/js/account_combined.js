@@ -191,7 +191,16 @@ let currentFilters = {
     country: '',
     owner: '',
     search: '',
-    sort: 'updated_desc'
+    sort: 'updated_desc',
+    access_level: ''
+};
+
+// 访问权限显示名称映射
+const ACCESS_LEVEL_DISPLAY = {
+    'public': '所有员工可见',
+    'level_2': '2级员工可见',
+    'level_1': '1级及以上员工可见',
+    'private': '仅自己可见'
 };
 let currentPage = 1;
 const itemsPerPage = 20;
@@ -297,6 +306,7 @@ async function initializeApp() {
             country: document.getElementById('countrySelect'),
             owner: document.getElementById('ownerSelect'),
             supplier: document.getElementById('supplierSelect'),
+            access_level: document.getElementById('accessLevelSelect'),
             search: document.getElementById('searchInput'),
             sort: document.getElementById('sortSelect')
         };
@@ -610,12 +620,15 @@ function clearFilters() {
     document.getElementById('countrySelect').value = '';
     document.getElementById('ownerSelect').value = '';
     document.getElementById('searchInput').value = '';
+    const accessLevelSelect = document.getElementById('accessLevelSelect');
+    if (accessLevelSelect) accessLevelSelect.value = '';
     
     // 更新全局筛选条件
     currentFilters.search = '';
     currentFilters.category = '';
     currentFilters.country = '';
     currentFilters.owner = '';
+    currentFilters.access_level = '';
     currentFilters.sort = 'updated_desc';
     
     // 移除热门网站高亮
@@ -695,12 +708,16 @@ function renderAccounts() {
             }
         }
         
+        // 访问权限筛选
+        const matchesAccessLevel = !currentFilters.access_level || 
+                                   (account.access_level || 'private') === currentFilters.access_level;
+        
         const searchLower = currentFilters.search.toLowerCase();
         const matchesSearch = !searchLower || 
                               (account.platform && account.platform.toLowerCase().includes(searchLower)) ||
                               (account.username && account.username.toLowerCase().includes(searchLower));
         
-        return matchesCategory && matchesCountry && matchesOwner && matchesSupplier && matchesSearch;
+        return matchesCategory && matchesCountry && matchesOwner && matchesSupplier && matchesAccessLevel && matchesSearch;
     });
 
     // 排序账号
@@ -740,7 +757,7 @@ function renderAccounts() {
     if (paginatedAccounts.length === 0) {
         accountListElement.innerHTML = `
             <tr>
-                <td colspan="8" class="text-center">没有找到匹配的账号</td>
+                <td colspan="10" class="text-center">没有找到匹配的账号</td>
             </tr>
         `;
     } else {
@@ -804,6 +821,24 @@ function renderAccountRow(account) {
         supplierCell.textContent = '无关联';
     }
     row.appendChild(supplierCell);
+    
+    // 访问权限
+    const accessLevelCell = document.createElement('td');
+    const accessLevel = account.access_level || 'private';
+    const accessLevelDisplay = ACCESS_LEVEL_DISPLAY[accessLevel] || '仅自己可见';
+    
+    // 添加不同权限的样式类
+    let accessLevelClass = 'access-level-public';
+    if (accessLevel === 'private') {
+        accessLevelClass = 'access-level-private';
+    } else if (accessLevel === 'level_2') {
+        accessLevelClass = 'access-level-2';
+    } else if (accessLevel === 'level_1') {
+        accessLevelClass = 'access-level-1';
+    }
+    
+    accessLevelCell.innerHTML = `<span class="badge ${accessLevelClass}">${accessLevelDisplay}</span>`;
+    row.appendChild(accessLevelCell);
     
     // 用户名
     const usernameCell = document.createElement('td');
@@ -1189,6 +1224,12 @@ async function editAccount(id) {
             editSupplier.value = account.supplier_id || '';
         }
         
+        // 设置访问权限
+        const editAccessLevel = document.getElementById('editAccessLevel');
+        if (editAccessLevel) {
+            editAccessLevel.value = account.access_level || 'private';
+        }
+        
         // 设置类别选择器
         const editCategory = document.getElementById('editCategory');
         if (editCategory) {
@@ -1249,6 +1290,10 @@ async function submitEditForm() {
         // 处理供应商ID（空值转为 null）
         const supplierValue = document.getElementById('editSupplier').value;
         formData.supplier_id = supplierValue ? parseInt(supplierValue) : null;
+        
+        // 处理访问权限
+        const accessLevelValue = document.getElementById('editAccessLevel').value;
+        formData.access_level = accessLevelValue || 'private';
         
         const password = document.getElementById('editPassword').value;
         if (password) formData.password = password;

@@ -1213,7 +1213,6 @@ def edit_visa_ref(ref_id):
             
             # 提交数据库更改
             db.session.commit()
-            flash('签证REF更新成功', 'success')
             return redirect(url_for('business_projects.detail.project_detail', project_id=ref.header_id))
             
         except Exception as e:

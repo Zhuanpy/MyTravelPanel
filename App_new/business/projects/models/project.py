@@ -28,6 +28,9 @@ class CustomerCompany(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     created_by = db.Column(db.String(50), nullable=True, comment='创建人')
     legal_person = db.Column(db.String(100))
+    
+    # 集团/关联标签（用于标识同一集团下的多个公司，如 BAONENG, ALIBABA 等）
+    group_name = db.Column(db.String(100), nullable=True, comment='集团/关联标签')
 
     # 关联项目
     projects = db.relationship('ProjectHeader', backref='company', lazy='dynamic')
@@ -61,7 +64,8 @@ class CustomerCompany(db.Model):
             'last_clicked_at': self.last_clicked_at.isoformat() if self.last_clicked_at else None,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
-            'created_by': self.created_by
+            'created_by': self.created_by,
+            'group_name': self.group_name
         }
 
 

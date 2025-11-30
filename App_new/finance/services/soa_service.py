@@ -497,6 +497,26 @@ class SOAService:
                     # 特别设置BAL列的格式
                     if len(total_row) > 7:
                         total_row[7].number_format = '$#,##0.00'
+                
+                # 添加公司付款账户信息
+                # 空两行
+                bank_info_start_row = max_row + 3
+                
+                # 设置银行信息样式
+                bank_info_font = Font(bold=False, color="000000")
+                bank_title_font = Font(bold=True, color="000000")
+                
+                # 添加银行信息标题
+                worksheet.cell(row=bank_info_start_row, column=1, value="JOYFUL ESCAPES PTE. LTD Bank Details:")
+                worksheet.cell(row=bank_info_start_row, column=1).font = bank_title_font
+                
+                # 添加银行账号信息
+                worksheet.cell(row=bank_info_start_row + 1, column=1, value="• OCBC Bank Singapore, AC No.: 5956-7793-1001")
+                worksheet.cell(row=bank_info_start_row + 1, column=1).font = bank_info_font
+                
+                # 添加PayNow信息
+                worksheet.cell(row=bank_info_start_row + 2, column=1, value="• PayNow UEN: 202337627W")
+                worksheet.cell(row=bank_info_start_row + 2, column=1).font = bank_info_font
             
             excel_buffer.seek(0)
             return excel_buffer.getvalue(), None

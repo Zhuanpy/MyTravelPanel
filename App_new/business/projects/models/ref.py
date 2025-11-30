@@ -158,6 +158,18 @@ class ProjectRef(db.Model):
         from ...flight.models.flight import ProjectFlightSegment  # 避免循环导入
         return ProjectFlightSegment.query.filter_by(ref_id=self.id).all()
 
+    @property
+    def has_received_payment(self):
+        """检查REF是否有收款记录（包括直接关联和项目级别分配）"""
+        from .receipt import ProjectReceipt  # 避免循环导入
+        total_received = ProjectReceipt.get_ref_total_received(self.id, self.header_id)
+        return total_received > 0
+
+    @property
+    def can_delete(self):
+        """检查REF是否可以删除（没有EO且没有收款）"""
+        return not self.eos and not self.has_received_payment
+
     @classmethod
     def generate_ref_number(cls, project_hid=None):
         """生成REF编号"""

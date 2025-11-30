@@ -48,6 +48,24 @@
                     <option value="suspended" {{ 'selected' if request.args.get('status') == 'suspended' }}>暂停</option>
                 </select>
             </div>
+            
+            <div class="visa-filter-item">
+                <label class="visa-form-label">
+                    <i class="fas fa-sitemap"></i> 集团/关联
+                </label>
+                <select class="visa-form-select" name="group_name">
+                    <option value="">全部公司</option>
+                    <option value="has_group" {{ 'selected' if request.args.get('group_name') == 'has_group' }}>有关联标签</option>
+                    <option value="no_group" {{ 'selected' if request.args.get('group_name') == 'no_group' }}>无关联标签</option>
+                    {% if group_names %}
+                        <optgroup label="按集团筛选">
+                        {% for name in group_names %}
+                            <option value="{{ name }}" {{ 'selected' if request.args.get('group_name') == name }}>{{ name }}</option>
+                        {% endfor %}
+                        </optgroup>
+                    {% endif %}
+                </select>
+            </div>
 
             <div class="visa-filter-item" style="flex: 1; max-width: 400px;">
                 <label class="visa-form-label">
@@ -79,6 +97,7 @@
                         <thead>
                             <tr>
                                 <th>公司名称</th>
+                                <th>集团/关联</th>
                                 <th>公司代码</th>
                                 <th>联系人</th>
                                 <th>联系电话</th>
@@ -99,6 +118,16 @@
                                        data-company-id="{{ company.id }}">
                                         {{ company.company_name }}
                                     </a>
+                                </td>
+                                <td>
+                                    {% if company.group_name %}
+                                        <span class="visa-badge" style="background: #e0e7ff; color: #4338ca;">
+                                            <i class="fas fa-sitemap" style="font-size: 0.65rem;"></i>
+                                            {{ company.group_name }}
+                                        </span>
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
                                 </td>
                                 <td>{{ company.company_code or '-' }}</td>
                                 <td>{{ company.contact_person or '-' }}</td>
@@ -156,21 +185,19 @@
                                     {% endif %}
                                 </td>
                                 <td>{{ company.created_at.strftime('%Y-%m-%d') if company.created_at else '-' }}</td>
-                                <td>
-                                    <div class="visa-flex visa-gap-1">
-                                        <a href="{{ url_for('corporate.company_detail', company_id=company.id) }}" 
-                                           class="visa-btn visa-btn-sm visa-btn-primary">
-                                            <i class="fas fa-eye"></i> 查看
-                                        </a>
-                                        <a href="{{ url_for('corporate.edit_company', company_id=company.id) }}" 
-                                           class="visa-btn visa-btn-sm visa-btn-warning">
-                                            <i class="fas fa-edit"></i> 编辑
-                                        </a>
-                                        <button type="button" class="visa-btn visa-btn-sm visa-btn-danger" 
-                                                onclick="deleteCompany({{ company.id }}, '{{ company.company_name }}')">
-                                            <i class="fas fa-trash"></i> 删除
-                                        </button>
-                                    </div>
+                                <td style="white-space: nowrap;">
+                                    <a href="{{ url_for('corporate.company_detail', company_id=company.id) }}" 
+                                       class="visa-btn visa-btn-sm visa-btn-primary" title="查看">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    <a href="{{ url_for('corporate.edit_company', company_id=company.id) }}" 
+                                       class="visa-btn visa-btn-sm visa-btn-warning" title="编辑">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <button type="button" class="visa-btn visa-btn-sm visa-btn-danger" title="删除"
+                                            onclick="deleteCompany({{ company.id }}, '{{ company.company_name }}')">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
                                 </td>
                             </tr>
                             {% endfor %}
@@ -182,7 +209,7 @@
                 {% if companies.pages > 1 %}
                 <div class="visa-pagination">
                     {% if companies.has_prev %}
-                        <a class="visa-pagination-btn" href="{{ url_for('corporate.list_companies', page=companies.prev_num, search=request.args.get('search'), status=request.args.get('status')) }}">
+                        <a class="visa-pagination-btn" href="{{ url_for('corporate.list_companies', page=companies.prev_num, search=request.args.get('search'), status=request.args.get('status'), group_name=request.args.get('group_name')) }}">
                             <i class="fas fa-chevron-left"></i> 上一页
                         </a>
                     {% endif %}
@@ -190,7 +217,7 @@
                     {% for page_num in companies.iter_pages() %}
                         {% if page_num %}
                             {% if page_num != companies.page %}
-                                <a class="visa-pagination-btn" href="{{ url_for('corporate.list_companies', page=page_num, search=request.args.get('search'), status=request.args.get('status')) }}">
+                                <a class="visa-pagination-btn" href="{{ url_for('corporate.list_companies', page=page_num, search=request.args.get('search'), status=request.args.get('status'), group_name=request.args.get('group_name')) }}">
                                     {{ page_num }}
                                 </a>
                             {% else %}
@@ -202,7 +229,7 @@
                     {% endfor %}
                     
                     {% if companies.has_next %}
-                        <a class="visa-pagination-btn" href="{{ url_for('corporate.list_companies', page=companies.next_num, search=request.args.get('search'), status=request.args.get('status')) }}">
+                        <a class="visa-pagination-btn" href="{{ url_for('corporate.list_companies', page=companies.next_num, search=request.args.get('search'), status=request.args.get('status'), group_name=request.args.get('group_name')) }}">
                             下一页 <i class="fas fa-chevron-right"></i>
                         </a>
                     {% endif %}

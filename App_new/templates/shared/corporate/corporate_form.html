@@ -157,8 +157,8 @@
                         </div>
                     </div>
                     
-                    <!-- 第三行：信用额度、币种、创建时间 -->
-                    <div class="visa-grid-3">
+                    <!-- 第三行：信用额度、币种、创建时间、集团/关联公司 -->
+                    <div class="visa-grid-4">
                         <div class="visa-form-group">
                             <label class="visa-form-label">{{ form.credit_limit.label.text }}</label>
                             {{ form.credit_limit(class="visa-form-control") }}
@@ -193,6 +193,26 @@
                             {% if form.created_at.errors %}
                                 <div style="color: #ef4444; font-size: 0.875rem; margin-top: 0.25rem;">
                                     {% for error in form.created_at.errors %}
+                                        <small>{{ error }}</small>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="visa-form-group">
+                            <label class="visa-form-label">
+                                {{ form.group_name.label.text }} <small style="color: #94a3b8;">(可选)</small>
+                            </label>
+                            {{ form.group_name(class="visa-form-control", list="group_name_list", placeholder="如: BAONENG, ALIBABA", oninput="this.value = this.value.toUpperCase()") }}
+                            <datalist id="group_name_list">
+                                {% for name in existing_group_names %}
+                                <option value="{{ name }}">
+                                {% endfor %}
+                            </datalist>
+                            <small style="color: #94a3b8;">输入集团或关联标签，便于筛选同一集团的公司</small>
+                            {% if form.group_name.errors %}
+                                <div style="color: #ef4444; font-size: 0.875rem; margin-top: 0.25rem;">
+                                    {% for error in form.group_name.errors %}
                                         <small>{{ error }}</small>
                                     {% endfor %}
                                 </div>
@@ -246,4 +266,5 @@
     </div>
 </div>
 {% endblock %}
+
 

@@ -257,6 +257,72 @@ class EmailVerificationToken(db.Model):
         self.is_used = True
         db.session.commit()
 
+class PasswordResetToken(db.Model):
+    """密码重置令牌模型"""
+    __tablename__ = 'password_reset_tokens'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('auth_users.id', ondelete='CASCADE'), nullable=False)
+    token = db.Column(db.String(255), nullable=False, unique=True)
+    email = db.Column(db.String(120), nullable=False)
+    is_used = db.Column(db.Boolean, default=False)
+    expires_at = db.Column(db.DateTime, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # 关系
+    user = db.relationship('AuthUser', backref='password_reset_tokens')
+    
+    def __repr__(self):
+        return f'<PasswordResetToken {self.token[:20]}...>'
+    
+    @classmethod
+    def generate_token(cls, user_id, email):
+        """生成密码重置令牌"""
+        import secrets
+        import hashlib
+        
+        # 生成随机令牌
+        raw_token = secrets.token_urlsafe(32)
+        token = hashlib.sha256(raw_token.encode()).hexdigest()
+        
+        # 设置过期时间（1小时）
+        expires_at = datetime.utcnow() + timedelta(hours=1)
+        
+        # 将之前的令牌标记为已使用
+        cls.query.filter_by(user_id=user_id, is_used=False).update({'is_used': True})
+        
+        # 创建令牌记录
+        reset_token = cls(
+            user_id=user_id,
+            token=token,
+            email=email,
+            expires_at=expires_at
+        )
+        
+        return reset_token, raw_token
+    
+    def is_valid(self):
+        """检查令牌是否有效"""
+        return not self.is_used and datetime.utcnow() < self.expires_at
+    
+    def use_token(self):
+        """使用令牌（标记为已使用）"""
+        self.is_used = True
+        db.session.commit()
+    
+    @classmethod
+    def verify_token(cls, token_hash):
+        """验证令牌"""
+        reset_token = cls.query.filter_by(token=token_hash, is_used=False).first()
+        
+        if reset_token and reset_token.is_valid():
+            return reset_token, True, "令牌有效"
+        elif reset_token and not reset_token.is_valid():
+            return None, False, "重置链接已过期，请重新申请"
+        else:
+            return None, False, "无效的重置链接"
+
+
 class UserProfile(db.Model):
     """用户资料模型"""
     __tablename__ = 'user_profiles'

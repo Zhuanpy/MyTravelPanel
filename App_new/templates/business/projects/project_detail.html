@@ -383,24 +383,6 @@
                         <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ ref.supplier.name if ref.supplier else '-' }}">{{ ref.supplier.name if ref.supplier else '-' }}</td>
                         <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                             <div class="action-buttons">
-                                {% if ref.ref_type and ref.ref_type.name == '机票' %}
-                                    <a href="{{ url_for('business_projects.project_ref.flight_ref_detail', ref_id=ref.id) }}" class="btn btn-sm btn-info" title="查看详情">
-                                        <i class="fas fa-eye"></i>
-                                    </a>
-                                {% elif ref.ref_type and ref.ref_type.name == '其他' %}
-                                    <a href="{{ url_for('business_projects.project_ref.ref_detail', ref_id=ref.id) }}" class="btn btn-sm btn-info" title="查看详情">
-                                        <i class="fas fa-eye"></i>
-                                    </a>
-                                {% elif ref.ref_type and ref.ref_type.name == '签证' %}
-                                    <a href="{{ url_for('business_projects.project_ref.ref_detail', ref_id=ref.id) }}" class="btn btn-sm btn-info" title="查看详情">
-                                        <i class="fas fa-eye"></i>
-                                    </a>
-                                {% else %}
-                                    <a href="{{ url_for('business_projects.project_ref.ref_detail', ref_id=ref.id) }}" class="btn btn-sm btn-info" title="查看详情">
-                                        <i class="fas fa-eye"></i>
-                                    </a>
-                                {% endif %}
-                                
                                 <!-- 查看收款记录按钮 -->
                                 {% if ref.receipts %}
                                     <a href="{{ url_for('business_projects.project_ref.ref_receipts', ref_id=ref.id) }}" class="btn btn-sm btn-info" title="查看收款记录">
@@ -408,8 +390,8 @@
                                     </a>
                                 {% endif %}
                                 
-                                <!-- 如果已生成EO或有收款记录，则隐藏删除按钮 -->
-                                {% if not ref.eos and not ref.receipts %}
+                                <!-- 如果已生成EO或有收款记录（包括项目级别分配），则隐藏删除按钮 -->
+                                {% if ref.can_delete %}
                                     <a href="{{ url_for('business_projects.project_ref.delete_ref', ref_id=ref.id) }}" class="btn btn-sm btn-danger" title="删除REF">
                                         <i class="fas fa-trash"></i>
                                     </a>
