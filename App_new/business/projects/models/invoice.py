@@ -1,0 +1,252 @@
+# -*- coding: utf-8 -*-
+"""Invoice相关模型 - 项目发票/账单记录（应收AR）"""
+
+from App_new.exts import db
+from datetime import datetime
+import json
+
+
+class ProjectInvoice(db.Model):
+    """项目发票/账单表 - 对客收入单，用来收钱"""
+    __tablename__ = 'project_invoices'
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    invoice_number = db.Column(db.String(30), unique=True, nullable=False, comment='发票编号')
+    header_id = db.Column(db.Integer, db.ForeignKey('project_headers.id'), nullable=False, comment='项目主表ID')
+
+    # 发票信息
+    invoice_date = db.Column(db.Date, nullable=False, comment='发票日期')
+    due_date = db.Column(db.Date, nullable=True, comment='到期日期')
+    amount = db.Column(db.Numeric(10, 2), nullable=False, comment='发票金额')
+    currency = db.Column(db.String(3), default='SGD', nullable=False, comment='货币类型')
+    
+    # 发票类型
+    invoice_type = db.Column(db.Enum('full', 'partial', 'deposit', 'final'),
+                            default='full', nullable=False, comment='发票类型: full-全额, partial-分期, deposit-定金, final-尾款')
+
+    # 客户信息
+    customer_name = db.Column(db.String(100), nullable=True, comment='客户名称')
+    customer_company = db.Column(db.String(100), nullable=True, comment='客户公司')
+    customer_email = db.Column(db.String(100), nullable=True, comment='客户邮箱')
+    customer_phone = db.Column(db.String(50), nullable=True, comment='客户电话')
+    customer_address = db.Column(db.Text, nullable=True, comment='客户地址')
+
+    # 状态信息
+    status = db.Column(db.Enum('draft', 'sent', 'paid', 'partial_paid', 'overdue', 'cancelled'),
+                       default='draft', nullable=False, comment='发票状态')
+    paid_amount = db.Column(db.Numeric(10, 2), default=0, nullable=False, comment='已付金额')
+
+    # 关联的REF（JSON格式存储，一张发票可对应多个REF）
+    ref_ids = db.Column(db.Text, nullable=True, comment='关联的REF ID列表(JSON)')
+    
+    # 发票明细（JSON格式存储）
+    invoice_items = db.Column(db.Text, nullable=True, comment='发票明细项(JSON)')
+
+    # 备注和附加信息
+    remarks = db.Column(db.Text, nullable=True, comment='备注')
+    terms = db.Column(db.Text, nullable=True, comment='付款条款')
+    extra_info = db.Column(db.Text, nullable=True, comment='额外信息(JSON)')
+
+    # 时间信息
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    sent_at = db.Column(db.DateTime, nullable=True, comment='发送时间')
+    created_by = db.Column(db.String(50), nullable=True, comment='创建人')
+
+    # 关联关系
+    header = db.relationship('ProjectHeader', backref='invoices')
+
+    def __repr__(self):
+        return f'<ProjectInvoice {self.invoice_number}: {self.amount} {self.currency}>'
+
+    def to_dict(self):
+        """转换为字典格式"""
+        return {
+            'id': self.id,
+            'invoice_number': self.invoice_number,
+            'header_id': self.header_id,
+            'invoice_date': self.invoice_date.isoformat() if self.invoice_date else None,
+            'due_date': self.due_date.isoformat() if self.due_date else None,
+            'amount': float(self.amount) if self.amount else 0,
+            'currency': self.currency,
+            'invoice_type': self.invoice_type,
+            'customer_name': self.customer_name,
+            'customer_company': self.customer_company,
+            'customer_email': self.customer_email,
+            'customer_phone': self.customer_phone,
+            'customer_address': self.customer_address,
+            'status': self.status,
+            'paid_amount': float(self.paid_amount) if self.paid_amount else 0,
+            'ref_ids': json.loads(self.ref_ids) if self.ref_ids else [],
+            'invoice_items': json.loads(self.invoice_items) if self.invoice_items else [],
+            'remarks': self.remarks,
+            'terms': self.terms,
+            'extra_info': json.loads(self.extra_info) if self.extra_info else None,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+            'sent_at': self.sent_at.isoformat() if self.sent_at else None,
+            'created_by': self.created_by
+        }
+
+    @classmethod
+    def generate_invoice_number(cls):
+        """生成发票编号"""
+        # 格式: INV + 年月日 + 3位序号, 例如: INV20240702001
+        today = datetime.now().strftime('%Y%m%d')
+        prefix = f'INV{today}'
+
+        # 查找今天最后一个发票编号
+        last_invoice = cls.query.filter(
+            cls.invoice_number.like(f'{prefix}%')
+        ).order_by(cls.invoice_number.desc()).first()
+
+        if last_invoice:
+            # 提取序号部分
+            try:
+                last_number = int(last_invoice.invoice_number[-3:])
+                new_number = str(last_number + 1).zfill(3)
+            except ValueError:
+                new_number = '001'
+        else:
+            new_number = '001'
+
+        return f'{prefix}{new_number}'
+
+    @property
+    def invoice_type_display(self):
+        """发票类型显示文本"""
+        type_map = {
+            'full': '全额发票',
+            'partial': '分期发票',
+            'deposit': '定金发票',
+            'final': '尾款发票'
+        }
+        return type_map.get(self.invoice_type, self.invoice_type)
+
+    @property
+    def status_display(self):
+        """状态显示文本"""
+        status_map = {
+            'draft': '草稿',
+            'sent': '已发送',
+            'paid': '已付款',
+            'partial_paid': '部分付款',
+            'overdue': '已逾期',
+            'cancelled': '已取消'
+        }
+        return status_map.get(self.status, self.status)
+
+    @property
+    def unpaid_amount(self):
+        """计算未付金额"""
+        return float(self.amount or 0) - float(self.paid_amount or 0)
+
+    @property
+    def is_overdue(self):
+        """检查是否逾期"""
+        if self.status in ['paid', 'cancelled']:
+            return False
+        if self.due_date and self.due_date < datetime.now().date():
+            return True
+        return False
+
+    @property
+    def related_refs(self):
+        """获取关联的REF对象列表"""
+        if not self.ref_ids:
+            return []
+        try:
+            ref_id_list = json.loads(self.ref_ids)
+            from .ref import ProjectRef
+            return ProjectRef.query.filter(ProjectRef.id.in_(ref_id_list)).all()
+        except (json.JSONDecodeError, TypeError):
+            return []
+
+    @property
+    def items_list(self):
+        """获取发票明细列表"""
+        if not self.invoice_items:
+            return []
+        try:
+            return json.loads(self.invoice_items)
+        except (json.JSONDecodeError, TypeError):
+            return []
+
+    def update_payment_status(self):
+        """根据已付金额更新发票状态"""
+        if self.status == 'cancelled':
+            return
+        
+        amount = float(self.amount or 0)
+        paid = float(self.paid_amount or 0)
+        
+        if paid >= amount:
+            self.status = 'paid'
+        elif paid > 0:
+            self.status = 'partial_paid'
+        elif self.is_overdue:
+            self.status = 'overdue'
+        # 其他状态保持不变
+
+    @classmethod
+    def get_header_total_invoiced(cls, header_id):
+        """获取项目的总发票金额"""
+        from sqlalchemy import func
+        result = db.session.query(func.sum(cls.amount)).filter(
+            cls.header_id == header_id,
+            cls.status != 'cancelled'
+        ).scalar()
+        return float(result) if result else 0
+
+    @classmethod
+    def get_header_total_paid(cls, header_id):
+        """获取项目的总已付金额"""
+        from sqlalchemy import func
+        result = db.session.query(func.sum(cls.paid_amount)).filter(
+            cls.header_id == header_id,
+            cls.status != 'cancelled'
+        ).scalar()
+        return float(result) if result else 0
+
+    @classmethod
+    def get_header_unpaid_amount(cls, header_id):
+        """获取项目的总未付金额"""
+        return cls.get_header_total_invoiced(header_id) - cls.get_header_total_paid(header_id)
+
+
+class InvoiceItem(db.Model):
+    """发票明细项表"""
+    __tablename__ = 'invoice_items'
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    invoice_id = db.Column(db.Integer, db.ForeignKey('project_invoices.id'), nullable=False, comment='发票ID')
+    ref_id = db.Column(db.Integer, db.ForeignKey('project_refs.id'), nullable=True, comment='关联REF ID')
+    
+    description = db.Column(db.String(200), nullable=False, comment='项目描述')
+    quantity = db.Column(db.Integer, default=1, nullable=False, comment='数量')
+    unit_price = db.Column(db.Numeric(10, 2), nullable=False, comment='单价')
+    total_price = db.Column(db.Numeric(10, 2), nullable=False, comment='总价')
+    remarks = db.Column(db.Text, nullable=True, comment='备注')
+    
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    # 关联关系
+    invoice = db.relationship('ProjectInvoice', backref='items')
+    ref = db.relationship('ProjectRef', backref='invoice_items')
+
+    def __repr__(self):
+        return f'<InvoiceItem {self.description}: {self.total_price}>'
+
+    def to_dict(self):
+        """转换为字典格式"""
+        return {
+            'id': self.id,
+            'invoice_id': self.invoice_id,
+            'ref_id': self.ref_id,
+            'description': self.description,
+            'quantity': self.quantity,
+            'unit_price': float(self.unit_price) if self.unit_price else 0,
+            'total_price': float(self.total_price) if self.total_price else 0,
+            'remarks': self.remarks
+        }
+

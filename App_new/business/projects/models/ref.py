@@ -170,6 +170,28 @@ class ProjectRef(db.Model):
         """检查REF是否可以删除（没有EO且没有收款）"""
         return not self.eos and not self.has_received_payment
 
+    def get_invoices(self):
+        """获取与此REF关联的发票列表"""
+        from .invoice import ProjectInvoice
+        import json
+        
+        # 查询所有包含此REF ID的发票
+        invoices = ProjectInvoice.query.filter(
+            ProjectInvoice.header_id == self.header_id,
+            ProjectInvoice.status != 'cancelled'
+        ).all()
+        
+        result = []
+        for inv in invoices:
+            if inv.ref_ids:
+                try:
+                    ref_id_list = json.loads(inv.ref_ids)
+                    if self.id in ref_id_list or str(self.id) in ref_id_list:
+                        result.append(inv)
+                except (json.JSONDecodeError, TypeError):
+                    pass
+        return result
+
     @classmethod
     def generate_ref_number(cls, project_hid=None):
         """生成REF编号"""

@@ -1,0 +1,129 @@
+{% extends "shared/staff_base.html" %}
+
+{% block page_title %}记录收款{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-6 col-md-8">
+            <!-- 页面头部 -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h2 class="mb-1">
+                        <i class="fas fa-money-bill-wave text-success"></i>
+                        记录收款
+                    </h2>
+                    <p class="text-muted mb-0">
+                        发票: <strong>{{ invoice.invoice_number }}</strong>
+                    </p>
+                </div>
+                <a href="{{ url_for('business_projects.project_invoice.invoice_detail', invoice_id=invoice.id) }}" 
+                   class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left"></i> 返回
+                </a>
+            </div>
+
+            <!-- 发票金额信息 -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-4">
+                            <h5 class="text-primary mb-0">{{ invoice.currency }} {{ "%.2f"|format(invoice.amount) }}</h5>
+                            <small class="text-muted">发票金额</small>
+                        </div>
+                        <div class="col-4">
+                            <h5 class="text-success mb-0">{{ invoice.currency }} {{ "%.2f"|format(invoice.paid_amount) }}</h5>
+                            <small class="text-muted">已付金额</small>
+                        </div>
+                        <div class="col-4">
+                            <h5 class="text-danger mb-0">{{ invoice.currency }} {{ "%.2f"|format(invoice.unpaid_amount) }}</h5>
+                            <small class="text-muted">未付金额</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 收款表单 -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">
+                        <i class="fas fa-edit text-primary"></i> 收款信息
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="">
+                        {{ form.hidden_tag() }}
+                        
+                        <div class="row">
+                            <!-- 付款金额 -->
+                            <div class="col-md-6 mb-3">
+                                <label for="payment_amount" class="form-label">付款金额 <span class="text-danger">*</span></label>
+                                {{ form.payment_amount(class="form-control", id="payment_amount", placeholder="0.00") }}
+                                {% if form.payment_amount.errors %}
+                                    <div class="invalid-feedback d-block">{{ form.payment_amount.errors[0] }}</div>
+                                {% endif %}
+                                <div class="form-text">最大可输入：{{ "%.2f"|format(invoice.unpaid_amount) }}</div>
+                            </div>
+                            
+                            <!-- 付款日期 -->
+                            <div class="col-md-6 mb-3">
+                                <label for="payment_date" class="form-label">付款日期 <span class="text-danger">*</span></label>
+                                {{ form.payment_date(class="form-control", id="payment_date") }}
+                                {% if form.payment_date.errors %}
+                                    <div class="invalid-feedback d-block">{{ form.payment_date.errors[0] }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <!-- 付款方式 -->
+                            <div class="col-md-6 mb-3">
+                                <label for="payment_method" class="form-label">付款方式 <span class="text-danger">*</span></label>
+                                {{ form.payment_method(class="form-select", id="payment_method") }}
+                            </div>
+                            
+                            <!-- 交易流水号 -->
+                            <div class="col-md-6 mb-3">
+                                <label for="transaction_id" class="form-label">交易流水号</label>
+                                {{ form.transaction_id(class="form-control", id="transaction_id", placeholder="银行流水号或交易号") }}
+                            </div>
+                        </div>
+                        
+                        <!-- 备注 -->
+                        <div class="mb-3">
+                            <label for="remarks" class="form-label">备注</label>
+                            {{ form.remarks(class="form-control", id="remarks", rows="2", placeholder="备注信息") }}
+                        </div>
+                        
+                        <!-- 快速填充按钮 -->
+                        <div class="mb-3">
+                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="fillFullAmount()">
+                                <i class="fas fa-fill"></i> 填充全额
+                            </button>
+                        </div>
+                        
+                        <!-- 提交按钮 -->
+                        <div class="d-flex justify-content-end gap-2 mt-4">
+                            <a href="{{ url_for('business_projects.project_invoice.invoice_detail', invoice_id=invoice.id) }}" 
+                               class="btn btn-secondary">取消</a>
+                            <button type="submit" class="btn btn-success">
+                                <i class="fas fa-check"></i> 确认收款
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<script>
+function fillFullAmount() {
+    document.getElementById('payment_amount').value = {{ invoice.unpaid_amount }};
+}
+</script>
+{% endblock %}
+
+{% block title %}记录收款 - {{ invoice.invoice_number }}{% endblock %}
+

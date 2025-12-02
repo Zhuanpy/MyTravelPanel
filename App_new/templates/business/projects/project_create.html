@@ -54,40 +54,6 @@
                                 {% endif %}
                             </div>
 
-                            <!-- 项目类型 -->
-                            <div class="col-md-6 mb-3">
-                                <label for="{{ form.type.id }}" class="form-label">
-                                    {{ form.type.label.text }} <span class="text-danger">*</span>
-                                </label>
-                                {{ form.type(class="form-select") }}
-                                {% if form.type.errors %}
-                                    <div class="invalid-feedback d-block">
-                                        {% for error in form.type.errors %}
-                                            {{ error }}
-                                        {% endfor %}
-                                    </div>
-                                {% endif %}
-                            </div>
-                        </div>
-
-                        <div class="row">
-                            <!-- 项目描述 -->
-                            <div class="col-12 mb-3">
-                                <label for="{{ form.description.id }}" class="form-label">
-                                    {{ form.description.label.text }} <span class="text-danger">*</span>
-                                </label>
-                                {{ form.description(class="form-control", rows="3", placeholder="请详细描述项目内容、目标和要求...") }}
-                                {% if form.description.errors %}
-                                    <div class="invalid-feedback d-block">
-                                        {% for error in form.description.errors %}
-                                            {{ error }}
-                                        {% endfor %}
-                                    </div>
-                                {% endif %}
-                            </div>
-                        </div>
-
-                        <div class="row">
                             <!-- 客户公司 -->
                             <div class="col-md-6 mb-3">
                                 <label for="{{ form.company_id.id }}" class="form-label">
@@ -97,21 +63,6 @@
                                 {% if form.company_id.errors %}
                                     <div class="invalid-feedback d-block">
                                         {% for error in form.company_id.errors %}
-                                            {{ error }}
-                                        {% endfor %}
-                                    </div>
-                                {% endif %}
-                            </div>
-
-                            <!-- 项目状态 -->
-                            <div class="col-md-6 mb-3">
-                                <label for="{{ form.status.id }}" class="form-label">
-                                    {{ form.status.label.text }}
-                                </label>
-                                {{ form.status(class="form-select") }}
-                                {% if form.status.errors %}
-                                    <div class="invalid-feedback d-block">
-                                        {% for error in form.status.errors %}
                                             {{ error }}
                                         {% endfor %}
                                     </div>
@@ -167,23 +118,6 @@
                                 {% endif %}
                             </div>
 
-                            <!-- 项目负责人 -->
-                            <div class="col-md-6 mb-3">
-                                <label for="{{ form.leader_name.id }}" class="form-label">
-                                    {{ form.leader_name.label.text }}
-                                </label>
-                                {{ form.leader_name(class="form-control", placeholder="请输入项目负责人姓名") }}
-                                {% if form.leader_name.errors %}
-                                    <div class="invalid-feedback d-block">
-                                        {% for error in form.leader_name.errors %}
-                                            {{ error }}
-                                        {% endfor %}
-                                    </div>
-                                {% endif %}
-                            </div>
-                        </div>
-
-                        <div class="row">
                             <!-- 项目来源 -->
                             <div class="col-md-6 mb-3">
                                 <label for="{{ form.source.id }}" class="form-label">
@@ -198,7 +132,9 @@
                                     </div>
                                 {% endif %}
                             </div>
+                        </div>
 
+                        <div class="row">
                             <!-- 目标国家 -->
                             <div class="col-md-6 mb-3">
                                 <label for="{{ form.country.id }}" class="form-label">
@@ -213,9 +149,7 @@
                                     </div>
                                 {% endif %}
                             </div>
-                        </div>
 
-                        <div class="row">
                             <!-- 货币类型 -->
                             <div class="col-md-6 mb-3">
                                 <label for="{{ form.currency.id }}" class="form-label">
@@ -225,21 +159,6 @@
                                 {% if form.currency.errors %}
                                     <div class="invalid-feedback d-block">
                                         {% for error in form.currency.errors %}
-                                            {{ error }}
-                                        {% endfor %}
-                                    </div>
-                                {% endif %}
-                            </div>
-
-                            <!-- 备注 -->
-                            <div class="col-md-6 mb-3">
-                                <label for="{{ form.remarks.id }}" class="form-label">
-                                    {{ form.remarks.label.text }}
-                                </label>
-                                {{ form.remarks(class="form-control", placeholder="其他需要说明的信息") }}
-                                {% if form.remarks.errors %}
-                                    <div class="invalid-feedback d-block">
-                                        {% for error in form.remarks.errors %}
                                             {{ error }}
                                         {% endfor %}
                                     </div>
@@ -280,9 +199,7 @@
                             <h6 class="text-primary">必填字段</h6>
                             <ul class="small text-muted">
                                 <li><strong>项目编号</strong>：系统自动生成，也可手动输入</li>
-                                <li><strong>项目描述</strong>：详细说明项目内容、目标和要求</li>
                                 <li><strong>联系人</strong>：项目的主要联系人姓名</li>
-                                <li><strong>项目类型</strong>：选择合适的业务分类</li>
                             </ul>
                         </div>
                         <div class="col-md-6">
@@ -290,8 +207,8 @@
                             <ul class="small text-muted">
                                 <li><strong>客户公司</strong>：选择或输入客户公司信息</li>
                                 <li><strong>联系方式</strong>：电话和邮箱便于后续沟通</li>
-                                <li><strong>项目负责人</strong>：指定项目执行负责人</li>
-                                <li><strong>备注信息</strong>：其他需要说明的重要信息</li>
+                                <li><strong>目标国家</strong>：填写项目相关国家</li>
+                                <li><strong>货币类型</strong>：选择项目使用的货币</li>
                             </ul>
                         </div>
                     </div>

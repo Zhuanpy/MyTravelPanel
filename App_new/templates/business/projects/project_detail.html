@@ -31,182 +31,130 @@
          <!-- 左侧边栏：项目头部 + 项目信息 -->
          <div class="project-left-sidebar">
              
-             <!-- 项目头部 (占1/4高度) -->
-            <div class="project-header tw:bg-white tw-text-green-700 tw-border tw-border-green-600 tw-rounded-lg tw-shadow tw-px-4 tw-py-3" style="display: flex; flex-direction: column;">
-                <div class="d-flex justify-content-between align-items-center tw-items-center tw-justify-between" style="flex: 1;">
-                    <div class="d-flex align-items-center gap-3 tw-flex tw-items-center tw-gap-3">
-                        <h1 class="project-title mb-0 tw-text-2xl tw-font-bold">{{ header.hid }}</h1>
-                        <span class="project-subtitle mb-0 tw-text-sm tw-font-semibold tw-opacity-90">| {{ header.desc }}</span>
-                     </div>
-                    <div class="d-flex align-items-center gap-3 tw-flex tw-items-center tw-gap-3">
-                         <!-- 导航按钮 -->
-                        <div class="d-flex align-items-center gap-2 tw-flex tw-items-center tw-gap-2">
-                                                          {% if prev_header %}
-                                  <a href="{{ url_for('business_projects.detail.project_detail', project_id=prev_header.id) }}" 
-                                     class="btn btn-outline-success btn-sm" title="上一个项目: {{ prev_header.hid }}">
-                                      <i class="fas fa-chevron-left"></i>
-                                  </a>
-                              {% else %}
-                                  <button class="btn btn-outline-success btn-sm" disabled>
-                                      <i class="fas fa-chevron-left"></i>
-                                  </button>
-                              {% endif %}
-                             
-                            <span class="navigation-info d-none d-md-inline">
-                                 {% if prev_header and next_header %}
-                                     {{ prev_header.hid }} ← {{ header.hid }} → {{ next_header.hid }}
-                                 {% elif prev_header %}
-                                     {{ prev_header.hid }} ← {{ header.hid }}
-                                 {% elif next_header %}
-                                     {{ header.hid }} → {{ next_header.hid }}
-                                 {% else %}
-                                     {{ header.hid }}
-                                 {% endif %}
-                             </span>
-                             
-                                {% if next_header %}
-                                  <a href="{{ url_for('business_projects.detail.project_detail', project_id=next_header.id) }}" 
-                                     class="btn btn-outline-success btn-sm" title="下一个项目: {{ next_header.hid }}">
-                                      <i class="fas fa-chevron-right"></i>
-                                  </a>
-                              {% else %}
-                                  <button class="btn btn-outline-success btn-sm" disabled>
-                                      <i class="fas fa-chevron-right"></i>
-                                  </button>
-                              {% endif %}
-                         </div>
-                         
-                         
-                     </div>
-                 </div>
-             </div>
+             <!-- 项目头部 -->
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid #dee2e6; margin-bottom: 8px;">
+                <!-- 左侧：项目标识 -->
+                <div style="display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1;">
+                    <span style="font-size: 1.1rem; font-weight: 700; color: #198754; white-space: nowrap;">{{ header.hid }}</span>
+                    <span style="font-size: 0.8rem; color: #666; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ header.desc }}">{{ header.desc }}</span>
+                </div>
+                <!-- 右侧：导航按钮 -->
+                <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
+                    {% if prev_header %}
+                    <a href="{{ url_for('business_projects.detail.project_detail', project_id=prev_header.id) }}" 
+                       class="btn btn-outline-secondary btn-sm" style="padding: 2px 6px; font-size: 0.7rem;" title="{{ prev_header.hid }}">
+                        <i class="fas fa-chevron-left"></i>
+                    </a>
+                    {% else %}
+                    <button class="btn btn-outline-secondary btn-sm" style="padding: 2px 6px; font-size: 0.7rem;" disabled>
+                        <i class="fas fa-chevron-left"></i>
+                    </button>
+                    {% endif %}
+                    {% if next_header %}
+                    <a href="{{ url_for('business_projects.detail.project_detail', project_id=next_header.id) }}" 
+                       class="btn btn-outline-secondary btn-sm" style="padding: 2px 6px; font-size: 0.7rem;" title="{{ next_header.hid }}">
+                        <i class="fas fa-chevron-right"></i>
+                    </a>
+                    {% else %}
+                    <button class="btn btn-outline-secondary btn-sm" style="padding: 2px 6px; font-size: 0.7rem;" disabled>
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
              
              <!-- 项目信息 (占3/4高度) -->
             <div class="info-card project-info-card tw:bg-white tw-rounded-lg tw-shadow tw-p-3" style="display: flex; flex-direction: column;">
-                 <div style="margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">
-                    <h3 class="section-title tw-text-lg tw-font-semibold" style="font-size: 1.3rem; margin: 0;">项目信息</h3>
-                    <a href="{{ url_for('business_projects.project_header.edit_header', header_id=header.id) }}" class="btn btn-outline-primary btn-sm">
-                        <i class="fas fa-edit"></i> 编辑HID
+                 <div style="margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+                    <h3 class="section-title" style="font-size: 1rem; margin: 0;">
+                        <i class="fas fa-info-circle text-primary"></i> 项目信息
+                    </h3>
+                    <a href="{{ url_for('business_projects.project_header.edit_header', header_id=header.id) }}" class="btn btn-outline-primary btn-sm py-0 px-2" style="font-size: 0.75rem;">
+                        <i class="fas fa-edit"></i> 编辑
                     </a>
                  </div>
                  <div class="project-info-container" style="flex: 1; overflow-y: auto;">
-                     <!-- 基本信息行 -->
-                     <div class="project-info-grid basic-info-row">
-                         <div class="info-item">
-                             <span class="info-label">经办人</span>
-                             <span class="info-value">{{ header.staff_name or '未设置' }}</span>
-                         </div>
-                         <div class="info-item">
-                             <span class="info-label">状态</span>
-                             <span class="status-badge status-{{ header.status }}" id="status-span" data-header-id="{{ header.id }}">
-                                 {% if header.status == 'draft' %}草稿
-                                 {% elif header.status == 'active' %}进行中
-                                 {% elif header.status == 'completed' %}已完成
-                                 {% else %}已取消
-                                 {% endif %}
-                             </span>
-                             <select id="status-select" style="display: none; width: 90%;">
-                                 <option value="draft" {% if header.status == 'draft' %}selected{% endif %}>草稿</option>
-                                 <option value="active" {% if header.status == 'active' %}selected{% endif %}>进行中</option>
-                                 <option value="completed" {% if header.status == 'completed' %}selected{% endif %}>已完成</option>
-                                 <option value="cancelled" {% if header.status == 'cancelled' %}selected{% endif %}>已取消</option>
-                             </select>
-                         </div>
-                         <div class="info-item">
-                             <span class="info-label">公司</span>
-                             <span class="info-value" id="company-name-span" data-header-id="{{ header.id }}">{{ company.company_name if company else '未设置' }}</span>
-                             <select id="company-select" style="display: none; width: 70%;">
+                     <!-- 基本信息 - 紧凑列表 -->
+                     <div style="display: flex; flex-direction: column; gap: 8px; font-size: 0.85rem;">
+                         <div style="display: flex; align-items: center; padding: 6px 10px; background: #f8f9fa; border-radius: 4px;">
+                             <span style="color: #6c757d; min-width: 60px; font-weight: 500;">公司</span>
+                             <span id="company-name-span" data-header-id="{{ header.id }}" style="flex: 1; color: #333; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ company.company_name if company else '未设置' }}">{{ company.company_name if company else '未设置' }}</span>
+                             <select id="company-select" style="display: none; flex: 1; font-size: 0.8rem; padding: 2px 4px;">
                                  <option value="">清除选择</option>
                                  {% for c in companies %}
                                      <option value="{{ c.id }}" {% if company and c.id == company.id %}selected{% endif %}>{{ c.company_name }}</option>
                                  {% endfor %}
                              </select>
                          </div>
-                         <div class="info-item">
-                             <span class="info-label">币种</span>
-                             <span class="info-value">{{ header.currency or '未设置' }}</span>
+                         <div style="display: flex; align-items: center; padding: 6px 10px; background: #f8f9fa; border-radius: 4px;">
+                             <span style="color: #6c757d; min-width: 60px; font-weight: 500;">联系人</span>
+                             <span id="contact-span" data-header-id="{{ header.id }}" style="flex: 1; color: #333; cursor: pointer;">{{ header.contact or '未设置' }}</span>
+                             <input type="text" id="contact-input" style="display: none; flex: 1; font-size: 0.8rem; padding: 2px 4px;" />
+                             <span style="color: #6c757d; margin-left: 15px; min-width: 40px; font-weight: 500;">币种</span>
+                             <span style="color: #333;">{{ header.currency or '-' }}</span>
                          </div>
-                         <div class="info-item">
-                             <span class="info-label">联系人</span>
-                             <span class="info-value" id="contact-span" data-header-id="{{ header.id }}" style="cursor: pointer;">{{ header.contact or '未设置' }}</span>
-                             <input type="text" id="contact-input" style="display: none; width: 60%;" />
-                         </div>
-                         <div class="info-item">
-                             <span class="info-label">创建日期</span>
-                             <span class="info-value">{{ header.created_at.strftime('%Y-%m-%d') if header.created_at else '未设置' }}</span>
-                         </div>
-                         <div class="info-item">
-                             <span class="info-label">更新时间</span>
-                             <span class="info-value">{{ header.updated_at.strftime('%Y-%m-%d') if header.updated_at else '未设置' }}</span>
+                         <div style="display: flex; align-items: center; padding: 6px 10px; background: #f8f9fa; border-radius: 4px;">
+                             <span style="color: #6c757d; min-width: 60px; font-weight: 500;">创建</span>
+                             <span style="flex: 1; color: #333;">{{ header.created_at.strftime('%Y-%m-%d') if header.created_at else '-' }}</span>
+                             <span style="color: #6c757d; min-width: 40px; font-weight: 500;">更新</span>
+                             <span style="color: #333;">{{ header.updated_at.strftime('%Y-%m-%d') if header.updated_at else '-' }}</span>
                          </div>
                      </div>
                      
-                     <!-- 提醒事件行 -->
-                     <div class="project-info-grid reminder-info-row">
-                         {% if header.reminder_event %}
-                         <div class="info-item">
-                             <span class="info-label">提醒事件</span>
-                             <span class="info-value reminder-event">{{ header.reminder_event }}</span>
-                         </div>
-                         <div class="info-item">
-                             <span class="info-label">提醒日期</span>
-                             <span class="info-value reminder-date">{{ header.reminder_date.strftime('%Y-%m-%d') if header.reminder_date else '未设置' }}</span>
-                         </div>
-                         <div class="info-item">
-                             <span class="info-label">提醒状态</span>
-                             <span class="info-value reminder-status">
-                                 {% if header.reminder_sent %}
-                                     <span class="badge bg-success">已发送</span>
-                                 {% else %}
-                                     <span class="badge bg-warning">待发送</span>
-                                 {% endif %}
-                             </span>
-                         </div>
-                         <div class="info-item">
-                             <span class="info-label">提醒管理</span>
-                             <span class="info-value">
-                                 <button type="button" class="btn btn-outline-warning btn-sm" data-action="edit-reminder">
-                                     <i class="fas fa-edit"></i> 编辑提醒
-                                 </button>
-                                 <button type="button" class="btn btn-outline-danger btn-sm ms-2" data-action="delete-reminder">
-                                     <i class="fas fa-trash"></i> 删除提醒
-                                 </button>
-                             </span>
-                         </div>
-                         {% else %}
-                         <div class="info-item">
-                             <span class="info-label">提醒管理</span>
-                             <span class="info-value">
-                                 <button type="button" class="btn btn-outline-primary btn-sm" data-action="add-reminder">
-                                     <i class="fas fa-bell"></i> 添加提醒
-                                 </button>
-                             </span>
-                         </div>
-                         {% endif %}
-                     </div>
                  </div>
              </div>
          </div>
          
+          <!-- 中间：项目人员名单 -->
+          <div class="project-members-sidebar">
+              <div class="info-card tw:bg-white tw-rounded-lg tw:shadow tw-p-3" style="height: 100%;">
+                  <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                      <h3 class="section-title" style="font-size: 1rem; margin: 0; white-space: nowrap;">
+                          <i class="fas fa-users text-primary"></i> 人员名单
+                      </h3>
+                      <button type="button" class="btn btn-success btn-sm py-0 px-2" data-action="add-member" style="font-size: 0.75rem;">
+                          <i class="fas fa-plus"></i>
+                      </button>
+                  </div>
+                  <div style="max-height: 280px; overflow-y: auto;">
+                      <table class="table table-sm table-hover mb-0" id="members-table" style="font-size: 0.8rem;">
+                          <thead style="position: sticky; top: 0; background: white;">
+                              <tr>
+                                  <th style="padding: 4px 6px;">姓名</th>
+                                  <th style="padding: 4px 6px; width: 50px; text-align: center;">操作</th>
+                              </tr>
+                          </thead>
+                          <tbody id="members-tbody">
+                              <!-- 人员数据将通过JavaScript动态加载 -->
+                          </tbody>
+                      </table>
+                      <div id="members-empty" class="text-center py-3" style="display: none;">
+                          <i class="fas fa-user-slash text-muted"></i>
+                          <p class="text-muted mb-0" style="font-size: 0.75rem;">暂无人员</p>
+                      </div>
+                  </div>
+              </div>
+          </div>
+
           <!-- 右侧边栏：备注信息 -->
          <div class="project-right-sidebar">
-           <div class="info-card remarks-info-card tw:bg-white tw-rounded-lg tw-shadow tw-p-3">
-                  <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px;">
-                     <h3 class="section-title tw-text-lg tw-font-semibold" style="font-size: 1.3rem; margin: 0;">备注信息</h3>
-                      <button type="button" class="btn btn-outline-primary btn-sm" onclick="showNewRemarksInput()" id="add-remarks-btn">
-                          <i class="fas fa-plus"></i> 新增备注
+           <div class="info-card remarks-info-card tw:bg-white tw:rounded-lg tw:shadow tw:p-3">
+                  <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                     <h3 class="section-title" style="font-size: 1rem; margin: 0;">备注信息</h3>
+                      <button type="button" class="btn btn-outline-primary btn-sm py-0 px-2" onclick="showNewRemarksInput()" id="add-remarks-btn" style="font-size: 0.75rem;">
+                          <i class="fas fa-plus"></i>
                       </button>
                   </div>
                   
                   <!-- 显示已有备注 -->
                   <div id="existing-remarks">
                       {% if header.remarks %}
-                          <div style="background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 4px; padding: 15px; font-size: 0.9rem; line-height: 1.6; color: #495057; min-height: 200px; overflow-y: auto; white-space: pre-wrap; text-align: left; word-wrap: break-word; text-indent: 0;" id="remarks-display">
+                          <div style="background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 4px; padding: 10px; font-size: 0.8rem; line-height: 1.5; color: #495057; max-height: 260px; overflow-y: auto; white-space: pre-wrap; text-align: left; word-wrap: break-word;" id="remarks-display">
                               {{ header.remarks | trim }}
                           </div>
                       {% else %}
-                          <div style="color: #6c757d; font-style: italic; font-size: 0.9rem; padding: 15px; text-align: center; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 4px; min-height: 200px; display: flex; align-items: center; justify-content: center;">
-                              暂无备注信息
+                          <div style="color: #6c757d; font-style: italic; font-size: 0.8rem; padding: 10px; text-align: center; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 4px; min-height: 100px; display: flex; align-items: center; justify-content: center;">
+                              暂无备注
                           </div>
                       {% endif %}
                   </div>
@@ -214,16 +162,15 @@
                   <!-- 新增备注输入框 -->
                   <div id="new-remarks-section" style="display: none; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: white; z-index: 10; padding: 15px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
                       <div style="margin-bottom: 10px;">
-                          <label style="font-weight: 600; color: #333; margin-bottom: 5px; display: block;">新增备注</label>
-                          <textarea id="new-remarks-input" placeholder="输入新的备注信息...
-  支持多行输入，每条备注会自动添加时间戳" style="width: 100%; min-height: 120px; max-height: 300px; border: 1px solid #ced4da; border-radius: 4px; padding: 12px; font-size: 0.9rem; resize: vertical; box-sizing: border-box; line-height: 1.5;"></textarea>
+                          <label style="font-weight: 600; color: #333; margin-bottom: 5px; display: block; font-size: 0.9rem;">新增备注</label>
+                          <textarea id="new-remarks-input" placeholder="输入备注信息..." style="width: 100%; min-height: 100px; max-height: 200px; border: 1px solid #ced4da; border-radius: 4px; padding: 10px; font-size: 0.85rem; resize: vertical; box-sizing: border-box; line-height: 1.4;"></textarea>
                       </div>
-                      <div style="text-align: right; position: absolute; bottom: 15px; right: 15px; left: 15px;">
+                      <div style="text-align: right;">
                           <button type="button" class="btn btn-secondary btn-sm" id="cancel-remarks-btn" style="margin-right: 5px;">
                               <i class="fas fa-times"></i> 取消
                           </button>
                           <button type="button" class="btn btn-primary btn-sm" id="submit-remarks-btn">
-                              <i class="fas fa-save"></i> 提交备注
+                              <i class="fas fa-save"></i> 提交
                           </button>
                       </div>
                   </div>
@@ -231,12 +178,17 @@
           </div>
      </div>
 
-
     <!-- REF列表 -->
     <div class="ref-section">
         <div class="section-header tw:flex tw:flex-col md:tw:flex-row tw:items-start md:tw:items-center tw:justify-between tw:gap-2">
             <h3 class="section-title tw:text-lg tw:font-semibold tw:w-full md:tw:w-auto">REF明细列表</h3>
             <div class="add-ref-buttons tw:flex tw:flex-wrap tw:gap-2 tw:w-full md:tw:w-auto tw:mt-1 md:tw:mt-0">
+                <button type="button" class="btn btn-primary btn-sm" onclick="openInvoiceModal()">
+                    <i class="fas fa-file-invoice"></i> 生成发票
+                </button>
+                <a href="{{ url_for('business_projects.project_invoice.header_invoices', header_id=header.id) }}" class="btn btn-outline-primary btn-sm">
+                    <i class="fas fa-list"></i> 发票列表
+                </a>
                 <a href="{{ url_for('business_projects.project_receipt.header_receipts', header_id=header.id) }}" class="btn btn-info btn-sm">
                     <i class="fas fa-money-bill-wave"></i> 收款管理
                 </a>
@@ -275,6 +227,7 @@
                         <th class="tw-min-w-[90px]">REF编号</th>
                         <th class="tw-min-w-[64px]">类型</th>
                         <th class="tw-min-w-[200px]">名称</th>
+                        <th class="tw-min-w-[110px]">Invoice</th>
                         <th class="tw-min-w-[110px]">EO编号</th>
                         <th class="tw-min-w-[100px]">售价</th>
                         <th class="tw-min-w-[100px]">成本</th>
@@ -324,6 +277,20 @@
                         </td>
                         <td class="tw-max-w-[100px]" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ ref.ref_type.name if ref.ref_type else '未分类' }}</td>
                         <td class="tw-max-w-[260px]" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ ref.description or ref.detailed_description }}">{{ ref.description or ref.detailed_description }}</td>
+                        <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                            {% set ref_invoices = ref.get_invoices() if ref.get_invoices is defined else [] %}
+                            {% if ref_invoices %}
+                                {% for inv in ref_invoices %}
+                                    <a href="{{ url_for('business_projects.project_invoice.invoice_detail', invoice_id=inv.id) }}" 
+                                       class="badge bg-success text-decoration-none" 
+                                       title="点击查看发票详情">
+                                        {{ inv.invoice_number }}
+                                    </a>
+                                {% endfor %}
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
                         <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                             {% if ref.eos %}
                                 <a href="{{ url_for('business_projects.project_eo.eo_detail', eo_id=ref.eos.id) }}" 
@@ -433,6 +400,42 @@
         {% endif %}
     </div>
 
+    <!-- 提醒事件区域 - 右下角悬浮 -->
+    <div class="reminder-float" style="position: fixed; bottom: 20px; right: 20px; z-index: 999; max-width: 320px;">
+        {% if header.reminder_event %}
+        <div class="card shadow" style="border-left: 4px solid #ffc107;">
+            <div class="card-body p-2" style="background-color: #fffbeb;">
+                <div class="d-flex align-items-start justify-content-between mb-1">
+                    <span style="font-size: 0.8rem; font-weight: 600; color: #856404;">
+                        <i class="fas fa-bell text-warning"></i> 提醒
+                    </span>
+                    <div>
+                        <button type="button" class="btn btn-link btn-sm p-0 text-warning" data-action="edit-reminder" title="编辑">
+                            <i class="fas fa-edit" style="font-size: 0.75rem;"></i>
+                        </button>
+                        <button type="button" class="btn btn-link btn-sm p-0 text-danger ms-1" data-action="delete-reminder" title="删除">
+                            <i class="fas fa-times" style="font-size: 0.75rem;"></i>
+                        </button>
+                    </div>
+                </div>
+                <div style="font-size: 0.8rem; color: #333; margin-bottom: 4px;" class="reminder-event">{{ header.reminder_event }}</div>
+                <div class="d-flex align-items-center justify-content-between" style="font-size: 0.75rem;">
+                    <span class="text-muted"><i class="fas fa-calendar"></i> {{ header.reminder_date.strftime('%Y-%m-%d') if header.reminder_date else '-' }}</span>
+                    {% if header.reminder_sent %}
+                        <span class="badge bg-success" style="font-size: 0.65rem;">已发送</span>
+                    {% else %}
+                        <span class="badge bg-warning" style="font-size: 0.65rem;">待发送</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <button type="button" class="btn btn-warning btn-sm shadow" data-action="add-reminder" style="border-radius: 20px;">
+            <i class="fas fa-bell"></i> 添加提醒
+        </button>
+        {% endif %}
+    </div>
+
 </div>
 
     
@@ -483,8 +486,264 @@ document.addEventListener('DOMContentLoaded', function() {
     if (typeof ProjectDetailManager !== 'undefined') {
         window.projectDetailManager = new ProjectDetailManager();
     }
+    
+    // 初始化人员管理
+    initMembersManagement();
 });
+
+// 人员管理功能
+function initMembersManagement() {
+    loadMembers();
+    
+    // 添加人员按钮
+    document.querySelector('[data-action="add-member"]')?.addEventListener('click', function() {
+        openMemberModal();
+    });
+    
+    // 关闭模态框
+    document.querySelectorAll('[data-action="close-member-modal"]').forEach(btn => {
+        btn.addEventListener('click', closeMemberModal);
+    });
+    
+    // 保存人员
+    document.querySelector('[data-action="save-member"]')?.addEventListener('click', saveMember);
+    
+    // 点击模态框外部关闭
+    document.getElementById('memberModal')?.addEventListener('click', function(e) {
+        if (e.target === this) closeMemberModal();
+    });
+}
+
+function loadMembers() {
+    fetch(`/projects/${window.headerId}/members`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                renderMembers(data.data);
+            }
+        })
+        .catch(error => console.error('加载人员列表失败:', error));
+}
+
+function renderMembers(members) {
+    const tbody = document.getElementById('members-tbody');
+    const emptyDiv = document.getElementById('members-empty');
+    
+    if (!members || members.length === 0) {
+        tbody.innerHTML = '';
+        emptyDiv.style.display = 'block';
+        return;
+    }
+    
+    emptyDiv.style.display = 'none';
+    
+    tbody.innerHTML = members.map(m => `
+        <tr data-member-id="${m.id}" style="cursor: pointer;" onclick="editMember(${m.id})">
+            <td style="padding: 4px 6px;">
+                <span title="${m.title ? m.title + ' ' : ''}${m.member_name}${m.member_role ? ' (' + m.member_role + ')' : ''}">
+                    ${m.title ? '<small class="text-muted">' + m.title + '</small> ' : ''}${m.member_name || '-'}
+                </span>
+            </td>
+            <td style="padding: 4px 6px; text-align: center;">
+                <button type="button" class="btn btn-sm btn-outline-danger py-0 px-1" onclick="event.stopPropagation(); deleteMember(${m.id}, '${m.member_name}')" title="删除" style="font-size: 0.7rem;">
+                    <i class="fas fa-times"></i>
+                </button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function openMemberModal(member = null) {
+    const modal = document.getElementById('memberModal');
+    const title = document.getElementById('memberModalTitle');
+    
+    if (member) {
+        title.textContent = '编辑人员';
+        document.getElementById('memberId').value = member.id;
+        document.getElementById('memberTitle').value = member.title || '';
+        document.getElementById('memberName').value = member.member_name || '';
+        document.getElementById('memberNameEn').value = member.member_name_en || '';
+        document.getElementById('memberRole').value = member.member_role || '';
+        document.getElementById('memberPhone').value = member.member_phone || '';
+        document.getElementById('memberEmail').value = member.member_email || '';
+        document.getElementById('memberIdType').value = member.id_type || '';
+        document.getElementById('memberIdNumber').value = member.id_number || '';
+        document.getElementById('memberRemarks').value = member.remarks || '';
+    } else {
+        title.textContent = '添加人员';
+        document.getElementById('memberForm').reset();
+        document.getElementById('memberId').value = '';
+    }
+    
+    modal.style.display = 'block';
+}
+
+function closeMemberModal() {
+    document.getElementById('memberModal').style.display = 'none';
+}
+
+function saveMember() {
+    const memberId = document.getElementById('memberId').value;
+    const memberName = document.getElementById('memberName').value.trim();
+    
+    if (!memberName) {
+        alert('请输入人员姓名');
+        return;
+    }
+    
+    const data = {
+        title: document.getElementById('memberTitle').value,
+        member_name: memberName,
+        member_name_en: document.getElementById('memberNameEn').value.trim(),
+        member_role: document.getElementById('memberRole').value.trim(),
+        member_phone: document.getElementById('memberPhone').value.trim(),
+        member_email: document.getElementById('memberEmail').value.trim(),
+        id_type: document.getElementById('memberIdType').value,
+        id_number: document.getElementById('memberIdNumber').value.trim(),
+        remarks: document.getElementById('memberRemarks').value.trim()
+    };
+    
+    const url = memberId 
+        ? `/projects/${window.headerId}/members/${memberId}`
+        : `/projects/${window.headerId}/members`;
+    const method = memberId ? 'PUT' : 'POST';
+    
+    fetch(url, {
+        method: method,
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || document.querySelector('input[name="csrf_token"]')?.value || ''
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            closeMemberModal();
+            loadMembers();
+        } else {
+            alert('操作失败: ' + result.message);
+        }
+    })
+    .catch(error => {
+        console.error('保存人员失败:', error);
+        alert('保存失败，请稍后重试');
+    });
+}
+
+function editMember(memberId) {
+    fetch(`/projects/${window.headerId}/members`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const member = data.data.find(m => m.id === memberId);
+                if (member) {
+                    openMemberModal(member);
+                }
+            }
+        })
+        .catch(error => console.error('获取人员信息失败:', error));
+}
+
+function deleteMember(memberId, memberName) {
+    if (!confirm(`确定要删除人员 "${memberName}" 吗？`)) {
+        return;
+    }
+    
+    fetch(`/projects/${window.headerId}/members/${memberId}`, {
+        method: 'DELETE',
+        headers: {
+            'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || document.querySelector('input[name="csrf_token"]')?.value || ''
+        }
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            loadMembers();
+        } else {
+            alert('删除失败: ' + result.message);
+        }
+    })
+    .catch(error => {
+        console.error('删除人员失败:', error);
+        alert('删除失败，请稍后重试');
+    });
+}
 </script>
+
+<!-- 人员管理模态框 -->
+<div id="memberModal" class="modal" style="display: none;">
+    <div class="modal-content" style="max-width: 600px;">
+        <div class="modal-header">
+            <h5 class="modal-title" id="memberModalTitle">添加人员</h5>
+            <span class="close" data-action="close-member-modal">&times;</span>
+        </div>
+        <div class="modal-body">
+            <form id="memberForm">
+                <input type="hidden" id="memberId">
+                <div class="row">
+                    <div class="col-md-3 mb-3">
+                        <label for="memberTitle" class="form-label">称谓</label>
+                        <select class="form-control" id="memberTitle">
+                            <option value="">请选择</option>
+                            <option value="MR">MR</option>
+                            <option value="MS">MS</option>
+                            <option value="MISS">MISS</option>
+                            <option value="MASTER">MASTER</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label for="memberName" class="form-label">姓名 <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="memberName" placeholder="请输入姓名" required>
+                    </div>
+                    <div class="col-md-5 mb-3">
+                        <label for="memberNameEn" class="form-label">英文名</label>
+                        <input type="text" class="form-control" id="memberNameEn" placeholder="English Name">
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="memberRole" class="form-label">角色/职位</label>
+                        <input type="text" class="form-control" id="memberRole" placeholder="如：领队、游客等">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="memberPhone" class="form-label">联系电话</label>
+                        <input type="text" class="form-control" id="memberPhone" placeholder="请输入电话">
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-12 mb-3">
+                        <label for="memberEmail" class="form-label">邮箱</label>
+                        <input type="email" class="form-control" id="memberEmail" placeholder="请输入邮箱">
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="memberIdType" class="form-label">证件类型</label>
+                        <select class="form-control" id="memberIdType">
+                            <option value="">请选择</option>
+                            <option value="passport">护照</option>
+                            <option value="id_card">身份证</option>
+                            <option value="other">其他</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="memberIdNumber" class="form-label">证件号码</label>
+                        <input type="text" class="form-control" id="memberIdNumber" placeholder="请输入证件号码">
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label for="memberRemarks" class="form-label">备注</label>
+                    <textarea class="form-control" id="memberRemarks" rows="2" placeholder="备注信息"></textarea>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-action="close-member-modal">取消</button>
+            <button type="button" class="btn btn-primary" data-action="save-member">保存</button>
+        </div>
+    </div>
+</div>
 
 <!-- 提醒管理模态框 -->
 <div id="reminderModal" class="modal" style="display: none;">
@@ -512,6 +771,344 @@ document.addEventListener('DOMContentLoaded', function() {
         </div>
     </div>
 </div>
+
+<!-- 发票生成模态框 -->
+<div id="invoiceModal" class="modal" style="display: none;">
+    <div class="modal-content" style="max-width: 1100px; margin: 120px auto 20px auto; border-radius: 8px; overflow: hidden;">
+        <div class="modal-header" style="background-color: #28a745; color: white; padding: 12px 20px;">
+            <h5 class="modal-title" style="color: white; margin: 0; font-size: 1.1rem;">
+                <i class="fas fa-file-invoice"></i> 生成发票
+            </h5>
+            <span class="close" onclick="closeInvoiceModal()" style="color: white; font-size: 24px; cursor: pointer;">&times;</span>
+        </div>
+        <div class="modal-body" style="padding: 0; max-height: 70vh; overflow-y: auto;">
+            <!-- REF选择表格 -->
+            <div class="table-responsive" style="margin: 0;">
+                <table class="table mb-0" style="font-size: 0.85rem;">
+                    <thead style="background-color: #28a745; color: white; position: sticky; top: 0;">
+                        <tr>
+                            <th style="padding: 8px; width: 5%; text-align: center;">#</th>
+                            <th style="padding: 8px; width: 8%;">REF</th>
+                            <th style="padding: 8px; width: 8%;">类型</th>
+                            <th style="padding: 8px; width: 22%;">详情</th>
+                            <th style="padding: 8px; width: 6%; text-align: center;">币种</th>
+                            <th style="padding: 8px; width: 10%; text-align: right;">金额</th>
+                            <th style="padding: 8px; width: 8%; text-align: right;">折扣</th>
+                            <th style="padding: 8px; width: 8%; text-align: right;">税费</th>
+                            <th style="padding: 8px; width: 10%; text-align: right;">合计</th>
+                            <th style="padding: 8px; width: 5%; text-align: center;">选</th>
+                            <th style="padding: 8px; width: 5%; text-align: center;">显</th>
+                            <th style="padding: 8px; width: 5%;">INV</th>
+                        </tr>
+                    </thead>
+                    <tbody id="invoiceRefTable">
+                        {% for ref in header.refs %}
+                        {% set ref_invoices = ref.get_invoices() %}
+                        {% set has_invoice = ref_invoices|length > 0 %}
+                        {% set existing_inv_number = ref_invoices[0].invoice_number if has_invoice else '' %}
+                        <tr data-ref-id="{{ ref.id }}" data-has-invoice="{{ 'true' if has_invoice else 'false' }}" style="border-bottom: 1px solid #e9ecef; {% if has_invoice %}opacity: 0.6;{% endif %}">
+                            <td style="padding: 8px; background-color: {% if has_invoice %}#6c757d{% else %}#28a745{% endif %}; color: white; text-align: center; font-weight: 600;">{{ loop.index }}</td>
+                            <td style="padding: 8px; background-color: {% if has_invoice %}#6c757d{% else %}#28a745{% endif %}; color: white; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ ref.ref_number[-3:] if ref.ref_number else '' }}</td>
+                            <td style="padding: 8px; background-color: {% if has_invoice %}#6c757d{% else %}#28a745{% endif %}; color: white; font-size: 0.8rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ ref.ref_type.name if ref.ref_type else '-' }}</td>
+                            <td style="padding: 8px; background-color: {% if has_invoice %}#6c757d{% else %}#28a745{% endif %}; color: white; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 0;" title="{{ ref.description or ref.detailed_description or '-' }}">
+                                {{ ref.description or ref.detailed_description or '-' }}
+                            </td>
+                            <td style="padding: 8px; text-align: center; overflow: hidden;">
+                                <span style="font-size: 0.8rem; color: #666;">{{ ref.currency or 'SGD' }}</span>
+                            </td>
+                            <td style="padding: 8px; text-align: right; font-weight: 500;">
+                                <span class="inv-gross-display">{{ '%.2f'|format(ref.selling_price|float) if ref.selling_price else '0.00' }}</span>
+                                <input type="hidden" class="inv-gross" value="{{ '%.2f'|format(ref.selling_price|float) if ref.selling_price else '0.00' }}">
+                            </td>
+                            <td style="padding: 8px; text-align: right; color: #888;">
+                                <span class="inv-disc-display">0.00</span>
+                                <input type="hidden" class="inv-disc" value="0.00">
+                            </td>
+                            <td style="padding: 8px; text-align: right; color: #888;">
+                                <span class="inv-tax-display">0.00</span>
+                                <input type="hidden" class="inv-tax" value="0.00">
+                            </td>
+                            <td style="padding: 8px; text-align: right; font-weight: 600; color: #28a745;">
+                                <span class="inv-total-display">{{ '%.2f'|format(ref.selling_price|float) if ref.selling_price else '0.00' }}</span>
+                                <input type="hidden" class="inv-total" value="{{ '%.2f'|format(ref.selling_price|float) if ref.selling_price else '0.00' }}">
+                            </td>
+                            <td style="padding: 8px; text-align: center;">
+                                {% if has_invoice %}
+                                <input type="checkbox" class="form-check-input inv-checkbox" style="width: 16px; height: 16px;" disabled title="已有发票">
+                                {% else %}
+                                <input type="checkbox" class="form-check-input inv-checkbox" style="width: 16px; height: 16px; cursor: pointer;" {% if ref.selling_price and ref.selling_price|float > 0 %}checked{% endif %}>
+                                {% endif %}
+                            </td>
+                            <td style="padding: 8px; text-align: center;">
+                                {% if has_invoice %}
+                                <input type="checkbox" class="form-check-input inv-show" style="width: 16px; height: 16px;" disabled>
+                                {% else %}
+                                <input type="checkbox" class="form-check-input inv-show" style="width: 16px; height: 16px; cursor: pointer;" checked>
+                                {% endif %}
+                            </td>
+                            <td style="padding: 8px; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                {% if has_invoice %}
+                                <span class="inv-number-display" style="font-size: 0.75rem; color: #dc3545; font-weight: 600;" title="{{ existing_inv_number }}">{{ existing_inv_number[-8:] if existing_inv_number|length > 8 else existing_inv_number }}</span>
+                                {% else %}
+                                <span class="inv-number-display" style="font-size: 0.75rem; color: #28a745;">-</span>
+                                {% endif %}
+                                <input type="hidden" class="inv-number" value="{{ existing_inv_number }}">
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- 操作按钮行 -->
+            <div style="padding: 15px 20px; background-color: #f8f9fa; display: flex; justify-content: space-between; align-items: center; border-top: 2px solid #28a745;">
+                <div style="display: flex; gap: 10px;">
+                    <button type="button" class="btn btn-outline-danger btn-sm" onclick="voidInvoice()">
+                        <i class="fas fa-ban"></i> Void
+                    </button>
+                    <button type="button" class="btn btn-outline-primary btn-sm" onclick="reprintInvoice()">
+                        <i class="fas fa-print"></i> Reprint
+                    </button>
+                </div>
+                <div style="display: flex; align-items: center; gap: 20px;">
+                    <button type="button" class="btn btn-success px-4" onclick="generateInvoice()">
+                        <i class="fas fa-file-invoice"></i> 生成发票
+                    </button>
+                </div>
+            </div>
+            
+            <!-- 附加信息表单 - 可折叠 -->
+            <div style="border-top: 1px solid #dee2e6;">
+                <div style="padding: 10px 20px; background-color: #f1f3f4; cursor: pointer; display: flex; justify-content: space-between; align-items: center;" onclick="toggleInvoiceExtra()">
+                    <span style="font-weight: 500; color: #495057;"><i class="fas fa-cog"></i> 附加信息（可选）</span>
+                    <i class="fas fa-chevron-down" id="invoiceExtraIcon"></i>
+                </div>
+                <div id="invoiceExtraContent" style="padding: 20px; display: none;">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label small text-muted">Template</label>
+                            <select class="form-control form-control-sm" id="invoiceTemplate">
+                                <option value="">默认模板</option>
+                                <option value="corporate">公司模板</option>
+                                <option value="simple">简洁模板</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small text-muted">Order No</label>
+                            <input type="text" class="form-control form-control-sm" id="invoiceOrderNo" value="{{ header.hid }}">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small text-muted">TR No</label>
+                            <input type="text" class="form-control form-control-sm" id="invoiceTrNo">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small text-muted">Cost Centre</label>
+                            <input type="text" class="form-control form-control-sm" id="invoiceCostCentre">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small text-muted">Employee ID</label>
+                            <input type="text" class="form-control form-control-sm" id="invoiceEmployeeId">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small text-muted">Department</label>
+                            <input type="text" class="form-control form-control-sm" id="invoiceDepartment">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small text-muted">Purpose</label>
+                            <input type="text" class="form-control form-control-sm" id="invoicePurpose">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function toggleInvoiceExtra() {
+    const content = document.getElementById('invoiceExtraContent');
+    const icon = document.getElementById('invoiceExtraIcon');
+    if (content.style.display === 'none') {
+        content.style.display = 'block';
+        icon.classList.remove('fa-chevron-down');
+        icon.classList.add('fa-chevron-up');
+    } else {
+        content.style.display = 'none';
+        icon.classList.remove('fa-chevron-up');
+        icon.classList.add('fa-chevron-down');
+    }
+}
+</script>
+
+<script>
+// 发票模态框功能
+function openInvoiceModal() {
+    // 显示模态框
+    document.getElementById('invoiceModal').style.display = 'block';
+    
+    // 初始化计算
+    calculateInvoiceTotals();
+}
+
+function closeInvoiceModal() {
+    document.getElementById('invoiceModal').style.display = 'none';
+}
+
+function calculateInvoiceTotals() {
+    // 数据已是只读，不需要重新计算
+}
+
+function generateInvoice() {
+    // 收集选中的REF（跳过已有发票的）
+    const selectedRefs = [];
+    const skippedRefs = [];
+    
+    document.querySelectorAll('#invoiceRefTable tr').forEach(row => {
+        const checkbox = row.querySelector('.inv-checkbox');
+        if (checkbox && checkbox.checked && !checkbox.disabled) {
+            const refId = row.dataset.refId;
+            const hasInvoice = row.dataset.hasInvoice === 'true';
+            
+            // 跳过已有发票的REF
+            if (hasInvoice) {
+                skippedRefs.push(refId);
+                return;
+            }
+            
+            const gross = parseFloat(row.querySelector('.inv-gross')?.value) || 0;
+            const disc = parseFloat(row.querySelector('.inv-disc')?.value) || 0;
+            const tax = parseFloat(row.querySelector('.inv-tax')?.value) || 0;
+            const total = parseFloat(row.querySelector('.inv-total')?.value) || 0;
+            const show = row.querySelector('.inv-show')?.checked || false;
+            
+            selectedRefs.push({
+                ref_id: refId,
+                gross: gross,
+                discount: disc,
+                tax: tax,
+                total: total,
+                show_on_invoice: show
+            });
+        }
+    });
+    
+    if (skippedRefs.length > 0) {
+        alert(`注意：${skippedRefs.length} 个REF已有发票，已自动跳过`);
+    }
+    
+    if (selectedRefs.length === 0) {
+        alert('没有可生成发票的REF（所选REF可能都已有发票）');
+        return;
+    }
+    
+    // 收集表单数据（发票日期自动使用当天）
+    const today = new Date().toISOString().split('T')[0];
+    const invoiceData = {
+        header_id: window.headerId,
+        invoice_date: today,
+        template: document.getElementById('invoiceTemplate').value,
+        order_no: document.getElementById('invoiceOrderNo').value,
+        tr_no: document.getElementById('invoiceTrNo').value,
+        cost_centre: document.getElementById('invoiceCostCentre').value,
+        employee_id: document.getElementById('invoiceEmployeeId').value,
+        department: document.getElementById('invoiceDepartment').value,
+        purpose: document.getElementById('invoicePurpose').value,
+        refs: selectedRefs
+    };
+    
+    // 发送请求生成发票
+    fetch(`/projects/invoice/header/${window.headerId}/quick-create`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify(invoiceData)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            alert('发票生成成功！发票号：' + result.invoice_number);
+            // 更新发票号显示
+            selectedRefs.forEach((ref, index) => {
+                const row = document.querySelector(`#invoiceRefTable tr[data-ref-id="${ref.ref_id}"]`);
+                if (row) {
+                    const invNumberDisplay = row.querySelector('.inv-number-display');
+                    const invNumberInput = row.querySelector('.inv-number');
+                    if (invNumberDisplay) {
+                        invNumberDisplay.textContent = result.invoice_number;
+                        invNumberDisplay.style.fontWeight = '600';
+                    }
+                    if (invNumberInput) {
+                        invNumberInput.value = result.invoice_number;
+                    }
+                }
+            });
+            // 关闭模态框并刷新页面
+            setTimeout(() => {
+                closeInvoiceModal();
+                location.reload();
+            }, 1500);
+        } else {
+            alert('发票生成失败：' + result.message);
+        }
+    })
+    .catch(error => {
+        console.error('生成发票失败:', error);
+        alert('生成发票失败，请稍后重试');
+    });
+}
+
+function voidInvoice() {
+    // 弹出输入框让用户输入发票号
+    const invoiceNumber = prompt('请输入要取消的发票号：');
+    if (!invoiceNumber || !invoiceNumber.trim()) {
+        return;
+    }
+    
+    // 确认取消操作
+    if (!confirm(`确定要取消发票 ${invoiceNumber.trim()} 吗？此操作不可撤销。`)) {
+        return;
+    }
+    
+    // 发送取消请求
+    fetch(`/projects/invoice/void`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify({
+            header_id: window.headerId,
+            invoice_number: invoiceNumber.trim()
+        })
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            alert('发票已取消！');
+            location.reload();
+        } else {
+            alert('取消失败：' + result.message);
+        }
+    })
+    .catch(error => {
+        console.error('取消发票失败:', error);
+        alert('取消发票失败，请稍后重试');
+    });
+}
+
+function reprintInvoice() {
+    alert('功能开发中...');
+}
+
+// 点击模态框外部关闭
+document.getElementById('invoiceModal')?.addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeInvoiceModal();
+    }
+});
+</script>
 
 <!-- 模态框样式 -->
 <style>

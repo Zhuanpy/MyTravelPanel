@@ -86,26 +86,9 @@
             </div>
             <div class="card-body">
                 
-                <!-- 第一行：项目描述 -->
+                <!-- 选择公司、联系人 -->
                 <div class="row">
-                    <div class="col-12">
-                        <div class="mb-3">
-                            {{ form.desc.label(class="form-label") }} <span class="text-danger">*</span>
-                            {{ form.desc(class="form-control") }}
-                            {% if form.desc.errors %}
-                                <div class="text-danger">
-                                    {% for error in form.desc.errors %}
-                                        <small>{{ error }}</small>
-                                    {% endfor %}
-                                </div>
-                            {% endif %}
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- 第二行：选择公司、联系人、类型 -->
-                <div class="row">
-                    <div class="col-md-4">
+                    <div class="col-md-6">
                         <div class="mb-3">
                             {{ form.company_id.label(class="form-label") }} <span class="text-danger">*</span>
                             {{ form.company_id(class="form-select", id="company_id_simple") }}
@@ -119,27 +102,13 @@
                         </div>
                     </div>
                     
-                    <div class="col-md-4">
+                    <div class="col-md-6">
                         <div class="mb-3">
                             {{ form.contact.label(class="form-label") }} <span class="text-danger">*</span>
                             {{ form.contact(class="form-control") }}
                             {% if form.contact.errors %}
                                 <div class="text-danger">
                                     {% for error in form.contact.errors %}
-                                        <small>{{ error }}</small>
-                                    {% endfor %}
-                                </div>
-                            {% endif %}
-                        </div>
-                    </div>
-                    
-                    <div class="col-md-4">
-                        <div class="mb-3">
-                            {{ form.type.label(class="form-label") }} <span class="text-danger">*</span>
-                            {{ form.type(class="form-select") }}
-                            {% if form.type.errors %}
-                                <div class="text-danger">
-                                    {% for error in form.type.errors %}
                                         <small>{{ error }}</small>
                                     {% endfor %}
                                 </div>
@@ -172,21 +141,6 @@
                             <small class="form-text text-muted">{% if is_edit %}经办人信息不可更改{% else %}自动填充当前登录用户{% endif %}</small>
                         </div>
                     </div>
-                    
-                    <div class="col-md-6">
-                        <div class="mb-3">
-                            {{ form.leader_name.label(class="form-label") }}
-                            {{ form.leader_name(class="form-control") }}
-                            {% if form.leader_name.errors %}
-                                <div class="text-danger">
-                                    {% for error in form.leader_name.errors %}
-                                        <small>{{ error }}</small>
-                                    {% endfor %}
-                                </div>
-                            {% endif %}
-                            <small class="form-text text-muted">如不填写，将自动使用经办人姓名</small>
-                        </div>
-                    </div>
                 </div>
             </div>
         </div>
@@ -211,53 +165,22 @@
                             {% endif %}
                         </div>
                     </div>
-                    
-                    <div class="col-md-6">
-                        <div class="mb-3">
-                            {{ form.status.label(class="form-label") }}
-                            {{ form.status(class="form-select") }}
-                            {% if form.status.errors %}
-                                <div class="text-danger">
-                                    {% for error in form.status.errors %}
-                                        <small>{{ error }}</small>
-                                    {% endfor %}
-                                </div>
-                            {% endif %}
-                        </div>
-                    </div>
                 </div>
             </div>
         </div>
         
-        <!-- 隐藏字段：项目编号、额度限制、国家、来源、部门 -->
+        <!-- 隐藏字段：项目编号、额度限制、国家、来源、部门、描述、类型、状态、负责人、备注 -->
         <div style="display: none;">
             {{ form.hid }}
             {{ form.limit }}
             {{ form.country }}
             {{ form.source }}
             {{ form.dept }}
-        </div>
-        
-        <!-- 提醒信息已移至项目详情页面 -->
-
-        <!-- 备注信息 -->
-        <div class="card mb-4">
-            <div class="card-header">
-                <h5 class="mb-0"><i class="fas fa-sticky-note"></i> 备注信息</h5>
-            </div>
-            <div class="card-body">
-                <div class="mb-3">
-                    {{ form.remarks.label(class="form-label") }} <small class="text-muted">{% if is_edit %}(不可编辑){% else %}(可选){% endif %}</small>
-                    {{ form.remarks(class="form-control", rows=3, placeholder="请输入项目备注信息...", readonly=is_edit) }}
-                    {% if form.remarks.errors %}
-                        <div class="text-danger">
-                            {% for error in form.remarks.errors %}
-                                <small>{{ error }}</small>
-                            {% endfor %}
-                        </div>
-                    {% endif %}
-                </div>
-            </div>
+            {{ form.desc }}
+            {{ form.type }}
+            {{ form.status }}
+            {{ form.leader_name }}
+            {{ form.remarks }}
         </div>
         
         <!-- 操作按钮 -->
@@ -273,10 +196,27 @@
 {% endblock %} 
 
 {% block extra_js %}
-<!-- 提醒功能已移至项目详情页面 -->
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // 提醒功能已移至项目详情页面
+    // 移除隐藏字段的 required 属性并设置默认值
+    const descField = document.getElementById('desc');
+    const typeField = document.getElementById('type');
+    const statusField = document.getElementById('status');
+    
+    if (descField) {
+        descField.removeAttribute('required');
+        if (!descField.value) descField.value = '-';
+    }
+    
+    if (typeField) {
+        typeField.removeAttribute('required');
+        if (!typeField.value) typeField.value = 'other';
+    }
+    
+    if (statusField) {
+        statusField.removeAttribute('required');
+        if (!statusField.value) statusField.value = 'active';
+    }
 });
 </script>
 {% endblock %}

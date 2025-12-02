@@ -142,19 +142,6 @@
                 <span class="header-label">订单名称:</span>
                 <input type="text" class="form-control" name="name">
             </div>
-            <div class="header-row">
-                <span class="header-label">项目描述:</span>
-                <textarea class="form-control" name="description" rows="3"></textarea>
-            </div>
-            <div class="header-row">
-                <span class="header-label">状态:</span>
-                <select class="form-control" name="status">
-                    <option value="draft">草稿</option>
-                    <option value="active">进行中</option>
-                    <option value="completed">已完成</option>
-                    <option value="cancelled">已取消</option>
-                </select>
-            </div>
         </div>
 
         <!-- Customer Information Section -->
@@ -277,10 +264,6 @@
                             </select>
                         </div>
                         <div class="header-row">
-                            <span class="header-label">备注:</span>
-                            <textarea class="form-control" name="ref_remarks[]"></textarea>
-                        </div>
-                        <div class="header-row">
                             <span class="header-label">状态:</span>
                             <select class="form-control" name="ref_status[]">
                                 <option value="draft">草稿</option>
@@ -377,10 +360,6 @@ function addRef() {
                     <option value="CNY">CNY</option>
                     <option value="USD">USD</option>
                 </select>
-            </div>
-            <div class="header-row">
-                <span class="header-label">备注:</span>
-                <textarea class="form-control" name="ref_remarks[]"></textarea>
             </div>
             <div class="header-row">
                 <span class="header-label">状�?</span>
@@ -508,8 +487,6 @@ function saveProject() {
     const hid = document.querySelector('[name="hid"]').value;
     formData.append('project_name', document.querySelector('[name="project_name"]').value);
     formData.append('name', document.querySelector('[name="name"]').value);
-    formData.append('description', document.querySelector('[name="description"]').value);
-    formData.append('status', document.querySelector('[name="status"]').value);
     
     // 客户信息
     formData.append('client_name', document.querySelector('[name="client_name"]').value);
@@ -539,7 +516,6 @@ function saveProject() {
         formData.append(`selling_price[${refIndex}]`, refContent.querySelector('[name="selling_price[]"]').value);
         formData.append(`cost_price[${refIndex}]`, refContent.querySelector('[name="cost_price[]"]').value);
         formData.append(`currency[${refIndex}]`, refContent.querySelector('[name="currency[]"]').value);
-        formData.append(`ref_remarks[${refIndex}]`, refContent.querySelector('[name="ref_remarks[]"]').value);
         formData.append(`ref_status[${refIndex}]`, refContent.querySelector('[name="ref_status[]"]').value);
         formData.append(`ref_payment_status[${refIndex}]`, refContent.querySelector('[name="ref_payment_status[]"]').value);
         

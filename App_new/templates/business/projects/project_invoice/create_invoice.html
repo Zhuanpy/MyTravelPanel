@@ -1,0 +1,189 @@
+{% extends "shared/staff_base.html" %}
+
+{% block page_title %}创建发票{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8 col-md-10">
+            <!-- 页面头部 -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h2 class="mb-1">
+                        <i class="fas fa-file-invoice text-primary"></i>
+                        创建发票
+                    </h2>
+                    <p class="text-muted mb-0">
+                        项目: <strong>{{ header.hid }}</strong> | 
+                        描述: <strong>{{ header.desc }}</strong>
+                    </p>
+                </div>
+                <a href="{{ url_for('business_projects.project_invoice.header_invoices', header_id=header.id) }}" 
+                   class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left"></i> 返回发票列表
+                </a>
+            </div>
+
+            <!-- 项目金额参考 -->
+            <div class="alert alert-info mb-4">
+                <i class="fas fa-info-circle"></i>
+                项目总售价: <strong>{{ header.currency or 'SGD' }} {{ "%.2f"|format(total_selling) }}</strong>
+            </div>
+
+            <!-- 发票表单 -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">
+                        <i class="fas fa-edit text-primary"></i> 发票信息
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="">
+                        {{ form.hidden_tag() }}
+                        
+                        <!-- 发票编号（只读） -->
+                        <div class="mb-3">
+                            <label class="form-label">发票编号</label>
+                            <input type="text" class="form-control" value="{{ invoice_number }}" readonly>
+                            <div class="form-text">发票编号由系统自动生成</div>
+                        </div>
+                        
+                        <div class="row">
+                            <!-- 发票日期 -->
+                            <div class="col-md-6 mb-3">
+                                <label for="invoice_date" class="form-label">发票日期 <span class="text-danger">*</span></label>
+                                {{ form.invoice_date(class="form-control", id="invoice_date") }}
+                                {% if form.invoice_date.errors %}
+                                    <div class="invalid-feedback d-block">{{ form.invoice_date.errors[0] }}</div>
+                                {% endif %}
+                            </div>
+                            
+                            <!-- 到期日期 -->
+                            <div class="col-md-6 mb-3">
+                                <label for="due_date" class="form-label">到期日期</label>
+                                {{ form.due_date(class="form-control", id="due_date") }}
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <!-- 发票金额 -->
+                            <div class="col-md-4 mb-3">
+                                <label for="amount" class="form-label">发票金额 <span class="text-danger">*</span></label>
+                                {{ form.amount(class="form-control", id="amount", placeholder="0.00") }}
+                                {% if form.amount.errors %}
+                                    <div class="invalid-feedback d-block">{{ form.amount.errors[0] }}</div>
+                                {% endif %}
+                            </div>
+                            
+                            <!-- 货币类型 -->
+                            <div class="col-md-4 mb-3">
+                                <label for="currency" class="form-label">货币类型 <span class="text-danger">*</span></label>
+                                {{ form.currency(class="form-select", id="currency") }}
+                            </div>
+                            
+                            <!-- 发票类型 -->
+                            <div class="col-md-4 mb-3">
+                                <label for="invoice_type" class="form-label">发票类型 <span class="text-danger">*</span></label>
+                                {{ form.invoice_type(class="form-select", id="invoice_type") }}
+                            </div>
+                        </div>
+                        
+                        <!-- 关联REF -->
+                        <div class="mb-3">
+                            <label for="selected_refs" class="form-label">关联REF</label>
+                            {{ form.selected_refs(class="form-select", id="selected_refs", size="4") }}
+                            <div class="form-text">按住Ctrl键可多选，选择REF后金额将自动计算</div>
+                        </div>
+                        
+                        <hr class="my-4">
+                        <h6 class="text-muted mb-3"><i class="fas fa-user"></i> 客户信息</h6>
+                        
+                        <div class="row">
+                            <!-- 客户名称 -->
+                            <div class="col-md-6 mb-3">
+                                <label for="customer_name" class="form-label">客户名称</label>
+                                {{ form.customer_name(class="form-control", id="customer_name", placeholder="请输入客户名称") }}
+                            </div>
+                            
+                            <!-- 客户公司 -->
+                            <div class="col-md-6 mb-3">
+                                <label for="customer_company" class="form-label">客户公司</label>
+                                {{ form.customer_company(class="form-control", id="customer_company", placeholder="请输入客户公司") }}
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <!-- 客户邮箱 -->
+                            <div class="col-md-6 mb-3">
+                                <label for="customer_email" class="form-label">客户邮箱</label>
+                                {{ form.customer_email(class="form-control", id="customer_email", placeholder="example@email.com") }}
+                                {% if form.customer_email.errors %}
+                                    <div class="invalid-feedback d-block">{{ form.customer_email.errors[0] }}</div>
+                                {% endif %}
+                            </div>
+                            
+                            <!-- 客户电话 -->
+                            <div class="col-md-6 mb-3">
+                                <label for="customer_phone" class="form-label">客户电话</label>
+                                {{ form.customer_phone(class="form-control", id="customer_phone", placeholder="请输入客户电话") }}
+                            </div>
+                        </div>
+                        
+                        <!-- 客户地址 -->
+                        <div class="mb-3">
+                            <label for="customer_address" class="form-label">客户地址</label>
+                            {{ form.customer_address(class="form-control", id="customer_address", rows="2", placeholder="请输入客户地址") }}
+                        </div>
+                        
+                        <hr class="my-4">
+                        <h6 class="text-muted mb-3"><i class="fas fa-sticky-note"></i> 备注和条款</h6>
+                        
+                        <!-- 付款条款 -->
+                        <div class="mb-3">
+                            <label for="terms" class="form-label">付款条款</label>
+                            {{ form.terms(class="form-control", id="terms", rows="2", placeholder="例如：请于发票日期后30天内付款") }}
+                        </div>
+                        
+                        <!-- 备注 -->
+                        <div class="mb-3">
+                            <label for="remarks" class="form-label">备注</label>
+                            {{ form.remarks(class="form-control", id="remarks", rows="2", placeholder="其他备注信息") }}
+                        </div>
+                        
+                        <!-- 提交按钮 -->
+                        <div class="d-flex justify-content-end gap-2 mt-4">
+                            <a href="{{ url_for('business_projects.project_invoice.header_invoices', header_id=header.id) }}" 
+                               class="btn btn-secondary">取消</a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> 创建发票
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('selected_refs').addEventListener('change', function() {
+    // 自动计算选中REF的总金额
+    let total = 0;
+    const options = this.selectedOptions;
+    for (let option of options) {
+        // 从选项文本中提取金额
+        const match = option.text.match(/\((\w+)\s+([\d.]+)\)$/);
+        if (match) {
+            total += parseFloat(match[2]);
+        }
+    }
+    if (total > 0) {
+        document.getElementById('amount').value = total.toFixed(2);
+    }
+});
+</script>
+{% endblock %}
+
+{% block title %}创建发票 - {{ header.hid }}{% endblock %}
+

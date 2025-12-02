@@ -100,6 +100,29 @@ def submit_order():
         db.session.flush()  # 获取project_header.id
         print(f"创建项目主表: {hid}")
         
+        # 2.0.1 创建项目人员（使用乘客姓名）
+        from App_new.business.projects.models.project_member import ProjectMember
+        passenger_names_for_members = request.form.getlist('passenger_name[]')
+        passenger_types_for_members = request.form.getlist('passenger_type[]')
+        
+        passenger_type_map = {
+            'adult': '成人',
+            'child': '儿童',
+            'infant': '婴儿'
+        }
+        
+        for idx, pname in enumerate(passenger_names_for_members):
+            if pname:
+                ptype = passenger_types_for_members[idx] if idx < len(passenger_types_for_members) else 'adult'
+                member = ProjectMember(
+                    header_id=project_header.id,
+                    member_name=pname,
+                    member_role=passenger_type_map.get(ptype, '成人'),
+                    remarks=f'从机票订单自动创建'
+                )
+                db.session.add(member)
+                print(f"创建项目人员: {pname} ({passenger_type_map.get(ptype, '成人')})")
+        
         # 获取机票业务类型
         flight_business_type = BusinessType.query.filter_by(name='机票').first()
         if not flight_business_type:

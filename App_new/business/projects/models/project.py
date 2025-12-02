@@ -144,6 +144,9 @@ class ProjectHeader(db.Model):
     # 关联REF明细
     refs = db.relationship('ProjectRef', backref='header', cascade='all, delete-orphan')
     
+    # 关联项目人员
+    members = db.relationship('ProjectMember', backref='project', cascade='all, delete-orphan', lazy='dynamic')
+    
     # 注意：CustomerCompany模型中已经定义了 backref='company'，这里不需要重复定义
 
     def __repr__(self):
