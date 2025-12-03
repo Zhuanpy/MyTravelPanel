@@ -292,7 +292,7 @@
                             {% endif %}
                         </td>
                         <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                            {% if ref.eos %}
+                            {% if ref.eos and ref.eos.status != 'void' %}
                                 <a href="{{ url_for('business_projects.project_eo.eo_detail', eo_id=ref.eos.id) }}" 
                                    class="eo-number-link" 
                                    title="点击查看EO详情">

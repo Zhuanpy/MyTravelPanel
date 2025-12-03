@@ -76,6 +76,9 @@
                             <li><a class="dropdown-item" href="{{ url_for('business_projects.project_eo.eo_list') }}">
                                 <i class="fas fa-tasks me-2"></i>EO列表
                             </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('business_projects.project_eo.exchange_order') }}">
+                                <i class="fas fa-exchange-alt me-2"></i>Exchange Order
+                            </a></li>
                             <li><a class="dropdown-item" href="{{ url_for('business_projects.project_receipt.receipt_list') }}">
                                 <i class="fas fa-receipt me-2"></i>收据列表
                             </a></li>
@@ -469,6 +472,13 @@
                                href="{{ url_for('business_projects.project_eo.eo_list') }}">
                                 <i class="fas fa-tasks me-2"></i>
                                 EO列表
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint == 'business_projects.project_eo.exchange_order' %}active{% endif %}" 
+                               href="{{ url_for('business_projects.project_eo.exchange_order') }}">
+                                <i class="fas fa-exchange-alt me-2"></i>
+                                Exchange Order
                             </a>
                         </li>
                         <li class="nav-item">

@@ -173,7 +173,6 @@
                         <td>{{ "%.2f"|format(ref.eos.amount) if ref.eos.amount else '' }}</td>
                         <td><span class="status-badge status-{{ ref.eos.status }}">{{ ref.eos.status }}</span></td>
                         <td>
-                            <a href="{{ url_for('business_projects.project_eo.edit_eo', eo_id=ref.eos.id) }}" class="btn btn-sm btn-warning">编辑</a>
                             <a href="{{ url_for('business_projects.project_eo.eo_detail', eo_id=ref.eos.id) }}" class="btn btn-sm btn-info">详情</a>
                         </td>
                     </tr>

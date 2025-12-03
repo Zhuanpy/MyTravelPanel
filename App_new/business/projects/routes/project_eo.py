@@ -94,45 +94,543 @@ def eo_detail(eo_id):
                     return redirect(url_for('business_projects.project_eo.eo_list'))
     return render_template('business/projects/project_eo/eo_detail.html', eo=eo)
 
-@project_eo.route('/<int:eo_id>/edit', methods=['GET', 'POST'])
+
+@project_eo.route('/exchange-order')
+@login_required
+@staff_only
+def exchange_order():
+    """Exchange Order 付款页面 - 类似旧系统的付款管理界面"""
+    try:
+        from sqlalchemy import and_, or_, desc
+        from App_new.business.projects.models.project import ProjectHeader, CustomerCompany
+        from App_new.shared.models.Suppliers import Supplier
+        from App_new.shared.models.business_types import BusinessType
+        from datetime import date
+        
+        # 获取筛选参数
+        supplier_id = request.args.get('supplier', None, type=int)
+        date_filter_by = request.args.get('date_filter_by', 'eo_date')
+        date_from = request.args.get('date_from', '')
+        date_to = request.args.get('date_to', '')
+        
+        # 构建查询 - 查询未付款的EO（confirmed状态）
+        query = db.session.query(
+            ProjectEO,
+            Supplier.name.label('supplier_name'),
+            BusinessType.name.label('ref_type_name'),
+            ProjectRef.ref_number.label('ref_number'),
+            ProjectRef.description.label('description'),
+            ProjectRef.header_id.label('project_id'),
+            ProjectHeader.hid.label('project_hid'),
+            CustomerCompany.company_name.label('company_name')
+        ).join(
+            ProjectRef, ProjectEO.ref_id == ProjectRef.id, isouter=True
+        ).join(
+            BusinessType, ProjectRef.ref_type_id == BusinessType.id, isouter=True
+        ).join(
+            Supplier, ProjectRef.supplier_id == Supplier.supplier_id, isouter=True
+        ).join(
+            ProjectHeader, ProjectRef.header_id == ProjectHeader.id, isouter=True
+        ).join(
+            CustomerCompany, ProjectHeader.company_id == CustomerCompany.id, isouter=True
+        ).filter(
+            ProjectEO.status == 'confirmed'
+        )
+        
+        # 应用供应商筛选
+        if supplier_id:
+            query = query.filter(ProjectRef.supplier_id == supplier_id)
+        
+        # 应用日期筛选
+        if date_from:
+            from datetime import datetime
+            date_from_obj = datetime.strptime(date_from, '%Y-%m-%d').date()
+            if date_filter_by == 'eo_date':
+                query = query.filter(ProjectEO.created_at >= date_from_obj)
+        
+        if date_to:
+            from datetime import datetime
+            date_to_obj = datetime.strptime(date_to, '%Y-%m-%d').date()
+            if date_filter_by == 'eo_date':
+                query = query.filter(ProjectEO.created_at <= date_to_obj)
+        
+        # 排序
+        query = query.order_by(desc(ProjectEO.created_at))
+        
+        # 获取结果
+        results = query.all()
+        
+        # 处理数据
+        eos = []
+        for eo, supplier_name, ref_type_name, ref_number, description, project_id, project_hid, company_name in results:
+            # 获取乘客姓名
+            pax_names = ''
+            if eo.ref:
+                from App_new.business.flight.models.flight import ProjectFlightPassenger
+                passengers = ProjectFlightPassenger.query.filter_by(ref_id=eo.ref_id).all()
+                if passengers:
+                    pax_names = ', '.join([p.name for p in passengers if p.name])
+            
+            cost_price = float(eo.ref.cost_price) if eo.ref and eo.ref.cost_price else 0
+            paid_amount = float(eo.pay_amount) if eo.pay_amount else 0
+            balance = cost_price - paid_amount
+            
+            eos.append({
+                'id': eo.id,
+                'eo_number': eo.eo_number,
+                'ref_id': eo.ref_id,
+                'ref_number': ref_number or '',
+                'description': description or '',
+                'supplier_name': supplier_name or '',
+                'ref_type_name': ref_type_name or '',
+                'project_id': project_id,
+                'project_hid': project_hid or '',
+                'company_name': company_name or '',
+                'pax_names': pax_names,
+                'cost_price': cost_price,
+                'balance': balance,
+                'pay_amount': paid_amount,
+                'currency': eo.ref.currency if eo.ref and eo.ref.currency else 'SGD',
+                'created_at': eo.created_at,
+                'dep_date': None,  # 可从extra_info获取
+                'due_date': None,
+                'inv_number': None,
+                'inv_amount': None,
+                'conf_by': None,
+                'rate': 1.00
+            })
+        
+        # 获取供应商列表
+        suppliers = Supplier.query.order_by(Supplier.name).all()
+        
+        return render_template('business/projects/project_eo/exchange_order.html',
+                             eos=eos,
+                             suppliers=suppliers,
+                             today=date.today().isoformat(),
+                             current_filters={
+                                 'supplier': supplier_id,
+                                 'date_filter_by': date_filter_by,
+                                 'date_from': date_from,
+                                 'date_to': date_to
+                             })
+    except Exception as e:
+        import traceback
+        print(f"Exchange Order页面加载失败: {str(e)}")
+        traceback.print_exc()
+        flash(f'页面加载失败：{str(e)}', 'error')
+        return redirect(url_for('business_projects.project_eo.eo_list'))
+
+
+@project_eo.route('/exchange-order/generate-payment-no', methods=['GET'])
 @csrf.exempt
 @login_required
 @staff_only
-def edit_eo(eo_id):
-    """编辑EO"""
-    eo = ProjectEO.query.get_or_404(eo_id)
-    
-    # 员工等级权限检查
-    if current_user.role and current_user.role.name == 'staff':
-        # 获取关联的项目信息
-        from App_new.business.projects.models.project import ProjectHeader
-        header = ProjectHeader.query.get(eo.ref.header_id)
-        if header:
-            staff_level = 1  # 默认等级
-            if current_user.profile:
-                staff_level = current_user.profile.staff_level or 1
+def generate_payment_no():
+    """生成付款编号"""
+    try:
+        from datetime import datetime
+        # 格式：PAY-YYYYMMDD-XXX
+        today = datetime.now().strftime('%Y%m%d')
+        prefix = f'PAY-{today}-'
+        
+        # 查找今天最后一个付款编号
+        last_eo = ProjectEO.query.filter(
+            ProjectEO.payment_no.like(f'{prefix}%')
+        ).order_by(ProjectEO.payment_no.desc()).first()
+        
+        if last_eo and last_eo.payment_no:
+            try:
+                last_num = int(last_eo.payment_no.split('-')[-1])
+                new_num = last_num + 1
+            except:
+                new_num = 1
+        else:
+            new_num = 1
+        
+        payment_no = f'{prefix}{str(new_num).zfill(3)}'
+        
+        return jsonify({
+            'success': True,
+            'payment_no': payment_no
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': str(e),
+            'payment_no': f'PAY-{datetime.now().strftime("%Y%m%d")}-001'
+        })
+
+
+@project_eo.route('/exchange-order/pay', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def exchange_order_pay():
+    """Exchange Order 付款提交"""
+    try:
+        data = request.get_json()
+        eo_ids = data.get('eo_ids', [])
+        payment_no = data.get('payment_no')
+        paid_date_str = data.get('paid_date')
+        total_pay_amount = data.get('pay_amount')
+        remarks = data.get('remarks', '')
+        
+        if not eo_ids:
+            return jsonify({'success': False, 'message': 'Please select at least one EO'}), 400
+        
+        if not payment_no or not paid_date_str or total_pay_amount is None:
+            return jsonify({'success': False, 'message': 'Please fill in all required fields'}), 400
+        
+        from datetime import datetime
+        paid_date = datetime.strptime(paid_date_str, '%Y-%m-%d').date()
+        
+        eos = ProjectEO.query.filter(ProjectEO.id.in_(eo_ids)).all()
+        
+        if len(eos) != len(eo_ids):
+            return jsonify({'success': False, 'message': 'Some EOs not found'}), 400
+        
+        total_cost = sum(float(eo.ref.cost_price) if eo.ref and eo.ref.cost_price else 0 for eo in eos)
+        
+        success_count = 0
+        for eo in eos:
+            if eo.status in ['void', 'paid']:
+                continue
             
-            if staff_level == 1:
-                # 1级员工只能操作自己创建的项目
-                if header.staff_name != current_user.username:
-                    flash('您没有权限访问此项目', 'error')
-                    return redirect(url_for('business_projects.project_eo.eo_list'))
-    form = ProjectEOForm(obj=eo)
-    
-    if form.validate_on_submit():
-        try:
-            form.populate_obj(eo)
-            db.session.commit()
-            return redirect(url_for('project_eo.eo_detail', eo_id=eo.id))
-        except Exception as e:
-            db.session.rollback()
-            flash(f'更新失败：{str(e)}', 'error')
-    elif form.errors:
-        for field, errors in form.errors.items():
-            for error in errors:
-                flash(f'{getattr(form, field).label.text}: {error}', 'error')
-    
-    return render_template('business/projects/project_eo/edit_eo.html', form=form, eo=eo)
+            eo_cost = float(eo.ref.cost_price) if eo.ref and eo.ref.cost_price else 0
+            if total_cost > 0:
+                eo_pay_amount = (eo_cost / total_cost) * total_pay_amount
+            else:
+                eo_pay_amount = total_pay_amount / len(eos)
+            
+            eo.payment_no = payment_no
+            eo.paid_date = paid_date
+            eo.pay_amount = round(eo_pay_amount, 2)
+            eo.status = 'paid'
+            success_count += 1
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'Successfully paid {success_count} EO(s), Payment No: {payment_no}'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@project_eo.route('/exchange-order/cancel', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def exchange_order_cancel():
+    """Exchange Order 批量取消/作废EO"""
+    try:
+        data = request.get_json()
+        eo_ids = data.get('eo_ids', [])
+        
+        if not eo_ids:
+            return jsonify({'success': False, 'message': 'Please select at least one EO'}), 400
+        
+        eos = ProjectEO.query.filter(ProjectEO.id.in_(eo_ids)).all()
+        
+        success_count = 0
+        for eo in eos:
+            if eo.status == 'void':
+                continue
+            eo.status = 'void'
+            success_count += 1
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'Successfully voided {success_count} EO(s)'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@project_eo.route('/batch-pay')
+@login_required
+@staff_only
+def batch_pay():
+    """批量付款页面 - 显示待付款的EO列表"""
+    try:
+        from sqlalchemy import and_, or_, desc
+        from App_new.business.projects.models.project import ProjectHeader, CustomerCompany
+        from App_new.shared.models.Suppliers import Supplier
+        from App_new.shared.models.business_types import BusinessType
+        from datetime import date
+        
+        # 获取筛选参数
+        supplier_type = request.args.get('supplier_type', '')
+        supplier_id = request.args.get('supplier', None, type=int)
+        keyword = request.args.get('keyword', '')
+        
+        # 构建查询 - 只查询未付款的EO（confirmed状态）
+        query = db.session.query(
+            ProjectEO,
+            Supplier.name.label('supplier_name'),
+            BusinessType.name.label('ref_type_name'),
+            ProjectRef.ref_number.label('ref_number'),
+            ProjectRef.header_id.label('project_id'),
+            ProjectHeader.hid.label('project_hid'),
+            CustomerCompany.company_name.label('company_name')
+        ).join(
+            ProjectRef, ProjectEO.ref_id == ProjectRef.id, isouter=True
+        ).join(
+            BusinessType, ProjectRef.ref_type_id == BusinessType.id, isouter=True
+        ).join(
+            Supplier, ProjectRef.supplier_id == Supplier.supplier_id, isouter=True
+        ).join(
+            ProjectHeader, ProjectRef.header_id == ProjectHeader.id, isouter=True
+        ).join(
+            CustomerCompany, ProjectHeader.company_id == CustomerCompany.id, isouter=True
+        ).filter(
+            ProjectEO.status == 'confirmed'  # 只显示已确认但未付款的
+        )
+        
+        # 应用筛选条件
+        if supplier_type:
+            supplier_type_map = {
+                'visa': '签证', 'flight': '机票', 'hotel': '酒店',
+                'transport': '用车', 'local_operator': '地接', 'other': '其他'
+            }
+            type_name = supplier_type_map.get(supplier_type)
+            if type_name:
+                query = query.filter(BusinessType.name == type_name)
+        
+        if supplier_id:
+            query = query.filter(ProjectRef.supplier_id == supplier_id)
+        
+        if keyword:
+            keyword_filter = or_(
+                ProjectEO.eo_number.ilike(f'%{keyword}%'),
+                ProjectRef.ref_number.ilike(f'%{keyword}%'),
+                ProjectHeader.hid.ilike(f'%{keyword}%')
+            )
+            query = query.filter(keyword_filter)
+        
+        # 排序
+        query = query.order_by(desc(ProjectEO.created_at))
+        
+        # 获取结果
+        results = query.all()
+        
+        # 处理数据
+        eos = []
+        for eo, supplier_name, ref_type_name, ref_number, project_id, project_hid, company_name in results:
+            # 获取乘客姓名
+            pax_names = ''
+            if eo.ref:
+                from App_new.business.flight.models.flight import ProjectFlightPassenger
+                passengers = ProjectFlightPassenger.query.filter_by(ref_id=eo.ref_id).all()
+                if passengers:
+                    pax_names = ', '.join([p.name for p in passengers if p.name])
+            
+            eos.append({
+                'id': eo.id,
+                'eo_number': eo.eo_number,
+                'ref_id': eo.ref_id,
+                'ref_number': ref_number or '',
+                'supplier_name': supplier_name or '',
+                'ref_type_name': ref_type_name or '',
+                'project_id': project_id,
+                'project_hid': project_hid or '',
+                'company_name': company_name or '',
+                'pax_names': pax_names,
+                'cost_price': float(eo.ref.cost_price) if eo.ref and eo.ref.cost_price else 0,
+                'currency': eo.ref.currency if eo.ref and eo.ref.currency else 'SGD',
+                'created_at': eo.created_at
+            })
+        
+        # 获取供应商列表
+        suppliers = Supplier.query.order_by(Supplier.name).all()
+        
+        return render_template('business/projects/project_eo/batch_pay.html',
+                             eos=eos,
+                             suppliers=suppliers,
+                             today=date.today().isoformat(),
+                             current_filters={
+                                 'supplier_type': supplier_type,
+                                 'supplier': supplier_id,
+                                 'keyword': keyword
+                             })
+    except Exception as e:
+        import traceback
+        print(f"批量付款页面加载失败: {str(e)}")
+        traceback.print_exc()
+        flash(f'页面加载失败：{str(e)}', 'error')
+        return redirect(url_for('business_projects.project_eo.eo_list'))
+
+
+@project_eo.route('/batch-pay/submit', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def batch_pay_submit():
+    """批量付款提交"""
+    try:
+        data = request.get_json()
+        eo_ids = data.get('eo_ids', [])
+        payment_no = data.get('payment_no')
+        paid_date_str = data.get('paid_date')
+        total_pay_amount = data.get('pay_amount')
+        remarks = data.get('remarks', '')
+        
+        if not eo_ids:
+            return jsonify({'success': False, 'message': '请选择要付款的EO'}), 400
+        
+        if not payment_no or not paid_date_str or total_pay_amount is None:
+            return jsonify({'success': False, 'message': '请填写完整的付款信息'}), 400
+        
+        # 解析日期
+        from datetime import datetime
+        paid_date = datetime.strptime(paid_date_str, '%Y-%m-%d').date()
+        
+        # 查询所有选中的EO
+        eos = ProjectEO.query.filter(ProjectEO.id.in_(eo_ids)).all()
+        
+        if len(eos) != len(eo_ids):
+            return jsonify({'success': False, 'message': '部分EO不存在'}), 400
+        
+        # 计算每个EO的付款金额（按比例分配）
+        total_cost = sum(float(eo.ref.cost_price) if eo.ref and eo.ref.cost_price else 0 for eo in eos)
+        
+        success_count = 0
+        for eo in eos:
+            # 检查状态
+            if eo.status in ['void', 'paid']:
+                continue
+            
+            # 计算该EO的付款金额（按比例）
+            eo_cost = float(eo.ref.cost_price) if eo.ref and eo.ref.cost_price else 0
+            if total_cost > 0:
+                eo_pay_amount = (eo_cost / total_cost) * total_pay_amount
+            else:
+                eo_pay_amount = total_pay_amount / len(eos)
+            
+            # 更新付款信息
+            eo.payment_no = payment_no
+            eo.paid_date = paid_date
+            eo.pay_amount = round(eo_pay_amount, 2)
+            eo.status = 'paid'
+            success_count += 1
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'成功付款 {success_count} 个EO，付款编号：{payment_no}'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@project_eo.route('/<int:eo_id>/pay', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def pay_eo(eo_id):
+    """付款给供应商"""
+    try:
+        eo = ProjectEO.query.get_or_404(eo_id)
+        
+        # 员工等级权限检查
+        if current_user.role and current_user.role.name == 'staff':
+            from App_new.business.projects.models.project import ProjectHeader
+            header = ProjectHeader.query.get(eo.ref.header_id)
+            if header:
+                staff_level = 1
+                if current_user.profile:
+                    staff_level = current_user.profile.staff_level or 1
+                
+                if staff_level == 1:
+                    if header.staff_name != current_user.username:
+                        return jsonify({'success': False, 'message': '您没有权限操作此EO'}), 403
+        
+        # 检查状态
+        if eo.status == 'void':
+            return jsonify({'success': False, 'message': '此EO已作废，无法付款'}), 400
+        
+        if eo.status == 'paid':
+            return jsonify({'success': False, 'message': '此EO已付款'}), 400
+        
+        # 获取请求数据
+        data = request.get_json()
+        payment_no = data.get('payment_no')
+        paid_date_str = data.get('paid_date')
+        pay_amount = data.get('pay_amount')
+        
+        if not payment_no or not paid_date_str or pay_amount is None:
+            return jsonify({'success': False, 'message': '请填写完整的付款信息'}), 400
+        
+        # 解析日期
+        from datetime import datetime
+        paid_date = datetime.strptime(paid_date_str, '%Y-%m-%d').date()
+        
+        # 更新付款信息
+        eo.payment_no = payment_no
+        eo.paid_date = paid_date
+        eo.pay_amount = pay_amount
+        eo.status = 'paid'
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True, 
+            'message': f'EO {eo.eo_number} 付款成功'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@project_eo.route('/<int:eo_id>/void', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def void_eo(eo_id):
+    """作废EO"""
+    try:
+        eo = ProjectEO.query.get_or_404(eo_id)
+        
+        # 员工等级权限检查
+        if current_user.role and current_user.role.name == 'staff':
+            from App_new.business.projects.models.project import ProjectHeader
+            header = ProjectHeader.query.get(eo.ref.header_id)
+            if header:
+                staff_level = 1
+                if current_user.profile:
+                    staff_level = current_user.profile.staff_level or 1
+                
+                if staff_level == 1:
+                    if header.staff_name != current_user.username:
+                        return jsonify({'success': False, 'message': '您没有权限操作此EO'}), 403
+        
+        # 检查是否已经作废
+        if eo.status == 'void':
+            return jsonify({'success': False, 'message': '此EO已经作废'}), 400
+        
+        # 更新状态为作废
+        eo.status = 'void'
+        db.session.commit()
+        
+        return jsonify({'success': True, 'message': f'EO {eo.eo_number} 已作废'})
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
 
 @project_eo.route('/quick_create/<int:ref_id>', methods=['POST'])
 @csrf.exempt
@@ -161,9 +659,9 @@ def quick_create_eo(ref_id):
                             'message': '您没有权限访问此项目'
                         }), 403
         
-        # 检查REF是否已经有EO (使用ref_id检查，加上数据库刷新)
+        # 检查REF是否已经有有效的EO (排除已作废的)
         db.session.expire_all()  # 刷新会话，确保获取最新数据
-        existing_eo = ProjectEO.query.filter_by(ref_id=ref.id).first()
+        existing_eo = ProjectEO.query.filter_by(ref_id=ref.id).filter(ProjectEO.status != 'void').first()
         if existing_eo:
             print(f"DEBUG: REF {ref.id} (ref_number: {ref.ref_number}) 已经存在EO {existing_eo.eo_number} (id: {existing_eo.id})")
             return jsonify({
@@ -266,6 +764,7 @@ def eo_list():
             ProjectRef.detailed_description.label('ref_detailed_description'),
             ProjectRef.ref_number.label('ref_number'),
             ProjectRef.header_id.label('project_id'),
+            ProjectHeader.hid.label('project_hid'),
             ProjectHeader.desc.label('project_name'),
             CustomerCompany.company_name.label('company_name')
         ).join(
@@ -426,7 +925,14 @@ def eo_list():
         
         # 处理EO数据，添加显示属性
         eos = []
-        for eo, supplier_name, ref_type_name, ref_description, ref_detailed_description, ref_number, project_id, project_name, company_name in pagination.items:
+        for eo, supplier_name, ref_type_name, ref_description, ref_detailed_description, ref_number, project_id, project_hid, project_name, company_name in pagination.items:
+            # 获取乘客姓名
+            pax_names = ''
+            if eo.ref:
+                from App_new.business.flight.models.flight import ProjectFlightPassenger
+                passengers = ProjectFlightPassenger.query.filter_by(ref_id=eo.ref_id).all()
+                if passengers:
+                    pax_names = ', '.join([p.name for p in passengers if p.name])
             
             eo_dict = {
                 'id': eo.id,
@@ -438,13 +944,26 @@ def eo_list():
                 'supplier_name': str(supplier_name) if supplier_name else '',
                 'ref_type_name': str(ref_type_name) if ref_type_name else '',
                 'project_id': int(project_id) if project_id else None,
+                'project_hid': str(project_hid) if project_hid else '',
                 'project_name': str(project_name) if project_name else '',
                 'company_name': str(company_name) if company_name else '',
+                'pax_names': pax_names,
+                # EO新字段
+                'conf_code': str(eo.conf_code) if eo.conf_code else '',
+                'discount': float(eo.discount) if eo.discount else 0,
+                'tax': float(eo.tax) if eo.tax else 0,
+                'payment_no': str(eo.payment_no) if eo.payment_no else '',
+                'paid_date': eo.paid_date,
+                'pay_amount': float(eo.pay_amount) if eo.pay_amount else None,
+                # REF价格信息
+                'selling_price': float(eo.ref.selling_price) if eo.ref and eo.ref.selling_price else None,
+                'cost_price': float(eo.ref.cost_price) if eo.ref and eo.ref.cost_price else None,
+                'currency': str(eo.ref.currency) if eo.ref and eo.ref.currency else 'SGD',
+                # 外部系统
                 'external_system': str(eo.external_system) if eo.external_system else '',
                 'external_status': str(eo.external_status) if eo.external_status else '',
                 'external_reference': str(eo.external_reference) if eo.external_reference else '',
-                'amount': float(eo.ref.cost_price) if eo.ref and eo.ref.cost_price is not None else 0,
-                'currency': str(eo.ref.currency) if eo.ref and eo.ref.currency else 'SGD',
+                # 状态
                 'status': str(eo.status) if eo.status else 'draft',
                 'status_display': get_status_display(eo.status),
                 'status_color': get_status_color(eo.status),
@@ -494,7 +1013,8 @@ def get_status_display(status):
         'draft': '草稿',
         'confirmed': '已确认',
         'paid': '已付款',
-        'cancelled': '已取消'
+        'cancelled': '已取消',
+        'void': '已作废'
     }
     return status_map.get(status, status)
 
@@ -508,7 +1028,8 @@ def get_status_color(status):
         'draft': 'secondary',
         'confirmed': 'info',
         'paid': 'success',
-        'cancelled': 'danger'
+        'cancelled': 'danger',
+        'void': 'dark'
     }
     return color_map.get(status, 'secondary')
 

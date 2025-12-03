@@ -167,8 +167,10 @@ class ProjectRef(db.Model):
 
     @property
     def can_delete(self):
-        """检查REF是否可以删除（没有EO且没有收款）"""
-        return not self.eos and not self.has_received_payment
+        """检查REF是否可以删除（没有有效EO且没有收款）"""
+        # 如果没有EO，或者EO已作废，且没有收款记录，则可以删除
+        has_valid_eo = self.eos and self.eos.status != 'void'
+        return not has_valid_eo and not self.has_received_payment
 
     def get_invoices(self):
         """获取与此REF关联的发票列表"""

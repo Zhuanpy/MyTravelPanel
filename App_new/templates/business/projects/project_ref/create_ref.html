@@ -300,23 +300,10 @@
                     </div>
                 </div>
                 
-                <div class="col-md-6">
-                    <div class="mb-3">
-                        <label class="form-label">负责人</label>
-                        <div class="form-field-large">
-                            <input type="text" class="form-control" readonly
-                                   value="{% if header and header.leader_name %}{{ header.leader_name }}{% else %}未设置{% endif %}">
-                        </div>
-                        <small class="form-text text-muted">
-                            <i class="fas fa-user-tie me-1"></i>
-                            负责人信息保存在项目主表中
-                        </small>
-                    </div>
-                </div>
             </div>
             
             <div class="row">
-                <div class="col-12">
+                <div class="col-md-6">
                     <div class="mb-3">
                         {{ form.passenger_names.label(class="form-label required") }}
                         <div class="form-field-large">
@@ -459,33 +446,8 @@
             </div>
         {% endif %}
         
-        <!-- 详细描述字段 -->
-        <div class="form-section">
-            <h5 class="section-title">
-                <i class="fas fa-align-left me-2"></i>详细描述
-            </h5>
-            <div class="row">
-                <div class="col-12">
-                    <div class="mb-3">
-                        {{ form.detailed_description.label(class="form-label required") }}
-                        <div class="form-field-large">
-                            {{ form.detailed_description(class="form-control", id="ref_detailed_description", placeholder="请输入详细描述") }}
-                        </div>
-                        <small class="form-text text-muted">
-                            <i class="fas fa-info-circle me-1"></i>
-                            请输入详细描述信息
-                        </small>
-                        {% if form.detailed_description.errors %}
-                            <div class="text-danger">
-                                {% for error in form.detailed_description.errors %}
-                                    <small>{{ error }}</small>
-                                {% endfor %}
-                            </div>
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
-        </div>
+        <!-- 详细描述隐藏字段，自动同步描述内容 -->
+        <input type="hidden" name="detailed_description" id="ref_detailed_description" value="{{ form.detailed_description.data or '' }}">
         
         <!-- 货币类型字段隐藏，自动设置为"新加坡元" -->
         {{ form.currency(class="form-select", style="display: none;") }}
@@ -539,20 +501,14 @@
 document.addEventListener('DOMContentLoaded', function() {
     const descriptionField = document.getElementById('ref_description');
     const detailedDescriptionField = document.getElementById('ref_detailed_description');
-    const form = document.querySelector('form');
     
     if (descriptionField && detailedDescriptionField) {
-        // 当描述字段内容改变时，自动同步到详细描述字段
+        // 描述字段改变时，自动同步到详细描述
         descriptionField.addEventListener('input', function() {
-            if (!detailedDescriptionField.value) {
-                detailedDescriptionField.value = this.value;
-            }
+            detailedDescriptionField.value = this.value;
         });
-        
-        // 页面加载时，如果详细描述字段为空但描述字段有值，则同步
-        if (!detailedDescriptionField.value && descriptionField.value) {
-            detailedDescriptionField.value = descriptionField.value;
-        }
+        // 页面加载时同步
+        detailedDescriptionField.value = descriptionField.value;
     }
 });
 </script>

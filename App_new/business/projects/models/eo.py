@@ -13,13 +13,26 @@ class ProjectEO(db.Model):
     ref_id = db.Column(db.Integer, db.ForeignKey('project_refs.id'), nullable=False, comment='REF明细ID')
     eo_number = db.Column(db.String(30), unique=True, nullable=False, comment='EO编号（格式化显示）')
 
+    # EO基本信息
+    eo_date = db.Column(db.Date, nullable=True, comment='EO日期')
+    conf_code = db.Column(db.String(50), nullable=True, comment='确认码')
+    
+    # 金额信息
+    discount = db.Column(db.Numeric(10, 2), nullable=True, default=0, comment='折扣金额')
+    tax = db.Column(db.Numeric(10, 2), nullable=True, default=0, comment='税费')
+    
+    # 付款信息（付给供应商）
+    payment_no = db.Column(db.String(50), nullable=True, comment='付款编号')
+    paid_date = db.Column(db.Date, nullable=True, comment='付款日期')
+    pay_amount = db.Column(db.Numeric(10, 2), nullable=True, comment='付款金额')
+
     # 外部系统信息
     external_system = db.Column(db.String(50), nullable=True, comment='外部系统名称')
     external_status = db.Column(db.String(50), nullable=True, comment='外部系统状态')
     external_reference = db.Column(db.String(100), nullable=True, comment='外部系统参考号')
 
     # 状态信息
-    status = db.Column(db.Enum('draft', 'confirmed', 'paid', 'cancelled'),
+    status = db.Column(db.Enum('draft', 'confirmed', 'paid', 'cancelled', 'void'),
                        default='draft', nullable=False, comment='状态')
 
     # 时间信息
@@ -39,6 +52,13 @@ class ProjectEO(db.Model):
             'id': self.id,
             'ref_id': self.ref_id,
             'eo_number': self.eo_number,
+            'eo_date': self.eo_date.isoformat() if self.eo_date else (self.created_at.date().isoformat() if self.created_at else None),
+            'conf_code': self.conf_code,
+            'discount': float(self.discount) if self.discount else 0,
+            'tax': float(self.tax) if self.tax else 0,
+            'payment_no': self.payment_no,
+            'paid_date': self.paid_date.isoformat() if self.paid_date else None,
+            'pay_amount': float(self.pay_amount) if self.pay_amount else None,
             'external_system': self.external_system,
             'external_status': self.external_status,
             'external_reference': self.external_reference,

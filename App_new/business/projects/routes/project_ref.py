@@ -1943,7 +1943,7 @@ def edit_ref(ref_id):
             
             # 更新REF数据
             ref.description = request.form.get('description', 'REF服务')
-            ref.detailed_description = request.form.get('detailed_description', 'REF服务')
+            ref.detailed_description = ref.description  # 详细描述自动同步描述内容
             supplier_id = request.form.get('supplier_id')
             print(f"DEBUG: supplier_id from form: {supplier_id}, type: {type(supplier_id)}")
             ref.supplier_id = int(supplier_id) if supplier_id and supplier_id != '0' else None
