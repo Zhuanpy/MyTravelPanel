@@ -121,7 +121,8 @@
                           <thead style="position: sticky; top: 0; background: white;">
                               <tr>
                                   <th style="padding: 4px 6px;">姓名</th>
-                                  <th style="padding: 4px 6px; width: 50px; text-align: center;">操作</th>
+                                  <th style="padding: 4px 6px; width: 30px; text-align: center;" title="设为Leader"><i class="fas fa-user text-muted"></i></th>
+                                  <th style="padding: 4px 6px; width: 30px; text-align: center;" title="删除"><i class="fas fa-trash text-muted"></i></th>
                               </tr>
                           </thead>
                           <tbody id="members-tbody">
@@ -246,9 +247,9 @@
                                     <strong>{{ ref.ref_number }}</strong>
                                 </a>
                                                          {% elif ref.ref_type and ref.ref_type.name == '其他' %}
-                                 <a href="{{ url_for('business_projects.project_ref.edit_ref', ref_id=ref.id) }}" class="ref-number-link" title="点击编辑其他REF">
-                                     <strong>{{ ref.ref_number }}</strong>
-                                 </a>
+                                <a href="{{ url_for('business_projects.project_ref.edit_other_ref', ref_id=ref.id) }}" class="ref-number-link" title="点击编辑其他REF">
+                                    <strong>{{ ref.ref_number }}</strong>
+                                </a>
                             {% elif ref.ref_type and ref.ref_type.name == '签证' %}
                                 <a href="{{ url_for('business_projects.project_ref.edit_visa_ref', ref_id=ref.id) }}" class="ref-number-link" title="点击编辑签证REF">
                                     <strong>{{ ref.ref_number }}</strong>
@@ -489,7 +490,76 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // 初始化人员管理
     initMembersManagement();
+    
+    // 初始化公司选择
+    initCompanySelect();
 });
+
+// 公司选择功能
+function initCompanySelect() {
+    const companySpan = document.getElementById('company-name-span');
+    const companySelect = document.getElementById('company-select');
+    
+    if (!companySpan || !companySelect) return;
+    
+    // 点击公司名称显示下拉框
+    companySpan.addEventListener('click', function() {
+        companySpan.style.display = 'none';
+        companySelect.style.display = 'block';
+        companySelect.focus();
+    });
+    
+    // 选择公司后更新
+    companySelect.addEventListener('change', function() {
+        const headerId = parseInt(companySpan.dataset.headerId);
+        const companyId = this.value ? parseInt(this.value) : null;
+        const selectedText = this.options[this.selectedIndex].text;
+        
+        console.log('更新公司:', { headerId, companyId, selectedText });
+        
+        fetch('/projects/header/update_company', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+            },
+            body: JSON.stringify({
+                header_id: headerId,
+                company_id: companyId
+            })
+        })
+        .then(response => {
+            console.log('响应状态:', response.status);
+            return response.json();
+        })
+        .then(data => {
+            console.log('响应数据:', data);
+            if (data.success) {
+                companySpan.textContent = companyId ? selectedText : '未设置';
+                companySpan.title = companyId ? selectedText : '未设置';
+                console.log('公司更新成功');
+            } else {
+                alert('更新失败：' + (data.message || '未知错误'));
+            }
+        })
+        .catch(error => {
+            console.error('更新公司失败:', error);
+            alert('更新公司失败: ' + error.message);
+        })
+        .finally(() => {
+            companySelect.style.display = 'none';
+            companySpan.style.display = 'block';
+        });
+    });
+    
+    // 失去焦点时隐藏下拉框
+    companySelect.addEventListener('blur', function() {
+        setTimeout(() => {
+            companySelect.style.display = 'none';
+            companySpan.style.display = 'block';
+        }, 200);
+    });
+}
 
 // 人员管理功能
 function initMembersManagement() {
@@ -537,20 +607,56 @@ function renderMembers(members) {
     
     emptyDiv.style.display = 'none';
     
-    tbody.innerHTML = members.map(m => `
-        <tr data-member-id="${m.id}" style="cursor: pointer;" onclick="editMember(${m.id})">
+    // Leader排在第一位
+    const sortedMembers = [...members].sort((a, b) => {
+        if (a.is_leader && !b.is_leader) return -1;
+        if (!a.is_leader && b.is_leader) return 1;
+        return 0;
+    });
+    
+    tbody.innerHTML = sortedMembers.map(m => `
+        <tr data-member-id="${m.id}" style="cursor: pointer;${m.is_leader ? ' background-color: #d4edda;' : ''}" onclick="editMember(${m.id})">
             <td style="padding: 4px 6px;">
                 <span title="${m.title ? m.title + ' ' : ''}${m.member_name}${m.member_role ? ' (' + m.member_role + ')' : ''}">
-                    ${m.title ? '<small class="text-muted">' + m.title + '</small> ' : ''}${m.member_name || '-'}
+                    ${m.title ? '<small class="text-muted">' + m.title + '</small> ' : ''}${m.member_name || '-'}${m.is_leader ? ' <span class="badge bg-success" style="font-size: 0.6rem;">*</span>' : ''}
                 </span>
             </td>
             <td style="padding: 4px 6px; text-align: center;">
-                <button type="button" class="btn btn-sm btn-outline-danger py-0 px-1" onclick="event.stopPropagation(); deleteMember(${m.id}, '${m.member_name}')" title="删除" style="font-size: 0.7rem;">
-                    <i class="fas fa-times"></i>
+                <button type="button" class="btn btn-sm ${m.is_leader ? 'btn-primary' : 'btn-outline-secondary'} py-0 px-1" 
+                        onclick="event.stopPropagation(); setLeader(${m.id})" title="设为Leader" style="font-size: 0.7rem;">
+                    <i class="fas fa-user"></i>
                 </button>
+            </td>
+            <td style="padding: 4px 6px; text-align: center;">
+                ${m.is_leader ? '' : `<button type="button" class="btn btn-sm btn-outline-danger py-0 px-1" onclick="event.stopPropagation(); deleteMember(${m.id}, '${m.member_name}')" title="删除" style="font-size: 0.7rem;">
+                    <i class="fas fa-trash"></i>
+                </button>`}
             </td>
         </tr>
     `).join('');
+}
+
+// 设置Leader
+function setLeader(memberId) {
+    fetch(`/projects/${window.headerId}/members/${memberId}/set-leader`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || document.querySelector('input[name="csrf_token"]')?.value || ''
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            loadMembers();
+        } else {
+            alert('设置Leader失败: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('设置Leader失败:', error);
+        alert('设置Leader失败');
+    });
 }
 
 function openMemberModal(member = null) {

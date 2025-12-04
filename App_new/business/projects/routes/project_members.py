@@ -120,6 +120,35 @@ def delete_member(project_id, member_id):
         return jsonify({'success': False, 'message': str(e)}), 500
 
 
+@project_members_bp.route('/<int:project_id>/members/<int:member_id>/set-leader', methods=['POST'])
+def set_leader(project_id, member_id):
+    """设置人员为Leader"""
+    try:
+        # 先取消该项目所有人员的Leader状态
+        ProjectMember.query.filter_by(header_id=project_id).update({'is_leader': False})
+        
+        # 设置指定人员为Leader
+        member = ProjectMember.query.filter_by(id=member_id, header_id=project_id).first_or_404()
+        member.is_leader = True
+        
+        # 同时更新项目Header的leader_name字段
+        header = ProjectHeader.query.get(project_id)
+        if header:
+            leader_name = f"{member.title} {member.member_name}" if member.title else member.member_name
+            header.leader_name = leader_name
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'{member.member_name} 已设为Leader',
+            'data': member.to_dict()
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
 @project_members_bp.route('/<int:project_id>/members/batch', methods=['POST'])
 def batch_add_members(project_id):
     """批量添加项目人员"""

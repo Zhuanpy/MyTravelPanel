@@ -167,22 +167,42 @@ def update_header_desc():
 def update_header_company():
     """更新项目公司"""
     data = request.get_json()
+    print(f"DEBUG update_company: 收到数据 {data}")
+    
     header_id = data.get('header_id')
-    company_id = data.get('company_id')
+    # 兼容两种参数名
+    company_id = data.get('company_id') or data.get('company')
+    
     if not header_id:
-        return jsonify({'success': False, 'message': '参数错误'})
+        return jsonify({'success': False, 'message': '参数错误: header_id为空'})
+    
+    # 转换为整数
+    header_id = int(header_id)
+    
     header = ProjectHeader.query.get(header_id)
     if not header:
-        return jsonify({'success': False, 'message': '项目不存在'})
+        return jsonify({'success': False, 'message': f'项目不存在: header_id={header_id}'})
     
-    # 处理company_id，将0或空值转换为None
-    if not company_id or company_id == 0:
-        header.company_id = None
+    # 处理company_id
+    old_company_id = header.company_id
+    if company_id is None or company_id == 0 or company_id == '':
+        new_company_id = None
     else:
-        header.company_id = company_id
+        new_company_id = int(company_id)
     
-    db.session.commit()
-    return jsonify({'success': True})
+    print(f"DEBUG update_company: header_id={header_id}, old={old_company_id}, new={new_company_id}")
+    
+    # 直接更新数据库
+    try:
+        ProjectHeader.query.filter_by(id=header_id).update({'company_id': new_company_id})
+        db.session.commit()
+        print(f"DEBUG update_company: 提交成功, company_id={new_company_id}")
+    except Exception as e:
+        db.session.rollback()
+        print(f"DEBUG update_company: 提交失败 - {str(e)}")
+        return jsonify({'success': False, 'message': str(e)})
+    
+    return jsonify({'success': True, 'company_id': new_company_id})
 
 @project_header.route('/update_status', methods=['POST'])
 @csrf.exempt

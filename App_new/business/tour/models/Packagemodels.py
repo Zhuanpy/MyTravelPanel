@@ -346,6 +346,7 @@ class CompanyInfo(db.Model):
     email = db.Column(db.String(100), nullable=False, comment='电子邮箱')
     address = db.Column(db.Text, nullable=False, comment='公司地址')
     logo_path = db.Column(db.String(200), nullable=True, comment='Logo路径')
+    ta_license = db.Column(db.String(50), nullable=True, comment='TA License Number')
     created_at = db.Column(db.DateTime, default=datetime.utcnow, comment='创建时间')
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, comment='更新时间')
 

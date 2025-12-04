@@ -24,6 +24,9 @@ class ProjectMember(db.Model):
     id_type = db.Column(db.String(20), nullable=True, comment='证件类型: passport/id_card/other')
     id_number = db.Column(db.String(50), nullable=True, comment='证件号码')
     
+    # Leader标识
+    is_leader = db.Column(db.Boolean, default=False, nullable=False, comment='是否为Leader')
+    
     # 其他
     remarks = db.Column(db.Text, nullable=True, comment='备注')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -44,6 +47,7 @@ class ProjectMember(db.Model):
             'member_email': self.member_email,
             'id_type': self.id_type,
             'id_number': self.id_number,
+            'is_leader': self.is_leader,
             'remarks': self.remarks,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None

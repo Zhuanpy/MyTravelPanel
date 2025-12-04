@@ -412,6 +412,16 @@ def submit_flight_ref():
                 # 记录错误但继续处理其他航段
                 continue
 
+        # 同步到extra_info，便于发票统一打印
+        extra_info = {
+            'pax_names_display': ', '.join([name for name in passenger_names if name]),  # 乘客姓名列表
+            'departure_date': departure_dates[0] if departure_dates and departure_dates[0] else '',  # 第一个航段的出发日期
+            'leader_name': request.form.get('leader_name', passenger_names[0] if passenger_names else ''),
+            'flight_route': generated_name,  # 航线描述
+            'total_passengers': len([name for name in passenger_names if name])
+        }
+        ref.extra_info = json.dumps(extra_info)
+
         db.session.commit()
         return redirect(url_for('business_projects.detail.project_detail', project_id=header_id))
 
@@ -616,11 +626,18 @@ def create_visa_ref(header_id):
         supplier_types = ['visa', 'flight', 'hotel', 'transport', 'local_operator', 'other']
     
         countries = VisaCountries.query.order_by(VisaCountries.country_name_CN).all()
+        
+        # 获取项目人员列表
+        from App_new.business.projects.models.project_member import ProjectMember
+        members = ProjectMember.query.filter_by(header_id=header_id).order_by(ProjectMember.id).all()
+        
         return render_template('business/projects/project_ref/create_visa_ref.html', 
                              header_id=header_id,
                              suppliers=suppliers, 
                              supplier_types=supplier_types,
-                             countries=countries)
+                             countries=countries,
+                             members=members,
+                             extra_info=None)
     except Exception as e:
         import traceback
         print(f"签证REF创建页面加载失败: {str(e)}")
@@ -664,6 +681,24 @@ def submit_visa_ref():
             ref.payment_status = request.form.get('payment_status', 'unpaid')
             ref.selling_price = float(request.form.get('selling_price', 0)) if request.form.get('selling_price') else None
             ref.cost_price = float(request.form.get('cost_price', 0)) if request.form.get('cost_price') else None
+            
+            # 获取多选的pax_names
+            pax_names = request.form.getlist('pax_names')
+            pax_names = [int(x) for x in pax_names if x]
+            
+            # 获取leader_id
+            leader_id = request.form.get('leader_id')
+            leader_id = int(leader_id) if leader_id else None
+            
+            # 更新extra_info
+            extra_info = {
+                'country': request.form.get('country', ''),
+                'visa_type': request.form.get('visa_type', ''),
+                'pax_names': pax_names,
+                'leader_id': leader_id,
+                'departure_date': request.form.get('departure_date', ''),
+            }
+            ref.extra_info = json.dumps(extra_info)
         else:
             # 创建新的REF
             header = ProjectHeader.query.get_or_404(header_id)
@@ -690,6 +725,23 @@ def submit_visa_ref():
             else:
                 detailed_description = request.form.get('detailed_description', description)
             
+            # 获取多选的pax_names
+            pax_names = request.form.getlist('pax_names')
+            pax_names = [int(x) for x in pax_names if x]
+            
+            # 获取leader_id
+            leader_id = request.form.get('leader_id')
+            leader_id = int(leader_id) if leader_id else None
+            
+            # 构建extra_info
+            extra_info = {
+                'country': request.form.get('country', ''),
+                'visa_type': request.form.get('visa_type', ''),
+                'pax_names': pax_names,
+                'leader_id': leader_id,
+                'departure_date': request.form.get('departure_date', ''),
+            }
+            
             ref = ProjectRef(
                 header_id=header.id,
                 ref_number=ref_number,
@@ -701,13 +753,13 @@ def submit_visa_ref():
                 status='processing',  # 创建时默认设置为"处理中"
                 payment_status=request.form.get('payment_status', 'unpaid'),
                 selling_price=float(request.form.get('selling_price', 0)) if request.form.get('selling_price') else None,
-                cost_price=float(request.form.get('cost_price', 0)) if request.form.get('cost_price') else None
+                cost_price=float(request.form.get('cost_price', 0)) if request.form.get('cost_price') else None,
+                extra_info=json.dumps(extra_info)
             )
             db.session.add(ref)
             db.session.flush()  # 获取ref.id
         
             db.session.commit()
-        flash('签证REF保存成功', 'success')
         return redirect(url_for('business_projects.detail.project_detail', project_id=header_id))
             
     except Exception as e:
@@ -1202,10 +1254,21 @@ def edit_visa_ref(ref_id):
             ref.status = request.form.get('status') or 'draft'
             ref.remarks = request.form.get('remarks', '')
             
+            # 获取多选的pax_names
+            pax_names = request.form.getlist('pax_names')
+            pax_names = [int(x) for x in pax_names if x]
+            
+            # 获取leader_id
+            leader_id = request.form.get('leader_id')
+            leader_id = int(leader_id) if leader_id else None
+            
             # 处理签证专属字段
             visa_extra_info = {
                 'country': request.form.get('country', ''),
-                'visa_type': request.form.get('visa_type', '')
+                'visa_type': request.form.get('visa_type', ''),
+                'pax_names': pax_names,
+                'leader_id': leader_id,
+                'departure_date': request.form.get('departure_date', ''),
             }
             ref.extra_info = json.dumps(visa_extra_info)
             
@@ -1234,11 +1297,17 @@ def edit_visa_ref(ref_id):
         except json.JSONDecodeError:
             visa_info = {}
     
+    # 获取项目人员列表
+    from App_new.business.projects.models.project_member import ProjectMember
+    members = ProjectMember.query.filter_by(header_id=ref.header_id).order_by(ProjectMember.id).all()
+    
     return render_template('business/projects/project_ref/create_visa_ref.html', 
                          ref=ref, 
                          suppliers=suppliers,
                          countries=countries,
                          visa_info=visa_info,
+                         extra_info=visa_info,
+                         members=members,
                          is_create=False)
 
 @project_ref.route('/tour/detail/<int:ref_id>', methods=['GET'])
@@ -1390,6 +1459,36 @@ def create_other_ref(header_id):
                 # 生成REF编号
                 ref_number = ProjectRef.generate_ref_number("")
                 
+                # 获取多选的pax_names
+                pax_names = request.form.getlist('pax_names')
+                pax_names = [int(x) for x in pax_names if x]
+                
+                # 获取leader_id
+                leader_id = request.form.get('leader_id')
+                leader_id = int(leader_id) if leader_id else None
+                
+                # 构建extra_info存储额外字段
+                extra_info = {
+                    'city': request.form.get('city', 'SIN'),
+                    'booking_status': request.form.get('booking_status', 'HK'),
+                    'pax_names': pax_names,  # 人员ID列表
+                    'leader_id': leader_id,  # Leader人员ID
+                    'pax_name': request.form.get('pax_name', ''),  # 兼容手动输入
+                    'departure_date': request.form.get('departure_date', ''),
+                    'adult_qty': int(request.form.get('adult_qty', 1) or 1),
+                    'adult_selling': float(request.form.get('adult_selling', 0) or 0),
+                    'adult_cost': float(request.form.get('adult_cost', 0) or 0),
+                    'child_qty': int(request.form.get('child_qty', 0) or 0),
+                    'child_selling': float(request.form.get('child_selling', 0) or 0),
+                    'child_cost': float(request.form.get('child_cost', 0) or 0),
+                    'infant_qty': int(request.form.get('infant_qty', 0) or 0),
+                    'infant_selling': float(request.form.get('infant_selling', 0) or 0),
+                    'infant_cost': float(request.form.get('infant_cost', 0) or 0),
+                    'non_trade_booking': request.form.get('non_trade_booking') == 'on',
+                    'do_not_show_details': request.form.get('do_not_show_details') == 'on',
+                    'print_pricing_details': request.form.get('print_pricing_details') == 'on'
+                }
+                
                 # 创建REF
                 ref = ProjectRef(
                     header_id=header.id,
@@ -1403,12 +1502,12 @@ def create_other_ref(header_id):
                     currency='SGD',
                     remarks=request.form.get('remarks', ''),
                     status='processing',
-                    payment_status='unpaid'
+                    payment_status='unpaid',
+                    extra_info=json.dumps(extra_info)
                 )
                 db.session.add(ref)
                 db.session.commit()
                 
-                flash('其他REF创建成功', 'success')
                 return redirect(url_for('business_projects.detail.project_detail', project_id=header.id))
                 
             except Exception as e:
@@ -1419,13 +1518,19 @@ def create_other_ref(header_id):
         # GET请求 - 显示创建页面
         suppliers = Supplier.query.all()
         
+        # 获取项目人员列表
+        from App_new.business.projects.models.project_member import ProjectMember
+        members = ProjectMember.query.filter_by(header_id=header_id).order_by(ProjectMember.id).all()
+        
         return render_template(
             'business/projects/project_ref/create_other_ref.html',
             ref=None,
             suppliers=suppliers,
             header=header,
             header_id=header_id,
-            is_create=True
+            is_create=True,
+            extra_info=None,
+            members=members
         )
     except Exception as e:
         flash(f'页面加载失败：{str(e)}', 'error')
@@ -1460,11 +1565,41 @@ def edit_other_ref(ref_id):
             
             ref.remarks = request.form.get('remarks', '')
             
+            # 获取多选的pax_names
+            pax_names = request.form.getlist('pax_names')
+            pax_names = [int(x) for x in pax_names if x]
+            
+            # 获取leader_id
+            leader_id = request.form.get('leader_id')
+            leader_id = int(leader_id) if leader_id else None
+            
+            # 更新extra_info存储额外字段
+            extra_info = {
+                'city': request.form.get('city', 'SIN'),
+                'booking_status': request.form.get('booking_status', 'HK'),
+                'pax_names': pax_names,  # 人员ID列表
+                'leader_id': leader_id,  # Leader人员ID
+                'pax_name': request.form.get('pax_name', ''),  # 兼容手动输入
+                'departure_date': request.form.get('departure_date', ''),
+                'adult_qty': int(request.form.get('adult_qty', 1) or 1),
+                'adult_selling': float(request.form.get('adult_selling', 0) or 0),
+                'adult_cost': float(request.form.get('adult_cost', 0) or 0),
+                'child_qty': int(request.form.get('child_qty', 0) or 0),
+                'child_selling': float(request.form.get('child_selling', 0) or 0),
+                'child_cost': float(request.form.get('child_cost', 0) or 0),
+                'infant_qty': int(request.form.get('infant_qty', 0) or 0),
+                'infant_selling': float(request.form.get('infant_selling', 0) or 0),
+                'infant_cost': float(request.form.get('infant_cost', 0) or 0),
+                'non_trade_booking': request.form.get('non_trade_booking') == 'on',
+                'do_not_show_details': request.form.get('do_not_show_details') == 'on',
+                'print_pricing_details': request.form.get('print_pricing_details') == 'on'
+            }
+            ref.extra_info = json.dumps(extra_info)
+            
             # 注意：EO的金额现在直接从REF的cost_price获取，无需同步
             
             # 提交数据库更改
             db.session.commit()
-            flash('其他REF更新成功', 'success')
             return redirect(url_for('business_projects.detail.project_detail', project_id=ref.header_id))
             
         except Exception as e:
@@ -1476,13 +1611,42 @@ def edit_other_ref(ref_id):
     suppliers = Supplier.query.all()
     header = ProjectHeader.query.get(ref.header_id)
     
+    # 获取项目人员列表
+    from App_new.business.projects.models.project_member import ProjectMember
+    members = ProjectMember.query.filter_by(header_id=ref.header_id).order_by(ProjectMember.id).all()
+    
+    # 解析extra_info
+    extra_info = None
+    if ref.extra_info:
+        try:
+            extra_info = json.loads(ref.extra_info)
+        except (json.JSONDecodeError, TypeError):
+            extra_info = None
+    
+    # 检查REF是否已关联发票
+    from App_new.business.projects.models.invoice import ProjectInvoice
+    has_invoice = False
+    invoices = ProjectInvoice.query.filter_by(header_id=ref.header_id).all()
+    for invoice in invoices:
+        if invoice.ref_ids:
+            try:
+                ref_id_list = json.loads(invoice.ref_ids)
+                if ref.id in ref_id_list:
+                    has_invoice = True
+                    break
+            except (json.JSONDecodeError, TypeError):
+                pass
+    
     return render_template(
         'business/projects/project_ref/create_other_ref.html',
         ref=ref,
         suppliers=suppliers,
         header=header,
         header_id=ref.header_id,
-        is_create=False
+        is_create=False,
+        extra_info=extra_info,
+        members=members,
+        has_invoice=has_invoice
     )
 
 @project_ref.route('/insurance/edit/<int:ref_id>', methods=['GET', 'POST'])

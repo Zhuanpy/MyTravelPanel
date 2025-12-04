@@ -151,18 +151,138 @@ def header_invoices(header_id):
 @staff_only
 def invoice_detail(invoice_id):
     """发票详情"""
+    import json
+    from App_new.business.projects.models.project_member import ProjectMember
+    
     invoice = ProjectInvoice.query.get_or_404(invoice_id)
     
     # 获取关联的REF信息
     related_refs = invoice.related_refs
     
+    # 为每个REF解析extra_info并获取人员姓名
+    for ref in related_refs:
+        if ref.extra_info:
+            try:
+                extra_data = json.loads(ref.extra_info)
+                # 检查是否已有pax_names_display（机票REF已预先生成）
+                if not extra_data.get('pax_names_display'):
+                    # 获取选中的人员姓名（其他REF使用ID列表）
+                    pax_names_ids = extra_data.get('pax_names', [])
+                    if pax_names_ids:
+                        members = ProjectMember.query.filter(ProjectMember.id.in_(pax_names_ids)).all()
+                        pax_names_list = [f"{m.title} {m.member_name}" if m.title else m.member_name for m in members]
+                        extra_data['pax_names_display'] = ', '.join(pax_names_list)
+                    else:
+                        extra_data['pax_names_display'] = extra_data.get('pax_name', '')
+                ref.extra_data = extra_data
+            except (json.JSONDecodeError, TypeError):
+                ref.extra_data = {}
+        else:
+            # 如果没有extra_info，尝试从flight_passengers获取乘客信息
+            if hasattr(ref, 'flight_passengers') and ref.flight_passengers:
+                pax_names = [p.name for p in ref.flight_passengers if p.name]
+                ref.extra_data = {
+                    'pax_names_display': ', '.join(pax_names),
+                    'departure_date': ref.flight_segments[0].departure_time.strftime('%Y-%m-%d') if ref.flight_segments and ref.flight_segments[0].departure_time else ''
+                }
+            else:
+                ref.extra_data = {}
+    
     # 获取发票明细
     items = InvoiceItem.query.filter_by(invoice_id=invoice_id).all()
+    
+    # 为每个item的ref也处理extra_info
+    for item in items:
+        if item.ref and item.ref.extra_info:
+            try:
+                extra_data = json.loads(item.ref.extra_info)
+                # 检查是否已有pax_names_display（机票REF已预先生成）
+                if not extra_data.get('pax_names_display'):
+                    # 获取选中的人员姓名（其他REF使用ID列表）
+                    pax_names_ids = extra_data.get('pax_names', [])
+                    if pax_names_ids:
+                        members = ProjectMember.query.filter(ProjectMember.id.in_(pax_names_ids)).all()
+                        pax_names_list = [f"{m.title} {m.member_name}" if m.title else m.member_name for m in members]
+                        extra_data['pax_names_display'] = ', '.join(pax_names_list)
+                    else:
+                        extra_data['pax_names_display'] = extra_data.get('pax_name', '')
+                item.ref.extra_data = extra_data
+            except (json.JSONDecodeError, TypeError):
+                item.ref.extra_data = {}
+        elif item.ref:
+            # 如果没有extra_info，尝试从flight_passengers获取乘客信息
+            if hasattr(item.ref, 'flight_passengers') and item.ref.flight_passengers:
+                pax_names = [p.name for p in item.ref.flight_passengers if p.name]
+                item.ref.extra_data = {
+                    'pax_names_display': ', '.join(pax_names),
+                    'departure_date': item.ref.flight_segments[0].departure_time.strftime('%Y-%m-%d') if item.ref.flight_segments and item.ref.flight_segments[0].departure_time else ''
+                }
+            else:
+                item.ref.extra_data = {}
+    
+    # 获取项目header的最新公司信息
+    header = invoice.header
+    customer_company_display = None
+    customer_company_address = None
+    customer_company_phone = None
+    if header and header.company:
+        customer_company_display = header.company.company_name
+        customer_company_address = header.company.address
+        customer_company_phone = header.company.contact_phone
+    
+    # 解析付款记录 - 从两个来源获取
+    payments = []
+    
+    # 来源1: invoice.extra_info['payments']（通过发票付款功能记录的）
+    if invoice.extra_info:
+        try:
+            extra_info = json.loads(invoice.extra_info)
+            payments = extra_info.get('payments', [])
+        except (json.JSONDecodeError, TypeError):
+            pass
+    
+    # 来源2: ProjectReceipt表中关联到项目的收款记录
+    from App_new.business.projects.models.receipt import ProjectReceipt
+    project_receipts = ProjectReceipt.query.filter_by(
+        header_id=invoice.header_id, 
+        status='confirmed'
+    ).order_by(ProjectReceipt.payment_date).all()
+    
+    for receipt in project_receipts:
+        # 检查是否已经在payments中（避免重复）
+        receipt_exists = any(
+            p.get('receipt_id') == receipt.id or 
+            (p.get('date') == receipt.payment_date.strftime('%Y-%m-%d') and 
+             abs(float(p.get('amount', 0)) - float(receipt.amount)) < 0.01)
+            for p in payments
+        )
+        if not receipt_exists:
+            payments.append({
+                'receipt_id': receipt.id,
+                'date': receipt.payment_date.strftime('%d/%m/%Y') if receipt.payment_date else '',
+                'ref_number': receipt.receipt_number,
+                'method': receipt.payment_method_display,
+                'amount': float(receipt.amount),
+                'remarks': receipt.remarks
+            })
+    
+    # 计算实际已付总额和余额
+    total_paid = sum(float(p.get('amount', 0)) for p in payments)
+    balance = float(invoice.amount or 0) - total_paid
+    
+    # 获取项目联系人
+    project_contact = header.contact if header else None
     
     return render_template('business/projects/project_invoice/invoice_detail.html',
                          invoice=invoice,
                          related_refs=related_refs,
-                         items=items)
+                         items=items,
+                         customer_company_display=customer_company_display,
+                         customer_company_address=customer_company_address,
+                         customer_company_phone=customer_company_phone,
+                         project_contact=project_contact,
+                         payments=payments,
+                         balance=balance)
 
 
 @project_invoice.route('/<int:invoice_id>/edit', methods=['GET', 'POST'])
@@ -268,6 +388,74 @@ def delete_invoice(invoice_id):
     return redirect(url_for('business_projects.project_invoice.header_invoices', header_id=header_id))
 
 
+@project_invoice.route('/<int:invoice_id>/sync-ref-prices', methods=['POST'])
+@login_required
+@staff_only
+@csrf.exempt
+def sync_ref_prices(invoice_id):
+    """同步REF价格到发票"""
+    try:
+        invoice = ProjectInvoice.query.get_or_404(invoice_id)
+        
+        # 获取关联的REF
+        ref_ids = []
+        if invoice.ref_ids:
+            try:
+                ref_ids = json.loads(invoice.ref_ids)
+            except (json.JSONDecodeError, TypeError):
+                pass
+        
+        if not ref_ids:
+            return jsonify({'success': False, 'message': '发票没有关联的REF'})
+        
+        # 计算新的总金额
+        new_total = 0
+        updated_items = []
+        
+        for ref_id in ref_ids:
+            ref = ProjectRef.query.get(ref_id)
+            if ref and ref.selling_price:
+                new_total += float(ref.selling_price)
+                updated_items.append({
+                    'ref_number': ref.ref_number,
+                    'old_price': 0,  # 将在下面更新
+                    'new_price': float(ref.selling_price)
+                })
+        
+        old_amount = float(invoice.amount or 0)
+        
+        # 更新发票金额
+        invoice.amount = new_total
+        
+        # 更新发票明细项
+        items = InvoiceItem.query.filter_by(invoice_id=invoice_id).all()
+        for item in items:
+            if item.ref_id:
+                ref = ProjectRef.query.get(item.ref_id)
+                if ref:
+                    # 记录旧价格
+                    for ui in updated_items:
+                        if ui['ref_number'] == ref.ref_number:
+                            ui['old_price'] = float(item.total_price or 0)
+                    # 更新价格
+                    item.unit_price = ref.selling_price or 0
+                    item.total_price = ref.selling_price or 0
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True, 
+            'message': f'价格同步成功！金额从 {old_amount:.2f} 更新为 {new_total:.2f}',
+            'old_amount': old_amount,
+            'new_amount': new_total,
+            'updated_items': updated_items
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'同步失败：{str(e)}'})
+
+
 @project_invoice.route('/header/<int:header_id>/quick-create', methods=['POST'])
 @login_required
 @staff_only
@@ -309,7 +497,11 @@ def quick_create_invoice(header_id):
             customer_name=header.leader_name or header.contact,
             customer_company=header.company.company_name if header.company else None,
             ref_ids=json.dumps([ref.get('ref_id') for ref in refs_data]),
-            remarks=f"Order: {data.get('order_no', '')}, TR: {data.get('tr_no', '')}, Purpose: {data.get('purpose', '')}".strip(', '),
+            remarks=', '.join(filter(None, [
+                f"Order: {data.get('order_no')}" if data.get('order_no') else None,
+                f"TR: {data.get('tr_no')}" if data.get('tr_no') else None,
+                f"Purpose: {data.get('purpose')}" if data.get('purpose') else None
+            ])),
             status='draft',
             created_by=current_user.username if current_user else None
         )

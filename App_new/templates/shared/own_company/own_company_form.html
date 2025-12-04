@@ -59,6 +59,15 @@
                                placeholder="如：悦行假期">
                     </div>
                 </div>
+
+                <div class="visa-form-group">
+                    <label for="ta_license" class="visa-form-label">
+                        <i class="fas fa-id-card"></i> TA License Number
+                    </label>
+                    <input type="text" class="visa-form-control" id="ta_license" name="ta_license" 
+                           value="{{ company.ta_license if company else '' }}" 
+                           placeholder="如：TA03652">
+                </div>
                 
                 <div class="visa-form-group">
                     <label for="company_description" class="visa-form-label">
@@ -85,6 +94,8 @@
                                value="{{ company.email if company else '' }}" required>
                     </div>
                 </div>
+                
+    
                 
                 <div class="visa-form-group">
                     <label for="address" class="visa-form-label">

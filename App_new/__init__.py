@@ -194,6 +194,74 @@ def create_app():
     from .finance.routes.keyword_routes import keyword_blue
     app.register_blueprint(keyword_blue, url_prefix='/statement')
 
+    # 注册自定义Jinja2过滤器
+    @app.template_filter('fromjson')
+    def fromjson_filter(value):
+        """将JSON字符串转换为Python对象"""
+        import json
+        try:
+            if value and isinstance(value, str):
+                return json.loads(value)
+            return value if value else {}
+        except Exception:
+            return {}
+
+    @app.template_filter('amount_in_words')
+    def amount_in_words(amount, currency='SGD'):
+        """将金额转换为英文大写形式"""
+        try:
+            amount = float(amount) if amount else 0
+            
+            # 数字到英文单词的映射
+            ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine',
+                   'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen',
+                   'Seventeen', 'Eighteen', 'Nineteen']
+            tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety']
+            
+            def num_to_words(n):
+                if n < 20:
+                    return ones[int(n)]
+                elif n < 100:
+                    return tens[int(n // 10)] + ('' if n % 10 == 0 else ' ' + ones[int(n % 10)])
+                elif n < 1000:
+                    return ones[int(n // 100)] + ' Hundred' + ('' if n % 100 == 0 else ' and ' + num_to_words(n % 100))
+                elif n < 1000000:
+                    return num_to_words(n // 1000) + ' Thousand' + ('' if n % 1000 == 0 else ' ' + num_to_words(n % 1000))
+                else:
+                    return num_to_words(n // 1000000) + ' Million' + ('' if n % 1000000 == 0 else ' ' + num_to_words(n % 1000000))
+            
+            # 分离整数和小数部分
+            dollars = int(amount)
+            cents = int(round((amount - dollars) * 100))
+            
+            # 货币名称映射
+            currency_names = {
+                'SGD': ('Singapore Dollars', 'Cents'),
+                'USD': ('US Dollars', 'Cents'),
+                'CNY': ('Chinese Yuan', 'Fen'),
+                'MYR': ('Malaysian Ringgit', 'Sen'),
+                'EUR': ('Euros', 'Cents'),
+                'GBP': ('British Pounds', 'Pence')
+            }
+            
+            dollar_name, cent_name = currency_names.get(currency, ('Dollars', 'Cents'))
+            
+            if dollars == 0 and cents == 0:
+                return f"Zero {dollar_name} Only"
+            
+            result = ''
+            if dollars > 0:
+                result = num_to_words(dollars) + ' ' + dollar_name
+            
+            if cents > 0:
+                if result:
+                    result += ' and '
+                result += num_to_words(cents) + ' ' + cent_name
+            
+            return result + ' Only'
+        except Exception:
+            return str(amount)
+
     # 注册应用级别的上下文处理器，让所有模板可以访问公司信息
     @app.context_processor
     def inject_company_info():

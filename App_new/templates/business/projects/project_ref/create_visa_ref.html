@@ -62,6 +62,64 @@
                             </div>
                         </div>
 
+                        <!-- Pax Name 选择 -->
+                        <div class="row mb-4">
+                            <div class="col-md-2">
+                                <label class="form-label">Pax Name:</label>
+                            </div>
+                            <div class="col-md-10">
+                                {% if members and members|length > 0 %}
+                                {% set selected_pax = extra_info.pax_names if extra_info and extra_info.pax_names else [] %}
+                                {% set leader_id = extra_info.leader_id if extra_info and extra_info.leader_id else null %}
+                                <input type="hidden" name="leader_id" id="leader_id" value="{{ leader_id or '' }}">
+                                <table class="table table-sm table-bordered table-hover mb-0" style="font-size: 13px;">
+                                    <thead class="table-primary">
+                                        <tr>
+                                            <th style="width: 40px;"><input type="checkbox" id="selectAllPax" title="全选"></th>
+                                            <th style="width: 40px;">No.</th>
+                                            <th>Name</th>
+                                            <th style="width: 60px;">Type</th>
+                                            <th style="width: 60px;">Leader</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for member in members %}
+                                        <tr class="{% if member.id == leader_id or member.id|string == leader_id|string %}table-primary{% endif %}">
+                                            <td class="text-center">
+                                                <input type="checkbox" name="pax_names" value="{{ member.id }}" 
+                                                       {% if member.id in selected_pax or member.id|string in selected_pax %}checked{% endif %}>
+                                            </td>
+                                            <td>{{ loop.index }}.</td>
+                                            <td>{{ member.title }} {{ member.member_name }}{% if member.member_name_en %} ({{ member.member_name_en }}){% endif %}</td>
+                                            <td>ADT</td>
+                                            <td class="text-center">
+                                                <button type="button" class="btn btn-sm {% if member.id == leader_id or member.id|string == leader_id|string %}btn-success{% else %}btn-outline-secondary{% endif %} set-leader-btn" 
+                                                        data-member-id="{{ member.id }}" title="设为Leader">
+                                                    <i class="fas fa-user"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                                <small class="text-muted">勾选人员，点击 <i class="fas fa-user"></i> 设置为Leader</small>
+                                {% else %}
+                                <p class="text-muted">项目暂无人员，请先在项目详情中添加人员</p>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Departure 日期 -->
+                        <div class="row mb-4">
+                            <div class="col-md-2">
+                                <label class="form-label">Departure:</label>
+                            </div>
+                            <div class="col-md-4">
+                                <input type="date" name="departure_date" class="form-control"
+                                       value="{{ extra_info.departure_date if extra_info and extra_info.departure_date else '' }}">
+                            </div>
+                        </div>
+
                         <!-- 售价、成本、供应商 - 同一行 -->
                         <div class="row mb-4">
                             <div class="col-md-4">
@@ -140,6 +198,43 @@
 document.addEventListener('DOMContentLoaded', function() {
     const form = document.querySelector('form');
     const inputs = form.querySelectorAll('input, select, textarea');
+    
+    // 全选功能
+    const selectAllCheckbox = document.getElementById('selectAllPax');
+    if (selectAllCheckbox) {
+        selectAllCheckbox.addEventListener('change', function() {
+            const checkboxes = document.querySelectorAll('input[name="pax_names"]');
+            checkboxes.forEach(cb => cb.checked = this.checked);
+        });
+    }
+    
+    // Leader设置功能
+    const leaderBtns = document.querySelectorAll('.set-leader-btn');
+    leaderBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+            const memberId = this.dataset.memberId;
+            const leaderInput = document.getElementById('leader_id');
+            
+            // 移除所有高亮和激活状态
+            document.querySelectorAll('.set-leader-btn').forEach(b => {
+                b.classList.remove('btn-success');
+                b.classList.add('btn-outline-secondary');
+            });
+            document.querySelectorAll('table tbody tr').forEach(row => {
+                row.classList.remove('table-primary');
+            });
+            
+            // 设置当前为leader
+            this.classList.remove('btn-outline-secondary');
+            this.classList.add('btn-success');
+            this.closest('tr').classList.add('table-primary');
+            leaderInput.value = memberId;
+            
+            // 自动勾选该人员
+            const checkbox = this.closest('tr').querySelector('input[name="pax_names"]');
+            if (checkbox) checkbox.checked = true;
+        });
+    });
 
     // 实时校验函数
     function validateField(field) {
