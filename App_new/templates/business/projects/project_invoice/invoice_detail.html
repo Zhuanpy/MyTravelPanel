@@ -638,9 +638,15 @@
             </ul>
         </div>
         <div class="company-stamp" style="text-align: center; display: flex; flex-direction: column; align-items: center;">
+            {% if company and company.stamp_path %}
+            <img src="{{ url_for('static', filename=company.stamp_path) }}" 
+                 alt="Company Stamp" 
+                 style="max-width: 80px; height: auto; opacity: 0.9;">
+            {% else %}
             <img src="{{ url_for('static', filename='JE/company digital stamp.png') }}" 
                  alt="Company Stamp" 
                  style="max-width: 80px; height: auto; opacity: 0.9;">
+            {% endif %}
             <p style="margin: -15px 0 0 0; font-size: 10px; white-space: nowrap;">For and on behalf of<br><strong>JOYFUL ESCAPES PTE. LTD</strong></p>
         </div>
     </div>

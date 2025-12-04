@@ -105,26 +105,50 @@
                               rows="2" required>{{ company.address if company else '' }}</textarea>
                 </div>
                 
-                <div class="visa-form-group">
-                    <label for="logo" class="visa-form-label">
-                        <i class="fas fa-image"></i> 公司Logo
-                    </label>
-                    <input type="file" class="visa-form-control" id="logo" name="logo" accept="image/*" onchange="previewLogo(event)">
-                    <small class="form-text text-muted">
-                        <i class="fas fa-info-circle"></i> 支持 JPG、PNG、GIF 格式，建议尺寸 200x200 像素
-                    </small>
-                    {% if company and company.logo_path %}
-                    <div class="visa-mt-2">
-                        <p class="text-muted mb-2"><strong>当前Logo：</strong></p>
-                        <img id="logoPreview" src="{{ url_for('static', filename=company.logo_path) }}" 
-                             alt="Company Logo" style="max-width: 200px; max-height: 200px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                <div class="visa-grid-2">
+                    <div class="visa-form-group">
+                        <label for="logo" class="visa-form-label">
+                            <i class="fas fa-image"></i> 公司Logo
+                        </label>
+                        <input type="file" class="visa-form-control" id="logo" name="logo" accept="image/*" onchange="previewLogo(event)">
+                        <small class="form-text text-muted">
+                            <i class="fas fa-info-circle"></i> 支持 JPG、PNG、GIF 格式，建议尺寸 200x200 像素
+                        </small>
+                        {% if company and company.logo_path %}
+                        <div class="visa-mt-2">
+                            <p class="text-muted mb-2"><strong>当前Logo：</strong></p>
+                            <img id="logoPreview" src="{{ url_for('static', filename=company.logo_path) }}" 
+                                 alt="Company Logo" style="max-width: 150px; max-height: 150px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                        </div>
+                        {% else %}
+                        <div class="visa-mt-2" id="logoPreviewContainer" style="display: none;">
+                            <p class="text-muted mb-2"><strong>预览：</strong></p>
+                            <img id="logoPreview" src="" alt="Logo Preview" style="max-width: 150px; max-height: 150px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                        </div>
+                        {% endif %}
                     </div>
-                    {% else %}
-                    <div class="visa-mt-2" id="logoPreviewContainer" style="display: none;">
-                        <p class="text-muted mb-2"><strong>预览：</strong></p>
-                        <img id="logoPreview" src="" alt="Logo Preview" style="max-width: 200px; max-height: 200px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                    
+                    <div class="visa-form-group">
+                        <label for="stamp" class="visa-form-label">
+                            <i class="fas fa-stamp"></i> 公司电子章
+                        </label>
+                        <input type="file" class="visa-form-control" id="stamp" name="stamp" accept="image/*" onchange="previewStamp(event)">
+                        <small class="form-text text-muted">
+                            <i class="fas fa-info-circle"></i> 支持 PNG 透明背景格式，建议尺寸 200x200 像素
+                        </small>
+                        {% if company and company.stamp_path %}
+                        <div class="visa-mt-2">
+                            <p class="text-muted mb-2"><strong>当前电子章：</strong></p>
+                            <img id="stampPreview" src="{{ url_for('static', filename=company.stamp_path) }}" 
+                                 alt="Company Stamp" style="max-width: 100px; max-height: 100px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                        </div>
+                        {% else %}
+                        <div class="visa-mt-2" id="stampPreviewContainer" style="display: none;">
+                            <p class="text-muted mb-2"><strong>预览：</strong></p>
+                            <img id="stampPreview" src="" alt="Stamp Preview" style="max-width: 100px; max-height: 100px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                        </div>
+                        {% endif %}
                     </div>
-                    {% endif %}
                 </div>
                 
                 <div class="visa-flex-center visa-gap-2 visa-mt-4">
@@ -147,6 +171,23 @@ function previewLogo(event) {
     const file = event.target.files[0];
     const preview = document.getElementById('logoPreview');
     const container = document.getElementById('logoPreviewContainer');
+    
+    if (file && file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            preview.src = e.target.result;
+            if (container) {
+                container.style.display = 'block';
+            }
+        };
+        reader.readAsDataURL(file);
+    }
+}
+
+function previewStamp(event) {
+    const file = event.target.files[0];
+    const preview = document.getElementById('stampPreview');
+    const container = document.getElementById('stampPreviewContainer');
     
     if (file && file.type.startsWith('image/')) {
         const reader = new FileReader();

@@ -185,6 +185,40 @@ def edit_company_info():
                     print(f"✅ Logo保存成功: {full_path}")
                     print(f"✅ 数据库路径: {logo_relative_path}")
             
+            # 处理电子章上传
+            if 'stamp' in request.files:
+                stamp = request.files['stamp']
+                if stamp and stamp.filename != '':
+                    from werkzeug.utils import secure_filename
+                    
+                    filename = secure_filename(stamp.filename)
+                    name, ext = os.path.splitext(filename)
+                    
+                    if company.stamp_path:
+                        existing_filename = os.path.basename(company.stamp_path)
+                        existing_name, existing_ext = os.path.splitext(existing_filename)
+                        if existing_ext.lower() != ext.lower():
+                            new_filename = f'{existing_name}{ext}'
+                        else:
+                            new_filename = existing_filename
+                    else:
+                        new_filename = f'company_stamp{ext}'
+                    
+                    stamp_relative_path = os.path.join('company', new_filename).replace('\\', '/')
+                    full_path = os.path.join('App_new', 'static', 'company', new_filename)
+                    
+                    os.makedirs(os.path.dirname(full_path), exist_ok=True)
+                    
+                    if os.path.exists(full_path):
+                        os.remove(full_path)
+                        print(f"🗑️ 删除旧电子章: {full_path}")
+                    
+                    stamp.save(full_path)
+                    company.stamp_path = stamp_relative_path
+                    
+                    print(f"✅ 电子章保存成功: {full_path}")
+                    print(f"✅ 数据库路径: {stamp_relative_path}")
+            
             if company.id is None:
                 db.session.add(company)
             
