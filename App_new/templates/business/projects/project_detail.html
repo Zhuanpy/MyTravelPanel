@@ -903,8 +903,7 @@ function deleteMember(memberId, memberName) {
                             <th style="padding: 8px; width: 8%; text-align: right;">税费</th>
                             <th style="padding: 8px; width: 10%; text-align: right;">合计</th>
                             <th style="padding: 8px; width: 5%; text-align: center;">选</th>
-                            <th style="padding: 8px; width: 5%; text-align: center;">显</th>
-                            <th style="padding: 8px; width: 5%;">INV</th>
+                            <th style="padding: 8px; width: 8%;">INV</th>
                         </tr>
                     </thead>
                     <tbody id="invoiceRefTable">
@@ -939,18 +938,7 @@ function deleteMember(memberId, memberName) {
                                 <input type="hidden" class="inv-total" value="{{ '%.2f'|format(ref.selling_price|float) if ref.selling_price else '0.00' }}">
                             </td>
                             <td style="padding: 8px; text-align: center;">
-                                {% if has_invoice %}
-                                <input type="checkbox" class="form-check-input inv-checkbox" style="width: 16px; height: 16px;" disabled title="已有发票">
-                                {% else %}
-                                <input type="checkbox" class="form-check-input inv-checkbox" style="width: 16px; height: 16px; cursor: pointer;" {% if ref.selling_price and ref.selling_price|float > 0 %}checked{% endif %}>
-                                {% endif %}
-                            </td>
-                            <td style="padding: 8px; text-align: center;">
-                                {% if has_invoice %}
-                                <input type="checkbox" class="form-check-input inv-show" style="width: 16px; height: 16px;" disabled>
-                                {% else %}
-                                <input type="checkbox" class="form-check-input inv-show" style="width: 16px; height: 16px; cursor: pointer;" checked>
-                                {% endif %}
+                                <input type="checkbox" class="form-check-input inv-checkbox" style="width: 16px; height: 16px; cursor: pointer;" {% if has_invoice %}title="已有发票: {{ existing_inv_number }}"{% elif ref.selling_price and ref.selling_price|float > 0 %}checked{% endif %}>
                             </td>
                             <td style="padding: 8px; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                                 {% if has_invoice %}
@@ -1085,15 +1073,13 @@ function generateInvoice() {
             const disc = parseFloat(row.querySelector('.inv-disc')?.value) || 0;
             const tax = parseFloat(row.querySelector('.inv-tax')?.value) || 0;
             const total = parseFloat(row.querySelector('.inv-total')?.value) || 0;
-            const show = row.querySelector('.inv-show')?.checked || false;
             
             selectedRefs.push({
                 ref_id: refId,
                 gross: gross,
                 discount: disc,
                 tax: tax,
-                total: total,
-                show_on_invoice: show
+                total: total
             });
         }
     });
@@ -1165,15 +1151,43 @@ function generateInvoice() {
     });
 }
 
+// 获取选中的已有发票的REF的发票号
+function getSelectedInvoiceNumbers() {
+    const invoiceNumbers = new Set();
+    document.querySelectorAll('#invoiceRefTable tr').forEach(row => {
+        const checkbox = row.querySelector('.inv-checkbox');
+        if (checkbox && checkbox.checked) {
+            const hasInvoice = row.dataset.hasInvoice === 'true';
+            if (hasInvoice) {
+                const invNumber = row.querySelector('.inv-number')?.value;
+                if (invNumber) {
+                    invoiceNumbers.add(invNumber);
+                }
+            }
+        }
+    });
+    return invoiceNumbers;
+}
+
 function voidInvoice() {
-    // 弹出输入框让用户输入发票号
-    const invoiceNumber = prompt('请输入要取消的发票号：');
-    if (!invoiceNumber || !invoiceNumber.trim()) {
+    // 获取选中的已有发票号
+    const invoiceNumbers = getSelectedInvoiceNumbers();
+    
+    if (invoiceNumbers.size === 0) {
+        alert('请先选择已有发票的REF');
         return;
     }
     
+    // 如果选中多个发票，提示只能一次作废一个
+    if (invoiceNumbers.size > 1) {
+        alert('一次只能作废一张发票，请只选择一个REF');
+        return;
+    }
+    
+    const invoiceNumber = [...invoiceNumbers][0];
+    
     // 确认取消操作
-    if (!confirm(`确定要取消发票 ${invoiceNumber.trim()} 吗？此操作不可撤销。`)) {
+    if (!confirm(`确定要作废发票 ${invoiceNumber} 吗？此操作不可撤销。`)) {
         return;
     }
     
@@ -1186,26 +1200,63 @@ function voidInvoice() {
         },
         body: JSON.stringify({
             header_id: window.headerId,
-            invoice_number: invoiceNumber.trim()
+            invoice_number: invoiceNumber
         })
     })
     .then(response => response.json())
     .then(result => {
         if (result.success) {
-            alert('发票已取消！');
+            alert('发票已作废！');
             location.reload();
         } else {
-            alert('取消失败：' + result.message);
+            alert('作废失败：' + result.message);
         }
     })
     .catch(error => {
-        console.error('取消发票失败:', error);
-        alert('取消发票失败，请稍后重试');
+        console.error('作废发票失败:', error);
+        alert('作废发票失败，请稍后重试');
     });
 }
 
 function reprintInvoice() {
-    alert('功能开发中...');
+    // 获取选中的已有发票号
+    const invoiceNumbers = getSelectedInvoiceNumbers();
+    
+    if (invoiceNumbers.size === 0) {
+        alert('请先选择已有发票的REF');
+        return;
+    }
+    
+    // 如果选中多个发票，提示只能一次打印一个
+    if (invoiceNumbers.size > 1) {
+        alert('一次只能打印一张发票，请只选择一个REF');
+        return;
+    }
+    
+    const invoiceNumber = [...invoiceNumbers][0];
+    
+    // 通过发票号查找并打印
+    fetch('/projects/invoice/find_by_number', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
+        },
+        body: JSON.stringify({ invoice_number: invoiceNumber })
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            // 打开打印窗口（打印完成后会自动关闭）
+            window.open(`/projects/invoice/${result.invoice_id}?print=1`, '_blank', 'width=900,height=700');
+        } else {
+            alert(result.message);
+        }
+    })
+    .catch(error => {
+        console.error('打印发票失败:', error);
+        alert('打印发票失败，请稍后重试');
+    });
 }
 
 // 点击模态框外部关闭

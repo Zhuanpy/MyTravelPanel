@@ -262,10 +262,19 @@ class AthinaImportService:
         if not row or len(row) < 3:
             return False
         
-        # 检查Itin Desc列是否包含"Sub Total"
-        for i, cell in enumerate(row):
-            if cell and 'Sub Total' in str(cell):
+        # 方法1：检查Itin Desc列（第8列，索引7）是否包含"Sub Total"
+        if len(row) > 7 and row[7]:
+            if 'Sub Total' in str(row[7]):
                 return True
+        
+        # 方法2：检查Booking Ref列（第4列，索引3）是否为空，如果为空且其他列有"Sub Total"标记，也是小计行
+        booking_ref = row[3] if len(row) > 3 else None
+        if (booking_ref is None or str(booking_ref).strip() == '' or str(booking_ref).strip().lower() == 'nan'):
+            # Booking Ref为空，检查是否有Sub Total标记
+            for i, cell in enumerate(row):
+                if cell and 'Sub Total' in str(cell):
+                    return True
+        
         return False
     
     def import_csv_file(self, file_path):
@@ -328,16 +337,44 @@ class AthinaImportService:
                         # 预处理后，Corporate Name 在第二列（索引1），Book Date 在第6列（索引5）
                         corporate_name = self.clean_string(row_values[1]) if len(row_values) > 1 else None
                         book_date = self.parse_date(row_values[5]) if len(row_values) > 5 else None
+                        # 创建新头部记录，只设置CSV中的字段，计算字段使用默认值
                         header = AthinaBookingHeader(
                             booking_header_id=booking_header_id,
                             corporate_name=corporate_name,
-                            book_date=book_date
+                            book_date=book_date,
+                            # 计算字段使用默认值：is_all_invoiced=False, is_count_performance=False
+                            # 财务汇总字段（sub_total_*）将在小计行中更新
                         )
                         db.session.add(header)
                         db.session.flush()
                         imported_headers += 1
                         print(f"创建新头部: {booking_header_id}, 公司: {header.corporate_name}")
                     else:
+                        # 头部记录已存在，检查是否已核算业绩
+                        if header.is_count_performance:
+                            # 如果已核算业绩，检查是否有数据变更
+                            corporate_name = self.clean_string(row_values[1]) if len(row_values) > 1 else None
+                            book_date = self.parse_date(row_values[5]) if len(row_values) > 5 else None
+                            
+                            data_changed = False
+                            changes = []
+                            
+                            if corporate_name and corporate_name != header.corporate_name:
+                                data_changed = True
+                                changes.append(f'公司名称: {header.corporate_name} -> {corporate_name}')
+                            
+                            if book_date and book_date != header.book_date:
+                                data_changed = True
+                                changes.append(f'预订日期: {header.book_date} -> {book_date}')
+                            
+                            if data_changed:
+                                error_msg = f'错误：HID {booking_header_id} 的数据已核算业绩，不允许修改。检测到以下变更：{"; ".join(changes)}'
+                                print(error_msg)
+                                raise ValueError(error_msg)
+                            
+                            # 如果没有数据变更，继续处理但不更新头部
+                            print(f"跳过已核算业绩的头部更新，HID: {booking_header_id} (数据无变更)")
+                        
                         # 头部记录已存在，更新基本信息（如果新数据不为空）
                         corporate_name = self.clean_string(row_values[1]) if len(row_values) > 1 else None
                         book_date = self.parse_date(row_values[5]) if len(row_values) > 5 else None
@@ -364,6 +401,44 @@ class AthinaImportService:
                 # 检查是否为小计行
                 if self.is_subtotal(row_values):
                     print(f"发现小计行: {row_values}")
+                    
+                    # 如果已核算业绩，不允许更新小计数据
+                    if current_header.is_count_performance:
+                        # 解析新的小计数据
+                        new_gross = self.parse_decimal(row_values[9]) if len(row_values) > 9 else None
+                        new_cost = self.parse_decimal(row_values[13]) if len(row_values) > 13 else None
+                        new_pl = self.parse_decimal(row_values[14]) if len(row_values) > 14 else None
+                        new_balance = self.parse_decimal(row_values[16]) if len(row_values) > 16 else None
+                        
+                        # 检查是否有数据变更
+                        data_changed = False
+                        changes = []
+                        
+                        if new_gross is not None and current_header.sub_total_gross != new_gross:
+                            data_changed = True
+                            changes.append(f'总金额: {current_header.sub_total_gross} -> {new_gross}')
+                        
+                        if new_cost is not None and current_header.sub_total_cost != new_cost:
+                            data_changed = True
+                            changes.append(f'成本: {current_header.sub_total_cost} -> {new_cost}')
+                        
+                        if new_pl is not None and current_header.sub_total_pl != new_pl:
+                            data_changed = True
+                            changes.append(f'盈亏: {current_header.sub_total_pl} -> {new_pl}')
+                        
+                        if new_balance is not None and current_header.sub_total_balance != new_balance:
+                            data_changed = True
+                            changes.append(f'余额: {current_header.sub_total_balance} -> {new_balance}')
+                        
+                        if data_changed:
+                            error_msg = f'错误：HID {current_header.booking_header_id} 的数据已核算业绩，不允许修改小计数据。检测到以下变更：{"; ".join(changes)}'
+                            print(error_msg)
+                            raise ValueError(error_msg)
+                        
+                        # 如果没有数据变更，跳过小计行更新
+                        print(f"跳过已核算业绩的头部小计数据更新，HID: {current_header.booking_header_id} (数据无变更)")
+                        continue
+                    
                     # 更新头部的小计数据
                     # 预处理后的列结构：第1列=booking_header_id, 第2列=Corporate Name, 第3列=Client Name, 第4列=Booking Ref, 第5列=Book Type, 第6列=Book Date, 第7列=Dep Date, 第8列=Itin Desc, 第9列=Gross Curr, 第10列=Gross, 第11列=Gross Tax, 第12列=Disc, 第13列=Local Gross, 第14列=Local Cost, 第15列=PL, 第16列=Marg, 第17列=Balance, 第18列=Supplier, 第19列=Consultant, 第20列=Sales Consultant, 第21列=Invoice No, 第22列=Invoice Date
                     
@@ -379,29 +454,32 @@ class AthinaImportService:
                     new_local_gross = self.parse_decimal(row_values[12]) if len(row_values) > 12 else None
                     new_margin = self.parse_percentage(row_values[15]) if len(row_values) > 15 else None
                     
-                    # 检查是否有变化，如果有则更新
-                    if new_gross is not None and new_gross != current_header.sub_total_gross:
+                    # 强制更新所有小计数据（小计行总是最新的，所以直接覆盖）
+                    old_balance = current_header.sub_total_balance
+                    if new_gross is not None:
                         current_header.sub_total_gross = new_gross
                         subtotal_updated = True
-                    if new_cost is not None and new_cost != current_header.sub_total_cost:
+                    if new_cost is not None:
                         current_header.sub_total_cost = new_cost
                         subtotal_updated = True
-                    if new_pl is not None and new_pl != current_header.sub_total_pl:
+                    if new_pl is not None:
                         current_header.sub_total_pl = new_pl
                         subtotal_updated = True
-                    if new_balance is not None and new_balance != current_header.sub_total_balance:
+                    if new_balance is not None:
                         current_header.sub_total_balance = new_balance
                         subtotal_updated = True
-                    if new_tax is not None and new_tax != current_header.sub_total_tax:
+                        if old_balance != new_balance:
+                            print(f"更新Balance: {old_balance} -> {new_balance} (booking_header_id: {current_header.booking_header_id})")
+                    if new_tax is not None:
                         current_header.sub_total_tax = new_tax
                         subtotal_updated = True
-                    if new_discount is not None and new_discount != current_header.sub_total_discount:
+                    if new_discount is not None:
                         current_header.sub_total_discount = new_discount
                         subtotal_updated = True
-                    if new_local_gross is not None and new_local_gross != current_header.sub_total_local_gross:
+                    if new_local_gross is not None:
                         current_header.sub_total_local_gross = new_local_gross
                         subtotal_updated = True
-                    if new_margin is not None and new_margin != current_header.sub_total_margin:
+                    if new_margin is not None:
                         current_header.sub_total_margin = new_margin
                         subtotal_updated = True
                     
@@ -416,39 +494,17 @@ class AthinaImportService:
                         if sales_consultant:
                             current_header.sales_consultant = sales_consultant
                             subtotal_updated = True
-                    if not current_header.invoice_no:
-                        invoice_no = self.clean_string(row_values[20]) if len(row_values) > 20 else None
-                        if invoice_no:
-                            current_header.invoice_no = invoice_no
-                            subtotal_updated = True
-                    if not current_header.invoice_date:
-                        invoice_date = self.parse_date(row_values[21]) if len(row_values) > 21 else None
-                        if invoice_date:
-                            current_header.invoice_date = invoice_date
-                            subtotal_updated = True
+                    # invoice_no 和 invoice_date 已从 header 中移除，改为从 detail 中获取
                     
                     # 如果有任何更新，更新时间戳
                     if subtotal_updated:
                         current_header.updated_at = datetime.utcnow()
                         updated_headers += 1
+                        print(f"更新头部小计数据: Gross={current_header.sub_total_gross}, Cost={current_header.sub_total_cost}, PL={current_header.sub_total_pl}, Balance={current_header.sub_total_balance}")
                     
-                    # 创建小计明细记录（小计行不需要booking_ref，但我们需要特殊处理）
-                    detail = AthinaBookingDetail(
-                        header_id=current_header.id,
-                        is_subtotal=True,
-                        booking_ref=None,  # 小计行明确设置为None
-                        gross_amount=current_header.sub_total_gross,
-                        gross_tax=current_header.sub_total_tax,
-                        discount=current_header.sub_total_discount,
-                        local_gross=current_header.sub_total_local_gross,
-                        local_cost=current_header.sub_total_cost,
-                        profit_loss=current_header.sub_total_pl,
-                        margin=current_header.sub_total_margin,
-                        balance=current_header.sub_total_balance
-                    )
-                    db.session.add(detail)
-                    imported_details += 1
-                    print(f"更新头部小计数据: Gross={current_header.sub_total_gross}, Cost={current_header.sub_total_cost}, PL={current_header.sub_total_pl}")
+                    # Sub Total行不应该被录入到athina_booking_details表中，只更新header的汇总数据
+                    # 跳过创建detail记录，继续处理下一行
+                    continue
                 
                 # 普通明细行
                 else:
@@ -462,17 +518,13 @@ class AthinaImportService:
                     booking_ref = self.parse_integer(row_values[3]) if len(row_values) > 3 else None
                     
                     # 如果booking_ref为空或无效，跳过此记录
+                    # 注意：Sub Total行的booking_ref应该是空的，但应该在小计行检查时已经处理了
                     if booking_ref is None:
                         print(f"第{index}行booking_ref为空或无效，跳过")
                         skipped_invalid_refs += 1
                         continue
                     
-                    # 检查Gross是否为0，如果为0则跳过（Gross在第10列，索引9）
-                    gross_value = self.parse_decimal(row_values[9]) if len(row_values) > 9 else None
-                    if gross_value is not None and gross_value == 0:
-                        print(f"第{index}行Gross为0，跳过")
-                        skipped_empty_rows += 1
-                        continue
+                    # 注意：不再跳过Gross为0的记录，因为有些记录Gross可能为0但仍然有效（如ref 940）
                     
                     # 检查是否包含有效业务数据
                     has_client_name = any(cell and str(cell).strip() and str(cell).strip() != 'nan' 
@@ -486,125 +538,114 @@ class AthinaImportService:
                         existing_detail = AthinaBookingDetail.query.filter_by(booking_ref=booking_ref).first()
                         
                         if existing_detail:
-                            # 更新现有明细记录
+                            # 检查是否已核算业绩，如果已核算则不允许修改ref和hid相关数据
+                            header_for_detail = existing_detail.header
+                            if header_for_detail and header_for_detail.is_count_performance:
+                                # 检查是否有数据变更（关键字段：booking_ref, header_id/booking_header_id, 财务数据）
+                                new_gross_amount = self.parse_decimal(row_values[9]) if len(row_values) > 9 else None
+                                new_local_cost = self.parse_decimal(row_values[13]) if len(row_values) > 13 else None
+                                new_profit_loss = self.parse_decimal(row_values[14]) if len(row_values) > 14 else None
+                                new_balance = self.parse_decimal(row_values[16]) if len(row_values) > 16 else None
+                                
+                                # 检查booking_ref是否变化
+                                if existing_detail.booking_ref != booking_ref:
+                                    error_msg = f'错误：预订参考号 {existing_detail.booking_ref} 的数据已核算业绩，不允许修改。尝试修改为 {booking_ref} 的操作被拒绝。'
+                                    print(error_msg)
+                                    raise ValueError(error_msg)
+                                
+                                # 检查header_id/HID是否变化
+                                if existing_detail.header_id != current_header.id:
+                                    error_msg = f'错误：预订参考号 {booking_ref} (HID: {header_for_detail.booking_header_id}) 的数据已核算业绩，不允许修改HID。尝试修改为 HID {current_header.booking_header_id} 的操作被拒绝。'
+                                    print(error_msg)
+                                    raise ValueError(error_msg)
+                                
+                                # 检查关键财务数据是否有变化
+                                data_changed = False
+                                changes = []
+                                
+                                if new_gross_amount is not None and existing_detail.gross_amount != new_gross_amount:
+                                    data_changed = True
+                                    changes.append(f'总金额: {existing_detail.gross_amount} -> {new_gross_amount}')
+                                
+                                if new_local_cost is not None and existing_detail.local_cost != new_local_cost:
+                                    data_changed = True
+                                    changes.append(f'成本: {existing_detail.local_cost} -> {new_local_cost}')
+                                
+                                if new_profit_loss is not None and existing_detail.profit_loss != new_profit_loss:
+                                    data_changed = True
+                                    changes.append(f'盈亏: {existing_detail.profit_loss} -> {new_profit_loss}')
+                                
+                                if new_balance is not None and existing_detail.balance != new_balance:
+                                    data_changed = True
+                                    changes.append(f'余额: {existing_detail.balance} -> {new_balance}')
+                                
+                                if data_changed:
+                                    error_msg = f'错误：预订参考号 {booking_ref} (HID: {header_for_detail.booking_header_id}) 的数据已核算业绩，不允许修改。检测到以下变更：{"; ".join(changes)}'
+                                    print(error_msg)
+                                    raise ValueError(error_msg)
+                                
+                                # 如果没有数据变更，跳过此记录的更新
+                                print(f"跳过已核算业绩的记录，booking_ref: {booking_ref}, HID: {header_for_detail.booking_header_id} (数据无变更)")
+                                continue
+                            
+                            # 更新现有明细记录（以最新导入的数据为准，强制更新所有字段）
                             print(f"更新现有明细记录，booking_ref: {booking_ref}")
                             
-                            detail_updated = False
-                            
-                            # 更新业务信息（如果新数据不为空且与现有数据不同）
+                            # 解析所有字段值
                             new_corporate_name = self.clean_string(row_values[1]) if len(row_values) > 1 else None
-                            if new_corporate_name and new_corporate_name != existing_detail.corporate_name:
-                                existing_detail.corporate_name = new_corporate_name
-                                detail_updated = True
-                            
                             new_client_name = self.clean_string(row_values[2]) if len(row_values) > 2 else None
-                            if new_client_name and new_client_name != existing_detail.client_name:
-                                existing_detail.client_name = new_client_name
-                                detail_updated = True
-                            
                             new_book_type = self.clean_string(row_values[4]) if len(row_values) > 4 else None
-                            if new_book_type and new_book_type != existing_detail.book_type:
-                                existing_detail.book_type = new_book_type
-                                detail_updated = True
-                            
                             new_book_date = self.parse_date(row_values[5]) if len(row_values) > 5 else None
-                            if new_book_date and new_book_date != existing_detail.book_date:
-                                existing_detail.book_date = new_book_date
-                                detail_updated = True
-                            
                             new_dep_date = self.parse_date(row_values[6]) if len(row_values) > 6 else None
-                            if new_dep_date and new_dep_date != existing_detail.dep_date:
-                                existing_detail.dep_date = new_dep_date
-                                detail_updated = True
-                            
                             new_itin_desc = self.clean_string(row_values[7]) if len(row_values) > 7 else None
-                            if new_itin_desc and new_itin_desc != existing_detail.itin_desc:
-                                existing_detail.itin_desc = new_itin_desc
-                                detail_updated = True
-                            
-                            # 更新财务信息（如果新数据不为空且与现有数据不同）
                             new_gross_curr = self.clean_string(row_values[8]) if len(row_values) > 8 else None
-                            if new_gross_curr and new_gross_curr != existing_detail.gross_curr:
-                                existing_detail.gross_curr = new_gross_curr
-                                detail_updated = True
-                            
                             new_gross_amount = self.parse_decimal(row_values[9]) if len(row_values) > 9 else None
-                            if new_gross_amount is not None and new_gross_amount != existing_detail.gross_amount:
-                                existing_detail.gross_amount = new_gross_amount
-                                detail_updated = True
-                            
                             new_gross_tax = self.parse_decimal(row_values[10]) if len(row_values) > 10 else None
-                            if new_gross_tax is not None and new_gross_tax != existing_detail.gross_tax:
-                                existing_detail.gross_tax = new_gross_tax
-                                detail_updated = True
-                            
                             new_discount = self.parse_decimal(row_values[11]) if len(row_values) > 11 else None
-                            if new_discount is not None and new_discount != existing_detail.discount:
-                                existing_detail.discount = new_discount
-                                detail_updated = True
-                            
                             new_local_gross = self.parse_decimal(row_values[12]) if len(row_values) > 12 else None
-                            if new_local_gross is not None and new_local_gross != existing_detail.local_gross:
-                                existing_detail.local_gross = new_local_gross
-                                detail_updated = True
-                            
                             new_local_cost = self.parse_decimal(row_values[13]) if len(row_values) > 13 else None
-                            if new_local_cost is not None and new_local_cost != existing_detail.local_cost:
-                                existing_detail.local_cost = new_local_cost
-                                detail_updated = True
-                            
                             new_profit_loss = self.parse_decimal(row_values[14]) if len(row_values) > 14 else None
-                            if new_profit_loss is not None and new_profit_loss != existing_detail.profit_loss:
-                                existing_detail.profit_loss = new_profit_loss
-                                detail_updated = True
-                            
                             new_margin = self.parse_percentage(row_values[15]) if len(row_values) > 15 else None
-                            if new_margin is not None and new_margin != existing_detail.margin:
-                                existing_detail.margin = new_margin
-                                detail_updated = True
-                            
                             new_balance = self.parse_decimal(row_values[16]) if len(row_values) > 16 else None
-                            if new_balance is not None and new_balance != existing_detail.balance:
-                                existing_detail.balance = new_balance
-                                detail_updated = True
-                            
-                            # 更新供应商信息
                             new_supplier = self.clean_string(row_values[17]) if len(row_values) > 17 else None
-                            if new_supplier and new_supplier != existing_detail.supplier:
-                                existing_detail.supplier = new_supplier
-                                detail_updated = True
-                            
                             new_consultant = self.clean_string(row_values[18]) if len(row_values) > 18 else None
-                            if new_consultant and new_consultant != existing_detail.consultant:
-                                existing_detail.consultant = new_consultant
-                                detail_updated = True
-                            
                             new_sales_consultant = self.clean_string(row_values[19]) if len(row_values) > 19 else None
-                            if new_sales_consultant and new_sales_consultant != existing_detail.sales_consultant:
-                                existing_detail.sales_consultant = new_sales_consultant
-                                detail_updated = True
-                            
-                            # 更新发票信息
                             new_invoice_no = self.clean_string(row_values[20]) if len(row_values) > 20 else None
-                            if new_invoice_no and new_invoice_no != existing_detail.invoice_no:
-                                existing_detail.invoice_no = new_invoice_no
-                                detail_updated = True
-                            
                             new_invoice_date = self.parse_date(row_values[21]) if len(row_values) > 21 else None
-                            if new_invoice_date and new_invoice_date != existing_detail.invoice_date:
-                                existing_detail.invoice_date = new_invoice_date
-                                detail_updated = True
                             
-                            # 确保header_id正确
-                            if existing_detail.header_id != current_header.id:
-                                existing_detail.header_id = current_header.id
-                                detail_updated = True
+                            # 强制更新所有字段（以最新导入的数据为准）
+                            existing_detail.corporate_name = new_corporate_name
+                            existing_detail.client_name = new_client_name
+                            existing_detail.book_type = new_book_type
+                            existing_detail.book_date = new_book_date
+                            existing_detail.dep_date = new_dep_date
+                            existing_detail.itin_desc = new_itin_desc
+                            existing_detail.gross_curr = new_gross_curr
+                            existing_detail.gross_amount = new_gross_amount
+                            existing_detail.gross_tax = new_gross_tax
+                            existing_detail.discount = new_discount
+                            existing_detail.local_gross = new_local_gross
+                            existing_detail.local_cost = new_local_cost
+                            existing_detail.profit_loss = new_profit_loss
+                            existing_detail.margin = new_margin
+                            existing_detail.balance = new_balance
+                            existing_detail.supplier = new_supplier
+                            existing_detail.consultant = new_consultant
+                            existing_detail.sales_consultant = new_sales_consultant
+                            existing_detail.invoice_no = new_invoice_no
+                            existing_detail.invoice_date = new_invoice_date
                             
-                            # 如果有任何更新，更新时间戳
-                            if detail_updated:
-                                existing_detail.updated_at = datetime.utcnow()
-                                updated_details += 1
-                                print(f"更新明细记录，booking_ref: {booking_ref}, 客户: {existing_detail.client_name}")
+                            # 确保header_id正确（如果booking_ref对应的detail现在属于不同的header）
+                            existing_detail.header_id = current_header.id
+                            
+                            # 更新对应header的开票状态
+                            if existing_detail.header:
+                                existing_detail.header.update_invoice_status()
+                            
+                            # 更新时间戳
+                            existing_detail.updated_at = datetime.utcnow()
+                            updated_details += 1
+                            print(f"更新明细记录，booking_ref: {booking_ref}, 客户: {new_client_name or existing_detail.client_name}")
                         else:
                             # 创建新的明细记录
                             # 预处理后的列结构：第1列=booking_header_id, 第2列=Corporate Name, 第3列=Client Name, 第4列=Booking Ref, 第5列=Book Type, 第6列=Book Date, 第7列=Dep Date, 第8列=Itin Desc, 第9列=Gross Curr, 第10列=Gross, 第11列=Gross Tax, 第12列=Disc, 第13列=Local Gross, 第14列=Local Cost, 第15列=PL, 第16列=Marg, 第17列=Balance, 第18列=Supplier, 第19列=Consultant, 第20列=Sales Consultant, 第21列=Invoice No, 第22列=Invoice Date
@@ -640,20 +681,26 @@ class AthinaImportService:
                             )
                             db.session.add(detail)
                             imported_details += 1
+                            # 更新对应header的开票状态
+                            current_header.update_invoice_status()
                             print(f"创建新明细记录，header_id: {current_header.id}, booking_ref: {booking_ref}, 客户: {detail.client_name}")
                         
-                        # 同时更新头部的顾问和发票信息（如果头部还没有这些信息）
+                        # 同时更新头部的顾问信息（如果头部还没有这些信息）
+                        # 注意：只更新CSV字段，不覆盖计算字段（is_all_invoiced, is_count_performance）
                         detail_to_check = existing_detail if existing_detail else detail
                         if not current_header.consultant and detail_to_check.consultant:
                             current_header.consultant = detail_to_check.consultant
                         if not current_header.sales_consultant and detail_to_check.sales_consultant:
                             current_header.sales_consultant = detail_to_check.sales_consultant
-                        if not current_header.invoice_no and detail_to_check.invoice_no:
-                            current_header.invoice_no = detail_to_check.invoice_no
-                        if not current_header.invoice_date and detail_to_check.invoice_date:
-                            current_header.invoice_date = detail_to_check.invoice_date
+                        # invoice_no 和 invoice_date 已从 header 中移除，改为从 detail 中获取
+                        # is_all_invoiced 和 is_count_performance 是计算字段，不在这里更新
                     else:
                         print(f"第{index}行不包含有效业务数据，跳过")
+            
+            # 更新所有header的is_all_invoiced状态（计算字段）
+            all_headers = AthinaBookingHeader.query.all()
+            for h in all_headers:
+                h.update_invoice_status()
             
             # 提交所有更改
             db.session.commit()

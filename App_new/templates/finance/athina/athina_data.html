@@ -1,4 +1,4 @@
-﻿{% extends "staff_base.html" %}
+{% extends "staff_base.html" %}
 
 {% block title %}Athina数据查看 - MyTravelPanel{% endblock %}
 
@@ -8,7 +8,8 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/finance_common.css') }}">
 <style>
     .data-container {
-        max-width: 1400px;
+        max-width: 95%;
+        width: 100%;
         margin: 20px auto;
         padding: 20px;
         background-color: #ffffff;
@@ -65,6 +66,92 @@
         background-color: #2E7D32;
     }
 
+    .filter-panel {
+        background-color: #f8f9fa;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        border: 1px solid #e9ecef;
+    }
+
+    .filter-panel-title {
+        font-size: 16px;
+        font-weight: 600;
+        color: #2E7D32;
+        margin-bottom: 15px;
+        display: flex;
+        align-items: center;
+    }
+
+    .filter-panel-title i {
+        margin-right: 8px;
+    }
+
+    .filter-form {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+        align-items: end;
+    }
+
+    .filter-group {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .filter-label {
+        font-size: 13px;
+        font-weight: 500;
+        color: #495057;
+        margin-bottom: 5px;
+    }
+
+    .filter-input {
+        padding: 8px 12px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 14px;
+        width: 100%;
+    }
+
+    .filter-select {
+        padding: 8px 12px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 14px;
+        width: 100%;
+        background-color: white;
+    }
+
+    .filter-buttons {
+        display: flex;
+        flex-direction: row !important;
+        gap: 10px;
+        align-items: flex-end;
+    }
+
+    .filter-btn {
+        background-color: #4CAF50;
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+    }
+
+    .filter-btn:hover {
+        background-color: #2E7D32;
+    }
+
+    .filter-reset-btn {
+        background-color: #6c757d;
+    }
+
+    .filter-reset-btn:hover {
+        background-color: #5a6268;
+    }
+
     .action-buttons {
         display: flex;
         gap: 10px;
@@ -94,14 +181,18 @@
         margin-right: 5px;
     }
 
+    .table-wrapper {
+        overflow-x: auto;
+        margin-top: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
     .data-table {
         width: 100%;
+        min-width: 1200px;
         border-collapse: collapse;
-        margin-top: 20px;
         background-color: white;
-        border-radius: 8px;
-        overflow: hidden;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     }
 
     .data-table th {
@@ -163,6 +254,50 @@
         color: #dc3545;
     }
 
+    .editable-cell {
+        position: relative;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        min-width: 150px;
+    }
+
+    .editable-text {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .editable-input, .editable-select {
+        flex: 1;
+        min-width: 120px;
+        padding: 4px 8px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 13px;
+    }
+
+    .btn-edit-cell, .btn-save-cell, .btn-cancel-cell {
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 2px 5px;
+        display: inline-flex;
+        align-items: center;
+        color: #6c757d;
+    }
+
+    .btn-edit-cell:hover {
+        color: #007bff;
+    }
+
+    .btn-save-cell:hover {
+        color: #28a745;
+    }
+
+    .btn-cancel-cell:hover {
+        color: #dc3545;
+    }
+
     .pagination {
         display: flex;
         justify-content: center;
@@ -221,33 +356,18 @@
         text-decoration: underline;
     }
 
-    .stats-summary {
-        background-color: #f8f9fa;
-        padding: 20px;
-        border-radius: 8px;
-        margin-bottom: 20px;
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 20px;
+    .performance-toggle-link {
+        cursor: pointer;
+        text-decoration: none;
+        display: inline-block;
     }
 
-    .stat-item {
-        text-align: center;
+    .performance-toggle-link:hover {
+        opacity: 0.8;
+        transform: scale(1.05);
+        transition: all 0.2s;
     }
 
-    .stat-number {
-        font-size: 24px;
-        font-weight: bold;
-        color: #2E7D32;
-        margin-bottom: 5px;
-    }
-
-    .stat-label {
-        font-size: 14px;
-        color: #666;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-    }
 
     @media (max-width: 768px) {
         .data-container {
@@ -277,10 +397,6 @@
         .data-table td {
             padding: 8px 5px;
         }
-
-        .stats-summary {
-            grid-template-columns: 1fr;
-        }
     }
 </style>
 {% endblock %}
@@ -289,7 +405,16 @@
 <div class="data-container">
     <div class="data-header">
         <h1><i class="fas fa-table"></i> Athina数据查看</h1>
-        <form class="search-form" method="GET">
+        <form class="search-form" method="GET" id="searchForm">
+                   <!-- 保留筛选参数 -->
+                   <input type="hidden" name="filter_corporate_name" value="{{ filter_corporate_name or '' }}">
+                   <input type="hidden" name="filter_consultant" value="{{ filter_consultant or '' }}">
+                   <input type="hidden" name="filter_sales_consultant" value="{{ filter_sales_consultant or '' }}">
+                   <input type="hidden" name="filter_is_all_invoiced" value="{{ filter_is_all_invoiced or '' }}">
+                   <input type="hidden" name="filter_is_count_performance" value="{{ filter_is_count_performance or '' }}">
+                   <input type="hidden" name="filter_pl" value="{{ filter_pl or '' }}">
+                   <input type="hidden" name="filter_book_date_from" value="{{ filter_book_date_from or '' }}">
+                   <input type="hidden" name="filter_book_date_to" value="{{ filter_book_date_to or '' }}">
             <input type="text" name="search" class="search-input" placeholder="搜索预订头部ID、客户名称、预订参考号或供应商..." value="{{ search }}">
             <button type="submit" class="search-btn">
                 <i class="fas fa-search"></i> 搜索
@@ -297,20 +422,101 @@
         </form>
     </div>
 
-    <!-- 统计摘要 -->
-    <div class="stats-summary">
-        <div class="stat-item">
-            <div class="stat-number">{{ pagination.total if pagination else 0 }}</div>
-            <div class="stat-label">总预订头部</div>
+    <!-- 筛选面板 -->
+    <div class="filter-panel">
+        <div class="filter-panel-title">
+            <i class="fas fa-filter"></i> 筛选条件
         </div>
-        <div class="stat-item">
-            <div class="stat-number" id="total-details">-</div>
-            <div class="stat-label">总明细记录</div>
-        </div>
-        <div class="stat-item">
-            <div class="stat-number" id="total-amount">-</div>
-            <div class="stat-label">总金额 (SGD)</div>
-        </div>
+        <form method="GET" class="filter-form" id="filterForm" action="{{ url_for('athina_routes.athina_header_data') }}">
+            <!-- 保留搜索参数 -->
+            <input type="hidden" name="search" value="{{ search or '' }}">
+            
+            <!-- 公司名称 -->
+            <div class="filter-group">
+                <label class="filter-label">公司名称</label>
+                <select name="filter_corporate_name" class="filter-select">
+                    <option value="">全部</option>
+                    {% for name in corporate_names %}
+                    <option value="{{ name }}" {{ 'selected' if filter_corporate_name == name }}>{{ name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- 操作员 -->
+            <div class="filter-group">
+                <label class="filter-label">操作员</label>
+                <select name="filter_consultant" class="filter-select">
+                    <option value="">全部</option>
+                    {% for consultant in consultants %}
+                    <option value="{{ consultant }}" {{ 'selected' if filter_consultant == consultant }}>{{ consultant }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- 业务员 -->
+            <div class="filter-group">
+                <label class="filter-label">业务员</label>
+                <select name="filter_sales_consultant" class="filter-select">
+                    <option value="">全部</option>
+                    {% for consultant in sales_consultants %}
+                    <option value="{{ consultant }}" {{ 'selected' if filter_sales_consultant == consultant }}>{{ consultant }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- 是否全部已开票 -->
+            <div class="filter-group">
+                <label class="filter-label">是否全部已开票</label>
+                <select name="filter_is_all_invoiced" class="filter-select">
+                    <option value="">全部</option>
+                    <option value="true" {{ 'selected' if filter_is_all_invoiced == 'true' }}>是</option>
+                    <option value="false" {{ 'selected' if filter_is_all_invoiced == 'false' }}>否</option>
+                </select>
+            </div>
+
+            <!-- 是否已核算业绩 -->
+            <div class="filter-group">
+                <label class="filter-label">是否已核算业绩</label>
+                <select name="filter_is_count_performance" class="filter-select">
+                    <option value="">全部</option>
+                    <option value="true" {{ 'selected' if filter_is_count_performance == 'true' }}>是</option>
+                    <option value="false" {{ 'selected' if filter_is_count_performance == 'false' }}>否</option>
+                </select>
+            </div>
+
+            <!-- 盈亏筛选 -->
+            <div class="filter-group">
+                <label class="filter-label">盈亏</label>
+                <select name="filter_pl" class="filter-select">
+                    <option value="">全部</option>
+                    <option value="negative" {{ 'selected' if filter_pl == 'negative' }}>小于0</option>
+                    <option value="zero" {{ 'selected' if filter_pl == 'zero' }}>等于0</option>
+                    <option value="positive" {{ 'selected' if filter_pl == 'positive' }}>大于0</option>
+                </select>
+            </div>
+
+            <!-- 预订日期从 -->
+            <div class="filter-group">
+                <label class="filter-label">预订日期（从）</label>
+                <input type="date" name="filter_book_date_from" class="filter-input" value="{{ filter_book_date_from or '' }}">
+            </div>
+
+            <!-- 预订日期到 -->
+            <div class="filter-group">
+                <label class="filter-label">预订日期（到）</label>
+                <input type="date" name="filter_book_date_to" class="filter-input" value="{{ filter_book_date_to or '' }}">
+            </div>
+
+            <!-- 筛选按钮 -->
+            <div class="filter-group filter-buttons">
+                <button type="submit" class="filter-btn">
+                    <i class="fas fa-filter"></i> 应用筛选
+                </button>
+                <button type="button" class="filter-btn filter-reset-btn" onclick="resetFilters()">
+                    <i class="fas fa-redo"></i> 重置
+                </button>
+            </div>
+        </form>
     </div>
 
     <!-- 操作按钮 -->
@@ -321,9 +527,6 @@
         <a href="/statement/athina_analysis" class="action-btn">
             <i class="fas fa-chart-bar"></i> 分析报表
         </a>
-        <button class="action-btn" onclick="refreshStats()">
-            <i class="fas fa-sync-alt"></i> 刷新统计
-        </button>
         <button class="action-btn" onclick="exportData()" style="background-color: #FF9800;">
             <i class="fas fa-download"></i> 导出数据
         </button>
@@ -331,19 +534,22 @@
 
     <!-- 数据表格 -->
     {% if headers %}
+    <div class="table-wrapper">
     <table class="data-table">
         <thead>
             <tr>
                 <th>预订头部ID</th>
-                <th>客户名称</th>
-                <th>预订参考号</th>
-                <th>预订类型</th>
+                <th>公司名称</th>
                 <th>预订日期</th>
-                <th>出发日期</th>
                 <th>总金额</th>
+                <th>成本</th>
+                <th>盈亏</th>
+                <th>未付款</th>
                 <th>利润率</th>
-                <th>供应商</th>
-                <th>发票号</th>
+                <th>操作员</th>
+                <th>业务员</th>
+                <th>是否全部已开票</th>
+                <th>是否已核算业绩</th>
                 <th>操作</th>
             </tr>
         </thead>
@@ -355,19 +561,87 @@
                         {{ header.booking_header_id }}
                     </a>
                 </td>
-                <td>{{ header.client_name or '-' }}</td>
-                <td>{{ header.booking_ref or '-' }}</td>
-                <td>{{ header.book_type or '-' }}</td>
+                <td>{{ header.corporate_name or '-' }}</td>
                 <td>{{ header.book_date.strftime('%Y-%m-%d') if header.book_date else '-' }}</td>
-                <td>{{ header.dep_date.strftime('%Y-%m-%d') if header.dep_date else '-' }}</td>
-                <td class="amount {{ 'positive' if header.gross_amount and header.gross_amount > 0 else '' }}">
-                    {{ "%.2f"|format(header.gross_amount) if header.gross_amount else '0.00' }}
+                <td class="amount {{ 'positive' if header.sub_total_gross and header.sub_total_gross > 0 else '' }}">
+                    {{ "%.2f"|format(header.sub_total_gross) if header.sub_total_gross else '0.00' }}
+                </td>
+                <td class="amount">
+                    {{ "%.2f"|format(header.sub_total_cost) if header.sub_total_cost else '0.00' }}
+                </td>
+                <td class="amount {{ 'positive' if header.sub_total_pl and header.sub_total_pl > 0 else 'negative' if header.sub_total_pl and header.sub_total_pl < 0 else '' }}">
+                    {{ "%.2f"|format(header.sub_total_pl) if header.sub_total_pl else '0.00' }}
+                </td>
+                <td class="amount">
+                    {{ "%.2f"|format(header.sub_total_balance) if header.sub_total_balance else '0.00' }}
                 </td>
                 <td class="amount">
                     {{ "%.2f"|format(header.margin) if header.margin else '0.00' }}%
                 </td>
-                <td>{{ header.supplier or '-' }}</td>
-                <td>{{ header.invoice_no or '-' }}</td>
+                <td>
+                    {% if not header.is_count_performance %}
+                        <div class="editable-cell" data-header-id="{{ header.id }}" data-field="consultant">
+                            <span class="editable-text">{{ header.consultant or '-' }}</span>
+                            <input type="text" class="editable-input" value="{{ header.consultant or '' }}" 
+                                   data-original="{{ header.consultant or '' }}" 
+                                   onblur="autoSaveCell(this)"
+                                   style="display: none; width: 100%; padding: 4px; border: 1px solid #ddd; border-radius: 4px;">
+                            <select class="editable-select" onchange="autoSaveCellSelect(this)" style="display: none; width: 100%; padding: 4px; border: 1px solid #ddd; border-radius: 4px;">
+                                <option value="">-- 请选择 --</option>
+                                {% for consultant in consultants %}
+                                <option value="{{ consultant }}" {{ 'selected' if header.consultant == consultant }}>{{ consultant }}</option>
+                                {% endfor %}
+                            </select>
+                            <button class="btn-edit-cell" onclick="editCell(this)" title="编辑">
+                                <i class="fas fa-edit" style="font-size: 12px;"></i>
+                            </button>
+                        </div>
+                    {% else %}
+                        {{ header.consultant or '-' }}
+                    {% endif %}
+                </td>
+                <td>
+                    {% if not header.is_count_performance %}
+                        <div class="editable-cell" data-header-id="{{ header.id }}" data-field="sales_consultant">
+                            <span class="editable-text">{{ header.sales_consultant or '-' }}</span>
+                            <input type="text" class="editable-input" value="{{ header.sales_consultant or '' }}" 
+                                   data-original="{{ header.sales_consultant or '' }}" 
+                                   onblur="autoSaveCell(this)"
+                                   style="display: none; width: 100%; padding: 4px; border: 1px solid #ddd; border-radius: 4px;">
+                            <select class="editable-select" onchange="autoSaveCellSelect(this)" style="display: none; width: 100%; padding: 4px; border: 1px solid #ddd; border-radius: 4px;">
+                                <option value="">-- 请选择 --</option>
+                                {% for consultant in sales_consultants %}
+                                <option value="{{ consultant }}" {{ 'selected' if header.sales_consultant == consultant }}>{{ consultant }}</option>
+                                {% endfor %}
+                            </select>
+                            <button class="btn-edit-cell" onclick="editCell(this)" title="编辑">
+                                <i class="fas fa-edit" style="font-size: 12px;"></i>
+                            </button>
+                        </div>
+                    {% else %}
+                        {{ header.sales_consultant or '-' }}
+                    {% endif %}
+                </td>
+                <td>
+                    {% if header.is_all_invoiced %}
+                        <span class="badge bg-success">是</span>
+                    {% else %}
+                        <span class="badge bg-warning">否</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <a href="javascript:void(0);" 
+                       onclick="togglePerformanceStatus({{ header.id }}, {% if header.is_count_performance %}true{% else %}false{% endif %})"
+                       class="performance-toggle-link"
+                       data-header-id="{{ header.id }}"
+                       data-current-status="{% if header.is_count_performance %}true{% else %}false{% endif %}">
+                        {% if header.is_count_performance %}
+                            <span class="badge bg-success">是</span>
+                        {% else %}
+                            <span class="badge bg-secondary">否</span>
+                        {% endif %}
+                    </a>
+                </td>
                 <td>
                     <a href="/statement/athina_detail/{{ header.id }}" class="detail-link">
                         <i class="fas fa-eye"></i> 查看详情
@@ -377,12 +651,26 @@
             {% endfor %}
         </tbody>
     </table>
+    </div>
 
     <!-- 分页 -->
     {% if pagination.pages > 1 %}
+    {% set query_params = [] %}
+    {% if search %}{% set _ = query_params.append('search=' + search|urlencode) %}{% endif %}
+    {% if filter_corporate_name %}{% set _ = query_params.append('filter_corporate_name=' + filter_corporate_name|urlencode) %}{% endif %}
+    {% if filter_consultant %}{% set _ = query_params.append('filter_consultant=' + filter_consultant|urlencode) %}{% endif %}
+    {% if filter_sales_consultant %}{% set _ = query_params.append('filter_sales_consultant=' + filter_sales_consultant|urlencode) %}{% endif %}
+    {% if filter_is_all_invoiced %}{% set _ = query_params.append('filter_is_all_invoiced=' + filter_is_all_invoiced|urlencode) %}{% endif %}
+    {% if filter_is_count_performance %}{% set _ = query_params.append('filter_is_count_performance=' + filter_is_count_performance|urlencode) %}{% endif %}
+    {% if filter_pl %}{% set _ = query_params.append('filter_pl=' + filter_pl|urlencode) %}{% endif %}
+    {% if filter_book_date_from %}{% set _ = query_params.append('filter_book_date_from=' + filter_book_date_from) %}{% endif %}
+    {% if filter_book_date_to %}{% set _ = query_params.append('filter_book_date_to=' + filter_book_date_to) %}{% endif %}
+    {% set query_string = '&'.join(query_params) %}
+    {% set prefix = '?' + query_string + '&' if query_string else '?' %}
+    
     <div class="pagination">
         {% if pagination.has_prev %}
-            <a href="?page={{ pagination.prev_num }}{% if search %}&search={{ search }}{% endif %}">
+            <a href="{{ prefix }}page={{ pagination.prev_num }}">
                 <i class="fas fa-chevron-left"></i> 上一页
             </a>
         {% else %}
@@ -394,17 +682,17 @@
         {% for page_num in pagination.iter_pages() %}
             {% if page_num %}
                 {% if page_num != pagination.page %}
-                    <a href="?page={{ page_num }}{% if search %}&search={{ search }}{% endif %}">{{ page_num }}</a>
+                    <a href="{{ prefix }}page={{ page_num }}">{{ page_num }}</a>
                 {% else %}
                     <span class="current">{{ page_num }}</span>
                 {% endif %}
             {% else %}
-                <span>...</span>
+                <span class="disabled">...</span>
             {% endif %}
         {% endfor %}
 
         {% if pagination.has_next %}
-            <a href="?page={{ pagination.next_num }}{% if search %}&search={{ search }}{% endif %}">
+            <a href="{{ prefix }}page={{ pagination.next_num }}">
                 下一页 <i class="fas fa-chevron-right"></i>
             </a>
         {% else %}
@@ -430,30 +718,253 @@
 
 {% block extra_js %}
 <script>
-    // 页面加载时获取统计数据
-    document.addEventListener('DOMContentLoaded', function() {
-        refreshStats();
-    });
-
-    // 刷新统计数据
-    function refreshStats() {
-        fetch('/statement/athina_stats')
-        .then(response => response.json())
-        .then(data => {
+    // 切换业绩状态
+    function togglePerformanceStatus(headerId, currentStatus) {
+        fetch('/statement/athina_toggle_performance/' + headerId, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            credentials: 'same-origin'
+        })
+        .then(function(response) {
+            return response.json();
+        })
+        .then(function(data) {
             if (data.success) {
-                document.getElementById('total-details').textContent = data.total_details || 0;
-                // 这里可以添加更多统计数据的显示
+                // 更新页面上的显示
+                const link = document.querySelector('a[data-header-id="' + headerId + '"]');
+                if (link) {
+                    if (data.is_count_performance) {
+                        link.innerHTML = '<span class="badge bg-success">是</span>';
+                        link.setAttribute('data-current-status', 'true');
+                        link.setAttribute('onclick', 'togglePerformanceStatus(' + headerId + ', true)');
+                    } else {
+                        link.innerHTML = '<span class="badge bg-secondary">否</span>';
+                        link.setAttribute('data-current-status', 'false');
+                        link.setAttribute('onclick', 'togglePerformanceStatus(' + headerId + ', false)');
+                    }
+                }
+            } else {
+                alert('更新失败: ' + (data.message || '未知错误'));
             }
         })
-        .catch(error => {
-            console.error('Error fetching stats:', error);
+        .catch(function(error) {
+            console.error('Error:', error);
+            alert('更新失败，请重试');
         });
     }
 
-    // 导出数据
+    // 编辑单元格
+    function editCell(button) {
+        const cell = button.closest('.editable-cell');
+        const text = cell.querySelector('.editable-text');
+        const input = cell.querySelector('.editable-input');
+        const select = cell.querySelector('.editable-select');
+        const editBtn = cell.querySelector('.btn-edit-cell');
+        
+        // 隐藏文本，显示输入框或下拉框
+        text.style.display = 'none';
+        editBtn.style.display = 'none';
+        
+        // 如果有下拉框选项，显示下拉框，否则显示输入框
+        if (select && select.options.length > 1) {
+            select.style.display = 'block';
+            if (input) input.style.display = 'none';
+        } else if (input) {
+            input.style.display = 'block';
+            if (select) select.style.display = 'none';
+            input.focus();
+        }
+    }
+
+    // 自动保存单元格（用于input的onblur）
+    function autoSaveCell(inputElement) {
+        const cell = inputElement.closest('.editable-cell');
+        const headerId = cell.getAttribute('data-header-id');
+        const field = cell.getAttribute('data-field');
+        const text = cell.querySelector('.editable-text');
+        const select = cell.querySelector('.editable-select');
+        const editBtn = cell.querySelector('.btn-edit-cell');
+        
+        const newValue = inputElement.value.trim();
+        const originalValue = inputElement.getAttribute('data-original') || '';
+        
+        // 如果值没有变化，直接恢复显示
+        if (newValue === originalValue) {
+            text.style.display = 'block';
+            inputElement.style.display = 'none';
+            if (select) select.style.display = 'none';
+            editBtn.style.display = 'inline-block';
+            return;
+        }
+        
+        // 准备请求数据
+        const data = {};
+        data[field] = newValue || null;
+        
+        // 发送请求保存
+        fetch('/statement/athina_update_consultants/' + headerId, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify(data)
+        })
+        .then(function(response) {
+            if (!response.ok) {
+                return response.json().then(function(err) {
+                    throw new Error(err.message || 'HTTP错误: ' + response.status);
+                }).catch(function(err) {
+                    throw new Error('服务器错误: ' + response.status);
+                });
+            }
+            return response.json();
+        })
+        .then(function(result) {
+            if (result.success) {
+                // 更新显示
+                text.textContent = result[field] || '-';
+                inputElement.value = result[field] || '';
+                inputElement.setAttribute('data-original', result[field] || '');
+                
+                // 恢复显示状态
+                text.style.display = 'block';
+                inputElement.style.display = 'none';
+                if (select) select.style.display = 'none';
+                editBtn.style.display = 'inline-block';
+            } else {
+                alert('保存失败: ' + (result.message || '未知错误'));
+                // 保存失败时恢复原值
+                inputElement.value = originalValue;
+                text.style.display = 'block';
+                inputElement.style.display = 'none';
+                if (select) select.style.display = 'none';
+                editBtn.style.display = 'inline-block';
+            }
+        })
+        .catch(function(error) {
+            console.error('Error saving cell:', error);
+            alert('保存失败: ' + (error.message || '请稍后再试'));
+            // 保存失败时恢复原值
+            inputElement.value = originalValue;
+            text.style.display = 'block';
+            inputElement.style.display = 'none';
+            if (select) select.style.display = 'none';
+            editBtn.style.display = 'inline-block';
+        });
+    }
+
+    // 自动保存单元格（用于select的onchange）
+    function autoSaveCellSelect(selectElement) {
+        const cell = selectElement.closest('.editable-cell');
+        const headerId = cell.getAttribute('data-header-id');
+        const field = cell.getAttribute('data-field');
+        const text = cell.querySelector('.editable-text');
+        const input = cell.querySelector('.editable-input');
+        const editBtn = cell.querySelector('.btn-edit-cell');
+        
+        const newValue = selectElement.value;
+        const originalValue = text.textContent === '-' ? '' : text.textContent.trim();
+        
+        // 如果值没有变化，不需要保存
+        if (newValue === originalValue) {
+            return;
+        }
+        
+        // 准备请求数据
+        const data = {};
+        data[field] = newValue || null;
+        
+        // 发送请求保存
+        fetch('/statement/athina_update_consultants/' + headerId, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify(data)
+        })
+        .then(function(response) {
+            if (!response.ok) {
+                return response.json().then(function(err) {
+                    throw new Error(err.message || 'HTTP错误: ' + response.status);
+                }).catch(function(err) {
+                    throw new Error('服务器错误: ' + response.status);
+                });
+            }
+            return response.json();
+        })
+        .then(function(result) {
+            if (result.success) {
+                // 更新显示
+                text.textContent = result[field] || '-';
+                selectElement.value = result[field] || '';
+                
+                // 恢复显示状态
+                text.style.display = 'block';
+                selectElement.style.display = 'none';
+                if (input) input.style.display = 'none';
+                editBtn.style.display = 'inline-block';
+            } else {
+                alert('保存失败: ' + (result.message || '未知错误'));
+                // 保存失败时恢复原值
+                selectElement.value = originalValue;
+                text.style.display = 'block';
+                selectElement.style.display = 'none';
+                if (input) input.style.display = 'none';
+                editBtn.style.display = 'inline-block';
+            }
+        })
+        .catch(function(error) {
+            console.error('Error saving cell:', error);
+            alert('保存失败: ' + (error.message || '请稍后再试'));
+            // 保存失败时恢复原值
+            selectElement.value = originalValue;
+            text.style.display = 'block';
+            selectElement.style.display = 'none';
+            if (input) input.style.display = 'none';
+            editBtn.style.display = 'inline-block';
+        });
+    }
+
+    // 重置筛选条件
+    function resetFilters() {
+        const form = document.getElementById('filterForm');
+        const inputs = form.querySelectorAll('input[type="text"], input[type="date"], select');
+        inputs.forEach(input => {
+            if (input.name !== 'search') {
+                if (input.type === 'date' || input.tagName === 'SELECT') {
+                    input.value = '';
+                } else {
+                    input.value = '';
+                }
+            }
+        });
+        form.submit();
+    }
+
+    // 导出数据（包含筛选参数）
     function exportData() {
-        const search = '{{ search }}';
-        const url = '/statement/athina_export' + (search ? '?search=' + encodeURIComponent(search) : '');
+        const form = document.getElementById('filterForm');
+        const formData = new FormData(form);
+        const params = new URLSearchParams();
+        
+        // 添加所有表单参数
+        for (const [key, value] of formData.entries()) {
+            if (value) {
+                params.append(key, value);
+            }
+        }
+        
+        // 添加搜索参数
+        const searchInput = document.querySelector('input[name="search"]');
+        if (searchInput && searchInput.value) {
+            params.append('search', searchInput.value);
+        }
+        
+        const url = '/statement/athina_export' + (params.toString() ? '?' + params.toString() : '');
         
         const link = document.createElement('a');
         link.href = url;
@@ -464,3 +975,4 @@
     }
 </script>
 {% endblock %}
+

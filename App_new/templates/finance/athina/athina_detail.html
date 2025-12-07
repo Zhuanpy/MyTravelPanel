@@ -8,7 +8,8 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/finance_common.css') }}">
 <style>
     .detail-container {
-        max-width: 1400px;
+        max-width: 95%;
+        width: 100%;
         margin: 20px auto;
         padding: 20px;
         background-color: #ffffff;
@@ -58,49 +59,157 @@
 
     .header-info {
         background-color: #f8f9fa;
-        padding: 20px;
+        padding: 15px 20px;
         border-radius: 8px;
-        margin-bottom: 30px;
+        margin-bottom: 20px;
+        border: 1px solid #e9ecef;
+        text-align: left;
+    }
+
+    .corporate-name-row {
+        margin-bottom: 15px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid #dee2e6;
+        text-align: left;
+    }
+
+    .corporate-name-row .info-value {
+        font-size: 16px;
+        font-weight: 600;
+        color: #2E7D32;
+        text-align: left;
     }
 
     .header-info h3 {
         color: #2E7D32;
-        margin-bottom: 15px;
+        margin-bottom: 12px;
+        font-size: 16px;
+        display: flex;
+        align-items: center;
+    }
+
+    .header-info h3 i {
+        margin-right: 6px;
+    }
+
+    .info-section {
+        margin-bottom: 12px;
+    }
+
+    .info-section:last-child {
+        margin-bottom: 0;
+    }
+
+    .info-section-title {
+        font-size: 12px;
+        font-weight: 600;
+        color: #495057;
+        margin-bottom: 8px;
+        padding-bottom: 4px;
+        border-bottom: 1px solid #dee2e6;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+    }
+
+    .info-section-title i {
+        margin-right: 4px;
+        font-size: 11px;
     }
 
     .info-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-        gap: 15px;
+        grid-template-columns: repeat(6, 1fr);
+        gap: 8px 20px;
+        text-align: left;
+    }
+
+    @media (max-width: 1400px) {
+        .info-grid {
+            grid-template-columns: repeat(4, 1fr);
+        }
+    }
+
+    @media (max-width: 992px) {
+        .info-grid {
+            grid-template-columns: repeat(3, 1fr);
+        }
+    }
+
+    @media (max-width: 768px) {
+        .info-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
     }
 
     .info-item {
         display: flex;
-        flex-direction: column;
+        flex-direction: row;
+        align-items: baseline;
+        padding: 4px 0;
+        text-align: left;
+        justify-content: flex-start;
     }
 
     .info-label {
-        font-weight: 600;
-        color: #666;
-        font-size: 12px;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-        margin-bottom: 5px;
+        font-weight: 500;
+        color: #6c757d;
+        font-size: 11px;
+        min-width: 70px;
+        margin-right: 8px;
+        text-align: left;
     }
 
     .info-value {
+        font-size: 13px;
+        color: #212529;
+        font-weight: 500;
+        flex: 1;
+        text-align: left;
+    }
+
+    .info-value.amount {
         font-size: 14px;
-        color: #333;
+        font-weight: 600;
+        text-align: left;
+    }
+
+    .badge-info {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 10px;
+        font-size: 11px;
+        font-weight: 500;
+    }
+
+    .badge-success {
+        background-color: #d4edda;
+        color: #155724;
+    }
+
+    .badge-warning {
+        background-color: #fff3cd;
+        color: #856404;
+    }
+
+    .badge-secondary {
+        background-color: #e2e3e5;
+        color: #383d41;
+    }
+
+    .table-wrapper {
+        overflow-x: auto;
+        margin-top: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     }
 
     .details-table {
         width: 100%;
+        min-width: 1600px;
         border-collapse: collapse;
-        margin-top: 20px;
         background-color: white;
         border-radius: 8px;
         overflow: hidden;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     }
 
     .details-table th {
@@ -228,7 +337,7 @@
 <div class="detail-container">
     <div class="detail-header">
         <h1><i class="fas fa-eye"></i> 预订详情 - {{ header.booking_header_id }}</h1>
-        <a href="/statement/athina_data" class="back-btn">
+        <a href="/statement/athina_header_data" class="back-btn">
             <i class="fas fa-arrow-left"></i> 返回列表
         </a>
     </div>
@@ -236,53 +345,56 @@
     <!-- 预订头部信息 -->
     <div class="header-info">
         <h3><i class="fas fa-info-circle"></i> 预订头部信息</h3>
+        
+        <!-- 公司名称单独一行 -->
+        <div class="corporate-name-row">
+            <div class="info-item">
+                <div class="info-label">公司名称</div>
+                <div class="info-value">{{ header.corporate_name or '-' }}</div>
+            </div>
+        </div>
+        
         <div class="info-grid">
             <div class="info-item">
                 <div class="info-label">预订头部ID</div>
                 <div class="info-value">{{ header.booking_header_id }}</div>
             </div>
             <div class="info-item">
-                <div class="info-label">客户名称</div>
-                <div class="info-value">{{ header.client_name or '-' }}</div>
-            </div>
-            <div class="info-item">
-                <div class="info-label">公司名称</div>
-                <div class="info-value">{{ header.corporate_name or '-' }}</div>
-            </div>
-            <div class="info-item">
-                <div class="info-label">预订参考号</div>
-                <div class="info-value">{{ header.booking_ref or '-' }}</div>
-            </div>
-            <div class="info-item">
-                <div class="info-label">预订类型</div>
-                <div class="info-value">{{ header.book_type or '-' }}</div>
-            </div>
-            <div class="info-item">
                 <div class="info-label">预订日期</div>
                 <div class="info-value">{{ header.book_date.strftime('%Y-%m-%d') if header.book_date else '-' }}</div>
             </div>
             <div class="info-item">
-                <div class="info-label">出发日期</div>
-                <div class="info-value">{{ header.dep_date.strftime('%Y-%m-%d') if header.dep_date else '-' }}</div>
+                <div class="info-label">总金额</div>
+                <div class="info-value amount {{ 'positive' if header.sub_total_gross and header.sub_total_gross > 0 else '' }}">
+                    {{ "%.2f"|format(header.sub_total_gross) if header.sub_total_gross else '0.00' }}
+                </div>
             </div>
             <div class="info-item">
-                <div class="info-label">总金额</div>
-                <div class="info-value amount {{ 'positive' if header.gross_amount and header.gross_amount > 0 else '' }}">
-                    {{ "%.2f"|format(header.gross_amount) if header.gross_amount else '0.00' }} {{ header.gross_curr or 'SGD' }}
+                <div class="info-label">成本</div>
+                <div class="info-value amount">
+                    {{ "%.2f"|format(header.sub_total_cost) if header.sub_total_cost else '0.00' }}
+                </div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">盈亏</div>
+                <div class="info-value amount {{ 'positive' if header.sub_total_pl and header.sub_total_pl > 0 else 'negative' if header.sub_total_pl and header.sub_total_pl < 0 else '' }}">
+                    {{ "%.2f"|format(header.sub_total_pl) if header.sub_total_pl else '0.00' }}
+                </div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">未付款</div>
+                <div class="info-value amount">
+                    {{ "%.2f"|format(header.sub_total_balance) if header.sub_total_balance else '0.00' }}
                 </div>
             </div>
             <div class="info-item">
                 <div class="info-label">利润率</div>
                 <div class="info-value amount">
-                    {{ "%.2f"|format(header.margin) if header.margin else '0.00' }}%
+                    {{ "%.2f"|format(header.sub_total_margin) if header.sub_total_margin else '0.00' }}%
                 </div>
             </div>
             <div class="info-item">
-                <div class="info-label">供应商</div>
-                <div class="info-value">{{ header.supplier or '-' }}</div>
-            </div>
-            <div class="info-item">
-                <div class="info-label">顾问</div>
+                <div class="info-label">操作顾问</div>
                 <div class="info-value">{{ header.consultant or '-' }}</div>
             </div>
             <div class="info-item">
@@ -290,12 +402,24 @@
                 <div class="info-value">{{ header.sales_consultant or '-' }}</div>
             </div>
             <div class="info-item">
-                <div class="info-label">发票号</div>
-                <div class="info-value">{{ header.invoice_no or '-' }}</div>
+                <div class="info-label">是否全部已开票</div>
+                <div class="info-value">
+                    {% if header.is_all_invoiced %}
+                        <span class="badge-info badge-success">是</span>
+                    {% else %}
+                        <span class="badge-info badge-warning">否</span>
+                    {% endif %}
+                </div>
             </div>
             <div class="info-item">
-                <div class="info-label">发票日期</div>
-                <div class="info-value">{{ header.invoice_date.strftime('%Y-%m-%d') if header.invoice_date else '-' }}</div>
+                <div class="info-label">是否已核算业绩</div>
+                <div class="info-value">
+                    {% if header.is_count_performance %}
+                        <span class="badge-info badge-success">是</span>
+                    {% else %}
+                        <span class="badge-info badge-secondary">否</span>
+                    {% endif %}
+                </div>
             </div>
         </div>
     </div>
@@ -304,6 +428,7 @@
     <h3><i class="fas fa-list"></i> 明细记录 ({{ pagination.total }} 条)</h3>
     
     {% if details %}
+    <div class="table-wrapper">
     <table class="details-table">
         <thead>
             <tr>
@@ -314,7 +439,12 @@
                 <th>预订日期</th>
                 <th>出发日期</th>
                 <th>行程描述</th>
+                <th>货币</th>
                 <th>总金额</th>
+                <th>本地总金额</th>
+                <th>本地成本</th>
+                <th>盈亏</th>
+                <th>余额</th>
                 <th>利润率</th>
                 <th>供应商</th>
                 <th>发票号</th>
@@ -338,8 +468,21 @@
                 <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ detail.itin_desc or '' }}">
                     {{ detail.itin_desc or '-' }}
                 </td>
+                <td>{{ detail.gross_curr or '-' }}</td>
                 <td class="amount {{ 'positive' if detail.gross_amount and detail.gross_amount > 0 else '' }}">
                     {{ "%.2f"|format(detail.gross_amount) if detail.gross_amount else '0.00' }}
+                </td>
+                <td class="amount {{ 'positive' if detail.local_gross and detail.local_gross > 0 else '' }}">
+                    {{ "%.2f"|format(detail.local_gross) if detail.local_gross else '0.00' }}
+                </td>
+                <td class="amount">
+                    {{ "%.2f"|format(detail.local_cost) if detail.local_cost else '0.00' }}
+                </td>
+                <td class="amount {{ 'positive' if detail.profit_loss and detail.profit_loss > 0 else 'negative' if detail.profit_loss and detail.profit_loss < 0 else '' }}">
+                    {{ "%.2f"|format(detail.profit_loss) if detail.profit_loss else '0.00' }}
+                </td>
+                <td class="amount">
+                    {{ "%.2f"|format(detail.balance) if detail.balance else '0.00' }}
                 </td>
                 <td class="amount">
                     {{ "%.2f"|format(detail.margin) if detail.margin else '0.00' }}%
@@ -350,6 +493,7 @@
             {% endfor %}
         </tbody>
     </table>
+    </div>
 
     <!-- 分页 -->
     {% if pagination.pages > 1 %}
@@ -389,3 +533,4 @@
     {% endif %}
 </div>
 {% endblock %}
+

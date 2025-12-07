@@ -1,17 +1,20 @@
 # -*- coding: utf-8 -*-
 """Athina 相关路由"""
 
-from flask import Blueprint, render_template, jsonify, request, url_for, redirect, flash
+from flask import Blueprint, render_template, jsonify, request, url_for, redirect, flash, send_file
+from io import BytesIO
 from flask_login import login_required
 from App_new.exts import csrf, db
 from App_new.utils.decorators import staff_only
 from App_new.finance.models.athina_booking import AthinaBookingHeader, AthinaBookingDetail
 from App_new.utils.report_utils import get_report_headers_string
 from App_new.finance.services.soa_service import SOAService
+from datetime import datetime
 import os
 import tempfile
 import pandas as pd
 import logging
+from openpyxl.utils import get_column_letter
 
 # 创建logger
 logger = logging.getLogger(__name__)
@@ -128,28 +131,100 @@ def athina_stats():
         }), 500
 
 
-@athina_blue.route('/athina_data')
+@athina_blue.route('/athina_header_data')
 @login_required
 @staff_only
-def athina_data():
+def athina_header_data():
     """Athina数据查看页面"""
     try:
         page = request.args.get('page', 1, type=int)
         per_page = request.args.get('per_page', 20, type=int)
         search = request.args.get('search', '')
         
+        # 筛选参数
+        filter_corporate_name = request.args.get('filter_corporate_name', '')
+        filter_consultant = request.args.get('filter_consultant', '')
+        filter_sales_consultant = request.args.get('filter_sales_consultant', '')
+        filter_is_all_invoiced = request.args.get('filter_is_all_invoiced', '')
+        filter_is_count_performance = request.args.get('filter_is_count_performance', '')
+        filter_pl = request.args.get('filter_pl', '')  # 'negative': 小于0, 'zero': 等于0, 'positive': 大于0
+        filter_book_date_from = request.args.get('filter_book_date_from', '')
+        filter_book_date_to = request.args.get('filter_book_date_to', '')
+        filter_dep_date_from = request.args.get('filter_dep_date_from', '')
+        filter_dep_date_to = request.args.get('filter_dep_date_to', '')
+        
         # 构建查询
         query = AthinaBookingHeader.query
         
+        # 先应用所有对header表直接的筛选条件（不需要join的）
+        if filter_corporate_name:
+            query = query.filter(AthinaBookingHeader.corporate_name.contains(filter_corporate_name))
+        
+        if filter_consultant:
+            query = query.filter(AthinaBookingHeader.consultant.contains(filter_consultant))
+        
+        if filter_sales_consultant:
+            query = query.filter(AthinaBookingHeader.sales_consultant.contains(filter_sales_consultant))
+        
+        if filter_is_all_invoiced != '':
+            is_invoiced = filter_is_all_invoiced.lower() == 'true'
+            query = query.filter(AthinaBookingHeader.is_all_invoiced == is_invoiced)
+        
+        if filter_is_count_performance != '':
+            is_count_perf = filter_is_count_performance.lower() == 'true'
+            query = query.filter(AthinaBookingHeader.is_count_performance == is_count_perf)
+        
+        # 盈亏筛选 - 在join之前应用，确保条件正确
+        if filter_pl != '':
+            query = query.filter(AthinaBookingHeader.sub_total_pl.isnot(None))
+            if filter_pl == 'negative':
+                # 筛选盈亏小于0的记录
+                query = query.filter(AthinaBookingHeader.sub_total_pl < 0)
+            elif filter_pl == 'zero':
+                # 筛选盈亏等于0的记录
+                query = query.filter(AthinaBookingHeader.sub_total_pl == 0)
+            elif filter_pl == 'positive':
+                # 筛选盈亏大于0的记录
+                query = query.filter(AthinaBookingHeader.sub_total_pl > 0)
+        
+        if filter_book_date_from:
+            query = query.filter(AthinaBookingHeader.book_date >= filter_book_date_from)
+        
+        if filter_book_date_to:
+            query = query.filter(AthinaBookingHeader.book_date <= filter_book_date_to)
+        
+        # 需要join的筛选条件（search和dep_date）
+        needs_distinct = False
+        
         if search:
-            query = query.filter(
+            # 搜索时需要关联detail表来搜索client_name等字段
+            query = query.outerjoin(AthinaBookingDetail).filter(
                 db.or_(
                     AthinaBookingHeader.booking_header_id.contains(search),
-                    AthinaBookingHeader.client_name.contains(search),
-                    AthinaBookingHeader.booking_ref.contains(search),
-                    AthinaBookingHeader.supplier.contains(search)
+                    AthinaBookingHeader.corporate_name.contains(search),
+                    AthinaBookingDetail.client_name.contains(search),
+                    AthinaBookingDetail.booking_ref.cast(db.String).contains(search),
+                    AthinaBookingDetail.supplier.contains(search)
                 )
             )
+            needs_distinct = True
+        
+        if filter_dep_date_from or filter_dep_date_to:
+            # 出发日期在detail表中，需要关联查询
+            if not search:  # 如果search已经做了join，就不需要再join了
+                query = query.outerjoin(AthinaBookingDetail)
+            query = query.filter(
+                AthinaBookingDetail.is_subtotal == False
+            )
+            if filter_dep_date_from:
+                query = query.filter(AthinaBookingDetail.dep_date >= filter_dep_date_from)
+            if filter_dep_date_to:
+                query = query.filter(AthinaBookingDetail.dep_date <= filter_dep_date_to)
+            needs_distinct = True
+        
+        # 如果有join，需要distinct去重
+        if needs_distinct:
+            query = query.distinct()
         
         query = query.order_by(AthinaBookingHeader.created_at.desc())
         
@@ -159,10 +234,69 @@ def athina_data():
             error_out=False
         )
         
+        # 为每个header添加来自第一个detail的信息
+        headers_with_details = []
+        for header in pagination.items:
+            # 更新开票状态
+            header.update_invoice_status()
+            
+            # 获取第一个非小计的明细记录
+            first_detail = AthinaBookingDetail.query.filter_by(
+                header_id=header.id, 
+                is_subtotal=False
+            ).first()
+            
+            # 创建一个包含header和detail信息的对象
+            # 客户名称直接使用header的corporate_name字段
+            header.booking_ref = first_detail.booking_ref if first_detail else None
+            header.book_type = first_detail.book_type if first_detail else None
+            header.dep_date = first_detail.dep_date if first_detail else None
+            header.gross_amount = header.sub_total_gross
+            header.margin = header.sub_total_margin
+            header.supplier = first_detail.supplier if first_detail else None
+            
+            headers_with_details.append(header)
+        
+        # 批量提交状态更新
+        db.session.commit()
+        
+        # 获取唯一的顾问列表用于下拉选择
+        consultants = db.session.query(AthinaBookingHeader.consultant).distinct().filter(
+            AthinaBookingHeader.consultant.isnot(None),
+            AthinaBookingHeader.consultant != ''
+        ).order_by(AthinaBookingHeader.consultant).all()
+        consultants = [c[0] for c in consultants]
+        
+        sales_consultants = db.session.query(AthinaBookingHeader.sales_consultant).distinct().filter(
+            AthinaBookingHeader.sales_consultant.isnot(None),
+            AthinaBookingHeader.sales_consultant != ''
+        ).order_by(AthinaBookingHeader.sales_consultant).all()
+        sales_consultants = [c[0] for c in sales_consultants]
+        
+        # 获取唯一的公司名称列表
+        corporate_names = db.session.query(AthinaBookingHeader.corporate_name).distinct().filter(
+            AthinaBookingHeader.corporate_name.isnot(None),
+            AthinaBookingHeader.corporate_name != ''
+        ).order_by(AthinaBookingHeader.corporate_name).all()
+        corporate_names = [c[0] for c in corporate_names]
+        
         return render_template('finance/athina/athina_data.html', 
-                             headers=pagination.items,
+                             headers=headers_with_details,
                              pagination=pagination,
-                             search=search)
+                             search=search,
+                             filter_corporate_name=filter_corporate_name,
+                             filter_consultant=filter_consultant,
+                             filter_sales_consultant=filter_sales_consultant,
+                             filter_is_all_invoiced=filter_is_all_invoiced,
+                             filter_is_count_performance=filter_is_count_performance,
+                             filter_pl=filter_pl,
+                             filter_book_date_from=filter_book_date_from,
+                             filter_book_date_to=filter_book_date_to,
+                             filter_dep_date_from=filter_dep_date_from,
+                             filter_dep_date_to=filter_dep_date_to,
+                             consultants=consultants,
+                             sales_consultants=sales_consultants,
+                             corporate_names=corporate_names)
         
     except Exception as e:
         flash(f'加载数据失败: {str(e)}', 'error')
@@ -215,6 +349,84 @@ def athina_recalculate_subtotals():
         }), 500
 
 
+@athina_blue.route('/athina_toggle_performance/<int:header_id>', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def athina_toggle_performance(header_id):
+    """切换是否算业绩状态"""
+    try:
+        header = AthinaBookingHeader.query.get_or_404(header_id)
+        header.is_count_performance = not header.is_count_performance
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'is_count_performance': header.is_count_performance,
+            'message': '状态已更新'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'message': f'更新失败: {str(e)}'
+        }), 500
+
+
+@athina_blue.route('/athina_update_consultants/<int:header_id>', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def athina_update_consultants(header_id):
+    """更新操作顾问和销售顾问"""
+    try:
+        header = AthinaBookingHeader.query.get_or_404(header_id)
+        
+        # 检查是否已核算业绩，如果已核算则不允许编辑
+        if header.is_count_performance:
+            return jsonify({
+                'success': False,
+                'message': '该记录已核算业绩，不允许修改顾问信息'
+            }), 403
+        
+        data = request.get_json()
+        if not data:
+            return jsonify({
+                'success': False,
+                'message': '请求数据为空'
+            }), 400
+        
+        consultant = data.get('consultant', '').strip() if data.get('consultant') else None
+        sales_consultant = data.get('sales_consultant', '').strip() if data.get('sales_consultant') else None
+        
+        # 更新顾问信息（只更新传入的字段）
+        if 'consultant' in data:
+            header.consultant = consultant if consultant else None
+        if 'sales_consultant' in data:
+            header.sales_consultant = sales_consultant if sales_consultant else None
+        
+        header.updated_at = datetime.utcnow()
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'consultant': header.consultant or '',
+            'sales_consultant': header.sales_consultant or '',
+            'message': '顾问信息已更新'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        import traceback
+        error_details = traceback.format_exc()
+        logger.error(f'更新顾问信息失败: {str(e)}\n{error_details}')
+        return jsonify({
+            'success': False,
+            'message': f'更新失败: {str(e)}'
+        }), 500
+
+
 @athina_blue.route('/athina_delete_header/<int:header_id>', methods=['POST'])
 @csrf.exempt
 @login_required
@@ -247,6 +459,10 @@ def athina_detail(header_id):
         # 获取预订头部信息
         header = AthinaBookingHeader.query.get_or_404(header_id)
         
+        # 更新开票状态
+        header.update_invoice_status()
+        db.session.commit()
+        
         # 获取明细记录
         page = request.args.get('page', 1, type=int)
         per_page = request.args.get('per_page', 50, type=int)
@@ -267,7 +483,7 @@ def athina_detail(header_id):
         
     except Exception as e:
         flash(f'加载详情失败: {str(e)}', 'error')
-        return redirect(url_for('athina_routes.athina_data'))
+        return redirect(url_for('athina_routes.athina_header_data'))
 
 
 @athina_blue.route('/athina_processing', methods=['GET', 'POST'])
@@ -729,6 +945,595 @@ def compare_reports():
         return jsonify({'success': False, 'error': str(e)})
 
 
+@athina_blue.route('/athina_performance_settlement')
+@login_required
+@staff_only
+def athina_performance_settlement():
+    """员工业绩结算页面
+    显示符合结算标准的记录：is_all_invoiced=True（不再要求余额为0）
+    """
+    try:
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 50, type=int)
+        search = request.args.get('search', '')
+        
+        # 筛选参数
+        filter_consultant = request.args.get('filter_consultant', '')
+        filter_sales_consultant = request.args.get('filter_sales_consultant', '')
+        filter_book_date_from = request.args.get('filter_book_date_from', '')
+        filter_book_date_to = request.args.get('filter_book_date_to', '')
+        filter_is_count_performance = request.args.get('filter_is_count_performance', '')
+        filter_balance = request.args.get('filter_balance', '')  # 'zero_or_negative': 小于等于0, 'positive': 大于0
+        
+        # 构建查询
+        # 结算标准：is_all_invoiced=True 且 sub_total_balance=0（或为NULL但实际应为0）
+        # 如果有搜索条件或筛选条件，显示匹配的记录（包括不符合结算条件的）
+        # 如果没有任何筛选条件，只显示符合结算标准的记录
+        
+        has_filters = (filter_consultant or filter_sales_consultant or 
+                      filter_book_date_from or filter_book_date_to or 
+                      filter_is_count_performance != '' or filter_balance != '')
+        
+        if search and search.strip():
+            # 有搜索时，搜索所有记录，不限制结算条件
+            query = AthinaBookingHeader.query.filter(
+                db.or_(
+                    AthinaBookingHeader.booking_header_id.contains(search),
+                    AthinaBookingHeader.corporate_name.contains(search)
+                )
+            )
+        elif has_filters:
+            # 有筛选条件时，显示所有记录（让筛选条件来过滤）
+            query = AthinaBookingHeader.query
+        else:
+            # 无搜索无筛选时，只显示符合结算标准的记录（只需 is_all_invoiced = True）
+            query = AthinaBookingHeader.query.filter(
+                AthinaBookingHeader.is_all_invoiced == True
+            )
+        
+        # 应用筛选条件（确保字段不为NULL时才使用contains）
+        if filter_consultant:
+            query = query.filter(
+                AthinaBookingHeader.consultant.isnot(None),
+                AthinaBookingHeader.consultant != '',
+                AthinaBookingHeader.consultant.contains(filter_consultant)
+            )
+        
+        if filter_sales_consultant:
+            query = query.filter(
+                AthinaBookingHeader.sales_consultant.isnot(None),
+                AthinaBookingHeader.sales_consultant != '',
+                AthinaBookingHeader.sales_consultant.contains(filter_sales_consultant)
+            )
+        
+        if filter_book_date_from:
+            query = query.filter(AthinaBookingHeader.book_date >= filter_book_date_from)
+        
+        if filter_book_date_to:
+            query = query.filter(AthinaBookingHeader.book_date <= filter_book_date_to)
+        
+        if filter_is_count_performance != '':
+            is_count_perf = filter_is_count_performance.lower() == 'true'
+            query = query.filter(AthinaBookingHeader.is_count_performance == is_count_perf)
+        
+        # 余额筛选
+        if filter_balance != '':
+            if filter_balance == 'zero_or_negative':
+                # 筛选余额小于等于0的记录（包括NULL）
+                # 使用 COALESCE 将 NULL 视为 0，这样可以直接比较
+                from sqlalchemy import func
+                query = query.filter(
+                    func.coalesce(AthinaBookingHeader.sub_total_balance, 0) <= 0
+                )
+            elif filter_balance == 'positive':
+                # 筛选余额大于0的记录（排除NULL）
+                query = query.filter(
+                    AthinaBookingHeader.sub_total_balance.isnot(None),
+                    AthinaBookingHeader.sub_total_balance > 0
+                )
+        
+        # 保存用于汇总的查询（不带排序）
+        summary_query_base = query
+        
+        # 计算筛选结果的总和统计（基于相同的筛选条件，但不分页和排序）
+        from sqlalchemy import func
+        summary_total_pl = summary_query_base.with_entities(
+            func.sum(AthinaBookingHeader.sub_total_pl)
+        ).scalar() or 0
+        
+        summary_operator_profit = summary_query_base.with_entities(
+            func.sum(AthinaBookingHeader.operator_profit)
+        ).scalar() or 0
+        
+        summary_sales_profit = summary_query_base.with_entities(
+            func.sum(AthinaBookingHeader.sales_profit)
+        ).scalar() or 0
+        
+        summary_company_profit = summary_query_base.with_entities(
+            func.sum(AthinaBookingHeader.company_profit)
+        ).scalar() or 0
+        
+        # 按HID从小到大排序（最小的HID显示在最前面）
+        # 先尝试转换为数字排序，如果失败则按字符串排序
+        from sqlalchemy import func, case
+        # 使用MySQL的CAST函数将字符串转换为无符号整数进行排序
+        query = query.order_by(
+            func.cast(AthinaBookingHeader.booking_header_id, db.Integer).asc()
+        )
+        
+        pagination = query.paginate(
+            page=page,
+            per_page=per_page,
+            error_out=False
+        )
+        
+        # 更新所有header的开票状态
+        headers_with_details = []
+        for header in pagination.items:
+            header.update_invoice_status()
+            headers_with_details.append(header)
+        
+        db.session.commit()
+        
+        # 计算统计信息（只要求 is_all_invoiced = True）
+        total_query = AthinaBookingHeader.query.filter(
+            AthinaBookingHeader.is_all_invoiced == True
+        )
+        
+        total_count = total_query.count()
+        total_profit = db.session.query(db.func.sum(AthinaBookingHeader.sub_total_pl)).filter(
+            AthinaBookingHeader.is_all_invoiced == True
+        ).scalar() or 0
+        
+        settled_count = total_query.filter(AthinaBookingHeader.is_count_performance == True).count()
+        unsettled_count = total_query.filter(AthinaBookingHeader.is_count_performance == False).count()
+        
+        # 获取唯一的顾问列表用于筛选（只要求 is_all_invoiced = True）
+        consultants = db.session.query(AthinaBookingHeader.consultant).distinct().filter(
+            AthinaBookingHeader.consultant.isnot(None),
+            AthinaBookingHeader.consultant != '',
+            AthinaBookingHeader.is_all_invoiced == True
+        ).order_by(AthinaBookingHeader.consultant).all()
+        consultants = [c[0] for c in consultants]
+        
+        sales_consultants = db.session.query(AthinaBookingHeader.sales_consultant).distinct().filter(
+            AthinaBookingHeader.sales_consultant.isnot(None),
+            AthinaBookingHeader.sales_consultant != '',
+            AthinaBookingHeader.is_all_invoiced == True
+        ).order_by(AthinaBookingHeader.sales_consultant).all()
+        sales_consultants = [c[0] for c in sales_consultants]
+        
+        return render_template('finance/athina/athina_performance_settlement.html',
+                             headers=headers_with_details,
+                             pagination=pagination,
+                             search=search,
+                             filter_consultant=filter_consultant,
+                             filter_sales_consultant=filter_sales_consultant,
+                             filter_book_date_from=filter_book_date_from,
+                             filter_book_date_to=filter_book_date_to,
+                             filter_is_count_performance=filter_is_count_performance,
+                             filter_balance=filter_balance,
+                             consultants=consultants,
+                             sales_consultants=sales_consultants,
+                             total_count=total_count,
+                             total_profit=float(total_profit),
+                             settled_count=settled_count,
+                             unsettled_count=unsettled_count,
+                             summary_total_pl=float(summary_total_pl),
+                             summary_operator_profit=float(summary_operator_profit),
+                             summary_sales_profit=float(summary_sales_profit),
+                             summary_company_profit=float(summary_company_profit))
+        
+    except Exception as e:
+        flash(f'加载数据失败: {str(e)}', 'error')
+        import traceback
+        traceback.print_exc()
+        return redirect(url_for('athina_routes.athina_header_data'))
+
+
+def build_performance_settlement_query(search, filter_consultant, filter_sales_consultant, 
+                                       filter_book_date_from, filter_book_date_to,
+                                       filter_is_count_performance, filter_balance):
+    """构建业绩结算查询的辅助函数"""
+    has_filters = (filter_consultant or filter_sales_consultant or 
+                  filter_book_date_from or filter_book_date_to or 
+                  filter_is_count_performance != '' or filter_balance != '')
+    
+    if search and search.strip():
+        query = AthinaBookingHeader.query.filter(
+            db.or_(
+                AthinaBookingHeader.booking_header_id.contains(search),
+                AthinaBookingHeader.corporate_name.contains(search)
+            )
+        )
+    elif has_filters:
+        query = AthinaBookingHeader.query
+    else:
+        query = AthinaBookingHeader.query.filter(
+            AthinaBookingHeader.is_all_invoiced == True
+        )
+    
+    if filter_consultant:
+        query = query.filter(
+            AthinaBookingHeader.consultant.isnot(None),
+            AthinaBookingHeader.consultant != '',
+            AthinaBookingHeader.consultant.contains(filter_consultant)
+        )
+    
+    if filter_sales_consultant:
+        query = query.filter(
+            AthinaBookingHeader.sales_consultant.isnot(None),
+            AthinaBookingHeader.sales_consultant != '',
+            AthinaBookingHeader.sales_consultant.contains(filter_sales_consultant)
+        )
+    
+    if filter_book_date_from:
+        query = query.filter(AthinaBookingHeader.book_date >= filter_book_date_from)
+    
+    if filter_book_date_to:
+        query = query.filter(AthinaBookingHeader.book_date <= filter_book_date_to)
+    
+    if filter_is_count_performance != '':
+        is_count_perf = filter_is_count_performance.lower() == 'true'
+        query = query.filter(AthinaBookingHeader.is_count_performance == is_count_perf)
+    
+    if filter_balance != '':
+        from sqlalchemy import func
+        if filter_balance == 'zero_or_negative':
+            query = query.filter(
+                func.coalesce(AthinaBookingHeader.sub_total_balance, 0) <= 0
+            )
+        elif filter_balance == 'positive':
+            query = query.filter(
+                AthinaBookingHeader.sub_total_balance.isnot(None),
+                AthinaBookingHeader.sub_total_balance > 0
+            )
+    
+    return query
+
+
+@athina_blue.route('/athina_performance_settlement_export', methods=['GET'])
+@login_required
+@staff_only
+def athina_performance_settlement_export():
+    """导出业绩结算筛选结果为Excel"""
+    try:
+        # 获取筛选参数（与页面筛选相同）
+        search = request.args.get('search', '')
+        filter_consultant = request.args.get('filter_consultant', '')
+        filter_sales_consultant = request.args.get('filter_sales_consultant', '')
+        filter_book_date_from = request.args.get('filter_book_date_from', '')
+        filter_book_date_to = request.args.get('filter_book_date_to', '')
+        filter_is_count_performance = request.args.get('filter_is_count_performance', '')
+        filter_balance = request.args.get('filter_balance', '')
+        
+        # 构建查询（使用辅助函数）
+        query = build_performance_settlement_query(
+            search, filter_consultant, filter_sales_consultant,
+            filter_book_date_from, filter_book_date_to,
+            filter_is_count_performance, filter_balance
+        )
+        
+        # 按HID排序
+        from sqlalchemy import func
+        query = query.order_by(
+            func.cast(AthinaBookingHeader.booking_header_id, db.Integer).asc()
+        )
+        
+        # 获取所有数据（不分页）
+        headers = query.all()
+        
+        # 准备Excel数据
+        data = []
+        for header in headers:
+            data.append({
+                'HID': header.booking_header_id,
+                '公司名称': header.corporate_name or '',
+                '预订日期': header.book_date.strftime('%Y-%m-%d') if header.book_date else '',
+                '总金额': float(header.sub_total_gross) if header.sub_total_gross else 0.00,
+                '成本': float(header.sub_total_cost) if header.sub_total_cost else 0.00,
+                '盈亏': float(header.sub_total_pl) if header.sub_total_pl else 0.00,
+                '余额': float(header.sub_total_balance) if header.sub_total_balance else 0.00,
+                '操作员': header.consultant or '',
+                '业务员': header.sales_consultant or '',
+                '是否已开票': '是' if header.is_all_invoiced else '否',
+                '是否已核算业绩': '是' if header.is_count_performance else '否',
+                '订单类型': header.order_type or '',
+                '操作员利润': float(header.operator_profit) if header.operator_profit else 0.00,
+                '业务员利润': float(header.sales_profit) if header.sales_profit else 0.00,
+                '公司利润': float(header.company_profit) if header.company_profit else 0.00,
+            })
+        
+        if not data:
+            flash('没有数据可导出', 'warning')
+            return redirect(url_for('athina_routes.athina_performance_settlement'))
+        
+        # 创建DataFrame
+        df = pd.DataFrame(data)
+        
+        # 创建Excel文件
+        output = BytesIO()
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            df.to_excel(writer, index=False, sheet_name='业绩结算数据')
+            worksheet = writer.sheets['业绩结算数据']
+            
+            # 设置列宽
+            for idx, col in enumerate(df.columns):
+                max_length = max(
+                    df[col].astype(str).apply(len).max() if len(df) > 0 else 0,
+                    len(col)
+                ) + 2
+                col_letter = get_column_letter(idx + 1)
+                worksheet.column_dimensions[col_letter].width = min(max_length, 50)
+        
+        output.seek(0)
+        filename = f'业绩结算数据_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
+        
+        return send_file(
+            output,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name=filename
+        )
+        
+    except Exception as e:
+        logger.error(f'导出Excel失败: {str(e)}', exc_info=True)
+        flash(f'导出失败: {str(e)}', 'error')
+        return redirect(url_for('athina_routes.athina_performance_settlement'))
+
+
+@athina_blue.route('/athina_batch_settle_performance', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def athina_batch_settle_performance():
+    """批量标记为已核算业绩"""
+    try:
+        data = request.get_json()
+        header_ids = data.get('header_ids', [])
+        
+        if not header_ids:
+            return jsonify({
+                'success': False,
+                'message': '请选择要结算的记录'
+            }), 400
+        
+        # 验证所有记录都符合结算标准（只要求 is_all_invoiced = True）
+        headers = AthinaBookingHeader.query.filter(
+            AthinaBookingHeader.id.in_(header_ids),
+            AthinaBookingHeader.is_all_invoiced == True
+        ).all()
+        
+        if len(headers) != len(header_ids):
+            return jsonify({
+                'success': False,
+                'message': '部分记录不符合结算标准（必须已开票）'
+            }), 400
+        
+        # 批量标记为已核算业绩
+        count = 0
+        for header in headers:
+            if not header.is_count_performance:
+                header.is_count_performance = True
+                count += 1
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'成功标记 {count} 条记录为已核算业绩',
+            'count': count
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'message': f'批量结算失败: {str(e)}'
+        }), 500
+
+
+@athina_blue.route('/athina_calculate_profit_distribution', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def athina_calculate_profit_distribution():
+    """计算并更新利润分配"""
+    try:
+        from App_new.finance.utils.profit_distribution import calculate_profit_distribution, get_order_type
+        from decimal import Decimal
+        
+        data = request.get_json()
+        header_ids = data.get('header_ids', [])
+        
+        if not header_ids:
+            return jsonify({
+                'success': False,
+                'message': '请选择要计算利润分配的记录'
+            }), 400
+        
+        # 获取所有选中的记录
+        headers = AthinaBookingHeader.query.filter(
+            AthinaBookingHeader.id.in_(header_ids)
+        ).all()
+        
+        if len(headers) != len(header_ids):
+            return jsonify({
+                'success': False,
+                'message': '部分记录不存在'
+            }), 400
+        
+        # 计算并更新利润分配
+        success_count = 0
+        error_count = 0
+        errors = []
+        
+        for header in headers:
+            try:
+                # 获取订单金额和利润，确保转换为Decimal类型
+                order_amount = header.sub_total_gross
+                if order_amount is None:
+                    order_amount = Decimal('0')
+                elif not isinstance(order_amount, Decimal):
+                    order_amount = Decimal(str(order_amount))
+                
+                profit = header.sub_total_pl
+                if profit is None:
+                    profit = Decimal('0')
+                elif not isinstance(profit, Decimal):
+                    profit = Decimal(str(profit))
+                
+                # 获取订单类型（根据盈亏金额判断，无论利润是否为0都需要设置）
+                order_type = get_order_type(profit)
+                
+                # 如果利润为0，不分配
+                if profit == 0:
+                    header.operator_profit = Decimal('0')
+                    header.sales_profit = Decimal('0')
+                    header.company_profit = Decimal('0')
+                    header.order_type = order_type
+                else:
+                    # 计算利润分配（基于盈亏金额，包括负数亏损）
+                    operator_profit, sales_profit, company_profit = calculate_profit_distribution(
+                        profit
+                    )
+                    
+                    # 更新到数据库
+                    header.operator_profit = operator_profit
+                    header.sales_profit = sales_profit
+                    header.company_profit = company_profit
+                    header.order_type = order_type
+                
+                success_count += 1
+                
+            except Exception as e:
+                error_count += 1
+                errors.append(f'HID {header.booking_header_id}: {str(e)}')
+                logger.error(f'计算利润分配失败 (HID: {header.booking_header_id}): {str(e)}')
+        
+        # 提交所有更改
+        db.session.commit()
+        
+        message = f'成功计算 {success_count} 条记录的利润分配'
+        if error_count > 0:
+            message += f'，{error_count} 条记录失败'
+        
+        return jsonify({
+            'success': True,
+            'message': message,
+            'success_count': success_count,
+            'error_count': error_count,
+            'errors': errors if errors else None
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f'批量计算利润分配失败: {str(e)}')
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'message': f'批量计算失败: {str(e)}'
+        }), 500
+
+
+@athina_blue.route('/athina_calculate_all_unsettled_profit_distribution', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def athina_calculate_all_unsettled_profit_distribution():
+    """计算全部未结算单的利润分配"""
+    try:
+        from App_new.finance.utils.profit_distribution import calculate_profit_distribution, get_order_type
+        from decimal import Decimal
+        
+        # 查询所有未结算单（is_count_performance = False）
+        headers = AthinaBookingHeader.query.filter(
+            AthinaBookingHeader.is_count_performance == False
+        ).all()
+        
+        if not headers:
+            return jsonify({
+                'success': True,
+                'message': '没有找到未结算单',
+                'success_count': 0,
+                'error_count': 0
+            })
+        
+        # 计算并更新利润分配
+        success_count = 0
+        error_count = 0
+        errors = []
+        
+        for header in headers:
+            try:
+                # 获取订单金额和利润，确保转换为Decimal类型
+                order_amount = header.sub_total_gross
+                if order_amount is None:
+                    order_amount = Decimal('0')
+                elif not isinstance(order_amount, Decimal):
+                    order_amount = Decimal(str(order_amount))
+                
+                profit = header.sub_total_pl
+                if profit is None:
+                    profit = Decimal('0')
+                elif not isinstance(profit, Decimal):
+                    profit = Decimal(str(profit))
+                
+                # 获取订单类型（根据盈亏金额判断，无论利润是否为0都需要设置）
+                order_type = get_order_type(profit)
+                
+                # 如果利润为0，不分配
+                if profit == 0:
+                    header.operator_profit = Decimal('0')
+                    header.sales_profit = Decimal('0')
+                    header.company_profit = Decimal('0')
+                    header.order_type = order_type
+                else:
+                    # 计算利润分配（基于盈亏金额，包括负数亏损）
+                    operator_profit, sales_profit, company_profit = calculate_profit_distribution(
+                        profit
+                    )
+                    
+                    # 更新到数据库
+                    header.operator_profit = operator_profit
+                    header.sales_profit = sales_profit
+                    header.company_profit = company_profit
+                    header.order_type = order_type
+                
+                success_count += 1
+                
+            except Exception as e:
+                error_count += 1
+                errors.append(f'HID {header.booking_header_id}: {str(e)}')
+                logger.error(f'计算利润分配失败 (HID: {header.booking_header_id}): {str(e)}')
+        
+        # 提交所有更改
+        db.session.commit()
+        
+        message = f'成功计算 {success_count} 条未结算单的利润分配'
+        if error_count > 0:
+            message += f'，{error_count} 条记录失败'
+        
+        return jsonify({
+            'success': True,
+            'message': message,
+            'success_count': success_count,
+            'error_count': error_count,
+            'errors': errors if errors else None
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f'批量计算全部未结算单利润分配失败: {str(e)}')
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'message': f'批量计算失败: {str(e)}'
+        }), 500
+
+
 @athina_blue.route('/download_report/<report_type>', methods=['GET'])
 @csrf.exempt
 def download_report(report_type):
@@ -909,3 +1714,4 @@ def export_unsettled_orders():
         error_msg = f'导出未结算订单时出错: {str(e)}'
         logger.error(error_msg, exc_info=True)
         return jsonify({'error': error_msg, 'success': False}), 500
+

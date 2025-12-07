@@ -70,9 +70,30 @@
 .print-invoice .total-section .value { text-align: right; width: 15%; }
 .print-invoice .amount-words { font-weight: bold; margin: 8px 0; }
 .print-invoice .bank-details { margin: 10px 0; font-size: 11px; }
-.print-invoice .footer-note { text-align: center; margin-top: 15px; font-size: 11px; color: #333; }
+.print-invoice .footer-note { 
+    text-align: center; 
+    margin-top: 50px; 
+    margin-bottom: 20px;
+    font-size: 11px; 
+    color: #333; 
+    position: relative;
+}
 @media print {
-    .print-invoice .footer-note { color: #000 !important; }
+    .print-invoice .footer-note { 
+        color: #000 !important; 
+        margin-top: 80px;
+        page-break-inside: avoid;
+    }
+    /* 确保底部文字在页面底部 */
+    .print-invoice {
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+    }
+    .print-invoice .footer-note {
+        margin-top: auto;
+        padding-top: 40px;
+    }
 }
 </style>
 {% endblock %}
@@ -311,7 +332,11 @@
     <!-- 发票头部 -->
     <div class="invoice-header">
         <div class="company-logo">
-            {% if company and company.logo_path %}
+            {% if '192.168' in request.host or 'localhost' in request.host %}
+                <!-- 本地开发环境：使用默认静态文件 -->
+                <img src="{{ url_for('static', filename='JE/LOGO.jpg') }}" alt="Company Logo">
+            {% elif company and company.logo_path %}
+                <!-- 服务器环境：使用数据库中的logo -->
                 <img src="{{ url_for('static', filename=company.logo_path) }}" 
                      alt="{{ company.company_name }}" 
                      onerror="this.onerror=null; this.src='{{ url_for('static', filename='JE/LOGO.jpg') }}';">
@@ -638,16 +663,23 @@
             </ul>
         </div>
         <div class="company-stamp" style="text-align: center; display: flex; flex-direction: column; align-items: center;">
-            {% if company and company.stamp_path %}
-            <img src="{{ url_for('static', filename=company.stamp_path) }}" 
+            {% if '192.168' in request.host or 'localhost' in request.host %}
+            <!-- 本地开发环境：使用默认静态文件 -->
+            <img src="{{ url_for('static', filename='JE/company digital stamp.png') }}" 
                  alt="Company Stamp" 
                  style="max-width: 80px; height: auto; opacity: 0.9;">
+            {% elif company and company.stamp_path %}
+            <!-- 服务器环境：使用数据库中的电子章 -->
+            <img src="{{ url_for('static', filename=company.stamp_path) }}" 
+                 alt="Company Stamp" 
+                 style="max-width: 80px; height: auto; opacity: 0.9;"
+                 onerror="this.onerror=null; this.src='{{ url_for('static', filename='JE/company digital stamp.png') }}';">
             {% else %}
             <img src="{{ url_for('static', filename='JE/company digital stamp.png') }}" 
                  alt="Company Stamp" 
                  style="max-width: 80px; height: auto; opacity: 0.9;">
             {% endif %}
-            <p style="margin: -15px 0 0 0; font-size: 10px; white-space: nowrap;">For and on behalf of<br><strong>JOYFUL ESCAPES PTE. LTD</strong></p>
+            <p style="margin: -15px 0 0 0; font-size: 10px; white-space: nowrap;">For and on behalf of<br><strong>{{ company.company_name if company and company.company_name else 'JOYFUL ESCAPES PTE. LTD' }}</strong></p>
         </div>
     </div>
 
@@ -677,6 +709,24 @@ function printInvoice() {
         document.title = originalTitle;
     }, 100);
 }
+
+// 检测URL参数，如果有print=1则自动打印
+document.addEventListener('DOMContentLoaded', function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('print') === '1') {
+        setTimeout(function() {
+            printInvoice();
+            // 打印对话框关闭后自动关闭窗口
+            window.onafterprint = function() {
+                window.close();
+            };
+            // 备用：延迟关闭（用于不支持onafterprint的浏览器）
+            setTimeout(function() {
+                window.close();
+            }, 1000);
+        }, 500);
+    }
+});
 
 function syncRefPrices() {
     if (!confirm('确定要从REF同步最新价格到发票吗？\n\n这将更新发票金额为REF的当前售价总和。')) {

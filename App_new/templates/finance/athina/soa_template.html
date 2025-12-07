@@ -126,7 +126,7 @@
                 <p><strong>公司名称 / Company Name:</strong> {{ header.corporate_name or 'N/A' }}</p>
                 <p><strong>预订编号 / Booking ID:</strong> {{ header.booking_header_id }}</p>
                 <p><strong>预订日期 / Booking Date:</strong> {{ header.book_date.strftime('%Y-%m-%d') if header.book_date else 'N/A' }}</p>
-                <p><strong>顾问 / Consultant:</strong> {{ header.consultant or 'N/A' }}</p>
+                <p><strong>操作顾问 / Operations Consultant:</strong> {{ header.consultant or 'N/A' }}</p>
                 <p><strong>销售顾问 / Sales Consultant:</strong> {{ header.sales_consultant or 'N/A' }}</p>
             </div>
             

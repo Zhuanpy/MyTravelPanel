@@ -241,33 +241,112 @@ def invoice_detail(invoice_id):
         except (json.JSONDecodeError, TypeError):
             pass
     
-    # 来源2: ProjectReceipt表中关联到项目的收款记录
+    # 来源2: ProjectReceipt表中关联到发票对应ref的收款记录
     from App_new.business.projects.models.receipt import ProjectReceipt
-    project_receipts = ProjectReceipt.query.filter_by(
-        header_id=invoice.header_id, 
-        status='confirmed'
-    ).order_by(ProjectReceipt.payment_date).all()
     
-    for receipt in project_receipts:
-        # 检查是否已经在payments中（避免重复）
-        receipt_exists = any(
-            p.get('receipt_id') == receipt.id or 
-            (p.get('date') == receipt.payment_date.strftime('%Y-%m-%d') and 
-             abs(float(p.get('amount', 0)) - float(receipt.amount)) < 0.01)
-            for p in payments
-        )
-        if not receipt_exists:
-            payments.append({
-                'receipt_id': receipt.id,
-                'date': receipt.payment_date.strftime('%d/%m/%Y') if receipt.payment_date else '',
-                'ref_number': receipt.receipt_number,
-                'method': receipt.payment_method_display,
-                'amount': float(receipt.amount),
-                'remarks': receipt.remarks
-            })
+    # 获取发票关联的ref IDs
+    invoice_ref_ids = []
+    if invoice.ref_ids:
+        try:
+            invoice_ref_ids = json.loads(invoice.ref_ids)
+            # 确保是整数列表
+            invoice_ref_ids = [int(rid) for rid in invoice_ref_ids if rid]
+        except (json.JSONDecodeError, TypeError, ValueError):
+            pass
+    
+    # 如果发票没有关联ref，则使用整个header的receipt（向后兼容）
+    if invoice_ref_ids:
+        # 只获取与发票关联的ref的receipt
+        # 1. 直接关联到这些ref的receipt（REF级别收款）
+        ref_receipts = ProjectReceipt.query.filter(
+            ProjectReceipt.ref_id.in_(invoice_ref_ids),
+            ProjectReceipt.status == 'confirmed'
+        ).order_by(ProjectReceipt.payment_date).all()
+        
+        for receipt in ref_receipts:
+            # 检查是否已经在payments中（避免重复）
+            receipt_exists = any(
+                p.get('receipt_id') == receipt.id or 
+                (p.get('date') == receipt.payment_date.strftime('%Y-%m-%d') and 
+                 abs(float(p.get('amount', 0)) - float(receipt.amount)) < 0.01)
+                for p in payments
+            )
+            if not receipt_exists:
+                payments.append({
+                    'receipt_id': receipt.id,
+                    'date': receipt.payment_date.strftime('%d/%m/%Y') if receipt.payment_date else '',
+                    'ref_number': receipt.receipt_number,
+                    'method': receipt.payment_method_display,
+                    'amount': float(receipt.amount),
+                    'remarks': receipt.remarks
+                })
+        
+        # 2. 项目级别收款记录中分配给这些ref的金额
+        project_receipts = ProjectReceipt.query.filter(
+            ProjectReceipt.header_id == invoice.header_id,
+            ProjectReceipt.ref_id.is_(None),  # 项目级别收款
+            ProjectReceipt.status == 'confirmed'
+        ).order_by(ProjectReceipt.payment_date).all()
+        
+        for project_receipt in project_receipts:
+            if project_receipt.extra_info:
+                try:
+                    distribution_info = json.loads(project_receipt.extra_info)
+                    if 'distribution' in distribution_info:
+                        # 计算分配给发票关联ref的金额总和
+                        allocated_amount = 0
+                        for dist in distribution_info['distribution']:
+                            if dist.get('ref_id') in invoice_ref_ids:
+                                allocated_amount += float(dist.get('amount', 0))
+                        
+                        if allocated_amount > 0:
+                            # 检查是否已经在payments中（避免重复）
+                            receipt_exists = any(
+                                p.get('receipt_id') == project_receipt.id
+                                for p in payments
+                            )
+                            if not receipt_exists:
+                                payments.append({
+                                    'receipt_id': project_receipt.id,
+                                    'date': project_receipt.payment_date.strftime('%d/%m/%Y') if project_receipt.payment_date else '',
+                                    'ref_number': project_receipt.receipt_number,
+                                    'method': project_receipt.payment_method_display,
+                                    'amount': allocated_amount,  # 只计算分配给这些ref的金额
+                                    'remarks': project_receipt.remarks
+                                })
+                except (json.JSONDecodeError, KeyError, TypeError):
+                    pass
+    else:
+        # 如果没有关联ref，使用整个header的receipt（向后兼容）
+        project_receipts = ProjectReceipt.query.filter_by(
+            header_id=invoice.header_id, 
+            status='confirmed'
+        ).order_by(ProjectReceipt.payment_date).all()
+        
+        for receipt in project_receipts:
+            # 检查是否已经在payments中（避免重复）
+            receipt_exists = any(
+                p.get('receipt_id') == receipt.id or 
+                (p.get('date') == receipt.payment_date.strftime('%Y-%m-%d') and 
+                 abs(float(p.get('amount', 0)) - float(receipt.amount)) < 0.01)
+                for p in payments
+            )
+            if not receipt_exists:
+                payments.append({
+                    'receipt_id': receipt.id,
+                    'date': receipt.payment_date.strftime('%d/%m/%Y') if receipt.payment_date else '',
+                    'ref_number': receipt.receipt_number,
+                    'method': receipt.payment_method_display,
+                    'amount': float(receipt.amount),
+                    'remarks': receipt.remarks
+                })
     
     # 计算实际已付总额和余额
+    # Receipt总额 = 关联ref的receipt总和
     total_paid = sum(float(p.get('amount', 0)) for p in payments)
+    
+    # Balance = 发票金额 - Receipt总额
+    # 发票金额是实际开票金额，receipt是实际收款
     balance = float(invoice.amount or 0) - total_paid
     
     # 获取项目联系人
@@ -584,6 +663,37 @@ def void_invoice():
         
     except Exception as e:
         db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)})
+
+
+@project_invoice.route('/find_by_number', methods=['POST'])
+@login_required
+@staff_only
+@csrf.exempt
+def find_invoice_by_number():
+    """通过发票号查找发票"""
+    try:
+        data = request.get_json()
+        invoice_number = data.get('invoice_number')
+        
+        if not invoice_number:
+            return jsonify({'success': False, 'message': '请输入发票号'})
+        
+        # 查找发票
+        invoice = ProjectInvoice.query.filter_by(
+            invoice_number=invoice_number.strip()
+        ).first()
+        
+        if not invoice:
+            return jsonify({'success': False, 'message': f'未找到发票号 {invoice_number}'})
+        
+        return jsonify({
+            'success': True,
+            'invoice_id': invoice.id,
+            'invoice_number': invoice.invoice_number
+        })
+        
+    except Exception as e:
         return jsonify({'success': False, 'message': str(e)})
 
 

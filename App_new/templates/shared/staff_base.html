@@ -32,15 +32,21 @@
     <!-- 导航栏 -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-success">
         <div class="container-fluid">
-            <a class="navbar-brand" href="{{ url_for('public.index') }}">
+            <a class="navbar-brand" href="{{ url_for('public.index') }}" style="position: relative;">
                 <div class="logo-container">
-                   <img src="{{ url_for('static', filename=company.logo_path) }}" alt="{{ company.company_name }}" height="40">
+                   {% if company and company.logo_path %}
+                   <img src="{{ url_for('static', filename=company.logo_path) }}" 
+                        alt="{{ company.company_name }}" height="40"
+                        onerror="this.onerror=null; this.src='{{ url_for('static', filename='JE/LOGO.jpg') }}';">
+                   {% else %}
+                   <img src="{{ url_for('static', filename='JE/LOGO.jpg') }}" alt="Company Logo" height="40">
+                   {% endif %}
                    <div class="logo-text">
-                       <div class="logo-chinese">{{ company.company_name_cn }}</div>
-                       <div class="logo-english">{{ company.company_short_name.upper() if company.company_short_name else '' }}</div>
+                       <div class="logo-chinese">{{ company.company_name_cn if company else '' }}</div>
+                       <div class="logo-english">{{ company.company_short_name.upper() if company and company.company_short_name else '' }}</div>
                    </div>
                 </div>
-                <span class="badge bg-light text-success ms-2">员工版</span>
+                <span class="badge bg-light text-success" style="position: absolute; top: -5px; right: -10px; font-size: 10px; padding: 2px 5px;">员工版</span>
             </a>
             
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
@@ -130,9 +136,9 @@
                             </a></li>
                             <li><hr class="dropdown-divider"></li>
                             <li><h6 class="dropdown-header">Athina系统</h6></li>
-                                            <li><a class="dropdown-item" href="{{ url_for('flights_athina.athina_conversion') }}">
-                    <i class="fas fa-tools me-2"></i>Athina机票工具
-                </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('flights_athina.athina_conversion') }}">
+                                <i class="fas fa-tools me-2"></i>Athina机票工具
+                            </a></li>
                             <li><a class="dropdown-item" href="{{ url_for('flights_athina.athina_page') }}">
                                 <i class="fas fa-file-code me-2"></i>Athina代码
                             </a></li>
@@ -207,19 +213,10 @@
                             <li><a class="dropdown-item" href="/files/letter_generator">
                                 <i class="fas fa-envelope me-2"></i>信件生成器
                             </a></li>
-                            <!-- <li><a class="dropdown-item" href="/files/test_letter">
-                                <i class="fas fa-vial me-2"></i>信件测试
-                            </a></li> -->
-                            <!-- <li><a class="dropdown-item" href="/files/test_simple_pdf">
-                                <i class="fas fa-eye me-2"></i>功能演示
-                            </a></li> -->
                             <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item" href="{{ url_for('staff.tasks') }}">
                                 <i class="fas fa-list-check me-2"></i>任务中心
                             </a></li>
-                            <!-- <li><a class="dropdown-item" href="{{ url_for('staff.files') }}">
-                                <i class="fas fa-clock me-2"></i>文件管理
-                            </a></li> -->
                         </ul>
                     </li>
                     <li class="nav-item dropdown">
@@ -228,22 +225,13 @@
                         </a>
                         <ul class="dropdown-menu">
                             <li><a class="dropdown-item" href="{{ url_for('uob_routes.uob_bank') }}">
-                                <i class="fas fa-university me-2"></i>UOB银行
-                            </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('ocbc_routes.ocbc_bank') }}">
-                                <i class="fas fa-university me-2"></i>OCBC银行
-                            </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('cmb_routes.cmb_bank') }}">
-                                <i class="fas fa-university me-2"></i>招商银行
+                                <i class="fas fa-university me-2"></i>银行账单
                             </a></li>
                             <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item" href="{{ url_for('athina_routes.athina_import') }}">
                                 <i class="fas fa-upload me-2"></i>Athina数据录入
                             </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('athina_routes.athina_analysis') }}">
-                                <i class="fas fa-chart-bar me-2"></i>Athina分析报表
-                            </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('athina_routes.athina_data') }}">
+                            <li><a class="dropdown-item" href="{{ url_for('athina_routes.athina_header_data') }}">
                                 <i class="fas fa-table me-2"></i>Athina数据查看
                             </a></li>
                             <li><a class="dropdown-item" href="{{ url_for('soa_routes.soa_list') }}">
@@ -253,8 +241,15 @@
                             <li><a class="dropdown-item" href="{{ url_for('statement_common_routes.to_company', bank_name='UOB') }}">
                                 <i class="fas fa-file-invoice-dollar me-2"></i>公司账单
                             </a></li>
-                        </ul>
-                    </li>
+               <li><hr class="dropdown-divider"></li>
+               <li><a class="dropdown-item" href="{{ url_for('athina_routes.athina_performance_settlement') }}">
+                   <i class="fas fa-calculator me-2"></i>业绩结算
+               </a></li>
+               <li><a class="dropdown-item" href="{{ url_for('athina_routes.athina_analysis') }}">
+                   <i class="fas fa-chart-bar me-2"></i>LG业绩分析
+               </a></li>
+           </ul>
+       </li>
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="accountDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                             <i class="fas fa-cogs"></i> 业务管理
@@ -707,4 +702,4 @@
     
     {% block extra_js %}{% endblock %}
 </body>
-</html> 
+</html>
