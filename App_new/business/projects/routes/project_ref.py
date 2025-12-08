@@ -459,11 +459,18 @@ def create_hotel_ref(header_id):
     
         suppliers = Supplier.query.all()
         supplier_types = ['visa', 'flight', 'hotel', 'transport', 'local_operator', 'other']
+        
+        # 获取项目人员列表
+        from App_new.business.projects.models.project_member import ProjectMember
+        members = ProjectMember.query.filter_by(header_id=header_id).order_by(ProjectMember.id).all()
     
         return render_template('business/projects/project_ref/create_hotel_ref.html', 
                         header_id=header_id,
+                        header=header,
                         suppliers=suppliers,
-                        supplier_types=supplier_types)
+                        supplier_types=supplier_types,
+                        members=members,
+                        has_invoice=False)
     except Exception as e:
         import traceback
         print(f"酒店REF创建页面加载失败: {str(e)}")
@@ -486,6 +493,39 @@ def submit_hotel_ref():
         header_id = request.form.get('header_id')
         ref_id = request.form.get('ref_id')
 
+        # 获取多选的pax_names和leader_id
+        pax_names = request.form.getlist('pax_names')
+        pax_names = [int(x) for x in pax_names if x]
+        leader_id = request.form.get('leader_id')
+        leader_id = int(leader_id) if leader_id else None
+        
+        # 构建extra_info存储酒店专属字段
+        extra_info = {
+            'hotel_name': request.form.get('hotel_name', ''),
+            'checkin_date': request.form.get('checkin_date', ''),
+            'checkout_date': request.form.get('checkout_date', ''),
+            'room_type': request.form.get('room_type', ''),
+            'pax_names': pax_names,  # 人员ID列表
+            'leader_id': leader_id,  # Leader人员ID
+            'pax_name': request.form.get('pax_name', ''),  # 兼容手动输入
+            'departure_date': request.form.get('checkin_date', ''),  # Departure使用check in date
+            'remarks': request.form.get('remarks', ''),
+            # Pricing 数据
+            'adult_qty': float(request.form.get('adult_qty', 0)) if request.form.get('adult_qty') else 0,
+            'adult_selling': float(request.form.get('adult_selling', 0)) if request.form.get('adult_selling') else 0,
+            'adult_cost': float(request.form.get('adult_cost', 0)) if request.form.get('adult_cost') else 0,
+            'child_qty': float(request.form.get('child_qty', 0)) if request.form.get('child_qty') else 0,
+            'child_selling': float(request.form.get('child_selling', 0)) if request.form.get('child_selling') else 0,
+            'child_cost': float(request.form.get('child_cost', 0)) if request.form.get('child_cost') else 0,
+            'infant_qty': float(request.form.get('infant_qty', 0)) if request.form.get('infant_qty') else 0,
+            'infant_selling': float(request.form.get('infant_selling', 0)) if request.form.get('infant_selling') else 0,
+            'infant_cost': float(request.form.get('infant_cost', 0)) if request.form.get('infant_cost') else 0,
+        }
+        
+        # 获取总售价和总成本（从隐藏字段或计算得出）
+        selling_price = float(request.form.get('selling_price', 0)) if request.form.get('selling_price') else None
+        cost_price = float(request.form.get('cost_price', 0)) if request.form.get('cost_price') else None
+        
         # 如果是编辑现有REF
         if ref_id:
             ref = ProjectRef.query.get_or_404(ref_id)
@@ -497,9 +537,9 @@ def submit_hotel_ref():
             ref.remarks = request.form.get('remarks')
             ref.status = request.form.get('status', 'draft')
             ref.payment_status = request.form.get('payment_status', 'unpaid')
-            ref.selling_price = float(request.form.get('selling_price', 0)) if request.form.get(
-                'selling_price') else None
-            ref.cost_price = float(request.form.get('cost_price', 0)) if request.form.get('cost_price') else None
+            ref.selling_price = selling_price
+            ref.cost_price = cost_price
+            ref.extra_info = json.dumps(extra_info)
         else:
             # 创建新的REF
             header = ProjectHeader.query.get_or_404(header_id)
@@ -528,9 +568,9 @@ def submit_hotel_ref():
                 remarks=request.form.get('remarks'),
                 status=request.form.get('status', 'draft'),
                 payment_status=request.form.get('payment_status', 'unpaid'),
-                selling_price=float(request.form.get('selling_price', 0)) if request.form.get(
-                    'selling_price') else None,
-                cost_price=float(request.form.get('cost_price', 0)) if request.form.get('cost_price') else None
+                selling_price=selling_price,
+                cost_price=cost_price,
+                extra_info=json.dumps(extra_info)
             )
             db.session.add(ref)
             db.session.flush()  # 获取ref.id
@@ -562,6 +602,39 @@ def edit_hotel_ref(ref_id):
     
     if request.method == 'POST':
         try:
+            # 获取多选的pax_names和leader_id
+            pax_names = request.form.getlist('pax_names')
+            pax_names = [int(x) for x in pax_names if x]
+            leader_id = request.form.get('leader_id')
+            leader_id = int(leader_id) if leader_id else None
+            
+            # 构建extra_info存储酒店专属字段
+            extra_info = {
+                'hotel_name': request.form.get('hotel_name', ''),
+                'checkin_date': request.form.get('checkin_date', ''),
+                'checkout_date': request.form.get('checkout_date', ''),
+                'room_type': request.form.get('room_type', ''),
+                'pax_names': pax_names,  # 人员ID列表
+                'leader_id': leader_id,  # Leader人员ID
+                'pax_name': request.form.get('pax_name', ''),  # 兼容手动输入
+                'departure_date': request.form.get('checkin_date', ''),  # Departure使用check in date
+                'remarks': request.form.get('remarks', ''),
+                # Pricing 数据
+                'adult_qty': float(request.form.get('adult_qty', 0)) if request.form.get('adult_qty') else 0,
+                'adult_selling': float(request.form.get('adult_selling', 0)) if request.form.get('adult_selling') else 0,
+                'adult_cost': float(request.form.get('adult_cost', 0)) if request.form.get('adult_cost') else 0,
+                'child_qty': float(request.form.get('child_qty', 0)) if request.form.get('child_qty') else 0,
+                'child_selling': float(request.form.get('child_selling', 0)) if request.form.get('child_selling') else 0,
+                'child_cost': float(request.form.get('child_cost', 0)) if request.form.get('child_cost') else 0,
+                'infant_qty': float(request.form.get('infant_qty', 0)) if request.form.get('infant_qty') else 0,
+                'infant_selling': float(request.form.get('infant_selling', 0)) if request.form.get('infant_selling') else 0,
+                'infant_cost': float(request.form.get('infant_cost', 0)) if request.form.get('infant_cost') else 0,
+            }
+            
+            # 获取总售价和总成本（从隐藏字段或计算得出）
+            selling_price = float(request.form.get('selling_price', 0)) if request.form.get('selling_price') else None
+            cost_price = float(request.form.get('cost_price', 0)) if request.form.get('cost_price') else None
+            
             # 更新REF数据
             ref.description = request.form.get('description', '酒店订单')
             ref.detailed_description = request.form.get('detailed_description', '酒店订单')
@@ -569,8 +642,9 @@ def edit_hotel_ref(ref_id):
             ref.remarks = request.form.get('remarks')
             ref.status = request.form.get('status', 'draft')
             ref.payment_status = request.form.get('payment_status', 'unpaid')
-            ref.selling_price = float(request.form.get('selling_price', 0)) if request.form.get('selling_price') else None
-            ref.cost_price = float(request.form.get('cost_price', 0)) if request.form.get('cost_price') else None
+            ref.selling_price = selling_price
+            ref.cost_price = cost_price
+            ref.extra_info = json.dumps(extra_info)
             
             db.session.commit()
             flash('酒店REF更新成功', 'success')
@@ -585,13 +659,45 @@ def edit_hotel_ref(ref_id):
     suppliers = Supplier.query.all()
     supplier_types = ['visa', 'flight', 'hotel', 'transport', 'local_operator', 'other']
     
+    # 获取项目人员列表
+    from App_new.business.projects.models.project_member import ProjectMember
+    members = ProjectMember.query.filter_by(header_id=ref.header_id).order_by(ProjectMember.id).all()
+    
+    # 解析extra_info
+    extra_info = None
+    if ref.extra_info:
+        try:
+            extra_info = json.loads(ref.extra_info)
+        except (json.JSONDecodeError, TypeError):
+            extra_info = None
+    
+    # 检查REF是否已关联发票
+    from App_new.business.projects.models.invoice import ProjectInvoice
+    has_invoice = False
+    invoices = ProjectInvoice.query.filter_by(header_id=ref.header_id).all()
+    for invoice in invoices:
+        if invoice.ref_ids:
+            try:
+                ref_id_list = json.loads(invoice.ref_ids)
+                if ref.id in ref_id_list:
+                    has_invoice = True
+                    break
+            except (json.JSONDecodeError, TypeError):
+                pass
+    
+    header = ProjectHeader.query.get(ref.header_id)
+    
     return render_template('business/projects/project_ref/create_hotel_ref.html', 
                          header_id=ref.header_id,
+                         header=header,
                          ref_id=ref.id,
                          ref=ref,
                          suppliers=suppliers,
                          supplier_types=supplier_types,
-                         is_create=False)
+                         members=members,
+                         extra_info=extra_info,
+                         is_create=False,
+                         has_invoice=has_invoice)
 
 
 # 签证REF相关函数
@@ -2097,9 +2203,33 @@ def get_business_type_color(business_type_name):
 @project_ref.route('/general/edit/<int:ref_id>', methods=['GET', 'POST'])
 @csrf.exempt
 def edit_ref(ref_id):
-    """编辑通用REF"""
+    """编辑通用REF - 根据业务类型路由到不同编辑页面"""
     ref = ProjectRef.query.get_or_404(ref_id)
     
+    # 根据业务类型ID路由到不同的编辑页面
+    # 获取业务类型名称
+    business_type = BusinessType.query.get(ref.ref_type_id)
+    ref_type_name = business_type.name if business_type else None
+    
+    # 根据业务类型路由到对应的编辑页面
+    if ref_type_name == '机票':
+        return redirect(url_for('business_projects.project_ref.edit_flight_ref', ref_id=ref.id))
+    elif ref_type_name == '酒店':
+        return redirect(url_for('business_projects.project_ref.edit_hotel_ref', ref_id=ref.id))
+    elif ref_type_name == '签证':
+        return redirect(url_for('business_projects.project_ref.edit_visa_ref', ref_id=ref.id))
+    elif ref_type_name == '旅游':
+        return redirect(url_for('business_projects.project_ref.edit_tour_ref', ref_id=ref.id))
+    elif ref_type_name == '保险':
+        return redirect(url_for('business_projects.project_ref.edit_insurance_ref', ref_id=ref.id))
+    # elif ref_type_name == '交通':
+    #     # Transport ref编辑通过submit路由处理，暂时注释
+    #     # return redirect(url_for('business_projects.project_ref.edit_transport_ref', ref_id=ref.id))
+    #     pass
+    elif ref_type_name == '其他' or ref_type_name == 'Miscellanous':
+        return redirect(url_for('business_projects.project_ref.edit_other_ref', ref_id=ref.id))
+    
+    # 如果没有匹配的类型，继续使用通用编辑页面（向后兼容）
     if request.method == 'POST':
         try:
             # 调试：打印所有表单数据

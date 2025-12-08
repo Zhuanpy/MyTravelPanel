@@ -7,128 +7,238 @@
     <div class="row justify-content-center">
         <div class="col-lg-8 col-md-10">
             <div class="card">
-                <div class="card-header">
-                    <h2 class="mb-0">新建酒店REF</h2>
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">{% if ref %}编辑酒店REF - Ref: {{ ref.ref_number }}{% else %}新建酒店REF{% endif %}</h5>
                 </div>
                 <div class="card-body">
-                    <form method="post" action="{{ url_for('business_projects.project_ref.submit_hotel_ref') }}">
-
+                    <form method="post" action="{% if ref %}{{ url_for('business_projects.project_ref.submit_hotel_ref') }}{% else %}{{ url_for('business_projects.project_ref.submit_hotel_ref') }}{% endif %}">
+                        {% if ref %}
+                        <input type="hidden" name="ref_id" value="{{ ref.id }}">
+                        {% endif %}
+                        
+                        <!-- CSRF令牌 -->
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        
+                        <!-- 隐藏字段：描述（自动生成） -->
+                        <input type="hidden" name="description" id="auto_description" value="{{ ref.description if ref else '' }}">
+                        <input type="hidden" name="detailed_description" id="auto_detailed_description" value="{{ ref.detailed_description if ref else '' }}">
                         
                         <!-- 基础字段 -->
+                        <!-- Pax Name 选择 -->
+                        <div class="row mb-4">
+                            <div class="col-md-2">
+                                <label class="form-label">Pax Name:</label>
+                            </div>
+                            <div class="col-md-10">
+                                {% if members and members|length > 0 %}
+                                {% set selected_pax = extra_info.pax_names if extra_info and extra_info.pax_names else [] %}
+                                {% set leader_id = extra_info.leader_id if extra_info and extra_info.leader_id else null %}
+                                <input type="hidden" name="leader_id" id="leader_id" value="{{ leader_id or '' }}">
+                                <table class="table table-sm table-bordered table-hover mb-0" style="font-size: 13px;">
+                                    <thead class="table-success">
+                                        <tr>
+                                            <th style="width: 40px;"><input type="checkbox" id="selectAllPax" title="全选"></th>
+                                            <th style="width: 40px;">No.</th>
+                                            <th>Name</th>
+                                            <th style="width: 60px;">Type</th>
+                                            <th style="width: 60px;">Leader</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for member in members %}
+                                        <tr class="{% if member.id == leader_id or member.id|string == leader_id|string %}table-primary{% endif %}">
+                                            <td class="text-center">
+                                                <input type="checkbox" name="pax_names" value="{{ member.id }}" 
+                                                       {% if member.id in selected_pax or member.id|string in selected_pax %}checked{% endif %}>
+                                            </td>
+                                            <td>{{ loop.index }}.</td>
+                                            <td>{{ member.title }} {{ member.member_name }}{% if member.member_name_en %} ({{ member.member_name_en }}){% endif %}</td>
+                                            <td>ADT</td>
+                                            <td class="text-center">
+                                                <button type="button" class="btn btn-sm {% if member.id == leader_id or member.id|string == leader_id|string %}btn-success{% else %}btn-outline-secondary{% endif %} set-leader-btn" 
+                                                        data-member-id="{{ member.id }}" title="设为Leader">
+                                                    <i class="fas fa-user"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                                <small class="text-muted">勾选人员，点击 <i class="fas fa-user"></i> 设置为Leader</small>
+                                {% else %}
+                                <input type="text" name="pax_name" class="form-control" 
+                                       value="{{ extra_info.pax_name if extra_info and extra_info.pax_name else '' }}"
+                                       placeholder="e.g. LI HONGJUAN MS">
+                                <small class="text-muted">项目暂无人员，请先在项目详情中添加人员</small>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
                         <div class="row mb-4">
                             <div class="col-md-12">
                                 <div class="form-group">
                                     <label>酒店名称 <span class="text-danger">*</span></label>
-                                    <input type="text" name="hotel_name" class="form-control" required>
+                                    <input type="text" name="hotel_name" class="form-control" required
+                                           value="{{ extra_info.hotel_name if extra_info and extra_info.hotel_name else '' }}">
                                     <div class="invalid-feedback">请输入酒店名称</div>
                                 </div>
                             </div>
                         </div>
                         
-                        <!-- 隐藏字段：描述（自动生成） -->
-                        <input type="hidden" name="description" id="auto_description" value="">
-                        <input type="hidden" name="detailed_description" id="auto_detailed_description" value="">
-                        
                         <div class="row mb-4">
-                            <div class="col-md-6">
+                            <div class="col-md-3">
                                 <div class="form-group">
                                     <label>房型</label>
-                                    <input type="text" name="room_type" class="form-control">
+                                    <input type="text" name="room_type" class="form-control"
+                                           value="{{ extra_info.room_type if extra_info and extra_info.room_type else '' }}">
                                 </div>
                             </div>
-                        </div>
-                        
-                        <div class="row mb-4">
-                            <div class="col-md-6">
+                            <div class="col-md-3">
                                 <div class="form-group">
                                     <label>入住日期 <span class="text-danger">*</span></label>
-                                    <input type="date" name="checkin_date" class="form-control" required max="2050-12-31">
+                                    <input type="date" name="checkin_date" id="checkin_date" class="form-control" required max="2050-12-31"
+                                           value="{{ extra_info.checkin_date if extra_info and extra_info.checkin_date else '' }}">
                                     <div class="invalid-feedback">请选择入住日期</div>
                                 </div>
                             </div>
-                            <div class="col-md-6">
+                            <div class="col-md-3">
                                 <div class="form-group">
                                     <label>退房日期 <span class="text-danger">*</span></label>
-                                    <input type="date" name="checkout_date" class="form-control" required max="2050-12-31">
+                                    <input type="date" name="checkout_date" class="form-control" required max="2050-12-31"
+                                           value="{{ extra_info.checkout_date if extra_info and extra_info.checkout_date else '' }}">
                                     <div class="invalid-feedback">请选择退房日期</div>
                                 </div>
                             </div>
-                        </div>
-                        
-                        <div class="row mb-4">
-                            <div class="col-md-6">
-                                <div class="form-group">
-                                    <label>售价 (SGD)</label>
-                                    <div class="input-group">
-                                        <input type="number" name="selling_price" class="form-control" min="0" step="0.01" placeholder="0.00">
-                                        <span class="input-group-text">SGD</span>
-                                    </div>
-                                    <div class="invalid-feedback">请输入有效的售价</div>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="form-group">
-                                    <label>成本 (SGD)</label>
-                                    <div class="input-group">
-                                        <input type="number" name="cost_price" class="form-control" min="0" step="0.01" placeholder="0.00">
-                                        <span class="input-group-text">SGD</span>
-                                    </div>
-                                    <div class="invalid-feedback">请输入有效的成本价格</div>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="row mb-4">
-                            <div class="col-md-6">
+                            <div class="col-md-3">
                                 <div class="form-group">
                                     <label>供应商</label>
                                     <select name="supplier_id" class="form-control">
                                         <option value="">请选择供应商</option>
                                         {% for supplier in suppliers %}
-                                            <option value="{{ supplier.supplier_id }}">{{ supplier.name }}</option>
+                                            <option value="{{ supplier.supplier_id }}" 
+                                                    {% if ref and ref.supplier_id == supplier.supplier_id %}selected{% endif %}>
+                                                {{ supplier.name }}
+                                            </option>
                                         {% endfor %}
                                     </select>
                                 </div>
                             </div>
-                            <div class="col-md-6">
-                                <div class="form-group">
-                                    <label>负责人</label>
-                                    <input type="text" class="form-control" readonly
-                                           value="{% if header and header.leader_name %}{{ header.leader_name }}{% else %}未设置{% endif %}">
-                                    <small class="text-muted">负责人信息保存在项目主表中</small>
+                        </div>
+                        
+                        <!-- Pricing 区域 -->
+                        <div class="row mb-4">
+                            <div class="col-md-2">
+                                <label class="form-label">Pricing:</label>
+                            </div>
+                            <div class="col-md-10">
+                                {% if has_invoice %}
+                                <div class="alert alert-warning py-2 mb-2" style="font-size: 13px;">
+                                    <i class="fas fa-lock"></i> 该REF已生成发票，售价(Selling)不可修改。如需调整价格，请先在发票中移除此REF或删除发票。
                                 </div>
+                                {% endif %}
+                                <table class="table table-bordered table-sm">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th style="width: 100px;"></th>
+                                            <th style="width: 100px;">Quantity</th>
+                                            <th>Selling</th>
+                                            <th>Cost</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td>Adult</td>
+                                            <td>
+                                                <input type="number" name="adult_qty" class="form-control form-control-sm qty-input" 
+                                                       min="0" value="{{ extra_info.adult_qty if extra_info and extra_info.adult_qty else 1 }}"
+                                                       {% if has_invoice %}disabled{% endif %}>
+                                            </td>
+                                            <td>
+                                                <div class="input-group input-group-sm">
+                                                    <span class="input-group-text">SGD</span>
+                                                    <input type="number" name="adult_selling" class="form-control selling-input" 
+                                                           min="0" step="0.01" value="{{ extra_info.adult_selling if extra_info and extra_info.adult_selling else '0.00' }}"
+                                                           {% if has_invoice %}disabled{% endif %}>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div class="input-group input-group-sm">
+                                                    <span class="input-group-text">SGD</span>
+                                                    <input type="number" name="adult_cost" class="form-control cost-input" 
+                                                           min="0" step="0.01" value="{{ extra_info.adult_cost if extra_info and extra_info.adult_cost else '0.00' }}">
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td>Child</td>
+                                            <td>
+                                                <input type="number" name="child_qty" class="form-control form-control-sm qty-input" 
+                                                       min="0" value="{{ extra_info.child_qty if extra_info and extra_info.child_qty else 0 }}"
+                                                       {% if has_invoice %}disabled{% endif %}>
+                                            </td>
+                                            <td>
+                                                <div class="input-group input-group-sm">
+                                                    <span class="input-group-text">SGD</span>
+                                                    <input type="number" name="child_selling" class="form-control selling-input" 
+                                                           min="0" step="0.01" value="{{ extra_info.child_selling if extra_info and extra_info.child_selling else '0.00' }}"
+                                                           {% if has_invoice %}disabled{% endif %}>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div class="input-group input-group-sm">
+                                                    <span class="input-group-text">SGD</span>
+                                                    <input type="number" name="child_cost" class="form-control cost-input" 
+                                                           min="0" step="0.01" value="{{ extra_info.child_cost if extra_info and extra_info.child_cost else '0.00' }}">
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td>Infant</td>
+                                            <td>
+                                                <input type="number" name="infant_qty" class="form-control form-control-sm qty-input" 
+                                                       min="0" value="{{ extra_info.infant_qty if extra_info and extra_info.infant_qty else 0 }}"
+                                                       {% if has_invoice %}disabled{% endif %}>
+                                            </td>
+                                            <td>
+                                                <div class="input-group input-group-sm">
+                                                    <span class="input-group-text">SGD</span>
+                                                    <input type="number" name="infant_selling" class="form-control selling-input" 
+                                                           min="0" step="0.01" value="{{ extra_info.infant_selling if extra_info and extra_info.infant_selling else '0.00' }}"
+                                                           {% if has_invoice %}disabled{% endif %}>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div class="input-group input-group-sm">
+                                                    <span class="input-group-text">SGD</span>
+                                                    <input type="number" name="infant_cost" class="form-control cost-input" 
+                                                           min="0" step="0.01" value="{{ extra_info.infant_cost if extra_info and extra_info.infant_cost else '0.00' }}">
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
                         
-                        <div class="row mb-4">
-                            <div class="col-md-6">
-                                <div class="form-group">
-                                    <label>状态</label>
-                                    <select name="status" class="form-control">
-                                        <option value="draft">草稿</option>
-                                        <option value="processing">处理中</option>
-                                        <option value="completed">已完成</option>
-                                        <option value="cancelled">已取消</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="form-group">
-                                    <label>付款状态</label>
-                                    <select name="payment_status" class="form-control">
-                                        <option value="unpaid">未付款</option>
-                                        <option value="partial">部分付款</option>
-                                        <option value="paid">已付款</option>
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
+                        <!-- 隐藏字段：汇总售价和成本 -->
+                        <input type="hidden" name="selling_price" id="total_selling_price" 
+                               value="{{ "%.2f"|format(ref.selling_price) if ref and ref.selling_price else '0.00' }}">
+                        <input type="hidden" name="cost_price" id="total_cost_price" 
+                               value="{{ "%.2f"|format(ref.cost_price) if ref and ref.cost_price else '0.00' }}">
+                        
+                        <!-- Departure (隐藏字段，使用Check In Date自动同步) -->
+                        <input type="hidden" name="departure_date" id="departure_date" 
+                               value="{{ extra_info.departure_date if extra_info and extra_info.departure_date else (extra_info.checkin_date if extra_info and extra_info.checkin_date else '') }}">
+                        
+                        <!-- 隐藏字段：状态和付款状态（使用默认值） -->
+                        <input type="hidden" name="status" value="{{ ref.status if ref and ref.status else 'processing' }}">
+                        <input type="hidden" name="payment_status" value="{{ ref.payment_status if ref and ref.payment_status else 'unpaid' }}">
                         
                         <div class="row mb-4">
                             <div class="col-md-12">
                                 <div class="form-group">
                                     <label>备注信息</label>
-                                    <textarea name="remarks" class="form-control" rows="3" placeholder="请输入备注信息，如特殊要求、客人信息等"></textarea>
+                                    <textarea name="remarks" class="form-control" rows="3" placeholder="请输入备注信息，如特殊要求、客人信息等">{{ ref.remarks if ref and ref.remarks else '' }}</textarea>
                                 </div>
                             </div>
                         </div>
@@ -175,6 +285,38 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // 初始化
     updateDescription();
+    
+    // 计算总价
+    function calculateTotals() {
+        // Adult
+        const adultQty = parseFloat(document.querySelector('input[name="adult_qty"]').value) || 0;
+        const adultSelling = parseFloat(document.querySelector('input[name="adult_selling"]').value) || 0;
+        const adultCost = parseFloat(document.querySelector('input[name="adult_cost"]').value) || 0;
+        
+        // Child
+        const childQty = parseFloat(document.querySelector('input[name="child_qty"]').value) || 0;
+        const childSelling = parseFloat(document.querySelector('input[name="child_selling"]').value) || 0;
+        const childCost = parseFloat(document.querySelector('input[name="child_cost"]').value) || 0;
+        
+        // Infant
+        const infantQty = parseFloat(document.querySelector('input[name="infant_qty"]').value) || 0;
+        const infantSelling = parseFloat(document.querySelector('input[name="infant_selling"]').value) || 0;
+        const infantCost = parseFloat(document.querySelector('input[name="infant_cost"]').value) || 0;
+        
+        // 计算总售价和总成本
+        const totalSelling = (adultQty * adultSelling) + (childQty * childSelling) + (infantQty * infantSelling);
+        const totalCost = (adultQty * adultCost) + (childQty * childCost) + (infantQty * infantCost);
+        
+        // 更新隐藏字段
+        const totalSellingInput = document.getElementById('total_selling_price');
+        const totalCostInput = document.getElementById('total_cost_price');
+        if (totalSellingInput) {
+            totalSellingInput.value = totalSelling.toFixed(2);
+        }
+        if (totalCostInput) {
+            totalCostInput.value = totalCost.toFixed(2);
+        }
+    }
     
     // 实时校验函数
     function validateField(field) {
@@ -240,57 +382,15 @@ document.addEventListener('DOMContentLoaded', function() {
         return true;
     }
     
-    // 价格校验函数
-    function validatePrices() {
-        const sellingPrice = document.querySelector('input[name="selling_price"]');
-        const costPrice = document.querySelector('input[name="cost_price"]');
-        
-        // 校验售价
-        if (sellingPrice.value !== '') {
-            const selling = parseFloat(sellingPrice.value);
-            if (isNaN(selling) || selling < 0) {
-                sellingPrice.classList.remove('is-valid');
-                sellingPrice.classList.add('is-invalid');
-                sellingPrice.nextElementSibling.textContent = '请输入有效的售价（支持0和小数）';
-                return false;
-            } else {
-                sellingPrice.classList.remove('is-invalid');
-                sellingPrice.classList.add('is-valid');
-            }
-        }
-        
-        // 校验成本
-        if (costPrice.value !== '') {
-            const cost = parseFloat(costPrice.value);
-            if (isNaN(cost) || cost < 0) {
-                costPrice.classList.remove('is-valid');
-                costPrice.classList.add('is-invalid');
-                costPrice.nextElementSibling.textContent = '请输入有效的成本（支持0和小数）';
-                return false;
-            } else {
-                costPrice.classList.remove('is-invalid');
-                costPrice.classList.add('is-valid');
-            }
-        }
-        
-        // 比较售价和成本
-        if (sellingPrice.value && costPrice.value) {
-            const selling = parseFloat(sellingPrice.value);
-            const cost = parseFloat(costPrice.value);
-            
-            if (selling < cost) {
-                sellingPrice.classList.remove('is-valid');
-                sellingPrice.classList.add('is-invalid');
-                sellingPrice.nextElementSibling.textContent = '售价不能低于成本价格';
-                return false;
-            } else {
-                sellingPrice.classList.remove('is-invalid');
-                sellingPrice.classList.add('is-valid');
-                sellingPrice.nextElementSibling.textContent = '请输入有效的售价（支持0和小数）';
-            }
-        }
-        return true;
-    }
+    // 为所有价格和数量输入框添加事件监听
+    const pricingInputs = document.querySelectorAll('.qty-input, .selling-input, .cost-input');
+    pricingInputs.forEach(input => {
+        input.addEventListener('change', calculateTotals);
+        input.addEventListener('input', calculateTotals);
+    });
+    
+    // 初始计算
+    calculateTotals();
     
     // 为每个输入字段添加实时校验
     inputs.forEach(input => {
@@ -300,9 +400,6 @@ document.addEventListener('DOMContentLoaded', function() {
             // 特殊校验
             if (this.name === 'checkout_date') {
                 validateDates();
-            }
-            if (this.name === 'selling_price' || this.name === 'cost_price') {
-                validatePrices();
             }
         });
         
@@ -315,8 +412,62 @@ document.addEventListener('DOMContentLoaded', function() {
             if (this.name === 'hotel_name') {
                 updateDescription();
             }
+            
+            // 当checkin_date变化时，自动更新departure_date
+            if (this.name === 'checkin_date') {
+                const departureDate = document.getElementById('departure_date');
+                if (departureDate && this.value) {
+                    departureDate.value = this.value;
+                }
+            }
         });
     });
+    
+    // 全选Pax功能
+    const selectAllCheckbox = document.getElementById('selectAllPax');
+    if (selectAllCheckbox) {
+        selectAllCheckbox.addEventListener('change', function() {
+            const checkboxes = document.querySelectorAll('input[name="pax_names"]');
+            checkboxes.forEach(cb => cb.checked = this.checked);
+        });
+    }
+    
+    // Leader设置功能
+    const leaderBtns = document.querySelectorAll('.set-leader-btn');
+    leaderBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+            const memberId = this.dataset.memberId;
+            const leaderInput = document.getElementById('leader_id');
+            
+            // 移除所有高亮和激活状态
+            document.querySelectorAll('.set-leader-btn').forEach(b => {
+                b.classList.remove('btn-success');
+                b.classList.add('btn-outline-secondary');
+            });
+            document.querySelectorAll('table tbody tr').forEach(row => {
+                row.classList.remove('table-primary');
+            });
+            
+            // 设置当前为leader
+            this.classList.remove('btn-outline-secondary');
+            this.classList.add('btn-success');
+            this.closest('tr').classList.add('table-primary');
+            if (leaderInput) {
+                leaderInput.value = memberId;
+            }
+            
+            // 自动勾选该人员
+            const checkbox = this.closest('tr').querySelector('input[name="pax_names"]');
+            if (checkbox) checkbox.checked = true;
+        });
+    });
+    
+    // 初始化：将checkin_date同步到departure_date（如果有初始值）
+    const checkinDateInput = document.querySelector('input[name="checkin_date"]');
+    const departureDateInput = document.getElementById('departure_date');
+    if (checkinDateInput && departureDateInput && checkinDateInput.value && !departureDateInput.value) {
+        departureDateInput.value = checkinDateInput.value;
+    }
     
     // 表单提交处理
     form.addEventListener('submit', function(e) {
@@ -339,18 +490,41 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!validateDates()) {
             isValid = false;
         }
-        if (!validatePrices()) {
-            isValid = false;
-        }
+        
+        // 提交前再次计算总价
+        calculateTotals();
         
         if (isValid) {
+            // 收集选中的pax_names
+            const paxNamesCheckboxes = document.querySelectorAll('input[name="pax_names"]:checked');
+            const paxNames = Array.from(paxNamesCheckboxes).map(cb => parseInt(cb.value));
+            
+            // 获取leader_id
+            const leaderIdInput = document.getElementById('leader_id');
+            const leaderId = leaderIdInput ? (leaderIdInput.value ? parseInt(leaderIdInput.value) : null) : null;
+            
             // 收集酒店专属字段数据
+            const checkinDate = document.querySelector('input[name="checkin_date"]').value;
             const hotelExtraInfo = {
                 hotel_name: document.querySelector('input[name="hotel_name"]').value,
-                checkin_date: document.querySelector('input[name="checkin_date"]').value,
+                checkin_date: checkinDate,
                 checkout_date: document.querySelector('input[name="checkout_date"]').value,
                 room_type: document.querySelector('input[name="room_type"]').value,
-                remarks: document.querySelector('textarea[name="remarks"]').value
+                pax_names: paxNames,  // 人员ID列表
+                leader_id: leaderId,  // Leader人员ID
+                pax_name: document.querySelector('input[name="pax_name"]') ? document.querySelector('input[name="pax_name"]').value : '',  // 兼容手动输入
+                departure_date: checkinDate,  // Departure使用check in date
+                remarks: document.querySelector('textarea[name="remarks"]').value,
+                // Pricing 数据
+                adult_qty: parseFloat(document.querySelector('input[name="adult_qty"]').value) || 0,
+                adult_selling: parseFloat(document.querySelector('input[name="adult_selling"]').value) || 0,
+                adult_cost: parseFloat(document.querySelector('input[name="adult_cost"]').value) || 0,
+                child_qty: parseFloat(document.querySelector('input[name="child_qty"]').value) || 0,
+                child_selling: parseFloat(document.querySelector('input[name="child_selling"]').value) || 0,
+                child_cost: parseFloat(document.querySelector('input[name="child_cost"]').value) || 0,
+                infant_qty: parseFloat(document.querySelector('input[name="infant_qty"]').value) || 0,
+                infant_selling: parseFloat(document.querySelector('input[name="infant_selling"]').value) || 0,
+                infant_cost: parseFloat(document.querySelector('input[name="infant_cost"]').value) || 0
             };
             
             // 将数据转换为JSON字符串并存储到隐藏字段
