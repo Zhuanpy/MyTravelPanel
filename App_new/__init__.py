@@ -206,6 +206,24 @@ def create_app():
         except Exception:
             return {}
 
+    @app.template_filter('is_absolute_path')
+    def is_absolute_path(path):
+        """判断路径是否是绝对路径"""
+        import os
+        if not path:
+            return False
+        path_str = str(path).replace('\\', '/')
+        # 检查是否是URL
+        if path_str.startswith('http://') or path_str.startswith('https://'):
+            return False
+        # 检查是否是Windows绝对路径（如 C:/ 或 D:/）
+        if len(path_str) >= 3 and path_str[1] == ':' and path_str[2] == '/':
+            return True
+        # 检查是否是Unix绝对路径（以 / 开头）
+        if path_str.startswith('/'):
+            return True
+        return False
+    
     @app.template_filter('amount_in_words')
     def amount_in_words(amount, currency='SGD'):
         """将金额转换为英文大写形式"""
@@ -288,25 +306,55 @@ def create_app():
                             path = str(company.logo_path).strip().replace('\\', '/')
                             original_path = path
                             
-                            # 移除可能存在的 'static/' 或 'App_new/static/' 前缀
-                            if path.startswith('App_new/static/'):
-                                path = path[len('App_new/static/'):]
-                            elif path.startswith('static/'):
-                                path = path[len('static/'):]
+                            # 判断是否是URL路径（http://或https://开头）
+                            is_url = path.startswith('http://') or path.startswith('https://')
                             
-                            # 如果路径已经是 company/ 开头，保持原样
-                            # 如果路径不包含 'company/' 前缀，且不是绝对路径，且是纯文件名，则添加 'company/' 前缀
-                            if not path.startswith('company/') and not os.path.isabs(path):
-                                # 检查是否是文件名（不包含路径分隔符）
-                                if '/' not in path and '\\' not in path:
-                                    path = 'company/' + path
-                            
-                            # 确保路径不为空
-                            if path:
+                            # 如果是URL路径，直接使用
+                            if is_url:
                                 company.logo_path = path
-                                print(f"✅ Logo路径处理: {original_path} -> {path}")
                             else:
-                                print(f"⚠️ Logo路径处理后为空，保持原值: {original_path}")
+                                # 移除可能存在的 'static/' 或 'App_new/static/' 前缀
+                                if path.startswith('App_new/static/'):
+                                    path = path[len('App_new/static/'):]
+                                elif path.startswith('static/'):
+                                    path = path[len('static/'):]
+                                
+                                # 判断是否是本地绝对路径
+                                is_absolute = os.path.isabs(path)
+                                
+                                # 如果是本地绝对路径，检查文件是否存在
+                                if is_absolute:
+                                    if os.path.exists(path):
+                                        # 文件存在，使用绝对路径（但需要通过file://协议或转换为相对路径）
+                                        # 为了兼容性，尝试转换为相对于static的路径
+                                        static_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'App_new', 'static')
+                                        try:
+                                            rel_path = os.path.relpath(path, static_dir).replace('\\', '/')
+                                            if not rel_path.startswith('..'):
+                                                path = rel_path
+                                            else:
+                                                # 如果无法转换为相对路径，保持绝对路径
+                                                pass
+                                        except:
+                                            # 转换失败，保持绝对路径
+                                            pass
+                                    else:
+                                        # 文件不存在，尝试作为相对路径处理
+                                        is_absolute = False
+                                
+                                # 如果不是绝对路径，处理相对路径
+                                if not is_absolute:
+                                    # 如果路径不包含 'company/' 前缀，且不是绝对路径，且是纯文件名，则添加 'company/' 前缀
+                                    if not path.startswith('company/') and not os.path.isabs(path):
+                                        # 检查是否是文件名（不包含路径分隔符）
+                                        if '/' not in path and '\\' not in path:
+                                            path = 'company/' + path
+                                
+                                # 确保路径不为空
+                                if path:
+                                    company.logo_path = path
+                                    company.logo_is_url = is_url
+                                    company.logo_is_absolute = is_absolute
                         except Exception as path_error:
                             print(f"❌ 处理logo_path失败: {str(path_error)}")
                             import traceback

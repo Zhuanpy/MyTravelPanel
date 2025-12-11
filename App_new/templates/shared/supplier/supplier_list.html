@@ -296,8 +296,8 @@
                 </label>
                 <select class="visa-form-select" name="supplier_type">
                     <option value="">所有类型</option>
-                    {% for type_code, type_name in supplier_types %}
-                    <option value="{{ type_code }}" {{ 'selected' if request.args.get('supplier_type') == type_code }}>{{ type_name }}</option>
+                    {% for type_id, type_name in supplier_types %}
+                    <option value="{{ type_id }}" {{ 'selected' if request.args.get('supplier_type') == type_id|string }}>{{ type_name }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -360,7 +360,7 @@
                                 <td>{{ supplier.city or '-' }}</td>
                                 <td>{{ supplier.region or '-' }}</td>
                                 <td>
-                                    <span class="visa-badge supplier-type-{{ supplier.supplier_type }}">
+                                    <span class="visa-badge supplier-type-{{ supplier.supplier_type_code or 'other' }}">
                                         {{ supplier.supplier_type_display or '其他' }}
                                     </span>
                                 </td>

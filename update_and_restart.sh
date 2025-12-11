@@ -150,3 +150,6 @@ echo "  git checkout <commit-hash>  # 回滚到指定版本"
 echo "  然后重新运行此脚本的步骤7（重启服务）"
 echo ""
 
+
+
+

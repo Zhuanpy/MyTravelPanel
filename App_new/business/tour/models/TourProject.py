@@ -103,7 +103,7 @@ class TourProject(db.Model):
     project_hid = db.Column(db.String(255), nullable=True)  # 项目HID，允许为空
     
     # 关联基础产品（可选）
-    base_product_id = db.Column(db.Integer, db.ForeignKey('travelproducts.id'), nullable=True, comment='基于哪个产品模板')
+    base_product_id = db.Column(db.Integer, db.ForeignKey('package_products.id'), nullable=True, comment='基于哪个产品模板')
     
     # 项目信息
     project_type = db.Column(db.String(50), nullable=True, comment='项目类型')

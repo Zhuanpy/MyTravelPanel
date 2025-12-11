@@ -31,7 +31,12 @@ def suppliers():
     if country:
         query = query.filter(Supplier.country == country)
     if supplier_type:
-        query = query.filter(Supplier.supplier_type == supplier_type)
+        # supplier_type 现在是从表单传来的 business_type_id
+        try:
+            supplier_type_id = int(supplier_type)
+            query = query.filter(Supplier.supplier_type_id == supplier_type_id)
+        except (ValueError, TypeError):
+            pass
     if status:
         query = query.filter(Supplier.status == status)
     
@@ -60,16 +65,24 @@ def view_supplier(supplier_id):
 @supplier.route('/add', methods=['GET', 'POST'])
 def add_supplier():
     if request.method == 'POST':
+        supplier_type_id = request.form.get('supplier_type')
+        if supplier_type_id:
+            try:
+                supplier_type_id = int(supplier_type_id)
+            except (ValueError, TypeError):
+                supplier_type_id = None
+        else:
+            supplier_type_id = None
+            
         new_supplier = Supplier(
             name=request.form['name'],
-            supplier_type=request.form.get('supplier_type', 'other'),
+            supplier_type_id=supplier_type_id,
             contact_person=request.form.get('contact_person'),
             phone=request.form.get('phone'),
             email=request.form.get('email'),
             address=request.form.get('address'),
             country=request.form.get('country'),
             city=request.form.get('city'),
-            region=request.form.get('region'),
             status=request.form.get('status', 'active'),
             notes=request.form.get('notes')
         )
@@ -80,30 +93,85 @@ def add_supplier():
     
     # 从模型中获取供应商类型列表
     supplier_types = Supplier.get_supplier_type_choices()
-    return render_template('shared/supplier/supplier_form.html', supplier=None, supplier_types=supplier_types)
+    
+    # 获取国家和城市列表
+    from App_new.business.tour.models.Packagemodels import ProductCity
+    countries = db.session.query(ProductCity.country_name).filter(
+        ProductCity.country_name.isnot(None)
+    ).distinct().order_by(ProductCity.country_name).all()
+    countries = [c[0] for c in countries if c[0]]
+    
+    cities = db.session.query(ProductCity.city_name).filter(
+        ProductCity.city_name.isnot(None)
+    ).distinct().order_by(ProductCity.city_name).all()
+    cities = [c[0] for c in cities if c[0]]
+    
+    # 按国家分组的城市数据
+    cities_by_country = {}
+    all_cities = ProductCity.query.filter(
+        ProductCity.country_name.isnot(None),
+        ProductCity.city_name.isnot(None)
+    ).all()
+    for city in all_cities:
+        if city.country_name not in cities_by_country:
+            cities_by_country[city.country_name] = []
+        if city.city_name not in cities_by_country[city.country_name]:
+            cities_by_country[city.country_name].append(city.city_name)
+    
+    return render_template('shared/supplier/supplier_form.html', supplier=None, supplier_types=supplier_types, countries=countries, cities=cities, cities_by_country=cities_by_country)
 
 @supplier.route('/edit/<int:supplier_id>', methods=['GET', 'POST'])
 def edit_supplier(supplier_id):
     supplier = Supplier.query.get_or_404(supplier_id)
     # 从模型中获取供应商类型列表
     supplier_types = Supplier.get_supplier_type_choices()
+    
+    # 获取国家和城市列表
+    from App_new.business.tour.models.Packagemodels import ProductCity
+    countries = db.session.query(ProductCity.country_name).filter(
+        ProductCity.country_name.isnot(None)
+    ).distinct().order_by(ProductCity.country_name).all()
+    countries = [c[0] for c in countries if c[0]]
+    
+    cities = db.session.query(ProductCity.city_name).filter(
+        ProductCity.city_name.isnot(None)
+    ).distinct().order_by(ProductCity.city_name).all()
+    cities = [c[0] for c in cities if c[0]]
+    
+    # 按国家分组的城市数据
+    cities_by_country = {}
+    all_cities = ProductCity.query.filter(
+        ProductCity.country_name.isnot(None),
+        ProductCity.city_name.isnot(None)
+    ).all()
+    for city in all_cities:
+        if city.country_name not in cities_by_country:
+            cities_by_country[city.country_name] = []
+        if city.city_name not in cities_by_country[city.country_name]:
+            cities_by_country[city.country_name].append(city.city_name)
 
     if request.method == 'POST':
         supplier.name = request.form['name']
-        supplier.supplier_type = request.form.get('supplier_type')
+        supplier_type_id = request.form.get('supplier_type')
+        if supplier_type_id:
+            try:
+                supplier.supplier_type_id = int(supplier_type_id)
+            except (ValueError, TypeError):
+                supplier.supplier_type_id = None
+        else:
+            supplier.supplier_type_id = None
         supplier.contact_person = request.form.get('contact_person')
         supplier.phone = request.form.get('phone')
         supplier.email = request.form.get('email')
         supplier.address = request.form.get('address')
         supplier.country = request.form.get('country')
         supplier.city = request.form.get('city')
-        supplier.region = request.form.get('region')
         supplier.status = request.form.get('status')
         supplier.notes = request.form.get('notes')
         db.session.commit()
         flash('供应商更新成功！', 'success')
         return redirect(url_for('supplier.suppliers'))
-    return render_template('shared/supplier/supplier_form.html', supplier=supplier, supplier_types=supplier_types)
+    return render_template('shared/supplier/supplier_form.html', supplier=supplier, supplier_types=supplier_types, countries=countries, cities=cities, cities_by_country=cities_by_country)
 
 @supplier.route('/delete/<int:supplier_id>', methods=['GET', 'DELETE'])
 @csrf.exempt
@@ -280,4 +348,178 @@ def open_supplier_folder(supplier_id):
         return jsonify({
             'success': False,
             'message': f'打开文件夹时发生错误：{str(e)}'
+        })
+
+
+@supplier.route('/upload-file/<int:supplier_id>', methods=['POST'])
+@csrf.exempt
+def upload_supplier_file(supplier_id):
+    """上传供应商文件"""
+    try:
+        supplier = Supplier.query.get_or_404(supplier_id)
+        
+        if 'file' not in request.files:
+            return jsonify({'success': False, 'message': '没有选择文件'})
+        
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({'success': False, 'message': '没有选择文件'})
+        
+        # 构建文件夹路径
+        base_path = r"E:\MyProject\MyTravelWork\MyTravelPanel\资源\Supplier"
+        country = supplier.country or '未知国家'
+        city = supplier.city or '未知城市'
+        supplier_name = supplier.name.replace('"', '').replace("'", "").replace('\\', '').replace('/', '').replace(':', '').replace('*', '').replace('?', '').replace('<', '').replace('>', '').replace('|', '')
+        
+        folder_path = os.path.join(base_path, country, city, supplier_name)
+        
+        # 确保文件夹存在
+        os.makedirs(folder_path, exist_ok=True)
+        
+        # 保存文件
+        from werkzeug.utils import secure_filename
+        filename = secure_filename(file.filename)
+        # 保留原文件名，避免中文问题
+        original_filename = file.filename
+        file_path = os.path.join(folder_path, original_filename)
+        
+        # 如果文件已存在，添加序号
+        counter = 1
+        base_name, ext = os.path.splitext(original_filename)
+        while os.path.exists(file_path):
+            original_filename = f"{base_name}_{counter}{ext}"
+            file_path = os.path.join(folder_path, original_filename)
+            counter += 1
+        
+        file.save(file_path)
+        
+        return jsonify({
+            'success': True,
+            'message': f'文件上传成功：{original_filename}',
+            'filename': original_filename
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'上传失败：{str(e)}'
+        })
+
+
+@supplier.route('/list-files/<int:supplier_id>', methods=['GET'])
+def list_supplier_files(supplier_id):
+    """获取供应商文件列表"""
+    try:
+        supplier = Supplier.query.get_or_404(supplier_id)
+        
+        # 构建文件夹路径
+        base_path = r"E:\MyProject\MyTravelWork\MyTravelPanel\资源\Supplier"
+        country = supplier.country or '未知国家'
+        city = supplier.city or '未知城市'
+        supplier_name = supplier.name.replace('"', '').replace("'", "").replace('\\', '').replace('/', '').replace(':', '').replace('*', '').replace('?', '').replace('<', '').replace('>', '').replace('|', '')
+        
+        folder_path = os.path.join(base_path, country, city, supplier_name)
+        
+        files = []
+        if os.path.exists(folder_path):
+            for filename in os.listdir(folder_path):
+                file_path = os.path.join(folder_path, filename)
+                if os.path.isfile(file_path):
+                    stat = os.stat(file_path)
+                    files.append({
+                        'name': filename,
+                        'size': stat.st_size,
+                        'modified': stat.st_mtime
+                    })
+        
+        # 按修改时间倒序
+        files.sort(key=lambda x: x['modified'], reverse=True)
+        
+        return jsonify({
+            'success': True,
+            'files': files,
+            'folder_path': folder_path
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'获取文件列表失败：{str(e)}'
+        })
+
+
+@supplier.route('/toggle-status/<int:supplier_id>', methods=['POST'])
+@csrf.exempt
+def toggle_supplier_status(supplier_id):
+    """切换供应商状态"""
+    try:
+        supplier = Supplier.query.get_or_404(supplier_id)
+        supplier.status = 'inactive' if supplier.status == 'active' else 'active'
+        db.session.commit()
+        return jsonify({
+            'success': True,
+            'status': supplier.status,
+            'message': f'状态已更新为：{"活跃" if supplier.status == "active" else "非活跃"}'
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'message': f'状态更新失败：{str(e)}'
+        })
+
+
+@supplier.route('/download-file/<int:supplier_id>/<path:filename>', methods=['GET'])
+def download_supplier_file(supplier_id, filename):
+    """下载供应商文件"""
+    try:
+        from flask import send_file
+        supplier = Supplier.query.get_or_404(supplier_id)
+        
+        # 构建文件夹路径
+        base_path = r"E:\MyProject\MyTravelWork\MyTravelPanel\资源\Supplier"
+        country = supplier.country or '未知国家'
+        city = supplier.city or '未知城市'
+        supplier_name = supplier.name.replace('"', '').replace("'", "").replace('\\', '').replace('/', '').replace(':', '').replace('*', '').replace('?', '').replace('<', '').replace('>', '').replace('|', '')
+        
+        file_path = os.path.join(base_path, country, city, supplier_name, filename)
+        
+        if os.path.exists(file_path):
+            return send_file(file_path, as_attachment=True, download_name=filename)
+        else:
+            return jsonify({'success': False, 'message': '文件不存在'}), 404
+        
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'下载失败：{str(e)}'}), 500
+
+
+@supplier.route('/delete-file/<int:supplier_id>', methods=['POST'])
+@csrf.exempt
+def delete_supplier_file(supplier_id):
+    """删除供应商文件"""
+    try:
+        supplier = Supplier.query.get_or_404(supplier_id)
+        filename = request.json.get('filename')
+        
+        if not filename:
+            return jsonify({'success': False, 'message': '文件名不能为空'})
+        
+        # 构建文件夹路径
+        base_path = r"E:\MyProject\MyTravelWork\MyTravelPanel\资源\Supplier"
+        country = supplier.country or '未知国家'
+        city = supplier.city or '未知城市'
+        supplier_name = supplier.name.replace('"', '').replace("'", "").replace('\\', '').replace('/', '').replace(':', '').replace('*', '').replace('?', '').replace('<', '').replace('>', '').replace('|', '')
+        
+        file_path = os.path.join(base_path, country, city, supplier_name, filename)
+        
+        if os.path.exists(file_path):
+            os.remove(file_path)
+            return jsonify({'success': True, 'message': f'文件已删除：{filename}'})
+        else:
+            return jsonify({'success': False, 'message': '文件不存在'})
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'删除失败：{str(e)}'
         })

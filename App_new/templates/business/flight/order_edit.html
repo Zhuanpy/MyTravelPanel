@@ -565,7 +565,7 @@
                             <select class="order-input" name="supplier_name" id="supplier_name" required>
                                 <option value="">请选择供应商</option>
                                 {% for supplier in suppliers %}
-                                <option value="{{ supplier.name }}" data-type="{{ supplier.supplier_type }}" {% if supplier.name == order.supplier_name %}selected{% endif %}>{{ supplier.name }}</option>
+                                <option value="{{ supplier.name }}" data-type="{{ supplier.supplier_type_code or '' }}" {% if supplier.name == order.supplier_name %}selected{% endif %}>{{ supplier.name }}</option>
                                 {% endfor %}
                             </select>
                         </td>

@@ -23,17 +23,9 @@
                         JOYFUL ESCAPES
                     {% endif %}
                 </div>
-                <div class="company-abbrev-cn">
-                    {% if company.company_short_name %}
-                        {{ company.company_short_name }}
-                    {% elif company.company_name_cn %}
-                        {{ company.company_name_cn }}
-                    {% elif company.company_name %}
-                        {{ company.company_name }}
-                    {% else %}
-                        悦行假期
-                    {% endif %}
-                </div>
+                {% if company.company_name_cn %}
+                <div class="company-abbrev-cn">{{ company.company_name_cn }}</div>
+                {% endif %}
             {% else %}
                 <div class="company-abbrev-en">JOYFUL ESCAPES</div>
                 <div class="company-abbrev-cn">悦行假期</div>
@@ -57,7 +49,6 @@
             {% if company %}
                 {% if company.phone %}<p>TEL: {{ company.phone }}</p>{% endif %}
                 {% if company.email %}<p>Email: {{ company.email }}</p>{% endif %}
-                {% if company.address %}<p>{{ company.address }}</p>{% endif %}
             {% else %}
                 <p>TA License No.: TA03652</p>
                 <p>TEL: 9106 8716 / 9627 5316</p>

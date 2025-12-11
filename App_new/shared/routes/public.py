@@ -6,9 +6,22 @@
 
 from flask import Blueprint, render_template, request, jsonify, current_app
 from App_new.business.visa.models.Visamodels import VisaTypes, VisaCountries
-from App_new.business.tour.models.Packagemodels import CompanyInfo
-# from App.models.Product.PackageBudget import TourPackage  # 暂时注释，TourPackage类不存在
-from App_new.exts import cache
+from App_new.business.tour.models.Packagemodels import CompanyInfo, Product, TourProduct, ProductCity
+from App_new.exts import cache, db
+from sqlalchemy import or_, and_
+from datetime import date, datetime
+import json
+
+# 地区到国家的映射
+REGION_COUNTRIES = {
+    'southeast_asia': ['新加坡', '马来西亚', '泰国', '印尼', '印度尼西亚', '越南', '菲律宾', '柬埔寨', '老挝', '缅甸', '文莱'],
+    'east_asia': ['日本', '韩国', '中国', '台湾', '香港', '澳门'],
+    'europe': ['法国', '意大利', '德国', '英国', '西班牙', '瑞士', '荷兰', '希腊', '葡萄牙', '奥地利', '捷克', '匈牙利'],
+    'america': ['美国', '加拿大', '墨西哥', '巴西', '阿根廷', '智利'],
+    'oceania': ['澳大利亚', '新西兰', '斐济'],
+    'middle_east': ['阿联酋', '土耳其', '埃及', '以色列', '约旦'],
+    'south_asia': ['印度', '斯里兰卡', '马尔代夫', '尼泊尔']
+}
 
 # 创建访客蓝图
 public = Blueprint('public', __name__, url_prefix='/public')
@@ -304,24 +317,330 @@ def visa_detail(visa_type_name):
 def tour_packages():
     """旅游配套页面"""
     try:
-        # 暂时返回空数据，因为TourPackage模型不存在
-        packages_by_destination = {}
+        # 获取搜索参数
+        destination = request.args.get('destination', '').strip()
+        departure_date = request.args.get('departure_date', '')
+        return_date = request.args.get('return_date', '')
+        pax = request.args.get('pax', '')
+        region = request.args.get('region', '')
+        country = request.args.get('country', '').strip()
+        city = request.args.get('city', '').strip()
+        page = request.args.get('page', 1, type=int)
+        per_page = 12  # 每页显示12个产品
+        
+        # 构建查询
+        # 先查询所有产品数量（用于调试）
+        all_products_count = Product.query.count()
+        active_products_count = Product.query.filter(Product.product_status == 'active').count()
+        today = date.today()
+        valid_products_count = Product.query.filter(
+            Product.product_status == 'active'
+        ).filter(
+            or_(
+                Product.valid_until.is_(None),
+                Product.valid_until >= today
+            )
+        ).count()
+        current_app.logger.info(f"数据库产品统计：总计 {all_products_count} 个，active状态 {active_products_count} 个，有效期内 {valid_products_count} 个")
+        
+        # 查询条件：active状态 或 状态为空（兼容旧数据）
+        query = Product.query.filter(
+            or_(
+                Product.product_status == 'active',
+                Product.product_status.is_(None),
+                Product.product_status == ''
+            )
+        )
+        
+        # 标记是否需要join ProductCity
+        need_join_city = False
+        
+        # 地区筛选
+        if region and region in REGION_COUNTRIES:
+            countries_in_region = REGION_COUNTRIES[region]
+            # 构建地区筛选条件（Product.country是property，不能直接查询，需要通过ProductCity关联）
+            region_conditions = []
+            for country_name in countries_in_region:
+                # 通过ProductCity的country_name筛选
+                region_conditions.append(ProductCity.country_name.like(f'%{country_name}%'))
+                # 也检查city_name和destination_city字段
+                region_conditions.append(Product.city_name.like(f'%{country_name}%'))
+                region_conditions.append(Product.destination_city.like(f'%{country_name}%'))
+            # 通过ProductCity关联查询
+            query = query.outerjoin(ProductCity, Product.city_id == ProductCity.id).filter(
+                or_(*region_conditions)
+            ).distinct()
+            need_join_city = True
+        
+        # 国家筛选
+        if country:
+            # 通过ProductCity关联查询国家
+            if not need_join_city:
+                query = query.outerjoin(ProductCity, Product.city_id == ProductCity.id)
+            query = query.filter(ProductCity.country_name == country).distinct()
+        
+        # 城市筛选
+        if city:
+            query = query.filter(Product.city_name == city)
+        
+        # 目的地筛选（关键词搜索，如果国家或城市已选择，则作为补充搜索）
+        if destination:
+            query = query.filter(
+                or_(
+                    Product.city_name.like(f'%{destination}%'),
+                    Product.destination_city.like(f'%{destination}%')
+                )
+            )
+        
+        # 日期筛选（如果产品有有效期字段）
+        today = date.today()
+        if departure_date:
+            try:
+                dep_date = datetime.strptime(departure_date, '%Y-%m-%d').date()
+                query = query.filter(
+                    or_(
+                        Product.valid_from.is_(None),
+                        Product.valid_from <= dep_date
+                    )
+                )
+            except:
+                pass
+        
+        if return_date:
+            try:
+                ret_date = datetime.strptime(return_date, '%Y-%m-%d').date()
+                query = query.filter(
+                    or_(
+                        Product.valid_until.is_(None),
+                        Product.valid_until >= ret_date
+                    )
+                )
+            except:
+                pass
+        
+        # 人数筛选
+        if pax:
+            try:
+                if pax == '1':
+                    min_pax = 1
+                elif pax == '2':
+                    min_pax = 2
+                elif pax == '3-5':
+                    min_pax = 3
+                elif pax == '6-10':
+                    min_pax = 6
+                elif pax == '10+':
+                    min_pax = 10
+                else:
+                    min_pax = None
+                
+                if min_pax:
+                    query = query.filter(
+                        or_(
+                            Product.min_pax.is_(None),
+                            Product.min_pax <= min_pax
+                        )
+                    )
+            except:
+                pass
+        
+        # 只显示有效的产品（有效期检查）
+        # 注意：如果valid_until为None，表示永久有效
+        # 如果valid_until已过期，仍然显示（可能用户需要查看历史产品）
+        # 如果需要严格过滤过期产品，可以取消下面的注释
+        # query = query.filter(
+        #     or_(
+        #         Product.valid_until.is_(None),
+        #         Product.valid_until >= today
+        #     )
+        # )
+        
+        # 排序：精选优先，然后按创建时间倒序
+        query = query.order_by(Product.is_featured.desc(), Product.created_at.desc())
+        
+        # 调试：记录查询总数
+        total_count = query.count()
+        current_app.logger.info(f"旅游配套查询：找到 {total_count} 个符合条件的active产品")
+        
+        # 分页
+        pagination = query.paginate(
+            page=page,
+            per_page=per_page,
+            error_out=False
+        )
+        
+        products = pagination.items
+        current_app.logger.info(f"当前页显示 {len(products)} 个产品，共 {pagination.pages} 页，总计 {pagination.total} 个")
+        
+        # 转换为模板需要的格式
+        packages = []
+        for product in products:
+            # 解析亮点（可能是JSON或文本）
+            highlights = []
+            if product.highlights:
+                try:
+                    highlights = json.loads(product.highlights) if product.highlights.startswith('[') else product.highlights.split(',')
+                except:
+                    highlights = [h.strip() for h in product.highlights.split(',') if h.strip()]
+            
+            # 解析包含服务
+            includes = []
+            if product.included_services:
+                try:
+                    includes = json.loads(product.included_services) if product.included_services.startswith('[') else product.included_services.split(',')
+                except:
+                    includes = [i.strip() for i in product.included_services.split(',') if i.strip()]
+            
+            # 格式化价格
+            price_display = f"SGD {product.base_price:,.0f}" if product.base_price else "价格面议"
+            if product.currency and product.currency != 'SGD':
+                price_display = f"{product.currency} {product.base_price:,.0f}" if product.base_price else "价格面议"
+            
+            # 格式化天数
+            duration_display = f"{product.duration_days}天{product.duration_days-1 if product.duration_days else 0}夜" if product.duration_days else "天数待定"
+            
+            # 目的地显示
+            destination_display = product.city_name or product.destination_city or "目的地待定"
+            if product.country and product.country != '未知':
+                destination_display = f"{product.country} {destination_display}"
+            
+            packages.append({
+                'id': product.id,
+                'name': product.product_name,
+                'destination': destination_display,
+                'duration': duration_display,
+                'price': price_display,
+                'image': product.cover_image if product.cover_image else None,
+                'highlights': highlights[:5] if highlights else ['精彩行程', '专业服务'],
+                'includes': includes[:4] if includes else ['专业导游', '优质服务']
+            })
+        
+        # 获取国家和城市列表（用于下拉选择）
+        countries = db.session.query(ProductCity.country_name).filter(
+            ProductCity.country_name.isnot(None)
+        ).distinct().order_by(ProductCity.country_name).all()
+        countries = [c[0] for c in countries if c[0]]
+        
+        # 根据选择的国家获取城市列表
+        cities = []
+        if country:
+            cities = db.session.query(ProductCity.city_name).filter(
+                ProductCity.country_name == country,
+                ProductCity.city_name.isnot(None)
+            ).distinct().order_by(ProductCity.city_name).all()
+            cities = [c[0] for c in cities if c[0]]
+        else:
+            # 如果没有选择国家，显示所有城市
+            cities = db.session.query(Product.city_name).filter(
+                Product.city_name.isnot(None)
+            ).distinct().order_by(Product.city_name).all()
+            cities = [c[0] for c in cities if c[0]]
         
         return render_template('guest/tour/tour_packages.html',
-                             packages=packages_by_destination)
+                             packages=packages,
+                             pagination=pagination,
+                             destination=destination,
+                             departure_date=departure_date,
+                             return_date=return_date,
+                             pax=pax,
+                             region=region,
+                             country=country,
+                             city=city,
+                             countries=countries,
+                             cities=cities,
+                             regions=REGION_COUNTRIES)
     except Exception as e:
         current_app.logger.error(f"加载旅游配套页面失败: {e}")
+        import traceback
+        current_app.logger.error(traceback.format_exc())
         return render_template('guest/tour/tour_packages.html',
-                             packages={})
+                             packages=[],
+                             pagination=None)
 
 @public.route('/tour-package/<int:package_id>')
 def tour_package_detail(package_id):
     """旅游配套详情页面"""
     try:
-        # 暂时返回404，因为TourPackage模型不存在
-        return render_template('guest/shared/404.html', message='旅游配套功能暂未开放'), 404
+        # 从Product模型查询产品详情
+        product = Product.query.filter_by(id=package_id, product_status='active').first_or_404()
+        
+        # 检查产品是否有效
+        today = date.today()
+        if product.valid_until and product.valid_until < today:
+            return render_template('guest/shared/404.html', message='该旅游配套已过期'), 404
+        
+        # 解析包含服务（可能是JSON或文本）
+        includes = []
+        if product.included_services:
+            try:
+                includes = json.loads(product.included_services) if product.included_services.startswith('[') else product.included_services.split(',')
+            except:
+                includes = [i.strip() for i in product.included_services.split(',') if i.strip()]
+        
+        # 解析不包含服务
+        excludes = []
+        if product.excluded_services:
+            try:
+                excludes = json.loads(product.excluded_services) if product.excluded_services.startswith('[') else product.excluded_services.split(',')
+            except:
+                excludes = [e.strip() for e in product.excluded_services.split(',') if e.strip()]
+        
+        # 解析注意事项
+        notes = []
+        if product.important_notes:
+            try:
+                notes = json.loads(product.important_notes) if product.important_notes.startswith('[') else product.important_notes.split('\n')
+            except:
+                notes = [n.strip() for n in product.important_notes.split('\n') if n.strip()]
+        
+        # 解析亮点
+        highlights_list = []
+        if product.highlights:
+            try:
+                highlights_list = json.loads(product.highlights) if product.highlights.startswith('[') else product.highlights.split(',')
+            except:
+                highlights_list = [h.strip() for h in product.highlights.split(',') if h.strip()]
+        
+        # 格式化价格
+        price_display = f"SGD {product.base_price:,.0f}" if product.base_price else "价格面议"
+        if product.currency and product.currency != 'SGD':
+            price_display = f"{product.currency} {product.base_price:,.0f}" if product.base_price else "价格面议"
+        
+        # 格式化天数
+        duration_display = f"{product.duration_days}天{product.duration_days-1 if product.duration_days else 0}夜" if product.duration_days else "天数待定"
+        
+        # 目的地显示
+        destination_display = product.city_name or product.destination_city or "目的地待定"
+        if product.country and product.country != '未知':
+            destination_display = f"{product.country} {destination_display}"
+        
+        # 准备产品详情数据
+        package_data = {
+            'id': product.id,
+            'name': product.product_name,
+            'destination': destination_display,
+            'country': product.country,
+            'duration': duration_display,
+            'price': price_display,
+            'child_price': f"{product.currency or 'SGD'} {product.child_price:,.0f}" if product.child_price else None,
+            'image': product.cover_image,
+            'description': product.product_description or '暂无详细描述，请联系我们的旅游顾问获取更多信息。',
+            'highlights': highlights_list,
+            'includes': includes if includes else ['专业导游', '优质服务', '舒适住宿', '部分餐饮'],
+            'excludes': excludes if excludes else ['个人消费', '小费', '旅游保险', '签证费用'],
+            'notes': notes if notes else ['请确保护照有效期6个月以上', '建议购买旅游保险', '行程可能因天气调整'],
+            'itinerary': None,  # 暂时没有详细行程数据
+            'min_pax': product.min_pax,
+            'max_pax': product.max_pax,
+            'product_type': product.product_type,
+            'supplier': product.display_company_name
+        }
+        
+        return render_template('guest/tour/tour_package_detail.html', package=package_data)
     except Exception as e:
         current_app.logger.error(f"加载旅游配套详情失败: {e}")
+        import traceback
+        current_app.logger.error(traceback.format_exc())
         return render_template('guest/shared/404.html', message='加载失败'), 500
 
 @public.route('/about')

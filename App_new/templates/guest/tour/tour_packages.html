@@ -3,6 +3,79 @@
 {% block title %}旅游配套 - MyTravelPanel{% endblock %}
 
 {% block content %}
+<!-- 筛选区域 -->
+<section class="py-3 bg-light">
+    <div class="container">
+        <!-- 地区筛选 -->
+        <div class="mb-3">
+            <div class="d-flex flex-wrap align-items-center gap-2">
+                <span class="fw-bold text-muted me-2 d-none d-md-inline">按地区筛选：</span>
+                <span class="fw-bold text-muted me-2 d-md-none w-100 mb-2">按地区筛选：</span>
+                <a href="{{ url_for('public.tour_packages', destination=destination, departure_date=departure_date, return_date=return_date, pax=pax, country=country, city=city) }}" 
+                   class="btn btn-sm {% if not region %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                    全部
+                </a>
+                <a href="{{ url_for('public.tour_packages', region='southeast_asia', destination=destination, departure_date=departure_date, return_date=return_date, pax=pax, country=country, city=city) }}" 
+                   class="btn btn-sm {% if region == 'southeast_asia' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                    东南亚
+                </a>
+                <a href="{{ url_for('public.tour_packages', region='east_asia', destination=destination, departure_date=departure_date, return_date=return_date, pax=pax, country=country, city=city) }}" 
+                   class="btn btn-sm {% if region == 'east_asia' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                    东亚
+                </a>
+                <a href="{{ url_for('public.tour_packages', region='europe', destination=destination, departure_date=departure_date, return_date=return_date, pax=pax, country=country, city=city) }}" 
+                   class="btn btn-sm {% if region == 'europe' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                    欧洲
+                </a>
+                <a href="{{ url_for('public.tour_packages', region='america', destination=destination, departure_date=departure_date, return_date=return_date, pax=pax, country=country, city=city) }}" 
+                   class="btn btn-sm {% if region == 'america' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                    美洲
+                </a>
+                <a href="{{ url_for('public.tour_packages', region='oceania', destination=destination, departure_date=departure_date, return_date=return_date, pax=pax, country=country, city=city) }}" 
+                   class="btn btn-sm {% if region == 'oceania' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                    大洋洲
+                </a>
+                <a href="{{ url_for('public.tour_packages', region='middle_east', destination=destination, departure_date=departure_date, return_date=return_date, pax=pax, country=country, city=city) }}" 
+                   class="btn btn-sm {% if region == 'middle_east' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                    中东
+                </a>
+                <a href="{{ url_for('public.tour_packages', region='south_asia', destination=destination, departure_date=departure_date, return_date=return_date, pax=pax, country=country, city=city) }}" 
+                   class="btn btn-sm {% if region == 'south_asia' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                    南亚
+                </a>
+            </div>
+        </div>
+        
+        <!-- 国家和城市筛选 -->
+        <div class="row g-2">
+            <div class="col-md-4">
+                <label class="form-label small text-muted mb-1"><i class="fas fa-globe me-1"></i>选择国家</label>
+                <select name="country" id="countryFilter" class="form-select form-select-sm" onchange="filterByCountry()">
+                    <option value="">全部国家</option>
+                    {% for c in countries %}
+                    <option value="{{ c }}" {% if country == c %}selected{% endif %}>{{ c }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label small text-muted mb-1"><i class="fas fa-city me-1"></i>选择城市</label>
+                <select name="city" id="cityFilter" class="form-select form-select-sm" onchange="filterByCity()">
+                    <option value="">全部城市</option>
+                    {% for c in cities %}
+                    <option value="{{ c }}" {% if city == c %}selected{% endif %}>{{ c }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4 d-flex align-items-end">
+                <a href="{{ url_for('public.tour_packages', region=region, destination=destination, departure_date=departure_date, return_date=return_date, pax=pax) }}" 
+                   class="btn btn-outline-secondary btn-sm w-100">
+                    <i class="fas fa-redo me-1"></i>清除筛选
+                </a>
+            </div>
+        </div>
+    </div>
+</section>
+
 <!-- 搜索模块 -->
 <section class="py-4">
     <div class="container">
@@ -51,61 +124,53 @@
 <section class="py-5">
     <div class="container">
         {% if packages %}
-        <div class="row g-4">
+        <div class="row g-3">
             {% for package in packages %}
-            <div class="col-lg-6">
+            <div class="col-lg-4 col-md-6">
                 <div class="service-card h-100">
                     <div class="position-relative">
-                        <!-- 图片占位符 -->
-                        <div style="height: 250px; background: linear-gradient(45deg, #667eea, #764ba2); display: flex; align-items: center; justify-content: center;">
-                            <i class="fas fa-image text-white" style="font-size: 4rem; opacity: 0.7;"></i>
+                        <!-- 产品图片 -->
+                        {% if package.image %}
+                        <img src="{{ package.image }}" alt="{{ package.name }}" class="w-100" style="height: 180px; object-fit: cover;">
+                        {% else %}
+                        <div style="height: 180px; background: linear-gradient(45deg, #667eea, #764ba2); display: flex; align-items: center; justify-content: center;">
+                            <i class="fas fa-image text-white" style="font-size: 3rem; opacity: 0.7;"></i>
                         </div>
+                        {% endif %}
                         <!-- 价格标签 -->
-                        <div class="position-absolute top-0 end-0 m-3">
-                            <span class="badge bg-primary fs-6">{{ package.price }}</span>
+                        <div class="position-absolute top-0 end-0 m-2">
+                            <span class="badge bg-primary px-3 py-2">{{ package.price }}</span>
                         </div>
                         <!-- 天数标签 -->
-                        <div class="position-absolute bottom-0 start-0 m-3">
-                            <span class="badge bg-warning text-dark">{{ package.duration }}</span>
+                        <div class="position-absolute bottom-0 start-0 m-2">
+                            <span class="badge bg-warning text-dark px-2 py-1">{{ package.duration }}</span>
                         </div>
                     </div>
                     
-                    <div class="service-card-body">
-                        <h4 class="mb-3">{{ package.name }}</h4>
-                        <p class="text-muted mb-3">
+                    <div class="service-card-body p-3">
+                        <h5 class="mb-2 fw-bold package-title">{{ package.name }}</h5>
+                        <p class="text-muted mb-2 small">
                             <i class="fas fa-map-marker-alt me-1"></i>{{ package.destination }}
                         </p>
                         
-                        <!-- 亮点特色 -->
-                        <div class="mb-3">
-                            <h6 class="text-primary mb-2">
-                                <i class="fas fa-star me-1"></i>行程亮点
-                            </h6>
+                        <!-- 亮点特色（简化显示） -->
+                        {% if package.highlights %}
+                        <div class="mb-2">
                             <div class="d-flex flex-wrap gap-1">
-                                {% for highlight in package.highlights %}
-                                <span class="badge bg-light text-dark">{{ highlight }}</span>
+                                {% for highlight in package.highlights[:3] %}
+                                <span class="badge bg-light text-dark small">{{ highlight }}</span>
                                 {% endfor %}
+                                {% if package.highlights|length > 3 %}
+                                <span class="badge bg-secondary small">+{{ package.highlights|length - 3 }}</span>
+                                {% endif %}
                             </div>
                         </div>
-                        
-                        <!-- 包含服务 -->
-                        <div class="mb-4">
-                            <h6 class="text-success mb-2">
-                                <i class="fas fa-check-circle me-1"></i>包含服务
-                            </h6>
-                            <ul class="list-unstyled">
-                                {% for include in package.includes %}
-                                <li class="mb-1">
-                                    <i class="fas fa-check text-success me-2"></i>{{ include }}
-                                </li>
-                                {% endfor %}
-                            </ul>
-                        </div>
+                        {% endif %}
                         
                         <!-- 操作按钮 -->
-                        <div class="d-grid gap-2">
-                            <a href="{{ url_for('guest.tour.tour_package_detail', package_id=package.id) }}" 
-                               class="btn btn-custom">
+                        <div class="d-grid mt-3">
+                            <a href="{{ url_for('public.tour_package_detail', package_id=package.id) }}" 
+                               class="btn btn-custom btn-sm">
                                 <i class="fas fa-info-circle me-1"></i>查看详情
                             </a>
                         </div>
@@ -114,6 +179,104 @@
             </div>
             {% endfor %}
         </div>
+        
+        <!-- 分页 -->
+        {% if pagination and pagination.pages > 1 %}
+        <div class="mt-5">
+            <!-- 分页信息 -->
+            <div class="row mb-3">
+                <div class="col-12 text-center">
+                    <p class="text-muted mb-0">
+                        显示第 <strong>{{ (pagination.page - 1) * pagination.per_page + 1 }}</strong> - 
+                        <strong>{{ pagination.page * pagination.per_page if pagination.page * pagination.per_page < pagination.total else pagination.total }}</strong> 条，
+                        共 <strong>{{ pagination.total }}</strong> 个旅游配套
+                        （第 <strong>{{ pagination.page }}</strong> / <strong>{{ pagination.pages }}</strong> 页）
+                    </p>
+                </div>
+            </div>
+            
+            <!-- 分页导航 -->
+            <nav aria-label="旅游配套分页">
+                <ul class="pagination justify-content-center mb-0">
+                    <!-- 首页 -->
+                    {% if pagination.page > 1 %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('public.tour_packages', page=1, destination=destination, departure_date=departure_date, return_date=return_date, pax=pax, region=region, country=country, city=city) }}" aria-label="首页">
+                            <i class="fas fa-angle-double-left"></i>
+                        </a>
+                    </li>
+                    {% else %}
+                    <li class="page-item disabled">
+                        <span class="page-link"><i class="fas fa-angle-double-left"></i></span>
+                    </li>
+                    {% endif %}
+                    
+                    <!-- 上一页 -->
+                    {% if pagination.has_prev %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('public.tour_packages', page=pagination.prev_num, destination=destination, departure_date=departure_date, return_date=return_date, pax=pax, region=region, country=country, city=city) }}" aria-label="上一页">
+                            <i class="fas fa-angle-left"></i> 上一页
+                        </a>
+                    </li>
+                    {% else %}
+                    <li class="page-item disabled">
+                        <span class="page-link"><i class="fas fa-angle-left"></i> 上一页</span>
+                    </li>
+                    {% endif %}
+                    
+                    <!-- 页码 -->
+                    {% for page_num in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+                        {% if page_num %}
+                            {% if page_num == pagination.page %}
+                            <li class="page-item active">
+                                <span class="page-link">{{ page_num }}</span>
+                            </li>
+                            {% else %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('public.tour_packages', page=page_num, destination=destination, departure_date=departure_date, return_date=return_date, pax=pax, region=region, country=country, city=city) }}">{{ page_num }}</a>
+                            </li>
+                            {% endif %}
+                        {% else %}
+                            <li class="page-item disabled">
+                                <span class="page-link">...</span>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    <!-- 下一页 -->
+                    {% if pagination.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('public.tour_packages', page=pagination.next_num, destination=destination, departure_date=departure_date, return_date=return_date, pax=pax, region=region, country=country, city=city) }}" aria-label="下一页">
+                            下一页 <i class="fas fa-angle-right"></i>
+                        </a>
+                    </li>
+                    {% else %}
+                    <li class="page-item disabled">
+                        <span class="page-link">下一页 <i class="fas fa-angle-right"></i></span>
+                    </li>
+                    {% endif %}
+                    
+                    <!-- 末页 -->
+                    {% if pagination.page < pagination.pages %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('public.tour_packages', page=pagination.pages, destination=destination, departure_date=departure_date, return_date=return_date, pax=pax, region=region, country=country, city=city) }}" aria-label="末页">
+                            <i class="fas fa-angle-double-right"></i>
+                        </a>
+                    </li>
+                    {% else %}
+                    <li class="page-item disabled">
+                        <span class="page-link"><i class="fas fa-angle-double-right"></i></span>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+        {% elif pagination and pagination.total > 0 %}
+        <!-- 只有一页时显示总数 -->
+        <div class="mt-4 text-center">
+            <p class="text-muted mb-0">共找到 <strong>{{ pagination.total }}</strong> 个旅游配套</p>
+        </div>
+        {% endif %}
         {% else %}
         <div class="row justify-content-center">
             <div class="col-lg-6 text-center">
@@ -121,112 +284,13 @@
                     <i class="fas fa-map-marked-alt text-muted" style="font-size: 4rem;"></i>
                     <h4 class="mt-3 text-muted">暂无旅游配套信息</h4>
                     <p class="text-muted">我们正在努力为您提供更多精彩的旅游配套，请稍后再来查看。</p>
-                    <a href="{{ url_for('guest.main.contact') }}" class="btn btn-custom">
+                    <a href="{{ url_for('public.contact') }}" class="btn btn-custom">
                         <i class="fas fa-phone"></i> 联系我们定制
                     </a>
                 </div>
             </div>
         </div>
         {% endif %}
-    </div>
-</section>
-
-<!-- 为什么选择我们的配套 -->
-<section class="py-5 bg-light">
-    <div class="container">
-        <div class="row text-center mb-5">
-            <div class="col-12">
-                <h2 class="fw-bold mb-3">为什么选择我们的旅游配套？</h2>
-                <p class="text-muted lead">专业规划，贴心服务，让您的旅行更加精彩</p>
-            </div>
-        </div>
-        
-        <div class="row g-4">
-            <div class="col-lg-3 col-md-6">
-                <div class="text-center">
-                    <div class="bg-primary text-white rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
-                        <i class="fas fa-route fa-2x"></i>
-                    </div>
-                    <h5>精心规划</h5>
-                    <p class="text-muted">专业团队精心设计每一条路线，确保行程丰富有趣</p>
-                </div>
-            </div>
-            <div class="col-lg-3 col-md-6">
-                <div class="text-center">
-                    <div class="bg-success text-white rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
-                        <i class="fas fa-dollar-sign fa-2x"></i>
-                    </div>
-                    <h5>超值价格</h5>
-                    <p class="text-muted">团购优势，为您提供最具性价比的旅游配套</p>
-                </div>
-            </div>
-            <div class="col-lg-3 col-md-6">
-                <div class="text-center">
-                    <div class="bg-warning text-white rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
-                        <i class="fas fa-user-friends fa-2x"></i>
-                    </div>
-                    <h5>专业导游</h5>
-                    <p class="text-muted">经验丰富的中文导游，让您深度了解当地文化</p>
-                </div>
-            </div>
-            <div class="col-lg-3 col-md-6">
-                <div class="text-center">
-                    <div class="bg-info text-white rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
-                        <i class="fas fa-shield-alt fa-2x"></i>
-                    </div>
-                    <h5>安全保障</h5>
-                    <p class="text-muted">完善的保险体系和应急处理，确保旅行安全</p>
-                </div>
-            </div>
-        </div>
-    </div>
-</section>
-
-<!-- 热门目的地 -->
-<section class="py-5">
-    <div class="container">
-        <div class="row text-center mb-5">
-            <div class="col-12">
-                <h2 class="fw-bold mb-3">热门目的地</h2>
-                <p class="text-muted lead">探索世界各地的精彩之旅</p>
-            </div>
-        </div>
-        
-        <div class="row g-4">
-            <div class="col-lg-4 col-md-6">
-                <div class="position-relative">
-                    <div style="height: 200px; background: linear-gradient(45deg, #FF6B6B, #4ECDC4); border-radius: 10px; display: flex; align-items: center; justify-content: center;">
-                        <div class="text-center text-white">
-                            <i class="fas fa-city" style="font-size: 3rem; margin-bottom: 1rem;"></i>
-                            <h4>东南亚</h4>
-                            <p class="mb-0">新马泰、印尼、越南</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-lg-4 col-md-6">
-                <div class="position-relative">
-                    <div style="height: 200px; background: linear-gradient(45deg, #74b9ff, #0984e3); border-radius: 10px; display: flex; align-items: center; justify-content: center;">
-                        <div class="text-center text-white">
-                            <i class="fas fa-torii-gate" style="font-size: 3rem; margin-bottom: 1rem;"></i>
-                            <h4>东亚</h4>
-                            <p class="mb-0">日本、韩国、中国</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-lg-4 col-md-6">
-                <div class="position-relative">
-                    <div style="height: 200px; background: linear-gradient(45deg, #fd79a8, #e84393); border-radius: 10px; display: flex; align-items: center; justify-content: center;">
-                        <div class="text-center text-white">
-                            <i class="fas fa-landmark" style="font-size: 3rem; margin-bottom: 1rem;"></i>
-                            <h4>欧洲</h4>
-                            <p class="mb-0">法国、意大利、德国</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
     </div>
 </section>
 
@@ -238,10 +302,10 @@
                 <h2 class="fw-bold mb-3">准备开始您的精彩旅程？</h2>
                 <p class="lead mb-4">联系我们的旅游顾问，为您定制专属的旅行方案</p>
                 <div>
-                    <a href="{{ url_for('guest.main.contact') }}" class="btn btn-light btn-lg me-3">
+                    <a href="{{ url_for('public.contact') }}" class="btn btn-light btn-lg me-3">
                         <i class="fas fa-phone"></i> 立即咨询
                     </a>
-                    <a href="{{ url_for('guest.visa.visa_services') }}" class="btn btn-outline-light btn-lg">
+                    <a href="{{ url_for('public.visa_services') }}" class="btn btn-outline-light btn-lg">
                         <i class="fas fa-passport"></i> 签证服务
                     </a>
                 </div>
@@ -256,15 +320,142 @@
     .service-card {
         overflow: hidden;
         transition: all 0.3s ease;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        background: white;
+        border: 1px solid #f0f0f0;
     }
     
     .service-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 15px 40px rgba(0,0,0,0.2);
+        transform: translateY(-3px);
+        box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+        border-color: var(--primary-color);
+    }
+    
+    .service-card-body {
+        padding: 1rem;
     }
     
     .badge {
         font-size: 0.75rem;
+        padding: 0.4em 0.6em;
+        font-weight: 500;
+    }
+    
+    .service-card img {
+        transition: transform 0.3s ease;
+    }
+    
+    .service-card:hover img {
+        transform: scale(1.03);
+    }
+    
+    .service-card h5.package-title {
+        color: #2c3e50;
+        font-size: 1.1rem;
+        line-height: 1.4;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        min-height: 2.8em;
+    }
+    
+    /* 分页样式优化 */
+    .pagination .page-link {
+        min-width: 44px;
+        text-align: center;
+        margin: 0 2px;
+        border-radius: 5px;
+        transition: all 0.3s ease;
+    }
+    
+    .pagination .page-item.active .page-link {
+        background-color: var(--primary-color);
+        border-color: var(--primary-color);
+        font-weight: bold;
+    }
+    
+    .pagination .page-link:hover:not(.disabled) {
+        background-color: var(--primary-color);
+        border-color: var(--primary-color);
+        color: white;
+        transform: translateY(-2px);
+    }
+    
+    .pagination .page-item.disabled .page-link {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+    
+    /* 响应式优化 */
+    @media (max-width: 768px) {
+        .service-card {
+            margin-bottom: 1.5rem;
+        }
+        
+        .pagination {
+            flex-wrap: wrap;
+        }
+        
+        .pagination .page-link {
+            padding: 0.5rem 0.75rem;
+            font-size: 0.875rem;
+        }
+    }
+    
+    /* 搜索表单优化 */
+    .form-control-lg, .form-select-lg {
+        font-size: 0.95rem;
+    }
+    
+    @media (max-width: 576px) {
+        .form-control-lg, .form-select-lg {
+            font-size: 0.875rem;
+        }
     }
 </style>
 {% endblock %}
+
+{% block extra_js %}
+<script>
+    function filterByCountry() {
+        const country = document.getElementById('countryFilter').value;
+        const params = new URLSearchParams(window.location.search);
+        
+        if (country) {
+            params.set('country', country);
+        } else {
+            params.delete('country');
+        }
+        // 选择国家时清除城市筛选
+        params.delete('city');
+        params.delete('page'); // 重置到第一页
+        
+        window.location.href = '{{ url_for("public.tour_packages") }}?' + params.toString();
+    }
+    
+    function filterByCity() {
+        const city = document.getElementById('cityFilter').value;
+        const country = document.getElementById('countryFilter').value;
+        const params = new URLSearchParams(window.location.search);
+        
+        if (city) {
+            params.set('city', city);
+        } else {
+            params.delete('city');
+        }
+        
+        if (country) {
+            params.set('country', country);
+        }
+        
+        params.delete('page'); // 重置到第一页
+        
+        window.location.href = '{{ url_for("public.tour_packages") }}?' + params.toString();
+    }
+</script>
+{% endblock %}
+

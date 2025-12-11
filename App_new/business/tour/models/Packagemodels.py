@@ -7,7 +7,7 @@ from flask_sqlalchemy import SQLAlchemy
 
 class Product(db.Model):
     """旅游产品模板库（供应商提供的标准产品）"""
-    __tablename__ = 'travelproducts'
+    __tablename__ = 'package_products'
 
     id = db.Column(db.Integer, primary_key=True)
     
@@ -55,6 +55,10 @@ class Product(db.Model):
     cover_image = db.Column(db.String(500), nullable=True, comment='封面图')
     gallery_images = db.Column(db.Text, nullable=True, comment='图片库（JSON数组）')
     
+    # 供应商文件（PDF/Word等）
+    supplier_document = db.Column(db.String(500), nullable=True, comment='供应商产品说明文件路径')
+    supplier_document_name = db.Column(db.String(200), nullable=True, comment='供应商文件原始名称')
+    
     # 状态管理
     product_status = db.Column(db.String(50), default='active', comment='产品状态：active/inactive/draft')
     is_featured = db.Column(db.Boolean, default=False, comment='是否精选')
@@ -66,7 +70,7 @@ class Product(db.Model):
     
     # 版本管理（可选）
     version = db.Column(db.Integer, default=1, comment='版本号')
-    parent_product_id = db.Column(db.Integer, db.ForeignKey('travelproducts.id'), nullable=True, comment='父产品ID')
+    parent_product_id = db.Column(db.Integer, db.ForeignKey('package_products.id'), nullable=True, comment='父产品ID')
     
     # 更新时间和创建人
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, comment='更新时间')
@@ -172,6 +176,8 @@ class Product(db.Model):
             'important_notes': self.important_notes,
             'cover_image': self.cover_image,
             'gallery_images': json.loads(self.gallery_images) if self.gallery_images else [],
+            'supplier_document': self.supplier_document,
+            'supplier_document_name': self.supplier_document_name,
             'product_status': self.product_status,
             'is_featured': self.is_featured,
             'valid_from': self.valid_from.strftime('%Y-%m-%d') if self.valid_from else None,
@@ -187,12 +193,13 @@ class Product(db.Model):
 # 新增：产品行程详情表（参考 tour_itinerary）
 class ProductItinerary(db.Model):
     """产品行程详情模型（参考 tour_itinerary，支持图片上传）"""
-    __tablename__ = 'product_itinerary'
+    __tablename__ = 'package_itinerary'
 
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    product_id = db.Column(db.Integer, db.ForeignKey('travelproducts.id'), nullable=False, comment='产品ID')
+    product_id = db.Column(db.Integer, db.ForeignKey('package_products.id'), nullable=False, comment='产品ID')
     day_number = db.Column(db.Integer, nullable=False, comment='第几天')
-    day_title = db.Column(db.Text, nullable=False, comment='行程安排')
+    day_title = db.Column(db.String(200), nullable=True, comment='当日标题')
+    content = db.Column(db.Text, nullable=True, comment='行程正文内容')
     image1 = db.Column(db.String(500), nullable=True, comment='图片1路径')
     image2 = db.Column(db.String(500), nullable=True, comment='图片2路径')
     image3 = db.Column(db.String(500), nullable=True, comment='图片3路径')
@@ -224,6 +231,7 @@ class ProductItinerary(db.Model):
             'product_id': self.product_id,
             'day_number': self.day_number,
             'day_title': self.day_title,
+            'content': self.content,
             'image1': self.image1,
             'image2': self.image2,
             'image3': self.image3,
@@ -235,20 +243,29 @@ class ProductItinerary(db.Model):
 
 # 新增：产品价格变体表
 class ProductPriceVariant(db.Model):
-    """产品价格变体模型（不同日期、不同人数的价格）"""
-    __tablename__ = 'product_price_variant'
+    """产品价格变体模型（支持表格式价格：不同房型、不同人数）"""
+    __tablename__ = 'package_price_variant'
 
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    product_id = db.Column(db.Integer, db.ForeignKey('travelproducts.id'), nullable=False, comment='产品ID')
-    variant_name = db.Column(db.String(100), nullable=False, comment='变体名称')
+    product_id = db.Column(db.Integer, db.ForeignKey('package_products.id'), nullable=False, comment='产品ID')
+    variant_name = db.Column(db.String(100), nullable=False, comment='变体名称(如Promo/Extension Night)')
     start_date = db.Column(db.Date, nullable=True, comment='开始日期')
     end_date = db.Column(db.Date, nullable=True, comment='结束日期')
     min_pax = db.Column(db.Integer, nullable=True, comment='最少人数')
     max_pax = db.Column(db.Integer, nullable=True, comment='最多人数')
-    adult_price = db.Column(db.Float, nullable=False, comment='成人价格')
-    child_price = db.Column(db.Float, nullable=True, comment='儿童价格')
+    
+    # 房型价格
+    single_price = db.Column(db.Float, nullable=True, comment='Single单人房价格')
+    twin_price = db.Column(db.Float, nullable=True, comment='Twin双人房价格')
+    third_pax_price = db.Column(db.Float, nullable=True, comment='3rd Pax第三人价格')
+    child_no_bed_price = db.Column(db.Float, nullable=True, comment='Child no Bed儿童不占床价格')
+    
+    # 兼容旧字段
+    adult_price = db.Column(db.Float, nullable=True, comment='成人价格(兼容)')
+    child_price = db.Column(db.Float, nullable=True, comment='儿童价格(兼容)')
     infant_price = db.Column(db.Float, nullable=True, comment='婴儿价格')
     single_room_supplement = db.Column(db.Float, nullable=True, comment='单房差')
+    
     currency = db.Column(db.String(10), default='SGD', comment='货币单位')
     is_active = db.Column(db.Boolean, default=True, comment='是否激活')
     created_at = db.Column(db.DateTime, default=datetime.utcnow, comment='创建时间')
@@ -258,7 +275,7 @@ class ProductPriceVariant(db.Model):
     product = db.relationship('Product', backref=db.backref('price_variants', lazy='dynamic'))
 
     def __repr__(self):
-        return f'<ProductPriceVariant {self.variant_name}: {self.adult_price} {self.currency}>'
+        return f'<ProductPriceVariant {self.variant_name}: {self.currency}>'
 
     def to_dict(self):
         return {
@@ -269,6 +286,10 @@ class ProductPriceVariant(db.Model):
             'end_date': self.end_date.strftime('%Y-%m-%d') if self.end_date else None,
             'min_pax': self.min_pax,
             'max_pax': self.max_pax,
+            'single_price': self.single_price,
+            'twin_price': self.twin_price,
+            'third_pax_price': self.third_pax_price,
+            'child_no_bed_price': self.child_no_bed_price,
             'adult_price': self.adult_price,
             'child_price': self.child_price,
             'infant_price': self.infant_price,

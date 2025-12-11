@@ -169,11 +169,6 @@
                                 <i class="fas fa-list me-2"></i>产品库
                             </a></li>
                             <li><hr class="dropdown-divider"></li>
-                            <li><h6 class="dropdown-header">旧产品管理（待废弃）</h6></li>
-                            <li><a class="dropdown-item" href="{{ url_for('package_routes.all_packages') }}" style="opacity: 0.6;">
-                                <i class="fas fa-archive me-2"></i>旧产品列表
-                            </a></li>
-                            <li><hr class="dropdown-divider"></li>
                             <li><h6 class="dropdown-header">供应商管理</h6></li>
                             <li><a class="dropdown-item" href="{{ url_for('supplier.add_supplier') }}">
                                 <i class="fas fa-user-plus me-2"></i>添加供应商
@@ -404,10 +399,10 @@
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link {% if request.endpoint == 'package_routes.all_packages' %}active{% endif %}" 
-                               href="{{ url_for('package_routes.all_packages') }}">
+                            <a class="nav-link {% if request.endpoint == 'tour_products.product_list' %}active{% endif %}" 
+                               href="{{ url_for('tour_products.product_list') }}">
                                 <i class="fas fa-list me-2"></i>
-                                所有产品
+                                产品库
                             </a>
                         </li>
                         <li class="nav-item">

@@ -68,7 +68,7 @@
                                 <div class="info-content">
                                     <h6>供应商类型</h6>
                                     <p>
-                                        <span class="visa-badge supplier-type-{{ supplier.supplier_type }}">
+                                        <span class="visa-badge supplier-type-{{ supplier.supplier_type_code or 'other' }}">
                                             {{ supplier.supplier_type_display }}
                                         </span>
                                     </p>
@@ -149,17 +149,19 @@
                             {% endif %}
                             
                             <div class="info-item">
-                                <div class="info-icon" style="background: {% if supplier.status == 'active' %}#10b981{% else %}#6b7280{% endif %};">
-                                    <i class="fas fa-toggle-{{ 'on' if supplier.status == 'active' else 'off' }}"></i>
+                                <div class="info-icon" id="statusIcon" style="background: {% if supplier.status == 'active' %}#10b981{% else %}#6b7280{% endif %};">
+                                    <i class="fas fa-toggle-{{ 'on' if supplier.status == 'active' else 'off' }}" id="statusToggleIcon"></i>
                                 </div>
                                 <div class="info-content">
                                     <h6>状态</h6>
                                     <p>
-                                {% if supplier.status == 'active' %}
-                                            <span class="visa-badge visa-badge-success">活跃</span>
-                                {% else %}
-                                            <span class="visa-badge visa-badge-secondary" style="background: #e5e7eb; color: #6b7280;">非活跃</span>
-                                {% endif %}
+                                        <span id="statusBadge" 
+                                              class="visa-badge {% if supplier.status == 'active' %}visa-badge-success{% else %}visa-badge-secondary{% endif %}" 
+                                              style="cursor: pointer; {% if supplier.status != 'active' %}background: #e5e7eb; color: #6b7280;{% endif %}"
+                                              onclick="toggleStatus()"
+                                              title="点击切换状态">
+                                            {% if supplier.status == 'active' %}活跃{% else %}非活跃{% endif %}
+                                        </span>
                             </p>
                     </div>
                 </div>
@@ -252,57 +254,37 @@
             </div>
             
             <div>
-                <!-- 统计卡片 -->
+                <!-- 文件管理 -->
                 <div class="visa-card visa-mb-3">
                     <div class="visa-card-header">
-                        <h3><i class="fas fa-chart-line"></i> 统计信息</h3>
+                        <h3><i class="fas fa-file-alt"></i> 文件资料</h3>
                     </div>
                     <div class="visa-card-body">
-                        <div class="stat-item visa-mb-3">
-                            <div class="stat-number" style="color: #3b82f6;">
-                                <i class="fas fa-mouse-pointer"></i>
-                            </div>
-                            <div class="stat-label">访问次数</div>
-                            <div style="font-size: 0.875rem; color: #64748b; margin-top: 0.25rem;">
-                                <span class="visa-badge visa-badge-info">{{ supplier.click_count or 0 }}</span>
-                            </div>
+                        <!-- 上传区域 -->
+                        <div style="border: 2px dashed #e2e8f0; border-radius: 0.5rem; padding: 1.5rem; text-align: center; margin-bottom: 1rem; transition: all 0.3s;" 
+                             id="dropZone"
+                             ondragover="event.preventDefault(); this.style.borderColor='#3b82f6'; this.style.background='#eff6ff';"
+                             ondragleave="this.style.borderColor='#e2e8f0'; this.style.background='transparent';"
+                             ondrop="handleDrop(event)">
+                            <i class="fas fa-cloud-upload-alt" style="font-size: 2rem; color: #94a3b8; margin-bottom: 0.5rem;"></i>
+                            <p style="color: #64748b; margin: 0.5rem 0;">拖拽文件到此处或</p>
+                            <label for="fileInput" class="visa-btn visa-btn-primary visa-btn-sm" style="cursor: pointer;">
+                                <i class="fas fa-upload"></i> 选择文件
+                            </label>
+                            <input type="file" id="fileInput" style="display: none;" multiple onchange="uploadFiles(this.files)">
+                            <p style="font-size: 0.75rem; color: #94a3b8; margin-top: 0.5rem;">支持营业执照、名片、产品资料等</p>
                         </div>
                         
-                        <div class="stat-item visa-mb-3">
-                            <div class="stat-number" style="color: #10b981;">
-                                <i class="fas fa-user-lock"></i>
-                            </div>
-                            <div class="stat-label">关联账号</div>
-                            <div style="font-size: 0.875rem; color: #64748b; margin-top: 0.25rem;">
-                                <span class="visa-badge visa-badge-primary">{{ supplier.accounts|length if supplier.accounts else 0 }}</span>
+                        <!-- 文件列表 -->
+                        <div id="fileList" style="max-height: 300px; overflow-y: auto;">
+                            <div class="visa-loading" style="padding: 1rem;">
+                                <i class="fas fa-spinner fa-spin"></i>
+                                <p style="margin-top: 0.5rem; font-size: 0.875rem;">加载中...</p>
                             </div>
                         </div>
-                        
-                        {% if supplier.created_at %}
-                        <div class="stat-item visa-mb-3">
-                            <div class="stat-number" style="color: #f59e0b;">
-                                <i class="fas fa-calendar-plus"></i>
-                            </div>
-                            <div class="stat-label">创建时间</div>
-                            <div style="font-size: 0.875rem; color: #64748b; margin-top: 0.25rem;">
-                                {{ supplier.created_at.strftime('%Y-%m-%d %H:%M') }}
-                            </div>
-                        </div>
-                        {% endif %}
-                        
-                        {% if supplier.last_updated %}
-                        <div class="stat-item">
-                            <div class="stat-number" style="color: #06b6d4;">
-                                <i class="fas fa-clock"></i>
-                </div>
-                            <div class="stat-label">最后更新</div>
-                            <div style="font-size: 0.875rem; color: #64748b; margin-top: 0.25rem;">
-                                {{ supplier.last_updated.strftime('%Y-%m-%d %H:%M') }}
-                            </div>
-                        </div>
-                        {% endif %}
                     </div>
                 </div>
+                
             </div>
         </div>
     </div>
@@ -486,7 +468,6 @@ function showFolderPathModal(supplierName, possiblePaths, basePath) {
 // 复制到剪贴板
 function copyToClipboard(text) {
     navigator.clipboard.writeText(text).then(() => {
-        // 显示复制成功提示
         const toast = document.createElement('div');
         toast.textContent = '路径已复制到剪贴板！';
         toast.style.cssText = `
@@ -506,6 +487,169 @@ function copyToClipboard(text) {
         console.error('复制失败:', err);
         alert('复制失败，请手动复制路径：\n' + text);
     });
+}
+
+// 状态切换
+function toggleStatus() {
+    fetch(`/supplier/toggle-status/${supplierId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const badge = document.getElementById('statusBadge');
+            const icon = document.getElementById('statusIcon');
+            const toggleIcon = document.getElementById('statusToggleIcon');
+            
+            if (data.status === 'active') {
+                badge.className = 'visa-badge visa-badge-success';
+                badge.style.background = '';
+                badge.style.color = '';
+                badge.textContent = '活跃';
+                icon.style.background = '#10b981';
+                toggleIcon.className = 'fas fa-toggle-on';
+            } else {
+                badge.className = 'visa-badge visa-badge-secondary';
+                badge.style.background = '#e5e7eb';
+                badge.style.color = '#6b7280';
+                badge.textContent = '非活跃';
+                icon.style.background = '#6b7280';
+                toggleIcon.className = 'fas fa-toggle-off';
+            }
+            showToast('success', data.message);
+        } else {
+            showToast('error', data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showToast('error', '状态更新失败');
+    });
+}
+
+// 文件管理相关
+const supplierId = {{ supplier.supplier_id }};
+
+// 页面加载时获取文件列表
+document.addEventListener('DOMContentLoaded', loadFileList);
+
+function loadFileList() {
+    fetch(`/supplier/list-files/${supplierId}`)
+        .then(response => response.json())
+        .then(data => {
+            const fileList = document.getElementById('fileList');
+            if (data.success && data.files.length > 0) {
+                fileList.innerHTML = data.files.map(file => `
+                    <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.5rem; border-bottom: 1px solid #f1f5f9; gap: 0.5rem;">
+                        <div style="flex: 1; min-width: 0;">
+                            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                <i class="fas ${getFileIcon(file.name)}" style="color: #64748b;"></i>
+                                <span style="font-size: 0.875rem; color: #1e293b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${file.name}">${file.name}</span>
+                            </div>
+                            <div style="font-size: 0.75rem; color: #94a3b8;">${formatFileSize(file.size)}</div>
+                        </div>
+                        <div style="display: flex; gap: 0.25rem;">
+                            <a href="/supplier/download-file/${supplierId}/${encodeURIComponent(file.name)}" class="visa-btn visa-btn-sm" style="background: #dbeafe; color: #2563eb; border: none; padding: 0.25rem 0.5rem;" title="下载">
+                                <i class="fas fa-download"></i>
+                            </a>
+                            <button onclick="deleteFile('${file.name}')" class="visa-btn visa-btn-sm" style="background: #fee2e2; color: #dc2626; border: none; padding: 0.25rem 0.5rem;" title="删除">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+            } else {
+                fileList.innerHTML = '<div style="text-align: center; padding: 1rem; color: #94a3b8;"><i class="fas fa-folder-open"></i><p style="margin-top: 0.5rem; font-size: 0.875rem;">暂无文件</p></div>';
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            document.getElementById('fileList').innerHTML = '<div style="text-align: center; padding: 1rem; color: #ef4444;">加载失败</div>';
+        });
+}
+
+function getFileIcon(filename) {
+    const ext = filename.split('.').pop().toLowerCase();
+    const icons = {
+        'pdf': 'fa-file-pdf',
+        'doc': 'fa-file-word', 'docx': 'fa-file-word',
+        'xls': 'fa-file-excel', 'xlsx': 'fa-file-excel',
+        'ppt': 'fa-file-powerpoint', 'pptx': 'fa-file-powerpoint',
+        'jpg': 'fa-file-image', 'jpeg': 'fa-file-image', 'png': 'fa-file-image', 'gif': 'fa-file-image',
+        'zip': 'fa-file-archive', 'rar': 'fa-file-archive',
+        'txt': 'fa-file-alt'
+    };
+    return icons[ext] || 'fa-file';
+}
+
+function formatFileSize(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+function handleDrop(e) {
+    e.preventDefault();
+    e.target.style.borderColor = '#e2e8f0';
+    e.target.style.background = 'transparent';
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+        uploadFiles(files);
+    }
+}
+
+function uploadFiles(files) {
+    Array.from(files).forEach(file => {
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        fetch(`/supplier/upload-file/${supplierId}`, {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showToast('success', data.message);
+                loadFileList();
+            } else {
+                showToast('error', data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showToast('error', '上传失败');
+        });
+    });
+    
+    // 清空文件输入
+    document.getElementById('fileInput').value = '';
+}
+
+function deleteFile(filename) {
+    if (confirm(`确定删除文件 "${filename}" 吗？`)) {
+        fetch(`/supplier/delete-file/${supplierId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ filename: filename })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showToast('success', data.message);
+                loadFileList();
+            } else {
+                showToast('error', data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showToast('error', '删除失败');
+        });
+    }
 }
 </script>
 {% endblock %}

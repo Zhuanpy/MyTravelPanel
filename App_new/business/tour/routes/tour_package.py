@@ -532,14 +532,8 @@ def index():
 @staff_only
 @package_blue.route('/all_packages')
 def all_packages():
-    cities = ProductCity.query.order_by(ProductCity.display_name).all()
-    cities_by_country = {}
-    for city in cities:
-        country = city.country_name
-        if country not in cities_by_country:
-            cities_by_country[country] = []
-        cities_by_country[country].append(city)
-    return render_template('business/tour/package/all_packages.html', cities_by_country=cities_by_country)
+    """重定向到产品列表页面（已废弃）"""
+    return redirect(url_for('tour_products.product_list'))
 
 @login_required
 @staff_only

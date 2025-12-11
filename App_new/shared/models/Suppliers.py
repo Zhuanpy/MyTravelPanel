@@ -5,20 +5,9 @@ class Supplier(db.Model):
     """供应商表"""
     __tablename__ = 'suppliers'
 
-    # 供应商类型中英文映射
-    SUPPLIER_TYPE_MAP = {
-        'visa': '签证',
-        'flight': '机票',
-        'hotel': '酒店',
-        'transport': '用车',
-        'local_operator': '地接',
-        'other': '其他'
-    }
-
     supplier_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     name = db.Column(db.String(255), nullable=False)
-    supplier_type = db.Column(db.Enum('visa', 'flight', 'hotel', 'transport', 'local_operator', 'other'), 
-                            nullable=False, default='other', comment='供应商类型')
+    supplier_type_id = db.Column(db.Integer, db.ForeignKey('business_types.id'), nullable=True, comment='供应商类型ID')
     contact_person = db.Column(db.String(100))
     phone = db.Column(db.String(20))
     email = db.Column(db.String(255))
@@ -33,6 +22,7 @@ class Supplier(db.Model):
     notes = db.Column(db.Text)
 
     # 关联关系
+    supplier_type = db.relationship('BusinessType', foreign_keys=[supplier_type_id], backref='suppliers')
     services = db.relationship('SupplierService', backref='supplier', cascade="all, delete-orphan")
     contracts = db.relationship('SupplierContract', backref='supplier', cascade="all, delete-orphan")
     payments = db.relationship('SupplierPayment', backref='supplier', cascade="all, delete-orphan")
@@ -47,7 +37,8 @@ class Supplier(db.Model):
         result = {
             'supplier_id': self.supplier_id,
             'name': self.name,
-            'supplier_type': self.supplier_type,
+            'supplier_type_id': self.supplier_type_id,
+            'supplier_type': self.supplier_type.code if self.supplier_type else None,
             'supplier_type_display': self.supplier_type_display,
             'contact_person': self.contact_person,
             'phone': self.phone,
@@ -82,22 +73,25 @@ class Supplier(db.Model):
         return result
 
     @classmethod
-    def get_supplier_types(cls):
-        """获取供应商类型列表"""
-        # 从 supplier_type 字段的枚举定义中获取类型列表
-        enum_type = cls.supplier_type.type
-        return enum_type.enums
-
-    @classmethod
     def get_supplier_type_choices(cls):
-        """获取供应商类型选项（包含中英文）"""
-        return [(type_code, cls.SUPPLIER_TYPE_MAP.get(type_code, type_code)) 
-                for type_code in cls.get_supplier_types()]
+        """从 business_types 表获取供应商类型选项"""
+        from .business_types import BusinessType
+        business_types = BusinessType.query.filter_by(is_active=True).order_by(BusinessType.sort_order).all()
+        return [(bt.id, bt.name) for bt in business_types]
 
     @property
     def supplier_type_display(self):
         """获取供应商类型的显示名称"""
-        return self.SUPPLIER_TYPE_MAP.get(self.supplier_type, self.supplier_type)
+        if self.supplier_type:
+            return self.supplier_type.name
+        return '未设置'
+    
+    @property
+    def supplier_type_code(self):
+        """获取供应商类型的代码（兼容旧代码）"""
+        if self.supplier_type:
+            return self.supplier_type.code
+        return None
 
 
 

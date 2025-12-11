@@ -10,280 +10,271 @@
 {% block content %}
 <div class="bg-gray-50 min-h-screen p-4 md:p-6">
     <div class="max-w-7xl mx-auto">
-        <!-- 返回按钮 -->
-        <!-- <div class="mb-6">
+        <!-- 顶部导航栏 -->
+        <div class="flex justify-between items-center mb-6">
             <a href="{{ url_for('tour_products.product_list') }}" class="inline-flex items-center gap-2 px-4 py-2 bg-white text-gray-700 rounded-lg shadow-sm border border-gray-200 hover:bg-gray-50 transition-colors">
                 <i class="fas fa-arrow-left"></i> 返回列表
             </a>
-        </div> -->
-
-        <!-- 产品头部 -->
-        <div class="mb-8">
-            <div class="text-center">
-                <h1 class="text-4xl font-bold mb-4 text-gray-800">{{ product.product_name }}</h1>
-                <div class="flex justify-center gap-3 mb-4">
-                    <span class="bg-blue-100 text-blue-700 px-4 py-2 rounded-full text-sm font-medium">
-                        {{ product.product_type or '旅游产品' }}
-                    </span>
-                    {% if product.is_featured %}
-                    <span class="bg-yellow-100 text-yellow-700 px-4 py-2 rounded-full text-sm font-medium">
-                        <i class="fas fa-star"></i> 精选产品
-                    </span>
-                    {% endif %}
-                </div>
-                <div class="text-gray-600 text-lg">
-                    <div class="flex justify-center items-center gap-4 flex-wrap">
-                        {% if product.supplier %}
-                        <span class="flex items-center">
-                            <i class="fas fa-building mr-2 text-blue-500"></i>{{ product.supplier.name }}
-                        </span>
-                        {% endif %}
-                        <span class="flex items-center">
-                            <i class="fas fa-map-marker-alt mr-2 text-red-500"></i>{{ product.country }} - {{ product.city_name }}
-                        </span>
-                        <span class="flex items-center">
-                            <i class="fas fa-calendar mr-2 text-green-500"></i>{{ product.duration_days }}天
-                        </span>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- 封面图 -->
-        {% if product.cover_image %}
-        <div class="bg-white rounded-2xl shadow-md overflow-hidden mb-8">
-            <img src="{{ url_for('static', filename=product.cover_image) }}" 
-                 class="w-full h-96 object-cover">
-        </div>
-        {% endif %}
-
-        <!-- 基本信息 -->
-        <div class="bg-white rounded-2xl shadow-md p-6 mb-8">
-            <div class="flex justify-between items-center mb-6">
-                <h2 class="text-2xl font-semibold text-gray-800 flex items-center">
-                    <i class="fas fa-info-circle text-blue-500 mr-3"></i> 基本信息
-                </h2>
+            <div class="flex gap-3">
                 <a href="{{ url_for('tour_products.edit_product', product_id=product.id) }}" 
                    class="inline-flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
-                    <i class="fas fa-edit"></i> 编辑产品
+                    <i class="fas fa-edit"></i> 编辑
+                </a>
+                <button onclick="deleteProduct('{{ product.id }}')" 
+                        class="inline-flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">
+                    <i class="fas fa-trash"></i> 删除
+                </button>
+            </div>
+        </div>
+
+        <!-- 产品头部卡片 -->
+        <div class="bg-white rounded-2xl shadow-md overflow-hidden mb-6">
+            <div class="flex flex-col lg:flex-row">
+                <!-- 封面图 -->
+                <div class="lg:w-2/5">
+                    {% if product.cover_image %}
+                    <img src="{{ url_for('static', filename=product.cover_image) }}" 
+                         class="w-full h-64 lg:h-full object-cover" alt="{{ product.product_name }}">
+                    {% else %}
+                    <div class="w-full h-64 lg:h-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center min-h-[300px]">
+                        <i class="fas fa-image text-white text-6xl opacity-50"></i>
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <!-- 产品基本信息 -->
+                <div class="lg:w-3/5 p-6 lg:p-8">
+                    <div class="flex flex-wrap gap-2 mb-4">
+                        <span class="px-3 py-1 rounded-full text-sm font-medium
+                            {% if product.product_status == 'active' %}bg-green-100 text-green-700
+                            {% elif product.product_status == 'draft' %}bg-yellow-100 text-yellow-700
+                            {% else %}bg-red-100 text-red-700{% endif %}">
+                            {{ '激活' if product.product_status == 'active' else ('草稿' if product.product_status == 'draft' else '停用') }}
+                        </span>
+                        <span class="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-sm font-medium">
+                            {{ product.product_type or '旅游产品' }}
+                        </span>
+                    </div>
+                    
+                    <h1 class="text-3xl font-bold text-gray-800 mb-4">{{ product.product_name }}</h1>
+                    
+                    <div class="grid grid-cols-2 gap-4 mb-6">
+                        <div class="flex items-center text-gray-600">
+                            <i class="fas fa-building text-blue-500 w-6"></i>
+                            <span class="ml-2">{{ product.supplier.name if product.supplier else '未设置供应商' }}</span>
+                        </div>
+                        <div class="flex items-center text-gray-600">
+                            <i class="fas fa-map-marker-alt text-red-500 w-6"></i>
+                            <span class="ml-2">{{ product.city_name or '未设置' }}</span>
+                        </div>
+                        <div class="flex items-center text-gray-600">
+                            <i class="fas fa-calendar text-green-500 w-6"></i>
+                            <span class="ml-2">{{ product.duration_days }}天行程</span>
+                        </div>
+                        <div class="flex items-center text-gray-600">
+                            <i class="fas fa-users text-purple-500 w-6"></i>
+                            <span class="ml-2">{{ product.min_pax }}人起</span>
+                        </div>
+                    </div>
+                    
+                    <!-- 价格显示 -->
+                    {% if product.base_price %}
+                    <div class="bg-gradient-to-r from-green-50 to-emerald-50 p-4 rounded-xl border border-green-200 mb-4">
+                        <div class="flex items-baseline gap-2">
+                            <span class="text-3xl font-bold text-green-600">{{ product.currency }} {{ product.base_price }}</span>
+                            <span class="text-gray-500">/人起</span>
+                        </div>
+                        <div class="flex gap-4 mt-2 text-sm text-gray-600">
+                            {% if product.child_price %}
+                            <span><i class="fas fa-child text-blue-500"></i> 儿童 {{ product.currency }} {{ product.child_price }}</span>
+                            {% endif %}
+                            {% if product.single_room_supplement %}
+                            <span><i class="fas fa-bed text-orange-500"></i> 单房差 {{ product.currency }} {{ product.single_room_supplement }}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- 有效期 -->
+                    {% if product.valid_from or product.valid_until %}
+                    <div class="flex items-center text-sm text-gray-500">
+                        <i class="fas fa-clock mr-2"></i>
+                        有效期：
+                        {{ product.valid_from.strftime('%Y-%m-%d') if product.valid_from else '不限' }} 
+                        ~ 
+                        {{ product.valid_until.strftime('%Y-%m-%d') if product.valid_until else '不限' }}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- 详细信息网格 -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+            <!-- 产品编号和类型 -->
+            <div class="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                    <i class="fas fa-info-circle text-blue-500 mr-2"></i> 产品信息
+                </h3>
+                <div class="space-y-3">
+                    <div class="flex justify-between">
+                        <span class="text-gray-500">产品编号</span>
+                        <span class="font-medium text-gray-800">{{ product.product_code or '未设置' }}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-500">产品类型</span>
+                        <span class="font-medium text-gray-800">{{ product.product_type or '未设置' }}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-500">出发城市</span>
+                        <span class="font-medium text-gray-800">{{ product.departure_city or '未设置' }}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-500">目的城市</span>
+                        <span class="font-medium text-gray-800">{{ product.destination_city or '未设置' }}</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 包含服务 -->
+            <div class="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
+                <h3 class="text-lg font-semibold text-green-700 mb-4 flex items-center">
+                    <i class="fas fa-check-circle text-green-500 mr-2"></i> 包含服务
+                </h3>
+                <div class="text-gray-700 text-sm leading-relaxed whitespace-pre-wrap max-h-48 overflow-y-auto">
+                    {{ product.included_services or '未设置' }}
+                </div>
+            </div>
+            
+            <!-- 不包含服务 -->
+            <div class="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
+                <h3 class="text-lg font-semibold text-red-700 mb-4 flex items-center">
+                    <i class="fas fa-times-circle text-red-500 mr-2"></i> 不包含服务
+                </h3>
+                <div class="text-gray-700 text-sm leading-relaxed whitespace-pre-wrap max-h-48 overflow-y-auto">
+                    {{ product.excluded_services or '未设置' }}
+                </div>
+            </div>
+        </div>
+
+        <!-- 重要提示 -->
+        {% if product.important_notes %}
+        <div class="bg-white rounded-xl shadow-sm p-5 border border-gray-100 mb-6">
+            <h3 class="text-lg font-semibold text-yellow-700 mb-4 flex items-center">
+                <i class="fas fa-exclamation-triangle text-yellow-500 mr-2"></i> 重要提示
+            </h3>
+            <div class="bg-yellow-50 p-4 rounded-lg border border-yellow-200 text-gray-700 leading-relaxed whitespace-pre-wrap">
+                {{ product.important_notes }}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- 行程安排 -->
+        {% if itineraries %}
+        <div class="bg-white rounded-xl shadow-sm p-5 border border-gray-100 mb-6">
+            <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                <i class="fas fa-route text-indigo-500 mr-2"></i> 行程安排 ({{ itineraries|length }}天)
+            </h3>
+            <div class="space-y-4">
+                {% for itinerary in itineraries %}
+                <div class="border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow">
+                    <!-- 行程头部 -->
+                    <div class="bg-gradient-to-r from-indigo-50 to-blue-50 px-4 py-3 border-b border-gray-200">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 rounded-full bg-indigo-500 text-white flex items-center justify-center font-bold">
+                                    D{{ itinerary.day_number }}
+                                </div>
+                                <h4 class="text-lg font-semibold text-gray-800">{{ itinerary.day_title or '第' ~ itinerary.day_number ~ '天' }}</h4>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 行程内容 -->
+                    <div class="p-4">
+                        {% if itinerary.content %}
+                        <div class="text-gray-700 leading-relaxed whitespace-pre-wrap mb-4">
+                            {{ itinerary.content }}
+                        </div>
+                        {% endif %}
+                        
+                        <!-- 行程图片 -->
+                        {% if itinerary.image1 or itinerary.image2 or itinerary.image3 %}
+                        <div class="grid grid-cols-3 gap-3 mt-3">
+                            {% if itinerary.image1 %}
+                            <div class="cursor-pointer overflow-hidden rounded-lg border border-gray-200">
+                                <img src="{{ url_for('static', filename=itinerary.image1) }}" 
+                                     class="w-full h-24 object-cover hover:scale-105 transition-transform"
+                                     onclick="showImagePreview('{{ url_for('static', filename=itinerary.image1) }}')">
+                            </div>
+                            {% endif %}
+                            {% if itinerary.image2 %}
+                            <div class="cursor-pointer overflow-hidden rounded-lg border border-gray-200">
+                                <img src="{{ url_for('static', filename=itinerary.image2) }}" 
+                                     class="w-full h-24 object-cover hover:scale-105 transition-transform"
+                                     onclick="showImagePreview('{{ url_for('static', filename=itinerary.image2) }}')">
+                            </div>
+                            {% endif %}
+                            {% if itinerary.image3 %}
+                            <div class="cursor-pointer overflow-hidden rounded-lg border border-gray-200">
+                                <img src="{{ url_for('static', filename=itinerary.image3) }}" 
+                                     class="w-full h-24 object-cover hover:scale-105 transition-transform"
+                                     onclick="showImagePreview('{{ url_for('static', filename=itinerary.image3) }}')">
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% else %}
+        <div class="bg-white rounded-xl shadow-sm p-5 border border-gray-100 mb-6">
+            <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                <i class="fas fa-route text-indigo-500 mr-2"></i> 行程安排
+            </h3>
+            <div class="text-center py-8 text-gray-500">
+                <i class="fas fa-calendar-plus text-4xl mb-3 opacity-50"></i>
+                <p>暂无行程安排</p>
+                <a href="{{ url_for('tour_products.edit_product', product_id=product.id) }}" 
+                   class="inline-flex items-center gap-2 mt-3 px-4 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition-colors text-sm">
+                    <i class="fas fa-plus"></i> 添加行程
                 </a>
             </div>
-            
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <div class="bg-gradient-to-br from-blue-50 to-white p-4 rounded-xl border border-blue-100">
-                    <div class="flex items-center mb-3">
-                        <div class="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center mr-3">
-                            <i class="fas fa-barcode text-blue-500"></i>
-                        </div>
-                        <h6 class="text-sm font-medium text-gray-600">产品编号</h6>
-                    </div>
-                    <p class="text-lg font-semibold text-gray-800">{{ product.product_code or '未设置' }}</p>
-                </div>
-                
-                <div class="bg-gradient-to-br from-green-50 to-white p-4 rounded-xl border border-green-100">
-                    <div class="flex items-center mb-3">
-                        <div class="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center mr-3">
-                            <i class="fas fa-building text-green-500"></i>
-                        </div>
-                        <h6 class="text-sm font-medium text-gray-600">供应商</h6>
-                    </div>
-                    <p class="text-lg font-semibold text-gray-800">{{ product.supplier.name if product.supplier else '未设置' }}</p>
-                </div>
-                
-                <div class="bg-gradient-to-br from-purple-50 to-white p-4 rounded-xl border border-purple-100">
-                    <div class="flex items-center mb-3">
-                        <div class="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center mr-3">
-                            <i class="fas fa-map-marker-alt text-purple-500"></i>
-                        </div>
-                        <h6 class="text-sm font-medium text-gray-600">目的地</h6>
-                    </div>
-                    <p class="text-lg font-semibold text-gray-800">{{ product.country }} - {{ product.city_name or '未设置' }}</p>
-                </div>
-                
-                <div class="bg-gradient-to-br from-yellow-50 to-white p-4 rounded-xl border border-yellow-100">
-                    <div class="flex items-center mb-3">
-                        <div class="w-10 h-10 rounded-lg bg-yellow-100 flex items-center justify-center mr-3">
-                            <i class="fas fa-calendar text-yellow-500"></i>
-                        </div>
-                        <h6 class="text-sm font-medium text-gray-600">行程天数</h6>
-                    </div>
-                    <p class="text-lg font-semibold text-gray-800">{{ product.duration_days }}天</p>
-                </div>
-                
-                <div class="bg-gradient-to-br from-red-50 to-white p-4 rounded-xl border border-red-100">
-                    <div class="flex items-center mb-3">
-                        <div class="w-10 h-10 rounded-lg bg-red-100 flex items-center justify-center mr-3">
-                            <i class="fas fa-users text-red-500"></i>
-                        </div>
-                        <h6 class="text-sm font-medium text-gray-600">人数范围</h6>
-                    </div>
-                    <p class="text-lg font-semibold text-gray-800">{{ product.min_pax }}{% if product.max_pax %}-{{ product.max_pax }}{% endif %}人</p>
-                </div>
-                
-                <div class="bg-gradient-to-br from-indigo-50 to-white p-4 rounded-xl border border-indigo-100">
-                    <div class="flex items-center mb-3">
-                        <div class="w-10 h-10 rounded-lg bg-indigo-100 flex items-center justify-center mr-3">
-                            <i class="fas fa-chart-line text-indigo-500"></i>
-                        </div>
-                        <h6 class="text-sm font-medium text-gray-600">难度等级</h6>
-                    </div>
-                    <p class="text-lg font-semibold text-gray-800">{{ product.difficulty_level or '未设置' }}</p>
-                </div>
-                
-                <div class="bg-gradient-to-br from-pink-50 to-white p-4 rounded-xl border border-pink-100">
-                    <div class="flex items-center mb-3">
-                        <div class="w-10 h-10 rounded-lg bg-pink-100 flex items-center justify-center mr-3">
-                            <i class="fas fa-leaf text-pink-500"></i>
-                        </div>
-                        <h6 class="text-sm font-medium text-gray-600">适合季节</h6>
-                    </div>
-                    <p class="text-lg font-semibold text-gray-800">{{ product.suitable_season or '全年' }}</p>
-                </div>
-            </div>
-
-            <!-- 标签 -->
-            {% if product.tags %}
-            <div class="mt-6">
-                <h6 class="text-sm font-medium text-gray-700 mb-3">产品标签</h6>
-                <div class="flex flex-wrap gap-2">
-                    {% set tags = product.tags|from_json if product.tags else [] %}
-                    {% for tag in tags %}
-                    <span class="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-sm font-medium">{{ tag }}</span>
-                    {% endfor %}
-                </div>
-            </div>
-            {% endif %}
-        </div>
-
-        <!-- 价格信息 -->
-        {% if product.base_price %}
-        <div class="bg-white rounded-2xl shadow-md p-6 mb-8">
-            <h2 class="text-2xl font-semibold text-gray-800 mb-6 flex items-center">
-                <i class="fas fa-dollar-sign text-green-500 mr-3"></i> 价格信息
-            </h2>
-            
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <div class="bg-gradient-to-br from-green-50 to-white p-6 rounded-xl border border-green-100 text-center">
-                    <div class="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4">
-                        <i class="fas fa-user text-green-500 text-xl"></i>
-                    </div>
-                    <p class="text-2xl font-bold text-green-600 mb-2">{{ product.currency }} {{ product.base_price }}</p>
-                    <p class="text-sm text-gray-600">成人价格</p>
-                </div>
-                
-                {% if product.child_price %}
-                <div class="bg-gradient-to-br from-blue-50 to-white p-6 rounded-xl border border-blue-100 text-center">
-                    <div class="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center mx-auto mb-4">
-                        <i class="fas fa-child text-blue-500 text-xl"></i>
-                    </div>
-                    <p class="text-2xl font-bold text-blue-600 mb-2">{{ product.currency }} {{ product.child_price }}</p>
-                    <p class="text-sm text-gray-600">儿童价格</p>
-                </div>
-                {% endif %}
-                
-                {% if product.infant_price %}
-                <div class="bg-gradient-to-br from-yellow-50 to-white p-6 rounded-xl border border-yellow-100 text-center">
-                    <div class="w-12 h-12 rounded-full bg-yellow-100 flex items-center justify-center mx-auto mb-4">
-                        <i class="fas fa-baby text-yellow-500 text-xl"></i>
-                    </div>
-                    <p class="text-2xl font-bold text-yellow-600 mb-2">{{ product.currency }} {{ product.infant_price }}</p>
-                    <p class="text-sm text-gray-600">婴儿价格</p>
-                </div>
-                {% endif %}
-                
-                {% if product.single_room_supplement %}
-                <div class="bg-gradient-to-br from-red-50 to-white p-6 rounded-xl border border-red-100 text-center">
-                    <div class="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
-                        <i class="fas fa-bed text-red-500 text-xl"></i>
-                    </div>
-                    <p class="text-2xl font-bold text-red-600 mb-2">{{ product.currency }} {{ product.single_room_supplement }}</p>
-                    <p class="text-sm text-gray-600">单房差</p>
-                </div>
-                {% endif %}
-            </div>
         </div>
         {% endif %}
 
-        <!-- 产品描述 -->
-        {% if product.product_description or product.highlights %}
-        <div class="bg-white rounded-2xl shadow-md p-6 mb-8">
-            <h2 class="text-2xl font-semibold text-gray-800 mb-6 flex items-center">
-                <i class="fas fa-file-alt text-purple-500 mr-3"></i> 产品描述
-            </h2>
-            
-            {% if product.product_description %}
-            <div class="mb-6">
-                <h3 class="text-lg font-medium text-gray-700 mb-3">产品介绍</h3>
-                <div class="bg-gray-50 p-6 rounded-xl border border-gray-200">
-                    <p class="text-gray-700 leading-relaxed whitespace-pre-wrap">{{ product.product_description }}</p>
-                </div>
+        <!-- 标签 -->
+        {% if product.tags %}
+        <div class="bg-white rounded-xl shadow-sm p-5 border border-gray-100 mb-6">
+            <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                <i class="fas fa-tags text-purple-500 mr-2"></i> 产品标签
+            </h3>
+            <div class="flex flex-wrap gap-2">
+                {% set tags = product.tags|from_json if product.tags else [] %}
+                {% for tag in tags %}
+                <span class="bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-sm font-medium">{{ tag }}</span>
+                {% endfor %}
             </div>
-            {% endif %}
-            
-            {% if product.highlights %}
-            <div>
-                <h3 class="text-lg font-medium text-gray-700 mb-3">产品亮点</h3>
-                <div class="bg-yellow-50 p-6 rounded-xl border border-yellow-200">
-                    <p class="text-gray-700 leading-relaxed whitespace-pre-wrap">{{ product.highlights }}</p>
-                </div>
-            </div>
-            {% endif %}
         </div>
         {% endif %}
-
-        <!-- 服务说明 -->
-        <div class="bg-white rounded-2xl shadow-md p-6 mb-8">
-            <h2 class="text-2xl font-semibold text-gray-800 mb-6 flex items-center">
-                <i class="fas fa-list-check text-indigo-500 mr-3"></i> 服务说明
-            </h2>
-            
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div class="bg-gradient-to-br from-green-50 to-white p-6 rounded-xl border border-green-200">
-                    <h3 class="text-lg font-semibold text-green-700 mb-4 flex items-center">
-                        <i class="fas fa-check-circle text-green-500 mr-2"></i> 包含服务
-                    </h3>
-                    <div class="text-gray-700 leading-relaxed whitespace-pre-wrap">
-                        {{ product.included_services or '未设置' }}
-                    </div>
-                </div>
-                
-                <div class="bg-gradient-to-br from-red-50 to-white p-6 rounded-xl border border-red-200">
-                    <h3 class="text-lg font-semibold text-red-700 mb-4 flex items-center">
-                        <i class="fas fa-times-circle text-red-500 mr-2"></i> 不包含服务
-                    </h3>
-                    <div class="text-gray-700 leading-relaxed whitespace-pre-wrap">
-                        {{ product.excluded_services or '未设置' }}
-                    </div>
-                </div>
-            </div>
-            
-            {% if product.important_notes %}
-            <div class="mt-6 bg-gradient-to-br from-yellow-50 to-white p-6 rounded-xl border border-yellow-200">
-                <h3 class="text-lg font-semibold text-yellow-700 mb-4 flex items-center">
-                    <i class="fas fa-exclamation-triangle text-yellow-500 mr-2"></i> 重要提示
-                </h3>
-                <div class="text-gray-700 leading-relaxed whitespace-pre-wrap">
-                    {{ product.important_notes }}
-                </div>
-            </div>
-            {% endif %}
-        </div>
 
         <!-- 图片库 -->
         {% if product.gallery_images %}
         {% set images = product.gallery_images|from_json if product.gallery_images else [] %}
         {% if images %}
-        <div class="bg-white rounded-2xl shadow-md p-6 mb-8">
-            <h2 class="text-2xl font-semibold text-gray-800 mb-6 flex items-center">
-                <i class="fas fa-images text-pink-500 mr-3"></i> 图片库
-            </h2>
-            
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <div class="bg-white rounded-xl shadow-sm p-5 border border-gray-100 mb-6">
+            <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                <i class="fas fa-images text-pink-500 mr-2"></i> 图片库 ({{ images|length }}张)
+            </h3>
+            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
                 {% for image in images %}
-                <div class="group cursor-pointer overflow-hidden rounded-xl border border-gray-200 hover:shadow-lg transition-all duration-300">
+                <div class="group cursor-pointer overflow-hidden rounded-lg border border-gray-200 hover:shadow-lg transition-all duration-300">
                     <div class="aspect-square overflow-hidden">
                         <img src="{{ url_for('static', filename=image) }}" 
-                             class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300">
+                             class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                             onclick="showImagePreview('{{ url_for('static', filename=image) }}')">
                     </div>
                 </div>
                 {% endfor %}
@@ -292,24 +283,23 @@
         {% endif %}
         {% endif %}
 
-        <!-- 操作按钮 -->
-        <div class="bg-white rounded-2xl shadow-md p-6">
-            <div class="flex flex-col sm:flex-row justify-center gap-4">
-                <a href="{{ url_for('tour_products.edit_product', product_id=product.id) }}" 
-                   class="inline-flex items-center justify-center gap-2 px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium">
-                    <i class="fas fa-edit"></i> 编辑产品
-                </a>
-                <a href="{{ url_for('tour_products.product_list') }}" 
-                   class="inline-flex items-center justify-center gap-2 px-6 py-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors font-medium">
-                    <i class="fas fa-arrow-left"></i> 返回列表
-                </a>
-                <button onclick="deleteProduct('{{ product.id }}')" 
-                        class="inline-flex items-center justify-center gap-2 px-6 py-3 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors font-medium">
-                    <i class="fas fa-trash"></i> 删除产品
-                </button>
+        <!-- 系统信息 -->
+        <div class="bg-gray-100 rounded-xl p-4 text-sm text-gray-500">
+            <div class="flex flex-wrap gap-6">
+                <span><i class="fas fa-plus-circle mr-1"></i> 创建时间：{{ product.created_at.strftime('%Y-%m-%d %H:%M') if product.created_at else '未知' }}</span>
+                <span><i class="fas fa-edit mr-1"></i> 更新时间：{{ product.updated_at.strftime('%Y-%m-%d %H:%M') if product.updated_at else '未知' }}</span>
+                <span><i class="fas fa-user mr-1"></i> 创建人：{{ product.created_by or '未知' }}</span>
             </div>
         </div>
     </div>
+</div>
+
+<!-- 图片预览模态框 -->
+<div id="imagePreviewModal" class="fixed inset-0 bg-black bg-opacity-90 z-50 hidden items-center justify-center" onclick="hideImagePreview()">
+    <img id="previewImage" src="" class="max-w-full max-h-full object-contain">
+    <button class="absolute top-4 right-4 text-white text-3xl hover:text-gray-300" onclick="hideImagePreview()">
+        <i class="fas fa-times"></i>
+    </button>
 </div>
 {% endblock %}
 
@@ -342,6 +332,24 @@ function deleteProduct(productId) {
         });
     }
 }
+
+function showImagePreview(src) {
+    document.getElementById('previewImage').src = src;
+    document.getElementById('imagePreviewModal').classList.remove('hidden');
+    document.getElementById('imagePreviewModal').classList.add('flex');
+}
+
+function hideImagePreview() {
+    document.getElementById('imagePreviewModal').classList.add('hidden');
+    document.getElementById('imagePreviewModal').classList.remove('flex');
+}
+
+// ESC 键关闭预览
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        hideImagePreview();
+    }
+});
 </script>
 {% endblock %}
 

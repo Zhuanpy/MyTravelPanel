@@ -766,7 +766,7 @@ def get_suppliers():
         suppliers_data = [{
             'supplier_id': supplier.supplier_id,
             'name': supplier.name,
-            'supplier_type': supplier.supplier_type,
+            'supplier_type': supplier.supplier_type_code,
             'supplier_type_display': supplier.supplier_type_display,
             'country': supplier.country
         } for supplier in suppliers]

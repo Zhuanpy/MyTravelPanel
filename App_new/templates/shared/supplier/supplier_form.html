@@ -49,7 +49,7 @@
                 <form method="POST" action="{% if supplier %}{{ url_for('supplier.edit_supplier', supplier_id=supplier.supplier_id) }}{% else %}{{ url_for('supplier.add_supplier') }}{% endif %}">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                     
-                    <!-- 第一行：供应商名称、类型、联系人、电话 -->
+                    <!-- 第一行：供应商名称、类型、国家、城市 -->
                     <div class="visa-grid-4">
                         <div class="visa-form-group">
                             <label for="name" class="visa-form-label">
@@ -69,12 +69,13 @@
                                 供应商类型
                             </label>
                             <select class="visa-form-select" id="supplier_type" name="supplier_type">
-                                {% for type_code, type_name in supplier_types %}
-                                <option value="{{ type_code }}" 
+                                <option value="">请选择类型</option>
+                                {% for type_id, type_name in supplier_types %}
+                                <option value="{{ type_id }}" 
                                         {% if supplier %}
-                                            {{ 'selected' if supplier.supplier_type == type_code }}
+                                            {{ 'selected' if supplier.supplier_type_id == type_id }}
                                         {% else %}
-                                            {{ 'selected' if request.form.get('supplier_type') == type_code }}
+                                            {{ 'selected' if request.form.get('supplier_type') == type_id|string }}
                                         {% endif %}>
                                     {{ type_name }}
                                 </option>
@@ -82,6 +83,47 @@
                             </select>
                         </div>
                         
+                        <div class="visa-form-group">
+                            <label for="country" class="visa-form-label">
+                                国家
+                            </label>
+                            <select class="visa-form-select" id="country" name="country" onchange="filterCitiesByCountry()">
+                                <option value="">请选择国家</option>
+                                {% for c in countries %}
+                                <option value="{{ c }}" 
+                                        {% if supplier %}
+                                            {{ 'selected' if supplier.country == c }}
+                                        {% else %}
+                                            {{ 'selected' if request.form.get('country') == c }}
+                                        {% endif %}>
+                                    {{ c }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="visa-form-group">
+                            <label for="city" class="visa-form-label">
+                                城市
+                            </label>
+                            <select class="visa-form-select" id="city" name="city">
+                                <option value="">请选择城市</option>
+                                {% for c in cities %}
+                                <option value="{{ c }}" 
+                                        {% if supplier %}
+                                            {{ 'selected' if supplier.city == c }}
+                                        {% else %}
+                                            {{ 'selected' if request.form.get('city') == c }}
+                                        {% endif %}>
+                                    {{ c }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <!-- 第二行：联系人、联系电话、邮箱地址 -->
+                    <div class="visa-grid-3">
                         <div class="visa-form-group">
                             <label for="contact_person" class="visa-form-label">
                                 联系人
@@ -105,10 +147,7 @@
                                    placeholder="请输入联系电话" 
                                    value="{% if supplier %}{{ supplier.phone or '' }}{% else %}{{ request.form.get('phone', '') }}{% endif %}">
                         </div>
-                    </div>
-                    
-                    <!-- 第二行：邮箱、状态、国家、地区 -->
-                    <div class="visa-grid-4">
+                        
                         <div class="visa-form-group">
                             <label for="email" class="visa-form-label">
                                 邮箱地址
@@ -120,7 +159,10 @@
                                    placeholder="请输入邮箱地址" 
                                    value="{% if supplier %}{{ supplier.email or '' }}{% else %}{{ request.form.get('email', '') }}{% endif %}">
                         </div>
-                        
+                    </div>
+                    
+                    <!-- 第三行：状态 -->
+                    <div class="visa-grid-4">
                         <div class="visa-form-group">
                             <label for="status" class="visa-form-label">
                                 状态
@@ -134,42 +176,6 @@
                                     <option value="inactive" {{ 'selected' if request.form.get('status') == 'inactive' }}>非活跃</option>
                                 {% endif %}
                             </select>
-                        </div>
-                        
-                        <div class="visa-form-group">
-                            <label for="country" class="visa-form-label">
-                                国家
-                            </label>
-                            <input type="text" 
-                                   class="visa-form-control" 
-                                   id="country" 
-                                   name="country" 
-                                   placeholder="请输入国家" 
-                                   value="{% if supplier %}{{ supplier.country or '' }}{% else %}{{ request.form.get('country', '') }}{% endif %}">
-                        </div>
-                        
-                        <div class="visa-form-group">
-                            <label for="city" class="visa-form-label">
-                                城市
-                            </label>
-                            <input type="text" 
-                                   class="visa-form-control" 
-                                   id="city" 
-                                   name="city" 
-                                   placeholder="请输入城市" 
-                                   value="{% if supplier %}{{ supplier.city or '' }}{% else %}{{ request.form.get('city', '') }}{% endif %}">
-                        </div>
-                        
-                        <div class="visa-form-group">
-                            <label for="region" class="visa-form-label">
-                                地区
-                            </label>
-                            <input type="text" 
-                                   class="visa-form-control" 
-                                   id="region" 
-                                   name="region" 
-                                   placeholder="请输入地区" 
-                                   value="{% if supplier %}{{ supplier.region or '' }}{% else %}{{ request.form.get('region', '') }}{% endif %}">
                         </div>
                     </div>
                     
@@ -212,5 +218,48 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// 城市数据（从服务器获取）
+const citiesByCountry = {{ cities_by_country|default({})|tojson|safe }};
+
+// 根据国家筛选城市
+function filterCitiesByCountry() {
+    const countrySelect = document.getElementById('country');
+    const citySelect = document.getElementById('city');
+    const selectedCountry = countrySelect.value;
+    const currentCity = '{{ supplier.city if supplier and supplier.city else "" }}';
+    
+    // 获取当前选中的城市值
+    const selectedCity = citySelect.value || currentCity;
+    
+    // 如果有按国家分组的数据，使用它
+    if (selectedCountry && citiesByCountry && citiesByCountry[selectedCountry]) {
+        // 清空城市选项
+        citySelect.innerHTML = '<option value="">请选择城市</option>';
+        
+        // 添加该国家的城市
+        citiesByCountry[selectedCountry].forEach(city => {
+            const option = document.createElement('option');
+            option.value = city;
+            option.textContent = city;
+            if (city === selectedCity) {
+                option.selected = true;
+            }
+            citySelect.appendChild(option);
+        });
+    }
+}
+
+// 页面加载时，如果已选择国家，则筛选城市
+document.addEventListener('DOMContentLoaded', function() {
+    const countrySelect = document.getElementById('country');
+    if (countrySelect && countrySelect.value) {
+        filterCitiesByCountry();
+    }
+});
+</script>
 {% endblock %}
 

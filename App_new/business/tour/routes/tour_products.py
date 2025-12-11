@@ -26,10 +26,16 @@ tour_products_bp = Blueprint('tour_products', __name__, url_prefix='/tour/produc
 
 # 允许的图片扩展名
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+# 允许的文档扩展名
+ALLOWED_DOC_EXTENSIONS = {'pdf', 'doc', 'docx'}
 
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+def allowed_doc_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_DOC_EXTENSIONS
 
 
 def save_uploaded_file(file, upload_folder='uploads/tour_products'):
@@ -49,6 +55,26 @@ def save_uploaded_file(file, upload_folder='uploads/tour_products'):
         # 返回存入数据库使用的相对路径
         return os.path.join(upload_folder, filename).replace('\\', '/')
     return None
+
+
+def save_document_file(file, upload_folder='uploads/tour_documents'):
+    """保存上传的文档文件，返回相对路径"""
+    if file and allowed_doc_file(file.filename):
+        original_filename = file.filename
+        filename = secure_filename(file.filename)
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        name, ext = os.path.splitext(filename)
+        filename = f"{name}_{timestamp}{ext}"
+
+        upload_path = os.path.join('App_new/static', upload_folder)
+        os.makedirs(upload_path, exist_ok=True)
+
+        filepath = os.path.join(upload_path, filename)
+        file.save(filepath)
+
+        # 返回存入数据库使用的相对路径和原始文件名
+        return os.path.join(upload_folder, filename).replace('\\', '/'), original_filename
+    return None, None
 
 
 @tour_products_bp.route('/')
@@ -121,8 +147,16 @@ def product_list():
         if product.destination_city == 'None':
             product.destination_city = None
 
+    # 通过 business_types 关联查询旅游相关的供应商类型
+    from App_new.shared.models.business_types import BusinessType
+    tour_type_codes = ['tour', 'tour_package', 'land_tour']
+    tour_type_ids = [bt.id for bt in BusinessType.query.filter(
+        BusinessType.code.in_(tour_type_codes),
+        BusinessType.is_active == True
+    ).all()]
+    
     suppliers = Supplier.query.filter(
-        Supplier.supplier_type.in_(['tour_operator', 'travel_agency', 'local_operator'])
+        Supplier.supplier_type_id.in_(tour_type_ids) if tour_type_ids else False
     ).order_by(Supplier.name).all()
 
     # 从 ProductCity 表获取国家列表
@@ -137,6 +171,12 @@ def product_list():
     ).distinct().order_by(Product.city_name).all()
     cities = [c[0] for c in cities if c[0]]
 
+    # 统计数据
+    total_products = Product.query.count()
+    active_products = Product.query.filter(Product.product_status == 'active').count()
+    draft_products = Product.query.filter(Product.product_status == 'draft').count()
+    inactive_products = Product.query.filter(Product.product_status == 'inactive').count()
+
     return render_template('business/tour/products/product_list.html',
                          products=products,
                          pagination=pagination,
@@ -149,6 +189,12 @@ def product_list():
                              'city': city,
                              'status': status,
                              'keyword': keyword
+                         },
+                         stats={
+                             'total': total_products,
+                             'active': active_products,
+                             'draft': draft_products,
+                             'inactive': inactive_products
                          })
 
 
@@ -178,6 +224,14 @@ def add_product():
                             gallery_paths.append(path)
             gallery_json = json.dumps(gallery_paths) if gallery_paths else None
 
+            # 供应商文件上传
+            supplier_doc_path = None
+            supplier_doc_name = None
+            if 'supplier_document' in request.files:
+                doc_file = request.files['supplier_document']
+                if doc_file and doc_file.filename:
+                    supplier_doc_path, supplier_doc_name = save_document_file(doc_file)
+
             # 解析并转换表单字段（做了类型保护）
             supplier_id = request.form.get('supplier_id') or None
             if supplier_id:
@@ -186,14 +240,23 @@ def add_product():
                 except ValueError:
                     supplier_id = None
 
-            # 处理 city_id（从 city_name 获取）
+            # 处理 city_id（从 city_name 获取，如果城市不存在则自动创建）
             city_name = request.form.get('city_name')
             city_id = None
             if city_name:
                 from App_new.business.tour.models.Packagemodels import ProductCity
                 city = ProductCity.query.filter_by(city_name=city_name).first()
-                if city:
-                    city_id = city.id
+                if not city:
+                    # 自动创建城市记录
+                    country_name = request.form.get('country_name') or '未知'
+                    city = ProductCity(
+                        city_name=city_name,
+                        display_name=city_name,
+                        country_name=country_name
+                    )
+                    db.session.add(city)
+                    db.session.flush()  # 获取新创建的城市ID
+                city_id = city.id
 
             # 安全转换数字字段
             duration_days = request.form.get('duration_days', '').strip()
@@ -253,6 +316,8 @@ def add_product():
                 tags=tags_json,
                 cover_image=cover_image_path,
                 gallery_images=gallery_json,
+                supplier_document=supplier_doc_path,
+                supplier_document_name=supplier_doc_name,
                 product_status=request.form.get('product_status', 'draft'),
                 is_featured=is_featured_val,
                 valid_from=valid_from_val,
@@ -272,13 +337,26 @@ def add_product():
             traceback.print_exc()
             flash(f'创建失败：{str(e)}', 'error')
 
+    # 通过 business_types 关联查询旅游相关的供应商类型
+    from App_new.shared.models.business_types import BusinessType
+    tour_type_codes = ['tour', 'tour_package', 'land_tour']
+    tour_type_ids = [bt.id for bt in BusinessType.query.filter(
+        BusinessType.code.in_(tour_type_codes),
+        BusinessType.is_active == True
+    ).all()]
+    
     suppliers = Supplier.query.filter(
-        Supplier.supplier_type.in_(['tour_operator', 'travel_agency', 'local_operator'])
+        Supplier.supplier_type_id.in_(tour_type_ids) if tour_type_ids else False
     ).order_by(Supplier.name).all()
+
+    # 获取城市列表
+    from App_new.business.tour.models.Packagemodels import ProductCity
+    cities = ProductCity.query.order_by(ProductCity.country_name, ProductCity.city_name).all()
 
     return render_template('business/tour/products/product_form.html',
                          product=None,
                          suppliers=suppliers,
+                         cities=cities,
                          itineraries=[])
 
 
@@ -293,6 +371,25 @@ def product_detail(product_id):
     return render_template('business/tour/products/product_detail.html',
                          product=product,
                          itineraries=itineraries)
+
+
+@tour_products_bp.route('/<int:product_id>/print')
+@login_required
+@staff_only
+def print_itinerary(product_id):
+    """打印产品行程单"""
+    from App_new.business.tour.models.Packagemodels import CompanyInfo
+    
+    product = Product.query.get_or_404(product_id)
+    itineraries = ProductItinerary.query.filter_by(product_id=product_id).order_by(ProductItinerary.day_number).all()
+    company = CompanyInfo.query.first()
+    current_time = datetime.now()
+    
+    return render_template('business/tour/products/product_print_itinerary.html',
+                         product=product,
+                         itineraries=itineraries,
+                         company=company,
+                         current_time=current_time)
 
 
 @tour_products_bp.route('/<int:product_id>/itinerary/<int:itinerary_id>')
@@ -326,14 +423,16 @@ def add_itinerary(product_id):
         # 获取表单数据，使用 get 方法防止 KeyError
         day_number = request.form.get('day_number')
         day_title = request.form.get('day_title')
+        content = request.form.get('content')
         
-        if not day_number or not day_title:
-            return jsonify({'success': False, 'message': '天数和行程安排不能为空'}), 400
+        if not day_number:
+            return jsonify({'success': False, 'message': '天数不能为空'}), 400
         
         itinerary = ProductItinerary(
             product_id=product_id,
             day_number=int(day_number),
-            day_title=day_title
+            day_title=day_title,
+            content=content
         )
 
         for i in range(1, 4):
@@ -378,12 +477,14 @@ def update_itinerary(product_id, itinerary_id):
         # 获取表单数据，使用 get 方法防止 KeyError
         day_number = request.form.get('day_number')
         day_title = request.form.get('day_title')
+        content = request.form.get('content')
         
-        if not day_number or not day_title:
-            return jsonify({'success': False, 'message': '天数和行程安排不能为空'}), 400
+        if not day_number:
+            return jsonify({'success': False, 'message': '天数不能为空'}), 400
         
         itinerary.day_number = int(day_number)
         itinerary.day_title = day_title
+        itinerary.content = content
 
         for i in range(1, 4):
             img_field = f'image{i}'
@@ -455,6 +556,15 @@ def edit_product(product_id):
                 if gallery_paths:
                     product.gallery_images = json.dumps(gallery_paths)
 
+            # 供应商文件上传
+            if 'supplier_document' in request.files:
+                doc_file = request.files['supplier_document']
+                if doc_file and doc_file.filename:
+                    supplier_doc_path, supplier_doc_name = save_document_file(doc_file)
+                    if supplier_doc_path:
+                        product.supplier_document = supplier_doc_path
+                        product.supplier_document_name = supplier_doc_name
+
             supplier_id = request.form.get('supplier_id') or None
             if supplier_id:
                 try:
@@ -462,14 +572,23 @@ def edit_product(product_id):
                 except ValueError:
                     supplier_id = None
 
-            # 处理 city_id（从 city_name 获取）
+            # 处理 city_id（从 city_name 获取，如果城市不存在则自动创建）
             city_name = request.form.get('city_name')
             city_id = None
             if city_name:
                 from App_new.business.tour.models.Packagemodels import ProductCity
                 city = ProductCity.query.filter_by(city_name=city_name).first()
-                if city:
-                    city_id = city.id
+                if not city:
+                    # 自动创建城市记录
+                    country_name = request.form.get('country_name') or '未知'
+                    city = ProductCity(
+                        city_name=city_name,
+                        display_name=city_name,
+                        country_name=country_name
+                    )
+                    db.session.add(city)
+                    db.session.flush()
+                city_id = city.id
 
             product.product_name = request.form['product_name']
             product.supplier_id = supplier_id
@@ -536,16 +655,29 @@ def edit_product(product_id):
             traceback.print_exc()
             flash(f'更新失败：{str(e)}', 'error')
 
+    # 通过 business_types 关联查询旅游相关的供应商类型
+    from App_new.shared.models.business_types import BusinessType
+    tour_type_codes = ['tour', 'tour_package', 'land_tour']
+    tour_type_ids = [bt.id for bt in BusinessType.query.filter(
+        BusinessType.code.in_(tour_type_codes),
+        BusinessType.is_active == True
+    ).all()]
+    
     suppliers = Supplier.query.filter(
-        Supplier.supplier_type.in_(['tour_operator', 'travel_agency', 'local_operator'])
+        Supplier.supplier_type_id.in_(tour_type_ids) if tour_type_ids else False
     ).order_by(Supplier.name).all()
 
     itineraries = ProductItinerary.query.filter_by(product_id=product_id).order_by(ProductItinerary.day_number).all()
     price_variants = ProductPriceVariant.query.filter_by(product_id=product_id).all()
 
+    # 获取城市列表
+    from App_new.business.tour.models.Packagemodels import ProductCity
+    cities = ProductCity.query.order_by(ProductCity.country_name, ProductCity.city_name).all()
+
     return render_template('business/tour/products/product_form.html',
                          product=product,
                          suppliers=suppliers,
+                         cities=cities,
                          itineraries=itineraries,
                          price_variants=price_variants)
 
@@ -564,6 +696,30 @@ def delete_product(product_id):
         db.session.rollback()
         flash(f'删除失败：{str(e)}', 'danger')
         return redirect(url_for('tour_products.product_list'))
+
+
+@tour_products_bp.route('/<int:product_id>/toggle-status', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def toggle_status(product_id):
+    """切换产品状态"""
+    try:
+        product = Product.query.get_or_404(product_id)
+        data = request.get_json()
+        new_status = data.get('status')
+        
+        if new_status not in ['active', 'draft', 'inactive']:
+            return jsonify({'success': False, 'message': '无效的状态值'}), 400
+        
+        product.product_status = new_status
+        product.updated_at = datetime.utcnow()
+        db.session.commit()
+        
+        return jsonify({'success': True, 'message': '状态更新成功', 'status': new_status})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 
 # ========================================
@@ -609,10 +765,11 @@ def add_price_variant(product_id):
             end_date=datetime.strptime(request.form['end_date'], '%Y-%m-%d').date() if request.form.get('end_date') else None,
             min_pax=int(request.form['min_pax']) if request.form.get('min_pax') else None,
             max_pax=int(request.form['max_pax']) if request.form.get('max_pax') else None,
-            adult_price=float(request.form['adult_price']),
-            child_price=float(request.form['child_price']) if request.form.get('child_price') else None,
-            infant_price=float(request.form['infant_price']) if request.form.get('infant_price') else None,
-            single_room_supplement=float(request.form['single_room_supplement']) if request.form.get('single_room_supplement') else None,
+            # 房型价格
+            single_price=float(request.form['single_price']) if request.form.get('single_price') else None,
+            twin_price=float(request.form['twin_price']) if request.form.get('twin_price') else None,
+            third_pax_price=float(request.form['third_pax_price']) if request.form.get('third_pax_price') else None,
+            child_no_bed_price=float(request.form['child_no_bed_price']) if request.form.get('child_no_bed_price') else None,
             currency=request.form.get('currency', 'SGD'),
             is_active=bool(int(request.form.get('is_active', 1)))
         )
@@ -642,10 +799,11 @@ def update_price_variant(product_id, variant_id):
         variant.end_date = datetime.strptime(request.form['end_date'], '%Y-%m-%d').date() if request.form.get('end_date') else None
         variant.min_pax = int(request.form['min_pax']) if request.form.get('min_pax') else None
         variant.max_pax = int(request.form['max_pax']) if request.form.get('max_pax') else None
-        variant.adult_price = float(request.form['adult_price'])
-        variant.child_price = float(request.form['child_price']) if request.form.get('child_price') else None
-        variant.infant_price = float(request.form['infant_price']) if request.form.get('infant_price') else None
-        variant.single_room_supplement = float(request.form['single_room_supplement']) if request.form.get('single_room_supplement') else None
+        # 房型价格
+        variant.single_price = float(request.form['single_price']) if request.form.get('single_price') else None
+        variant.twin_price = float(request.form['twin_price']) if request.form.get('twin_price') else None
+        variant.third_pax_price = float(request.form['third_pax_price']) if request.form.get('third_pax_price') else None
+        variant.child_no_bed_price = float(request.form['child_no_bed_price']) if request.form.get('child_no_bed_price') else None
         variant.currency = request.form.get('currency', 'SGD')
         variant.is_active = bool(int(request.form.get('is_active', 1)))
         variant.updated_at = datetime.utcnow()
@@ -783,14 +941,23 @@ def import_excel():
                 elif pd.notna(row.get('产品编号')) and str(row['产品编号']).strip():
                     product = Product.query.filter_by(product_code=str(row['产品编号']).strip()).first()
 
-                # 处理 city_id（从 city_name 获取）
+                # 处理 city_id（从 city_name 获取，如果城市不存在则自动创建）
                 city_name = str(row['城市']).strip() if pd.notna(row.get('城市')) else None
                 city_id = None
                 if city_name:
                     from App_new.business.tour.models.Packagemodels import ProductCity
                     city = ProductCity.query.filter_by(city_name=city_name).first()
-                    if city:
-                        city_id = city.id
+                    if not city:
+                        # 自动创建城市记录
+                        country_name = str(row['国家']).strip() if pd.notna(row.get('国家')) else '未知'
+                        city = ProductCity(
+                            city_name=city_name,
+                            display_name=city_name,
+                            country_name=country_name
+                        )
+                        db.session.add(city)
+                        db.session.flush()
+                    city_id = city.id
 
                 product_data = {
                     'supplier_id': supplier.id if supplier else None,

@@ -11,10 +11,10 @@
                 <nav aria-label="breadcrumb" class="mb-4">
                     <ol class="breadcrumb justify-content-center bg-transparent">
                         <li class="breadcrumb-item">
-                            <a href="{{ url_for('guest.main.index') }}" class="text-white-50">首页</a>
+                            <a href="{{ url_for('public.index') }}" class="text-white-50">首页</a>
                         </li>
                         <li class="breadcrumb-item">
-                            <a href="{{ url_for('guest.tour.tour_packages') }}" class="text-white-50">旅游配套</a>
+                            <a href="{{ url_for('public.tour_packages') }}" class="text-white-50">旅游配套</a>
                         </li>
                         <li class="breadcrumb-item active text-white" aria-current="page">{{ package.name }}</li>
                     </ol>
@@ -150,13 +150,13 @@
                             <div class="col-6">
                                 <i class="fas fa-users text-success mb-2 d-block"></i>
                                 <small class="text-muted d-block">团队规模</small>
-                                <strong>8-20人</strong>
+                                <strong>{% if package.min_pax and package.max_pax %}{{ package.min_pax }}-{{ package.max_pax }}人{% elif package.min_pax %}{{ package.min_pax }}人起{% else %}待定{% endif %}</strong>
                             </div>
                         </div>
                     </div>
                     
                     <div class="d-grid gap-2">
-                        <a href="{{ url_for('guest.main.contact') }}" class="btn btn-custom btn-lg">
+                        <a href="{{ url_for('public.contact') }}" class="btn btn-custom btn-lg">
                             <i class="fas fa-comments me-1"></i>立即咨询
                         </a>
                         <a href="tel:+6512345678" class="btn btn-outline-primary">

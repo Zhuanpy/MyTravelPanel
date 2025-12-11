@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ product.product_name }} - 行程单</title>
+    <style>
+        body {
+            font-family: "Arial", sans-serif;
+            margin: 30px;
+            font-size: 10pt;
+            line-height: 1.4;
+            color: #333;
+            max-width: 210mm;
+            margin-left: auto;
+            margin-right: auto;
+            background: #f5f5f5;
+        }
+
+        header, footer {
+            text-align: center;
+            color: #888;
+        }
+
+        header {
+            border-bottom: 2px solid #4CAF50;
+            padding-bottom: 8px;
+            margin-bottom: 15px;
+        }
+
+        /* 公司抬头组件样式 */
+        .company-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            text-align: left;
+        }
+
+        .company-logo {
+            flex: 0 0 auto;
+            margin-right: 15px;
+            text-align: center;
+        }
+
+        .logo-image-section {
+            margin-bottom: 4px;
+        }
+
+        .company-logo img {
+            max-height: 50px;
+            max-width: 120px;
+            object-fit: contain;
+        }
+
+        .logo-text-section {
+            text-align: center;
+        }
+
+        .company-abbrev-en {
+            font-size: 11pt;
+            color: #4CAF50;
+            font-weight: bold;
+            margin-bottom: 2px;
+        }
+
+        .company-abbrev-cn {
+            font-size: 10pt;
+            color: #4CAF50;
+            font-weight: normal;
+        }
+
+        .company-info {
+            flex: 1;
+            text-align: right;
+        }
+
+        .company-name-container {
+            margin-bottom: 6px;
+        }
+
+        .company-name-container h1 {
+            font-size: 13pt;
+            color: #4CAF50;
+            margin: 0;
+            text-align: right;
+            font-weight: bold;
+        }
+
+        .company-name-container h1:first-child {
+            display: none;
+        }
+
+        .company-details-container {
+            text-align: right;
+        }
+
+        .company-details-container p {
+            margin: 2px 0;
+            font-size: 9pt;
+            color: #555;
+            text-align: right;
+        }
+
+        footer {
+            border-top: 2px solid #4CAF50;
+            padding-top: 15px;
+            margin-top: 40px;
+            font-size: 10pt;
+        }
+
+        h1 {
+            text-align: center;
+            color: #4CAF50;
+            font-size: 20pt;
+            margin-bottom: 8px;
+        }
+
+        .section-title {
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+            color: white;
+            padding: 8px 12px;
+            font-weight: bold;
+            margin-top: 20px;
+            border-radius: 5px;
+            font-size: 12pt;
+        }
+
+        .section-title-bilingual {
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+            color: white;
+            padding: 8px 12px;
+            font-weight: bold;
+            margin-top: 20px;
+            border-radius: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .section-title-chinese {
+            font-size: 12pt;
+        }
+
+        .section-title-english {
+            font-size: 10pt;
+            opacity: 0.9;
+            font-style: italic;
+        }
+
+        .print-container {
+            background: white;
+            padding: 20mm;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+
+        .bilingual-text {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            position: relative;
+            text-align: left;
+        }
+
+        .chinese-text {
+            font-weight: bold;
+            color: #4CAF50;
+            margin-bottom: 4px;
+        }
+
+        .english-text {
+            color: #666;
+            font-style: italic;
+            font-size: 9pt;
+            margin-bottom: 0;
+        }
+
+        .product-title {
+            text-align: center;
+            color: #4CAF50;
+            font-size: 16pt;
+            margin-bottom: 20px;
+            font-weight: bold;
+        }
+
+        .product-meta {
+            text-align: center;
+            color: #333;
+            font-size: 12pt;
+            margin-bottom: 18px;
+            font-weight: 500;
+        }
+
+        .product-meta-item {
+            display: inline-block;
+            margin: 0 10px;
+        }
+
+        .itinerary-day {
+            margin-bottom: 20px;
+            padding: 15px;
+            border: 2px solid #4CAF50;
+            border-radius: 8px;
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .day-images {
+            margin-top: 15px;
+            display: flex;
+            flex-wrap: nowrap;
+            gap: 8px;
+            justify-content: flex-start;
+        }
+
+        .day-image-item {
+            flex: 0 0 auto;
+        }
+
+        .itinerary-image {
+            width: 180px;
+            height: 135px;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            object-fit: cover;
+        }
+
+        .day-header {
+            font-weight: bold;
+            color: #4CAF50;
+            margin-bottom: 8px;
+            font-size: 14pt;
+            border-bottom: 2px solid #4CAF50;
+            padding-bottom: 4px;
+        }
+
+        .day-number {
+            display: inline-block;
+            width: 30px;
+            height: 30px;
+            background: #4CAF50;
+            color: white;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 30px;
+            margin-right: 10px;
+            font-size: 12pt;
+        }
+
+        .day-content {
+            line-height: 1.6;
+            font-size: 10pt;
+            color: #333;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-weight: normal;
+        }
+        
+        .day-content * {
+            font-weight: normal !important;
+            font-size: inherit !important;
+        }
+        
+        .day-content b,
+        .day-content strong {
+            font-weight: normal !important;
+        }
+
+        .no-data {
+            text-align: center;
+            color: #999;
+            font-style: italic;
+            padding: 30px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 1px dashed #ccc;
+        }
+
+        .price-section {
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            border: 1px solid #4CAF50;
+        }
+
+        .price-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .price-item {
+            margin-bottom: 12px;
+            padding: 8px;
+            background: white;
+            border-radius: 5px;
+            border-left: 4px solid #4CAF50;
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .price-label {
+            font-weight: bold;
+            color: #4CAF50;
+            margin-bottom: 5px;
+            font-size: 10pt;
+        }
+
+        .price-content {
+            line-height: 1.5;
+            white-space: pre-wrap;
+        }
+
+        .service-section {
+            margin-top: 20px;
+        }
+
+        .service-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-top: 10px;
+        }
+
+        .service-box {
+            padding: 12px;
+            border-radius: 8px;
+            background: white;
+            border-left: 4px solid #4CAF50;
+        }
+
+        .service-box.included {
+            border-left-color: #4CAF50;
+        }
+
+        .service-box.excluded {
+            border-left-color: #f44336;
+        }
+
+        .service-title {
+            font-weight: bold;
+            margin-bottom: 8px;
+            font-size: 11pt;
+        }
+
+        .service-box.included .service-title {
+            color: #4CAF50;
+        }
+
+        .service-box.excluded .service-title {
+            color: #f44336;
+        }
+
+        .service-content {
+            font-size: 10pt;
+            line-height: 1.6;
+            white-space: pre-wrap;
+        }
+
+        .notes-section {
+            margin-top: 20px;
+            padding: 12px;
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            border-radius: 8px;
+        }
+
+        .notes-title {
+            font-weight: bold;
+            color: #856404;
+            margin-bottom: 8px;
+            font-size: 11pt;
+        }
+
+        .notes-content {
+            font-size: 10pt;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            color: #856404;
+        }
+
+        /* 打印按钮 */
+        .print-actions {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            gap: 10px;
+            z-index: 1000;
+        }
+
+        .print-btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .print-btn.primary {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .print-btn.primary:hover {
+            background: #45a049;
+        }
+
+        .print-btn.secondary {
+            background: #e2e8f0;
+            color: #4a5568;
+        }
+
+        .print-btn.secondary:hover {
+            background: #cbd5e0;
+        }
+
+        @media print {
+            @page {
+                size: A4;
+                margin: 1.5cm;
+            }
+            body {
+                margin: 0;
+                font-size: 9pt;
+                line-height: 1.3;
+                color: #000;
+                background: white;
+                max-width: 210mm;
+            }
+            .print-container {
+                background: white !important;
+                padding: 0 !important;
+                box-shadow: none !important;
+                min-height: auto !important;
+                height: auto !important;
+            }
+            .print-actions {
+                display: none !important;
+            }
+            .company-name-container {
+                margin-bottom: 4px !important;
+                text-align: right !important;
+                max-width: 280px !important;
+                margin-left: auto !important;
+            }
+            .company-name-container h1 {
+                font-size: 14pt !important;
+                color: #4CAF50 !important;
+                margin: 0 0 2px 0 !important;
+                text-align: right !important;
+            }
+            .company-details-container {
+                max-width: 200px !important;
+                margin-left: auto !important;
+                width: 200px !important;
+                word-wrap: break-word !important;
+                white-space: normal !important;
+            }
+            .company-details-container p {
+                margin: 1px 0 !important;
+                font-size: 8pt !important;
+                color: #333 !important;
+                text-align: left !important;
+            }
+            .itinerary-day {
+                page-break-inside: avoid;
+                break-inside: avoid;
+                border: 1px solid #ccc !important;
+                background: white !important;
+                box-shadow: none !important;
+                padding: 12px !important;
+                margin-bottom: 15px !important;
+            }
+            .day-header {
+                font-size: 11pt !important;
+                font-weight: bold !important;
+            }
+            .day-content {
+                font-size: 9pt !important;
+                font-weight: normal !important;
+            }
+            .day-content *,
+            .day-content b,
+            .day-content strong {
+                font-weight: normal !important;
+                font-size: 9pt !important;
+            }
+            .section-title, .section-title-bilingual {
+                page-break-after: avoid;
+                break-after: avoid;
+                font-size: 11pt !important;
+                background: #f0f0f0 !important;
+                color: #000 !important;
+                margin-top: 15px !important;
+            }
+            .price-section {
+                page-break-inside: avoid;
+                break-inside: avoid;
+                background: white !important;
+                border: 1px solid #ccc !important;
+                padding: 12px !important;
+            }
+            .price-item {
+                background: white !important;
+                border: 1px solid #ddd !important;
+                padding: 6px !important;
+                margin-bottom: 8px !important;
+                border-left: 4px solid #4CAF50 !important;
+            }
+            .price-label {
+                color: #4CAF50 !important;
+            }
+            .service-box {
+                background: white !important;
+                border: 1px solid #ddd !important;
+            }
+            .notes-section {
+                background: #fff !important;
+                border: 1px solid #ffc107 !important;
+            }
+            .no-data {
+                background: white !important;
+                border: 1px dashed #ccc !important;
+                color: #666 !important;
+                padding: 20px !important;
+            }
+            footer {
+                margin-top: 30px !important;
+                padding-top: 10px !important;
+                border-top: 1px solid #ccc !important;
+                font-size: 8pt !important;
+                color: #666 !important;
+            }
+        }
+    </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+
+<!-- 打印操作按钮 -->
+<div class="print-actions">
+    <button class="print-btn primary" onclick="window.print()">
+        <i class="fas fa-print"></i> 打印
+    </button>
+    <button class="print-btn secondary" onclick="window.history.back()">
+        <i class="fas fa-arrow-left"></i> 返回
+    </button>
+</div>
+
+<div class="print-container">
+<header>
+    {% include 'shared/own_company/own_company_header_component.html' %}
+</header>
+
+<div class="bilingual-text">
+    <h1 class="chinese-text">行程单</h1>
+    <h1 class="english-text">Itinerary</h1>
+</div>
+
+{% if product %}
+<div class="product-title">{{ product.product_name }}</div>
+<div class="product-meta">
+    <span class="product-meta-item">📍 {{ product.city_name or product.destination_city or '未设置' }}</span>
+    <span class="product-meta-item">📅 {{ product.duration_days }}天行程</span>
+    {% if product.min_pax %}
+    <span class="product-meta-item">👥 {{ product.min_pax }}人起</span>
+    {% endif %}
+</div>
+{% endif %}
+
+<div class="section-title-bilingual">
+    <span class="section-title-chinese">每日行程安排</span>
+    <span class="section-title-english">Daily Itinerary</span>
+</div>
+
+{% if itineraries and itineraries|length > 0 %}
+    {% for day in itineraries %}
+        <div class="itinerary-day">
+            <div class="day-header">
+                <span class="day-number">{{ day.day_number }}</span>
+                {{ day.day_title or '第' ~ day.day_number ~ '天' }}
+            </div>
+            <div class="day-content">{{ day.content if day.content else (day.day_title if day.day_title else '暂无行程描述') }}</div>
+            
+            <!-- 行程图片展示 -->
+            {% if day.image1 or day.image2 or day.image3 %}
+            <div class="day-images">
+                {% if day.image1 %}
+                <div class="day-image-item">
+                    <img src="{{ url_for('static', filename=day.image1) }}" alt="行程图片" class="itinerary-image">
+                </div>
+                {% endif %}
+                {% if day.image2 %}
+                <div class="day-image-item">
+                    <img src="{{ url_for('static', filename=day.image2) }}" alt="行程图片" class="itinerary-image">
+                </div>
+                {% endif %}
+                {% if day.image3 %}
+                <div class="day-image-item">
+                    <img src="{{ url_for('static', filename=day.image3) }}" alt="行程图片" class="itinerary-image">
+                </div>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+    {% endfor %}
+{% else %}
+    <div class="no-data">暂无行程安排 / No Itinerary Available</div>
+{% endif %}
+
+<!-- 价格信息 -->
+{% if product.base_price %}
+<div class="section-title-bilingual">
+    <span class="section-title-chinese">价格信息</span>
+    <span class="section-title-english">Price Information</span>
+</div>
+<div class="price-section">
+    <div class="price-grid">
+        <div class="price-item">
+            <div class="price-label">成人价格 / Adult Price</div>
+            <div class="price-content">{{ product.currency }} {{ product.base_price }}</div>
+        </div>
+        {% if product.child_price %}
+        <div class="price-item">
+            <div class="price-label">儿童价格 / Child Price</div>
+            <div class="price-content">{{ product.currency }} {{ product.child_price }}</div>
+        </div>
+        {% endif %}
+        {% if product.single_room_supplement %}
+        <div class="price-item">
+            <div class="price-label">单房差 / Single Room Supplement</div>
+            <div class="price-content">{{ product.currency }} {{ product.single_room_supplement }}</div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+<!-- 服务说明 -->
+{% if product.included_services or product.excluded_services %}
+<div class="section-title-bilingual">
+    <span class="section-title-chinese">服务说明</span>
+    <span class="section-title-english">Service Details</span>
+</div>
+<div class="service-section">
+    <div class="service-grid">
+        <div class="service-box included">
+            <div class="service-title">✓ 费用包含 / Included</div>
+            <div class="service-content">{{ product.included_services or '请咨询客服' }}</div>
+        </div>
+        <div class="service-box excluded">
+            <div class="service-title">✗ 费用不含 / Excluded</div>
+            <div class="service-content">{{ product.excluded_services or '请咨询客服' }}</div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- 重要提示 -->
+{% if product.important_notes %}
+<div class="notes-section">
+    <div class="notes-title">⚠ 重要提示 / Important Notes</div>
+    <div class="notes-content">{{ product.important_notes }}</div>
+</div>
+{% endif %}
+
+<footer>
+    <div>Generated by {% if company and company.company_name %}{{ company.company_name }}{% else %}JOYFUL ESCAPES PTE. LTD{% endif %} System</div>
+    <div>生成时间: {% if current_time %}{{ current_time.strftime('%Y-%m-%d %H:%M:%S') }}{% else %}{{ '' }}{% endif %}</div>
+</footer>
+
+</div>
+
+</body>
+</html>
