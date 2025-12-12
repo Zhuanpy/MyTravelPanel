@@ -29,8 +29,9 @@ def create_order():
     """创建订单页面"""
     # 获取所有活跃的供应商
     suppliers = Supplier.query.filter_by(status='active').all()
-    # 从模型中获取供应商类型列表
-    supplier_types = Supplier.get_supplier_types()
+    # 从 BusinessType 表获取供应商类型列表
+    from App_new.shared.models.business_types import BusinessType
+    supplier_types = BusinessType.query.filter_by(is_active=True).order_by(BusinessType.sort_order).all()
     return render_template('business/flight/order_create.html', 
                          suppliers=suppliers,
                          supplier_types=supplier_types)

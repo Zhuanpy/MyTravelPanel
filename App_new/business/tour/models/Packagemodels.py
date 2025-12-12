@@ -103,6 +103,34 @@ class Product(db.Model):
         for key, value in kwargs.items():
             if hasattr(self, key):
                 setattr(self, key, value)
+    
+    @staticmethod
+    def generate_product_code():
+        """生成唯一的产品编号，格式：PKG-YYYYMMDD-XXXX"""
+        from datetime import datetime
+        import random
+        import string
+        
+        date_str = datetime.now().strftime('%Y%m%d')
+        
+        # 生成随机4位字母数字组合
+        random_suffix = ''.join(random.choices(string.ascii_uppercase + string.digits, k=4))
+        code = f'PKG-{date_str}-{random_suffix}'
+        
+        # 检查是否已存在，如果存在则重新生成
+        max_attempts = 10
+        attempt = 0
+        while attempt < max_attempts:
+            existing = db.session.query(Product).filter_by(product_code=code).first()
+            if not existing:
+                return code
+            random_suffix = ''.join(random.choices(string.ascii_uppercase + string.digits, k=4))
+            code = f'PKG-{date_str}-{random_suffix}'
+            attempt += 1
+        
+        # 如果10次都重复，使用时间戳
+        timestamp = datetime.now().strftime('%H%M%S')
+        return f'PKG-{date_str}-{timestamp}'
 
     @classmethod
     def add_product(cls, city_name: str, supplier_id: int, product_name: str, created_at: date,
@@ -374,3 +402,31 @@ class CompanyInfo(db.Model):
 
     def __repr__(self):
         return f'<CompanyInfo {self.company_name_cn or self.company_name}>'
+
+
+class HomeBanner(db.Model):
+    """首页轮播图/横幅管理"""
+    __tablename__ = 'home_banners'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(100), nullable=True, comment='图片标题')
+    description = db.Column(db.String(255), nullable=True, comment='图片描述')
+    image_path = db.Column(db.String(500), nullable=False, comment='图片路径')
+    link_url = db.Column(db.String(500), nullable=True, comment='点击跳转链接')
+    sort_order = db.Column(db.Integer, default=0, comment='排序顺序，数字越小越靠前')
+    is_active = db.Column(db.Boolean, default=True, comment='是否启用')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, comment='创建时间')
+    created_by = db.Column(db.String(100), nullable=True, comment='创建人')
+    
+    def __repr__(self):
+        return f'<HomeBanner {self.id}: {self.title or "无标题"}>'
+    
+    @classmethod
+    def get_active_banners(cls):
+        """获取所有启用的轮播图，按排序顺序"""
+        return cls.query.filter_by(is_active=True).order_by(cls.sort_order.asc(), cls.id.asc()).all()
+    
+    @classmethod
+    def get_all_banners(cls):
+        """获取所有轮播图（包括禁用的）"""
+        return cls.query.order_by(cls.sort_order.asc(), cls.id.asc()).all()

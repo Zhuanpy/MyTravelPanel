@@ -79,6 +79,16 @@
                     {% if product %}产品ID: {{ product.id }}{% else %}创建新的旅游产品模板{% endif %}
                 </p>
             </div>
+            {% if product %}
+            <div class="flex justify-center gap-3 mt-4">
+                <a href="{{ url_for('tour_products.print_itinerary', product_id=product.id) }}" target="_blank" class="visa-btn visa-btn-info">
+                    <i class="fas fa-print"></i> 打印行程
+                </a>
+                <a href="{{ url_for('tour_products.product_list') }}" class="visa-btn visa-btn-secondary">
+                    <i class="fas fa-arrow-left"></i> 返回列表
+                </a>
+            </div>
+            {% endif %}
         </div>
 
         <!-- 闪现消息 -->
@@ -323,9 +333,14 @@
                         <label class="visa-form-label">封面图</label>
                         <input type="file" name="cover_image" accept="image/*" class="visa-form-control">
                         {% if product and product.cover_image %}
-                        <div class="visa-mt-2">
+                        <div class="visa-mt-2" id="coverImagePreview" style="position: relative; display: inline-block;">
                             <img src="{{ url_for('static', filename=product.cover_image) }}" 
                                  style="max-width: 200px; max-height: 150px; border-radius: var(--visa-radius-sm); border: 1px solid var(--visa-border);">
+                            <button type="button" onclick="deleteProductFile('cover_image')" 
+                                    style="position: absolute; top: -8px; right: -8px; background: #dc2626; color: white; border: none; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; font-size: 12px;"
+                                    title="删除封面图">
+                                <i class="fas fa-times"></i>
+                            </button>
                         </div>
                         {% endif %}
                     </div>
@@ -336,11 +351,18 @@
                             可以选择多张图片一次上传
                         </small>
                         {% if product and product.gallery_images %}
-                        <div class="visa-flex visa-gap-2 visa-mt-2" style="flex-wrap: wrap;">
+                        <div class="visa-flex visa-gap-2 visa-mt-2" style="flex-wrap: wrap;" id="galleryImagesContainer">
                             {% set images = product.gallery_images|from_json if product.gallery_images else [] %}
                             {% for image in images %}
-                            <img src="{{ url_for('static', filename=image) }}" 
-                                 style="max-width: 100px; max-height: 80px; border-radius: var(--visa-radius-sm); border: 1px solid var(--visa-border);">
+                            <div style="position: relative; display: inline-block;" id="galleryImage{{ loop.index0 }}">
+                                <img src="{{ url_for('static', filename=image) }}" 
+                                     style="max-width: 100px; max-height: 80px; border-radius: var(--visa-radius-sm); border: 1px solid var(--visa-border);">
+                                <button type="button" onclick="deleteProductFile('gallery_image', {{ loop.index0 }})" 
+                                        style="position: absolute; top: -6px; right: -6px; background: #dc2626; color: white; border: none; border-radius: 50%; width: 20px; height: 20px; cursor: pointer; font-size: 10px;"
+                                        title="删除图片">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
                             {% endfor %}
                         </div>
                         {% endif %}
@@ -359,7 +381,7 @@
                             支持 PDF、Word 格式，供应商提供的详细产品说明
                         </small>
                         {% if product and product.supplier_document %}
-                        <div class="visa-mt-2" style="padding: 0.75rem; background: #f0f9ff; border-radius: 6px; border: 1px solid #bae6fd;">
+                        <div class="visa-mt-2" id="supplierDocPreview" style="padding: 0.75rem; background: #f0f9ff; border-radius: 6px; border: 1px solid #bae6fd;">
                             <div style="display: flex; align-items: center; gap: 0.75rem;">
                                 <i class="fas fa-file-pdf" style="font-size: 1.5rem; color: #dc2626;"></i>
                                 <div style="flex: 1;">
@@ -372,6 +394,9 @@
                                 <a href="{{ url_for('static', filename=product.supplier_document) }}" download class="visa-btn visa-btn-success visa-btn-sm">
                                     <i class="fas fa-download"></i> 下载
                                 </a>
+                                <button type="button" onclick="deleteProductFile('supplier_document')" class="visa-btn visa-btn-danger visa-btn-sm">
+                                    <i class="fas fa-trash"></i> 删除
+                                </button>
                             </div>
                         </div>
                         {% endif %}
@@ -386,10 +411,23 @@
                     <h3 style="color: var(--visa-success); margin: 0;">
                         <i class="fas fa-route"></i> 每日行程安排
                     </h3>
-                    <button type="button" onclick="showAddItineraryModal()" class="visa-btn visa-btn-success">
-                        <i class="fas fa-plus"></i> 添加行程
-                    </button>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <a href="{{ url_for('tour_products.download_itinerary_template') }}" class="visa-btn visa-btn-info">
+                            <i class="fas fa-download"></i> 下载模板
+                        </a>
+                        <button type="button" onclick="document.getElementById('itineraryExcelUpload').click()" class="visa-btn visa-btn-warning">
+                            <i class="fas fa-file-excel"></i> 导入Excel
+                        </button>
+                        <button type="button" onclick="showAddItineraryModal()" class="visa-btn visa-btn-success">
+                            <i class="fas fa-plus"></i> 添加行程
+                        </button>
+                    </div>
                 </div>
+                
+                <!-- 隐藏的行程Excel上传表单 -->
+                <form id="itineraryExcelForm" style="display: none;">
+                    <input type="file" id="itineraryExcelUpload" accept=".xlsx,.xls" onchange="handleItineraryExcelUpload(this)">
+                </form>
             {% if itineraries %}
             <div style="overflow-x: auto;">
                 <table class="visa-table">
@@ -711,6 +749,57 @@
 
 {% block extra_js %}
 <script>
+// 删除产品文件
+function deleteProductFile(fileType, fileIndex = null) {
+    const confirmMsg = {
+        'cover_image': '确定要删除封面图吗？',
+        'gallery_image': '确定要删除这张图片吗？',
+        'supplier_document': '确定要删除供应商文件吗？'
+    };
+    
+    if (!confirm(confirmMsg[fileType] || '确定要删除吗？')) {
+        return;
+    }
+    
+    const productId = {{ product.id if product else 0 }};
+    if (!productId) {
+        alert('产品ID无效');
+        return;
+    }
+    
+    fetch(`/tour/products/${productId}/delete-file`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+        },
+        body: JSON.stringify({
+            file_type: fileType,
+            file_index: fileIndex
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // 移除对应的预览元素
+            if (fileType === 'cover_image') {
+                document.getElementById('coverImagePreview')?.remove();
+            } else if (fileType === 'gallery_image') {
+                document.getElementById('galleryImage' + fileIndex)?.remove();
+            } else if (fileType === 'supplier_document') {
+                document.getElementById('supplierDocPreview')?.remove();
+            }
+            // 显示成功提示（可选）
+        } else {
+            alert(data.message || '删除失败');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('删除时发生错误');
+    });
+}
+
 // 表单提交处理
 document.getElementById('productForm').addEventListener('submit', function(e) {
     // 可以在这里添加表单验证逻辑
@@ -1115,6 +1204,72 @@ function closeItineraryModal() {
 
 // 移除点击模态框外部关闭功能，防止意外关闭
 // 用户必须点击关闭按钮或取消按钮才能关闭
+
+// 处理行程Excel导入
+function handleItineraryExcelUpload(input) {
+    const file = input.files[0];
+    if (!file) return;
+    
+    if (!file.name.endsWith('.xlsx') && !file.name.endsWith('.xls')) {
+        alert('请选择Excel文件（.xlsx或.xls）');
+        input.value = '';
+        return;
+    }
+    
+    const existingCount = {{ itineraries|length if itineraries else 0 }};
+    let confirmMsg = `确定要导入行程文件 "${file.name}" 吗？`;
+    if (existingCount > 0) {
+        confirmMsg += `\n\n注意：当前已有 ${existingCount} 个行程，导入后将追加新行程。`;
+    }
+    
+    if (!confirm(confirmMsg)) {
+        input.value = '';
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    // 显示加载提示
+    const loadingDiv = document.createElement('div');
+    loadingDiv.id = 'importLoading';
+    loadingDiv.innerHTML = `
+        <div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 9999;">
+            <div style="background: white; padding: 2rem; border-radius: 12px; text-align: center;">
+                <i class="fas fa-spinner fa-spin" style="font-size: 2.5rem; color: var(--visa-primary); margin-bottom: 1rem;"></i>
+                <h4>正在导入行程...</h4>
+                <p style="color: #64748b; margin: 0;">请稍候，不要关闭页面</p>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(loadingDiv);
+    
+    fetch(`/tour/products/{{ product.id }}/itinerary/import-excel`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+        },
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        document.getElementById('importLoading')?.remove();
+        if (data.success) {
+            alert(`导入成功！\n新增 ${data.imported_count} 个行程`);
+            location.reload();
+        } else {
+            alert('导入失败：' + data.message);
+        }
+    })
+    .catch(error => {
+        document.getElementById('importLoading')?.remove();
+        console.error('Error:', error);
+        alert('导入时发生错误');
+    })
+    .finally(() => {
+        input.value = '';
+    });
+}
 {% endif %}
 
 // ========================================

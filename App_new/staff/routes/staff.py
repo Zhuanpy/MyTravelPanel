@@ -1111,3 +1111,203 @@ def reports():
                              report_type='monthly',
                              start_date='',
                              end_date='')
+
+
+# ==================== 首页轮播图管理 ====================
+
+ALLOWED_IMAGE_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+
+def allowed_image_file(filename):
+    """检查是否为允许的图片格式"""
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_IMAGE_EXTENSIONS
+
+
+@staff.route('/home-banners')
+@login_required
+@staff_only
+def home_banners():
+    """首页轮播图管理列表"""
+    from ...business.tour.models.Packagemodels import HomeBanner
+    
+    try:
+        banners = HomeBanner.get_all_banners()
+        return render_template('staff/home_banners.html', banners=banners)
+    except Exception as e:
+        flash(f'加载轮播图列表失败：{str(e)}', 'error')
+        return render_template('staff/home_banners.html', banners=[])
+
+
+@staff.route('/home-banners/upload', methods=['POST'])
+@login_required
+@staff_only
+def upload_home_banner():
+    """上传首页轮播图"""
+    from ...business.tour.models.Packagemodels import HomeBanner
+    from ...exts import db
+    
+    try:
+        if 'image' not in request.files:
+            return jsonify({'success': False, 'message': '请选择图片文件'}), 400
+        
+        file = request.files['image']
+        if file.filename == '':
+            return jsonify({'success': False, 'message': '请选择图片文件'}), 400
+        
+        if not allowed_image_file(file.filename):
+            return jsonify({'success': False, 'message': '不支持的图片格式，请上传 PNG、JPG、JPEG、GIF 或 WEBP 格式'}), 400
+        
+        # 保存图片
+        filename = secure_filename(file.filename)
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        ext = filename.rsplit('.', 1)[1].lower()
+        new_filename = f"banner_{timestamp}.{ext}"
+        
+        # 创建上传目录
+        upload_dir = os.path.join('App_new', 'static', 'uploads', 'banners')
+        os.makedirs(upload_dir, exist_ok=True)
+        
+        file_path = os.path.join(upload_dir, new_filename)
+        file.save(file_path)
+        
+        # 获取表单数据
+        title = request.form.get('title', '').strip()
+        description = request.form.get('description', '').strip()
+        link_url = request.form.get('link_url', '').strip()
+        
+        # 获取当前最大排序号
+        max_order = db.session.query(db.func.max(HomeBanner.sort_order)).scalar() or 0
+        
+        # 创建数据库记录
+        banner = HomeBanner(
+            title=title or None,
+            description=description or None,
+            image_path=f"uploads/banners/{new_filename}",
+            link_url=link_url or None,
+            sort_order=max_order + 1,
+            is_active=True,
+            created_by=current_user.username
+        )
+        
+        db.session.add(banner)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True, 
+            'message': '轮播图上传成功',
+            'banner': {
+                'id': banner.id,
+                'title': banner.title,
+                'image_path': banner.image_path,
+                'is_active': banner.is_active
+            }
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'上传失败：{str(e)}'}), 500
+
+
+@staff.route('/home-banners/<int:banner_id>/delete', methods=['POST'])
+@login_required
+@staff_only
+def delete_home_banner(banner_id):
+    """删除首页轮播图"""
+    from ...business.tour.models.Packagemodels import HomeBanner
+    from ...exts import db
+    
+    try:
+        banner = HomeBanner.query.get_or_404(banner_id)
+        
+        # 删除图片文件
+        if banner.image_path:
+            file_path = os.path.join('App_new', 'static', banner.image_path)
+            if os.path.exists(file_path):
+                try:
+                    os.remove(file_path)
+                except Exception as e:
+                    current_app.logger.warning(f"删除图片文件失败: {e}")
+        
+        db.session.delete(banner)
+        db.session.commit()
+        
+        return jsonify({'success': True, 'message': '轮播图已删除'})
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'删除失败：{str(e)}'}), 500
+
+
+@staff.route('/home-banners/<int:banner_id>/toggle', methods=['POST'])
+@login_required
+@staff_only
+def toggle_home_banner(banner_id):
+    """切换轮播图启用/禁用状态"""
+    from ...business.tour.models.Packagemodels import HomeBanner
+    from ...exts import db
+    
+    try:
+        banner = HomeBanner.query.get_or_404(banner_id)
+        banner.is_active = not banner.is_active
+        db.session.commit()
+        
+        status = '启用' if banner.is_active else '禁用'
+        return jsonify({'success': True, 'message': f'轮播图已{status}', 'is_active': banner.is_active})
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'操作失败：{str(e)}'}), 500
+
+
+@staff.route('/home-banners/<int:banner_id>/update', methods=['POST'])
+@login_required
+@staff_only
+def update_home_banner(banner_id):
+    """更新轮播图信息"""
+    from ...business.tour.models.Packagemodels import HomeBanner
+    from ...exts import db
+    
+    try:
+        banner = HomeBanner.query.get_or_404(banner_id)
+        
+        data = request.get_json()
+        if data:
+            if 'title' in data:
+                banner.title = data['title'].strip() or None
+            if 'description' in data:
+                banner.description = data['description'].strip() or None
+            if 'link_url' in data:
+                banner.link_url = data['link_url'].strip() or None
+            if 'sort_order' in data:
+                banner.sort_order = int(data['sort_order'])
+        
+        db.session.commit()
+        return jsonify({'success': True, 'message': '更新成功'})
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'更新失败：{str(e)}'}), 500
+
+
+@staff.route('/home-banners/reorder', methods=['POST'])
+@login_required
+@staff_only
+def reorder_home_banners():
+    """重新排序轮播图"""
+    from ...business.tour.models.Packagemodels import HomeBanner
+    from ...exts import db
+    
+    try:
+        data = request.get_json()
+        order_list = data.get('order', [])  # [banner_id, banner_id, ...]
+        
+        for index, banner_id in enumerate(order_list):
+            banner = HomeBanner.query.get(banner_id)
+            if banner:
+                banner.sort_order = index
+        
+        db.session.commit()
+        return jsonify({'success': True, 'message': '排序已更新'})
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'排序失败：{str(e)}'}), 500

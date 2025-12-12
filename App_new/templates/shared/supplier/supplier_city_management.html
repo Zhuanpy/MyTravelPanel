@@ -3,50 +3,72 @@
 {% block title %}城市信息管理{% endblock %}
 
 {% block extra_css %}
-<script src="https://cdn.tailwindcss.com"></script>
 <style>
+    .city-page { background-color: #f9fafb; min-height: calc(100vh - 120px); padding: 1.5rem; }
+    .city-container { max-width: 1152px; margin: 0 auto; }
+    .city-card { background: white; border-radius: 0.75rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); padding: 1.25rem; margin-bottom: 1.5rem; }
+    .city-title { font-size: 1.5rem; font-weight: bold; color: #1f2937; }
+    .city-subtitle { color: #6b7280; font-size: 0.875rem; margin-top: 0.25rem; }
+    .city-btn { padding: 0.5rem 1rem; border-radius: 0.5rem; font-weight: 500; transition: all 0.2s; }
+    .city-btn-green { background: #22c55e; color: white; border: none; }
+    .city-btn-green:hover { background: #16a34a; }
+    .city-search-wrap { position: relative; flex: 1; }
+    .city-search-icon { position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%); color: #9ca3af; }
+    .city-search { width: 100%; padding: 0.625rem 1rem 0.625rem 2.5rem; border: 1px solid #d1d5db; border-radius: 0.5rem; }
+    .city-search:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59,130,246,0.2); }
+    .city-select { padding: 0.625rem 1rem; border: 1px solid #d1d5db; border-radius: 0.5rem; background: white; min-width: 150px; }
+    .city-table { width: 100%; }
+    .city-table th { text-align: left; padding: 0.75rem 1.25rem; font-weight: 500; color: #4b5563; font-size: 0.875rem; background: #f9fafb; border-bottom: 1px solid #e5e7eb; }
+    .city-table td { padding: 0.75rem 1.25rem; border-bottom: 1px solid #f3f4f6; }
+    .city-badge { display: inline-flex; align-items: center; padding: 0.25rem 0.625rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 500; background: #dbeafe; color: #1d4ed8; }
     .table-row:hover { background-color: rgba(59, 130, 246, 0.05); }
+    .city-actions { display: flex; justify-content: flex-end; gap: 0.5rem; }
+    .city-page-info { font-size: 0.875rem; color: #6b7280; }
+    .city-page-btn { padding: 0.375rem 0.75rem; font-size: 0.875rem; border: 1px solid #d1d5db; border-radius: 0.25rem; background: white; }
+    .city-page-btn:hover { background: #f9fafb; }
+    .city-page-btn.active { background: #3b82f6; color: white; border-color: #3b82f6; }
+    .city-empty { text-align: center; padding: 4rem 0; }
+    .city-empty i { font-size: 3rem; color: #d1d5db; margin-bottom: 1rem; }
+    .d-flex { display: flex; }
+    .flex-column { flex-direction: column; }
+    .align-items-center { align-items: center; }
+    .justify-content-between { justify-content: space-between; }
+    .gap-2 { gap: 0.5rem; }
+    .gap-3 { gap: 0.75rem; }
+    .gap-4 { gap: 1rem; }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="bg-gray-50 min-h-screen p-4 md:p-6">
-    <div class="max-w-6xl mx-auto">
+<div class="city-page">
+    <div class="city-container">
         <!-- 页面标题和操作栏 -->
-        <div class="bg-white rounded-xl shadow-sm p-5 mb-6">
-            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div class="city-card">
+            <div class="d-flex flex-column flex-md-row align-items-center justify-content-between gap-4">
                 <div>
-                    <h1 class="text-2xl font-bold text-gray-800">城市信息管理</h1>
-                    <p class="text-gray-500 text-sm mt-1">共 {{ cities|length }} 个城市</p>
+                    <h1 class="city-title">城市信息管理</h1>
+                    <p class="city-subtitle">共 {{ cities|length }} 个城市</p>
                 </div>
-                <div class="flex items-center gap-3">
-                    <button type="button" 
-                            class="bg-green-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-green-600 transition-colors"
-                            data-bs-toggle="modal" 
-                            data-bs-target="#addCityModal">
-                        <i class="fas fa-plus mr-2"></i>添加城市
+                <div class="d-flex align-items-center gap-3">
+                    <button type="button" class="city-btn city-btn-green" data-bs-toggle="modal" data-bs-target="#addCityModal">
+                        <i class="fas fa-plus me-2"></i>添加城市
                     </button>
                 </div>
             </div>
         </div>
 
         <!-- 搜索和筛选 -->
-        <div class="bg-white rounded-xl shadow-sm p-5 mb-6">
-            <div class="flex flex-col sm:flex-row gap-4">
-                <div class="flex-1">
-                    <div class="relative">
-                        <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
-                        <input type="text" 
-                               id="citySearch" 
-                               placeholder="搜索国家、城市..." 
-                               class="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                    </div>
+        <div class="city-card">
+            <div class="d-flex flex-column flex-sm-row gap-4">
+                <div class="city-search-wrap">
+                    <i class="fas fa-search city-search-icon"></i>
+                    <input type="text" id="citySearch" placeholder="搜索国家、城市..." class="city-search">
                 </div>
-                <div class="flex items-center gap-3">
-                    <select id="countryFilter" class="px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white min-w-[150px]">
+                <div class="d-flex align-items-center gap-3">
+                    <select id="countryFilter" class="city-select">
                         <option value="all">全部国家</option>
                     </select>
-                    <button type="button" id="clearFiltersBtn" class="px-4 py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">
+                    <button type="button" id="clearFiltersBtn" class="city-btn" style="background:#f3f4f6;">
                         <i class="fas fa-redo"></i>
                     </button>
                 </div>
@@ -54,34 +76,29 @@
         </div>
 
         <!-- 城市列表 -->
-        <div class="bg-white rounded-xl shadow-sm overflow-hidden">
+        <div class="city-card" style="padding:0; overflow:hidden;">
             {% if cities %}
-            <div class="overflow-x-auto">
-                <table class="w-full">
-                    <thead class="bg-gray-50 border-b border-gray-200">
+            <div style="overflow-x:auto;">
+                <table class="city-table">
+                    <thead>
                         <tr>
-                            <th class="text-left py-3 px-5 font-medium text-gray-600 text-sm">ID</th>
-                            <th class="text-left py-3 px-5 font-medium text-gray-600 text-sm">国家</th>
-                            <th class="text-left py-3 px-5 font-medium text-gray-600 text-sm">城市代码</th>
-                            <th class="text-left py-3 px-5 font-medium text-gray-600 text-sm">显示名称</th>
-                            <th class="text-right py-3 px-5 font-medium text-gray-600 text-sm">操作</th>
+                            <th>ID</th>
+                            <th>国家</th>
+                            <th>城市代码</th>
+                            <th>显示名称</th>
+                            <th style="text-align:right;">操作</th>
                         </tr>
                     </thead>
                     <tbody id="cityTableBody">
                         {% for city in cities %}
-                        <tr class="table-row border-b border-gray-100" data-city-id="{{ city.id }}">
-                            <td class="py-3 px-5 text-gray-500 text-sm">{{ city.id }}</td>
-                            <td class="py-3 px-5">
-                                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
-                                    {{ city.country_name }}
-                                </span>
-                            </td>
-                            <td class="py-3 px-5 text-gray-800 font-mono text-sm">{{ city.city_name }}</td>
-                            <td class="py-3 px-5 text-gray-800 font-medium">{{ city.display_name }}</td>
-                            <td class="py-3 px-5 text-right">
-                                <div class="flex justify-end gap-2">
-                                    <button type="button" 
-                                            class="text-blue-600 hover:text-blue-800 px-2 py-1 text-sm edit-city-btn"
+                        <tr class="table-row" data-city-id="{{ city.id }}">
+                            <td style="color:#6b7280; font-size:0.875rem;">{{ city.id }}</td>
+                            <td><span class="city-badge">{{ city.country_name }}</span></td>
+                            <td style="font-family:monospace; font-size:0.875rem;">{{ city.city_name }}</td>
+                            <td style="font-weight:500;">{{ city.display_name }}</td>
+                            <td>
+                                <div class="city-actions">
+                                    <button type="button" class="btn btn-sm btn-link text-primary edit-city-btn"
                                             data-city-id="{{ city.id }}"
                                             data-country-name="{{ city.country_name }}"
                                             data-city-name="{{ city.city_name }}"
@@ -89,9 +106,7 @@
                                         <i class="fas fa-edit"></i>
                                     </button>
                                     <form action="{{ url_for('package_routes.delete_city', city_id=city.id) }}" method="POST" style="display: inline;">
-                                        <button type="submit" 
-                                                class="text-red-600 hover:text-red-800 px-2 py-1 text-sm"
-                                                onclick="return confirm('确定删除此城市？')">
+                                        <button type="submit" class="btn btn-sm btn-link text-danger" onclick="return confirm('确定删除此城市？')">
                                             <i class="fas fa-trash"></i>
                                         </button>
                                     </form>
@@ -104,25 +119,21 @@
             </div>
             
             <!-- 分页 -->
-            <div class="px-5 py-4 border-t border-gray-200 flex items-center justify-between">
-                <div class="text-sm text-gray-500">
+            <div class="d-flex align-items-center justify-content-between" style="padding:1rem 1.25rem; border-top:1px solid #e5e7eb;">
+                <div class="city-page-info">
                     显示 <span id="showingStart">1</span>-<span id="showingEnd">{{ cities|length }}</span>，共 <span id="totalCount">{{ cities|length }}</span> 条
                 </div>
-                <div class="flex items-center gap-1">
-                    <button id="prevPage" class="px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50">
-                        <i class="fas fa-chevron-left"></i>
-                    </button>
-                    <div id="pageNumbers" class="flex gap-1"></div>
-                    <button id="nextPage" class="px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50">
-                        <i class="fas fa-chevron-right"></i>
-                    </button>
+                <div class="d-flex align-items-center gap-1">
+                    <button id="prevPage" class="city-page-btn"><i class="fas fa-chevron-left"></i></button>
+                    <div id="pageNumbers" class="d-flex gap-1"></div>
+                    <button id="nextPage" class="city-page-btn"><i class="fas fa-chevron-right"></i></button>
                 </div>
             </div>
             {% else %}
-            <div class="text-center py-16">
-                <i class="fas fa-city text-5xl text-gray-300 mb-4"></i>
-                <h3 class="text-lg font-medium text-gray-600 mb-2">暂无城市数据</h3>
-                <p class="text-gray-400 text-sm">点击上方按钮添加城市</p>
+            <div class="city-empty">
+                <i class="fas fa-city"></i>
+                <h3 style="font-size:1.125rem; font-weight:500; color:#4b5563; margin-bottom:0.5rem;">暂无城市数据</h3>
+                <p style="color:#9ca3af; font-size:0.875rem;">点击上方按钮添加城市</p>
             </div>
             {% endif %}
         </div>
@@ -132,42 +143,30 @@
 <!-- 添加城市弹窗 -->
 <div class="modal fade" id="addCityModal" tabindex="-1">
     <div class="modal-dialog">
-        <div class="modal-content rounded-xl">
-            <div class="modal-header border-b px-5 py-4">
-                <h5 class="text-lg font-semibold text-gray-800">
-                    <i class="fas fa-plus-circle text-green-500 mr-2"></i>添加城市
-                </h5>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-plus-circle text-success me-2"></i>添加城市</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body px-5 py-4">
+            <div class="modal-body">
                 <form id="addCityForm" action="{{ url_for('package_routes.manage_cities') }}" method="POST">
-                    <div class="space-y-4">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">国家</label>
-                            <input type="text" name="country_name" 
-                                   class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" 
-                                   placeholder="如：中国、新加坡" required>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">城市代码</label>
-                            <input type="text" name="city_name" 
-                                   class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 font-mono" 
-                                   placeholder="如：beijing、singapore" required>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">显示名称</label>
-                            <input type="text" name="display_name" 
-                                   class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" 
-                                   placeholder="如：北京、新加坡" required>
-                        </div>
+                    <div class="mb-3">
+                        <label class="form-label">国家</label>
+                        <input type="text" name="country_name" class="form-control" placeholder="如：中国、新加坡" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">城市代码</label>
+                        <input type="text" name="city_name" class="form-control" style="font-family:monospace;" placeholder="如：beijing、singapore" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">显示名称</label>
+                        <input type="text" name="display_name" class="form-control" placeholder="如：北京、新加坡" required>
                     </div>
                 </form>
             </div>
-            <div class="modal-footer border-t px-5 py-4 flex justify-end gap-3">
-                <button type="button" class="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200" data-bs-dismiss="modal">取消</button>
-                <button type="submit" form="addCityForm" class="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600">
-                    <i class="fas fa-plus mr-1"></i>添加
-                </button>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="submit" form="addCityForm" class="btn btn-success"><i class="fas fa-plus me-1"></i>添加</button>
             </div>
         </div>
     </div>
@@ -176,39 +175,30 @@
 <!-- 编辑城市弹窗 -->
 <div class="modal fade" id="editCityModal" tabindex="-1">
     <div class="modal-dialog">
-        <div class="modal-content rounded-xl">
-            <div class="modal-header border-b px-5 py-4">
-                <h5 class="text-lg font-semibold text-gray-800">
-                    <i class="fas fa-edit text-blue-500 mr-2"></i>编辑城市
-                </h5>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-edit text-primary me-2"></i>编辑城市</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body px-5 py-4">
+            <div class="modal-body">
                 <form id="editCityForm" method="POST">
-                    <div class="space-y-4">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">国家</label>
-                            <input type="text" id="edit_country_name" name="country_name" 
-                                   class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" required>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">城市代码</label>
-                            <input type="text" id="edit_city_name" name="city_name" 
-                                   class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 font-mono" required>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">显示名称</label>
-                            <input type="text" id="edit_display_name" name="display_name" 
-                                   class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" required>
-                        </div>
+                    <div class="mb-3">
+                        <label class="form-label">国家</label>
+                        <input type="text" id="edit_country_name" name="country_name" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">城市代码</label>
+                        <input type="text" id="edit_city_name" name="city_name" class="form-control" style="font-family:monospace;" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">显示名称</label>
+                        <input type="text" id="edit_display_name" name="display_name" class="form-control" required>
                     </div>
                 </form>
             </div>
-            <div class="modal-footer border-t px-5 py-4 flex justify-end gap-3">
-                <button type="button" class="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200" data-bs-dismiss="modal">取消</button>
-                <button type="submit" form="editCityForm" class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">
-                    <i class="fas fa-save mr-1"></i>保存
-                </button>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="submit" form="editCityForm" class="btn btn-primary"><i class="fas fa-save me-1"></i>保存</button>
             </div>
         </div>
     </div>
@@ -216,7 +206,6 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const citySearch = document.getElementById('citySearch');
@@ -314,7 +303,7 @@ document.addEventListener('DOMContentLoaded', function() {
         pageNumbers.innerHTML = '';
         for (let i = Math.max(1, currentPage - 2); i <= Math.min(totalPages, currentPage + 2); i++) {
             const btn = document.createElement('button');
-            btn.className = `px-3 py-1.5 text-sm rounded ${i === currentPage ? 'bg-blue-500 text-white' : 'border border-gray-300 hover:bg-gray-50'}`;
+            btn.className = `city-page-btn ${i === currentPage ? 'active' : ''}`;
             btn.textContent = i;
             btn.onclick = () => { currentPage = i; renderTable(); };
             pageNumbers.appendChild(btn);

@@ -169,8 +169,8 @@
             <button type="button" onclick="document.getElementById('excelUpload').click()" class="visa-btn visa-btn-warning">
                 <i class="fas fa-file-upload"></i> 导入Excel
             </button>
-            <a href="{{ url_for('tour_products.export_excel') }}" class="visa-btn visa-btn-success">
-                <i class="fas fa-file-excel"></i> 导出全部产品
+            <a href="{{ url_for('tour_products.export_excel', supplier=current_filters.supplier or '', country=current_filters.country or '', city=current_filters.city or '', status=current_filters.status or '', keyword=current_filters.keyword or '') }}" class="visa-btn visa-btn-success">
+                <i class="fas fa-file-excel"></i> 导出筛选产品
             </a>
         </div>
         
@@ -299,10 +299,15 @@
                                 <a href="{{ url_for('tour_products.print_itinerary', product_id=product.id) }}" class="visa-btn visa-btn-secondary visa-btn-sm" style="width: 100%;" target="_blank">
                                     <i class="fas fa-print"></i> 打印行程
                                 </a>
+                                <button type="button" class="visa-btn visa-btn-danger visa-btn-sm" style="width: 100%;" 
+                                        onclick="deleteProduct({{ product.id }}, '{{ product.product_name|e }}')">
+                                    <i class="fas fa-trash"></i> 删除
+                                </button>
                                 {% if product.is_expired %}
-                                <span class="visa-badge visa-badge-danger" style="text-align: center; padding: 0.375rem;">
-                                    已过期
-                                </span>
+                                <button type="button" class="visa-btn visa-btn-warning visa-btn-sm" style="width: 100%;" 
+                                        onclick="showRenewModal({{ product.id }}, '{{ product.product_name }}', '{{ product.valid_until }}')">
+                                    <i class="fas fa-sync-alt"></i> 续期
+                                </button>
                                 {% else %}
                                 <select class="status-select status-{{ product.product_status }}" 
                                         data-product-id="{{ product.id }}"
@@ -505,6 +510,134 @@ function openSupplierFolder(supplierId) {
         alert('打开文件夹时发生错误');
     });
 }
+
+// 显示续期弹窗
+function showRenewModal(productId, productName, currentValidUntil) {
+    document.getElementById('renewProductId').value = productId;
+    document.getElementById('renewProductName').textContent = productName;
+    document.getElementById('renewCurrentDate').textContent = currentValidUntil || '未设置';
+    
+    // 设置默认新日期（当前日期后一年）
+    const today = new Date();
+    const nextYear = new Date(today.setFullYear(today.getFullYear() + 1));
+    document.getElementById('renewNewDate').value = nextYear.toISOString().split('T')[0];
+    
+    document.getElementById('renewModal').style.display = 'flex';
+}
+
+// 关闭续期弹窗
+function closeRenewModal() {
+    document.getElementById('renewModal').style.display = 'none';
+}
+
+// 续期产品
+function renewProduct() {
+    const productId = document.getElementById('renewProductId').value;
+    const newDate = document.getElementById('renewNewDate').value;
+    
+    if (!newDate) {
+        alert('请选择新的有效期');
+        return;
+    }
+    
+    fetch(`/tour/products/${productId}/renew`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+        },
+        body: JSON.stringify({ valid_until: newDate })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            closeRenewModal();
+            location.reload();
+        } else {
+            alert('续期失败：' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('续期时发生错误');
+    });
+}
+
+// 快速续期（延长指定天数）
+function quickRenew(days) {
+    const today = new Date();
+    const newDate = new Date(today.setDate(today.getDate() + days));
+    document.getElementById('renewNewDate').value = newDate.toISOString().split('T')[0];
+}
+
+// 删除产品
+function deleteProduct(productId, productName) {
+    if (!confirm(`确定要删除产品 "${productName}" 吗？\n\n此操作将同时删除该产品的所有行程和价格变体，且无法恢复！`)) {
+        return;
+    }
+    
+    // 二次确认
+    if (!confirm('再次确认：您确定要永久删除此产品吗？')) {
+        return;
+    }
+    
+    fetch(`/tour/products/${productId}/delete`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('删除失败：' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('删除时发生错误');
+    });
+}
 </script>
+
+<!-- 续期弹窗 -->
+<div id="renewModal" class="visa-modal" style="display: none;">
+    <div class="visa-modal-content" style="max-width: 450px;">
+        <div class="visa-modal-header">
+            <h3><i class="fas fa-sync-alt" style="color: #f59e0b;"></i> 产品续期</h3>
+            <button type="button" class="visa-btn-close" onclick="closeRenewModal()">&times;</button>
+        </div>
+        <div class="visa-modal-body">
+            <input type="hidden" id="renewProductId">
+            <div style="margin-bottom: 1rem;">
+                <label style="font-weight: 600; color: #374151;">产品名称：</label>
+                <span id="renewProductName" style="color: #1f2937;"></span>
+            </div>
+            <div style="margin-bottom: 1rem;">
+                <label style="font-weight: 600; color: #374151;">当前有效期：</label>
+                <span id="renewCurrentDate" style="color: #dc2626;"></span>
+            </div>
+            <div style="margin-bottom: 1rem;">
+                <label class="visa-form-label">新有效期：</label>
+                <input type="date" id="renewNewDate" class="visa-form-control">
+            </div>
+            <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                <button type="button" class="visa-btn visa-btn-secondary visa-btn-sm" onclick="quickRenew(30)">+30天</button>
+                <button type="button" class="visa-btn visa-btn-secondary visa-btn-sm" onclick="quickRenew(90)">+90天</button>
+                <button type="button" class="visa-btn visa-btn-secondary visa-btn-sm" onclick="quickRenew(180)">+半年</button>
+                <button type="button" class="visa-btn visa-btn-secondary visa-btn-sm" onclick="quickRenew(365)">+1年</button>
+            </div>
+        </div>
+        <div class="visa-modal-footer">
+            <button type="button" class="visa-btn visa-btn-secondary" onclick="closeRenewModal()">取消</button>
+            <button type="button" class="visa-btn visa-btn-warning" onclick="renewProduct()">
+                <i class="fas fa-check"></i> 确认续期
+            </button>
+        </div>
+    </div>
+</div>
 {% endblock %}
 

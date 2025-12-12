@@ -6,7 +6,7 @@
 
 from flask import Blueprint, render_template, request, jsonify, current_app
 from App_new.business.visa.models.Visamodels import VisaTypes, VisaCountries
-from App_new.business.tour.models.Packagemodels import CompanyInfo, Product, TourProduct, ProductCity
+from App_new.business.tour.models.Packagemodels import CompanyInfo, Product, TourProduct, ProductCity, HomeBanner
 from App_new.exts import cache, db
 from sqlalchemy import or_, and_
 from datetime import date, datetime
@@ -48,7 +48,83 @@ def index():
     """公开首页 - 所有用户都可以访问"""
     # 从数据库获取公司信息
     company_info = CompanyInfo.query.first()
-    return render_template('guest/main/index.html', company=company_info)
+    
+    # 获取精选旅游产品（最多6个）
+    today = date.today()
+    tour_packages_query = Product.query.filter(
+        or_(
+            Product.product_status == 'active',
+            Product.product_status.is_(None),
+            Product.product_status == ''
+        )
+    ).order_by(Product.is_featured.desc(), Product.created_at.desc()).limit(6)
+    
+    tour_packages_raw = tour_packages_query.all()
+    
+    # 转换为模板需要的格式
+    tour_packages = []
+    for product in tour_packages_raw:
+        # 格式化价格
+        price_display = f"SGD {product.base_price:,.0f}" if product.base_price else "价格面议"
+        if product.currency and product.currency != 'SGD':
+            price_display = f"{product.currency} {product.base_price:,.0f}" if product.base_price else "价格面议"
+        
+        # 格式化天数
+        duration_display = f"{product.duration_days}天{product.duration_days-1 if product.duration_days else 0}夜" if product.duration_days else "天数待定"
+        
+        # 目的地显示
+        destination_display = product.city_name or product.destination_city or "目的地待定"
+        if product.country and product.country != '未知':
+            destination_display = f"{product.country} · {destination_display}"
+        
+        tour_packages.append({
+            'id': product.id,
+            'name': product.product_name,
+            'destination': destination_display,
+            'duration': duration_display,
+            'price': price_display,
+            'image': product.cover_image,
+            'is_featured': product.is_featured,
+            'product_type': product.product_type
+        })
+    
+    # 获取热门目的地（按产品数量统计）
+    destinations_raw = db.session.query(
+        ProductCity.country_name,
+        db.func.count(Product.id).label('count')
+    ).join(Product, Product.city_id == ProductCity.id).filter(
+        or_(
+            Product.product_status == 'active',
+            Product.product_status.is_(None)
+        )
+    ).group_by(ProductCity.country_name).order_by(db.desc('count')).limit(8).all()
+    
+    destinations = [{'name': d[0], 'count': d[1]} for d in destinations_raw if d[0]]
+    
+    # 获取签证国家（有签证类型的国家）
+    visa_countries_raw = db.session.query(
+        VisaCountries.country_name_CN,
+        VisaCountries.flag_file,
+        db.func.count(VisaTypes.id).label('visa_count')
+    ).join(VisaTypes, VisaTypes.country_id == VisaCountries.id).filter(
+        VisaTypes.is_active == True
+    ).group_by(VisaCountries.id).order_by(db.desc('visa_count')).limit(8).all()
+    
+    visa_countries = [{
+        'name': vc[0],
+        'flag': vc[1],
+        'visa_count': vc[2]
+    } for vc in visa_countries_raw]
+    
+    # 获取首页轮播图
+    banners = HomeBanner.get_active_banners()
+    
+    return render_template('guest/main/index.html', 
+                          company=company_info,
+                          tour_packages=tour_packages,
+                          destinations=destinations,
+                          visa_countries=visa_countries,
+                          banners=banners)
 
 @public.route('/visa-services')
 def visa_services():
@@ -506,6 +582,7 @@ def tour_packages():
             
             packages.append({
                 'id': product.id,
+                'code': product.product_code or f'P{product.id:04d}',
                 'name': product.product_name,
                 'destination': destination_display,
                 'duration': duration_display,
@@ -614,9 +691,24 @@ def tour_package_detail(package_id):
         if product.country and product.country != '未知':
             destination_display = f"{product.country} {destination_display}"
         
+        # 获取行程数据
+        from App_new.business.tour.models.Packagemodels import ProductItinerary
+        itineraries = ProductItinerary.query.filter_by(product_id=package_id).order_by(ProductItinerary.day_number).all()
+        itinerary_list = []
+        for it in itineraries:
+            day_data = {
+                'day': it.day_number,
+                'title': it.day_title or f'第{it.day_number}天行程',
+                'content': it.content,
+                'activities': [it.content] if it.content else [],
+                'images': [img for img in [it.image1, it.image2, it.image3] if img]
+            }
+            itinerary_list.append(day_data)
+        
         # 准备产品详情数据
         package_data = {
             'id': product.id,
+            'code': product.product_code or f'PKG-{product.id:04d}',
             'name': product.product_name,
             'destination': destination_display,
             'country': product.country,
@@ -629,7 +721,7 @@ def tour_package_detail(package_id):
             'includes': includes if includes else ['专业导游', '优质服务', '舒适住宿', '部分餐饮'],
             'excludes': excludes if excludes else ['个人消费', '小费', '旅游保险', '签证费用'],
             'notes': notes if notes else ['请确保护照有效期6个月以上', '建议购买旅游保险', '行程可能因天气调整'],
-            'itinerary': None,  # 暂时没有详细行程数据
+            'itinerary': itinerary_list if itinerary_list else None,
             'min_pax': product.min_pax,
             'max_pax': product.max_pax,
             'product_type': product.product_type,

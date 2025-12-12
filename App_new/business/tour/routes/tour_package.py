@@ -560,7 +560,15 @@ def package_home():
                 cities_by_country[city.country_name] = []
             cities_by_country[city.country_name].append(city)
         
-        return render_template('business/tour/package/package_home.html', cities_by_country=cities_by_country)
+        # 统计产品数量
+        product_count = Product.query.filter(
+            (Product.product_status == 'active') | 
+            (Product.product_status.is_(None))
+        ).count()
+        
+        return render_template('business/tour/package/package_home.html', 
+                              cities_by_country=cities_by_country,
+                              product_count=product_count)
     
     except SQLAlchemyError as e:
         print(f"数据库错误: {e}")

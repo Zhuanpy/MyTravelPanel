@@ -1,0 +1,669 @@
+{% extends "shared/staff_base.html" %}
+
+{% block title %}首页轮播图管理 - 员工系统{% endblock %}
+
+{% block extra_css %}
+<style>
+.banner-container {
+    padding: 20px;
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+}
+
+.page-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #1e293b;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.page-title i {
+    color: #3b82f6;
+}
+
+.btn-upload {
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 10px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn-upload:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
+    color: white;
+}
+
+/* 提示卡片 */
+.info-card {
+    background: linear-gradient(135deg, #dbeafe, #eff6ff);
+    border: 1px solid #93c5fd;
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin-bottom: 24px;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+}
+
+.info-card i {
+    color: #3b82f6;
+    font-size: 1.25rem;
+    margin-top: 2px;
+}
+
+.info-card-content {
+    flex: 1;
+}
+
+.info-card-content h4 {
+    font-weight: 600;
+    color: #1e40af;
+    margin-bottom: 4px;
+    font-size: 0.95rem;
+}
+
+.info-card-content p {
+    color: #3b82f6;
+    font-size: 0.875rem;
+    margin: 0;
+}
+
+/* 轮播图列表 */
+.banner-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 20px;
+}
+
+.banner-card {
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+    overflow: hidden;
+    transition: all 0.3s ease;
+    border: 1px solid #e2e8f0;
+}
+
+.banner-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.12);
+}
+
+.banner-card.inactive {
+    opacity: 0.6;
+}
+
+.banner-image-wrapper {
+    position: relative;
+    height: 180px;
+    background: #f1f5f9;
+    overflow: hidden;
+}
+
+.banner-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.3s ease;
+}
+
+.banner-card:hover .banner-image {
+    transform: scale(1.05);
+}
+
+.banner-status {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.banner-status.active {
+    background: rgba(16, 185, 129, 0.9);
+    color: white;
+}
+
+.banner-status.inactive {
+    background: rgba(100, 116, 139, 0.9);
+    color: white;
+}
+
+.banner-order {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    width: 32px;
+    height: 32px;
+    background: rgba(0,0,0,0.6);
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.875rem;
+}
+
+.banner-body {
+    padding: 16px;
+}
+
+.banner-title {
+    font-weight: 600;
+    color: #1e293b;
+    margin-bottom: 4px;
+    font-size: 1rem;
+}
+
+.banner-desc {
+    color: #64748b;
+    font-size: 0.875rem;
+    margin-bottom: 12px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.banner-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.75rem;
+    color: #94a3b8;
+    margin-bottom: 12px;
+}
+
+.banner-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.banner-actions .btn {
+    flex: 1;
+    padding: 8px 12px;
+    font-size: 0.8rem;
+    border-radius: 8px;
+}
+
+.btn-toggle {
+    background: #f0fdf4;
+    color: #16a34a;
+    border: 1px solid #bbf7d0;
+}
+
+.btn-toggle:hover {
+    background: #dcfce7;
+    color: #15803d;
+}
+
+.btn-toggle.off {
+    background: #fef3c7;
+    color: #d97706;
+    border: 1px solid #fde68a;
+}
+
+.btn-toggle.off:hover {
+    background: #fef9c3;
+    color: #b45309;
+}
+
+.btn-delete {
+    background: #fef2f2;
+    color: #dc2626;
+    border: 1px solid #fecaca;
+}
+
+.btn-delete:hover {
+    background: #fee2e2;
+    color: #b91c1c;
+}
+
+/* 空状态 */
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+}
+
+.empty-state i {
+    font-size: 4rem;
+    color: #cbd5e1;
+    margin-bottom: 16px;
+}
+
+.empty-state h3 {
+    color: #64748b;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.empty-state p {
+    color: #94a3b8;
+    margin-bottom: 20px;
+}
+
+/* 上传模态框 */
+.modal-header {
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
+    color: white;
+    border-bottom: none;
+    border-radius: 12px 12px 0 0;
+}
+
+.modal-header .btn-close {
+    filter: brightness(0) invert(1);
+}
+
+.modal-content {
+    border: none;
+    border-radius: 12px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+}
+
+.modal-body {
+    padding: 24px;
+}
+
+.upload-zone {
+    border: 2px dashed #cbd5e1;
+    border-radius: 12px;
+    padding: 40px 20px;
+    text-align: center;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    background: #f8fafc;
+}
+
+.upload-zone:hover, .upload-zone.dragover {
+    border-color: #3b82f6;
+    background: #eff6ff;
+}
+
+.upload-zone i {
+    font-size: 3rem;
+    color: #94a3b8;
+    margin-bottom: 12px;
+}
+
+.upload-zone p {
+    color: #64748b;
+    margin-bottom: 8px;
+}
+
+.upload-zone small {
+    color: #94a3b8;
+}
+
+.preview-container {
+    margin-top: 16px;
+    display: none;
+}
+
+.preview-container.show {
+    display: block;
+}
+
+.preview-image {
+    max-width: 100%;
+    max-height: 200px;
+    border-radius: 8px;
+    object-fit: contain;
+}
+
+.form-label {
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 6px;
+}
+
+.form-control {
+    border-radius: 10px;
+    border: 1px solid #e2e8f0;
+    padding: 10px 14px;
+}
+
+.form-control:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+.btn-submit {
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 10px;
+    font-weight: 600;
+    width: 100%;
+}
+
+.btn-submit:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4);
+    color: white;
+}
+
+.btn-submit:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* 推荐图片尺寸提示 */
+.size-hint {
+    background: #fef3c7;
+    border: 1px solid #fde68a;
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 0.8rem;
+    color: #92400e;
+    margin-top: 12px;
+}
+
+.size-hint i {
+    color: #d97706;
+    margin-right: 6px;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="banner-container">
+    <div class="page-header">
+        <h1 class="page-title">
+            <i class="fas fa-images"></i>
+            首页轮播图管理
+        </h1>
+        <button class="btn-upload" data-bs-toggle="modal" data-bs-target="#uploadModal">
+            <i class="fas fa-plus"></i>
+            上传图片
+        </button>
+    </div>
+
+    <div class="info-card">
+        <i class="fas fa-info-circle"></i>
+        <div class="info-card-content">
+            <h4>轮播图设置说明</h4>
+            <p>上传的图片将显示在网站首页顶部轮播区域。建议使用 1920×600 像素的高清图片，支持 PNG、JPG、WEBP 格式。拖拽可调整显示顺序。</p>
+        </div>
+    </div>
+
+    {% if banners %}
+    <div class="banner-grid" id="bannerGrid">
+        {% for banner in banners %}
+        <div class="banner-card {{ 'inactive' if not banner.is_active }}" data-id="{{ banner.id }}">
+            <div class="banner-image-wrapper">
+                <img src="{{ url_for('static', filename=banner.image_path) }}" alt="{{ banner.title or '轮播图' }}" class="banner-image">
+                <span class="banner-order">{{ loop.index }}</span>
+                <span class="banner-status {{ 'active' if banner.is_active else 'inactive' }}">
+                    {{ '启用中' if banner.is_active else '已禁用' }}
+                </span>
+            </div>
+            <div class="banner-body">
+                <h4 class="banner-title">{{ banner.title or '无标题' }}</h4>
+                <p class="banner-desc">{{ banner.description or '暂无描述' }}</p>
+                <div class="banner-meta">
+                    <span><i class="fas fa-user me-1"></i>{{ banner.created_by or '未知' }}</span>
+                    <span><i class="fas fa-clock me-1"></i>{{ banner.created_at.strftime('%Y-%m-%d') if banner.created_at else '未知' }}</span>
+                </div>
+                <div class="banner-actions">
+                    <button class="btn btn-toggle {{ 'off' if banner.is_active else '' }}" onclick="toggleBanner({{ banner.id }}, this)">
+                        <i class="fas {{ 'fa-eye-slash' if banner.is_active else 'fa-eye' }}"></i>
+                        {{ '禁用' if banner.is_active else '启用' }}
+                    </button>
+                    <button class="btn btn-delete" onclick="deleteBanner({{ banner.id }}, this)">
+                        <i class="fas fa-trash"></i>
+                        删除
+                    </button>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <i class="fas fa-images"></i>
+        <h3>暂无轮播图</h3>
+        <p>点击上方"上传图片"按钮添加首页轮播图</p>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#uploadModal">
+            <i class="fas fa-plus me-2"></i>上传第一张图片
+        </button>
+    </div>
+    {% endif %}
+</div>
+
+<!-- 上传模态框 -->
+<div class="modal fade" id="uploadModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-cloud-upload-alt me-2"></i>上传轮播图</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="uploadForm" enctype="multipart/form-data">
+                    <div class="upload-zone" id="uploadZone">
+                        <i class="fas fa-cloud-upload-alt"></i>
+                        <p>点击或拖拽图片到此处上传</p>
+                        <small>支持 PNG、JPG、JPEG、GIF、WEBP 格式</small>
+                        <input type="file" id="imageInput" name="image" accept="image/*" style="display: none;">
+                    </div>
+                    
+                    <div class="preview-container" id="previewContainer">
+                        <img id="previewImage" class="preview-image" alt="预览">
+                    </div>
+                    
+                    <div class="size-hint">
+                        <i class="fas fa-lightbulb"></i>
+                        推荐尺寸：1920 × 600 像素，文件大小不超过 5MB
+                    </div>
+
+                    <div class="row mt-4">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">标题（可选）</label>
+                            <input type="text" class="form-control" name="title" placeholder="输入图片标题">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">链接地址（可选）</label>
+                            <input type="text" class="form-control" name="link_url" placeholder="点击图片跳转的链接">
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">描述（可选）</label>
+                        <textarea class="form-control" name="description" rows="2" placeholder="输入图片描述"></textarea>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-submit" id="submitBtn" disabled>
+                        <i class="fas fa-upload me-2"></i>上传图片
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const uploadZone = document.getElementById('uploadZone');
+    const imageInput = document.getElementById('imageInput');
+    const previewContainer = document.getElementById('previewContainer');
+    const previewImage = document.getElementById('previewImage');
+    const submitBtn = document.getElementById('submitBtn');
+    const uploadForm = document.getElementById('uploadForm');
+    
+    // 点击上传区域
+    uploadZone.addEventListener('click', () => imageInput.click());
+    
+    // 拖拽上传
+    uploadZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        uploadZone.classList.add('dragover');
+    });
+    
+    uploadZone.addEventListener('dragleave', () => {
+        uploadZone.classList.remove('dragover');
+    });
+    
+    uploadZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        uploadZone.classList.remove('dragover');
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            handleFile(files[0]);
+        }
+    });
+    
+    // 文件选择
+    imageInput.addEventListener('change', (e) => {
+        if (e.target.files.length > 0) {
+            handleFile(e.target.files[0]);
+        }
+    });
+    
+    function handleFile(file) {
+        if (!file.type.startsWith('image/')) {
+            alert('请选择图片文件');
+            return;
+        }
+        
+        if (file.size > 5 * 1024 * 1024) {
+            alert('图片大小不能超过 5MB');
+            return;
+        }
+        
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            previewImage.src = e.target.result;
+            previewContainer.classList.add('show');
+            submitBtn.disabled = false;
+        };
+        reader.readAsDataURL(file);
+        
+        // 将文件设置到input
+        const dataTransfer = new DataTransfer();
+        dataTransfer.items.add(file);
+        imageInput.files = dataTransfer.files;
+    }
+    
+    // 表单提交
+    uploadForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        if (!imageInput.files.length) {
+            alert('请选择图片');
+            return;
+        }
+        
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>上传中...';
+        
+        const formData = new FormData(uploadForm);
+        
+        try {
+            const response = await fetch('{{ url_for("staff.upload_home_banner") }}', {
+                method: 'POST',
+                body: formData
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                alert('上传成功！');
+                location.reload();
+            } else {
+                alert(result.message || '上传失败');
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fas fa-upload me-2"></i>上传图片';
+            }
+        } catch (error) {
+            console.error('上传错误:', error);
+            alert('上传失败，请重试');
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fas fa-upload me-2"></i>上传图片';
+        }
+    });
+});
+
+// 切换状态
+async function toggleBanner(id, btn) {
+    try {
+        const response = await fetch(`/staff/home-banners/${id}/toggle`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            location.reload();
+        } else {
+            alert(result.message || '操作失败');
+        }
+    } catch (error) {
+        console.error('操作错误:', error);
+        alert('操作失败，请重试');
+    }
+}
+
+// 删除轮播图
+async function deleteBanner(id, btn) {
+    if (!confirm('确定要删除这张轮播图吗？此操作不可撤销。')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/staff/home-banners/${id}/delete`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            const card = btn.closest('.banner-card');
+            card.style.transition = 'all 0.3s ease';
+            card.style.opacity = '0';
+            card.style.transform = 'scale(0.9)';
+            setTimeout(() => {
+                card.remove();
+                // 如果没有轮播图了，刷新页面显示空状态
+                if (document.querySelectorAll('.banner-card').length === 0) {
+                    location.reload();
+                }
+            }, 300);
+        } else {
+            alert(result.message || '删除失败');
+        }
+    } catch (error) {
+        console.error('删除错误:', error);
+        alert('删除失败，请重试');
+    }
+}
+</script>
+{% endblock %}

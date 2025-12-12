@@ -289,10 +289,15 @@ def add_product():
             valid_until = request.form.get('valid_until', '').strip()
             valid_until_val = datetime.strptime(valid_until, '%Y-%m-%d').date() if valid_until else None
 
+            # 自动生成 product_code（如果未提供）
+            product_code = request.form.get('product_code', '').strip()
+            if not product_code:
+                product_code = Product.generate_product_code()
+
             product = Product(
                 product_name=request.form['product_name'],
                 supplier_id=supplier_id,
-                product_code=request.form.get('product_code') or None,
+                product_code=product_code,
                 city_id=city_id,
                 city_name=city_name,
                 departure_city=request.form.get('departure_city') or None,
@@ -390,6 +395,57 @@ def print_itinerary(product_id):
                          itineraries=itineraries,
                          company=company,
                          current_time=current_time)
+
+
+@tour_products_bp.route('/<int:product_id>/delete-file', methods=['POST'])
+@login_required
+@staff_only
+@csrf.exempt
+def delete_product_file(product_id):
+    """删除产品相关文件（封面图、图库图片、供应商文件）"""
+    try:
+        product = Product.query.get_or_404(product_id)
+        file_type = request.json.get('file_type')
+        file_index = request.json.get('file_index')  # 用于图库图片
+        
+        def try_delete_file(relative_path):
+            """尝试删除文件"""
+            if relative_path:
+                from flask import current_app
+                full_path = os.path.join(current_app.static_folder, relative_path)
+                if os.path.exists(full_path):
+                    os.remove(full_path)
+        
+        if file_type == 'cover_image':
+            if product.cover_image:
+                try_delete_file(product.cover_image)
+                product.cover_image = None
+                db.session.commit()
+                return jsonify({'success': True, 'message': '封面图已删除'})
+        
+        elif file_type == 'gallery_image':
+            if product.gallery_images:
+                images = json.loads(product.gallery_images) if isinstance(product.gallery_images, str) else product.gallery_images
+                if file_index is not None and 0 <= file_index < len(images):
+                    try_delete_file(images[file_index])
+                    images.pop(file_index)
+                    product.gallery_images = json.dumps(images) if images else None
+                    db.session.commit()
+                    return jsonify({'success': True, 'message': '图片已删除'})
+        
+        elif file_type == 'supplier_document':
+            if product.supplier_document:
+                try_delete_file(product.supplier_document)
+                product.supplier_document = None
+                product.supplier_document_name = None
+                db.session.commit()
+                return jsonify({'success': True, 'message': '供应商文件已删除'})
+        
+        return jsonify({'success': False, 'message': '文件类型无效或文件不存在'}), 400
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 
 @tour_products_bp.route('/<int:product_id>/itinerary/<int:itinerary_id>')
@@ -521,6 +577,131 @@ def delete_itinerary(product_id, itinerary_id):
         db.session.delete(itinerary)
         db.session.commit()
         return jsonify({'success': True, 'message': '行程删除成功！'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@tour_products_bp.route('/itinerary/template/download')
+@login_required
+@staff_only
+def download_itinerary_template():
+    """下载行程导入模板"""
+    try:
+        # 创建模板数据
+        template_data = {
+            '天数': [1, 2, 3],
+            '标题': ['抵达目的地', '景点游览', '返程'],
+            '行程内容': [
+                '抵达机场，接机前往酒店办理入住，自由活动',
+                '早餐后前往著名景点参观，午餐后继续游览，晚上返回酒店休息',
+                '酒店早餐后退房，前往机场，结束愉快旅程'
+            ]
+        }
+        
+        df = pd.DataFrame(template_data)
+        
+        output = BytesIO()
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            df.to_excel(writer, index=False, sheet_name='行程模板')
+            worksheet = writer.sheets['行程模板']
+            # 设置列宽
+            worksheet.column_dimensions['A'].width = 10
+            worksheet.column_dimensions['B'].width = 25
+            worksheet.column_dimensions['C'].width = 80
+        
+        output.seek(0)
+        
+        return send_file(
+            output,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name='行程导入模板.xlsx'
+        )
+    except Exception as e:
+        flash(f'下载模板失败：{str(e)}', 'danger')
+        return redirect(request.referrer or url_for('tour_products.product_list'))
+
+
+@tour_products_bp.route('/<int:product_id>/itinerary/import-excel', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def import_itinerary_excel(product_id):
+    """从Excel导入行程数据"""
+    try:
+        product = Product.query.get_or_404(product_id)
+        
+        if 'file' not in request.files:
+            return jsonify({'success': False, 'message': '请选择要上传的文件'}), 400
+        
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({'success': False, 'message': '未选择文件'}), 400
+        
+        if not file.filename.lower().endswith(('.xlsx', '.xls')):
+            return jsonify({'success': False, 'message': '只支持Excel文件'}), 400
+        
+        df = pd.read_excel(file, engine='openpyxl')
+        
+        # 检查必需列
+        required_columns = ['天数']
+        for col in required_columns:
+            if col not in df.columns:
+                return jsonify({'success': False, 'message': f'缺少必需列：{col}'}), 400
+        
+        imported_count = 0
+        errors = []
+        
+        for index, row in df.iterrows():
+            try:
+                day_number = row.get('天数')
+                if pd.isna(day_number):
+                    continue
+                
+                day_number = int(day_number)
+                day_title = str(row.get('标题', '')).strip() if pd.notna(row.get('标题')) else f'第{day_number}天'
+                content = str(row.get('行程内容', '')).strip() if pd.notna(row.get('行程内容')) else ''
+                
+                # 检查是否已存在相同天数的行程
+                existing = ProductItinerary.query.filter_by(
+                    product_id=product_id,
+                    day_number=day_number
+                ).first()
+                
+                if existing:
+                    # 更新现有行程
+                    existing.day_title = day_title
+                    existing.content = content
+                else:
+                    # 创建新行程
+                    itinerary = ProductItinerary(
+                        product_id=product_id,
+                        day_number=day_number,
+                        day_title=day_title,
+                        content=content
+                    )
+                    db.session.add(itinerary)
+                
+                imported_count += 1
+                
+            except Exception as e:
+                errors.append(f'第{index + 2}行导入失败：{str(e)}')
+        
+        if imported_count > 0:
+            db.session.commit()
+        
+        message = f'成功导入 {imported_count} 个行程'
+        if errors:
+            message += f'，{len(errors)} 个失败'
+        
+        return jsonify({
+            'success': True,
+            'message': message,
+            'imported_count': imported_count,
+            'errors': errors
+        })
+        
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'message': str(e)}), 500
@@ -682,22 +863,6 @@ def edit_product(product_id):
                          price_variants=price_variants)
 
 
-@tour_products_bp.route('/<int:product_id>/delete', methods=['POST'])
-@login_required
-@staff_only
-def delete_product(product_id):
-    try:
-        product = Product.query.get_or_404(product_id)
-        db.session.delete(product)
-        db.session.commit()
-        flash('产品删除成功！', 'success')
-        return redirect(url_for('tour_products.product_list'))
-    except Exception as e:
-        db.session.rollback()
-        flash(f'删除失败：{str(e)}', 'danger')
-        return redirect(url_for('tour_products.product_list'))
-
-
 @tour_products_bp.route('/<int:product_id>/toggle-status', methods=['POST'])
 @csrf.exempt
 @login_required
@@ -717,6 +882,61 @@ def toggle_status(product_id):
         db.session.commit()
         
         return jsonify({'success': True, 'message': '状态更新成功', 'status': new_status})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@tour_products_bp.route('/<int:product_id>/delete', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def delete_product(product_id):
+    """删除产品及其关联数据"""
+    try:
+        product = Product.query.get_or_404(product_id)
+        
+        # 删除关联的行程
+        ProductItinerary.query.filter_by(product_id=product_id).delete()
+        
+        # 删除关联的价格变体
+        ProductPriceVariant.query.filter_by(product_id=product_id).delete()
+        
+        # 删除产品
+        db.session.delete(product)
+        db.session.commit()
+        
+        return jsonify({'success': True, 'message': '产品已删除'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@tour_products_bp.route('/<int:product_id>/renew', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def renew_product(product_id):
+    """续期产品（更新有效期）"""
+    try:
+        product = Product.query.get_or_404(product_id)
+        data = request.get_json()
+        new_valid_until = data.get('valid_until')
+        
+        if not new_valid_until:
+            return jsonify({'success': False, 'message': '请提供新的有效期日期'}), 400
+        
+        try:
+            new_date = datetime.strptime(new_valid_until, '%Y-%m-%d').date()
+        except ValueError:
+            return jsonify({'success': False, 'message': '日期格式无效'}), 400
+        
+        product.valid_until = new_date
+        product.product_status = 'active'  # 续期后自动激活
+        product.updated_at = datetime.utcnow()
+        db.session.commit()
+        
+        return jsonify({'success': True, 'message': '续期成功', 'valid_until': str(new_date)})
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'message': str(e)}), 500
@@ -842,8 +1062,36 @@ def delete_price_variant(product_id, variant_id):
 @login_required
 @staff_only
 def export_excel():
+    """导出产品Excel - 支持筛选条件"""
     try:
-        products = Product.query.all()
+        # 获取筛选参数
+        supplier_id = request.args.get('supplier', type=int)
+        country = request.args.get('country', '')
+        city = request.args.get('city', '')
+        status = request.args.get('status', '')
+        keyword = request.args.get('keyword', '')
+        
+        # 构建查询
+        query = Product.query
+        
+        if supplier_id:
+            query = query.filter(Product.supplier_id == supplier_id)
+        if country:
+            from App_new.business.tour.models.Packagemodels import ProductCity
+            query = query.join(ProductCity, Product.city_id == ProductCity.id).filter(ProductCity.country_name == country)
+        if city:
+            query = query.filter(Product.city_name == city)
+        if status:
+            query = query.filter(Product.product_status == status)
+        if keyword:
+            query = query.filter(
+                or_(
+                    Product.product_name.like(f'%{keyword}%'),
+                    Product.product_description.like(f'%{keyword}%')
+                )
+            )
+        
+        products = query.order_by(Product.created_at.desc()).all()
         data = []
         for product in products:
             data.append({
@@ -959,9 +1207,13 @@ def import_excel():
                         db.session.flush()
                     city_id = city.id
 
+                # 处理 product_code，如果为空则自动生成
+                product_code_raw = str(row['产品编号']).strip() if pd.notna(row.get('产品编号')) else ''
+                product_code = product_code_raw if product_code_raw else Product.generate_product_code()
+
                 product_data = {
-                    'supplier_id': supplier.id if supplier else None,
-                    'product_code': str(row['产品编号']).strip() if pd.notna(row.get('产品编号')) else None,
+                    'supplier_id': supplier.supplier_id if supplier else None,
+                    'product_code': product_code,
                     'product_name': str(row['产品名称']).strip(),
                     'product_type': str(row['产品类型']).strip() if pd.notna(row.get('产品类型')) else None,
                     'city_id': city_id,
