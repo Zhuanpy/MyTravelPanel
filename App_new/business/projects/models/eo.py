@@ -25,6 +25,7 @@ class ProjectEO(db.Model):
     payment_no = db.Column(db.String(50), nullable=True, comment='付款编号')
     paid_date = db.Column(db.Date, nullable=True, comment='付款日期')
     pay_amount = db.Column(db.Numeric(10, 2), nullable=True, comment='付款金额')
+    payment_remarks = db.Column(db.Text, nullable=True, comment='付款备注')
 
     # 外部系统信息
     external_system = db.Column(db.String(50), nullable=True, comment='外部系统名称')
@@ -59,6 +60,7 @@ class ProjectEO(db.Model):
             'payment_no': self.payment_no,
             'paid_date': self.paid_date.isoformat() if self.paid_date else None,
             'pay_amount': float(self.pay_amount) if self.pay_amount else None,
+            'payment_remarks': self.payment_remarks,
             'external_system': self.external_system,
             'external_status': self.external_status,
             'external_reference': self.external_reference,

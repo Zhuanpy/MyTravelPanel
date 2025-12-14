@@ -24,9 +24,31 @@ class Todo(db.Model):
     send_email = db.Column(db.Boolean, default=False, nullable=False)
     email_reminder_sent = db.Column(db.Boolean, default=False, nullable=False)
     email_sent_at = db.Column(db.DateTime, nullable=True)
+    
+    # 任务分配字段
+    assigned_to = db.Column(db.Integer, db.ForeignKey('auth_users.id'), nullable=True, comment='分配给的用户ID')
+    assigned_by = db.Column(db.Integer, db.ForeignKey('auth_users.id'), nullable=True, comment='分配者用户ID')
+    assigned_at = db.Column(db.DateTime, nullable=True, comment='分配时间')
+    
+    # 业务数据关联字段
+    source_type = db.Column(db.String(50), nullable=True, comment='来源类型: visa, project, manual')
+    source_id = db.Column(db.Integer, nullable=True, comment='来源业务数据ID')
+    reminder_days_before = db.Column(db.Integer, default=0, comment='提前提醒天数')
+    auto_generated = db.Column(db.Boolean, default=False, comment='是否自动生成')
+    
+    # 任务完成记录字段
+    completed_by = db.Column(db.Integer, db.ForeignKey('auth_users.id'), nullable=True, comment='完成者用户ID')
+    completed_at = db.Column(db.DateTime, nullable=True, comment='完成时间')
+    
+    # 关系
+    assignee = db.relationship('AuthUser', foreign_keys=[assigned_to], backref='assigned_todos')
+    assigner = db.relationship('AuthUser', foreign_keys=[assigned_by], backref='assigned_todos_by_me')
+    completer = db.relationship('AuthUser', foreign_keys=[completed_by], backref='completed_todos')
 
     def __init__(self, title, description=None, due_date=None, priority=2, user_id=None, category=None, is_completed=False,
-                 recipient_email=None, send_email=False, email_reminder_sent=False, email_sent_at=None):
+                 recipient_email=None, send_email=False, email_reminder_sent=False, email_sent_at=None,
+                 assigned_to=None, assigned_by=None, assigned_at=None, source_type=None, source_id=None,
+                 reminder_days_before=0, auto_generated=False, completed_by=None, completed_at=None):
         self.title = title
         self.description = description
         self.due_date = due_date
@@ -38,6 +60,15 @@ class Todo(db.Model):
         self.send_email = bool(send_email)
         self.email_reminder_sent = bool(email_reminder_sent)
         self.email_sent_at = email_sent_at
+        self.assigned_to = assigned_to
+        self.assigned_by = assigned_by
+        self.assigned_at = assigned_at
+        self.source_type = source_type
+        self.source_id = source_id
+        self.reminder_days_before = reminder_days_before
+        self.auto_generated = bool(auto_generated)
+        self.completed_by = completed_by
+        self.completed_at = completed_at
 
     def to_dict(self):
         """将模型转换为字典"""
@@ -55,12 +86,26 @@ class Todo(db.Model):
             'recipient_email': self.recipient_email,
             'send_email': self.send_email,
             'email_reminder_sent': self.email_reminder_sent,
-            'email_sent_at': self.email_sent_at.isoformat() if self.email_sent_at else None
+            'email_sent_at': self.email_sent_at.isoformat() if self.email_sent_at else None,
+            'assigned_to': self.assigned_to,
+            'assigned_by': self.assigned_by,
+            'assigned_at': self.assigned_at.isoformat() if self.assigned_at else None,
+            'source_type': self.source_type,
+            'source_id': self.source_id,
+            'reminder_days_before': self.reminder_days_before,
+            'auto_generated': self.auto_generated,
+            'assignee_name': self.assignee.username if self.assignee else None,
+            'assigner_name': self.assigner.username if self.assigner else None,
+            'completed_by': self.completed_by,
+            'completed_at': self.completed_at.isoformat() if self.completed_at else None,
+            'completer_name': self.completer.username if self.completer else None
         }
 
     @classmethod
     def create(cls, title, description=None, due_date=None, priority=2, user_id=None, category=None, is_completed=False,
-               recipient_email=None, send_email=False, email_reminder_sent=False, email_sent_at=None):
+               recipient_email=None, send_email=False, email_reminder_sent=False, email_sent_at=None,
+               assigned_to=None, assigned_by=None, assigned_at=None, source_type=None, source_id=None,
+               reminder_days_before=0, auto_generated=False, completed_by=None, completed_at=None):
         """创建新的待办事项"""
         todo = cls(
             title=title,
@@ -73,7 +118,16 @@ class Todo(db.Model):
             recipient_email=recipient_email,
             send_email=bool(send_email),
             email_reminder_sent=bool(email_reminder_sent),
-            email_sent_at=email_sent_at
+            email_sent_at=email_sent_at,
+            assigned_to=assigned_to,
+            assigned_by=assigned_by,
+            assigned_at=assigned_at,
+            source_type=source_type,
+            source_id=source_id,
+            reminder_days_before=reminder_days_before,
+            auto_generated=bool(auto_generated),
+            completed_by=completed_by,
+            completed_at=completed_at
         )
         db.session.add(todo)
         db.session.commit()

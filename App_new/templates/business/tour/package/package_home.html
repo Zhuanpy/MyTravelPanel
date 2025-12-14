@@ -113,7 +113,7 @@
                 <h2 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
                     <i class="fas fa-cog text-indigo-500 mr-2"></i> 网站设置
                 </h2>
-                <div class="grid grid-cols-2 gap-4">
+                <div class="grid grid-cols-3 gap-4">
                     <a href="{{ url_for('staff.home_banners') }}" 
                        class="flex items-center gap-3 p-4 bg-indigo-50 hover:bg-indigo-100 rounded-xl transition-colors">
                         <div class="w-10 h-10 rounded-lg bg-indigo-500 flex items-center justify-center">
@@ -122,6 +122,16 @@
                         <div>
                             <p class="font-medium text-gray-800">首页轮播图</p>
                             <p class="text-xs text-gray-500">管理横幅图片</p>
+                        </div>
+                    </a>
+                    <a href="{{ url_for('staff.image_library') }}" 
+                       class="flex items-center gap-3 p-4 bg-purple-50 hover:bg-purple-100 rounded-xl transition-colors">
+                        <div class="w-10 h-10 rounded-lg bg-purple-500 flex items-center justify-center">
+                            <i class="fas fa-photo-video text-white"></i>
+                        </div>
+                        <div>
+                            <p class="font-medium text-gray-800">图片库</p>
+                            <p class="text-xs text-gray-500">管理共享图片</p>
                         </div>
                     </a>
                     <a href="{{ url_for('public.index') }}" target="_blank"

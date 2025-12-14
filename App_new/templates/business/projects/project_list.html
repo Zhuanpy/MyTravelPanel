@@ -219,31 +219,23 @@
             #projectsTable th:nth-child(1), 
             #projectsTable td:nth-child(1) { width: 100px; } /* 项目编号 */
             #projectsTable th:nth-child(2), 
-            #projectsTable td:nth-child(2) { width: 150px; } /* 项目描述 */
+            #projectsTable td:nth-child(2) { width: 150px; } /* 客户公司 */
             #projectsTable th:nth-child(3), 
-            #projectsTable td:nth-child(3) { width: 120px; } /* 客户公司 */
+            #projectsTable td:nth-child(3) { width: 100px; } /* 联系人 */
             #projectsTable th:nth-child(4), 
-            #projectsTable td:nth-child(4) { width: 100px; } /* 联系人 */
+            #projectsTable td:nth-child(4) { width: 80px; }  /* 类型 */
             #projectsTable th:nth-child(5), 
-            #projectsTable td:nth-child(5) { width: 100px; } /* 负责人 */
+            #projectsTable td:nth-child(5) { width: 100px; } /* 销售金额 */
             #projectsTable th:nth-child(6), 
-            #projectsTable td:nth-child(6) { width: 80px; }  /* 类型 */
+            #projectsTable td:nth-child(6) { width: 100px; } /* 成本 */
             #projectsTable th:nth-child(7), 
-            #projectsTable td:nth-child(7) { width: 80px; }  /* 状态 */
+            #projectsTable td:nth-child(7) { width: 100px; } /* 利润 */
             #projectsTable th:nth-child(8), 
-            #projectsTable td:nth-child(8) { width: 100px; } /* 销售金额 */
+            #projectsTable td:nth-child(8) { width: 100px; } /* 未付款 */
             #projectsTable th:nth-child(9), 
-            #projectsTable td:nth-child(9) { width: 100px; } /* 成本 */
+            #projectsTable td:nth-child(9) { width: 100px; } /* 创建时间 */
             #projectsTable th:nth-child(10), 
-            #projectsTable td:nth-child(10) { width: 100px; } /* 利润 */
-            #projectsTable th:nth-child(11), 
-            #projectsTable td:nth-child(11) { width: 100px; } /* 已收款 */
-            #projectsTable th:nth-child(12), 
-            #projectsTable td:nth-child(12) { width: 100px; } /* 未付款 */
-            #projectsTable th:nth-child(13), 
-            #projectsTable td:nth-child(13) { width: 100px; } /* 创建时间 */
-            #projectsTable th:nth-child(14), 
-            #projectsTable td:nth-child(14) { width: 80px; }  /* 操作 */
+            #projectsTable td:nth-child(10) { width: 80px; }  /* 操作 */
             </style>
 
             <form method="GET" action="{{ url_for('business_projects.list.list_projects') }}" id="filterForm">
@@ -254,24 +246,9 @@
                                value="{{ filters.search }}" placeholder="项目编号、描述、联系人...">
                     </div>
                     <div class="filter-item">
-                        <label for="status" class="form-label">项目状态</label>
-                        <select class="form-select filter-input" id="status" name="status">
-                            <option value="">所有状态</option>
-                            <option value="draft" {{ 'selected' if filters.status == 'draft' }}>草稿</option>
-                            <option value="active" {{ 'selected' if filters.status == 'active' }}>进行中</option>
-                            <option value="completed" {{ 'selected' if filters.status == 'completed' }}>已完成</option>
-                            <option value="cancelled" {{ 'selected' if filters.status == 'cancelled' }}>已取消</option>
-                        </select>
-                    </div>
-                    <div class="filter-item">
                         <label for="company" class="form-label">客户公司</label>
                         <input type="text" class="form-control filter-input" id="company" name="company" 
                                value="{{ filters.company }}" placeholder="公司名称...">
-                    </div>
-                    <div class="filter-item">
-                        <label for="leader" class="form-label">项目负责人</label>
-                        <input type="text" class="form-control filter-input" id="leader" name="leader" 
-                               value="{{ filters.leader }}" placeholder="负责人姓名...">
                     </div>
                     <div class="filter-item">
                         <label for="contact" class="form-label">联系人</label>
@@ -324,16 +301,12 @@
                     <thead>
                         <tr>
                             <th>项目编号</th>
-                            <th>项目描述</th>
                             <th>客户公司</th>
                             <th>联系人</th>
-                            <th>负责人</th>
                             <th>类型</th>
-                            <th>状态</th>
                             <th>销售金额</th>
                             <th>成本</th>
                             <th>利润</th>
-                            <th>已收款</th>
                             <th>未付款</th>
                             <th>创建时间</th>
                             <th>操作</th>
@@ -348,7 +321,6 @@
                                     {{ project.hid }}
                                 </a>
                             </td>
-                            <td>{{ project.desc or '无描述' }}</td>
                             <td>
                                 <div class="company-editable" data-project-id="{{ project.id }}">
                                     <span class="company-display">
@@ -366,25 +338,8 @@
                                 </div>
                             </td>
                             <td>{{ project.contact or '未指定' }}</td>
-                            <td>{{ project.leader_name or '未指定' }}</td>
                             <td>
                                 <span class="badge bg-secondary">{{ project.type or '综合' }}</span>
-                            </td>
-                            <td>
-                                {% set status_colors = {
-                                    'draft': 'bg-warning',
-                                    'active': 'bg-success',
-                                    'completed': 'bg-info',
-                                    'cancelled': 'bg-danger'
-                                } %}
-                                <span class="badge {{ status_colors.get(project.status, 'bg-secondary') }}">
-                                    {{ {
-                                        'draft': '草稿',
-                                        'active': '进行中',
-                                        'completed': '已完成',
-                                        'cancelled': '已取消'
-                                    }.get(project.status, project.status) }}
-                                </span>
                             </td>
                             <td>
                                 {% set stats = project_stats.get(project.id, {}) %}
@@ -401,11 +356,6 @@
                                 {% set profit = stats.total_profit or 0 %}
                                 <span class="fw-bold {{ 'text-success' if profit > 0 else 'text-danger' if profit < 0 else 'text-muted' }}">
                                     S${{ "%.2f"|format(profit) }}
-                                </span>
-                            </td>
-                            <td>
-                                <span class="fw-bold text-primary">
-                                    S${{ "%.2f"|format(stats.total_received or 0) }}
                                 </span>
                             </td>
                             <td>
@@ -455,7 +405,7 @@
                 <ul class="pagination justify-content-center">
                     {% if pagination.has_prev %}
                     <li class="page-item">
-                        <a class="page-link" href="{{ url_for('business_projects.list.list_projects', page=pagination.prev_num, status=filters.status, search=filters.search, company=filters.company, leader=filters.leader, contact=filters.contact, staff_name=filters.staff_name, date_from=filters.date_from, date_to=filters.date_to, selling_min=filters.selling_min, selling_max=filters.selling_max, profit_min=filters.profit_min, profit_max=filters.profit_max, balance_min=filters.balance_min, balance_max=filters.balance_max, payment_status=filters.payment_status, sort_by=filters.sort_by) }}">
+                        <a class="page-link" href="{{ url_for('business_projects.list.list_projects', page=pagination.prev_num, search=filters.search, company=filters.company, contact=filters.contact, staff_name=filters.staff_name, date_from=filters.date_from, date_to=filters.date_to, selling_min=filters.selling_min, selling_max=filters.selling_max, profit_min=filters.profit_min, profit_max=filters.profit_max, balance_min=filters.balance_min, balance_max=filters.balance_max, payment_status=filters.payment_status, sort_by=filters.sort_by) }}">
                             <i class="fas fa-chevron-left"></i> 上一页
                         </a>
                     </li>
@@ -465,7 +415,7 @@
                         {% if page_num %}
                             {% if page_num != pagination.page %}
                             <li class="page-item">
-                                <a class="page-link" href="{{ url_for('business_projects.list.list_projects', page=page_num, status=filters.status, search=filters.search, company=filters.company, leader=filters.leader, contact=filters.contact, staff_name=filters.staff_name, date_from=filters.date_from, date_to=filters.date_to, selling_min=filters.selling_min, selling_max=filters.selling_max, profit_min=filters.profit_min, profit_max=filters.profit_max, balance_min=filters.balance_min, balance_max=filters.balance_max, payment_status=filters.payment_status, sort_by=filters.sort_by) }}">
+                                <a class="page-link" href="{{ url_for('business_projects.list.list_projects', page=page_num, search=filters.search, company=filters.company, contact=filters.contact, staff_name=filters.staff_name, date_from=filters.date_from, date_to=filters.date_to, selling_min=filters.selling_min, selling_max=filters.selling_max, profit_min=filters.profit_min, profit_max=filters.profit_max, balance_min=filters.balance_min, balance_max=filters.balance_max, payment_status=filters.payment_status, sort_by=filters.sort_by) }}">
                                     {{ page_num }}
                                 </a>
                             </li>
@@ -483,7 +433,7 @@
                     
                     {% if pagination.has_next %}
                     <li class="page-item">
-                        <a class="page-link" href="{{ url_for('business_projects.list.list_projects', page=pagination.next_num, status=filters.status, search=filters.search, company=filters.company, leader=filters.leader, contact=filters.contact, staff_name=filters.staff_name, date_from=filters.date_from, date_to=filters.date_to, selling_min=filters.selling_min, selling_max=filters.selling_max, profit_min=filters.profit_min, profit_max=filters.profit_max, balance_min=filters.balance_min, balance_max=filters.balance_max, payment_status=filters.payment_status, sort_by=filters.sort_by) }}">
+                        <a class="page-link" href="{{ url_for('business_projects.list.list_projects', page=pagination.next_num, search=filters.search, company=filters.company, contact=filters.contact, staff_name=filters.staff_name, date_from=filters.date_from, date_to=filters.date_to, selling_min=filters.selling_min, selling_max=filters.selling_max, profit_min=filters.profit_min, profit_max=filters.profit_max, balance_min=filters.balance_min, balance_max=filters.balance_max, payment_status=filters.payment_status, sort_by=filters.sort_by) }}">
                             下一页 <i class="fas fa-chevron-right"></i>
                         </a>
                     </li>

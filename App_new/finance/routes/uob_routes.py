@@ -165,6 +165,14 @@ def uob_bank():
     # 获取可用的归属选项（从数据库或其他来源获取）
     owner_options = ['Business', 'LG', 'JE', '个人消费', '个人商用']
     
+    # 获取UOB银行现有的账户名称列表（用于上传时选择）
+    account_names = db.session.query(BankStatement.account_name).filter(
+        BankStatement.bank_name == 'UOB',
+        BankStatement.account_name.isnot(None),
+        BankStatement.account_name != '上传文件'
+    ).distinct().order_by(BankStatement.account_name).all()
+    account_name_options = [name[0] for name in account_names] if account_names else []
+    
     # 检查是否是部分请求（AJAX筛选）
     if request.args.get('partial') == 'table':
         return render_template('finance/statement/_uob_tx_table.html', 
@@ -179,6 +187,7 @@ def uob_bank():
                          transactions=transactions,
                          filters=filters,
                          owner_options=owner_options,
+                         account_name_options=account_name_options,
                          pagination=pagination)
 
 

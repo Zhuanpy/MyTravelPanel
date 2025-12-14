@@ -49,11 +49,15 @@ def init_exts(app):
         def _register_jobs(app):
             try:
                 from App_new.shared.routes.tasks import send_due_todo_reminders
+                from App_new.shared.services.task_reminder_service import TaskReminderService
+                from apscheduler.triggers.cron import CronTrigger
+                
+                # 任务1：发送到期提醒邮件（每15分钟）
                 def job_send_reminders():
                     # 手动创建应用上下文
                     with app.app_context():
                         send_due_todo_reminders()
-                # 使用 replace_existing 确保热重载不重复
+                
                 scheduler.add_job(
                     id='todo_due_email',
                     func=job_send_reminders,
@@ -61,6 +65,22 @@ def init_exts(app):
                     replace_existing=True
                 )
                 print("Registered job: todo_due_email (every 15 minutes)")
+                
+                # 任务2：自动生成提醒任务（每天凌晨2点）
+                def job_generate_reminders():
+                    with app.app_context():
+                        service = TaskReminderService()
+                        service.check_and_create_reminders(days_ahead=7)
+                        print("自动生成提醒任务完成")
+                
+                scheduler.add_job(
+                    id='auto_generate_reminders',
+                    func=job_generate_reminders,
+                    trigger=CronTrigger(hour=2, minute=0),  # 每天凌晨2点
+                    replace_existing=True
+                )
+                print("Registered job: auto_generate_reminders (daily at 2:00 AM)")
+                
             except Exception as je:
                 print(f"注册定时任务失败: {je}")
 

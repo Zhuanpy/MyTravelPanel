@@ -1,0 +1,638 @@
+{% extends "shared/staff_base.html" %}
+
+{% block title %}图片库管理{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/staff_common.css') }}">
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+    .image-card {
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .image-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+    }
+    .upload-zone {
+        border: 2px dashed #cbd5e1;
+        border-radius: 12px;
+        padding: 2rem;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+    .upload-zone:hover {
+        border-color: #10b981;
+        background: #f0fdf4;
+    }
+    .upload-zone.dragover {
+        border-color: #10b981;
+        background: #dcfce7;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="bg-gray-50 min-h-screen p-4 md:p-6">
+    <div class="max-w-7xl mx-auto">
+        <!-- 页面标题 -->
+        <div class="mb-6 flex justify-between items-center">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-800">图片库管理</h1>
+                <p class="text-gray-600 mt-2">统一管理产品图片，支持多产品共享</p>
+            </div>
+            <a href="{{ url_for('tour_products.product_list') }}" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors">
+                <i class="fas fa-arrow-left mr-2"></i>返回产品管理
+            </a>
+        </div>
+
+        <!-- 搜索和筛选 -->
+        <div class="bg-white rounded-xl shadow-md p-4 mb-6">
+            <form method="GET" class="flex gap-4 flex-wrap">
+                <div class="flex-1 min-w-[200px]">
+                    <input type="text" name="search" value="{{ current_search }}" 
+                           placeholder="搜索标题或标签..." 
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                </div>
+                <div>
+                    <select name="category" class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+                        <option value="">全部分类</option>
+                        {% for cat in categories %}
+                        <option value="{{ cat }}" {% if current_category == cat %}selected{% endif %}>{{ cat }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <button type="submit" class="px-6 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition-colors">
+                    <i class="fas fa-search mr-2"></i>搜索
+                </button>
+                <button type="button" onclick="document.getElementById('uploadModal').classList.remove('hidden')" 
+                        class="px-6 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors">
+                    <i class="fas fa-upload mr-2"></i>上传图片
+                </button>
+                <button type="button" onclick="document.getElementById('batchUploadModal').classList.remove('hidden')" 
+                        class="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
+                    <i class="fas fa-images mr-2"></i>批量导入
+                </button>
+            </form>
+        </div>
+
+        <!-- 图片网格 -->
+        {% if images %}
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+            {% for image in images %}
+            <div class="bg-white rounded-xl shadow-md overflow-hidden image-card">
+                <div class="relative" style="padding-top: 75%; background: #f3f4f6;">
+                    <img src="{{ url_for('static', filename=image.image_path) }}" 
+                         alt="{{ image.title or '图片' }}"
+                         class="absolute top-0 left-0 w-full h-full object-cover cursor-pointer"
+                         onclick="selectImage({{ image.id }}, '{{ image.image_path }}', '{{ image.title or '' }}')"
+                         title="点击选择此图片">
+                    {% if image.usage_count > 0 %}
+                    <div class="absolute top-2 right-2 bg-blue-500 text-white text-xs px-2 py-1 rounded-full">
+                        使用 {{ image.usage_count }} 次
+                    </div>
+                    {% endif %}
+                    {% if not image.is_active %}
+                    <div class="absolute inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center">
+                        <span class="text-white font-bold">已禁用</span>
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="p-3">
+                    <div class="font-medium text-sm text-gray-800 mb-1 truncate">
+                        {{ image.title or '无标题' }}
+                    </div>
+                    {% if image.tags %}
+                    <div class="text-xs text-gray-500 mb-2 truncate">
+                        <i class="fas fa-tags mr-1"></i>{{ image.tags }}
+                    </div>
+                    {% endif %}
+                    <div class="flex justify-between items-center text-xs text-gray-400">
+                        <span>{{ image.category or 'other' }}</span>
+                        {% if image.width and image.height %}
+                        <span>{{ image.width }}×{{ image.height }}</span>
+                        {% endif %}
+                    </div>
+                    <div class="mt-2 flex gap-2">
+                        <button onclick="editImage({{ image.id }}, '{{ image.title or '' }}', '{{ image.tags or '' }}', '{{ image.category or 'other' }}')" 
+                                class="flex-1 px-2 py-1 bg-indigo-100 text-indigo-700 text-xs rounded hover:bg-indigo-200 transition-colors">
+                            <i class="fas fa-edit mr-1"></i>编辑
+                        </button>
+                        <button onclick="deleteImage({{ image.id }})" 
+                                class="flex-1 px-2 py-1 bg-red-100 text-red-700 text-xs rounded hover:bg-red-200 transition-colors">
+                            <i class="fas fa-trash mr-1"></i>删除
+                        </button>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="bg-white rounded-xl shadow-md p-12 text-center">
+            <i class="fas fa-images text-6xl text-gray-300 mb-4"></i>
+            <p class="text-gray-500 text-lg">暂无图片</p>
+            <button onclick="document.getElementById('uploadModal').classList.remove('hidden')" 
+                    class="mt-4 px-6 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors">
+                <i class="fas fa-upload mr-2"></i>上传第一张图片
+            </button>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- 上传模态框 -->
+<div id="uploadModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div class="p-6 border-b border-gray-200 flex justify-between items-center">
+            <h3 class="text-xl font-bold text-gray-800">上传图片到图片库</h3>
+            <button onclick="document.getElementById('uploadModal').classList.add('hidden')" 
+                    class="text-gray-400 hover:text-gray-600">
+                <i class="fas fa-times text-2xl"></i>
+            </button>
+        </div>
+        <form id="uploadForm" class="p-6">
+            <!-- CSRF Token -->
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="upload-zone mb-4" id="uploadZone">
+                <i class="fas fa-cloud-upload-alt text-4xl text-gray-400 mb-2"></i>
+                <p class="text-gray-600 mb-2">拖拽图片到此处或点击选择</p>
+                <p class="text-sm text-gray-400">支持 PNG、JPG、JPEG、GIF、WEBP 格式</p>
+                <input type="file" id="imageInput" name="image" accept="image/*" class="hidden" required>
+                <div id="imagePreview" class="mt-4 hidden">
+                    <img id="previewImg" src="" alt="预览" class="max-w-full max-h-64 mx-auto rounded-lg">
+                </div>
+            </div>
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">标题（可选）</label>
+                    <input type="text" name="title" placeholder="图片标题或描述" 
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">标签（可选，逗号分隔）</label>
+                    <input type="text" name="tags" placeholder="例如：风景,旅游,海滩" 
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">分类</label>
+                    <select name="category" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+                        <option value="tour">旅游产品</option>
+                        <option value="destination">目的地</option>
+                        <option value="product">产品相关</option>
+                        <option value="other" selected>其他</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="mt-6 flex gap-3 justify-end">
+                <button type="button" onclick="document.getElementById('uploadModal').classList.add('hidden')" 
+                        class="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+                    取消
+                </button>
+                <button type="submit" class="px-6 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors">
+                    <i class="fas fa-upload mr-2"></i>上传
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- 批量上传模态框 -->
+<div id="batchUploadModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+        <div class="p-6 border-b border-gray-200 flex justify-between items-center">
+            <h3 class="text-xl font-bold text-gray-800">批量导入图片</h3>
+            <button onclick="document.getElementById('batchUploadModal').classList.add('hidden')" 
+                    class="text-gray-400 hover:text-gray-600">
+                <i class="fas fa-times text-2xl"></i>
+            </button>
+        </div>
+        <form id="batchUploadForm" class="p-6">
+            <!-- CSRF Token -->
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="space-y-6">
+                <!-- 批量设置标签和分类 -->
+                <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <h4 class="font-semibold text-blue-800 mb-3">
+                        <i class="fas fa-cog mr-2"></i>批量设置（应用到所有图片）
+                    </h4>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">标签（可选，逗号分隔）</label>
+                            <input type="text" name="default_tags" placeholder="例如：旅游,风景,目的地" 
+                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                            <small class="text-gray-500 text-xs mt-1">所有图片将应用相同的标签</small>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">分类</label>
+                            <select name="default_category" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                <option value="tour">旅游产品</option>
+                                <option value="destination">目的地</option>
+                                <option value="product">产品相关</option>
+                                <option value="other" selected>其他</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 文件上传区域 -->
+                <div class="upload-zone" id="batchUploadZone">
+                    <i class="fas fa-cloud-upload-alt text-5xl text-gray-400 mb-3"></i>
+                    <p class="text-gray-600 text-lg mb-2">拖拽多张图片到此处或点击选择</p>
+                    <p class="text-sm text-gray-400 mb-4">支持 PNG、JPG、JPEG、GIF、WEBP 格式</p>
+                    <input type="file" id="batchImageInput" name="images" accept="image/*" multiple class="hidden" required>
+                    <button type="button" onclick="document.getElementById('batchImageInput').click()" 
+                            class="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
+                        <i class="fas fa-folder-open mr-2"></i>选择文件夹或图片
+                    </button>
+                    <div id="batchImagePreview" class="mt-6 hidden">
+                        <div class="flex items-center justify-between mb-3">
+                            <h5 class="font-semibold text-gray-700">已选择图片：</h5>
+                            <span id="selectedCount" class="text-blue-600 font-medium">0 张</span>
+                        </div>
+                        <div id="batchPreviewGrid" class="grid grid-cols-4 md:grid-cols-6 gap-3 max-h-64 overflow-y-auto p-3 bg-gray-50 rounded-lg">
+                            <!-- 预览图片将在这里动态生成 -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-6 flex gap-3 justify-end">
+                <button type="button" onclick="document.getElementById('batchUploadModal').classList.add('hidden')" 
+                        class="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+                    取消
+                </button>
+                <button type="submit" class="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
+                    <i class="fas fa-upload mr-2"></i>批量上传
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- 编辑模态框 -->
+<div id="editModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full">
+        <div class="p-6 border-b border-gray-200 flex justify-between items-center">
+            <h3 class="text-xl font-bold text-gray-800">编辑图片信息</h3>
+            <button onclick="document.getElementById('editModal').classList.add('hidden')" 
+                    class="text-gray-400 hover:text-gray-600">
+                <i class="fas fa-times text-2xl"></i>
+            </button>
+        </div>
+        <form id="editForm" class="p-6">
+            <!-- CSRF Token -->
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" id="editImageId" name="image_id">
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">标题</label>
+                    <input type="text" id="editTitle" name="title" 
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">标签</label>
+                    <input type="text" id="editTags" name="tags" 
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">分类</label>
+                    <select id="editCategory" name="category" 
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+                        <option value="tour">旅游产品</option>
+                        <option value="destination">目的地</option>
+                        <option value="product">产品相关</option>
+                        <option value="other">其他</option>
+                    </select>
+                </div>
+            </div>
+            <div class="mt-6 flex gap-3 justify-end">
+                <button type="button" onclick="document.getElementById('editModal').classList.add('hidden')" 
+                        class="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+                    取消
+                </button>
+                <button type="submit" class="px-6 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600">
+                    保存
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// 上传区域交互
+const uploadZone = document.getElementById('uploadZone');
+const imageInput = document.getElementById('imageInput');
+const imagePreview = document.getElementById('imagePreview');
+const previewImg = document.getElementById('previewImg');
+
+uploadZone.addEventListener('click', () => imageInput.click());
+
+uploadZone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    uploadZone.classList.add('dragover');
+});
+
+uploadZone.addEventListener('dragleave', () => {
+    uploadZone.classList.remove('dragover');
+});
+
+uploadZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    uploadZone.classList.remove('dragover');
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+        imageInput.files = files;
+        handleFileSelect(files[0]);
+    }
+});
+
+imageInput.addEventListener('change', (e) => {
+    if (e.target.files.length > 0) {
+        handleFileSelect(e.target.files[0]);
+    }
+});
+
+function handleFileSelect(file) {
+    if (file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            previewImg.src = e.target.result;
+            imagePreview.classList.remove('hidden');
+        };
+        reader.readAsDataURL(file);
+    }
+}
+
+// 上传表单
+document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+    const originalText = submitBtn.innerHTML;
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>上传中...';
+    
+    try {
+        const response = await fetch('{{ url_for("staff.upload_image_library") }}', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            alert('上传成功！');
+            location.reload();
+        } else {
+            alert('上传失败：' + result.message);
+        }
+    } catch (error) {
+        alert('上传失败：' + error.message);
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalText;
+    }
+});
+
+// 编辑图片
+function editImage(id, title, tags, category) {
+    document.getElementById('editImageId').value = id;
+    document.getElementById('editTitle').value = title;
+    document.getElementById('editTags').value = tags;
+    document.getElementById('editCategory').value = category;
+    document.getElementById('editModal').classList.remove('hidden');
+}
+
+document.getElementById('editForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const imageId = formData.get('image_id');
+    
+    try {
+        const response = await fetch(`{{ url_for('staff.update_image_library', image_id=0) }}`.replace('0', imageId), {
+            method: 'POST',
+            body: formData
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            alert('更新成功！');
+            location.reload();
+        } else {
+            alert('更新失败：' + result.message);
+        }
+    } catch (error) {
+        alert('更新失败：' + error.message);
+    }
+});
+
+// 删除图片
+function deleteImage(id) {
+    if (!confirm('确定要删除这张图片吗？如果图片正在被产品使用，删除可能会影响产品显示。')) {
+        return;
+    }
+    
+    fetch(`{{ url_for('staff.delete_image_library', image_id=0) }}`.replace('0', id), {
+        method: 'POST'
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            alert('删除成功！');
+            location.reload();
+        } else {
+            alert('删除失败：' + result.message);
+        }
+    })
+    .catch(error => {
+        alert('删除失败：' + error.message);
+    });
+}
+
+// 选择图片（用于在产品表单中选择）
+function selectImage(id, path, title) {
+    // 如果是通过 window.open 打开的，向父窗口发送消息
+    if (window.opener) {
+        window.opener.postMessage({
+            type: 'image_selected',
+            image_id: id,
+            image_path: path,
+            image_title: title
+        }, '*');
+        window.close();
+    }
+}
+
+// ========================================
+// 批量上传功能
+// ========================================
+const batchUploadZone = document.getElementById('batchUploadZone');
+const batchImageInput = document.getElementById('batchImageInput');
+const batchImagePreview = document.getElementById('batchImagePreview');
+const batchPreviewGrid = document.getElementById('batchPreviewGrid');
+const selectedCount = document.getElementById('selectedCount');
+let selectedFiles = [];
+
+// 批量上传区域交互
+batchUploadZone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    batchUploadZone.classList.add('dragover');
+});
+
+batchUploadZone.addEventListener('dragleave', () => {
+    batchUploadZone.classList.remove('dragover');
+});
+
+batchUploadZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    batchUploadZone.classList.remove('dragover');
+    const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
+    if (files.length > 0) {
+        handleBatchFiles(files);
+    }
+});
+
+batchImageInput.addEventListener('change', (e) => {
+    if (e.target.files.length > 0) {
+        handleBatchFiles(Array.from(e.target.files));
+    }
+});
+
+function handleBatchFiles(files) {
+    selectedFiles = files;
+    selectedCount.textContent = `${files.length} 张`;
+    batchImagePreview.classList.remove('hidden');
+    batchPreviewGrid.innerHTML = '';
+    
+    files.forEach((file, index) => {
+        if (file.type.startsWith('image/')) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const div = document.createElement('div');
+                div.className = 'relative';
+                div.innerHTML = `
+                    <img src="${e.target.result}" alt="${file.name}" 
+                         class="w-full h-20 object-cover rounded border border-gray-300">
+                    <div class="absolute -top-2 -right-2 bg-blue-500 text-white text-xs px-1.5 py-0.5 rounded-full">
+                        ${index + 1}
+                    </div>
+                    <div class="text-xs text-gray-600 mt-1 truncate" title="${file.name}">
+                        ${file.name.length > 15 ? file.name.substring(0, 15) + '...' : file.name}
+                    </div>
+                `;
+                batchPreviewGrid.appendChild(div);
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+}
+
+// 批量上传表单提交
+document.getElementById('batchUploadForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    if (selectedFiles.length === 0) {
+        alert('请至少选择一张图片');
+        return;
+    }
+    
+    const formData = new FormData(e.target);
+    
+    // 确保CSRF token被包含（从表单或meta标签获取）
+    if (!formData.has('csrf_token')) {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') 
+                       || document.querySelector('input[name="csrf_token"]')?.value;
+        if (csrfToken) {
+            formData.append('csrf_token', csrfToken);
+        }
+    }
+    
+    // 添加所有文件（注意：这会替换表单中已有的文件输入）
+    // 需要先清除旧的，然后添加新的
+    formData.delete('images');  // 清除表单中的文件字段（如果有）
+    selectedFiles.forEach(file => {
+        formData.append('images', file);
+    });
+    
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+    const originalText = submitBtn.innerHTML;
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>上传中...';
+    
+    try {
+        const response = await fetch('{{ url_for("staff.batch_upload_image_library") }}', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        });
+        
+        // 检查响应状态
+        if (!response.ok) {
+            const text = await response.text();
+            console.error('HTTP Error:', response.status, response.statusText);
+            console.error('Response:', text.substring(0, 500));
+            
+            // 尝试解析为JSON
+            try {
+                const errorResult = JSON.parse(text);
+                throw new Error(errorResult.message || `服务器错误 (${response.status})`);
+            } catch (parseError) {
+                // 如果不是JSON，显示原始文本
+                throw new Error(`服务器返回错误 (${response.status}): ${text.substring(0, 100)}`);
+            }
+        }
+        
+        // 检查响应类型
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            const text = await response.text();
+            console.error('Non-JSON response:', text.substring(0, 500));
+            throw new Error('服务器返回了非JSON响应（可能是HTML错误页面），请查看浏览器控制台了解详情');
+        }
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            let message = result.message;
+            if (result.failed_count > 0 && result.failed_files) {
+                message += '\n\n失败的文件：\n' + result.failed_files.slice(0, 10).join('\n');
+                if (result.failed_files.length > 10) {
+                    message += `\n... 还有 ${result.failed_files.length - 10} 个文件失败`;
+                }
+            }
+            alert(message);
+            document.getElementById('batchUploadModal').classList.add('hidden');
+            location.reload();
+        } else {
+            alert('批量上传失败：' + result.message);
+        }
+    } catch (error) {
+        console.error('Upload error:', error);
+        alert('批量上传失败：' + error.message + '\n\n请打开浏览器控制台查看详细错误信息');
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalText;
+    }
+});
+
+// 重置批量上传表单
+document.getElementById('batchUploadModal').addEventListener('hidden.bs.modal', () => {
+    selectedFiles = [];
+    batchImageInput.value = '';
+    batchImagePreview.classList.add('hidden');
+    batchPreviewGrid.innerHTML = '';
+    selectedCount.textContent = '0 张';
+});
+</script>
+{% endblock %}
+

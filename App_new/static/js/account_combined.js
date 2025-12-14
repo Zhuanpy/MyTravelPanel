@@ -822,23 +822,7 @@ function renderAccountRow(account) {
     }
     row.appendChild(supplierCell);
     
-    // 访问权限
-    const accessLevelCell = document.createElement('td');
-    const accessLevel = account.access_level || 'private';
-    const accessLevelDisplay = ACCESS_LEVEL_DISPLAY[accessLevel] || '仅自己可见';
-    
-    // 添加不同权限的样式类
-    let accessLevelClass = 'access-level-public';
-    if (accessLevel === 'private') {
-        accessLevelClass = 'access-level-private';
-    } else if (accessLevel === 'level_2') {
-        accessLevelClass = 'access-level-2';
-    } else if (accessLevel === 'level_1') {
-        accessLevelClass = 'access-level-1';
-    }
-    
-    accessLevelCell.innerHTML = `<span class="badge ${accessLevelClass}">${accessLevelDisplay}</span>`;
-    row.appendChild(accessLevelCell);
+    // 访问权限字段已隐藏，不再显示
     
     // 用户名
     const usernameCell = document.createElement('td');
@@ -913,19 +897,32 @@ function renderAccountRow(account) {
     // 操作
     const actionsCell = document.createElement('td');
     actionsCell.className = 'actions-cell';
-    actionsCell.innerHTML = `
+    
+    // 根据权限显示按钮
+    let actionButtons = `
         <div class="btn-group">
             <button class="btn btn-sm btn-info" onclick="viewAccountDetail(${account.id})" title="查看详情">
                 <i class="fas fa-eye"></i>
-            </button>
+            </button>`;
+    
+    // 只有有编辑权限时才显示编辑按钮（明确检查为true）
+    if (account.can_edit === true) {
+        actionButtons += `
             <button class="btn btn-sm btn-primary" onclick="editAccount(${account.id})" title="编辑">
                 <i class="fas fa-edit"></i>
-            </button>
+            </button>`;
+    }
+    
+    // 只有有删除权限时才显示删除按钮（明确检查为true）
+    if (account.can_delete === true) {
+        actionButtons += `
             <button class="btn btn-sm btn-danger" onclick="deleteAccount(${account.id})" title="删除">
                 <i class="fas fa-trash"></i>
-            </button>
-        </div>
-    `;
+            </button>`;
+    }
+    
+    actionButtons += `</div>`;
+    actionsCell.innerHTML = actionButtons;
     row.appendChild(actionsCell);
     
     return row;

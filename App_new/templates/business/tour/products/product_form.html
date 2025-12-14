@@ -331,7 +331,14 @@
                 <div class="visa-grid-2">
                     <div class="visa-form-group">
                         <label class="visa-form-label">封面图</label>
-                        <input type="file" name="cover_image" accept="image/*" class="visa-form-control">
+                        <div style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;">
+                            <input type="file" name="cover_image" accept="image/*" class="visa-form-control" style="flex: 1;">
+                            <button type="button" onclick="openImageLibrary('cover')" 
+                                    class="visa-btn visa-btn-info" style="white-space: nowrap;">
+                                <i class="fas fa-images mr-1"></i>从图片库选择
+                            </button>
+                        </div>
+                        <input type="hidden" id="selectedCoverImage" name="selected_cover_image">
                         {% if product and product.cover_image %}
                         <div class="visa-mt-2" id="coverImagePreview" style="position: relative; display: inline-block;">
                             <img src="{{ url_for('static', filename=product.cover_image) }}" 
@@ -346,9 +353,16 @@
                     </div>
                     <div class="visa-form-group">
                         <label class="visa-form-label">产品图片库（可选择多张）</label>
-                        <input type="file" name="gallery_images" accept="image/*" multiple class="visa-form-control">
+                        <div style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;">
+                            <input type="file" name="gallery_images" accept="image/*" multiple class="visa-form-control" style="flex: 1;">
+                            <button type="button" onclick="openImageLibrary('gallery')" 
+                                    class="visa-btn visa-btn-info" style="white-space: nowrap;">
+                                <i class="fas fa-images mr-1"></i>从图片库选择
+                            </button>
+                        </div>
+                        <input type="hidden" id="selectedGalleryImages" name="selected_gallery_images">
                         <small style="color: var(--visa-text-secondary); font-size: 0.75rem;">
-                            可以选择多张图片一次上传
+                            可以选择多张图片一次上传，或从图片库选择已有图片
                         </small>
                         {% if product and product.gallery_images %}
                         <div class="visa-flex visa-gap-2 visa-mt-2" style="flex-wrap: wrap;" id="galleryImagesContainer">
@@ -1271,6 +1285,126 @@ function handleItineraryExcelUpload(input) {
     });
 }
 {% endif %}
+
+// ========================================
+// 图片库选择功能
+// ========================================
+let currentImageType = 'cover'; // 'cover' 或 'gallery'
+let selectedGalleryImages = []; // 存储选中的图片库图片
+
+function openImageLibrary(type) {
+    currentImageType = type;
+    const url = '{{ url_for("staff.image_library") }}';
+    const windowName = 'ImageLibrary';
+    const windowFeatures = 'width=1200,height=800,scrollbars=yes,resizable=yes';
+    window.open(url, windowName, windowFeatures);
+}
+
+// 监听来自图片库窗口的消息
+window.addEventListener('message', function(event) {
+    if (event.data && event.data.type === 'image_selected') {
+        const { image_id, image_path, image_title } = event.data;
+        
+        if (currentImageType === 'cover') {
+            // 设置封面图
+            document.getElementById('selectedCoverImage').value = image_path;
+            // 显示预览
+            const previewDiv = document.getElementById('coverImagePreview') || createPreviewDiv('coverImagePreview');
+            previewDiv.innerHTML = `
+                <img src="{{ url_for('static', filename='') }}${image_path}" 
+                     style="max-width: 200px; max-height: 150px; border-radius: var(--visa-radius-sm); border: 1px solid var(--visa-border);">
+                <button type="button" onclick="clearCoverImage()" 
+                        style="position: absolute; top: -8px; right: -8px; background: #dc2626; color: white; border: none; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; font-size: 12px;"
+                        title="清除封面图">
+                    <i class="fas fa-times"></i>
+                </button>
+            `;
+            
+            // 清除文件输入
+            const fileInput = document.querySelector('input[name="cover_image"]');
+            if (fileInput) fileInput.value = '';
+        } else if (currentImageType === 'gallery') {
+            // 添加到图片库
+            if (!selectedGalleryImages.includes(image_path)) {
+                selectedGalleryImages.push(image_path);
+                document.getElementById('selectedGalleryImages').value = JSON.stringify(selectedGalleryImages);
+                updateGalleryPreview();
+            }
+        }
+    }
+});
+
+function createPreviewDiv(id) {
+    const div = document.createElement('div');
+    div.id = id;
+    div.className = 'visa-mt-2';
+    div.style.cssText = 'position: relative; display: inline-block;';
+    const formGroup = document.querySelector('input[name="cover_image"]').closest('.visa-form-group');
+    formGroup.appendChild(div);
+    return div;
+}
+
+function updateGalleryPreview() {
+    let container = document.getElementById('galleryImagesContainer');
+    if (!container) {
+        const formGroup = document.querySelector('input[name="gallery_images"]').closest('.visa-form-group');
+        container = document.createElement('div');
+        container.id = 'galleryImagesContainer';
+        container.className = 'visa-flex visa-gap-2 visa-mt-2';
+        container.style.cssText = 'flex-wrap: wrap;';
+        formGroup.appendChild(container);
+    }
+    
+    container.innerHTML = '';
+    selectedGalleryImages.forEach((imagePath, index) => {
+        const div = document.createElement('div');
+        div.style.cssText = 'position: relative; display: inline-block;';
+        div.innerHTML = `
+            <img src="{{ url_for('static', filename='') }}${imagePath}" 
+                 style="max-width: 100px; max-height: 80px; border-radius: var(--visa-radius-sm); border: 1px solid var(--visa-border);">
+            <button type="button" onclick="removeGalleryImage(${index})" 
+                    style="position: absolute; top: -6px; right: -6px; background: #dc2626; color: white; border: none; border-radius: 50%; width: 20px; height: 20px; cursor: pointer; font-size: 10px;"
+                    title="删除图片">
+                <i class="fas fa-times"></i>
+            </button>
+        `;
+        container.appendChild(div);
+    });
+    
+    // 也添加原有的图片库图片
+    {% if product and product.gallery_images %}
+    {% set existing_images = product.gallery_images|from_json if product.gallery_images else [] %}
+    {% for image in existing_images %}
+    if (!selectedGalleryImages.includes('{{ image }}')) {
+        const div = document.createElement('div');
+        div.style.cssText = 'position: relative; display: inline-block;';
+        div.id = 'galleryImage{{ loop.index0 }}';
+        div.innerHTML = `
+            <img src="{{ url_for('static', filename=image) }}" 
+                 style="max-width: 100px; max-height: 80px; border-radius: var(--visa-radius-sm); border: 1px solid var(--visa-border);">
+            <button type="button" onclick="deleteProductFile('gallery_image', {{ loop.index0 }})" 
+                    style="position: absolute; top: -6px; right: -6px; background: #dc2626; color: white; border: none; border-radius: 50%; width: 20px; height: 20px; cursor: pointer; font-size: 10px;"
+                    title="删除图片">
+                <i class="fas fa-times"></i>
+            </button>
+        `;
+        container.appendChild(div);
+    }
+    {% endfor %}
+    {% endif %}
+}
+
+function removeGalleryImage(index) {
+    selectedGalleryImages.splice(index, 1);
+    document.getElementById('selectedGalleryImages').value = JSON.stringify(selectedGalleryImages);
+    updateGalleryPreview();
+}
+
+function clearCoverImage() {
+    document.getElementById('selectedCoverImage').value = '';
+    const preview = document.getElementById('coverImagePreview');
+    if (preview) preview.innerHTML = '';
+}
 
 // ========================================
 // 标签页切换功能

@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 """
 旅游产品管理蓝图
 包含产品的CRUD操作
@@ -209,12 +209,19 @@ def add_product():
             tags_list = [tag.strip() for tag in tags_input.split(',') if tag.strip()]
             tags_json = json.dumps(tags_list, ensure_ascii=False)
 
+            # 处理封面图：优先使用上传的文件，其次使用图片库选择的
             cover_image_path = None
             if 'cover_image' in request.files:
                 cover_file = request.files['cover_image']
-                cover_image_path = save_uploaded_file(cover_file)
+                if cover_file and cover_file.filename:
+                    cover_image_path = save_uploaded_file(cover_file)
+            elif 'selected_cover_image' in request.form and request.form.get('selected_cover_image'):
+                # 从图片库选择的封面图
+                cover_image_path = request.form.get('selected_cover_image')
 
+            # 处理图片库：合并上传的和从图片库选择的
             gallery_paths = []
+            # 处理上传的文件
             if 'gallery_images' in request.files:
                 gallery_files = request.files.getlist('gallery_images')
                 for file in gallery_files:
@@ -222,6 +229,13 @@ def add_product():
                         path = save_uploaded_file(file)
                         if path:
                             gallery_paths.append(path)
+            # 处理从图片库选择的图片
+            if 'selected_gallery_images' in request.form and request.form.get('selected_gallery_images'):
+                try:
+                    selected_images = json.loads(request.form.get('selected_gallery_images'))
+                    gallery_paths.extend(selected_images)
+                except:
+                    pass
             gallery_json = json.dumps(gallery_paths) if gallery_paths else None
 
             # 供应商文件上传
@@ -719,23 +733,49 @@ def edit_product(product_id):
             tags_list = [tag.strip() for tag in tags_input.split(',') if tag.strip()]
             tags_json = json.dumps(tags_list, ensure_ascii=False)
 
+            # 处理封面图：优先使用上传的文件，其次使用图片库选择的
             if 'cover_image' in request.files:
                 cover_file = request.files['cover_image']
                 if cover_file and cover_file.filename:
                     cover_image_path = save_uploaded_file(cover_file)
                     if cover_image_path:
                         product.cover_image = cover_image_path
+            elif 'selected_cover_image' in request.form and request.form.get('selected_cover_image'):
+                # 从图片库选择的封面图
+                product.cover_image = request.form.get('selected_cover_image')
 
+            # 处理图片库：合并上传的和从图片库选择的
+            gallery_paths = []
+            # 保留现有图片（如果用户没有修改）
+            if product.gallery_images:
+                try:
+                    existing_images = json.loads(product.gallery_images) if isinstance(product.gallery_images, str) else product.gallery_images
+                    gallery_paths.extend(existing_images)
+                except:
+                    pass
+            
+            # 处理新上传的文件
             if 'gallery_images' in request.files:
-                gallery_paths = []
                 gallery_files = request.files.getlist('gallery_images')
                 for file in gallery_files:
                     if file and file.filename:
                         path = save_uploaded_file(file)
                         if path:
                             gallery_paths.append(path)
-                if gallery_paths:
-                    product.gallery_images = json.dumps(gallery_paths)
+            
+            # 处理从图片库选择的图片
+            if 'selected_gallery_images' in request.form and request.form.get('selected_gallery_images'):
+                try:
+                    selected_images = json.loads(request.form.get('selected_gallery_images'))
+                    # 去重并添加新选择的图片
+                    for img in selected_images:
+                        if img not in gallery_paths:
+                            gallery_paths.append(img)
+                except:
+                    pass
+            
+            if gallery_paths:
+                product.gallery_images = json.dumps(gallery_paths)
 
             # 供应商文件上传
             if 'supplier_document' in request.files:

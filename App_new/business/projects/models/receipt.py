@@ -214,28 +214,18 @@ class ProjectReceipt(db.Model):
         if float(amount) > total_unpaid:
             return {'success': False, 'message': f'收款金额({amount})不能超过未收款总额({total_unpaid})'}
 
-        # 获取所有有未收款的REF
+        # 获取所有有未收款的REF（按ID顺序排序，从上到下）
         unpaid_refs = []
-        for ref in header.refs:
+        # 先获取所有REF并按ID排序
+        all_refs = sorted(header.refs, key=lambda r: r.id)
+        
+        for ref in all_refs:
             if ref.selling_price:
-                ref_receipts = cls.query.filter_by(ref_id=ref.id, status='confirmed').all()
-                ref_received = sum(float(r.amount) for r in ref_receipts)
-
-                # 项目级别收款记录中分配给该REF的金额
-                project_receipts = cls.query.filter_by(header_id=header_id, ref_id=None, status='confirmed').all()
-                for project_receipt in project_receipts:
-                    if project_receipt.extra_info:
-                        try:
-                            distribution_info = json.loads(project_receipt.extra_info)
-                            if 'distribution' in distribution_info:
-                                for dist in distribution_info['distribution']:
-                                    if dist['ref_id'] == ref.id:
-                                        ref_received += dist['amount']
-                        except (json.JSONDecodeError, KeyError, TypeError):
-                            pass
-
+                # 使用辅助方法计算已收款（包括项目级别分配）
+                ref_received = cls.get_ref_total_received(ref.id, header_id)
                 ref_unpaid = float(ref.selling_price) - ref_received
-                if ref_unpaid > 0:
+                
+                if ref_unpaid > 0.01:  # 只包含有未收款的REF（考虑浮点数误差）
                     unpaid_refs.append({
                         'ref': ref,
                         'unpaid': ref_unpaid
@@ -247,11 +237,17 @@ class ProjectReceipt(db.Model):
         # 按分配方式计算分配金额
         distribution = []
         remaining_amount = float(amount)
+        total_unpaid = sum(ref['unpaid'] for ref in unpaid_refs)
 
-        if distribution_method == 'auto':
-            # 按未收款比例自动分配
-            total_unpaid = sum(ref['unpaid'] for ref in unpaid_refs)
+        # 验证收款金额不能超过总未收款
+        if remaining_amount > total_unpaid:
+            return {
+                'success': False,
+                'message': f'收款金额({remaining_amount:.2f})不能超过总未收款金额({total_unpaid:.2f})'
+            }
 
+        if distribution_method == 'auto' or distribution_method == 'proportional':
+            # 按未收款比例自动分配（保持向后兼容）
             # 按比例分配
             for i, ref_info in enumerate(unpaid_refs):
                 if remaining_amount <= 0:
@@ -267,14 +263,73 @@ class ProjectReceipt(db.Model):
                 if allocated > 0:
                     distribution.append({
                         'ref_id': ref_info['ref'].id,
-                        'amount': allocated,
+                        'amount': round(allocated, 2),
                         'method': 'auto'
                     })
                     remaining_amount -= allocated
+                    remaining_amount = round(remaining_amount, 2)  # 避免浮点数精度问题
+        
+        elif distribution_method == 'sequential':
+            # 从上到下按REF顺序结算（新逻辑）
+            # 按REF的ID顺序排序（从上到下）
+            unpaid_refs.sort(key=lambda x: x['ref'].id)
+            
+            for ref_info in unpaid_refs:
+                if remaining_amount <= 0.01:  # 考虑浮点数误差
+                    break
+                
+                ref_unpaid = ref_info['unpaid']
+                if ref_unpaid > 0.01:  # 只处理有未收款的REF
+                    # 优先分配给当前REF，直到付清
+                    allocated = min(ref_unpaid, remaining_amount)
+                    
+                    if allocated > 0.01:
+                        distribution.append({
+                            'ref_id': ref_info['ref'].id,
+                            'amount': round(allocated, 2),
+                            'method': 'sequential'
+                        })
+                        remaining_amount -= allocated
+                        remaining_amount = round(remaining_amount, 2)  # 避免浮点数精度问题
+            
+            # 如果还有剩余金额，说明收款超过了总未收款
+            if remaining_amount > 0.01:
+                return {
+                    'success': False,
+                    'message': f'收款金额({float(amount):.2f})超过总未收款金额({total_unpaid:.2f})，剩余未分配：{remaining_amount:.2f}'
+                }
+        
+        else:
+            # 未知的分配方式，默认按顺序分配
+            unpaid_refs.sort(key=lambda x: x['ref'].id)
+            
+            for ref_info in unpaid_refs:
+                if remaining_amount <= 0.01:
+                    break
+                
+                ref_unpaid = ref_info['unpaid']
+                if ref_unpaid > 0.01:
+                    allocated = min(ref_unpaid, remaining_amount)
+                    
+                    if allocated > 0.01:
+                        distribution.append({
+                            'ref_id': ref_info['ref'].id,
+                            'amount': round(allocated, 2),
+                            'method': distribution_method or 'sequential'
+                        })
+                        remaining_amount -= allocated
+                        remaining_amount = round(remaining_amount, 2)
+            
+            # 如果还有剩余金额，说明收款超过了总未收款
+            if remaining_amount > 0.01:
+                return {
+                    'success': False,
+                    'message': f'收款金额({float(amount):.2f})超过总未收款金额({total_unpaid:.2f})，剩余未分配：{remaining_amount:.2f}'
+                }
 
         return {
             'success': True,
             'distribution': distribution,
-            'remaining_amount': remaining_amount,
+            'remaining_amount': round(remaining_amount, 2),
             'total_unpaid': total_unpaid
         }

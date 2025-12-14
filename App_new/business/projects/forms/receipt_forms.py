@@ -34,7 +34,7 @@ class ProjectReceiptForm(FlaskForm):
     
     # 付款人信息
     payer_name = StringField('付款人姓名', validators=[
-        Optional()
+        DataRequired(message='付款人姓名不能为空')
     ])
     
     payer_contact = StringField('付款人联系方式', validators=[
@@ -97,9 +97,9 @@ class ProjectLevelReceiptForm(FlaskForm):
     
     # 分配方式
     distribution_method = SelectField('分配方式', choices=[
-        ('auto', '自动分配'),
+        ('sequential', '顺序分配（从上到下依次结算）'),
         ('manual', '手动指定分配')
-    ], default='auto', validators=[DataRequired(message='请选择分配方式')])
+    ], default='sequential', validators=[DataRequired(message='请选择分配方式')])
     
     # 手动分配REF选择（动态生成）
     selected_refs = SelectMultipleField('选择要分配的REF', coerce=int, validators=[
@@ -108,7 +108,7 @@ class ProjectLevelReceiptForm(FlaskForm):
     
     # 付款人信息
     payer_name = StringField('付款人姓名', validators=[
-        Optional()
+        DataRequired(message='付款人姓名不能为空')
     ])
     
     payer_contact = StringField('付款人联系方式', validators=[

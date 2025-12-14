@@ -63,6 +63,41 @@ def filter_accounts_by_access(query, user):
     
     return query.filter(or_(*access_conditions))
 
+def check_account_permissions(account, user):
+    """
+    检查用户对账号的编辑和删除权限
+    返回: (can_edit, can_delete)
+    """
+    # 管理员可以编辑和删除所有账号
+    is_admin = user.role and user.role.name in ['admin', 'super_admin']
+    if is_admin:
+        return True, True
+    
+    # 获取用户的员工等级
+    staff_level = 1  # 默认等级
+    if user.profile:
+        staff_level = user.profile.staff_level or 1
+    
+    # 检查是否是账号的创建者或所有者
+    is_owner = (account.created_by == user.id) or (account.owner == user.username)
+    
+    # 权限检查：
+    # 1. 2级员工（最高权限）可以编辑和删除所有账号
+    # 2. 1级员工只能编辑和删除自己创建的账号
+    can_edit = False
+    can_delete = False
+    
+    if staff_level == 2:
+        # 2级员工可以编辑和删除所有账号
+        can_edit = True
+        can_delete = True
+    elif is_owner:
+        # 1级员工只能编辑和删除自己的账号
+        can_edit = True
+        can_delete = True
+    
+    return can_edit, can_delete
+
 @account_routes.route('/accounts')
 @login_required
 @staff_only
@@ -196,12 +231,19 @@ def get_popular_accounts():
             ).desc()
         ).limit(25).all()
         
-        accounts_data = [{
+        accounts_data = []
+        for account in popular_accounts:
+            # 检查编辑和删除权限
+            can_edit, can_delete = check_account_permissions(account, current_user)
+            
+            accounts_data.append({
             'id': account.id,
             'platform': account.platform,
             'website_url': account.website_url,
-            'click_count': account.click_count or 0
-        } for account in popular_accounts]
+                'click_count': account.click_count or 0,
+                'can_edit': can_edit,
+                'can_delete': can_delete
+            })
         
         logger.info(f"Successfully fetched {len(accounts_data)} popular accounts")
         return jsonify({
@@ -229,7 +271,12 @@ def get_accounts():
         query = filter_accounts_by_access(query, current_user)
         
         accounts = query.all()
-        accounts_data = [{
+        accounts_data = []
+        for account in accounts:
+            # 检查编辑和删除权限
+            can_edit, can_delete = check_account_permissions(account, current_user)
+            
+            accounts_data.append({
             'id': account.id,
             'platform': account.platform,
             'website_url': account.website_url,
@@ -247,8 +294,10 @@ def get_accounts():
             'supplier_id': account.supplier_id,
             'supplier_name': account.supplier.name if account.supplier else None,
             'access_level': account.access_level or ACCESS_LEVEL_PRIVATE,
-            'access_level_display': dict(ACCESS_LEVEL_CHOICES).get(account.access_level, '仅自己可见')
-        } for account in accounts]
+                'access_level_display': dict(ACCESS_LEVEL_CHOICES).get(account.access_level, '仅自己可见'),
+                'can_edit': can_edit,
+                'can_delete': can_delete
+            })
         
         logger.info(f"Successfully fetched {len(accounts_data)} accounts")
         return jsonify({
@@ -276,6 +325,9 @@ def get_account(account_id):
                 'success': False,
                 'message': '您没有权限访问此账户'
             }), 403
+        
+        # 检查编辑和删除权限
+        can_edit, can_delete = check_account_permissions(account, current_user)
             
         return jsonify({
             'success': True,
@@ -297,7 +349,9 @@ def get_account(account_id):
                 'supplier_id': account.supplier_id,
                 'supplier_name': account.supplier.name if account.supplier else None,
                 'access_level': account.access_level or ACCESS_LEVEL_PRIVATE,
-                'access_level_display': dict(ACCESS_LEVEL_CHOICES).get(account.access_level, '仅自己可见')
+                'access_level_display': dict(ACCESS_LEVEL_CHOICES).get(account.access_level, '仅自己可见'),
+                'can_edit': can_edit,
+                'can_delete': can_delete
             }
         })
     except Exception as e:
@@ -408,11 +462,43 @@ def update_account(account_id):
                 'message': '账号不存在'
             }), 404
 
-        # 使用新的权限检查方法
+        # 检查用户是否有权限访问此账号（查看权限）
         if not account.can_access(current_user):
             return jsonify({
                 'success': False,
-                'message': '您没有权限更新此账户'
+                'message': '您没有权限访问此账户'
+            }), 403
+
+        # 检查编辑权限：最高权限员工（2级）可以编辑所有账号，或者只能编辑自己的账号
+        # 管理员可以编辑所有账号
+        is_admin = current_user.role and current_user.role.name in ['admin', 'super_admin']
+        
+        # 获取用户的员工等级
+        staff_level = 1  # 默认等级
+        if current_user.profile:
+            staff_level = current_user.profile.staff_level or 1
+        
+        # 检查是否是账号的创建者或所有者
+        is_owner = (account.created_by == current_user.id) or (account.owner == current_user.username)
+        
+        # 编辑权限检查：
+        # 1. 管理员可以编辑所有账号
+        # 2. 2级员工（最高权限）可以编辑所有账号
+        # 3. 1级员工只能编辑自己创建的账号
+        can_edit = False
+        if is_admin:
+            can_edit = True
+        elif staff_level == 2:
+            # 2级员工可以编辑所有账号
+            can_edit = True
+        elif is_owner:
+            # 1级员工只能编辑自己的账号
+            can_edit = True
+        
+        if not can_edit:
+            return jsonify({
+                'success': False,
+                'message': '您没有权限编辑此账户。只有最高权限员工（2级）可以编辑所有账户，或者您只能编辑自己创建的账户。'
             }), 403
 
         data = request.get_json()
@@ -494,11 +580,43 @@ def delete_account(account_id):
         logger.info(f"Deleting account with id: {account_id}")
         account = Account.query.get_or_404(account_id)
         
-        # 使用新的权限检查方法
+        # 检查用户是否有权限访问此账号（查看权限）
         if not account.can_access(current_user):
             return jsonify({
                 'success': False,
-                'message': '您没有权限删除此账户'
+                'message': '您没有权限访问此账户'
+            }), 403
+        
+        # 检查删除权限：最高权限员工（2级）可以删除所有账号，或者只能删除自己的账号
+        # 管理员可以删除所有账号
+        is_admin = current_user.role and current_user.role.name in ['admin', 'super_admin']
+        
+        # 获取用户的员工等级
+        staff_level = 1  # 默认等级
+        if current_user.profile:
+            staff_level = current_user.profile.staff_level or 1
+        
+        # 检查是否是账号的创建者或所有者
+        is_owner = (account.created_by == current_user.id) or (account.owner == current_user.username)
+        
+        # 删除权限检查：
+        # 1. 管理员可以删除所有账号
+        # 2. 2级员工（最高权限）可以删除所有账号
+        # 3. 1级员工只能删除自己创建的账号
+        can_delete = False
+        if is_admin:
+            can_delete = True
+        elif staff_level == 2:
+            # 2级员工可以删除所有账号
+            can_delete = True
+        elif is_owner:
+            # 1级员工只能删除自己的账号
+            can_delete = True
+        
+        if not can_delete:
+            return jsonify({
+                'success': False,
+                'message': '您没有权限删除此账户。只有最高权限员工（2级）可以删除所有账户，或者您只能删除自己创建的账户。'
             }), 403
         
         # 记录要删除的账号信息

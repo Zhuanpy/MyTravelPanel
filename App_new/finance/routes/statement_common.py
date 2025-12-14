@@ -217,6 +217,11 @@ def upload_file(bank_name):
         if not file.filename.lower().endswith(('.xls', '.xlsx', '.csv')):
             return jsonify({'success': False, 'message': '只支持XLS/XLSX/CSV格式的文件'})
         
+        # 获取用户选择的账户名称
+        selected_account_name = request.form.get('account_name', '').strip()
+        if not selected_account_name:
+            return jsonify({'success': False, 'message': '请选择账户名称'})
+        
         # 读取文件内容到内存
         import io
         file_content = file.read()
@@ -399,7 +404,8 @@ def upload_file(bank_name):
             
             # 提取账户信息
             account_number = 'UPLOAD'
-            account_name = '上传文件'
+            # 优先使用用户选择的账户名称
+            account_name = selected_account_name
             
             if account_number_col and account_number_col in df.columns:
                 # 获取第一个非空的账户号
@@ -409,25 +415,29 @@ def upload_file(bank_name):
                         break
                 print(f"提取到账户号: {account_number}")
             
-            if account_name_col and account_name_col in df.columns:
-                # 获取第一个非空的账户名称
-                for val in df[account_name_col]:
-                    if pd.notna(val) and str(val).strip():
-                        account_name = str(val).strip()
-                        break
-                print(f"提取到账户名称: {account_name}")
-            elif bank_name == 'OCBC' and account_number_col:
-                # 对于OCBC银行，如果没有找到账户名称字段，使用Account No.作为账户名称
-                account_name = account_number
-                print(f"OCBC银行使用Account No.作为账户名称: {account_name}")
-            elif bank_name == 'UOB' and account_number_col:
-                # 对于UOB银行，如果没有找到账户名称字段，使用Account No.作为账户名称
-                account_name = account_number
-                print(f"UOB银行使用Account No.作为账户名称: {account_name}")
-            elif bank_name == 'CMB' and account_number_col:
-                # 对于CMB银行，如果没有找到账户名称字段，使用Account No.作为账户名称
-                account_name = account_number
-                print(f"CMB银行使用Account No.作为账户名称: {account_name}")
+            # 如果用户没有选择账户名称，尝试从文件中提取
+            if not account_name or account_name == '上传文件':
+                if account_name_col and account_name_col in df.columns:
+                    # 获取第一个非空的账户名称
+                    for val in df[account_name_col]:
+                        if pd.notna(val) and str(val).strip():
+                            account_name = str(val).strip()
+                            break
+                    print(f"从文件提取到账户名称: {account_name}")
+                elif bank_name == 'OCBC' and account_number_col:
+                    # 对于OCBC银行，如果没有找到账户名称字段，使用Account No.作为账户名称
+                    account_name = account_number
+                    print(f"OCBC银行使用Account No.作为账户名称: {account_name}")
+                elif bank_name == 'UOB' and account_number_col:
+                    # 对于UOB银行，如果没有找到账户名称字段，使用Account No.作为账户名称
+                    account_name = account_number
+                    print(f"UOB银行使用Account No.作为账户名称: {account_name}")
+                elif bank_name == 'CMB' and account_number_col:
+                    # 对于CMB银行，如果没有找到账户名称字段，使用Account No.作为账户名称
+                    account_name = account_number
+                    print(f"CMB银行使用Account No.作为账户名称: {account_name}")
+            
+            print(f"最终使用的账户名称: {account_name}")
             
             # 重命名列 - 根据银行类型处理
             column_mapping = {}
@@ -792,14 +802,68 @@ def upload_file(bank_name):
                 'months_processed': list(monthly_groups.groups.keys()),
                 'keyword_stats': total_keyword_stats,
                 'statement_updates': updated_statements
-            })
-            
+                })
         except Exception as e:
             db.session.rollback()
-            return jsonify({'success': False, 'message': f'处理Excel文件时出错：{str(e)}'})
-            
+            logger.error(f"文件处理失败: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return jsonify({'success': False, 'message': f'文件处理失败：{str(e)}'})
+        
     except Exception as e:
+        logger.error(f"{bank_name}银行文件上传失败: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'success': False, 'message': f'上传失败：{str(e)}'})
+
+
+@statement_common_blue.route('/update_account_name/<bank_name>', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def update_account_name(bank_name):
+    """更新对账单的账户名称"""
+    try:
+        # 验证银行名称
+        valid_banks = ['UOB', 'OCBC', 'CMB']
+        if bank_name.upper() not in valid_banks:
+            return jsonify({'success': False, 'message': f'不支持的银行类型: {bank_name}'})
+        
+        bank_name = bank_name.upper()
+        
+        data = request.get_json()
+        statement_id = data.get('statement_id')
+        account_name = data.get('account_name', '').strip()
+        
+        if not statement_id:
+            return jsonify({'success': False, 'message': '缺少对账单ID'})
+        
+        if not account_name:
+            return jsonify({'success': False, 'message': '账户名称不能为空'})
+        
+        # 查找对账单
+        statement = BankStatement.query.get(statement_id)
+        if not statement:
+            return jsonify({'success': False, 'message': '对账单不存在'})
+        
+        # 验证对账单属于指定的银行
+        if statement.bank_name != bank_name:
+            return jsonify({'success': False, 'message': '对账单不属于指定的银行'})
+        
+        # 更新账户名称
+        statement.account_name = account_name
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': '账户名称更新成功',
+            'account_name': account_name
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"更新账户名称失败: {str(e)}")
+        return jsonify({'success': False, 'message': f'更新失败：{str(e)}'}), 500
 
 
 @statement_common_blue.route('/to_company/<bank_name>', methods=['GET', 'POST'])

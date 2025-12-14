@@ -1,141 +1,320 @@
 {% extends "shared/staff_base.html" %}
 
-{% block title %}{% if ref %}编辑保险明细{% else %}新建保险明细{% endif %}{% endblock %}
-{% block page_title %}{% if ref %}编辑保险明细{% else %}新建保险明细{% endif %}{% endblock %}
+{% block page_title %}Create Insurance Ref{% endblock %}
 
 {% block content %}
 <div class="container mt-4">
     <div class="row justify-content-center">
         <div class="col-lg-8 col-md-10">
             <div class="card">
-                <div class="card-header">
-                    <h2 class="mb-0">{% if ref %}编辑保险明细{% else %}新建保险明细{% endif %}</h2>
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">Insurance Booking - Ref: {{ ref.ref_number if ref else 'New' }}</h5>
                 </div>
                 <div class="card-body">
-                    <form method="post" action="{% if ref %}{{ url_for('business_projects.project_ref.edit_insurance_ref', ref_id=ref.id) }}{% else %}{{ url_for('business_projects.project_ref.submit_insurance_ref') }}{% endif %}">
+                    <form method="post" action="{% if ref %}{{ url_for('business_projects.project_ref.edit_insurance_ref', ref_id=ref.id) }}{% else %}{{ url_for('business_projects.project_ref.submit_insurance_ref') }}{% endif %}" id="insuranceRefForm">
                         <!-- CSRF令牌 -->
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         
                         <!-- 隐藏字段 -->
-                        <input type="hidden" name="header_id" value="{{ header_id }}">
+                        <input type="hidden" name="header_id" value="{% if header_id %}{{ header_id }}{% elif ref %}{{ ref.header_id }}{% elif header %}{{ header.id }}{% endif %}">
                         {% if ref and not is_create %}
                         <input type="hidden" name="ref_id" value="{{ ref.id }}">
                         {% endif %}
-                        
-                        <!-- 详细描述（自动生成） -->
-                        <input type="hidden" name="detailed_description" id="auto_detailed_description" 
-                               value="{{ ref.detailed_description if ref and ref.detailed_description else '' }}">
 
-                        <div class="row mb-4">
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label>保险名字 <span class="text-danger">*</span></label>
-                                    <input type="text" name="description" class="form-control" required
-                                           placeholder="请输入保险名字"
-                                           value="{{ ref.description if ref and ref.description else '' }}">
-                                    <div class="invalid-feedback">请输入保险名字</div>
-                                </div>
+                        <!-- 第一行：City, Description, Status -->
+                        <div class="row mb-3">
+                            <div class="col-md-2">
+                                <label class="form-label">City:</label>
+                                <select name="city" class="form-select">
+                                    <option value="SIN" {% if extra_info and extra_info.city == 'SIN' %}selected{% elif not extra_info %}selected{% endif %}>SIN</option>
+                                    <option value="KUL" {% if extra_info and extra_info.city == 'KUL' %}selected{% endif %}>KUL</option>
+                                    <option value="BKK" {% if extra_info and extra_info.city == 'BKK' %}selected{% endif %}>BKK</option>
+                                    <option value="HKG" {% if extra_info and extra_info.city == 'HKG' %}selected{% endif %}>HKG</option>
+                                    <option value="PVG" {% if extra_info and extra_info.city == 'PVG' %}selected{% endif %}>PVG</option>
+                                    <option value="CAN" {% if extra_info and extra_info.city == 'CAN' %}selected{% endif %}>CAN</option>
+                                </select>
                             </div>
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label>保险类型 <span class="text-danger">*</span></label>
-                                    <select name="insurance_type" class="form-control" required>
-                                        <option value="">请选择保险类型</option>
-                                        <option value="旅游保险" {% if insurance_info and insurance_info.get('insurance_type') == '旅游保险' %}selected{% endif %}>旅游保险</option>
-                                        <option value="医疗保险" {% if insurance_info and insurance_info.get('insurance_type') == '医疗保险' %}selected{% endif %}>医疗保险</option>
-                                        <option value="意外保险" {% if insurance_info and insurance_info.get('insurance_type') == '意外保险' %}selected{% endif %}>意外保险</option>
-                                        <option value="行李保险" {% if insurance_info and insurance_info.get('insurance_type') == '行李保险' %}selected{% endif %}>行李保险</option>
-                                        <option value="航班延误保险" {% if insurance_info and insurance_info.get('insurance_type') == '航班延误保险' %}selected{% endif %}>航班延误保险</option>
-                                        <option value="取消保险" {% if insurance_info and insurance_info.get('insurance_type') == '取消保险' %}selected{% endif %}>取消保险</option>
-                                        <option value="其他" {% if insurance_info and insurance_info.get('insurance_type') == '其他' %}selected{% endif %}>其他</option>
-                                    </select>
-                                    <div class="invalid-feedback">请选择保险类型</div>
-                                </div>
+                            <div class="col-md-8">
+                                <label class="form-label">Description: <span class="text-danger">*</span></label>
+                                <input type="text" name="description" class="form-control" required
+                                       value="{{ ref.description if ref and ref.description else '' }}"
+                                       placeholder="e.g. TRAVEL INSURANCE">
                             </div>
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label>客人名字 <span class="text-danger">*</span></label>
-                                    <input type="text" name="insured_person" class="form-control" required
-                                           placeholder="请输入客人名字"
-                                           value="{{ insurance_info.get('insured_person', '') if insurance_info else '' }}">
-                                    <div class="invalid-feedback">请输入客人名字</div>
-                                </div>
+                            <div class="col-md-2 ms-auto">
+                                <label class="form-label">Status:</label>
+                                <select name="booking_status" class="form-select">
+                                    <option value="HK" {% if extra_info and extra_info.booking_status == 'HK' %}selected{% elif not extra_info %}selected{% endif %}>HK</option>
+                                    <option value="RQ" {% if extra_info and extra_info.booking_status == 'RQ' %}selected{% endif %}>RQ</option>
+                                    <option value="XX" {% if extra_info and extra_info.booking_status == 'XX' %}selected{% endif %}>XX</option>
+                                    <option value="WL" {% if extra_info and extra_info.booking_status == 'WL' %}selected{% endif %}>WL</option>
+                                </select>
                             </div>
                         </div>
 
-                        <div class="row mb-4">
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label>售价 (SGD) <span class="text-danger">*</span></label>
-                                    <div class="input-group">
-                                        <input type="number" name="selling_price" class="form-control" min="0" step="0.01" placeholder="0.00" required
-                                               value="{{ "%.2f"|format(ref.selling_price) if ref and ref.selling_price and not is_create else '' }}">
-                                        <span class="input-group-text">SGD</span>
-                                    </div>
-                                    <div class="invalid-feedback">请输入有效的售价</div>
-                                </div>
+                        <!-- 第二行：Supplier -->
+                        <div class="row mb-3">
+                            <div class="col-md-1">
+                                <label class="form-label">Supplier:</label>
                             </div>
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label>成本 (SGD) <span class="text-danger">*</span></label>
-                                    <div class="input-group">
-                                        <input type="number" name="cost_price" class="form-control" min="0" step="0.01" placeholder="0.00" required
-                                               value="{{ "%.2f"|format(ref.cost_price) if ref and ref.cost_price and not is_create else '' }}">
-                                        <span class="input-group-text">SGD</span>
-                                    </div>
-                                    <div class="invalid-feedback">请输入有效的成本价格</div>
-                                </div>
+                            <div class="col-md-1">
+                                <button type="button" class="btn btn-outline-secondary btn-sm">...</button>
                             </div>
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label>供应商 <span class="text-danger">*</span></label>
-                                    <select name="supplier_id" class="form-control" required>
-                                        <option value="">请选择供应商</option>
-                                        {% for supplier in suppliers %}
-                                            <option value="{{ supplier.supplier_id }}"
-                                                    {% if ref and ref.supplier_id == supplier.supplier_id and not is_create %}selected{% endif %}>
-                                                {{ supplier.name }}
-                                            </option>
+                            <div class="col-md-10">
+                                <select name="supplier_id" class="form-select">
+                                    <option value="">请选择供应商</option>
+                                    {% for supplier in suppliers %}
+                                        <option value="{{ supplier.supplier_id }}"
+                                                {% if ref and ref.supplier_id == supplier.supplier_id %}selected{% endif %}>
+                                            {{ supplier.name }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- 第三行：Pax Name -->
+                        <div class="row mb-3">
+                            <div class="col-md-2">
+                                <label class="form-label">Pax Name:</label>
+                            </div>
+                            <div class="col-md-10">
+                                {% if members and members|length > 0 %}
+                                {% set selected_pax = extra_info.pax_names if extra_info and extra_info.pax_names else [] %}
+                                {% set leader_id = extra_info.leader_id if extra_info and extra_info.leader_id else null %}
+                                <input type="hidden" name="leader_id" id="leader_id" value="{{ leader_id or '' }}">
+                                <table class="table table-sm table-bordered table-hover mb-0" style="font-size: 13px;">
+                                    <thead class="table-info">
+                                        <tr>
+                                            <th style="width: 40px;"><input type="checkbox" id="selectAllPax" title="全选"></th>
+                                            <th style="width: 40px;">No.</th>
+                                            <th>Name</th>
+                                            <th style="width: 60px;">Type</th>
+                                            <th style="width: 60px;">Leader</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for member in members %}
+                                        <tr class="{% if member.id == leader_id or member.id|string == leader_id|string %}table-primary{% endif %}">
+                                            <td class="text-center">
+                                                <input type="checkbox" name="pax_names" value="{{ member.id }}" 
+                                                       {% if member.id in selected_pax or member.id|string in selected_pax %}checked{% endif %}>
+                                            </td>
+                                            <td>{{ loop.index }}.</td>
+                                            <td>{{ member.title }} {{ member.member_name }}{% if member.member_name_en %} ({{ member.member_name_en }}){% endif %}</td>
+                                            <td>ADT</td>
+                                            <td class="text-center">
+                                                <button type="button" class="btn btn-sm {% if member.id == leader_id or member.id|string == leader_id|string %}btn-info{% else %}btn-outline-secondary{% endif %} set-leader-btn" 
+                                                        data-member-id="{{ member.id }}" title="设为Leader">
+                                                    <i class="fas fa-user"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
                                         {% endfor %}
-                                    </select>
-                                    <div class="invalid-feedback">请选择供应商</div>
+                                    </tbody>
+                                </table>
+                                <small class="text-muted">勾选人员，点击 <i class="fas fa-user"></i> 设置为Leader</small>
+                                {% else %}
+                                <input type="text" name="pax_name" class="form-control" 
+                                       value="{{ extra_info.pax_name if extra_info and extra_info.pax_name else (extra_info.insured_person if extra_info and extra_info.insured_person else '') }}"
+                                       placeholder="e.g. LI HONGJUAN MS">
+                                <small class="text-muted">项目暂无人员，请先在项目详情中添加人员</small>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- 操作按钮 -->
+                        <div class="row mb-3">
+                            <div class="col-12">
+                                <button type="button" class="btn btn-info btn-sm" onclick="location.reload()">Refresh</button>
+                                <button type="submit" class="btn btn-success btn-sm">Save</button>
+                                <a href="javascript:history.back()" class="btn btn-warning btn-sm">Exit</a>
+                            </div>
+                        </div>
+
+                        <!-- Details 面板 -->
+                        <div class="card mb-3">
+                            <div class="card-header bg-info text-white py-2">
+                                <span>Details</span>
+                                <span class="float-end">
+                                    <i class="fas fa-chevron-up"></i>
+                                </span>
+                            </div>
+                            <div class="card-body">
+                                <!-- Insurance Type -->
+                                <div class="row mb-3">
+                                    <div class="col-md-2">
+                                        <label class="form-label">Insurance Type:</label>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <select name="insurance_type" class="form-select">
+                                            <option value="">请选择保险类型</option>
+                                            <option value="旅游保险" {% if extra_info and extra_info.insurance_type == '旅游保险' %}selected{% endif %}>旅游保险</option>
+                                            <option value="医疗保险" {% if extra_info and extra_info.insurance_type == '医疗保险' %}selected{% endif %}>医疗保险</option>
+                                            <option value="意外保险" {% if extra_info and extra_info.insurance_type == '意外保险' %}selected{% endif %}>意外保险</option>
+                                            <option value="行李保险" {% if extra_info and extra_info.insurance_type == '行李保险' %}selected{% endif %}>行李保险</option>
+                                            <option value="航班延误保险" {% if extra_info and extra_info.insurance_type == '航班延误保险' %}selected{% endif %}>航班延误保险</option>
+                                            <option value="取消保险" {% if extra_info and extra_info.insurance_type == '取消保险' %}selected{% endif %}>取消保险</option>
+                                            <option value="其他" {% if extra_info and extra_info.insurance_type == '其他' %}selected{% endif %}>其他</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <label class="form-label">Departure:</label>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <input type="date" name="departure_date" class="form-control"
+                                               value="{{ extra_info.departure_date if extra_info and extra_info.departure_date else '' }}">
+                                    </div>
+                                </div>
+
+                                <!-- Detailed Description -->
+                                <div class="row mb-3">
+                                    <div class="col-md-2">
+                                        <label class="form-label">Detailed Description:</label>
+                                    </div>
+                                    <div class="col-md-10">
+                                        <textarea name="detailed_description" class="form-control" rows="3"
+                                                  placeholder="Enter detailed description">{{ ref.detailed_description if ref and ref.detailed_description else (extra_info.insurance_details if extra_info and extra_info.insurance_details else '') }}</textarea>
+                                    </div>
+                                </div>
+
+                                <!-- Pricing 区域 -->
+                                <div class="row mb-3">
+                                    <div class="col-md-2">
+                                        <label class="form-label">Pricing:</label>
+                                    </div>
+                                    <div class="col-md-10">
+                                        <table class="table table-bordered table-sm">
+                                            <thead class="table-light">
+                                                <tr>
+                                                    <th style="width: 100px;"></th>
+                                                    <th style="width: 100px;">Quantity</th>
+                                                    <th>Selling</th>
+                                                    <th>Cost</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <tr>
+                                                    <td>Adult</td>
+                                                    <td>
+                                                        <input type="number" name="adult_qty" class="form-control form-control-sm qty-input" 
+                                                               min="0" value="{{ extra_info.adult_qty if extra_info and extra_info.adult_qty else 1 }}">
+                                                    </td>
+                                                    <td>
+                                                        <div class="input-group input-group-sm">
+                                                            <span class="input-group-text">SGD</span>
+                                                            <input type="number" name="adult_selling" class="form-control selling-input" 
+                                                                   min="0" step="0.01" value="{{ extra_info.adult_selling if extra_info and extra_info.adult_selling else '0.00' }}">
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                                                        <div class="input-group input-group-sm">
+                                                            <span class="input-group-text">SGD</span>
+                                                            <input type="number" name="adult_cost" class="form-control cost-input" 
+                                                                   min="0" step="0.01" value="{{ extra_info.adult_cost if extra_info and extra_info.adult_cost else '0.00' }}">
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                                <tr>
+                                                    <td>Child</td>
+                                                    <td>
+                                                        <input type="number" name="child_qty" class="form-control form-control-sm qty-input" 
+                                                               min="0" value="{{ extra_info.child_qty if extra_info and extra_info.child_qty else 0 }}">
+                                                    </td>
+                                                    <td>
+                                                        <div class="input-group input-group-sm">
+                                                            <span class="input-group-text">SGD</span>
+                                                            <input type="number" name="child_selling" class="form-control selling-input" 
+                                                                   min="0" step="0.01" value="{{ extra_info.child_selling if extra_info and extra_info.child_selling else '0.00' }}">
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                                                        <div class="input-group input-group-sm">
+                                                            <span class="input-group-text">SGD</span>
+                                                            <input type="number" name="child_cost" class="form-control cost-input" 
+                                                                   min="0" step="0.01" value="{{ extra_info.child_cost if extra_info and extra_info.child_cost else '0.00' }}">
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                                <tr>
+                                                    <td>Infant</td>
+                                                    <td>
+                                                        <input type="number" name="infant_qty" class="form-control form-control-sm qty-input" 
+                                                               min="0" value="{{ extra_info.infant_qty if extra_info and extra_info.infant_qty else 0 }}">
+                                                    </td>
+                                                    <td>
+                                                        <div class="input-group input-group-sm">
+                                                            <span class="input-group-text">SGD</span>
+                                                            <input type="number" name="infant_selling" class="form-control selling-input" 
+                                                                   min="0" step="0.01" value="{{ extra_info.infant_selling if extra_info and extra_info.infant_selling else '0.00' }}">
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                                                        <div class="input-group input-group-sm">
+                                                            <span class="input-group-text">SGD</span>
+                                                            <input type="number" name="infant_cost" class="form-control cost-input" 
+                                                                   min="0" step="0.01" value="{{ extra_info.infant_cost if extra_info and extra_info.infant_cost else '0.00' }}">
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+
+                                <!-- 复选框选项 -->
+                                <div class="row mb-3">
+                                    <div class="col-md-2"></div>
+                                    <div class="col-md-10">
+                                        <div class="form-check form-check-inline">
+                                            <input type="checkbox" name="non_trade_booking" class="form-check-input" id="nonTradeBooking"
+                                                   {% if extra_info and extra_info.non_trade_booking %}checked{% endif %}>
+                                            <label class="form-check-label" for="nonTradeBooking">Non Trade Booking</label>
+                                        </div>
+                                        <div class="form-check form-check-inline">
+                                            <input type="checkbox" name="do_not_show_details" class="form-check-input" id="doNotShowDetails"
+                                                   {% if extra_info and extra_info.do_not_show_details %}checked{% endif %}>
+                                            <label class="form-check-label" for="doNotShowDetails">Do Not Show Details</label>
+                                        </div>
+                                        <div class="form-check form-check-inline">
+                                            <input type="checkbox" name="print_pricing_details" class="form-check-input" id="printPricingDetails"
+                                                   {% if extra_info and extra_info.print_pricing_details %}checked{% endif %}>
+                                            <label class="form-check-label" for="printPricingDetails">Print Pricing Details</label>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
 
+                        <!-- 备注信息 -->
                         <div class="row mb-4">
                             <div class="col-md-12">
                                 <div class="form-group">
-                                    <label>保险详情</label>
-                                    <textarea name="insurance_details" class="form-control" rows="3"
-                                              placeholder="请输入保险详情，如保险范围、保额、特殊条款等">{{ insurance_info.get('insurance_details', '') if insurance_info else '' }}</textarea>
+                                    <label class="form-label">Remarks:</label>
+                                    <textarea name="remarks" class="form-control" rows="3" placeholder="请输入备注信息">{{ ref.remarks if ref else '' }}</textarea>
                                 </div>
                             </div>
                         </div>
 
-                        <div class="row mb-4">
-                            <div class="col-md-12">
-                                <div class="form-group">
-                                    <label>备注信息</label>
-                                    <textarea name="remarks" class="form-control" rows="3"
-                                              placeholder="请输入备注信息，如特殊要求、注意事项等">{{ ref.remarks if ref and not is_create else '' }}</textarea>
-                                </div>
-                            </div>
-                        </div>
+                        <!-- 隐藏字段：汇总售价和成本 -->
+                        <input type="hidden" name="selling_price" id="total_selling_price" 
+                               value="{{ "%.2f"|format(ref.selling_price) if ref and ref.selling_price else '0.00' }}">
+                        <input type="hidden" name="cost_price" id="total_cost_price" 
+                               value="{{ "%.2f"|format(ref.cost_price) if ref and ref.cost_price else '0.00' }}">
 
+                        <!-- 底部按钮 -->
                         <div class="row mt-4">
                             <div class="col-12 text-center">
                                 <button type="submit" class="btn btn-success btn-lg px-5">
-                                    {% if ref %}更新{% else %}提交{% endif %}
+                                    {% if ref %}Update{% else %}Submit{% endif %}
                                 </button>
-                                <a href="javascript:history.back()" class="btn btn-secondary btn-lg px-5 ms-2">返回</a>
+                                <a href="javascript:history.back()" class="btn btn-secondary btn-lg px-5 ms-2">Back</a>
                                 {% if ref and ref.eos %}
-                                                                            <span class="btn btn-outline-info btn-lg px-5 ms-2" style="cursor: default;">
-                                            <i class="fas fa-check"></i> EO: {{ ref.eos.eo_number }}
-                                        </span>
-                                {% else %}
-                                    <button type="button" class="btn btn-primary btn-lg px-5 ms-2" onclick="quickCreateEO({% if ref %}{{ ref.id }}{% else %}null{% endif %})">
-                                        <i class="fas fa-plus"></i> 生成EO
+                                    <span class="btn btn-outline-info btn-lg px-5 ms-2" style="cursor: default;">
+                                        <i class="fas fa-check"></i> EO: {{ ref.eos.eo_number }}
+                                    </span>
+                                {% elif ref %}
+                                    <button type="button" class="btn btn-primary btn-lg px-5 ms-2" onclick="quickCreateEO({{ ref.id }})">
+                                        <i class="fas fa-plus"></i> Generate EO
                                     </button>
                                 {% endif %}
                             </div>
@@ -153,212 +332,83 @@ function getCsrfToken() {
     return document.querySelector('meta[name="csrf-token"]').getAttribute('content');
 }
 
-// 表单校验和用户反馈
+// 计算总价
+function calculateTotals() {
+    // Adult
+    const adultQty = parseFloat(document.querySelector('input[name="adult_qty"]').value) || 0;
+    const adultSelling = parseFloat(document.querySelector('input[name="adult_selling"]').value) || 0;
+    const adultCost = parseFloat(document.querySelector('input[name="adult_cost"]').value) || 0;
+    
+    // Child
+    const childQty = parseFloat(document.querySelector('input[name="child_qty"]').value) || 0;
+    const childSelling = parseFloat(document.querySelector('input[name="child_selling"]').value) || 0;
+    const childCost = parseFloat(document.querySelector('input[name="child_cost"]').value) || 0;
+    
+    // Infant
+    const infantQty = parseFloat(document.querySelector('input[name="infant_qty"]').value) || 0;
+    const infantSelling = parseFloat(document.querySelector('input[name="infant_selling"]').value) || 0;
+    const infantCost = parseFloat(document.querySelector('input[name="infant_cost"]').value) || 0;
+    
+    // 计算总售价和总成本
+    const totalSelling = (adultQty * adultSelling) + (childQty * childSelling) + (infantQty * infantSelling);
+    const totalCost = (adultQty * adultCost) + (childQty * childCost) + (infantQty * infantCost);
+    
+    // 更新隐藏字段
+    document.getElementById('total_selling_price').value = totalSelling.toFixed(2);
+    document.getElementById('total_cost_price').value = totalCost.toFixed(2);
+}
+
 document.addEventListener('DOMContentLoaded', function() {
-    const form = document.querySelector('form');
-    const inputs = form.querySelectorAll('input, select, textarea');
-
-    // 实时校验函数
-    function validateField(field) {
-        const value = field.value.trim();
-        const isValid = field.checkValidity();
-
-        if (isValid) {
-            field.classList.remove('is-invalid');
-            field.classList.add('is-valid');
-        } else {
-            field.classList.remove('is-valid');
-            field.classList.add('is-invalid');
-        }
-
-        return isValid;
-    }
-
-
-    // 价格校验函数
-    function validatePrices() {
-        const sellingPrice = document.querySelector('input[name="selling_price"]');
-        const costPrice = document.querySelector('input[name="cost_price"]');
-
-        // 校验售价（必填）
-        if (!sellingPrice.value || sellingPrice.value.trim() === '') {
-            sellingPrice.classList.remove('is-valid');
-            sellingPrice.classList.add('is-invalid');
-            sellingPrice.parentElement.querySelector('.invalid-feedback').textContent = '请输入售价';
-            return false;
-        }
-        
-        const selling = parseFloat(sellingPrice.value);
-        if (isNaN(selling) || selling < 0) {
-            sellingPrice.classList.remove('is-valid');
-            sellingPrice.classList.add('is-invalid');
-            sellingPrice.parentElement.querySelector('.invalid-feedback').textContent = '请输入有效的售价（支持0和小数）';
-            return false;
-        } else {
-            sellingPrice.classList.remove('is-invalid');
-            sellingPrice.classList.add('is-valid');
-        }
-
-        // 校验成本（必填）
-        if (!costPrice.value || costPrice.value.trim() === '') {
-            costPrice.classList.remove('is-valid');
-            costPrice.classList.add('is-invalid');
-            costPrice.parentElement.querySelector('.invalid-feedback').textContent = '请输入成本';
-            return false;
-        }
-        
-        const cost = parseFloat(costPrice.value);
-        if (isNaN(cost) || cost < 0) {
-            costPrice.classList.remove('is-valid');
-            costPrice.classList.add('is-invalid');
-            costPrice.parentElement.querySelector('.invalid-feedback').textContent = '请输入有效的成本（支持0和小数）';
-            return false;
-        } else {
-            costPrice.classList.remove('is-invalid');
-            costPrice.classList.add('is-valid');
-        }
-
-        // 比较售价和成本
-        if (selling < cost) {
-            sellingPrice.classList.remove('is-valid');
-            sellingPrice.classList.add('is-invalid');
-            sellingPrice.parentElement.querySelector('.invalid-feedback').textContent = '售价不能低于成本价格';
-            return false;
-        } else {
-            sellingPrice.classList.remove('is-invalid');
-            sellingPrice.classList.add('is-valid');
-        }
-        
-        return true;
-    }
-
-    // 为每个输入字段添加实时校验
+    // 为所有价格和数量输入框添加事件监听
+    const inputs = document.querySelectorAll('.qty-input, .selling-input, .cost-input');
     inputs.forEach(input => {
-        input.addEventListener('blur', function() {
-            validateField(this);
-
-            if (this.name === 'selling_price' || this.name === 'cost_price') {
-                validatePrices();
-            }
-        });
-
-        input.addEventListener('input', function() {
-            if (this.classList.contains('is-invalid')) {
-                validateField(this);
-            }
-        });
+        input.addEventListener('change', calculateTotals);
+        input.addEventListener('input', calculateTotals);
     });
-
-    // 表单提交处理
-    form.addEventListener('submit', function(e) {
-        e.preventDefault();
-
-        // 清除之前的校验状态
-        inputs.forEach(input => {
-            input.classList.remove('is-valid', 'is-invalid');
-        });
-
-        // 校验所有字段
-        let isValid = true;
-        inputs.forEach(input => {
-            if (!validateField(input)) {
-                isValid = false;
-            }
-        });
-
-        if (!validatePrices()) {
-            isValid = false;
-        }
-
-        if (isValid) {
-            // 显示提交中状态
-            const submitBtn = form.querySelector('button[type="submit"]');
-            const originalText = submitBtn.textContent;
-            submitBtn.textContent = '提交中...';
-            submitBtn.disabled = true;
-
-            // 提交表单
-            form.submit();
-        } else {
-            // 滚动到第一个错误字段
-            const firstInvalid = form.querySelector('.is-invalid');
-            if (firstInvalid) {
-                firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                firstInvalid.focus();
-            }
-
-            // 显示错误提示
-            showAlert('请检查表单中的错误信息', 'danger');
-        }
+    
+    // 初始计算
+    calculateTotals();
+    
+    // 表单提交前再次计算
+    document.getElementById('insuranceRefForm').addEventListener('submit', function(e) {
+        calculateTotals();
     });
-
-    // 显示提示信息
-    function showAlert(message, type) {
-        const alertDiv = document.createElement('div');
-        alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
-        alertDiv.innerHTML = `
-            ${message}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        `;
-
-        form.insertBefore(alertDiv, form.firstChild);
-
-        // 3秒后自动消失
-        setTimeout(() => {
-            if (alertDiv.parentNode) {
-                alertDiv.remove();
-            }
-        }, 3000);
-    }
-
-    // 自动生成详细描述
-    function updateDetailedDescription() {
-        const descriptionField = document.querySelector('input[name="description"]');
-        const insuranceTypeField = document.querySelector('select[name="insurance_type"]');
-        const detailedDescriptionField = document.getElementById('auto_detailed_description');
-        
-        if (descriptionField && detailedDescriptionField) {
-            let description = descriptionField.value.trim();
-            if (insuranceTypeField && insuranceTypeField.value) {
-                const typeText = insuranceTypeField.options[insuranceTypeField.selectedIndex].text;
-                description = description ? `${description} - ${typeText}` : typeText;
-            }
-            detailedDescriptionField.value = description || '保险订单';
-        }
+    
+    // 全选功能
+    const selectAllCheckbox = document.getElementById('selectAllPax');
+    if (selectAllCheckbox) {
+        selectAllCheckbox.addEventListener('change', function() {
+            const checkboxes = document.querySelectorAll('input[name="pax_names"]');
+            checkboxes.forEach(cb => cb.checked = this.checked);
+        });
     }
     
-    // 监听字段变化，自动更新详细描述
-    const descriptionField = document.querySelector('input[name="description"]');
-    const insuranceTypeField = document.querySelector('select[name="insurance_type"]');
-    if (descriptionField) {
-        descriptionField.addEventListener('input', updateDetailedDescription);
-        descriptionField.addEventListener('blur', updateDetailedDescription);
-    }
-    if (insuranceTypeField) {
-        insuranceTypeField.addEventListener('change', updateDetailedDescription);
-    }
-    
-    // 初始化详细描述
-    updateDetailedDescription();
-    
-    // 添加字段说明提示
-    const tooltips = {
-        'description': '请输入保险名字（必填）',
-        'insurance_type': '选择适合的保险类型（必填）',
-        'selling_price': '向客户收取的保险费用（必填）',
-        'cost_price': '保险的实际成本价格（必填）',
-        'supplier_id': '选择提供保险服务的供应商（必填）',
-        'insured_person': '填写客人名字（必填）',
-        'insurance_details': '详细描述保险范围、保额等信息',
-        'remarks': '可填写特殊要求、注意事项等'
-    };
-
-    // 为字段添加提示
-    Object.keys(tooltips).forEach(fieldName => {
-        const field = form.querySelector(`[name="${fieldName}"]`);
-        if (field) {
-            field.title = tooltips[fieldName];
-        }
+    // Leader设置功能
+    const leaderBtns = document.querySelectorAll('.set-leader-btn');
+    leaderBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+            const memberId = this.dataset.memberId;
+            const leaderInput = document.getElementById('leader_id');
+            
+            // 移除所有高亮和激活状态
+            document.querySelectorAll('.set-leader-btn').forEach(b => {
+                b.classList.remove('btn-info');
+                b.classList.add('btn-outline-secondary');
+            });
+            document.querySelectorAll('table tbody tr').forEach(row => {
+                row.classList.remove('table-primary');
+            });
+            
+            // 设置当前为leader
+            this.classList.remove('btn-outline-secondary');
+            this.classList.add('btn-info');
+            this.closest('tr').classList.add('table-primary');
+            leaderInput.value = memberId;
+            
+            // 自动勾选该人员
+            const checkbox = this.closest('tr').querySelector('input[name="pax_names"]');
+            if (checkbox) checkbox.checked = true;
+        });
     });
 });
 </script>
@@ -391,3 +441,5 @@ function quickCreateEO(refId) {
 }
 </script>
 {% endblock %}
+
+{% block title %}{% if ref %}Edit Insurance Ref{% else %}New Insurance Ref{% endif %}{% endblock %}

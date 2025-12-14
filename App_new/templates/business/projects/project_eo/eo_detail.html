@@ -4,221 +4,438 @@
 {% block page_title %}EO详情{% endblock %}
 {% block content %}
 <style>
+    .eo-container {
+        max-width: 960px;
+        margin: 0 auto;
+    }
+    
+    /* 头部样式 */
     .eo-header {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        padding: 1.25rem 1.5rem;
-        border-radius: 8px;
-        margin-bottom: 1.25rem;
+        background: #fff;
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+        border-left: 4px solid #667eea;
     }
-    .eo-title { font-size: 1.5rem; font-weight: 600; }
-    .info-card {
-        background: white;
-        border-radius: 8px;
-        padding: 1.25rem;
-        margin-bottom: 1rem;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-    }
-    .info-row {
+    .eo-header-top {
         display: flex;
-        border-bottom: 1px solid #f0f0f0;
-        padding: 0.6rem 0;
+        justify-content: space-between;
+        align-items: flex-start;
+        flex-wrap: wrap;
+        gap: 1rem;
     }
-    .info-row:last-child { border-bottom: none; }
-    .info-label {
-        width: 100px;
-        color: #6c757d;
+    .eo-number {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #333;
+        margin-bottom: 0.25rem;
+    }
+    .eo-desc {
+        color: #666;
+        font-size: 0.9rem;
+    }
+    .eo-status {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.4rem 1rem;
+        border-radius: 50px;
         font-size: 0.85rem;
-        flex-shrink: 0;
+        font-weight: 600;
     }
-    .info-value { color: #212529; flex: 1; }
-    .status-badge {
-        display: inline-block;
+    .eo-status-pending { background: #fff3cd; color: #856404; }
+    .eo-status-paid { background: #d4edda; color: #155724; }
+    .eo-status-void { background: #f8d7da; color: #721c24; }
+    
+    .header-actions {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+    .header-actions .btn {
+        border-radius: 6px;
+        font-size: 0.85rem;
+        padding: 0.5rem 1rem;
+    }
+    
+    /* 卡片样式 */
+    .info-card {
+        background: #fff;
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-bottom: 1.25rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        border: 1px solid #eee;
+    }
+    .info-card-title {
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 1rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 1px solid #f0f0f0;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .info-card-title i {
+        font-size: 1rem;
+    }
+    
+    /* 信息行样式 */
+    .info-item {
+        display: flex;
+        flex-direction: column;
+        padding: 0.5rem 0;
+    }
+    .info-label {
+        color: #888;
+        font-size: 0.8rem;
+        margin-bottom: 0.25rem;
+    }
+    .info-value {
+        color: #333;
+        font-size: 0.95rem;
+        font-weight: 500;
+    }
+    
+    /* 金额样式 */
+    .amount-highlight {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #2563eb;
+    }
+    
+    /* 付款卡片特殊样式 */
+    .payment-card {
+        border: 2px solid #10b981;
+        background: linear-gradient(to bottom right, #fff, #f0fdf4);
+    }
+    .payment-card .info-card-title {
+        color: #059669;
+        border-bottom-color: #d1fae5;
+    }
+    .payment-card.unpaid {
+        border-color: #f59e0b;
+        background: linear-gradient(to bottom right, #fff, #fffbeb);
+    }
+    .payment-card.unpaid .info-card-title {
+        color: #d97706;
+        border-bottom-color: #fef3c7;
+    }
+    
+    /* 付款状态 */
+    .payment-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.3rem 0.75rem;
+        border-radius: 6px;
+        font-size: 0.85rem;
+        font-weight: 600;
+    }
+    .payment-status.paid {
+        background: #dcfce7;
+        color: #16a34a;
+    }
+    .payment-status.unpaid {
+        background: #fef3c7;
+        color: #d97706;
+    }
+    
+    /* REF链接 */
+    .ref-link {
+        color: #667eea;
+        text-decoration: none;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
+    .ref-link:hover {
+        color: #4f46e5;
+        text-decoration: underline;
+    }
+    .ref-link i {
+        font-size: 0.75rem;
+    }
+    
+    /* 供应商标签 */
+    .supplier-tag {
+        background: #f3f4f6;
+        padding: 0.25rem 0.75rem;
+        border-radius: 4px;
+        font-size: 0.9rem;
+        color: #374151;
+    }
+    
+    /* 业务类型标签 */
+    .type-badge {
+        background: #dbeafe;
+        color: #1d4ed8;
         padding: 0.2rem 0.6rem;
         border-radius: 4px;
         font-size: 0.8rem;
         font-weight: 500;
     }
-    .status-draft { background: #fff3cd; color: #856404; }
-    .status-confirmed { background: #d1ecf1; color: #0c5460; }
-    .status-paid { background: #d4edda; color: #155724; }
-    .status-cancelled { background: #f8d7da; color: #721c24; }
-    .status-void { background: #6c757d; color: #fff; }
-    .amount-value { font-size: 1.1rem; font-weight: 600; color: #28a745; }
-    .paid-value { color: #28a745; }
-    .unpaid-value { color: #dc3545; }
-    .ref-link { color: #667eea; text-decoration: none; }
-    .ref-link:hover { text-decoration: underline; }
-    .payment-card { border: 2px solid #28a745; }
-    .payment-card h6 { color: #28a745; }
+    
+    /* 备注区域 */
+    .remarks-content {
+        background: #f9fafb;
+        padding: 1rem;
+        border-radius: 8px;
+        color: #555;
+        font-size: 0.9rem;
+        line-height: 1.6;
+        white-space: pre-wrap;
+    }
+    
+    /* 响应式 */
+    @media (max-width: 768px) {
+        .eo-header-top {
+            flex-direction: column;
+        }
+        .header-actions {
+            width: 100%;
+        }
+        .header-actions .btn {
+            flex: 1;
+        }
+        .info-label {
+            width: 80px;
+            font-size: 0.8rem;
+        }
+    }
 </style>
 
-<div class="container" style="max-width: 900px;">
-    <!-- 头部 -->
+<div class="eo-container">
+    <!-- 头部区域 -->
     <div class="eo-header">
-        <div class="d-flex justify-content-between align-items-center">
+        <div class="eo-header-top">
             <div>
-                <h1 class="eo-title mb-1">{{ eo.eo_number }}</h1>
-                <small>{{ eo.ref.description if eo.ref and eo.ref.description else '' }}</small>
+                <div class="d-flex align-items-center gap-3 mb-2">
+                    <span class="eo-number">{{ eo.eo_number }}</span>
+                    {% if eo.status == 'void' %}
+                    <span class="eo-status eo-status-void">
+                        <i class="fas fa-ban me-1"></i> 已作废
+                    </span>
+                    {% elif eo.pay_amount %}
+                    <span class="eo-status eo-status-paid">
+                        <i class="fas fa-check-circle me-1"></i> 已付款
+                    </span>
+                    {% else %}
+                    <span class="eo-status eo-status-pending">
+                        <i class="fas fa-clock me-1"></i> 待付款
+                    </span>
+                    {% endif %}
+                </div>
+                {% if eo.ref and eo.ref.description %}
+                <div class="eo-desc">{{ eo.ref.description }}</div>
+                {% endif %}
             </div>
-            <div>
-                {% if eo.status != 'void' and eo.status != 'paid' %}
-                <button type="button" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#payModal">
-                    <i class="fas fa-money-bill"></i> 付款
+            <div class="header-actions">
+                {% if eo.status != 'void' and not eo.pay_amount %}
+                <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#payModal">
+                    <i class="fas fa-money-bill-wave me-1"></i> 付款
                 </button>
                 {% endif %}
                 {% if eo.status != 'void' %}
-                <button type="button" class="btn btn-sm btn-danger ms-1" onclick="voidEO()">
-                    <i class="fas fa-ban"></i> VOID
+                <button type="button" class="btn btn-outline-danger" onclick="voidEO()">
+                    <i class="fas fa-ban me-1"></i> 作废
                 </button>
                 {% endif %}
-                <a href="{{ url_for('business_projects.detail.project_detail', project_id=eo.ref.header.id) }}" class="btn btn-sm btn-outline-light ms-1">
-                    <i class="fas fa-home"></i> 返回项目
+                <a href="{{ url_for('business_projects.detail.project_detail', project_id=eo.ref.header.id) }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-1"></i> 返回项目
                 </a>
             </div>
         </div>
     </div>
     
-    <div class="row">
-        <!-- 左侧：EO信息 -->
-        <div class="col-md-6">
-            <div class="info-card">
-                <h6 class="mb-3"><i class="fas fa-file-alt text-primary"></i> EO信息</h6>
-                <div class="info-row">
+    <!-- 上：EO基本信息 -->
+    <div class="info-card">
+        <div class="info-card-title">
+            <i class="fas fa-file-invoice text-primary"></i> EO信息
+        </div>
+        <div class="row">
+            <div class="col-md-4">
+                <div class="info-item">
                     <span class="info-label">EO编号</span>
-                    <span class="info-value">{{ eo.eo_number }}</span>
+                    <span class="info-value"><strong>{{ eo.eo_number }}</strong></span>
                 </div>
-                <div class="info-row">
-                    <span class="info-label">状态</span>
-                    <span class="info-value">
-                        <span class="status-badge status-{{ eo.status }}">
-                            {% if eo.status == 'draft' %}草稿
-                            {% elif eo.status == 'confirmed' %}已确认
-                            {% elif eo.status == 'paid' %}已支付
-                            {% elif eo.status == 'cancelled' %}已取消
-                            {% elif eo.status == 'void' %}已作废
-                            {% endif %}
-                        </span>
-                    </span>
+            </div>
+            <div class="col-md-4">
+                <div class="info-item">
+                    <span class="info-label">创建日期</span>
+                    <span class="info-value">{{ eo.created_at.strftime('%Y-%m-%d') if eo.created_at else '-' }}</span>
                 </div>
-                <div class="info-row">
+            </div>
+            <div class="col-md-4">
+                <div class="info-item">
                     <span class="info-label">成本金额</span>
-                    <span class="info-value amount-value">
+                    <span class="info-value amount-highlight">
                         {{ eo.ref.currency if eo.ref and eo.ref.currency else 'SGD' }} 
                         {{ "%.2f"|format((eo.ref.cost_price if eo.ref and eo.ref.cost_price else 0)|float) }}
                     </span>
                 </div>
-                <div class="info-row">
-                    <span class="info-label">创建时间</span>
-                    <span class="info-value">{{ eo.created_at.strftime('%Y-%m-%d %H:%M') if eo.created_at else '-' }}</span>
-                </div>
             </div>
-            
-            <!-- 付款信息卡片 -->
-            <div class="info-card payment-card">
-                <h6 class="mb-3"><i class="fas fa-credit-card"></i> 付款信息（付给供应商）</h6>
-                <div class="info-row">
-                    <span class="info-label">付款编号</span>
-                    <span class="info-value">{{ eo.payment_no or '-' }}</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">付款日期</span>
-                    <span class="info-value">{{ eo.paid_date.strftime('%Y-%m-%d') if eo.paid_date else '-' }}</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">付款金额</span>
-                    <span class="info-value {% if eo.pay_amount %}paid-value{% else %}unpaid-value{% endif %}">
-                        {% if eo.pay_amount %}
-                        {{ eo.ref.currency if eo.ref and eo.ref.currency else 'SGD' }} {{ "%.2f"|format(eo.pay_amount|float) }}
+        </div>
+    </div>
+    
+    <!-- 中：关联REF信息 -->
+    <div class="info-card">
+        <div class="info-card-title">
+            <i class="fas fa-link text-info"></i> 关联REF
+        </div>
+        <div class="row">
+            <div class="col-md-3">
+                <div class="info-item">
+                    <span class="info-label">REF编号</span>
+                    <span class="info-value">
+                        {% if eo.ref and eo.ref.ref_number %}
+                        <a href="{{ url_for('business_projects.project_ref.ref_detail', ref_id=eo.ref_id) }}" class="ref-link" target="_blank">
+                            {{ eo.ref.ref_number }} <i class="fas fa-external-link-alt"></i>
+                        </a>
                         {% else %}
-                        未付款
+                        -
                         {% endif %}
                     </span>
                 </div>
             </div>
-            
-            {% if eo.external_system or eo.external_status or eo.external_reference %}
-            <div class="info-card">
-                <h6 class="mb-3"><i class="fas fa-external-link-alt text-warning"></i> 外部系统</h6>
-                {% if eo.external_system %}
-                <div class="info-row">
-                    <span class="info-label">系统</span>
-                    <span class="info-value">{{ eo.external_system }}</span>
-                </div>
-                {% endif %}
-                {% if eo.external_status %}
-                <div class="info-row">
-                    <span class="info-label">状态</span>
-                    <span class="info-value">{{ eo.external_status }}</span>
-                </div>
-                {% endif %}
-                {% if eo.external_reference %}
-                <div class="info-row">
-                    <span class="info-label">参考号</span>
-                    <span class="info-value">{{ eo.external_reference }}</span>
-                </div>
-                {% endif %}
-            </div>
-            {% endif %}
-        </div>
-        
-        <!-- 右侧：关联REF信息 -->
-        <div class="col-md-6">
-            <div class="info-card">
-                <h6 class="mb-3"><i class="fas fa-link text-info"></i> 关联REF</h6>
-                <div class="info-row">
-                    <span class="info-label">REF编号</span>
+            <div class="col-md-3">
+                <div class="info-item">
+                    <span class="info-label">业务类型</span>
                     <span class="info-value">
-                        <a href="{{ url_for('business_projects.project_ref.ref_detail', ref_id=eo.ref_id) }}" class="ref-link">
-                            {{ eo.ref.ref_number if eo.ref else '-' }}
-                        </a>
+                        {% if eo.ref and eo.ref.ref_type %}
+                        <span class="type-badge">{{ eo.ref.ref_type.name }}</span>
+                        {% else %}
+                        -
+                        {% endif %}
                     </span>
                 </div>
-                <div class="info-row">
+            </div>
+            <div class="col-md-3">
+                <div class="info-item">
+                    <span class="info-label">供应商</span>
+                    <span class="info-value">
+                        {% if eo.ref and eo.ref.supplier %}
+                        <span class="supplier-tag">
+                            <i class="fas fa-building me-1"></i>{{ eo.ref.supplier.name }}
+                        </span>
+                        {% else %}
+                        -
+                        {% endif %}
+                    </span>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="info-item">
                     <span class="info-label">描述</span>
                     <span class="info-value">{{ eo.ref.description if eo.ref and eo.ref.description else '-' }}</span>
                 </div>
-                <div class="info-row">
-                    <span class="info-label">业务类型</span>
-                    <span class="info-value">{{ eo.ref.ref_type.name if eo.ref and eo.ref.ref_type else '-' }}</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">供应商</span>
-                    <span class="info-value">{{ eo.ref.supplier.name if eo.ref and eo.ref.supplier else '-' }}</span>
-                </div>
             </div>
-            
-            {% if eo.ref and eo.ref.remarks %}
-            <div class="info-card">
-                <h6 class="mb-3"><i class="fas fa-sticky-note text-secondary"></i> 备注</h6>
-                <div style="white-space: pre-wrap; color: #666; font-size: 0.9rem;">{{ eo.ref.remarks }}</div>
-            </div>
-            {% endif %}
         </div>
     </div>
+    
+    <!-- 下：付款信息 -->
+    <div class="info-card payment-card {{ 'unpaid' if not eo.pay_amount else '' }}">
+        <div class="info-card-title">
+            <i class="fas fa-credit-card"></i> 付款信息（付给供应商）
+        </div>
+        <div class="row align-items-center">
+            <div class="col-md-3">
+                <div class="info-item">
+                    <span class="info-label">付款状态</span>
+                    <span class="info-value">
+                        {% if eo.pay_amount %}
+                        <span class="payment-status paid">
+                            <i class="fas fa-check-circle"></i> 已付款
+                        </span>
+                        {% else %}
+                        <span class="payment-status unpaid">
+                            <i class="fas fa-exclamation-circle"></i> 待付款
+                        </span>
+                        {% endif %}
+                    </span>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="info-item">
+                    <span class="info-label">付款编号</span>
+                    <span class="info-value">{{ eo.payment_no or '-' }}</span>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="info-item">
+                    <span class="info-label">付款日期</span>
+                    <span class="info-value">{{ eo.paid_date.strftime('%Y-%m-%d') if eo.paid_date else '-' }}</span>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="info-item">
+                    <span class="info-label">付款金额</span>
+                    <span class="info-value">
+                        {% if eo.pay_amount %}
+                        <strong class="text-success">{{ eo.ref.currency if eo.ref and eo.ref.currency else 'SGD' }} {{ "%.2f"|format(eo.pay_amount|float) }}</strong>
+                        {% else %}
+                        <span class="text-muted">-</span>
+                        {% endif %}
+                    </span>
+                </div>
+            </div>
+        </div>
+        {% if eo.payment_remarks %}
+        <div class="row mt-3">
+            <div class="col-md-12">
+                <div class="info-item">
+                    <span class="info-label">付款备注</span>
+                    <div class="remarks-content" style="margin-top: 0.5rem;">{{ eo.payment_remarks }}</div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    
+    <!-- 备注（如有） -->
+    {% if eo.ref and eo.ref.remarks %}
+    <div class="info-card">
+        <div class="info-card-title">
+            <i class="fas fa-sticky-note text-warning"></i> 备注
+        </div>
+        <div class="remarks-content">{{ eo.ref.remarks }}</div>
+    </div>
+    {% endif %}
 </div>
 
 <!-- 付款模态框 -->
 <div class="modal fade" id="payModal" tabindex="-1">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header bg-success text-white">
-                <h5 class="modal-title"><i class="fas fa-money-bill"></i> 付款给供应商</h5>
+                <h5 class="modal-title"><i class="fas fa-money-bill-wave me-2"></i>付款给供应商</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
                 <form id="payForm">
                     <div class="mb-3">
-                        <label class="form-label">供应商</label>
-                        <input type="text" class="form-control" value="{{ eo.ref.supplier.name if eo.ref and eo.ref.supplier else '-' }}" readonly>
+                        <label class="form-label text-muted">供应商</label>
+                        <div class="form-control-plaintext fw-bold">{{ eo.ref.supplier.name if eo.ref and eo.ref.supplier else '-' }}</div>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">应付金额</label>
-                        <input type="text" class="form-control" value="{{ eo.ref.currency if eo.ref else 'SGD' }} {{ '%.2f'|format((eo.ref.cost_price if eo.ref and eo.ref.cost_price else 0)|float) }}" readonly>
+                        <label class="form-label text-muted">应付金额</label>
+                        <div class="form-control-plaintext fw-bold text-primary">
+                            {{ eo.ref.currency if eo.ref else 'SGD' }} {{ '%.2f'|format((eo.ref.cost_price if eo.ref and eo.ref.cost_price else 0)|float) }}
+                        </div>
                     </div>
+                    <hr>
                     <div class="mb-3">
                         <label class="form-label">付款编号 <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="payment_no" name="payment_no" value="{{ eo.payment_no or '' }}" placeholder="如：PAY-001、银行流水号等" required>
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="payment_no" name="payment_no" value="{{ eo.payment_no or '' }}" placeholder="自动生成..." required>
+                            <button type="button" class="btn btn-outline-secondary" onclick="generatePaymentNo()" title="重新生成">
+                                <i class="fas fa-sync-alt"></i>
+                            </button>
+                        </div>
+                        <small class="text-muted">付款编号已自动生成，可手动修改或点击刷新按钮重新生成</small>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">付款日期 <span class="text-danger">*</span></label>
@@ -231,12 +448,16 @@
                             <input type="number" class="form-control" id="pay_amount" name="pay_amount" step="0.01" min="0" value="{{ '%.2f'|format(eo.pay_amount|float) if eo.pay_amount else ('%.2f'|format((eo.ref.cost_price if eo.ref and eo.ref.cost_price else 0)|float)) }}" required>
                         </div>
                     </div>
+                    <div class="mb-3">
+                        <label class="form-label">备注</label>
+                        <textarea class="form-control" id="payment_remarks" name="payment_remarks" rows="3" placeholder="付款备注（可选）">{{ eo.payment_remarks if eo.payment_remarks else '' }}</textarea>
+                    </div>
                 </form>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
                 <button type="button" class="btn btn-success" onclick="submitPayment()">
-                    <i class="fas fa-check"></i> 确认付款
+                    <i class="fas fa-check me-1"></i> 确认付款
                 </button>
             </div>
         </div>
@@ -244,11 +465,48 @@
 </div>
 
 <script>
+// 生成付款编号
+function generatePaymentNo() {
+    fetch('{{ url_for("business_projects.project_eo.generate_payment_no") }}', {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            document.getElementById('payment_no').value = data.payment_no;
+        } else {
+            alert('生成付款编号失败：' + (data.message || '未知错误'));
+        }
+    })
+    .catch(error => {
+        console.error('生成付款编号失败：', error);
+        alert('生成付款编号失败，请手动输入');
+    });
+}
+
+// 模态框打开时自动生成付款编号
+document.addEventListener('DOMContentLoaded', function() {
+    const payModal = document.getElementById('payModal');
+    if (payModal) {
+        payModal.addEventListener('show.bs.modal', function() {
+            // 如果付款编号为空，自动生成
+            const paymentNoInput = document.getElementById('payment_no');
+            if (!paymentNoInput.value || paymentNoInput.value.trim() === '') {
+                generatePaymentNo();
+            }
+        });
+    }
+});
+
 function voidEO() {
     if (confirm('确定要作废此EO吗？此操作不可恢复。')) {
         fetch('{{ url_for("business_projects.project_eo.void_eo", eo_id=eo.id) }}', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
+            headers: { 
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token() }}'
+            }
         })
         .then(response => response.json())
         .then(data => {
@@ -266,10 +524,10 @@ function voidEO() {
 }
 
 function submitPayment() {
-    const form = document.getElementById('payForm');
     const payment_no = document.getElementById('payment_no').value;
     const paid_date = document.getElementById('paid_date').value;
     const pay_amount = document.getElementById('pay_amount').value;
+    const payment_remarks = document.getElementById('payment_remarks').value;
     
     if (!payment_no || !paid_date || !pay_amount) {
         alert('请填写完整的付款信息');
@@ -279,11 +537,15 @@ function submitPayment() {
     if (confirm('确认付款信息无误？')) {
         fetch('{{ url_for("business_projects.project_eo.pay_eo", eo_id=eo.id) }}', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token() }}'
+            },
             body: JSON.stringify({
                 payment_no: payment_no,
                 paid_date: paid_date,
-                pay_amount: parseFloat(pay_amount)
+                pay_amount: parseFloat(pay_amount),
+                payment_remarks: payment_remarks
             })
         })
         .then(response => response.json())

@@ -1,6 +1,41 @@
 {% extends "shared/staff_base.html" %}
 
-
+{% block extra_css %}
+<style>
+    /* 确保操作列按钮垂直居中 */
+    .table.table-hover tbody tr td {
+        vertical-align: middle !important;
+    }
+    /* 特别针对操作列 - 确保垂直居中 */
+    .table.table-hover tbody tr td:last-child {
+        vertical-align: middle !important;
+        text-align: center !important;
+        padding: 0.75rem !important;
+    }
+    /* 操作列内的flex容器 */
+    .table.table-hover tbody tr td:last-child > div {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        min-height: 100% !important;
+    }
+    /* 确保按钮组正确显示和居中 */
+    .table.table-hover tbody tr td:last-child .btn-group {
+        display: inline-flex !important;
+        vertical-align: middle !important;
+        align-items: center !important;
+        margin: 0 !important;
+        line-height: 1 !important;
+    }
+    /* 确保按钮本身也垂直居中 */
+    .table.table-hover tbody tr td:last-child .btn-group .btn {
+        vertical-align: middle !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }
+</style>
+{% endblock %}
 
 {% block page_title %}Header Receipts{% endblock %}
 
@@ -100,7 +135,7 @@
                 <div class="card-body">
                     {% if all_receipts %}
                     <div class="table-responsive">
-                        <table class="table table-hover">
+                        <table class="table table-hover align-middle">
                             <thead>
                                 <tr>
                                     <th style="width: 150px;">收款单号</th>
@@ -110,7 +145,7 @@
                                     <th style="width: 120px;">收款日期</th>
                                     <th style="width: 150px;">付款方</th>
                                     <th style="width: 100px;">状态</th>
-                                    <th style="width: 150px;">操作</th>
+                                    <th style="width: 180px;">操作</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -166,8 +201,9 @@
                                             {{ receipt.status_display }}
                                         </span>
                                     </td>
-                                    <td>
-                                        <div class="btn-group btn-group-sm">
+                                    <td class="text-center" style="vertical-align: middle !important; padding: 0.75rem !important;">
+                                        <div class="d-flex align-items-center justify-content-center" style="min-height: 100%;">
+                                            <div class="btn-group btn-group-sm" role="group">
                                             <a href="{{ url_for('business_projects.project_receipt.receipt_detail', receipt_id=receipt.id) }}" 
                                                class="btn btn-outline-info" title="查看详情">
                                                 <i class="fas fa-eye"></i>
@@ -176,12 +212,19 @@
                                                class="btn btn-outline-warning" title="编辑">
                                                 <i class="fas fa-edit"></i>
                                             </a>
+                                            <button type="button" 
+                                                    class="btn btn-outline-danger" 
+                                                    title="删除"
+                                                    onclick="deleteReceipt({{ receipt.id }}, {{ receipt.receipt_number|tojson }})">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
                                             {% if receipt.ref_id %}
                                             <a href="{{ url_for('business_projects.project_receipt.ref_receipts', ref_id=receipt.ref_id) }}" 
                                                class="btn btn-outline-primary" title="REF收款">
                                                 <i class="fas fa-list"></i>
                                             </a>
                                             {% endif %}
+                                            </div>
                                         </div>
                                     </td>
                                 </tr>
@@ -229,7 +272,8 @@
 <script>
 function deleteReceipt(receiptId, receiptNumber) {
     document.getElementById('receiptNumber').textContent = receiptNumber;
-    document.getElementById('deleteForm').action = `{{ url_for('business_projects.project_receipt.delete_header_receipt', header_id=header.id, receipt_id=0) }}`.replace('/0', '/' + receiptId);
+    const baseUrl = '{{ url_for("business_projects.project_receipt.delete_header_receipt", header_id=header.id, receipt_id=0) }}';
+    document.getElementById('deleteForm').action = baseUrl.replace('/0', '/' + receiptId);
     
     const deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
     deleteModal.show();

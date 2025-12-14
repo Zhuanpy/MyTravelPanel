@@ -1,4 +1,4 @@
-﻿{% extends "staff_base.html" %}
+{% extends "staff_base.html" %}
 
 {% block title %}任务列表 - MyTravelPanel{% endblock %}
 
@@ -26,8 +26,66 @@
         </a>
     </div>
 
+    <!-- 任务统计面板 -->
+    <div class="row mb-4" id="statisticsPanel" style="display: none;">
+        <div class="col-md-3 mb-3">
+            <div class="visa-card" style="background: #fff; border-left: 4px solid #6c757d;">
+                <div class="p-3 d-flex align-items-center">
+                    <div class="me-3"><i class="fas fa-tasks fa-2x text-secondary"></i></div>
+                    <div>
+                        <h4 class="mb-0" id="statTotal">0</h4>
+                        <small class="text-muted">总任务数</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="visa-card" style="background: #fff; border-left: 4px solid #ffc107;">
+                <div class="p-3 d-flex align-items-center">
+                    <div class="me-3"><i class="fas fa-clock fa-2x text-warning"></i></div>
+                    <div>
+                        <h4 class="mb-0" id="statPending">0</h4>
+                        <small class="text-muted">待处理</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="visa-card" style="background: #fff; border-left: 4px solid #28a745;">
+                <div class="p-3 d-flex align-items-center">
+                    <div class="me-3"><i class="fas fa-check-circle fa-2x text-success"></i></div>
+                    <div>
+                        <h4 class="mb-0" id="statCompleted">0</h4>
+                        <small class="text-muted">已完成</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="visa-card" style="background: #fff; border-left: 4px solid #17a2b8;">
+                <div class="p-3 d-flex align-items-center">
+                    <div class="me-3"><i class="fas fa-user fa-2x text-info"></i></div>
+                    <div>
+                        <h4 class="mb-0" id="statMyTasks">0</h4>
+                        <small class="text-muted">我的任务</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- 筛选栏 -->
     <div class="visa-filter-bar">
+        <div class="visa-filter-item">
+            <label for="taskFilter" class="visa-form-label">任务筛选：</label>
+            <select class="visa-form-select" id="taskFilter">
+                <option value="">全部任务</option>
+                <option value="assigned_to_me">我的任务</option>
+                <option value="created_by_me">我创建的</option>
+                <option value="assigned_by_me" id="assignedByMeOption" style="display:none;">我分配的</option>
+            </select>
+        </div>
+        
         <div class="visa-filter-item">
             <label for="priorityFilter" class="visa-form-label">优先级：</label>
             <select class="visa-form-select" id="priorityFilter">
@@ -60,6 +118,16 @@
         </div>
         
         <div class="visa-filter-item">
+            <label for="sourceTypeFilter" class="visa-form-label">来源：</label>
+            <select class="visa-form-select" id="sourceTypeFilter">
+                <option value="">全部</option>
+                <option value="visa">签证</option>
+                <option value="project">项目</option>
+                <option value="manual">手动创建</option>
+            </select>
+        </div>
+        
+        <div class="visa-filter-item">
             <label for="searchInput" class="visa-form-label">搜索：</label>
             <input type="text" class="visa-form-control" id="searchInput" placeholder="输入关键词...">
         </div>
@@ -80,13 +148,15 @@
                     <th width="200">标题</th>
                     <th>描述</th>
                     <th width="120">类型</th>
+                    <th width="100">分配给</th>
+                    <th width="100">完成者</th>
                     <th width="130" class="text-center">优先级</th>
                     <th width="150">截止日期</th>
                     <th width="130" class="text-center">邮件提醒</th>
                     <th width="100" class="text-center">状态</th>
                     <th width="150">创建时间</th>
                     <th width="150">更新时间</th>
-                    <th width="120" class="text-center">操作</th>
+                    <th width="150" class="text-center">操作</th>
                 </tr>
             </thead>
             <tbody id="todoTbody">
@@ -166,6 +236,14 @@
                         <div class="form-text" style="font-size: 0.8125rem; color: var(--visa-text-muted);">支持多个邮箱，使用逗号或分号分隔；留空则默认发送至当前登录用户邮箱</div>
                     </div>
 
+                    <div class="visa-form-group" id="assignGroup">
+                        <label for="todoAssignedTo" class="visa-form-label">分配给员工</label>
+                        <select class="visa-form-select" id="todoAssignedTo" name="assigned_to">
+                            <option value="">不分配（自己处理）</option>
+                        </select>
+                        <div class="form-text" style="font-size: 0.8125rem; color: var(--visa-text-muted);">选择员工后，任务将分配给该员工</div>
+                    </div>
+
                     <div class="visa-form-group">
                         <div class="form-check">
                             <input type="checkbox" class="form-check-input" id="todoSendEmail">
@@ -209,6 +287,12 @@ document.addEventListener('DOMContentLoaded', function() {
             priority: parseInt(formData.get('priority')),
             due_date: formData.get('due_date')
         };
+        
+        // 添加任务分配信息
+        const assignedToInput = document.getElementById('todoAssignedTo');
+        if (assignedToInput && assignedToInput.value) {
+            data.assigned_to = parseInt(assignedToInput.value);
+        }
         
         // 如果是编辑模式，添加完成状态和ID
         if (isEdit) {
@@ -261,11 +345,19 @@ document.addEventListener('DOMContentLoaded', function() {
 
 
     // 筛选功能
+    document.getElementById('taskFilter').addEventListener('change', loadTodos);
     document.getElementById('priorityFilter').addEventListener('change', loadTodos);
     document.getElementById('statusFilter').addEventListener('change', loadTodos);
     document.getElementById('categoryFilter').addEventListener('change', loadTodos);
+    document.getElementById('sourceTypeFilter').addEventListener('change', loadTodos);
     document.getElementById('searchInput').addEventListener('input', debounce(loadTodos, 300));
 
+    // 加载员工列表和权限检查
+    checkPermissionsAndLoadStaff();
+    
+    // 加载任务统计
+    loadStatistics();
+    
     // 初始加载待办事项
     loadTodos();
 });
@@ -317,6 +409,12 @@ function openEditModal(todoId) {
                 if (recipientInput) recipientInput.value = todo.recipient_email || '';
                 if (sendEmailInput) sendEmailInput.checked = !!todo.send_email;
                 
+                // 预填任务分配
+                const assignedToInput = document.getElementById('todoAssignedTo');
+                if (assignedToInput) {
+                    assignedToInput.value = todo.assigned_to || '';
+                }
+                
                 new bootstrap.Modal(document.getElementById('todoModal')).show();
             } else {
                 showMessage('获取待办事项失败', 'error');
@@ -328,13 +426,84 @@ function openEditModal(todoId) {
         });
 }
 
+// 全局变量
+let staffList = [];
+let canAssignTask = false; // 是否有分配任务权限
+
+// 检查用户权限并加载员工列表
+function checkPermissionsAndLoadStaff() {
+    fetch('/utils/todos/staff-list')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                staffList = data.staff;
+                
+                // 获取当前用户权限信息
+                if (data.current_user) {
+                    canAssignTask = data.current_user.can_assign || false;
+                } else {
+                    // 兼容处理：如果没有返回用户信息，根据员工列表判断
+                    canAssignTask = staffList.length > 0;
+                }
+                
+                // 填充员工选择下拉框
+                const assignedToSelect = document.getElementById('todoAssignedTo');
+                if (assignedToSelect) {
+                    // 清空现有选项（保留"不分配"选项）
+                    assignedToSelect.innerHTML = '<option value="">不分配（自己处理）</option>';
+                    staffList.forEach(staff => {
+                        const option = document.createElement('option');
+                        option.value = staff.id;
+                        option.textContent = `${staff.display_name} (${staff.staff_level === 2 ? '2级' : '1级'})`;
+                        assignedToSelect.appendChild(option);
+                    });
+                }
+                
+                // 显示/隐藏"我分配的"筛选选项和分配按钮
+                const assignedByMeOption = document.getElementById('assignedByMeOption');
+                if (assignedByMeOption) {
+                    assignedByMeOption.style.display = canAssignTask ? 'block' : 'none';
+                }
+                
+                // 如果用户没有分配权限，隐藏分配组（创建/编辑表单中的员工选择）
+                const assignGroup = document.getElementById('assignGroup');
+                if (assignGroup && !canAssignTask) {
+                    assignGroup.style.display = 'none';
+                }
+            }
+        })
+        .catch(error => {
+            console.error('加载员工列表失败:', error);
+        });
+}
+
 function loadTodos() {
     const priority = document.getElementById('priorityFilter').value;
     const status = document.getElementById('statusFilter').value;
     const category = document.getElementById('categoryFilter').value;
     const search = document.getElementById('searchInput').value;
+    const taskFilter = document.getElementById('taskFilter').value;
+    const sourceType = document.getElementById('sourceTypeFilter').value;
 
-    fetch(`/utils/todos/list?priority=${priority}&status=${status}&category=${encodeURIComponent(category)}&search=${encodeURIComponent(search)}`)
+    // 构建查询参数
+    let params = new URLSearchParams({
+        priority: priority || '',
+        status: status || '',
+        category: category || '',
+        search: search || '',
+        source_type: sourceType || ''
+    });
+    
+    // 添加任务筛选
+    if (taskFilter === 'assigned_to_me') {
+        params.append('assigned_to_me', 'true');
+    } else if (taskFilter === 'created_by_me') {
+        params.append('created_by_me', 'true');
+    } else if (taskFilter === 'assigned_by_me') {
+        params.append('assigned_by_me', 'true');
+    }
+
+    fetch(`/utils/todos/list?${params.toString()}`)
         .then(response => {
             if (!response.ok) {
                 return response.json().then(data => {
@@ -356,7 +525,7 @@ function loadTodos() {
             if (data.todos.length === 0) {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="11">
+                        <td colspan="13">
                             <div class="tw-text-center tw-p-10 tw-text-gray-600">
                                 <i class=\"fas fa-clipboard-list tw-text-4xl tw-text-gray-300 tw-mb-3\"></i>
                                 <p class="tw-m-0">暂无待办事项</p>
@@ -375,6 +544,12 @@ function loadTodos() {
                     <td>${todo.title || '无标题'}</td>
                     <td><div class="text-truncate" style="max-width: 250px;">${todo.description ? todo.description : ''}</div></td>
                     <td><span class="category-tag">${getCategoryDisplayName(todo.category) || ''}</span></td>
+                    <td>
+                        ${todo.assigned_to ? `<span class="visa-badge visa-badge-info" title="分配给：${todo.assignee_name || '未知'}">${todo.assignee_name || '未知'}</span>` : '<span class="text-muted">未分配</span>'}
+                    </td>
+                    <td>
+                        ${todo.completed_by ? `<span class="visa-badge visa-badge-success" title="完成者：${todo.completer_name || '未知'}">${todo.completer_name || '未知'}</span>` : '<span class="text-muted">-</span>'}
+                    </td>
                     <td style="text-align:center;">
                         <span class="visa-badge ${getPriorityClass(todo.priority) === 'high' ? 'visa-badge-danger' : (getPriorityClass(todo.priority) === 'medium' ? 'visa-badge-warning' : 'visa-badge-info')}">${getPriorityText(todo.priority)}</span>
                     </td>
@@ -387,6 +562,7 @@ function loadTodos() {
                     <td>${formatDateOnly(todo.updated_at)}</td>
                     <td style="text-align:center;">
                         <div>
+                            ${canAssignTask ? `<button class="visa-btn-link visa-btn-link-secondary me-1" title="分配任务" onclick="assignTask(${todo.id})"><i class="fas fa-user-plus"></i></button>` : ''}
                             <button class="visa-btn-link visa-btn-link-primary me-1" title="编辑" onclick="editTodo(${todo.id})"><i class="fas fa-edit"></i></button>
                             <button class="visa-btn-link visa-btn-link-danger me-1" title="删除" onclick="deleteTodo(${todo.id})"><i class="fas fa-trash"></i></button>
                             <button class="visa-btn-link visa-btn-link-info" title="发送提醒邮件" onclick="sendReminder(${todo.id})"><i class="fas fa-paper-plane"></i></button>
@@ -400,7 +576,7 @@ function loadTodos() {
             const tbody = document.getElementById('todoTbody');
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="11">
+                    <td colspan="13">
                         <div class="tw-text-center tw-p-10 tw-text-gray-600">
                             <i class=\"fas fa-exclamation-triangle tw-text-4xl tw-text-gray-300 tw-mb-3\"></i>
                             <p class="tw-m-0">加载失败：${error.message}</p>
@@ -443,21 +619,29 @@ function toggleTodoStatus(id, completed) {
         .then(data => {
             if (data.success) {
                 const todo = data.todo;
-                // 保留原有数据，只更新完成状态
+                // 保留原有数据，更新完成状态
+                const updateData = {
+                    id: id,
+                    title: todo.title,
+                    description: todo.description,
+                    priority: todo.priority,
+                    due_date: todo.due_date,
+                    category: todo.category,
+                    is_completed: completed,
+                    recipient_email: todo.recipient_email,
+                    send_email: todo.send_email,
+                    assigned_to: todo.assigned_to,
+                    source_type: todo.source_type,
+                    source_id: todo.source_id
+                };
+                
                 return fetch('/utils/todos/update', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                         'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
                     },
-                    body: JSON.stringify({
-                        id: id,
-                        title: todo.title,
-                        description: todo.description,
-                        priority: todo.priority,
-                        due_date: todo.due_date,
-                        is_completed: completed
-                    })
+                    body: JSON.stringify(updateData)
                 });
             } else {
                 throw new Error(data.message || '获取待办事项失败');
@@ -467,7 +651,8 @@ function toggleTodoStatus(id, completed) {
         .then(data => {
             if (data.success) {
                 loadTodos();
-                showMessage('状态更新成功', 'success');
+                loadStatistics(); // 更新统计
+                showMessage(completed ? '任务已标记为完成' : '任务已标记为未完成', 'success');
             } else {
                 throw new Error(data.message || '更新失败');
             }
@@ -590,6 +775,107 @@ function debounce(func, wait) {
         clearTimeout(timeout);
         timeout = setTimeout(later, wait);
     };
+}
+
+// 分配任务
+function assignTask(todoId) {
+    // 创建分配任务模态框
+    const modal = document.createElement('div');
+    modal.className = 'modal fade';
+    modal.id = 'assignTaskModal';
+    modal.innerHTML = `
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">分配任务</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="visa-form-group">
+                        <label for="assignToSelect" class="visa-form-label">分配给：</label>
+                        <select class="visa-form-select" id="assignToSelect">
+                            <option value="">不分配（取消分配）</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="visa-btn visa-btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="visa-btn visa-btn-primary" onclick="confirmAssignTask(${todoId})">确认分配</button>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    
+    // 填充员工列表
+    const select = modal.querySelector('#assignToSelect');
+    staffList.forEach(staff => {
+        const option = document.createElement('option');
+        option.value = staff.id;
+        option.textContent = `${staff.display_name} (${staff.staff_level === 2 ? '2级' : '1级'})`;
+        select.appendChild(option);
+    });
+    
+    // 显示模态框
+    const bsModal = new bootstrap.Modal(modal);
+    bsModal.show();
+    
+    // 模态框关闭后移除
+    modal.addEventListener('hidden.bs.modal', function() {
+        modal.remove();
+    });
+}
+
+// 确认分配任务
+function confirmAssignTask(todoId) {
+    const select = document.getElementById('assignToSelect');
+    const assignedTo = select ? parseInt(select.value) : null;
+    
+    fetch('/utils/todos/assign', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
+        },
+        body: JSON.stringify({
+            todo_id: todoId,
+            assigned_to: assignedTo
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            bootstrap.Modal.getInstance(document.getElementById('assignTaskModal')).hide();
+            loadTodos();
+            loadStatistics();
+            showMessage(data.message || '任务分配成功', 'success');
+        } else {
+            showMessage(data.message || '分配失败', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showMessage('分配失败，请重试', 'error');
+    });
+}
+
+// 加载任务统计
+function loadStatistics() {
+    fetch('/utils/todos/statistics')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.statistics) {
+                const stats = data.statistics;
+                document.getElementById('statTotal').textContent = stats.total || 0;
+                document.getElementById('statPending').textContent = stats.pending || 0;
+                document.getElementById('statCompleted').textContent = stats.completed || 0;
+                document.getElementById('statMyTasks').textContent = stats.my_tasks || 0;
+                document.getElementById('statisticsPanel').style.display = 'flex';
+            }
+        })
+        .catch(error => {
+            console.error('加载统计失败:', error);
+        });
 }
 </script>
 {% endblock %} 

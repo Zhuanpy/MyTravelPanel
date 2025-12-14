@@ -87,9 +87,7 @@
     .table th:nth-child(6), .table td:nth-child(6) { min-width: 100px; } /* 供应商 */
     .table th:nth-child(7), .table td:nth-child(7) { min-width: 120px; } /* 总售价 */
     .table th:nth-child(8), .table td:nth-child(8) { min-width: 120px; } /* 总成本 */
-    .table th:nth-child(9), .table td:nth-child(9) { min-width: 120px; } /* 订单状态 */
-    .table th:nth-child(10), .table td:nth-child(10) { min-width: 120px; } /* 支付状态 */
-    .table th:nth-child(11), .table td:nth-child(11) { min-width: 160px; } /* 创建时间 */
+    .table th:nth-child(9), .table td:nth-child(9) { min-width: 160px; } /* 创建时间 */
 
     /* 行程单元格样式 */
     .itinerary-cell {
@@ -335,18 +333,9 @@
                     <select class="form-control auto-submit" name="ref_status">
                         <option value="">所有未取消订单</option>
                         <option value="all" {% if request.args.get('ref_status') == 'all' %}selected{% endif %}>显示全部订单</option>
-                        <option value="draft" {% if request.args.get('ref_status') == 'draft' %}selected{% endif %}>草稿</option>
                         <option value="processing" {% if request.args.get('ref_status') == 'processing' %}selected{% endif %}>处理中</option>
                         <option value="completed" {% if request.args.get('ref_status') == 'completed' %}selected{% endif %}>已完成</option>
                         <option value="cancelled" {% if request.args.get('ref_status') == 'cancelled' %}selected{% endif %}>已取消</option>
-                    </select>
-                </div>
-                <div class="col-md-2">
-                    <select class="form-control auto-submit" name="payment_status">
-                        <option value="">所有支付状态</option>
-                        <option value="unpaid" {% if request.args.get('payment_status') == 'unpaid' %}selected{% endif %}>未支付</option>
-                        <option value="paid" {% if request.args.get('payment_status') == 'paid' %}selected{% endif %}>已支付</option>
-                        <option value="refunded" {% if request.args.get('payment_status') == 'refunded' %}selected{% endif %}>已退款</option>
                     </select>
                 </div>
                 <div class="col-md-2">
@@ -389,8 +378,6 @@
                     <th>供应商</th>
                     <th>总售价</th>
                     <th>总成本</th>
-                    <th>订单状态</th>
-                    <th>支付状态</th>
                     <th>创建时间</th>
                     <th>操作</th>
                 </tr>
@@ -418,40 +405,6 @@
                     <td>{{ order.supplier_name or '未指定' }}</td>
                     <td>SGD {{ "%.2f"|format(order.selling_price) }}</td>
                     <td>SGD {{ "%.2f"|format(order.cost_price) }}</td>
-                    <td>
-                        <div class="d-flex align-items-center">
-                            <select class="status-select" 
-                                    data-order-id="{{ order.id }}" 
-                                    data-status="{{ order.order_status }}"
-                                    {% if order.flight_segments %}
-                                    data-departure-time="{{ order.flight_segments[0].departure_time }}"
-                                    {% endif %}
-                                    {% if order.order_status == 'cancelled' %}disabled{% endif %}>
-                                <option value="draft" {% if order.order_status == 'draft' %}selected{% endif %}>草稿</option>
-                                <option value="processing" {% if order.order_status == 'processing' %}selected{% endif %}>处理中</option>
-                                <option value="completed" {% if order.order_status == 'completed' %}selected{% endif %}>已完成</option>
-                                <option value="cancelled" {% if order.order_status == 'cancelled' %}selected{% endif %}>已取消</option>
-                            </select>
-                            <span class="status-indicator">
-                                <i class="fas fa-spinner fa-spin"></i>
-                            </span>
-                        </div>
-                    </td>
-                    <td>
-                        <div class="d-flex align-items-center">
-                            <select class="payment-select" 
-                                    data-order-id="{{ order.id }}" 
-                                    data-status="{{ order.payment_status }}"
-                                    onchange="updatePaymentStatus(this, '{{ order.id }}')">
-                                <option value="未支付" {% if order.payment_status == 'unpaid' %}selected{% endif %}>未支付</option>
-                                <option value="已支付" {% if order.payment_status == 'paid' %}selected{% endif %}>已支付</option>
-                                <option value="已退款" {% if order.payment_status == 'refunded' %}selected{% endif %}>已退款</option>
-                            </select>
-                            <span class="status-indicator">
-                                <i class="fas fa-spinner fa-spin"></i>
-                            </span>
-                        </div>
-                    </td>
                     <td>{{ order.created_date.strftime('%Y-%m-%d %H:%M') }}</td>
                     <td>
                         <div class="action-buttons">
@@ -466,7 +419,7 @@
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="12" class="text-center">暂无订单数据</td>
+                    <td colspan="10" class="text-center">暂无订单数据</td>
                 </tr>
                 {% endfor %}
             </tbody>

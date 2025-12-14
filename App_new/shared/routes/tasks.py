@@ -59,8 +59,14 @@ def list_todos():
                 staff_level = current_user.profile.staff_level or 1
             
             if staff_level == 1:
-                # 1级员工只能看到自己创建的待办事项
-                query = query.filter(Todo.user_id == current_user.id)
+                # 1级员工只能看到自己创建的或分配给自己的待办事项
+                from sqlalchemy import or_
+                query = query.filter(
+                    or_(
+                        Todo.user_id == current_user.id,
+                        Todo.assigned_to == current_user.id
+                    )
+                )
             # 2级员工可以看到所有待办事项，不需要额外过滤
         
         # 应用过滤条件
@@ -78,6 +84,32 @@ def list_todos():
                 (Todo.title.ilike(f'%项目ID: {project_id}%')) |
                 (Todo.description.ilike(f'%项目ID: {project_id}%'))
             )
+        
+        # 新增筛选条件
+        assigned_to_me = request.args.get('assigned_to_me', '')
+        assigned_to = request.args.get('assigned_to', '')
+        assigned_by_me = request.args.get('assigned_by_me', '')
+        source_type = request.args.get('source_type', '')
+        created_by_me = request.args.get('created_by_me', '')
+        
+        # 我的任务筛选（显示分配给当前用户的任务）
+        if assigned_to_me == 'true':
+            query = query.filter(Todo.assigned_to == current_user.id)
+        elif assigned_to:
+            # 指定用户的任务
+            query = query.filter(Todo.assigned_to == int(assigned_to))
+        
+        # 我分配的任务筛选（显示当前用户分配的任务）
+        if assigned_by_me == 'true':
+            query = query.filter(Todo.assigned_by == current_user.id)
+        
+        # 我创建的任务筛选
+        if created_by_me == 'true':
+            query = query.filter(Todo.user_id == current_user.id)
+        
+        # 来源类型筛选
+        if source_type:
+            query = query.filter(Todo.source_type == source_type)
             
         # 执行查询
         todos = query.order_by(Todo.created_at.desc()).all()
@@ -137,6 +169,11 @@ def create_todo():
 
         due_date = _parse_due_datetime(data.get('due_date'))
         
+        # 获取任务分配信息
+        assigned_to = data.get('assigned_to')
+        if assigned_to:
+            assigned_to = int(assigned_to) if assigned_to else None
+        
         todo = Todo.create(
             title=data.get('title'),
             description=data.get('description'),
@@ -145,7 +182,14 @@ def create_todo():
             category=data.get('category'),
             user_id=current_user.id,  # 关联到当前登录用户
             recipient_email=data.get('recipient_email'),
-            send_email=bool(data.get('send_email', False))
+            send_email=bool(data.get('send_email', False)),
+            assigned_to=assigned_to,
+            assigned_by=current_user.id if assigned_to else None,
+            assigned_at=datetime.utcnow() if assigned_to else None,
+            source_type=data.get('source_type'),
+            source_id=data.get('source_id'),
+            reminder_days_before=int(data.get('reminder_days_before', 0)),
+            auto_generated=bool(data.get('auto_generated', False))
         )
         
         return jsonify({
@@ -209,15 +253,66 @@ def update_todo():
             if (old_due != due_date) or (old_recipient.strip() != new_recipient.strip()) or (not old_send_flag and new_send_flag):
                 reset_email_status = True
 
+        # 处理任务分配
+        assigned_to = data.get('assigned_to')
+        assigned_by = None
+        assigned_at = None
+        
+        if assigned_to is not None:
+            assigned_to = int(assigned_to) if assigned_to else None
+            # 如果分配了任务，记录分配信息
+            if assigned_to:
+                if not todo_old.assigned_to or assigned_to != todo_old.assigned_to:
+                    # 新分配或重新分配任务
+                    assigned_by = current_user.id
+                    assigned_at = datetime.utcnow()
+                else:
+                    # 保持原有分配信息
+                    assigned_by = todo_old.assigned_by
+                    assigned_at = todo_old.assigned_at
+            else:
+                # 取消分配
+                assigned_by = None
+                assigned_at = None
+        
+        # 处理任务完成记录
+        is_completed = data.get('is_completed', False)
+        completed_by = None
+        completed_at = None
+        
+        # 如果任务状态从未完成变为已完成，记录完成者
+        if is_completed and not todo_old.is_completed:
+            # 任务被标记为完成，记录完成者
+            # 优先使用被分配者，如果没有分配则使用当前用户
+            completed_by = assigned_to if assigned_to else current_user.id
+            completed_at = datetime.utcnow()
+        elif not is_completed and todo_old.is_completed:
+            # 任务从已完成变为未完成，清除完成记录
+            completed_by = None
+            completed_at = None
+        elif is_completed and todo_old.is_completed:
+            # 保持已完成状态，保留原有完成记录
+            completed_by = todo_old.completed_by
+            completed_at = todo_old.completed_at
+        
         update_payload = {
             'title': data.get('title'),
             'description': data.get('description'),
             'priority': int(data.get('priority', 2)),
-            'is_completed': data.get('is_completed'),
+            'is_completed': is_completed,
             'due_date': due_date,
             'category': data.get('category'),
             'recipient_email': new_recipient,
-            'send_email': new_send_flag
+            'send_email': new_send_flag,
+            'source_type': data.get('source_type'),
+            'source_id': data.get('source_id'),
+            'reminder_days_before': int(data.get('reminder_days_before', 0)),
+            'auto_generated': bool(data.get('auto_generated', False)),
+            'assigned_to': assigned_to,
+            'assigned_by': assigned_by,
+            'assigned_at': assigned_at,
+            'completed_by': completed_by,
+            'completed_at': completed_at
         }
 
         if reset_email_status:
@@ -407,22 +502,277 @@ def get_todo(todo_id):
 
         return jsonify({
             'success': True,
-            'todo': {
-                'id': todo.id,
-                'title': todo.title,
-                'description': todo.description,
-                'is_completed': todo.is_completed,
-                'due_date': todo.due_date.isoformat() if todo.due_date else None,
-                'priority': todo.priority,
-                'category': todo.category,
-                'recipient_email': todo.recipient_email,
-                'send_email': todo.send_email,
-                'created_at': todo.created_at.isoformat(),
-                'updated_at': todo.updated_at.isoformat()
-            }
+            'todo': todo.to_dict()
         })
     except Exception as e:
         return jsonify({
             'success': False,
             'message': str(e)
+        }), 500
+
+# 分配任务
+@utils_blue.route('/todos/assign', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def assign_todo():
+    """分配任务给员工"""
+    try:
+        data = request.get_json()
+        todo_id = data.get('todo_id')
+        assigned_to_id = data.get('assigned_to')
+        
+        if not todo_id or not assigned_to_id:
+            return jsonify({
+                'success': False,
+                'message': '缺少必要参数'
+            }), 400
+        
+        # 检查权限：只有2级员工或管理员可以分配任务
+        staff_level = 1
+        if current_user.profile:
+            staff_level = current_user.profile.staff_level or 1
+        
+        is_admin = current_user.role and current_user.role.name in ['admin', 'super_admin']
+        
+        if staff_level < 2 and not is_admin:
+            return jsonify({
+                'success': False,
+                'message': '您没有权限分配任务，只有2级员工或管理员可以分配任务'
+            }), 403
+        
+        # 获取任务
+        todo = Todo.query.get(todo_id)
+        if not todo:
+            return jsonify({
+                'success': False,
+                'message': '任务不存在'
+            }), 404
+        
+        # 验证被分配用户是否存在
+        from App_new.auth.models.auth import AuthUser
+        assignee = AuthUser.query.get(assigned_to_id)
+        if not assignee:
+            return jsonify({
+                'success': False,
+                'message': '被分配用户不存在'
+            }), 404
+        
+        # 更新任务分配信息
+        todo.assigned_to = assigned_to_id
+        todo.assigned_by = current_user.id
+        todo.assigned_at = datetime.utcnow()
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'任务已分配给 {assignee.username}',
+            'todo': todo.to_dict()
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f'分配任务失败: {str(e)}')
+        current_app.logger.error(traceback.format_exc())
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'message': f'分配任务失败: {str(e)}'
+        }), 500
+
+
+# 获取任务统计
+@utils_blue.route('/todos/statistics')
+@login_required
+@staff_only
+def todo_statistics():
+    """获取任务统计信息"""
+    try:
+        from App_new.auth.models.auth import AuthUser
+        from sqlalchemy import func
+        
+        # 基础统计
+        total_todos = Todo.query.count()
+        pending_todos = Todo.query.filter_by(is_completed=False).count()
+        completed_todos = Todo.query.filter_by(is_completed=True).count()
+        
+        # 已逾期任务
+        overdue_todos = Todo.query.filter(
+            Todo.due_date < datetime.utcnow(),
+            Todo.is_completed == False
+        ).count()
+        
+        # 根据员工等级过滤统计
+        base_query = Todo.query
+        if current_user.role and current_user.role.name == 'staff':
+            staff_level = 1
+            if current_user.profile:
+                staff_level = current_user.profile.staff_level or 1
+            
+            if staff_level == 1:
+                # 1级员工只能看到自己的任务统计
+                base_query = base_query.filter(
+                    (Todo.assigned_to == current_user.id) | (Todo.user_id == current_user.id)
+                )
+        
+        # 按员工统计任务量（只统计待处理任务）
+        staff_stats = db.session.query(
+            AuthUser.username,
+            func.count(Todo.id).label('task_count')
+        ).join(
+            Todo, AuthUser.id == Todo.assigned_to
+        ).filter(
+            Todo.is_completed == False
+        )
+        
+        # 应用权限过滤
+        if current_user.role and current_user.role.name == 'staff':
+            staff_level = 1
+            if current_user.profile:
+                staff_level = current_user.profile.staff_level or 1
+            
+            if staff_level == 1:
+                # 1级员工只能看到自己的统计
+                staff_stats = staff_stats.filter(Todo.assigned_to == current_user.id)
+        
+        staff_stats = staff_stats.group_by(
+            AuthUser.id, AuthUser.username
+        ).all()
+        
+        staff_task_counts = {username: count for username, count in staff_stats}
+        
+        # 按分类统计
+        category_stats = db.session.query(
+            Todo.category,
+            func.count(Todo.id).label('count')
+        ).filter(
+            Todo.is_completed == False
+        )
+        
+        # 应用权限过滤
+        if current_user.role and current_user.role.name == 'staff':
+            staff_level = 1
+            if current_user.profile:
+                staff_level = current_user.profile.staff_level or 1
+            
+            if staff_level == 1:
+                category_stats = category_stats.filter(
+                    (Todo.assigned_to == current_user.id) | (Todo.user_id == current_user.id)
+                )
+        
+        category_stats = category_stats.group_by(Todo.category).all()
+        category_counts = {category or '未分类': count for category, count in category_stats}
+        
+        # 我的任务统计
+        my_tasks = Todo.query.filter_by(assigned_to=current_user.id, is_completed=False).count()
+        my_completed = Todo.query.filter_by(assigned_to=current_user.id, is_completed=True).count()
+        my_created = Todo.query.filter_by(user_id=current_user.id, is_completed=False).count()
+        
+        return jsonify({
+            'success': True,
+            'statistics': {
+                'total': total_todos,
+                'pending': pending_todos,
+                'completed': completed_todos,
+                'overdue': overdue_todos,
+                'my_tasks': my_tasks,
+                'my_completed': my_completed,
+                'my_created': my_created,
+                'staff_task_counts': staff_task_counts,
+                'category_counts': category_counts
+            }
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f'获取任务统计失败: {str(e)}')
+        current_app.logger.error(traceback.format_exc())
+        return jsonify({
+            'success': False,
+            'message': f'获取统计失败: {str(e)}'
+        }), 500
+
+# 获取员工列表（用于任务分配）
+@utils_blue.route('/todos/staff-list')
+@login_required
+@staff_only
+def get_staff_list():
+    """获取员工列表（用于任务分配）"""
+    try:
+        from App_new.auth.models.auth import AuthUser, Role
+        
+        # 获取所有员工和管理员
+        staff_role = Role.query.filter_by(name='staff').first()
+        admin_role = Role.query.filter_by(name='admin').first()
+        
+        role_ids = []
+        if staff_role:
+            role_ids.append(staff_role.id)
+        if admin_role:
+            role_ids.append(admin_role.id)
+        
+        if not role_ids:
+            return jsonify({
+                'success': True,
+                'staff': []
+            })
+        
+        staff_users = AuthUser.query.filter(
+            AuthUser.role_id.in_(role_ids),
+            AuthUser.is_active == True
+        ).all()
+        
+        staff_list = []
+        for user in staff_users:
+            staff_level = 1
+            if user.profile:
+                staff_level = user.profile.staff_level or 1
+            
+            # 获取显示名称
+            display_name = user.username
+            if user.profile:
+                name_parts = []
+                if user.profile.first_name:
+                    name_parts.append(user.profile.first_name)
+                if user.profile.last_name:
+                    name_parts.append(user.profile.last_name)
+                if name_parts:
+                    display_name = ' '.join(name_parts)
+            
+            staff_list.append({
+                'id': user.id,
+                'username': user.username,
+                'email': user.email,
+                'staff_level': staff_level,
+                'display_name': display_name,
+                'role_name': user.role.name if user.role else 'unknown'
+            })
+        
+        # 按员工等级和用户名排序
+        staff_list.sort(key=lambda x: (x['staff_level'], x['display_name']))
+        
+        # 检查当前用户是否有分配任务权限
+        staff_level = 1
+        if current_user.profile:
+            staff_level = current_user.profile.staff_level or 1
+        
+        is_admin = current_user.role and current_user.role.name in ['admin', 'super_admin']
+        can_assign = (staff_level >= 2) or is_admin
+        
+        return jsonify({
+            'success': True,
+            'staff': staff_list,
+            'current_user': {
+                'id': current_user.id,
+                'username': current_user.username,
+                'staff_level': staff_level,
+                'is_admin': is_admin,
+                'can_assign': can_assign
+            }
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f'获取员工列表失败: {str(e)}')
+        current_app.logger.error(traceback.format_exc())
+        return jsonify({
+            'success': False,
+            'message': f'获取员工列表失败: {str(e)}'
         }), 500

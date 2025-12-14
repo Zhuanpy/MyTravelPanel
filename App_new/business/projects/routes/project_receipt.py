@@ -49,9 +49,9 @@ def create_receipt(ref_id):
             ref = ProjectRef.query.get(ref_id)
             
             # 更新REF的付款状态
-            # 计算总收款金额（包括新创建的收款记录）
-            total_received = sum(float(r.amount) for r in ref.receipts if r.status == 'confirmed')
-            if total_received >= ref.selling_price:
+            # 使用辅助方法计算总收款金额（包括项目级别收款记录的分配）
+            total_received = ProjectReceipt.get_ref_total_received(ref.id, ref.header_id)
+            if total_received >= float(ref.selling_price or 0):
                 ref.payment_status = 'paid'
             elif total_received > 0:
                 ref.payment_status = 'partial'
@@ -66,8 +66,8 @@ def create_receipt(ref_id):
             db.session.rollback()
             flash(f'创建失败：{str(e)}', 'error')
     
-    # 获取REF的未付款金额
-    total_received = sum(float(r.amount) for r in ref.receipts if r.status == 'confirmed')
+    # 获取REF的未付款金额（使用辅助方法，包括项目级别分配）
+    total_received = ProjectReceipt.get_ref_total_received(ref.id, ref.header_id)
     unpaid_amount = float(ref.selling_price or 0) - total_received
     
     return render_template('business/projects/project_receipt/create_receipt.html',
@@ -112,9 +112,9 @@ def edit_receipt(receipt_id):
                 ref = ProjectRef.query.get(receipt.ref_id)
                 
                 # 更新REF的付款状态
-                # 计算总收款金额（只计算已确认的收款记录）
-                total_received = sum(float(r.amount) for r in ref.receipts if r.status == 'confirmed')
-                if total_received >= ref.selling_price:
+                # 使用辅助方法计算总收款金额（包括项目级别收款记录的分配）
+                total_received = ProjectReceipt.get_ref_total_received(ref.id, ref.header_id)
+                if total_received >= float(ref.selling_price or 0):
                     ref.payment_status = 'paid'
                 elif total_received > 0:
                     ref.payment_status = 'partial'
@@ -150,9 +150,9 @@ def delete_receipt(receipt_id):
             ref = ProjectRef.query.get(receipt.ref_id)
             
             # 更新REF的付款状态
-            # 计算总收款金额（只计算已确认的收款记录）
-            total_received = sum(float(r.amount) for r in ref.receipts if r.status == 'confirmed')
-            if total_received >= ref.selling_price:
+            # 使用辅助方法计算总收款金额（包括项目级别收款记录的分配）
+            total_received = ProjectReceipt.get_ref_total_received(ref.id, ref.header_id)
+            if total_received >= float(ref.selling_price or 0):
                 ref.payment_status = 'paid'
             elif total_received > 0:
                 ref.payment_status = 'partial'
@@ -191,9 +191,9 @@ def update_receipt_status(receipt_id):
             ref = ProjectRef.query.get(receipt.ref_id)
             
             # 更新REF的付款状态
-            # 计算总收款金额（只计算已确认的收款记录）
-            total_received = sum(float(r.amount) for r in ref.receipts if r.status == 'confirmed')
-            if total_received >= ref.selling_price:
+            # 使用辅助方法计算总收款金额（包括项目级别收款记录的分配）
+            total_received = ProjectReceipt.get_ref_total_received(ref.id, ref.header_id)
+            if total_received >= float(ref.selling_price or 0):
                 ref.payment_status = 'paid'
             elif total_received > 0:
                 ref.payment_status = 'partial'
@@ -217,11 +217,15 @@ def get_ref_receipts(ref_id):
     ref = ProjectRef.query.get_or_404(ref_id)
     receipts = ProjectReceipt.query.filter_by(ref_id=ref_id).order_by(ProjectReceipt.created_at.desc()).all()
     
+    # 使用辅助方法计算总收款（包括项目级别分配）
+    total_received = ProjectReceipt.get_ref_total_received(ref_id, ref.header_id)
+    unpaid_amount = float(ref.selling_price or 0) - total_received
+    
     return jsonify({
         'success': True,
         'receipts': [receipt.to_dict() for receipt in receipts],
-        'total_received': sum(float(r.amount) for r in receipts if r.status == 'confirmed'),
-        'unpaid_amount': float(ref.selling_price or 0) - sum(float(r.amount) for r in receipts if r.status == 'confirmed')
+        'total_received': total_received,
+        'unpaid_amount': unpaid_amount
     })
 
 @project_receipt.route('/ref/<int:ref_id>/receipts')
@@ -230,8 +234,8 @@ def ref_receipts(ref_id):
     ref = ProjectRef.query.get_or_404(ref_id)
     receipts = ProjectReceipt.query.filter_by(ref_id=ref_id).order_by(ProjectReceipt.created_at.desc()).all()
     
-    # 计算已收款和未收款金额
-    total_received = sum(float(r.amount) for r in receipts if r.status == 'confirmed')
+    # 计算已收款和未收款金额（使用辅助方法，包括项目级别分配）
+    total_received = ProjectReceipt.get_ref_total_received(ref_id, ref.header_id)
     unpaid_amount = float(ref.selling_price or 0) - total_received
     
     return render_template('business/projects/project_receipt/ref_receipts.html',
@@ -322,10 +326,10 @@ def create_header_receipt(header_id):
             amount = float(form.amount.data)
             distribution_method = form.distribution_method.data
             
-            # 验证收款金额不能超过未收款总额
+            # 验证收款金额不能超过未收款总额（严格验证）
             unpaid_amount = ProjectReceipt.get_project_unpaid_amount(header_id)
-            if amount > unpaid_amount:
-                flash(f'收款金额不能超过未收款总额：{header.currency or "SGD"} {unpaid_amount:.2f}', 'error')
+            if amount > unpaid_amount + 0.01:  # 允许0.01的浮点数误差
+                flash(f'收款金额({amount:.2f})不能超过未收款总额({unpaid_amount:.2f})', 'error')
                 return render_template('business/projects/project_receipt/create_header_receipt.html',
                                      form=form,
                                      header=header,
@@ -388,7 +392,7 @@ def create_header_receipt(header_id):
                     'total_unpaid': selected_unpaid_total
                 }
             else:
-                # 自动分配：分配给所有有未收款的REF
+                # 自动分配（顺序分配或按比例分配）：分配给所有有未收款的REF
                 distribution_result = ProjectReceipt.distribute_project_receipt(
                     header_id, amount, distribution_method
                 )
@@ -565,7 +569,8 @@ def receipt_list():
         payment_method = request.args.get('payment_method', '').strip()
         currency = request.args.get('currency', '').strip()
         header_id = request.args.get('header_id', None, type=int)
-        ref_id = request.args.get('ref_id', None, type=int)
+        ref_id_str = request.args.get('ref_id', '').strip()
+        ref_id = int(ref_id_str) if ref_id_str and ref_id_str.isdigit() else None
         date_range = request.args.get('date_range', '').strip()
         start_date = request.args.get('start_date', '').strip()
         end_date = request.args.get('end_date', '').strip()
@@ -674,12 +679,34 @@ def receipt_list():
         # 组织数据
         items = []
         for r, project_hid, project_name, ref_number in pagination.items:
+            # 处理REF显示：如果是项目级别收据，从extra_info中提取分配的REF
+            display_ref_number = ref_number
+            if not ref_number and r.ref_id is None and r.extra_info:
+                try:
+                    distribution_info = json.loads(r.extra_info)
+                    if 'distribution' in distribution_info:
+                        ref_numbers = []
+                        for dist in distribution_info['distribution']:
+                            ref_id = dist.get('ref_id')
+                            if ref_id:
+                                ref = ProjectRef.query.get(ref_id)
+                                if ref and ref.ref_number:
+                                    ref_numbers.append(ref.ref_number)
+                        if ref_numbers:
+                            display_ref_number = ', '.join(ref_numbers[:3])  # 最多显示3个REF
+                            if len(ref_numbers) > 3:
+                                display_ref_number += f' ... (+{len(ref_numbers) - 3})'
+                except (json.JSONDecodeError, KeyError, TypeError):
+                    pass
+            
             items.append({
                 'id': r.id,
                 'receipt_number': r.receipt_number,
+                'header_id': r.header_id,  # 添加项目ID，用于生成跳转链接
+                'ref_id': r.ref_id,  # 添加REF ID，用于生成编辑链接
                 'project_hid': project_hid,
                 'project_name': project_name,
-                'ref_number': ref_number,
+                'ref_number': display_ref_number,  # 使用处理后的REF显示
                 'amount': float(r.amount) if r.amount is not None else 0,
                 'currency': r.currency,
                 'payment_method': r.payment_method,
@@ -719,8 +746,8 @@ def receipt_list():
                 'status': status,
                 'payment_method': payment_method,
                 'currency': currency,
-                'header_id': header_id,
-                'ref_id': ref_id,
+                'header_id': str(header_id) if header_id else '',
+                'ref_id': ref_id_str if ref_id_str else '',
                 'date_range': date_range,
                 'start_date': start_date,
                 'end_date': end_date,

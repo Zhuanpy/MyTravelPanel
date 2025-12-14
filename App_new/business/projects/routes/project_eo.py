@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, jsonify, flash
+from flask import Blueprint, render_template, request, redirect, url_for, jsonify, flash, current_app
 from flask_login import login_required, current_user
 from App_new.business.projects.models.ref import ProjectRef
 from App_new.business.projects.models.eo import ProjectEO
@@ -93,6 +93,84 @@ def eo_detail(eo_id):
                     flash('您没有权限访问此项目', 'error')
                     return redirect(url_for('business_projects.project_eo.eo_list'))
     return render_template('business/projects/project_eo/eo_detail.html', eo=eo)
+
+
+@project_eo.route('/<int:eo_id>/update', methods=['POST'])
+@login_required
+@staff_only
+@csrf.exempt
+def update_eo(eo_id):
+    """更新EO信息"""
+    try:
+        eo = ProjectEO.query.get_or_404(eo_id)
+        
+        # 员工等级权限检查
+        if current_user.role and current_user.role.name == 'staff':
+            from App_new.business.projects.models.project import ProjectHeader
+            header = ProjectHeader.query.get(eo.ref.header_id)
+            if header:
+                staff_level = 1
+                if current_user.profile:
+                    staff_level = current_user.profile.staff_level or 1
+                
+                if staff_level == 1:
+                    if header.staff_name != current_user.username:
+                        return jsonify({'success': False, 'message': '您没有权限操作此EO'}), 403
+        
+        # 获取JSON数据
+        data = request.get_json()
+        if not data:
+            return jsonify({'success': False, 'message': '无效的请求数据'}), 400
+        
+        # 更新字段
+        from datetime import datetime
+        
+        # EO日期使用创建日期，不需要更新
+        # if 'eo_date' in data:
+        #     eo.eo_date = datetime.strptime(data['eo_date'], '%Y-%m-%d').date() if data['eo_date'] else None
+        
+        if 'conf_code' in data:
+            eo.conf_code = data['conf_code'] if data['conf_code'] else None
+        
+        if 'discount' in data:
+            eo.discount = float(data['discount']) if data['discount'] else 0
+        
+        if 'tax' in data:
+            eo.tax = float(data['tax']) if data['tax'] else 0
+        
+        if 'payment_no' in data:
+            eo.payment_no = data['payment_no'] if data['payment_no'] else None
+        
+        if 'paid_date' in data:
+            eo.paid_date = datetime.strptime(data['paid_date'], '%Y-%m-%d').date() if data['paid_date'] else None
+        
+        if 'pay_amount' in data:
+            eo.pay_amount = float(data['pay_amount']) if data['pay_amount'] else None
+        
+        if 'external_system' in data:
+            eo.external_system = data['external_system'] if data['external_system'] else None
+        
+        if 'external_status' in data:
+            eo.external_status = data['external_status'] if data['external_status'] else None
+        
+        if 'external_reference' in data:
+            eo.external_reference = data['external_reference'] if data['external_reference'] else None
+        
+        if 'status' in data:
+            eo.status = data['status']
+        
+        eo.updated_at = datetime.utcnow()
+        
+        db.session.commit()
+        
+        return jsonify({'success': True, 'message': 'EO更新成功'})
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"更新EO失败: {e}")
+        import traceback
+        current_app.logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'message': f'更新失败：{str(e)}'}), 500
 
 
 @project_eo.route('/exchange-order')
@@ -370,6 +448,8 @@ def batch_pay():
         supplier_type = request.args.get('supplier_type', '')
         supplier_id = request.args.get('supplier', None, type=int)
         keyword = request.args.get('keyword', '')
+        start_date = request.args.get('start_date', '')
+        end_date = request.args.get('end_date', '')
         
         # 构建查询 - 只查询未付款的EO（confirmed状态）
         query = db.session.query(
@@ -415,6 +495,23 @@ def batch_pay():
             )
             query = query.filter(keyword_filter)
         
+        # 日期筛选
+        if start_date:
+            from datetime import datetime
+            try:
+                start_dt = datetime.strptime(start_date, '%Y-%m-%d')
+                query = query.filter(ProjectEO.created_at >= start_dt)
+            except ValueError:
+                pass
+        
+        if end_date:
+            from datetime import datetime, timedelta
+            try:
+                end_dt = datetime.strptime(end_date, '%Y-%m-%d') + timedelta(days=1)
+                query = query.filter(ProjectEO.created_at < end_dt)
+            except ValueError:
+                pass
+        
         # 排序
         query = query.order_by(desc(ProjectEO.created_at))
         
@@ -424,13 +521,39 @@ def batch_pay():
         # 处理数据
         eos = []
         for eo, supplier_name, ref_type_name, ref_number, project_id, project_hid, company_name in results:
-            # 获取乘客姓名
+            # 获取乘客姓名 - 支持所有类型的REF
             pax_names = ''
             if eo.ref:
+                import json
+                from App_new.business.projects.models.project_member import ProjectMember
                 from App_new.business.flight.models.flight import ProjectFlightPassenger
-                passengers = ProjectFlightPassenger.query.filter_by(ref_id=eo.ref_id).all()
-                if passengers:
-                    pax_names = ', '.join([p.name for p in passengers if p.name])
+                
+                # 方法1: 优先从extra_info获取（机票REF可能已有pax_names_display）
+                if eo.ref.extra_info:
+                    try:
+                        extra_data = json.loads(eo.ref.extra_info)
+                        # 如果已有pax_names_display，直接使用
+                        if extra_data.get('pax_names_display'):
+                            pax_names = extra_data.get('pax_names_display')
+                        else:
+                            # 其他类型REF：从pax_names ID列表获取
+                            pax_names_ids = extra_data.get('pax_names', [])
+                            if pax_names_ids:
+                                members = ProjectMember.query.filter(ProjectMember.id.in_(pax_names_ids)).all()
+                                if members:
+                                    pax_names_list = [f"{m.title} {m.member_name}" if m.title else m.member_name for m in members]
+                                    pax_names = ', '.join(pax_names_list)
+                            else:
+                                # 单个姓名
+                                pax_names = extra_data.get('pax_name', '')
+                    except (json.JSONDecodeError, TypeError):
+                        pass
+                
+                # 方法2: 如果没有从extra_info获取到，尝试从flight_passengers获取（机票类型）
+                if not pax_names and hasattr(eo.ref, 'flight_passengers'):
+                    passengers = ProjectFlightPassenger.query.filter_by(ref_id=eo.ref_id).all()
+                    if passengers:
+                        pax_names = ', '.join([p.name for p in passengers if p.name])
             
             eos.append({
                 'id': eo.id,
@@ -458,7 +581,9 @@ def batch_pay():
                              current_filters={
                                  'supplier_type': supplier_type,
                                  'supplier': supplier_id,
-                                 'keyword': keyword
+                                 'keyword': keyword,
+                                 'start_date': start_date,
+                                 'end_date': end_date
                              })
     except Exception as e:
         import traceback
@@ -569,6 +694,7 @@ def pay_eo(eo_id):
         payment_no = data.get('payment_no')
         paid_date_str = data.get('paid_date')
         pay_amount = data.get('pay_amount')
+        payment_remarks = data.get('payment_remarks', '')
         
         if not payment_no or not paid_date_str or pay_amount is None:
             return jsonify({'success': False, 'message': '请填写完整的付款信息'}), 400
@@ -581,6 +707,7 @@ def pay_eo(eo_id):
         eo.payment_no = payment_no
         eo.paid_date = paid_date
         eo.pay_amount = pay_amount
+        eo.payment_remarks = payment_remarks
         eo.status = 'paid'
         
         db.session.commit()

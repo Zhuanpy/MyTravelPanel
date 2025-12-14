@@ -1759,6 +1759,9 @@ def edit_other_ref(ref_id):
 @csrf.exempt
 def edit_insurance_ref(ref_id):
     """编辑保险REF"""
+    from App_new.business.projects.models.project_member import ProjectMember
+    from App_new.business.projects.models.invoice import InvoiceItem
+    
     ref = ProjectRef.query.get_or_404(ref_id)
     
     # 确保这是保险类型的REF
@@ -1781,11 +1784,50 @@ def edit_insurance_ref(ref_id):
             ref.remarks = request.form.get('remarks', '')
             ref.status = request.form.get('status', 'draft')
             
+            # 处理pax_names（从表单获取选中的成员ID）
+            pax_names = request.form.getlist('pax_names')
+            pax_names_int = [int(p) for p in pax_names if p]
+            
+            # 获取leader_id
+            leader_id = request.form.get('leader_id')
+            if leader_id:
+                try:
+                    leader_id = int(leader_id)
+                except ValueError:
+                    leader_id = None
+            
+            # 生成pax_names_display（用于显示）
+            pax_names_display = ''
+            if pax_names_int:
+                members = ProjectMember.query.filter(ProjectMember.id.in_(pax_names_int)).all()
+                if members:
+                    pax_names_list = [f"{m.title} {m.member_name}" if m.title else m.member_name for m in members]
+                    pax_names_display = ', '.join(pax_names_list)
+            
             # 处理保险专属字段（保存到 extra_info）
             insurance_extra_info = {
                 'insurance_type': request.form.get('insurance_type', ''),
-                'insured_person': request.form.get('insured_person', ''),
-                'insurance_details': request.form.get('insurance_details', '')
+                'city': request.form.get('city', 'SIN'),
+                'booking_status': request.form.get('booking_status', 'HK'),
+                'departure_date': request.form.get('departure_date', ''),
+                'pax_names': pax_names_int,
+                'pax_names_display': pax_names_display,
+                'pax_name': request.form.get('pax_name', ''),
+                'leader_id': leader_id,
+                # 价格明细
+                'adult_qty': int(request.form.get('adult_qty', 1) or 1),
+                'adult_selling': float(request.form.get('adult_selling', 0) or 0),
+                'adult_cost': float(request.form.get('adult_cost', 0) or 0),
+                'child_qty': int(request.form.get('child_qty', 0) or 0),
+                'child_selling': float(request.form.get('child_selling', 0) or 0),
+                'child_cost': float(request.form.get('child_cost', 0) or 0),
+                'infant_qty': int(request.form.get('infant_qty', 0) or 0),
+                'infant_selling': float(request.form.get('infant_selling', 0) or 0),
+                'infant_cost': float(request.form.get('infant_cost', 0) or 0),
+                # 复选框选项
+                'non_trade_booking': 'non_trade_booking' in request.form,
+                'do_not_show_details': 'do_not_show_details' in request.form,
+                'print_pricing_details': 'print_pricing_details' in request.form,
             }
             ref.extra_info = json.dumps(insurance_extra_info)
             
@@ -1802,19 +1844,27 @@ def edit_insurance_ref(ref_id):
     # 获取供应商数据
     suppliers = Supplier.query.all()
     
+    # 获取项目成员
+    members = ProjectMember.query.filter_by(header_id=ref.header_id).order_by(ProjectMember.id).all()
+    
+    # 检查是否已生成发票
+    has_invoice = InvoiceItem.query.filter_by(ref_id=ref.id).first() is not None
+    
     # 解析保险专属信息
-    insurance_info = {}
+    extra_info = {}
     if ref and ref.extra_info:
         try:
-            insurance_info = json.loads(ref.extra_info)
+            extra_info = json.loads(ref.extra_info)
         except json.JSONDecodeError:
-            insurance_info = {}
+            extra_info = {}
     
     return render_template('business/projects/project_ref/create_insurance_ref.html', 
                          ref=ref, 
                          header_id=ref.header_id,
                          suppliers=suppliers,
-                         insurance_info=insurance_info,
+                         extra_info=extra_info,
+                         members=members,
+                         has_invoice=has_invoice,
                          is_create=False)
 
 @project_ref.route('/tour/edit/<int:ref_id>', methods=['GET', 'POST'])

@@ -6,20 +6,30 @@
 
 {% block content %}
 <style>
-    .eo-table { font-size: 0.8rem; }
+    .eo-table { font-size: 0.8rem; table-layout: fixed; }
     .eo-table th { background: #343a40; color: #fff; font-weight: 500; white-space: nowrap; padding: 6px 8px; }
-    .eo-table td { padding: 5px 8px; vertical-align: middle; white-space: nowrap; }
+    .eo-table td { padding: 5px 8px; vertical-align: middle; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .eo-table .badge { font-size: 0.7rem; }
     .amount-col { text-align: right; font-family: monospace; }
+    .pax-col { max-width: 100px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .filter-row { background: #f8f9fa; padding: 10px; border-radius: 6px; margin-bottom: 15px; }
     .filter-row .form-control, .filter-row .form-select { height: 32px; font-size: 0.85rem; padding: 4px 8px; }
     .filter-row .btn { height: 32px; padding: 4px 12px; font-size: 0.85rem; }
     .selected-row { background-color: #e8f5e9 !important; }
-    .summary-card { background: #e3f2fd; border: 2px solid #2196f3; border-radius: 8px; padding: 15px; margin-bottom: 15px; }
-    .summary-card h5 { color: #1565c0; margin-bottom: 10px; }
-    .pay-form-card { background: #fff3e0; border: 2px solid #ff9800; border-radius: 8px; padding: 15px; }
-    .pay-form-card h5 { color: #e65100; margin-bottom: 15px; }
-    .total-amount { font-size: 1.5rem; font-weight: bold; color: #2e7d32; }
+    .summary-card { background: #e3f2fd; border: 2px solid #2196f3; border-radius: 8px; padding: 15px; margin-bottom: 15px; text-align: left; }
+    .summary-card h5 { color: #1565c0; margin-bottom: 10px; text-align: left; }
+    .summary-card > div { text-align: left; }
+    .pay-form-card { background: #fff3e0; border: 2px solid #ff9800; border-radius: 8px; padding: 15px; text-align: left; }
+    .pay-form-card h5 { color: #e65100; margin-bottom: 15px; text-align: left; }
+    .pay-form-card .form-label { text-align: left; }
+    .pay-form-card .form-control, .pay-form-card .input-group { text-align: left; }
+    .pay-form-card .form-control { text-align: left !important; }
+    .pay-form-card input[type="text"], 
+    .pay-form-card input[type="date"], 
+    .pay-form-card input[type="number"], 
+    .pay-form-card textarea { text-align: left !important; }
+    .pay-form-card small { text-align: left; display: block; }
+    .total-amount { font-size: 1.5rem; font-weight: bold; color: #2e7d32; display: inline-block; }
 </style>
 
 <div class="container-fluid">
@@ -54,7 +64,13 @@
                 </select>
             </div>
             <div class="col-auto">
-                <input type="text" class="form-control" name="keyword" placeholder="搜索..." value="{{ current_filters.keyword or '' }}" style="width: 150px;">
+                <input type="date" class="form-control" name="start_date" value="{{ current_filters.start_date or '' }}" title="开始日期">
+            </div>
+            <div class="col-auto">
+                <input type="date" class="form-control" name="end_date" value="{{ current_filters.end_date or '' }}" title="结束日期">
+            </div>
+            <div class="col-auto">
+                <input type="text" class="form-control" name="keyword" placeholder="搜索..." value="{{ current_filters.keyword or '' }}" style="width: 120px;">
             </div>
             <div class="col-auto">
                 <button type="submit" class="btn btn-primary"><i class="fas fa-search"></i></button>
@@ -79,16 +95,16 @@
                         <table class="table table-bordered table-hover eo-table mb-0" id="eoTable">
                             <thead style="position: sticky; top: 0; z-index: 1;">
                                 <tr>
-                                    <th style="width: 40px;"><input type="checkbox" id="checkAll" onchange="toggleAll(this)"></th>
-                                    <th>EO No</th>
-                                    <th>EO Date</th>
-                                    <th>HID</th>
-                                    <th>REF</th>
-                                    <th>Type</th>
-                                    <th>Supplier</th>
-                                    <th>Pax</th>
-                                    <th>Curr</th>
-                                    <th class="amount-col">Cost</th>
+                                    <th style="width: 30px;"><input type="checkbox" id="checkAll" onchange="toggleAll(this)"></th>
+                                    <th style="width: 75px;">EO Date</th>
+                                    <th style="width: 65px;">EO No</th>
+                                    <th style="width: 40px;">Curr</th>
+                                    <th style="width: 65px;" class="amount-col">Cost</th>
+                                    <th style="width: 60px;">HID</th>
+                                    <th style="width: 55px;">REF</th>
+                                    <th style="width: 50px;">Type</th>
+                                    <th style="width: 80px;">Supplier</th>
+                                    <th style="width: 70px;">Pax</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -97,15 +113,26 @@
                                     <td class="text-center">
                                         <input type="checkbox" class="eo-checkbox" value="{{ eo.id }}" onchange="updateSelection()">
                                     </td>
-                                    <td><span class="badge bg-primary">{{ eo.eo_number }}</span></td>
                                     <td>{{ eo.created_at.strftime('%Y-%m-%d') if eo.created_at else '-' }}</td>
-                                    <td>{{ eo.project_hid or '-' }}</td>
-                                    <td>{{ eo.ref_number or '-' }}</td>
-                                    <td><span class="badge bg-info">{{ eo.ref_type_name or '-' }}</span></td>
-                                    <td>{{ eo.supplier_name or '-' }}</td>
-                                    <td>{{ eo.pax_names or '-' }}</td>
+                                    <td><span class="badge bg-primary">{{ eo.eo_number }}</span></td>
                                     <td>{{ eo.currency or 'SGD' }}</td>
                                     <td class="amount-col">{{ "%.2f"|format(eo.cost_price|float) if eo.cost_price else '-' }}</td>
+                                    <td>
+                                        {% if eo.project_id and eo.project_hid %}
+                                        <a href="{{ url_for('business_projects.detail.project_detail', project_id=eo.project_id) }}" 
+                                           class="text-primary text-decoration-none fw-bold" 
+                                           target="_blank" 
+                                           title="点击查看项目详情">
+                                            {{ eo.project_hid }}
+                                        </a>
+                                        {% else %}
+                                        -
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ eo.ref_number or '-' }}</td>
+                                    <td><span class="badge bg-info">{{ eo.ref_type_name or '-' }}</span></td>
+                                    <td title="{{ eo.supplier_name or '-' }}">{{ eo.supplier_name or '-' }}</td>
+                                    <td class="pax-col" title="{{ eo.pax_names or '-' }}">{{ eo.pax_names or '-' }}</td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
@@ -120,11 +147,11 @@
             <!-- 已选汇总 -->
             <div class="summary-card">
                 <h5><i class="fas fa-calculator"></i> 已选汇总</h5>
-                <div class="d-flex justify-content-between mb-2">
+                <div class="mb-2">
                     <span>已选EO数量：</span>
                     <span id="selectedCount" class="fw-bold">0</span>
                 </div>
-                <div class="d-flex justify-content-between">
+                <div>
                     <span>应付总金额：</span>
                     <span id="totalAmount" class="total-amount">SGD 0.00</span>
                 </div>
@@ -136,7 +163,13 @@
                 <form id="batchPayForm">
                     <div class="mb-3">
                         <label class="form-label">付款编号 <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="payment_no" name="payment_no" placeholder="如：PAY-001、银行流水号" required>
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="payment_no" name="payment_no" placeholder="自动生成..." required>
+                            <button type="button" class="btn btn-outline-secondary" onclick="generatePaymentNo()" title="重新生成">
+                                <i class="fas fa-sync-alt"></i>
+                            </button>
+                        </div>
+                        <small class="text-muted">付款编号已自动生成，可手动修改或点击刷新按钮重新生成</small>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">付款日期 <span class="text-danger">*</span></label>
@@ -165,6 +198,31 @@
 
 <script>
 let selectedEOs = [];
+
+// 生成付款编号
+function generatePaymentNo() {
+    fetch('{{ url_for("business_projects.project_eo.generate_payment_no") }}', {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            document.getElementById('payment_no').value = data.payment_no;
+        } else {
+            alert('生成付款编号失败：' + (data.message || '未知错误'));
+        }
+    })
+    .catch(error => {
+        console.error('生成付款编号失败：', error);
+        alert('生成付款编号失败，请手动输入');
+    });
+}
+
+// 页面加载时自动生成付款编号
+document.addEventListener('DOMContentLoaded', function() {
+    generatePaymentNo();
+});
 
 function toggleAll(checkbox) {
     const checkboxes = document.querySelectorAll('.eo-checkbox');

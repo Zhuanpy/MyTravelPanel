@@ -1,4 +1,4 @@
-﻿{% extends "staff_base.html" %}
+{% extends "staff_base.html" %}
 
 {% block title %}{{ bank_name }}银行账单 - MyTravelPanel{% endblock %}
 
@@ -187,7 +187,12 @@
                             {% for s in statements %}
                             <tr>
                                 <td>{{ s.statement_number }}</td>
-                                <td>{{ s.account_name }}</td>
+                                <td>
+                                    <span class="account-name-display" data-statement-id="{{ s.id }}">{{ s.account_name }}</span>
+                                    <button type="button" class="btn btn-sm btn-outline-primary ms-2" onclick="editAccountName({{ s.id }}, '{{ s.account_name }}')" title="编辑账户名称">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                </td>
                                 <td>{{ s.statement_date.strftime('%Y-%m-%d') if s.statement_date else '' }}</td>
                                 <td>{{ s.period_start.strftime('%Y-%m-%d') if s.period_start else '' }}</td>
                                 <td>{{ s.period_end.strftime('%Y-%m-%d') if s.period_end else '' }}</td>
@@ -238,6 +243,26 @@
             <!-- 文件上传区域 -->
             <div class="upload-area">
                 <form id="{{ bank_name.lower() }}-upload-form" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label class="form-label">账户名称 <span class="text-danger">*</span></label>
+                        <div class="d-flex gap-2 mb-2 align-items-center">
+                            {% if account_name_options %}
+                            <select class="form-select" id="{{ bank_name.lower() }}-account-name" style="max-width: 300px;" required>
+                                <option value="">请选择账户名称</option>
+                                {% for account_name in account_name_options %}
+                                <option value="{{ account_name }}">{{ account_name }}</option>
+                                {% endfor %}
+                                <option value="__new__">+ 新建账户名称</option>
+                            </select>
+                            <input type="text" class="form-control" id="{{ bank_name.lower() }}-new-account-name" placeholder="输入新账户名称" style="max-width: 300px; display: none;">
+                            {% else %}
+                            <!-- 没有现有账户名称时，直接显示输入框 -->
+                            <input type="hidden" id="{{ bank_name.lower() }}-account-name" value="__new__">
+                            <input type="text" class="form-control" id="{{ bank_name.lower() }}-new-account-name" placeholder="输入账户名称（如：UOB SGD Account）" style="max-width: 400px;" required>
+                            <small class="text-muted ms-2">首次上传，请输入账户名称</small>
+                            {% endif %}
+                        </div>
+                    </div>
                     <div class="mb-3">
                         <label class="form-label">上传账单文件</label>
                         <div class="d-flex gap-2">
@@ -452,14 +477,67 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
         
+        // 账户名称选择处理
+        const accountNameSelect = document.getElementById(bankName + '-account-name');
+        const newAccountNameInput = document.getElementById(bankName + '-new-account-name');
+        
+        if (accountNameSelect && accountNameSelect.tagName === 'SELECT') {
+            // 有下拉选择框的情况
+            accountNameSelect.addEventListener('change', function() {
+                if (this.value === '__new__') {
+                    newAccountNameInput.style.display = 'block';
+                    newAccountNameInput.required = true;
+                    newAccountNameInput.focus();
+                } else {
+                    newAccountNameInput.style.display = 'none';
+                    newAccountNameInput.required = false;
+                    newAccountNameInput.value = '';
+                }
+            });
+        }
+        // 如果是hidden input（没有现有账户名称时），新账户名称输入框已经默认显示
+        
         uploadBtn.addEventListener('click', async function() {
             if (!fileInput.files.length) {
                 alert('请先选择文件');
                 return;
             }
             
+            // 获取账户名称
+            let accountName = '';
+            
+            // 检查是否是SELECT元素还是hidden input
+            const isSelectElement = accountNameSelect && accountNameSelect.tagName === 'SELECT';
+            
+            if (isSelectElement) {
+                // 有下拉选择框的情况
+                if (accountNameSelect.value === '__new__') {
+                    accountName = newAccountNameInput.value.trim();
+                    if (!accountName) {
+                        alert('请输入新账户名称');
+                        newAccountNameInput.focus();
+                        return;
+                    }
+                } else if (accountNameSelect.value) {
+                    accountName = accountNameSelect.value;
+                } else {
+                    alert('请选择账户名称');
+                    accountNameSelect.focus();
+                    return;
+                }
+            } else {
+                // hidden input情况（没有现有账户名称）
+                accountName = newAccountNameInput.value.trim();
+                if (!accountName) {
+                    alert('请输入账户名称');
+                    newAccountNameInput.focus();
+                    return;
+                }
+            }
+            
             const formData = new FormData();
             formData.append('file', fileInput.files[0]);
+            formData.append('account_name', accountName);
             
             try {
                 uploadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 上传中...';
@@ -920,5 +998,177 @@ document.addEventListener('DOMContentLoaded', function() {
         setTimeout(updateSelection, 100);
     })();
 });
+    </script>
+
+<!-- 编辑账户名称模态框 -->
+<div class="modal fade" id="editAccountNameModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title"><i class="fas fa-edit me-2"></i>编辑账户名称</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editAccountNameForm">
+                    <input type="hidden" id="edit-statement-id" name="statement_id">
+                    <div class="mb-3">
+                        <label class="form-label">账户名称 <span class="text-danger">*</span></label>
+                        <select class="form-select" id="edit-account-name-select" required>
+                            <option value="">请选择账户名称</option>
+                            {% if account_name_options %}
+                            {% for account_name in account_name_options %}
+                            <option value="{{ account_name }}">{{ account_name }}</option>
+                            {% endfor %}
+                            {% endif %}
+                            <option value="__new__">+ 新建账户名称</option>
+                        </select>
+                        <input type="text" class="form-control mt-2" id="edit-new-account-name" placeholder="输入新账户名称" style="display: none;">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="saveAccountName()">
+                    <i class="fas fa-save me-1"></i> 保存
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// 编辑账户名称
+function editAccountName(statementId, currentAccountName) {
+    document.getElementById('edit-statement-id').value = statementId;
+    const select = document.getElementById('edit-account-name-select');
+    const newInput = document.getElementById('edit-new-account-name');
+    
+    // 先清理之前可能添加的临时选项
+    const tempOption = select.querySelector('option[data-temp="true"]');
+    if (tempOption) {
+        tempOption.remove();
+    }
+    
+    // 重置状态
+    newInput.style.display = 'none';
+    newInput.required = false;
+    newInput.value = '';
+    
+    // 设置当前值
+    if (currentAccountName && currentAccountName.trim() !== '' && currentAccountName !== '上传文件') {
+        // 检查是否在选项列表中
+        let found = false;
+        for (let option of select.options) {
+            if (option.value === currentAccountName) {
+                select.value = currentAccountName;
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            // 如果不在列表中，添加为临时选项并选中
+            const newOption = document.createElement('option');
+            newOption.value = currentAccountName;
+            newOption.textContent = currentAccountName + ' (当前值)';
+            newOption.setAttribute('data-temp', 'true');
+            // 插入到"新建"选项之前
+            const newCreateOption = select.querySelector('option[value="__new__"]');
+            select.insertBefore(newOption, newCreateOption);
+            select.value = currentAccountName;
+        }
+    } else {
+        // 当前账户名称为空或是"上传文件"，提示用户选择或新建
+        select.value = '';
+    }
+    
+    // 显示模态框
+    const modal = new bootstrap.Modal(document.getElementById('editAccountNameModal'));
+    modal.show();
+}
+
+// 账户名称选择变化处理
+document.getElementById('edit-account-name-select').addEventListener('change', function() {
+    const newInput = document.getElementById('edit-new-account-name');
+    if (this.value === '__new__') {
+        newInput.style.display = 'block';
+        newInput.required = true;
+        newInput.value = '';
+        newInput.focus();
+    } else {
+        newInput.style.display = 'none';
+        newInput.required = false;
+        newInput.value = '';
+    }
+});
+
+// 保存账户名称
+async function saveAccountName() {
+    const statementId = document.getElementById('edit-statement-id').value;
+    const select = document.getElementById('edit-account-name-select');
+    const newInput = document.getElementById('edit-new-account-name');
+    
+    let accountName = '';
+    let isNewName = false;
+    
+    if (select.value === '__new__') {
+        accountName = newInput.value.trim();
+        isNewName = true;
+        if (!accountName) {
+            alert('请输入新账户名称');
+            newInput.focus();
+            return;
+        }
+    } else if (select.value) {
+        accountName = select.value;
+    } else {
+        alert('请选择账户名称');
+        return;
+    }
+    
+    try {
+        const saveBtn = document.querySelector('#editAccountNameModal .btn-primary');
+        const originalText = saveBtn.innerHTML;
+        saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> 保存中...';
+        saveBtn.disabled = true;
+        
+        const response = await fetch('/statement/update_account_name/{{ bank_name }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token() }}'
+            },
+            body: JSON.stringify({
+                statement_id: parseInt(statementId),
+                account_name: accountName
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            // 更新页面显示
+            const displayElement = document.querySelector(`.account-name-display[data-statement-id="${statementId}"]`);
+            if (displayElement) {
+                displayElement.textContent = accountName;
+            }
+            
+            // 关闭模态框
+            const modal = bootstrap.Modal.getInstance(document.getElementById('editAccountNameModal'));
+            modal.hide();
+            
+            // 如果是新账户名称，刷新页面以更新下拉选项
+            if (isNewName) {
+                location.reload();
+            }
+        } else {
+            alert('更新失败：' + (result.message || '未知错误'));
+            saveBtn.innerHTML = originalText;
+            saveBtn.disabled = false;
+        }
+    } catch (error) {
+        console.error('更新账户名称失败：', error);
+        alert('更新失败，请稍后重试');
+    }
+}
 </script>
 {% endblock %}

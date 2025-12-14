@@ -91,18 +91,103 @@
     <div class="col-md-3 mb-3">
         <div class="card admin-stats-card admin-warning">
             <div class="card-body">
-                <h3 class="admin-stats-number">98%</h3>
+                <h3 class="admin-stats-number">{{ stats.system_health.percentage if stats.system_health else 0 }}%</h3>
                 <p class="admin-stats-label">系统健康度</p>
                 <i class="fas fa-heartbeat admin-stats-icon"></i>
                 <div class="admin-stats-trend">
-                    <small class="text-success">
-                        <i class="fas fa-check-circle"></i> 运行正常
+                    {% if stats.system_health %}
+                        {% if stats.system_health.status == 'excellent' %}
+                            <small class="text-success">
+                                <i class="fas fa-check-circle"></i> 运行正常
+                            </small>
+                        {% elif stats.system_health.status == 'good' %}
+                            <small class="text-info">
+                                <i class="fas fa-info-circle"></i> 运行良好
+                            </small>
+                        {% elif stats.system_health.status == 'warning' %}
+                            <small class="text-warning">
+                                <i class="fas fa-exclamation-triangle"></i> 需要注意
+                            </small>
+                        {% else %}
+                            <small class="text-danger">
+                                <i class="fas fa-times-circle"></i> 需要关注
+                            </small>
+                        {% endif %}
+                    {% else %}
+                        <small class="text-muted">
+                            <i class="fas fa-question-circle"></i> 未知
+                        </small>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 业务数据统计卡片 -->
+{% if stats.total_projects is defined %}
+<div class="row mb-4">
+    <div class="col-md-3 mb-3">
+        <div class="card admin-stats-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+            <div class="card-body">
+                <h3 class="admin-stats-number">{{ stats.total_projects or 0 }}</h3>
+                <p class="admin-stats-label">总项目数</p>
+                <i class="fas fa-project-diagram admin-stats-icon"></i>
+                <div class="admin-stats-trend">
+                    <small style="color: rgba(255,255,255,0.9);">
+                        <i class="fas fa-chart-line"></i> 活跃: {{ stats.active_projects or 0 }}
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-3">
+        <div class="card admin-stats-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white;">
+            <div class="card-body">
+                <h3 class="admin-stats-number">¥{{ "{:,.2f}".format(stats.total_revenue or 0) }}</h3>
+                <p class="admin-stats-label">总收入</p>
+                <i class="fas fa-dollar-sign admin-stats-icon"></i>
+                <div class="admin-stats-trend">
+                    <small style="color: rgba(255,255,255,0.9);">
+                        <i class="fas fa-wallet"></i> 已收款: ¥{{ "{:,.2f}".format(stats.total_received or 0) }}
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-3">
+        <div class="card admin-stats-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white;">
+            <div class="card-body">
+                <h3 class="admin-stats-number">¥{{ "{:,.2f}".format(stats.total_profit or 0) }}</h3>
+                <p class="admin-stats-label">总利润</p>
+                <i class="fas fa-chart-pie admin-stats-icon"></i>
+                <div class="admin-stats-trend">
+                    <small style="color: rgba(255,255,255,0.9);">
+                        <i class="fas fa-percentage"></i> 利润率: {{ "{:.1f}".format((stats.total_profit / stats.total_revenue * 100) if stats.total_revenue and stats.total_revenue > 0 else 0) }}%
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-3">
+        <div class="card admin-stats-card" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); color: white;">
+            <div class="card-body">
+                <h3 class="admin-stats-number">{{ stats.completed_projects or 0 }}</h3>
+                <p class="admin-stats-label">已完成项目</p>
+                <i class="fas fa-check-circle admin-stats-icon"></i>
+                <div class="admin-stats-trend">
+                    <small style="color: rgba(255,255,255,0.9);">
+                        <i class="fas fa-tasks"></i> 完成率: {{ "{:.1f}".format((stats.completed_projects / stats.total_projects * 100) if stats.total_projects and stats.total_projects > 0 else 0) }}%
                     </small>
                 </div>
             </div>
         </div>
     </div>
 </div>
+{% endif %}
 
 <div class="row">
     <!-- 最近用户 -->
@@ -339,15 +424,27 @@ function updateStatsDisplay(stats) {
 
 // 创建用户增长图表
 function createUserGrowthChart() {
-    const ctx = document.getElementById('userGrowthChart').getContext('2d');
+    const ctx = document.getElementById('userGrowthChart');
+    if (!ctx) return;
     
-    new Chart(ctx, {
+    // 使用后端传递的真实数据
+    const userGrowthData = {{ user_growth_data|tojson|safe }};
+    const labels = userGrowthData.labels || [];
+    const data = userGrowthData.data || [];
+    
+    // 如果数据为空，显示提示
+    if (labels.length === 0 || data.length === 0) {
+        ctx.parentElement.innerHTML = '<p class="text-muted text-center p-4">暂无用户增长数据</p>';
+        return;
+    }
+    
+    new Chart(ctx.getContext('2d'), {
         type: 'line',
         data: {
-            labels: ['1月', '2月', '3月', '4月', '5月', '6月'],
+            labels: labels,
             datasets: [{
                 label: '用户数量',
-                data: [1, 1, 1, 1, 1, {{ stats.total_users or 1 }}],
+                data: data,
                 borderColor: '#dc3545',
                 backgroundColor: 'rgba(220, 53, 69, 0.1)',
                 borderWidth: 3,
@@ -376,28 +473,47 @@ function createUserGrowthChart() {
 
 // 创建角色分布图表
 function createRoleDistributionChart() {
-    const ctx = document.getElementById('roleDistributionChart').getContext('2d');
+    const ctx = document.getElementById('roleDistributionChart');
+    if (!ctx) return;
     
-    // 模拟角色分布数据
-    const roleData = {
-        'admin': 1,
-        'staff': 0,
-        'member': 0,
-        'guest': 0
+    // 使用后端传递的真实数据
+    const roleDistribution = {{ role_distribution|tojson|safe }};
+    
+    // 角色名称映射
+    const roleNameMap = {
+        'admin': '管理员',
+        'staff': '员工',
+        'member': '会员',
+        'guest': '访客'
     };
     
-    new Chart(ctx, {
+    // 准备图表数据
+    const labels = [];
+    const data = [];
+    const colors = ['#dc3545', '#28a745', '#007bff', '#6c757d', '#ffc107', '#17a2b8'];
+    let colorIndex = 0;
+    
+    for (const [roleName, count] of Object.entries(roleDistribution)) {
+        if (count > 0) {  // 只显示有用户的角色
+            labels.push(roleNameMap[roleName] || roleName);
+            data.push(count);
+            colorIndex++;
+        }
+    }
+    
+    // 如果数据为空，显示提示
+    if (labels.length === 0 || data.length === 0) {
+        ctx.parentElement.innerHTML = '<p class="text-muted text-center p-4">暂无角色分布数据</p>';
+        return;
+    }
+    
+    new Chart(ctx.getContext('2d'), {
         type: 'doughnut',
         data: {
-            labels: ['管理员', '员工', '会员', '访客'],
+            labels: labels,
             datasets: [{
-                data: [roleData.admin, roleData.staff, roleData.member, roleData.guest],
-                backgroundColor: [
-                    '#dc3545',
-                    '#28a745', 
-                    '#007bff',
-                    '#6c757d'
-                ],
+                data: data,
+                backgroundColor: colors.slice(0, labels.length),
                 borderWidth: 0
             }]
         },

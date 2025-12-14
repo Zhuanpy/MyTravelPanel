@@ -430,3 +430,75 @@ class HomeBanner(db.Model):
     def get_all_banners(cls):
         """获取所有轮播图（包括禁用的）"""
         return cls.query.order_by(cls.sort_order.asc(), cls.id.asc()).all()
+
+
+# 图片库关联表（多对多关系）
+product_images = db.Table('product_images',
+    db.Column('product_id', db.Integer, db.ForeignKey('package_products.id'), primary_key=True, comment='产品ID'),
+    db.Column('image_id', db.Integer, db.ForeignKey('image_library.id'), primary_key=True, comment='图片ID'),
+    db.Column('image_type', db.String(20), default='gallery', comment='图片类型：cover/gallery'),
+    db.Column('sort_order', db.Integer, default=0, comment='排序顺序'),
+    db.Column('created_at', db.DateTime, default=datetime.utcnow, comment='关联创建时间')
+)
+
+
+class ImageLibrary(db.Model):
+    """图片库模型 - 存储共享图片"""
+    __tablename__ = 'image_library'
+
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(200), nullable=True, comment='图片标题/描述')
+    image_path = db.Column(db.String(500), nullable=False, comment='图片路径（相对于static）')
+    tags = db.Column(db.String(200), nullable=True, comment='标签（逗号分隔）')
+    category = db.Column(db.String(50), nullable=True, comment='分类：tour/product/destination/other')
+    file_size = db.Column(db.Integer, nullable=True, comment='文件大小（字节）')
+    width = db.Column(db.Integer, nullable=True, comment='图片宽度')
+    height = db.Column(db.Integer, nullable=True, comment='图片高度')
+    
+    # 统计信息
+    usage_count = db.Column(db.Integer, default=0, comment='使用次数')
+    
+    # 状态
+    is_active = db.Column(db.Boolean, default=True, comment='是否激活')
+    
+    # 元数据
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, comment='创建时间')
+    created_by = db.Column(db.String(100), nullable=True, comment='创建人')
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, comment='更新时间')
+    
+    # 关联关系
+    products = db.relationship('Product', secondary=product_images, backref=db.backref('library_images', lazy='dynamic'))
+    
+    def increment_usage(self):
+        """增加使用次数"""
+        self.usage_count = (self.usage_count or 0) + 1
+        db.session.commit()
+    
+    def decrement_usage(self):
+        """减少使用次数"""
+        self.usage_count = max(0, (self.usage_count or 0) - 1)
+        db.session.commit()
+    
+    @property
+    def full_path(self):
+        """获取完整路径"""
+        return f"static/{self.image_path}"
+    
+    @classmethod
+    def get_active_images(cls):
+        """获取激活的图片"""
+        return cls.query.filter_by(is_active=True).order_by(cls.created_at.desc()).all()
+    
+    @classmethod
+    def search_by_tags(cls, tags):
+        """根据标签搜索"""
+        tag_list = [tag.strip() for tag in tags.split(',')]
+        query = cls.query.filter_by(is_active=True)
+        for tag in tag_list:
+            query = query.filter(cls.tags.contains(tag))
+        return query.all()
+    
+    @classmethod
+    def get_by_category(cls, category):
+        """根据分类获取"""
+        return cls.query.filter_by(is_active=True, category=category).order_by(cls.created_at.desc()).all()

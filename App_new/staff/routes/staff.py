@@ -1311,3 +1311,371 @@ def reorder_home_banners():
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'message': f'排序失败：{str(e)}'}), 500
+
+
+# ==================== 图片库管理 ====================
+@staff.route('/image-library')
+@login_required
+@staff_only
+def image_library():
+    """图片库管理页面"""
+    from ...business.tour.models.Packagemodels import ImageLibrary
+    from ...exts import db
+    
+    try:
+        # 获取查询参数
+        category = request.args.get('category', '')
+        search = request.args.get('search', '')
+        
+        # 构建查询
+        query = ImageLibrary.query
+        if category:
+            query = query.filter_by(category=category)
+        if search:
+            query = query.filter(
+                ImageLibrary.title.contains(search) | 
+                ImageLibrary.tags.contains(search)
+            )
+        
+        images = query.order_by(ImageLibrary.created_at.desc()).all()
+        
+        # 获取分类列表
+        categories = db.session.query(ImageLibrary.category).distinct().all()
+        categories = [c[0] for c in categories if c[0]]
+        
+        return render_template('staff/image_library.html', 
+                             images=images, 
+                             categories=categories,
+                             current_category=category,
+                             current_search=search)
+    except Exception as e:
+        flash(f'加载图片库失败：{str(e)}', 'error')
+        return render_template('staff/image_library.html', images=[], categories=[])
+
+
+@staff.route('/image-library/upload', methods=['POST'])
+@login_required
+@staff_only
+def upload_image_library():
+    """上传图片到图片库"""
+    from ...business.tour.models.Packagemodels import ImageLibrary
+    from ...exts import db
+    from PIL import Image
+    
+    try:
+        if 'image' not in request.files:
+            return jsonify({'success': False, 'message': '请选择图片文件'}), 400
+        
+        file = request.files['image']
+        if file.filename == '':
+            return jsonify({'success': False, 'message': '请选择图片文件'}), 400
+        
+        if not allowed_file(file.filename, {'png', 'jpg', 'jpeg', 'gif', 'webp'}):
+            return jsonify({'success': False, 'message': '不支持的图片格式'}), 400
+        
+        # 保存图片
+        filename = secure_filename(file.filename)
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        name, ext = os.path.splitext(filename)
+        new_filename = f"library_{timestamp}{ext}"
+        
+        upload_dir = os.path.join('App_new', 'static', 'uploads', 'image_library')
+        os.makedirs(upload_dir, exist_ok=True)
+        
+        file_path = os.path.join(upload_dir, new_filename)
+        file.save(file_path)
+        
+        # 获取图片信息
+        width = height = None
+        try:
+            from PIL import Image
+            with Image.open(file_path) as img:
+                width, height = img.size
+        except ImportError:
+            current_app.logger.warning("PIL not available, skipping image size detection")
+        except Exception as e:
+            current_app.logger.warning(f"Error reading image dimensions: {e}")
+        
+        file_size = os.path.getsize(file_path)
+        
+        # 获取表单数据
+        title = request.form.get('title', '').strip()
+        tags = request.form.get('tags', '').strip()
+        category = request.form.get('category', 'other').strip()
+        
+        # 创建数据库记录
+        image = ImageLibrary(
+            title=title or None,
+            image_path=f"uploads/image_library/{new_filename}",
+            tags=tags or None,
+            category=category or 'other',
+            file_size=file_size,
+            width=width,
+            height=height,
+            is_active=True,
+            created_by=current_user.username
+        )
+        
+        db.session.add(image)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': '图片上传成功',
+            'image': {
+                'id': image.id,
+                'title': image.title,
+                'image_path': image.image_path,
+                'usage_count': image.usage_count
+            }
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"上传图片失败: {e}")
+        return jsonify({'success': False, 'message': f'上传失败：{str(e)}'}), 500
+
+
+@staff.route('/image-library/<int:image_id>/delete', methods=['POST'])
+@login_required
+@staff_only
+def delete_image_library(image_id):
+    """删除图片库中的图片"""
+    from ...business.tour.models.Packagemodels import ImageLibrary
+    from ...exts import db
+    
+    try:
+        image = ImageLibrary.query.get_or_404(image_id)
+        
+        # 检查使用次数
+        if image.usage_count > 0:
+            return jsonify({
+                'success': False, 
+                'message': f'此图片正在被 {image.usage_count} 个产品使用，无法删除'
+            }), 400
+        
+        # 删除图片文件
+        if image.image_path:
+            file_path = os.path.join('App_new', 'static', image.image_path)
+            if os.path.exists(file_path):
+                try:
+                    os.remove(file_path)
+                except Exception as e:
+                    current_app.logger.warning(f"删除图片文件失败: {e}")
+        
+        db.session.delete(image)
+        db.session.commit()
+        
+        return jsonify({'success': True, 'message': '图片已删除'})
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'删除失败：{str(e)}'}), 500
+
+
+@staff.route('/image-library/<int:image_id>/update', methods=['POST'])
+@login_required
+@staff_only
+def update_image_library(image_id):
+    """更新图片库信息"""
+    from ...business.tour.models.Packagemodels import ImageLibrary
+    from ...exts import db
+    
+    try:
+        image = ImageLibrary.query.get_or_404(image_id)
+        
+        title = request.form.get('title', '').strip()
+        tags = request.form.get('tags', '').strip()
+        category = request.form.get('category', '').strip()
+        
+        if title:
+            image.title = title
+        if tags:
+            image.tags = tags
+        if category:
+            image.category = category
+        
+        db.session.commit()
+        
+        return jsonify({'success': True, 'message': '更新成功'})
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'更新失败：{str(e)}'}), 500
+
+
+@staff.route('/image-library/batch-upload', methods=['POST'])
+@login_required
+@staff_only
+def batch_upload_image_library():
+    """批量上传图片到图片库"""
+    from ...business.tour.models.Packagemodels import ImageLibrary
+    from ...exts import db
+    
+    try:
+        if 'images' not in request.files:
+            return jsonify({'success': False, 'message': '请选择图片文件'}), 400
+        
+        files = request.files.getlist('images')
+        if not files or all(f.filename == '' for f in files):
+            return jsonify({'success': False, 'message': '请选择至少一张图片'}), 400
+        
+        # 获取批量设置的标签和分类
+        default_tags = request.form.get('default_tags', '').strip()
+        default_category = request.form.get('default_category', 'other').strip()
+        
+        upload_dir = os.path.join('App_new', 'static', 'uploads', 'image_library')
+        os.makedirs(upload_dir, exist_ok=True)
+        
+        success_count = 0
+        failed_files = []
+        
+        for file in files:
+            if not file.filename:
+                continue
+                
+            try:
+                if not allowed_file(file.filename, {'png', 'jpg', 'jpeg', 'gif', 'webp'}):
+                    failed_files.append(f"{file.filename} (格式不支持)")
+                    continue
+                
+                # 保存图片
+                filename = secure_filename(file.filename)
+                import random
+                import string
+                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S_%f')
+                random_suffix = ''.join(random.choices(string.ascii_lowercase + string.digits, k=4))
+                name, ext = os.path.splitext(filename)
+                new_filename = f"library_{timestamp}_{random_suffix}{ext}"
+                
+                file_path = os.path.join(upload_dir, new_filename)
+                file.save(file_path)
+                
+                # 获取图片信息
+                width = height = None
+                try:
+                    from PIL import Image as PILImage
+                    with PILImage.open(file_path) as img:
+                        width, height = img.size
+                except ImportError:
+                    current_app.logger.warning("PIL not available, skipping image size detection")
+                except Exception as e:
+                    current_app.logger.warning(f"Error reading image dimensions: {e}")
+                
+                file_size = os.path.getsize(file_path)
+                
+                # 使用文件名作为标题（去掉扩展名）
+                title = name
+                
+                # 创建数据库记录
+                image = ImageLibrary(
+                    title=title,
+                    image_path=f"uploads/image_library/{new_filename}",
+                    tags=default_tags or None,
+                    category=default_category or 'other',
+                    file_size=file_size,
+                    width=width,
+                    height=height,
+                    is_active=True,
+                    created_by=current_user.username
+                )
+                
+                db.session.add(image)
+                success_count += 1
+                
+            except Exception as e:
+                current_app.logger.error(f"Error uploading {file.filename}: {e}")
+                failed_files.append(f"{file.filename} ({str(e)})")
+                continue
+        
+        db.session.commit()
+        
+        message = f'成功上传 {success_count} 张图片'
+        if failed_files:
+            message += f'，{len(failed_files)} 张失败：' + ', '.join(failed_files[:5])
+            if len(failed_files) > 5:
+                message += f' 等共 {len(failed_files)} 张'
+        
+        return jsonify({
+            'success': True,
+            'message': message,
+            'success_count': success_count,
+            'failed_count': len(failed_files),
+            'failed_files': failed_files
+        })
+        
+    except Exception as e:
+        if 'db' in locals():
+            db.session.rollback()
+        import traceback
+        error_msg = str(e)
+        error_trace = traceback.format_exc()
+        current_app.logger.error(f"批量上传图片失败: {error_msg}\n{error_trace}")
+        # 确保返回JSON格式
+        try:
+            return jsonify({
+                'success': False, 
+                'message': f'批量上传失败：{error_msg}',
+                'error_type': type(e).__name__
+            }), 500
+        except:
+            # 如果连jsonify都失败，返回最简单的JSON字符串
+            from flask import Response
+            return Response(
+                f'{{"success": false, "message": "批量上传失败：{error_msg}"}}',
+                mimetype='application/json',
+                status=500
+            )
+
+
+@staff.route('/image-library/list', methods=['GET'])
+@login_required
+@staff_only
+def list_image_library():
+    """获取图片库列表（API）"""
+    from ...business.tour.models.Packagemodels import ImageLibrary
+    
+    try:
+        category = request.args.get('category', '')
+        search = request.args.get('search', '')
+        page = int(request.args.get('page', 1))
+        per_page = int(request.args.get('per_page', 20))
+        
+        query = ImageLibrary.query.filter_by(is_active=True)
+        
+        if category:
+            query = query.filter_by(category=category)
+        if search:
+            query = query.filter(
+                ImageLibrary.title.contains(search) | 
+                ImageLibrary.tags.contains(search)
+            )
+        
+        pagination = query.order_by(ImageLibrary.created_at.desc()).paginate(
+            page=page, per_page=per_page, error_out=False
+        )
+        
+        images = [{
+            'id': img.id,
+            'title': img.title,
+            'image_path': img.image_path,
+            'tags': img.tags,
+            'category': img.category,
+            'usage_count': img.usage_count or 0,
+            'width': img.width,
+            'height': img.height
+        } for img in pagination.items]
+        
+        return jsonify({
+            'success': True,
+            'images': images,
+            'pagination': {
+                'page': pagination.page,
+                'pages': pagination.pages,
+                'per_page': pagination.per_page,
+                'total': pagination.total
+            }
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500

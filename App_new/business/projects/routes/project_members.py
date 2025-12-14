@@ -34,6 +34,10 @@ def add_member(project_id):
         if not data.get('member_name'):
             return jsonify({'success': False, 'message': '人员姓名不能为空'}), 400
         
+        # 检查是否已有人员，如果没有，则第一个添加的人员自动成为leader
+        existing_members_count = ProjectMember.query.filter_by(header_id=project_id).count()
+        is_first_member = existing_members_count == 0
+        
         member = ProjectMember(
             header_id=project_id,
             title=data.get('title'),
@@ -44,15 +48,22 @@ def add_member(project_id):
             member_email=data.get('member_email'),
             id_type=data.get('id_type'),
             id_number=data.get('id_number'),
-            remarks=data.get('remarks')
+            remarks=data.get('remarks'),
+            is_leader=is_first_member  # 第一个人员自动设为leader
         )
         
         db.session.add(member)
+        
+        # 如果是第一个人员，同时更新项目Header的leader_name字段
+        if is_first_member:
+            leader_name = f"{member.title} {member.member_name}" if member.title else member.member_name
+            header.leader_name = leader_name
+        
         db.session.commit()
         
         return jsonify({
             'success': True,
-            'message': '人员添加成功',
+            'message': '人员添加成功' + ('（已自动设为Leader）' if is_first_member else ''),
             'data': member.to_dict()
         })
     except Exception as e:
@@ -160,10 +171,17 @@ def batch_add_members(project_id):
         if not members_data:
             return jsonify({'success': False, 'message': '人员列表不能为空'}), 400
         
+        # 检查是否已有人员，如果没有，则第一个添加的人员自动成为leader
+        existing_members_count = ProjectMember.query.filter_by(header_id=project_id).count()
+        is_first_batch = existing_members_count == 0
+        
         added_members = []
-        for m_data in members_data:
+        for idx, m_data in enumerate(members_data):
             if not m_data.get('member_name'):
                 continue
+            
+            # 如果是第一批且是第一个人员，自动设为leader
+            is_first_member = is_first_batch and idx == 0
             
             member = ProjectMember(
                 header_id=project_id,
@@ -175,16 +193,26 @@ def batch_add_members(project_id):
                 member_email=m_data.get('member_email'),
                 id_type=m_data.get('id_type'),
                 id_number=m_data.get('id_number'),
-                remarks=m_data.get('remarks')
+                remarks=m_data.get('remarks'),
+                is_leader=is_first_member  # 第一个人员自动设为leader
             )
             db.session.add(member)
             added_members.append(member)
+            
+            # 如果是第一个人员，同时更新项目Header的leader_name字段
+            if is_first_member:
+                leader_name = f"{member.title} {member.member_name}" if member.title else member.member_name
+                header.leader_name = leader_name
         
         db.session.commit()
         
+        message = f'成功添加 {len(added_members)} 名人员'
+        if is_first_batch and added_members:
+            message += '（第一个人员已自动设为Leader）'
+        
         return jsonify({
             'success': True,
-            'message': f'成功添加 {len(added_members)} 名人员',
+            'message': message,
             'data': [m.to_dict() for m in added_members]
         })
     except Exception as e:

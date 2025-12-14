@@ -26,25 +26,73 @@ def dashboard():
         stats = {
             'total_users': AuthUser.query.count(),
             'total_roles': Role.query.count(),
-            'active_users': AuthUser.query.filter_by(is_active=True).count() if hasattr(AuthUser, 'is_active') else AuthUser.query.count(),
+            'active_users': AuthUser.query.filter_by(is_active=True).count(),
             'new_users_this_month': get_new_users_count(),
         }
         
+        # 获取业务数据统计
+        try:
+            from App_new.business.projects.services.project_stats import ProjectStatsService
+            project_stats_service = ProjectStatsService()
+            business_stats = project_stats_service.get_total_stats()
+            
+            # 添加业务统计数据
+            stats.update({
+                'total_projects': business_stats.get('total_projects', 0),
+                'active_projects': business_stats.get('active_projects', 0),
+                'completed_projects': business_stats.get('completed_projects', 0),
+                'total_revenue': round(business_stats.get('total_revenue', 0), 2),
+                'total_cost': round(business_stats.get('total_cost', 0), 2),
+                'total_profit': round(business_stats.get('total_profit', 0), 2),
+                'total_received': round(business_stats.get('total_received', 0), 2),
+            })
+        except Exception as e:
+            current_app.logger.warning(f'获取业务统计数据失败: {str(e)}')
+            # 如果业务统计失败，设置默认值
+            stats.update({
+                'total_projects': 0,
+                'active_projects': 0,
+                'completed_projects': 0,
+                'total_revenue': 0,
+                'total_cost': 0,
+                'total_profit': 0,
+                'total_received': 0,
+            })
+        
+        # 获取系统健康度
+        try:
+            stats['system_health'] = get_system_health()
+        except Exception as e:
+            current_app.logger.warning(f'获取系统健康度失败: {str(e)}')
+            stats['system_health'] = {'status': 'unknown', 'percentage': 0}
+        
         # 获取最近注册的用户
-        recent_users = AuthUser.query.order_by(AuthUser.created_at.desc()).limit(5).all() if hasattr(AuthUser, 'created_at') else []
+        recent_users = AuthUser.query.order_by(AuthUser.created_at.desc()).limit(5).all()
         
         # 获取系统活动
         recent_activities = get_recent_activities()
+        
+        # 获取用户增长数据
+        user_growth_data = get_user_growth_data()
+        
+        # 获取角色分布数据
+        role_distribution = get_role_distribution()
         
         return render_template('admin/dashboard.html', 
                              stats=stats,
                              recent_users=recent_users,
                              recent_activities=recent_activities,
+                             user_growth_data=user_growth_data,
+                             role_distribution=role_distribution,
                              now=datetime.now())
     except Exception as e:
+        # 记录详细错误日志
+        current_app.logger.error(f'加载管理员仪表板失败: {str(e)}', exc_info=True)
         flash(f'加载仪表板失败：{str(e)}', 'error')
         return render_template('admin/dashboard.html',
                              stats={}, recent_users=[], recent_activities=[],
+                             user_growth_data={'labels': [], 'data': []},
+                             role_distribution={},
                              now=datetime.now())
 
 @admin.route('/users')
@@ -504,26 +552,74 @@ def revoke_invitation_code(code_id):
 def get_new_users_count():
     """获取本月新用户数量"""
     try:
-        if hasattr(AuthUser, 'created_at'):
-            first_day = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-            return AuthUser.query.filter(AuthUser.created_at >= first_day).count()
+        first_day = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        return AuthUser.query.filter(AuthUser.created_at >= first_day).count()
+    except (AttributeError, TypeError) as e:
+        # 如果 created_at 字段不存在或查询失败，记录错误并返回0
+        current_app.logger.warning(f'获取本月新用户数量失败: {str(e)}')
         return 0
-    except:
+    except Exception as e:
+        # 其他数据库相关错误
+        current_app.logger.error(f'获取本月新用户数量时发生错误: {str(e)}', exc_info=True)
         return 0
 
 def get_recent_activities():
-    """获取最近系统活动"""
-    activities = [
-        {
-            'type': 'user_register',
-            'title': '系统初始化完成',
-            'description': '管理员账户已创建，系统准备就绪',
+    """获取最近系统活动（从现有数据中提取）"""
+    activities = []
+    try:
+        # 获取最近注册的用户（作为用户注册活动）
+        recent_registered_users = AuthUser.query.order_by(
+            AuthUser.created_at.desc()
+        ).limit(5).all()
+        
+        for user in recent_registered_users:
+            if user.created_at:
+                role_name = user.role.name if user.role else '未知'
+                activities.append({
+                    'type': 'user_register',
+                    'title': f'新用户注册',
+                    'description': f'{user.email} 注册为{role_name}',
+                    'time': user.created_at.strftime('%Y-%m-%d %H:%M'),
+                    'icon': 'fa-user-plus',
+                    'color': 'success'
+                })
+        
+        # 获取最近登录的用户（如果有last_login字段）
+        if hasattr(AuthUser, 'last_login'):
+            recent_logins = AuthUser.query.filter(
+                AuthUser.last_login.isnot(None)
+            ).order_by(
+                AuthUser.last_login.desc()
+            ).limit(3).all()
+            
+            for user in recent_logins:
+                if user.last_login:
+                    activities.append({
+                        'type': 'user_login',
+                        'title': f'用户登录',
+                        'description': f'{user.email} 登录系统',
+                        'time': user.last_login.strftime('%Y-%m-%d %H:%M'),
+                        'icon': 'fa-sign-in-alt',
+                        'color': 'info'
+                    })
+        
+        # 按时间排序，最新的在前
+        activities.sort(key=lambda x: x['time'], reverse=True)
+        
+        # 只返回最近10条活动
+        return activities[:10]
+        
+    except Exception as e:
+        current_app.logger.error(f'获取系统活动失败: {str(e)}', exc_info=True)
+        # 如果获取失败，返回一条默认活动
+        return [{
+            'type': 'system',
+            'title': '系统运行中',
+            'description': '系统正常运行',
             'time': datetime.now().strftime('%Y-%m-%d %H:%M'),
             'icon': 'fa-check-circle',
             'color': 'success'
-        }
-    ]
-    return activities
+        }]
 
 def get_python_version():
     """获取Python版本"""
@@ -535,16 +631,62 @@ def get_flask_version():
     try:
         import flask
         return flask.__version__
-    except:
+    except ImportError:
+        # Flask 未安装
+        return "未知"
+    except AttributeError:
+        # Flask 版本信息不可用
+        return "未知"
+    except Exception as e:
+        current_app.logger.warning(f'获取Flask版本失败: {str(e)}')
         return "未知"
 
 def get_user_growth_data():
-    """获取用户增长数据"""
-    # 模拟数据
-    return {
-        'labels': ['1月', '2月', '3月', '4月', '5月', '6月'],
-        'data': [1, 1, 1, 1, 1, AuthUser.query.count()]
-    }
+    """获取用户增长数据（真实数据）"""
+    try:
+        from sqlalchemy import func, extract
+        
+        # 获取最近6个月的数据
+        six_months_ago = datetime.now() - timedelta(days=180)
+        
+        # 按月统计用户注册数
+        monthly_stats = db.session.query(
+            extract('year', AuthUser.created_at).label('year'),
+            extract('month', AuthUser.created_at).label('month'),
+            func.count(AuthUser.id).label('count')
+        ).filter(
+            AuthUser.created_at >= six_months_ago
+        ).group_by(
+            extract('year', AuthUser.created_at),
+            extract('month', AuthUser.created_at)
+        ).order_by(
+            extract('year', AuthUser.created_at),
+            extract('month', AuthUser.created_at)
+        ).all()
+        
+        labels = []
+        data = []
+        
+        for stat in monthly_stats:
+            labels.append(f"{int(stat.year)}年{int(stat.month)}月")
+            data.append(stat.count)
+        
+        # 如果数据不足6个月，补充前面的月份
+        if len(labels) < 6:
+            current_date = datetime.now()
+            for i in range(6 - len(labels)):
+                month_date = current_date - timedelta(days=30 * (6 - len(labels) - i))
+                labels.insert(0, f"{month_date.year}年{month_date.month}月")
+                data.insert(0, 0)
+        
+        return {
+            'labels': labels[-6:],  # 只返回最近6个月
+            'data': data[-6:]
+        }
+    except Exception as e:
+        current_app.logger.error(f"获取用户增长数据失败: {str(e)}", exc_info=True)
+        # 返回空数据而不是模拟数据
+        return {'labels': [], 'data': []}
 
 def get_role_distribution():
     """获取角色分布数据"""
@@ -555,16 +697,106 @@ def get_role_distribution():
             count = AuthUser.query.filter_by(role_id=role.id).count()
             distribution[role.name] = count
         return distribution
-    except:
+    except Exception as e:
+        current_app.logger.error(f'获取角色分布数据失败: {str(e)}', exc_info=True)
         return {}
 
 def get_activity_stats():
     """获取活动统计"""
-    return {
-        'total_logins': 0,
-        'active_sessions': 1,  # 当前管理员
-        'system_uptime': '运行中'
-    }
+    try:
+        # 获取最近24小时内的登录次数（如果有last_login字段）
+        from datetime import timedelta
+        yesterday = datetime.now() - timedelta(days=1)
+        recent_logins = AuthUser.query.filter(
+            AuthUser.last_login >= yesterday
+        ).count() if hasattr(AuthUser, 'last_login') else 0
+        
+        return {
+            'total_logins': recent_logins,
+            'active_sessions': 1,  # 当前管理员
+            'system_uptime': '运行中'
+        }
+    except Exception as e:
+        current_app.logger.warning(f'获取活动统计失败: {str(e)}')
+        return {
+            'total_logins': 0,
+            'active_sessions': 1,
+            'system_uptime': '运行中'
+        }
+
+def get_system_health():
+    """获取系统健康度"""
+    try:
+        health_score = 100
+        issues = []
+        
+        # 检查数据库连接
+        try:
+            db.session.execute(db.text('SELECT 1'))
+            db.session.commit()
+        except Exception as e:
+            health_score -= 30
+            issues.append('数据库连接异常')
+            current_app.logger.error(f'数据库连接检查失败: {str(e)}')
+        
+        # 检查系统资源（如果psutil可用）
+        try:
+            import psutil
+            cpu_percent = psutil.cpu_percent(interval=0.1)
+            memory = psutil.virtual_memory()
+            disk = psutil.disk_usage('/' if hasattr(psutil, 'disk_usage') else 'C:')
+            
+            # CPU使用率检查
+            if cpu_percent > 90:
+                health_score -= 10
+                issues.append('CPU使用率过高')
+            elif cpu_percent > 70:
+                health_score -= 5
+                issues.append('CPU使用率较高')
+            
+            # 内存使用率检查
+            if memory.percent > 90:
+                health_score -= 10
+                issues.append('内存使用率过高')
+            elif memory.percent > 70:
+                health_score -= 5
+                issues.append('内存使用率较高')
+            
+            # 磁盘使用率检查
+            if disk.percent > 90:
+                health_score -= 10
+                issues.append('磁盘空间不足')
+            elif disk.percent > 70:
+                health_score -= 5
+                issues.append('磁盘空间使用率较高')
+        except ImportError:
+            # psutil未安装，跳过资源检查
+            pass
+        except Exception as e:
+            current_app.logger.warning(f'系统资源检查失败: {str(e)}')
+        
+        # 确定健康状态
+        if health_score >= 90:
+            status = 'excellent'
+        elif health_score >= 70:
+            status = 'good'
+        elif health_score >= 50:
+            status = 'warning'
+        else:
+            status = 'critical'
+        
+        return {
+            'status': status,
+            'percentage': max(0, min(100, health_score)),
+            'issues': issues
+        }
+    except Exception as e:
+        current_app.logger.error(f'获取系统健康度失败: {str(e)}', exc_info=True)
+        return {
+            'status': 'unknown',
+            'percentage': 0,
+            'issues': ['无法获取系统健康度']
+        }
 
 def get_all_roles():
     """获取所有角色（仅用于管理员创建用户）"""

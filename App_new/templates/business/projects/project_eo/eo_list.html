@@ -110,9 +110,16 @@
                     <td><span class="badge bg-primary">{{ eo.eo_number }}</span></td>
                     <td>{{ eo.created_at.strftime('%Y-%m-%d') if eo.created_at else '-' }}</td>
                     <td>
-                        {% if eo.project_id %}
-                        <a href="{{ url_for('business_projects.detail.project_detail', project_id=eo.project_id) }}">{{ eo.project_hid or '-' }}</a>
-                        {% else %}-{% endif %}
+                        {% if eo.project_id and eo.project_hid %}
+                        <a href="{{ url_for('business_projects.detail.project_detail', project_id=eo.project_id) }}" 
+                           class="text-primary text-decoration-none fw-bold"
+                           target="_blank"
+                           title="点击查看项目详情">
+                            {{ eo.project_hid }}
+                        </a>
+                        {% else %}
+                        <span class="text-muted">-</span>
+                        {% endif %}
                     </td>
                     <td>
                         {% if eo.ref_id %}
