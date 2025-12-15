@@ -13,6 +13,10 @@
         transform: translateY(-4px);
         box-shadow: 0 8px 20px rgba(0,0,0,0.15);
     }
+    .image-card.selected {
+        outline: 2px solid #6366f1;
+        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.3);
+    }
     .upload-zone {
         border: 2px dashed #cbd5e1;
         border-radius: 12px;
@@ -28,6 +32,14 @@
     .upload-zone.dragover {
         border-color: #10b981;
         background: #dcfce7;
+    }
+    /* 批量选择复选框样式 */
+    .image-checkbox {
+        background: white;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    }
+    .image-checkbox:checked {
+        background-color: #6366f1;
     }
 </style>
 {% endblock %}
@@ -76,17 +88,50 @@
             </form>
         </div>
 
+        <!-- 批量操作栏 -->
+        {% if images %}
+        <div id="batchActionBar" class="bg-white rounded-xl shadow-md p-4 mb-4 hidden">
+            <div class="flex items-center justify-between flex-wrap gap-3">
+                <div class="flex items-center gap-4">
+                    <label class="flex items-center cursor-pointer">
+                        <input type="checkbox" id="selectAllCheckbox" onchange="toggleSelectAll()" 
+                               class="w-5 h-5 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500">
+                        <span class="ml-2 text-gray-700">全选</span>
+                    </label>
+                    <span class="text-gray-600">已选择 <span id="selectedCount" class="font-bold text-indigo-600">0</span> 张图片</span>
+                </div>
+                <div class="flex items-center gap-3">
+                    <button onclick="cancelBatchSelect()" 
+                            class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors">
+                        <i class="fas fa-times mr-2"></i>取消选择
+                    </button>
+                    <button onclick="batchDeleteImages()" 
+                            class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">
+                        <i class="fas fa-trash mr-2"></i>批量删除
+                    </button>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
         <!-- 图片网格 -->
         {% if images %}
         <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
             {% for image in images %}
-            <div class="bg-white rounded-xl shadow-md overflow-hidden image-card">
+            <div class="bg-white rounded-xl shadow-md overflow-hidden image-card" data-image-id="{{ image.id }}">
                 <div class="relative" style="padding-top: 75%; background: #f3f4f6;">
+                    <!-- 批量选择复选框 -->
+                    <div class="absolute top-2 left-2 z-10">
+                        <input type="checkbox" class="image-checkbox w-5 h-5 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500 cursor-pointer"
+                               data-id="{{ image.id }}" 
+                               data-usage="{{ image.usage_count }}"
+                               onchange="updateBatchSelection()">
+                    </div>
                     <img src="{{ url_for('static', filename=image.image_path) }}" 
                          alt="{{ image.title or '图片' }}"
                          class="absolute top-0 left-0 w-full h-full object-cover cursor-pointer"
-                         onclick="selectImage({{ image.id }}, '{{ image.image_path }}', '{{ image.title or '' }}')"
-                         title="点击选择此图片">
+                         onclick="handleImageClick({{ image.id }}, '{{ image.image_path }}', '{{ image.title or '' }}')"
+                         title="点击查看大图">
                     {% if image.usage_count > 0 %}
                     <div class="absolute top-2 right-2 bg-blue-500 text-white text-xs px-2 py-1 rounded-full">
                         使用 {{ image.usage_count }} 次
@@ -113,7 +158,12 @@
                         <span>{{ image.width }}×{{ image.height }}</span>
                         {% endif %}
                     </div>
-                    <div class="mt-2 flex gap-2">
+                    <div class="mt-2 flex gap-2 flex-wrap">
+                        <!-- 选择按钮 - 只在从产品表单打开时显示 -->
+                        <button onclick="selectImage({{ image.id }}, '{{ image.image_path }}', '{{ image.title or '' }}')" 
+                                class="select-image-btn hidden w-full px-2 py-1.5 bg-green-500 text-white text-xs rounded hover:bg-green-600 transition-colors font-medium">
+                            <i class="fas fa-check mr-1"></i>选择此图片
+                        </button>
                         <button onclick="editImage({{ image.id }}, '{{ image.title or '' }}', '{{ image.tags or '' }}', '{{ image.category or 'other' }}')" 
                                 class="flex-1 px-2 py-1 bg-indigo-100 text-indigo-700 text-xs rounded hover:bg-indigo-200 transition-colors">
                             <i class="fas fa-edit mr-1"></i>编辑
@@ -440,8 +490,14 @@ function deleteImage(id) {
         return;
     }
     
+    // 获取CSRF令牌
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+    
     fetch(`{{ url_for('staff.delete_image_library', image_id=0) }}`.replace('0', id), {
-        method: 'POST'
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': csrfToken
+        }
     })
     .then(response => response.json())
     .then(result => {
@@ -457,17 +513,252 @@ function deleteImage(id) {
     });
 }
 
+// ========================================
+// 批量选择和删除功能
+// ========================================
+
+// 更新批量选择状态
+function updateBatchSelection() {
+    const checkboxes = document.querySelectorAll('.image-checkbox');
+    const checkedBoxes = document.querySelectorAll('.image-checkbox:checked');
+    const batchActionBar = document.getElementById('batchActionBar');
+    const selectedCountEl = document.getElementById('selectedCount');
+    const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+    
+    // 更新已选数量
+    selectedCountEl.textContent = checkedBoxes.length;
+    
+    // 显示/隐藏批量操作栏
+    if (checkedBoxes.length > 0) {
+        batchActionBar.classList.remove('hidden');
+    } else {
+        batchActionBar.classList.add('hidden');
+    }
+    
+    // 更新全选复选框状态
+    if (checkedBoxes.length === checkboxes.length && checkboxes.length > 0) {
+        selectAllCheckbox.checked = true;
+        selectAllCheckbox.indeterminate = false;
+    } else if (checkedBoxes.length > 0) {
+        selectAllCheckbox.checked = false;
+        selectAllCheckbox.indeterminate = true;
+    } else {
+        selectAllCheckbox.checked = false;
+        selectAllCheckbox.indeterminate = false;
+    }
+    
+    // 更新选中卡片的视觉效果
+    checkboxes.forEach(checkbox => {
+        const card = checkbox.closest('.image-card');
+        if (checkbox.checked) {
+            card.style.boxShadow = '0 0 0 3px rgba(99, 102, 241, 0.5)';
+            card.style.transform = 'scale(0.98)';
+        } else {
+            card.style.boxShadow = '';
+            card.style.transform = '';
+        }
+    });
+}
+
+// 全选/取消全选
+function toggleSelectAll() {
+    const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+    const checkboxes = document.querySelectorAll('.image-checkbox');
+    
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = selectAllCheckbox.checked;
+    });
+    
+    updateBatchSelection();
+}
+
+// 取消批量选择
+function cancelBatchSelect() {
+    const checkboxes = document.querySelectorAll('.image-checkbox');
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = false;
+    });
+    updateBatchSelection();
+}
+
+// 批量删除图片
+function batchDeleteImages() {
+    const checkedBoxes = document.querySelectorAll('.image-checkbox:checked');
+    
+    if (checkedBoxes.length === 0) {
+        alert('请先选择要删除的图片');
+        return;
+    }
+    
+    // 检查是否有正在使用中的图片
+    let usedImages = [];
+    let deleteIds = [];
+    
+    checkedBoxes.forEach(checkbox => {
+        const id = parseInt(checkbox.dataset.id);
+        const usageCount = parseInt(checkbox.dataset.usage) || 0;
+        
+        if (usageCount > 0) {
+            usedImages.push({ id, usageCount });
+        } else {
+            deleteIds.push(id);
+        }
+    });
+    
+    // 构建确认消息
+    let confirmMsg = `确定要删除选中的 ${checkedBoxes.length} 张图片吗？`;
+    
+    if (usedImages.length > 0) {
+        confirmMsg += `\n\n⚠️ 注意：其中 ${usedImages.length} 张图片正在被产品使用，将被跳过不会删除。`;
+        confirmMsg += `\n实际可删除：${deleteIds.length} 张`;
+    }
+    
+    if (deleteIds.length === 0) {
+        alert('所选图片都正在被产品使用，无法删除。\n请先解除图片与产品的关联后再删除。');
+        return;
+    }
+    
+    if (!confirm(confirmMsg)) {
+        return;
+    }
+    
+    // 获取CSRF令牌
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+    
+    // 发送批量删除请求
+    fetch('{{ url_for("staff.batch_delete_image_library") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+        },
+        body: JSON.stringify({ image_ids: deleteIds })
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            let msg = `成功删除 ${result.deleted_count} 张图片`;
+            if (result.skipped_count > 0) {
+                msg += `，${result.skipped_count} 张因正在使用被跳过`;
+            }
+            alert(msg);
+            location.reload();
+        } else {
+            alert('批量删除失败：' + result.message);
+        }
+    })
+    .catch(error => {
+        alert('批量删除失败：' + error.message);
+    });
+}
+
+// 检测是否从产品表单打开（选择模式）
+const isSelectMode = !!window.opener;
+
+// 页面加载时，如果是选择模式，显示选择按钮并添加提示
+document.addEventListener('DOMContentLoaded', function() {
+    if (isSelectMode) {
+        // 显示所有选择按钮
+        document.querySelectorAll('.select-image-btn').forEach(btn => {
+            btn.classList.remove('hidden');
+        });
+        
+        // 添加选择模式提示条
+        const header = document.querySelector('.max-w-7xl.mx-auto');
+        if (header) {
+            const alertDiv = document.createElement('div');
+            alertDiv.className = 'bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded-lg mb-4 flex items-center justify-between';
+            alertDiv.innerHTML = `
+                <div>
+                    <i class="fas fa-info-circle mr-2"></i>
+                    <strong>选择模式</strong> - 点击下方"选择此图片"按钮来选择图片
+                </div>
+                <button onclick="window.close()" class="text-green-700 hover:text-green-900 font-medium">
+                    <i class="fas fa-times mr-1"></i>取消
+                </button>
+            `;
+            header.insertBefore(alertDiv, header.firstChild.nextSibling);
+        }
+    }
+});
+
+// 处理图片点击 - 显示预览或在选择模式下提示使用按钮
+function handleImageClick(id, path, title) {
+    if (isSelectMode) {
+        // 选择模式下，显示大图预览并提供选择选项
+        showImagePreview(id, path, title);
+    } else {
+        // 非选择模式下，只显示大图预览
+        showImagePreview(id, path, title, false);
+    }
+}
+
+// 显示图片预览弹窗
+function showImagePreview(id, path, title, showSelectBtn = true) {
+    // 创建预览模态框
+    const modal = document.createElement('div');
+    modal.id = 'imagePreviewModal';
+    modal.className = 'fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4';
+    modal.onclick = function(e) {
+        if (e.target === modal) modal.remove();
+    };
+    
+    const selectBtnHtml = (isSelectMode && showSelectBtn) ? `
+        <button onclick="selectImage(${id}, '${path}', '${title.replace(/'/g, "\\'")}'); document.getElementById('imagePreviewModal').remove();" 
+                class="px-6 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors font-medium">
+            <i class="fas fa-check mr-2"></i>选择此图片
+        </button>
+    ` : '';
+    
+    modal.innerHTML = `
+        <div class="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
+            <div class="p-4 border-b border-gray-200 flex justify-between items-center">
+                <h3 class="text-lg font-bold text-gray-800">${title || '图片预览'}</h3>
+                <button onclick="document.getElementById('imagePreviewModal').remove()" 
+                        class="text-gray-400 hover:text-gray-600">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <div class="p-4 flex justify-center items-center bg-gray-100" style="max-height: 60vh; overflow: auto;">
+                <img src="{{ url_for('static', filename='') }}${path}" 
+                     alt="${title || '图片'}"
+                     class="max-w-full max-h-full object-contain">
+            </div>
+            <div class="p-4 border-t border-gray-200 flex justify-end gap-3">
+                ${selectBtnHtml}
+                <button onclick="document.getElementById('imagePreviewModal').remove()" 
+                        class="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors">
+                    关闭
+                </button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+}
+
 // 选择图片（用于在产品表单中选择）
 function selectImage(id, path, title) {
     // 如果是通过 window.open 打开的，向父窗口发送消息
     if (window.opener) {
-        window.opener.postMessage({
-            type: 'image_selected',
-            image_id: id,
-            image_path: path,
-            image_title: title
-        }, '*');
-        window.close();
+        try {
+            window.opener.postMessage({
+                type: 'image_selected',
+                image_id: id,
+                image_path: path,
+                image_title: title
+            }, '*');
+            
+            // 显示成功提示
+            alert('图片已选择：' + (title || '无标题'));
+            window.close();
+        } catch (e) {
+            alert('选择失败，请重试');
+            console.error('postMessage error:', e);
+        }
+    } else {
+        // 如果不是从产品表单打开，提示用户
+        alert('请从产品编辑页面打开图片库来选择图片');
     }
 }
 
@@ -635,4 +926,5 @@ document.getElementById('batchUploadModal').addEventListener('hidden.bs.modal', 
 });
 </script>
 {% endblock %}
+
 

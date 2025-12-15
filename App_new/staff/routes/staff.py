@@ -1473,6 +1473,64 @@ def delete_image_library(image_id):
         return jsonify({'success': False, 'message': f'删除失败：{str(e)}'}), 500
 
 
+@staff.route('/image-library/batch-delete', methods=['POST'])
+@login_required
+@staff_only
+def batch_delete_image_library():
+    """批量删除图片库中的图片"""
+    from ...business.tour.models.Packagemodels import ImageLibrary
+    from ...exts import db
+    
+    try:
+        data = request.get_json()
+        image_ids = data.get('image_ids', [])
+        
+        if not image_ids:
+            return jsonify({'success': False, 'message': '请选择要删除的图片'}), 400
+        
+        deleted_count = 0
+        skipped_count = 0
+        skipped_reasons = []
+        
+        for image_id in image_ids:
+            image = ImageLibrary.query.get(image_id)
+            if not image:
+                skipped_count += 1
+                continue
+            
+            # 检查使用次数
+            if image.usage_count > 0:
+                skipped_count += 1
+                skipped_reasons.append(f'图片ID {image_id} 正在被使用')
+                continue
+            
+            # 删除图片文件
+            if image.image_path:
+                file_path = os.path.join('App_new', 'static', image.image_path)
+                if os.path.exists(file_path):
+                    try:
+                        os.remove(file_path)
+                    except Exception as e:
+                        current_app.logger.warning(f"删除图片文件失败: {e}")
+            
+            db.session.delete(image)
+            deleted_count += 1
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True, 
+            'message': f'成功删除 {deleted_count} 张图片',
+            'deleted_count': deleted_count,
+            'skipped_count': skipped_count
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"批量删除图片失败: {e}")
+        return jsonify({'success': False, 'message': f'批量删除失败：{str(e)}'}), 500
+
+
 @staff.route('/image-library/<int:image_id>/update', methods=['POST'])
 @login_required
 @staff_only
