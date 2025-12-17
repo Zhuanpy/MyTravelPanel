@@ -5,6 +5,7 @@ from App_new.business.projects.models.eo import ProjectEO
 from App_new.exts import csrf, db
 from App_new.business.projects.forms.eo_forms import ProjectEOForm
 from App_new.utils.decorators import staff_only, admin_only
+from App_new.utils.permissions import can_access_project
 import json
 
 project_eo = Blueprint('project_eo', __name__)
@@ -17,20 +18,11 @@ def create_eo(ref_id):
     ref = ProjectRef.query.get_or_404(ref_id)
     
     # 员工等级权限检查
-    if current_user.role and current_user.role.name == 'staff':
-        # 获取关联的项目信息
-        from App_new.business.projects.models.project import ProjectHeader
-        header = ProjectHeader.query.get(ref.header_id)
-        if header:
-            staff_level = 1  # 默认等级
-            if current_user.profile:
-                staff_level = current_user.profile.staff_level or 1
-            
-            if staff_level == 1:
-                # 1级员工只能操作自己创建的项目
-                if header.staff_name != current_user.username:
-                    flash('您没有权限访问此项目', 'error')
-                    return redirect(url_for('business_projects.list.list_projects'))
+    from App_new.business.projects.models.project import ProjectHeader
+    header = ProjectHeader.query.get(ref.header_id)
+    if header and not can_access_project(header, current_user):
+        flash('您没有权限访问此项目', 'error')
+        return redirect(url_for('business_projects.list.list_projects'))
     form = ProjectEOForm()
     form.ref_id.data = ref_id
     
@@ -78,20 +70,11 @@ def eo_detail(eo_id):
     eo = ProjectEO.query.get_or_404(eo_id)
     
     # 员工等级权限检查
-    if current_user.role and current_user.role.name == 'staff':
-        # 获取关联的项目信息
-        from App_new.business.projects.models.project import ProjectHeader
-        header = ProjectHeader.query.get(eo.ref.header_id)
-        if header:
-            staff_level = 1  # 默认等级
-            if current_user.profile:
-                staff_level = current_user.profile.staff_level or 1
-            
-            if staff_level == 1:
-                # 1级员工只能操作自己创建的项目
-                if header.staff_name != current_user.username:
-                    flash('您没有权限访问此项目', 'error')
-                    return redirect(url_for('business_projects.project_eo.eo_list'))
+    from App_new.business.projects.models.project import ProjectHeader
+    header = ProjectHeader.query.get(eo.ref.header_id)
+    if header and not can_access_project(header, current_user):
+        flash('您没有权限访问此项目', 'error')
+        return redirect(url_for('business_projects.project_eo.eo_list'))
     return render_template('business/projects/project_eo/eo_detail.html', eo=eo)
 
 
@@ -105,17 +88,10 @@ def update_eo(eo_id):
         eo = ProjectEO.query.get_or_404(eo_id)
         
         # 员工等级权限检查
-        if current_user.role and current_user.role.name == 'staff':
-            from App_new.business.projects.models.project import ProjectHeader
-            header = ProjectHeader.query.get(eo.ref.header_id)
-            if header:
-                staff_level = 1
-                if current_user.profile:
-                    staff_level = current_user.profile.staff_level or 1
-                
-                if staff_level == 1:
-                    if header.staff_name != current_user.username:
-                        return jsonify({'success': False, 'message': '您没有权限操作此EO'}), 403
+        from App_new.business.projects.models.project import ProjectHeader
+        header = ProjectHeader.query.get(eo.ref.header_id)
+        if header and not can_access_project(header, current_user):
+            return jsonify({'success': False, 'message': '您没有权限操作此EO'}), 403
         
         # 获取JSON数据
         data = request.get_json()
@@ -670,17 +646,10 @@ def pay_eo(eo_id):
         eo = ProjectEO.query.get_or_404(eo_id)
         
         # 员工等级权限检查
-        if current_user.role and current_user.role.name == 'staff':
-            from App_new.business.projects.models.project import ProjectHeader
-            header = ProjectHeader.query.get(eo.ref.header_id)
-            if header:
-                staff_level = 1
-                if current_user.profile:
-                    staff_level = current_user.profile.staff_level or 1
-                
-                if staff_level == 1:
-                    if header.staff_name != current_user.username:
-                        return jsonify({'success': False, 'message': '您没有权限操作此EO'}), 403
+        from App_new.business.projects.models.project import ProjectHeader
+        header = ProjectHeader.query.get(eo.ref.header_id)
+        if header and not can_access_project(header, current_user):
+            return jsonify({'success': False, 'message': '您没有权限操作此EO'}), 403
         
         # 检查状态
         if eo.status == 'void':
@@ -732,18 +701,11 @@ def void_eo(eo_id):
         eo = ProjectEO.query.get_or_404(eo_id)
         
         # 员工等级权限检查
-        if current_user.role and current_user.role.name == 'staff':
-            from App_new.business.projects.models.project import ProjectHeader
-            header = ProjectHeader.query.get(eo.ref.header_id)
-            if header:
-                staff_level = 1
-                if current_user.profile:
-                    staff_level = current_user.profile.staff_level or 1
-                
-                if staff_level == 1:
-                    if header.staff_name != current_user.username:
-                        return jsonify({'success': False, 'message': '您没有权限操作此EO'}), 403
-        
+        from App_new.business.projects.models.project import ProjectHeader
+        header = ProjectHeader.query.get(eo.ref.header_id)
+        if header and not can_access_project(header, current_user):
+            return jsonify({'success': False, 'message': '您没有权限操作此EO'}), 403
+
         # 检查是否已经作废
         if eo.status == 'void':
             return jsonify({'success': False, 'message': '此EO已经作废'}), 400
@@ -769,22 +731,13 @@ def quick_create_eo(ref_id):
         ref = ProjectRef.query.get_or_404(ref_id)
         
         # 员工等级权限检查
-        if current_user.role and current_user.role.name == 'staff':
-            # 获取关联的项目信息
-            from App_new.business.projects.models.project import ProjectHeader
-            header = ProjectHeader.query.get(ref.header_id)
-            if header:
-                staff_level = 1  # 默认等级
-                if current_user.profile:
-                    staff_level = current_user.profile.staff_level or 1
-                
-                if staff_level == 1:
-                    # 1级员工只能操作自己创建的项目
-                    if header.staff_name != current_user.username:
-                        return jsonify({
-                            'success': False,
-                            'message': '您没有权限访问此项目'
-                        }), 403
+        from App_new.business.projects.models.project import ProjectHeader
+        header = ProjectHeader.query.get(ref.header_id)
+        if header and not can_access_project(header, current_user):
+            return jsonify({
+                'success': False,
+                'message': '您没有权限访问此项目'
+            }), 403
         
         # 检查REF是否已经有有效的EO (排除已作废的)
         db.session.expire_all()  # 刷新会话，确保获取最新数据

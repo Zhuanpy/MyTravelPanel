@@ -5,10 +5,11 @@
 """
 
 from flask import Blueprint, render_template, request, flash, redirect, url_for, jsonify
-from flask_login import login_required
+from flask_login import login_required, current_user
 from ..services.project_service import ProjectService
 from ..services.project_stats import ProjectStatsService
 from App_new.utils.decorators import staff_only
+from App_new.utils.permissions import can_access_project
 
 from App_new.business.projects.models.ref import ProjectRef
 from App_new.exts import db
@@ -37,6 +38,11 @@ def project_detail(project_id):
         # 使用project_id查询ProjectHeader
         header = ProjectHeader.query.get_or_404(project_id)
         print(f"DEBUG: 找到项目 HID: {header.hid}, 描述: {header.desc}")
+        
+        # 员工等级权限检查
+        if not can_access_project(header, current_user):
+            flash('您没有权限访问此项目', 'error')
+            return redirect(url_for('business_projects.list.list_projects'))
         
         # 手动加载相关的REF数据
         refs = ProjectRef.query.filter_by(header_id=project_id).all()

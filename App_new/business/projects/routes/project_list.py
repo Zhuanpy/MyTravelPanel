@@ -146,7 +146,25 @@ def list_projects():
             
             if staff_level == 1:
                 # 1级员工只能看到自己创建的订单
-                base_query = base_query.filter(ProjectHeader.staff_name == current_user.username)
+                # 支持 staff_id 或 staff_name（用户名/全名）匹配
+                user_full_name = current_user.profile.get_full_name() if current_user.profile else None
+                if user_full_name and user_full_name != "未设置姓名":
+                    # 匹配 staff_id 或 staff_name（用户名或全名）
+                    base_query = base_query.filter(
+                        db.or_(
+                            ProjectHeader.staff_id == current_user.id,
+                            ProjectHeader.staff_name == current_user.username,
+                            ProjectHeader.staff_name == user_full_name
+                        )
+                    )
+                else:
+                    # 匹配 staff_id 或 staff_name（用户名）
+                    base_query = base_query.filter(
+                        db.or_(
+                            ProjectHeader.staff_id == current_user.id,
+                            ProjectHeader.staff_name == current_user.username
+                        )
+                    )
             # 2级员工可以看到所有订单，不需要额外过滤
         
         # 应用筛选条件
