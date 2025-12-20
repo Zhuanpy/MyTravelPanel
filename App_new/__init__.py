@@ -224,6 +224,53 @@ def create_app():
             return True
         return False
     
+    @app.template_filter('image_url')
+    def image_url_filter(path):
+        """
+        智能处理图片URL，根据路径格式返回正确的URL
+        
+        支持以下格式：
+        1. 完整URL (http:// 或 https://) - 直接返回
+        2. 相对路径 (uploads/xxx) - 转换为静态文件URL
+        3. 绝对路径 - 提取文件名后转换
+        """
+        from flask import url_for
+        import os
+        
+        if not path:
+            return ''
+        
+        path_str = str(path).replace('\\', '/')
+        
+        # 如果已经是完整URL，直接返回
+        if path_str.startswith('http://') or path_str.startswith('https://'):
+            return path_str
+        
+        # 如果以 /static/ 开头，去掉前缀
+        if path_str.startswith('/static/'):
+            path_str = path_str[8:]
+        
+        # 如果是Windows绝对路径，提取相对路径部分
+        if len(path_str) >= 3 and path_str[1] == ':':
+            # 尝试找到 uploads 或 static 目录
+            for marker in ['uploads/', 'static/']:
+                idx = path_str.lower().find(marker)
+                if idx != -1:
+                    path_str = path_str[idx:]
+                    break
+            else:
+                # 如果找不到标记，使用文件名
+                path_str = os.path.basename(path_str)
+        
+        # 如果以 static/ 开头，去掉它（因为 url_for 会自动添加）
+        if path_str.startswith('static/'):
+            path_str = path_str[7:]
+        
+        try:
+            return url_for('static', filename=path_str)
+        except Exception:
+            return f'/static/{path_str}'
+    
     @app.template_filter('amount_in_words')
     def amount_in_words(amount, currency='SGD'):
         """将金额转换为英文大写形式"""

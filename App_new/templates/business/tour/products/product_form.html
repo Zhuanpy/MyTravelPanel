@@ -341,8 +341,9 @@
                         <input type="hidden" id="selectedCoverImage" name="selected_cover_image">
                         {% if product and product.cover_image %}
                         <div class="visa-mt-2" id="coverImagePreview" style="position: relative; display: inline-block;">
-                            <img src="{{ url_for('static', filename=product.cover_image) }}" 
-                                 style="max-width: 200px; max-height: 150px; border-radius: var(--visa-radius-sm); border: 1px solid var(--visa-border);">
+                            <img src="{{ product.cover_image|image_url }}" 
+                                 style="max-width: 200px; max-height: 150px; border-radius: var(--visa-radius-sm); border: 1px solid var(--visa-border);"
+                                 onerror="this.style.display='none'">
                             <button type="button" onclick="deleteProductFile('cover_image')" 
                                     style="position: absolute; top: -8px; right: -8px; background: #dc2626; color: white; border: none; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; font-size: 12px;"
                                     title="删除封面图">
@@ -366,11 +367,12 @@
                         </small>
                         {% if product and product.gallery_images %}
                         <div class="visa-flex visa-gap-2 visa-mt-2" style="flex-wrap: wrap;" id="galleryImagesContainer">
-                            {% set images = product.gallery_images|from_json if product.gallery_images else [] %}
+                            {% set images = product.gallery_images|fromjson if product.gallery_images else [] %}
                             {% for image in images %}
                             <div style="position: relative; display: inline-block;" id="galleryImage{{ loop.index0 }}">
-                                <img src="{{ url_for('static', filename=image) }}" 
-                                     style="max-width: 100px; max-height: 80px; border-radius: var(--visa-radius-sm); border: 1px solid var(--visa-border);">
+                                <img src="{{ image|image_url }}" 
+                                     style="max-width: 100px; max-height: 80px; border-radius: var(--visa-radius-sm); border: 1px solid var(--visa-border);"
+                                     onerror="this.style.display='none'">
                                 <button type="button" onclick="deleteProductFile('gallery_image', {{ loop.index0 }})" 
                                         style="position: absolute; top: -6px; right: -6px; background: #dc2626; color: white; border: none; border-radius: 50%; width: 20px; height: 20px; cursor: pointer; font-size: 10px;"
                                         title="删除图片">

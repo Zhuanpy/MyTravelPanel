@@ -36,19 +36,51 @@
 
   /* 打印样式 */
   @media print {
-    /* 隐藏不需要打印的元素 */
-    .btn, .btn-group, .collapse, .card-header .btn-group,
-    .navbar, .sidebar, .breadcrumb, .alert,
-    #addItemForm, .mt-3.text-end {
+    /* 隐藏所有不需要打印的元素 */
+    .navbar,
+    .sidebar,
+    #sidebar,
+    .sidebar-overlay,
+    .breadcrumb,
+    nav[aria-label="breadcrumb"],
+    .alert,
+    .btn,
+    .btn-group,
+    .collapse:not(.show),
+    #addItemForm,
+    .mt-3.text-end,
+    .card-header .btn-group,
+    .page-actions,
+    .d-flex.justify-content-between.flex-wrap h1 + div,
+    footer {
       display: none !important;
     }
     
-    /* 打印页面设置 */
+    /* 重置页面布局 */
     body {
       font-size: 12px;
       line-height: 1.4;
-      color: #000;
-      background: white;
+      color: #000 !important;
+      background: white !important;
+      margin: 0 !important;
+      padding: 0 !important;
+    }
+    
+    /* 重置主内容区域 - 移除侧边栏偏移 */
+    main,
+    .col-md-10,
+    .ms-sm-auto,
+    .col-lg-11 {
+      width: 100% !important;
+      max-width: 100% !important;
+      margin: 0 !important;
+      padding: 10px !important;
+      flex: 0 0 100% !important;
+    }
+    
+    /* 隐藏容器布局 */
+    .container-fluid > .row {
+      display: block !important;
     }
     
     /* 打印容器 */
@@ -58,7 +90,7 @@
       padding: 0 !important;
     }
     
-    /* 标题样式 */
+    /* 页面标题样式 */
     h2 {
       font-size: 18px;
       margin-bottom: 15px;
@@ -67,17 +99,25 @@
       padding-bottom: 10px;
     }
     
+    /* 隐藏页面标题区域的按钮 */
+    .col-md-4.text-end {
+      display: none !important;
+    }
+    
     /* 卡片样式 */
     .card {
-      border: 1px solid #000;
+      border: 1px solid #000 !important;
       margin-bottom: 15px;
       break-inside: avoid;
+      box-shadow: none !important;
     }
     
     .card-header {
       background: #f8f9fa !important;
-      border-bottom: 1px solid #000;
+      border-bottom: 1px solid #000 !important;
       padding: 8px 12px;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
     }
     
     .card-title {
@@ -99,7 +139,7 @@
     }
     
     .table th, .table td {
-      border: 1px solid #000;
+      border: 1px solid #000 !important;
       padding: 4px 6px;
       vertical-align: top;
     }
@@ -108,17 +148,102 @@
       background: #f8f9fa !important;
       font-weight: bold;
       text-align: center;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
     }
     
     .table tfoot td {
       background: #f8f9fa !important;
       font-weight: bold;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
     }
     
-    /* 基本信息表格 */
+    /* 只隐藏明细表格的操作列（有 table-hover 类的表格） */
+    .table.table-hover th:last-child,
+    .table.table-hover td:last-child {
+      display: none !important;
+    }
+    
+    /* 修复 tfoot 人均价格总价显示 - 右对齐 */
+    .table.table-hover tfoot .print-total-row {
+      background: #f8f9fa !important;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    .table.table-hover tfoot .print-total-cell {
+      text-align: right !important;
+      padding: 10px 15px !important;
+      font-weight: bold !important;
+      border: 1px solid #000 !important;
+    }
+    .table.table-hover tfoot .d-print-none {
+      display: none !important;
+    }
+    
+    /* 基本信息表格 - 保持两列都显示，左对齐 */
+    .table-borderless {
+      width: 100% !important;
+      text-align: left !important;
+    }
     .table-borderless td {
       border: none !important;
-      padding: 2px 0;
+      padding: 4px 8px !important;
+      display: table-cell !important;
+      visibility: visible !important;
+      text-align: left !important;
+    }
+    .table-borderless td:first-child {
+      width: 100px !important;
+      white-space: nowrap !important;
+    }
+    .table-borderless tr {
+      display: table-row !important;
+    }
+    
+    /* 基本信息卡片两列布局 */
+    .card-body .row .col-md-6 {
+      width: 50% !important;
+      float: left !important;
+      padding: 0 10px !important;
+    }
+    
+    /* 价格汇总和分类统计 - 左对齐 */
+    .d-flex.justify-content-between {
+      justify-content: flex-start !important;
+    }
+    .d-flex.justify-content-between span,
+    .d-flex.justify-content-between strong {
+      margin-right: 15px !important;
+      text-align: left !important;
+    }
+    .d-flex.justify-content-between span:last-child,
+    .d-flex.justify-content-between strong:last-child {
+      margin-right: 0 !important;
+    }
+    
+    /* 价格汇总和分类统计 - 并排显示 */
+    .col-md-4 {
+      width: 100% !important;
+      display: flex !important;
+      flex-wrap: wrap !important;
+      gap: 15px !important;
+      padding: 0 !important;
+    }
+    .col-md-4 > .card {
+      flex: 1 1 45% !important;
+      margin-bottom: 0 !important;
+      min-width: 200px !important;
+    }
+    .col-md-8 {
+      width: 100% !important;
+    }
+    
+    /* 清除浮动 */
+    .row::after {
+      content: "" !important;
+      display: table !important;
+      clear: both !important;
     }
     
     /* 徽章样式 */
@@ -128,6 +253,8 @@
       border: 1px solid #000;
       padding: 1px 4px;
       font-size: 10px;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
     }
     
     /* 文本样式 */
@@ -135,7 +262,7 @@
       color: #666 !important;
     }
     
-    .text-primary {
+    .text-primary, .text-success, .text-info {
       color: #000 !important;
     }
     
@@ -154,6 +281,39 @@
     
     .table tr {
       page-break-inside: avoid;
+    }
+    
+    /* 打印页面设置 */
+    @page {
+      margin: 1cm;
+      size: A4;
+    }
+    
+    /* 避免最后空白页 */
+    html, body {
+      height: auto !important;
+      overflow: visible !important;
+    }
+    
+    .budget-container {
+      page-break-after: avoid !important;
+    }
+    
+    /* 隐藏添加项目表单区域 */
+    #addItemForm,
+    .collapse,
+    .mt-3.text-end {
+      display: none !important;
+      height: 0 !important;
+      overflow: hidden !important;
+      margin: 0 !important;
+      padding: 0 !important;
+    }
+    
+    /* 确保最后一个元素不产生额外分页 */
+    .card:last-child {
+      margin-bottom: 0 !important;
+      page-break-after: avoid !important;
     }
   }
 </style>
@@ -361,14 +521,14 @@
                                     <br><small class="text-muted">{{ "%.2f"|format(item.item_unit_price or 0) }} × {{ item.item_quantity or 1 }}</small>
                                 {% else %}
                                     <span class="badge bg-success">人均计价</span>
-                                    <br><small class="text-muted">成人: {{ "%.2f"|format(item.adult_price or 0) }} | 儿童: {{ "%.2f"|format(item.child_price or 0) }}</small>
+                                    <br><small class="text-muted">成人: {{ "%.2f"|format(item.adult_price or 0) }}{% if budget.child_count > 0 %} | 儿童: {{ "%.2f"|format(item.child_price or 0) }}{% endif %}</small>
                                 {% endif %}
                             </td>
                             <td class="text-center">
                                 {% if item.count_adult_apply %}
                                     <span class="badge bg-info">成人: {{ item.adult_count_override or budget.adult_count }}</span>
                                 {% endif %}
-                                {% if item.count_child_apply %}
+                                {% if item.count_child_apply and (budget.child_count > 0 or item.child_count_override) %}
                                     <span class="badge bg-warning">儿童: {{ item.child_count_override or budget.child_count }}</span>
                                 {% endif %}
                             </td>
@@ -399,10 +559,9 @@
                         {% endfor %}
                     </tbody>
                     <tfoot>
-                        <tr>
-                            <td colspan="6"></td>
-                            <td class="text-end fw-bold text-primary">人均价格总价：{{ "%.2f"|format(ns.total) }}</td>
-                            <td></td>
+                        <tr class="print-total-row">
+                            <td colspan="7" class="text-end fw-bold text-primary print-total-cell">人均价格总价：{{ "%.2f"|format(ns.total) }}</td>
+                            <td class="d-print-none"></td>
                         </tr>
                     </tfoot>
                 </table>
@@ -416,7 +575,7 @@
             
             <!-- 添加项目按钮 -->
             <div class="mt-3 text-end">
-                <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="collapse" data-bs-target="#addItemForm">
+                <button type="button" class="btn btn-primary btn-sm" id="toggleAddItemBtn">
                     <i class="fas fa-plus"></i> 添加项目
                 </button>
             </div>
@@ -428,11 +587,11 @@
         <div class="card mt-3">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h6 class="card-title mb-0"><i class="fas fa-plus"></i> 添加明细项目</h6>
-                <button type="button" class="btn-close" data-bs-toggle="collapse" data-bs-target="#addItemForm" aria-label="Close"></button>
+                <button type="button" class="btn-close" id="closeAddItemBtn" aria-label="Close"></button>
             </div>
             <div class="card-body">
                 <form method="post" action="{{ url_for('package_budget.add_item', budget_id=budget.id) }}" id="itemForm">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token else '' }}"/>
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                     <div class="row">
                         <div class="col-md-6">
                             <div class="form-group">
@@ -682,21 +841,48 @@ if (itemForm) {
 document.addEventListener('DOMContentLoaded', function() {
     console.log('DOMContentLoaded 事件触发');
     
-    // 监听 collapse 事件
+    // 手动控制 collapse - 直接操作 CSS 类
     const addItemFormCollapse = document.getElementById('addItemForm');
-    if (addItemFormCollapse) {
-        addItemFormCollapse.addEventListener('show.bs.collapse', function () {
-            console.log('Collapse 正在展开');
-        });
-        addItemFormCollapse.addEventListener('shown.bs.collapse', function () {
-            console.log('Collapse 已完全展开');
-        });
-        addItemFormCollapse.addEventListener('hide.bs.collapse', function () {
-            console.log('Collapse 正在关闭');
-        });
-        addItemFormCollapse.addEventListener('hidden.bs.collapse', function () {
-            console.log('Collapse 已完全关闭');
-        });
+    const toggleAddItemBtn = document.getElementById('toggleAddItemBtn');
+    const closeAddItemBtn = document.getElementById('closeAddItemBtn');
+    
+    console.log('toggleAddItemBtn 找到:', toggleAddItemBtn);
+    console.log('addItemFormCollapse 找到:', addItemFormCollapse);
+    
+    if (addItemFormCollapse && toggleAddItemBtn) {
+        console.log('开始绑定事件...');
+        
+        // 添加项目按钮点击事件
+        toggleAddItemBtn.onclick = function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const isHidden = addItemFormCollapse.style.display === 'none' || 
+                            addItemFormCollapse.classList.contains('collapse');
+            
+            if (!isHidden && addItemFormCollapse.classList.contains('show')) {
+                // 关闭
+                addItemFormCollapse.classList.remove('show');
+                addItemFormCollapse.classList.add('collapse');
+            } else {
+                // 展开 - 移除 collapse 类，添加 show 类
+                addItemFormCollapse.classList.remove('collapse');
+                addItemFormCollapse.classList.add('show');
+            }
+            
+            return false;
+        };
+        
+        // 关闭按钮点击事件
+        if (closeAddItemBtn) {
+            closeAddItemBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+                addItemFormCollapse.classList.remove('show');
+                addItemFormCollapse.style.height = '';
+            });
+        }
     }
     
     const pricingMethodInputs = document.querySelectorAll('input[name="pricing_method"]');

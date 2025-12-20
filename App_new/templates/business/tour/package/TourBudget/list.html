@@ -3,6 +3,42 @@
 {% block title %}预算列表 - MyTravelPanel{% endblock %}
 
 {% block page_title %}预算列表{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* 修复表格样式 */
+    .table {
+        border-collapse: collapse !important;
+        border-spacing: 0 !important;
+    }
+    .table thead th,
+    .table tbody td {
+        vertical-align: middle !important;
+        padding: 8px !important;
+        line-height: 1.5 !important;
+    }
+    /* 移除可能的额外边距 */
+    .table thead,
+    .table tbody,
+    .table tr,
+    .table th,
+    .table td {
+        margin: 0 !important;
+        border-spacing: 0 !important;
+    }
+    /* 操作列样式 */
+    .table td:last-child,
+    .table th:last-child {
+        white-space: nowrap !important;
+        text-align: center !important;
+    }
+    /* 修复 table-striped 可能的问题 */
+    .table-striped > tbody > tr:nth-of-type(odd) > * {
+        --bs-table-accent-bg: rgba(0, 0, 0, 0.05);
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container">
     <div class="row mb-3">
@@ -112,22 +148,7 @@
                             </td>
                             <td>{{ budget.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
                             <td>{{ budget.created_by or '-' }}</td>
-                            <td>
-                                <div class="btn-group" role="group">
-                                    <a href="{{ url_for('package_budget.detail', budget_id=budget.id) }}" 
-                                       class="btn btn-sm btn-outline-primary" title="查看详情">
-                                        <i class="fas fa-eye"></i>
-                                    </a>
-                                    <a href="{{ url_for('package_budget.edit', budget_id=budget.id) }}" 
-                                       class="btn btn-sm btn-outline-warning" title="编辑">
-                                        <i class="fas fa-edit"></i>
-                                    </a>
-                                    <button type="button" class="btn btn-sm btn-outline-danger" 
-                                            onclick="deleteBudget({{ budget.id }})" title="删除">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
-                                </div>
-                            </td>
+                            <td class="text-nowrap"><a href="{{ url_for('package_budget.detail', budget_id=budget.id) }}" class="btn btn-sm btn-outline-primary" title="查看详情"><i class="fas fa-eye"></i></a> <a href="{{ url_for('package_budget.edit', budget_id=budget.id) }}" class="btn btn-sm btn-outline-warning" title="编辑"><i class="fas fa-edit"></i></a> <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteBudget({{ budget.id }})" title="删除"><i class="fas fa-trash"></i></button></td>
                         </tr>
                         {% endfor %}
                     </tbody>

@@ -1,371 +1,415 @@
-﻿{% extends 'shared/staff_base.html' %}
+{% extends 'shared/staff_base.html' %}
 
 {% block title %}编辑旅游项目 - {{ project.project_name }}{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/staff_common.css') }}">
+<script src="https://cdn.tailwindcss.com"></script>
 <style>
-/* 页面专用样式 - 图片上传 */
-.image-upload-container {
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
-}
+    /* 信息卡片样式 */
+    .info-card {
+        background: #f8fafc;
+        border-radius: 12px;
+        padding: 1rem 1.25rem;
+        border: 1px solid #e2e8f0;
+        transition: all 0.2s ease;
+    }
+    .info-card:hover {
+        background: #f1f5f9;
+        border-color: #cbd5e1;
+    }
+    .info-card h6 {
+        font-size: 0.75rem;
+        color: #64748b;
+        margin: 0 0 0.25rem 0;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+    .info-card p {
+        font-size: 0.95rem;
+        color: #1e293b;
+        margin: 0;
+        font-weight: 500;
+    }
+    
+    /* 团卡片样式 */
+    .group-card {
+        background: white;
+        border-radius: 16px;
+        overflow: hidden;
+        border: 1px solid #e5e7eb;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        transition: all 0.3s ease;
+        margin-bottom: 1.5rem;
+    }
+    .group-card:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    .group-header {
+        background: linear-gradient(135deg, #0ea5e9, #0284c7);
+        color: white;
+        padding: 1.25rem 1.5rem;
+    }
+    .group-header h3 {
+        margin: 0;
+        font-size: 1.125rem;
+        font-weight: 600;
+    }
+    .group-body {
+        padding: 1.5rem;
+    }
+    
+    /* 行程表格样式 */
+    .itinerary-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        border-radius: 12px;
+        overflow: hidden;
+        border: 1px solid #e5e7eb;
+        text-align: left !important;
+    }
+    .itinerary-table thead th {
+        background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+        padding: 0.875rem 1rem;
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: #475569;
+        text-align: left !important;
+        border-bottom: 2px solid #e5e7eb;
+    }
+    .itinerary-table tbody tr {
+        text-align: left !important;
+    }
+    .itinerary-table tbody td {
+        padding: 0.875rem 1rem;
+        border-bottom: 1px solid #f1f5f9;
+        font-size: 0.9rem;
+        color: #334155;
+        text-align: left !important;
+        vertical-align: top;
+    }
+    .itinerary-table tbody td * {
+        text-align: left !important;
+    }
+    .itinerary-table tbody td:nth-child(4) {
+        text-align: left !important;
+        white-space: pre-line;
+        word-break: break-word;
+        max-width: 400px;
+    }
+    .itinerary-table tbody tr:hover {
+        background: #f8fafc;
+    }
+    .itinerary-table tbody tr:last-child td {
+        border-bottom: none;
+    }
 
-.image-upload-item {
-    border: 1px solid var(--visa-border);
-    border-radius: var(--visa-radius-sm);
-    padding: 10px;
-    background-color: var(--visa-bg-light);
-}
-
-.current-image img {
-    border: 1px solid var(--visa-border);
-    border-radius: var(--visa-radius-sm);
-}
+    /* 图片上传样式 */
+    .image-upload-container {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1rem;
+    }
+    .image-upload-item {
+        background: #f8fafc;
+        border: 2px dashed #e2e8f0;
+        border-radius: 12px;
+        padding: 1rem;
+        text-align: center;
+        transition: all 0.2s ease;
+    }
+    .image-upload-item:hover {
+        border-color: #10b981;
+        background: #f0fdf4;
+    }
+    .current-image img {
+        max-width: 100px;
+        max-height: 80px;
+        border-radius: 8px;
+        object-fit: cover;
+    }
+    
+    /* 区块样式 */
+    .section-card {
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        margin-bottom: 1.5rem;
+        overflow: hidden;
+    }
+    .section-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid #e5e7eb;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .section-body {
+        padding: 1.5rem;
+    }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="visa-container-lg">
-        <!-- 项目头部 -->
-    <div class="visa-card visa-text-center visa-mb-4" style="background: linear-gradient(135deg, var(--visa-success), #059669); color: white; padding: 2rem;">
-        <h1 class="visa-page-title" style="color: white; margin-bottom: 0.5rem;">{{ project.project_name }}</h1>
-        <p style="margin: 0; opacity: 0.9;">项目ID: {{ project.id }} | 创建时间: {{ project.created_at.strftime('%Y-%m-%d') }}</p>
+<div class="bg-gray-50 min-h-screen p-4 md:p-6">
+    <div class="max-w-7xl mx-auto">
+        <!-- 页面头部 -->
+        <div class="flex items-center justify-between mb-6">
+            <div class="flex items-center gap-4">
+                <a href="{{ url_for('tour_projects.manage_tour_projects') }}" class="inline-flex items-center justify-center w-10 h-10 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors">
+                    <i class="fas fa-arrow-left"></i>
+                </a>
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-800 m-0">{{ project.project_name }}</h1>
+                    <p class="text-gray-500 text-sm m-0">项目ID: {{ project.id }}</p>
+                </div>
+            </div>
         </div>
 
         <!-- 闪现消息 -->
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 {% for category, message in messages %}
-                <div class="visa-card visa-mb-2" style="{% if category == 'success' %}background: #d1fae5; border-left: 4px solid #10b981; color: #065f46;{% else %}background: #fee2e2; border-left: 4px solid #ef4444; color: #991b1b;{% endif %}">
-                        {{ message }}
+                    <div class="mb-4 p-4 rounded-xl {% if category == 'success' %}bg-green-50 border-l-4 border-green-500 text-green-700{% else %}bg-red-50 border-l-4 border-red-500 text-red-700{% endif %}">
+                        <div class="flex items-center gap-2">
+                            <i class="fas {% if category == 'success' %}fa-check-circle{% else %}fa-exclamation-circle{% endif %}"></i>
+                            <span>{{ message }}</span>
+                        </div>
                     </div>
                 {% endfor %}
             {% endif %}
         {% endwith %}
 
-        <!-- 项目基本信息 -->
-    <div class="visa-card visa-mb-4">
-        <div class="visa-card-header" style="background: linear-gradient(135deg, var(--visa-success), #059669); color: white;">
-            <h2 style="color: white; margin: 0;"><i class="fas fa-info-circle"></i> 项目基本信息</h2>
-            <button class="visa-btn visa-btn-sm" onclick="editProjectInfo()" style="background: white; color: var(--visa-success);">
-                <i class="fas fa-edit"></i> 编辑
-            </button>
-            </div>
-        <div class="visa-card-body">
-            <div class="visa-grid-4 visa-mb-3">
-                <div class="info-item">
-                    <div class="info-content">
-                        <h6>项目名称</h6>
-                        <p>{{ project.project_name }}</p>
-                        </div>
-                        </div>
-                <div class="info-item">
-                    <div class="info-content">
-                        <h6>项目HID</h6>
-                        <p>{{ project.project_hid or '未设置' }}</p>
-                        </div>
-                        </div>
-                <div class="info-item">
-                    <div class="info-content">
-                        <h6>项目类型</h6>
-                        <p>{{ project.project_type or '未设置' }}</p>
-                        </div>
-                        </div>
-                <div class="info-item">
-                    <div class="info-content">
-                        <h6>项目状态</h6>
-                        <p><span class="visa-badge visa-badge-{{ 'success' if project.project_status == '已完成' else 'warning' if project.project_status == '待出行' else 'info' }}">{{ project.project_status }}</span></p>
-                        </div>
-                    </div>
-                <div class="info-item">
-                    <div class="info-content">
-                        <h6>联系人</h6>
-                        <p>{{ project.contact_person }}</p>
-                    </div>
-                    </div>
-                <div class="info-item">
-                    <div class="info-content">
-                        <h6>联系方式</h6>
-                        <p>{{ project.contact_info }}</p>
-            </div>
-        </div>
-                <div class="info-item">
-                    <div class="info-content">
-                        <h6>项目预算</h6>
-                        <p>{{ 'SGD %.2f'|format(project.budget) if project.budget else '未设置' }}</p>
-            </div>
-                </div>
-                <div class="info-item">
-                    <div class="info-content">
-                        <h6>创建时间</h6>
-                        <p>{{ project.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
-                    </div>
-                </div>
-            </div>
-            {% if project.remarks %}
-            <div class="visa-form-group">
-                <label class="visa-form-label">备注</label>
-                <div style="padding: 0.75rem; background: var(--visa-bg-light); border-radius: var(--visa-radius-sm); color: var(--visa-text-primary);">
-                    {{ project.remarks }}
-            </div>
-        </div>
-        {% endif %}
-        </div>
-    </div>
-
-        <!-- 团队管理 -->
-    <div class="visa-card visa-mb-4">
-        <div class="visa-card-header" style="background: linear-gradient(135deg, #0ea5e9, #0284c7); color: white;">
-            <h2 style="color: white; margin: 0;"><i class="fas fa-users"></i> 团队管理</h2>
-            <button class="visa-btn visa-btn-sm" onclick="showCreateGroupModal()" style="background: white; color: #0ea5e9;">
-                <i class="fas fa-plus"></i> 创建团队
+        <!-- 基本信息区块 -->
+        <div class="bg-white rounded-2xl shadow-md p-6">
+            <!-- 项目基本信息 -->
+            <div class="flex justify-between items-center mb-3">
+                <h4 class="text-sm font-semibold text-gray-700 flex items-center gap-2 m-0">
+                    <i class="fas fa-info-circle text-green-500"></i> 项目基本信息
+                </h4>
+                <button type="button" onclick="editProjectInfo()" class="inline-flex items-center gap-1 px-3 py-1.5 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-xs font-medium">
+                    <i class="fas fa-edit"></i> 编辑项目
                 </button>
             </div>
-        <div class="visa-card-body">
-                {% if groups %}
-                    {% for group in groups %}
-                <div class="visa-card" style="margin-bottom: 2rem; border-left: 4px solid #0ea5e9;" data-group-id="{{ group.id }}">
-                    <div class="visa-card-header" style="background: #f0f9ff; border-bottom: 1px solid #bae6fd;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-                            <h3 style="margin: 0; font-size: 1.125rem; font-weight: 600; color: #075985;">
-                                <i class="fas fa-suitcase-rolling" style="color: #0ea5e9;"></i> {{ group.title }}
-                            </h3>
-                            <div class="visa-flex visa-gap-2">
-                                <a href="{{ url_for('tour_projects.view_tour_group', group_id=group.id) }}" class="visa-btn visa-btn-success visa-btn-sm" target="_blank">
-                                    <i class="fas fa-print"></i> 确认书
-                                </a>
-                                <a href="{{ url_for('tour_projects.view_tour_itinerary', group_id=group.id) }}" class="visa-btn visa-btn-info visa-btn-sm" target="_blank">
-                                    <i class="fas fa-route"></i> 行程单
-                                </a>
-                                <button class="visa-btn visa-btn-primary visa-btn-sm" onclick="editGroup({{ group.id }})">
-                                    <i class="fas fa-edit"></i> 编辑
-                                </button>
-                                <button class="visa-btn visa-btn-danger visa-btn-sm" onclick="deleteGroup({{ group.id }})">
-                                    <i class="fas fa-trash"></i> 删除
-                                </button>
-                            </div>
-                        </div>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                    <div class="info-card">
+                        <h6>项目名称</h6>
+                        <p>{{ project.project_name }}</p>
                     </div>
-                    <div class="visa-card-body">
-                    <div class="visa-grid-4 visa-mb-3">
-                                <div class="info-item">
-                            <div class="info-content">
-                                <h6>出发日期</h6>
-                                <p>{{ group.departure_date.strftime('%Y-%m-%d') }}</p>
-                            </div>
-                                </div>
-                                <div class="info-item">
-                            <div class="info-content">
-                                <h6>返回日期</h6>
-                                <p>{{ group.return_date.strftime('%Y-%m-%d') }}</p>
-                            </div>
-                                </div>
-                                <div class="info-item">
-                            <div class="info-content">
-                                <h6>人数</h6>
-                                <p>{{ group.pax }}人</p>
-                            </div>
-                                </div>
-                                <div class="info-item">
-                            <div class="info-content">
-                                <h6>旅行社</h6>
-                                <p>{{ group.agency or '未设置' }}</p>
-                            </div>
-                                </div>
-                                <div class="info-item">
-                            <div class="info-content">
-                                <h6>地接社</h6>
-                                <p>{{ group.operator or '未设置' }}</p>
-                            </div>
-                                </div>
-                                <div class="info-item">
-                            <div class="info-content">
-                                <h6>团状态</h6>
-                                <p>{{ group.group_status or '未设置' }}</p>
-                            </div>
-                                </div>
-                            </div>
-
-                            <!-- 行程列表 -->
-                    <div style="margin-top: 2rem; padding-top: 1.5rem; border-top: 2px dashed var(--visa-border);">
-                        <div class="visa-flex-between visa-mb-3">
-                            <h4 style="margin: 0; color: #075985; font-size: 1rem;">
-                                <i class="fas fa-map-marked-alt" style="color: #0ea5e9;"></i> 每日行程安排
-                            </h4>
-                            <div class="visa-flex visa-gap-2">
-                                <a class="visa-btn visa-btn-success visa-btn-sm" href="{{ url_for('package_budget.create', package_name=project.project_name, adult_count=group.pax, child_count=0, currency='SGD') }}" target="_blank" title="为此行程新建价格预算">
-                                    <i class="fas fa-calculator"></i> 价格预算
-                                </a>
-                                <button class="visa-btn visa-btn-sm" onclick="addItinerary({{ group.id }})" style="background: #0ea5e9; color: white;">
-                                    <i class="fas fa-plus"></i> 添加行程
-                                </button>
-                                <button class="visa-btn visa-btn-sm" onclick="autoGenerateItineraries({{ group.id }})" style="background: #8b5cf6; color: white;">
-                                    <i class="fas fa-magic"></i> 自动生成
-                                </button>
-                            </div>
-                        </div>
-                    {% if group.itineraries %}
-                    <div style="overflow-x: auto;">
-                        <table class="visa-table">
-                                    <thead>
-                                        <tr>
-                                            <th>日期</th>
-                                            <th>天数</th>
-                                            <th>日期标题</th>
-                                            <th>行程内容</th>
-                                            <th>操作</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {% for itinerary in group.itineraries %}
-                                        <tr>
-                                            <td>{{ itinerary.date.strftime('%Y-%m-%d') }}</td>
-                                            <td>第{{ loop.index }}天</td>
-                                            <td>{{ itinerary.day_title }}</td>
-                                            <td>{{ itinerary.content[:100] }}{% if itinerary.content|length > 100 %}...{% endif %}</td>
-                                            <td>
-                                        <div class="visa-flex visa-gap-2">
-                                            <button class="visa-btn visa-btn-primary visa-btn-sm" onclick="editItinerary({{ itinerary.id }})">
-                                                        编辑
-                                                    </button>
-                                            <button class="visa-btn visa-btn-danger visa-btn-sm" onclick="deleteItinerary({{ itinerary.id }})">
-                                                        删除
-                                                    </button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                        {% endfor %}
-                                    </tbody>
-                                </table>
-                            </div>
+                    <div class="info-card">
+                        <h6>项目HID</h6>
+                        <p style="{% if not project.project_hid %}color: #94a3b8; font-style: italic;{% endif %}">
+                            {{ project.project_hid or '未设置' }}
+                        </p>
+                    </div>
+                    <div class="info-card">
+                        <h6>项目类型</h6>
+                        <p style="{% if not project.project_type %}color: #94a3b8; font-style: italic;{% endif %}">
+                            {{ project.project_type or '未设置' }}
+                        </p>
+                    </div>
+                    <div class="info-card">
+                        <h6>项目状态</h6>
+                        <p>
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium 
+                                {% if project.project_status == '进行中' or project.project_status == '处理中' %}bg-green-100 text-green-800
+                                {% elif project.project_status == '已完成' %}bg-blue-100 text-blue-800
+                                {% elif project.project_status == '已取消' or project.project_status == '忽略单' %}bg-red-100 text-red-800
+                                {% else %}bg-gray-100 text-gray-800{% endif %}">
+                                {{ project.project_status or '未设置' }}
+                            </span>
+                        </p>
+                    </div>
+                    <div class="info-card">
+                        <h6>联系人</h6>
+                        <p style="{% if not project.contact_person %}color: #94a3b8; font-style: italic;{% endif %}">
+                            {{ project.contact_person or '未设置' }}
+                        </p>
+                    </div>
+                    <div class="info-card">
+                        <h6>联系方式</h6>
+                        <p style="{% if not project.contact_info %}color: #94a3b8; font-style: italic;{% endif %}">
+                            {{ project.contact_info or '未设置' }}
+                        </p>
+                    </div>
+                    <div class="info-card">
+                        <h6>项目预算</h6>
+                        <p style="{% if not project.budget %}color: #94a3b8; font-style: italic;{% endif %}">
+                            {% if project.budget %}
+                                <span class="text-green-600 font-semibold">SGD {{ "%.2f"|format(project.budget) }}</span>
                             {% else %}
-                        <div class="visa-text-center" style="padding: 2rem; background: var(--visa-bg-light); border-radius: var(--visa-radius-md);">
-                            <i class="fas fa-route" style="font-size: 2.5rem; color: var(--visa-text-muted); margin-bottom: 0.75rem;"></i>
-                            <p style="color: var(--visa-text-secondary); margin: 0;">暂无行程安排，点击右上角按钮添加</p>
-                            </div>
+                                未设置
                             {% endif %}
+                        </p>
                     </div>
-                    {% endfor %}
-                {% else %}
-            <div class="visa-text-center" style="padding: 3rem; background: var(--visa-bg-light); border-radius: var(--visa-radius-md);">
-                <i class="fas fa-users" style="font-size: 3rem; color: var(--visa-text-muted); margin-bottom: 1rem;"></i>
-                <h3 style="color: var(--visa-text-primary); margin-bottom: 0.5rem;">暂无团队</h3>
-                <p style="color: var(--visa-text-secondary); margin-bottom: 1.5rem;">点击右上角按钮创建第一个团队</p>
+                    <div class="info-card">
+                        <h6>创建时间</h6>
+                        <p>{{ project.created_at.strftime('%Y-%m-%d %H:%M') if project.created_at else '未知' }}</p>
+                    </div>
+                </div>
+                {% if project.remarks %}
+                <div class="bg-gray-50 border-l-4 border-green-500 rounded-r-lg p-4">
+                    <div class="text-sm font-semibold text-green-600 mb-2 flex items-center gap-2">
+                        <i class="fas fa-sticky-note"></i> 备注
+                    </div>
+                    <div class="text-gray-700">{{ project.remarks }}</div>
+                </div>
+                {% endif %}
+
+                <!-- 团队信息 -->
+                {% if groups %}
+                {% set group = groups[0] %}
+                <div class="mt-4 pt-4 border-t border-gray-200">
+                    <div class="flex justify-between items-center mb-3">
+                        <h4 class="text-sm font-semibold text-gray-700 flex items-center gap-2 m-0">
+                            <i class="fas fa-users text-blue-500"></i> 团队信息
+                        </h4>
+                        <button type="button" onclick="editGroup({{ group.id }})" class="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-xs font-medium">
+                            <i class="fas fa-edit"></i> 编辑团队
+                        </button>
+                    </div>
+                    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                        <div class="info-card">
+                            <h6>出发日期</h6>
+                            <p class="text-blue-600 font-medium">{{ group.departure_date.strftime('%Y-%m-%d') }}</p>
+                        </div>
+                        <div class="info-card">
+                            <h6>返回日期</h6>
+                            <p class="text-blue-600 font-medium">{{ group.return_date.strftime('%Y-%m-%d') }}</p>
+                        </div>
+                        <div class="info-card">
+                            <h6>人数</h6>
+                            <p><i class="fas fa-user text-green-500 mr-1"></i> {{ group.pax }}人</p>
+                        </div>
+                        <div class="info-card">
+                            <h6>旅行社</h6>
+                            <p style="{% if not group.agency %}color: #94a3b8; font-style: italic;{% endif %}">
+                                {{ group.agency or '未设置' }}
+                            </p>
+                        </div>
+                        <div class="info-card">
+                            <h6>地接社</h6>
+                            <p style="{% if not group.operator %}color: #94a3b8; font-style: italic;{% endif %}">
+                                {{ group.operator or '未设置' }}
+                            </p>
+                        </div>
+                        <div class="info-card">
+                            <h6>团状态</h6>
+                            <p>
+                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium 
+                                    {% if group.group_status == '进行中' %}bg-green-100 text-green-800
+                                    {% elif group.group_status == '已确认' %}bg-blue-100 text-blue-800
+                                    {% elif group.group_status == '已完成' %}bg-gray-100 text-gray-800
+                                    {% elif group.group_status == '已取消' %}bg-red-100 text-red-800
+                                    {% else %}bg-yellow-100 text-yellow-800{% endif %}">
+                                    {{ group.group_status or '计划中' }}
+                                </span>
+                            </p>
+                        </div>
+                    </div>
                 </div>
                 {% endif %}
         </div>
-    </div>
 
-    <!-- 底部操作按钮 -->
-    <div class="visa-card">
-        <div class="visa-card-body">
-            <div class="visa-text-center visa-flex-center visa-gap-2">
-                <a href="{{ url_for('tour_projects.manage_tour_projects') }}" class="visa-btn visa-btn-secondary visa-btn-lg">
-                    <i class="fas fa-arrow-left"></i> 返回项目列表
-                </a>
-                <a href="{{ url_for('tour_projects.project_details', project_id=project.id) }}" class="visa-btn visa-btn-info visa-btn-lg">
-                    <i class="fas fa-eye"></i> 查看项目详情
-                </a>
+        <!-- 行程安排区块 -->
+        {% if groups %}
+            {% for group in groups %}
+            <div class="bg-white rounded-2xl shadow-md overflow-hidden" data-group-id="{{ group.id }}">
+                <!-- 行程操作栏 -->
+                <div class="flex justify-between items-center p-4 bg-gray-50 border-b border-gray-200">
+                    <h4 class="text-base font-semibold text-gray-700 flex items-center gap-2 m-0">
+                        <i class="fas fa-map-marked-alt text-blue-500"></i> 每日行程安排
+                    </h4>
+                    <div class="flex gap-2">
+                        <a href="{{ url_for('tour_projects.view_tour_group', group_id=group.id) }}" target="_blank" class="inline-flex items-center gap-1 px-3 py-1.5 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors text-xs font-medium">
+                            <i class="fas fa-print"></i> 确认书
+                        </a>
+                        <a href="{{ url_for('tour_projects.view_tour_itinerary', group_id=group.id) }}" target="_blank" class="inline-flex items-center gap-1 px-3 py-1.5 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors text-xs font-medium">
+                            <i class="fas fa-route"></i> 行程单
+                        </a>
+                        <a href="{{ url_for('package_budget.create', package_name=project.project_name, adult_count=group.pax, child_count=0, currency='SGD') }}" target="_blank" class="inline-flex items-center gap-1 px-3 py-1.5 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-xs font-medium">
+                            <i class="fas fa-calculator"></i> 价格预算
+                        </a>
+                        <button type="button" onclick="addItinerary({{ group.id }})" class="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-xs font-medium">
+                            <i class="fas fa-plus"></i> 添加行程
+                        </button>
+                        <button type="button" onclick="autoGenerateItineraries({{ group.id }})" class="inline-flex items-center gap-1 px-3 py-1.5 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors text-xs font-medium">
+                            <i class="fas fa-magic"></i> 自动生成
+                        </button>
+                    </div>
+                </div>
+                <!-- 行程表格 -->
+                <div class="p-4" style="text-align: left !important;">
+                    {% if group.itineraries %}
+                    <div class="overflow-x-auto" style="text-align: left !important;">
+                        <table class="itinerary-table w-full text-left">
+                            <thead class="text-left">
+                                <tr class="text-left">
+                                    <th class="!text-left" style="width: 100px;">日期</th>
+                                    <th class="!text-left" style="width: 80px;">天数</th>
+                                    <th class="!text-left" style="width: 150px;">日期标题</th>
+                                    <th class="!text-left">行程内容</th>
+                                    <th class="!text-left" style="width: 120px;">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody class="text-left">
+                                {% for itinerary in group.itineraries %}
+                                <tr class="text-left">
+                                    <td class="!text-left">{{ itinerary.date.strftime('%Y-%m-%d') }}</td>
+                                    <td class="!text-left">
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded bg-blue-100 text-blue-800 text-xs font-medium">
+                                            第{{ loop.index }}天
+                                        </span>
+                                    </td>
+                                    <td class="!text-left font-medium">{{ itinerary.day_title }}</td>
+                                    <td class="!text-left text-slate-600" style="white-space: pre-line;">
+                                        {{ itinerary.content[:100]|trim }}{% if itinerary.content|length > 100 %}...{% endif %}
+                                    </td>
+                                    <td class="!text-left">
+                                        <div class="flex gap-1 justify-start">
+                                            <button type="button" onclick="editItinerary({{ itinerary.id }})" class="inline-flex items-center px-2 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                            <button type="button" onclick="deleteItinerary({{ itinerary.id }})" class="inline-flex items-center px-2 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-8 bg-gray-50 rounded-xl">
+                        <i class="fas fa-route text-4xl text-gray-300 mb-3"></i>
+                        <p class="text-gray-500 mb-3">暂无行程安排</p>
+                        <button type="button" onclick="addItinerary({{ group.id }})" class="inline-flex items-center gap-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium">
+                            <i class="fas fa-plus"></i> 添加第一个行程
+                        </button>
+                    </div>
+                    {% endif %}
+                </div>
             </div>
+            {% endfor %}
+        {% else %}
+        <div class="bg-white rounded-2xl shadow-md p-8 text-center">
+            <i class="fas fa-exclamation-triangle text-5xl text-yellow-400 mb-4"></i>
+            <h3 class="text-lg font-semibold text-gray-700 mb-2">团队信息缺失</h3>
+            <p class="text-gray-500">请联系管理员检查数据</p>
         </div>
-    </div>
-</div>
+        {% endif %}
 
-<!-- 创建团队模态框 -->
-<div id="createGroupModal" class="visa-modal" data-backdrop-close="false">
-    <div class="visa-modal-dialog visa-modal-dialog-lg">
-        <div class="visa-modal-header" style="background: linear-gradient(135deg, var(--visa-success), #059669); color: white;">
-            <h3 class="visa-modal-title" style="color: white;">创建新团队</h3>
-            <button class="visa-modal-close" onclick="closeModal('createGroupModal')" style="color: white;">&times;</button>
-        </div>
-        <div class="visa-modal-body">
-            <form id="createGroupForm">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <div class="visa-grid-4">
-                    <div class="visa-form-group">
-                        <label class="visa-form-label">团队名称</label>
-                        <input type="text" name="title" class="visa-form-control" required>
-                    </div>
-                    <div class="visa-form-group">
-                        <label class="visa-form-label">出发日期</label>
-                        <input type="date" name="departure_date" class="visa-form-control" required>
-                    </div>
-                    <div class="visa-form-group">
-                        <label class="visa-form-label">返回日期</label>
-                        <input type="date" name="return_date" class="visa-form-control" required>
-                    </div>
-                    <div class="visa-form-group">
-                        <label class="visa-form-label">人数</label>
-                        <input type="number" name="pax" class="visa-form-control" required min="1">
-                    </div>
-                    <div class="visa-form-group">
-                        <label class="visa-form-label">旅行社</label>
-                        <input type="text" name="agency" class="visa-form-control">
-                    </div>
-                    <div class="visa-form-group">
-                        <label class="visa-form-label">地接社</label>
-                        <input type="text" name="operator" class="visa-form-control">
-                    </div>
-                    <div class="visa-form-group">
-                        <label class="visa-form-label">团编号</label>
-                        <input type="text" name="group_code" class="visa-form-control">
-                    </div>
-                    <div class="visa-form-group">
-                        <label class="visa-form-label">团状态</label>
-                        <select name="group_status" class="visa-form-select">
-                            <option value="计划中">计划中</option>
-                            <option value="确认中">确认中</option>
-                            <option value="已确认">已确认</option>
-                            <option value="进行中">进行中</option>
-                            <option value="已完成">已完成</option>
-                            <option value="已取消">已取消</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="visa-form-group">
-                    <label class="visa-form-label">酒店信息</label>
-                    <textarea name="hotel_info" rows="5" class="visa-form-control" placeholder="请输入酒店详细信息..."></textarea>
-                </div>
-                <div class="visa-form-group">
-                    <label class="visa-form-label">交通工具</label>
-                    <textarea name="transport" rows="5" class="visa-form-control" placeholder="请输入交通工具安排..."></textarea>
-                </div>
-                <div class="visa-form-group">
-                    <label class="visa-form-label">用餐安排</label>
-                    <textarea name="meals" rows="5" class="visa-form-control" placeholder="请输入用餐安排详情..."></textarea>
-                </div>
-                <div class="visa-form-group">
-                    <label class="visa-form-label">景点/活动</label>
-                    <textarea name="attractions" rows="5" class="visa-form-control" placeholder="请输入景点和活动安排..."></textarea>
-                </div>
-                <div class="visa-form-group">
-                    <label class="visa-form-label">包含项目</label>
-                    <textarea name="included_items" rows="5" class="visa-form-control" placeholder="请输入包含的服务项目..."></textarea>
-                </div>
-                <div class="visa-form-group">
-                    <label class="visa-form-label">不包含项目</label>
-                    <textarea name="excluded_items" rows="5" class="visa-form-control" placeholder="请输入不包含的服务项目..."></textarea>
-                </div>
-                <div class="visa-form-group">
-                    <label class="visa-form-label">注意事项</label>
-                    <textarea name="important_notes" rows="5" class="visa-form-control" placeholder="请输入重要注意事项..."></textarea>
-                </div>
-            </form>
-        </div>
-        <div class="visa-modal-footer">
-            <button type="button" class="visa-btn visa-btn-secondary" onclick="closeModal('createGroupModal')">取消</button>
-            <button type="button" class="visa-btn visa-btn-primary" onclick="createGroup()">创建团队</button>
-        </div>
     </div>
 </div>
 
 <!-- 编辑团队模态框 -->
 <div id="editGroupModal" class="visa-modal" data-backdrop-close="false">
     <div class="visa-modal-dialog visa-modal-dialog-lg">
-        <div class="visa-modal-header" style="background: linear-gradient(135deg, var(--visa-success), #059669); color: white;">
-            <h3 class="visa-modal-title" style="color: white;">编辑团队信息</h3>
+        <div class="visa-modal-header" style="background: linear-gradient(135deg, #0ea5e9, #0284c7); color: white;">
+            <h3 class="visa-modal-title" style="color: white;"><i class="fas fa-edit mr-2"></i>编辑团队信息</h3>
             <button class="visa-modal-close" onclick="closeModal('editGroupModal')" style="color: white;">&times;</button>
         </div>
         <div class="visa-modal-body">
@@ -374,19 +418,19 @@
                 <input type="hidden" name="group_id" id="editGroupId">
                 <div class="visa-grid-4">
                     <div class="visa-form-group">
-                        <label class="visa-form-label">团队名称</label>
+                        <label class="visa-form-label">团队名称 <span style="color: red;">*</span></label>
                         <input type="text" name="title" id="editGroupTitle" class="visa-form-control" required>
                     </div>
                     <div class="visa-form-group">
-                        <label class="visa-form-label">出发日期</label>
+                        <label class="visa-form-label">出发日期 <span style="color: red;">*</span></label>
                         <input type="date" name="departure_date" id="editGroupDepartureDate" class="visa-form-control" required>
                     </div>
                     <div class="visa-form-group">
-                        <label class="visa-form-label">返回日期</label>
+                        <label class="visa-form-label">返回日期 <span style="color: red;">*</span></label>
                         <input type="date" name="return_date" id="editGroupReturnDate" class="visa-form-control" required>
                     </div>
                     <div class="visa-form-group">
-                        <label class="visa-form-label">人数</label>
+                        <label class="visa-form-label">人数 <span style="color: red;">*</span></label>
                         <input type="number" name="pax" id="editGroupPax" class="visa-form-control" required min="1">
                     </div>
                     <div class="visa-form-group">
@@ -415,31 +459,35 @@
                 </div>
                 <div class="visa-form-group">
                     <label class="visa-form-label">酒店信息</label>
-                    <textarea name="hotel_info" id="editGroupHotelInfo" rows="5" class="visa-form-control" placeholder="请输入酒店详细信息..."></textarea>
+                    <textarea name="hotel_info" id="editGroupHotelInfo" rows="3" class="visa-form-control"></textarea>
                 </div>
-                <div class="visa-form-group">
-                    <label class="visa-form-label">交通工具</label>
-                    <textarea name="transport" id="editGroupTransport" rows="5" class="visa-form-control" placeholder="请输入交通工具安排..."></textarea>
-                </div>
-                <div class="visa-form-group">
-                    <label class="visa-form-label">用餐安排</label>
-                    <textarea name="meals" id="editGroupMeals" rows="5" class="visa-form-control" placeholder="请输入用餐安排详情..."></textarea>
+                <div class="visa-grid-2">
+                    <div class="visa-form-group">
+                        <label class="visa-form-label">交通工具</label>
+                        <textarea name="transport" id="editGroupTransport" rows="3" class="visa-form-control"></textarea>
+                    </div>
+                    <div class="visa-form-group">
+                        <label class="visa-form-label">用餐安排</label>
+                        <textarea name="meals" id="editGroupMeals" rows="3" class="visa-form-control"></textarea>
+                    </div>
                 </div>
                 <div class="visa-form-group">
                     <label class="visa-form-label">景点/活动</label>
-                    <textarea name="attractions" id="editGroupAttractions" rows="5" class="visa-form-control" placeholder="请输入景点和活动安排..."></textarea>
+                    <textarea name="attractions" id="editGroupAttractions" rows="3" class="visa-form-control"></textarea>
                 </div>
-                <div class="visa-form-group">
-                    <label class="visa-form-label">包含项目</label>
-                    <textarea name="included_items" id="editGroupIncludedItems" rows="5" class="visa-form-control" placeholder="请输入包含的服务项目..."></textarea>
-                </div>
-                <div class="visa-form-group">
-                    <label class="visa-form-label">不包含项目</label>
-                    <textarea name="excluded_items" id="editGroupExcludedItems" rows="5" class="visa-form-control" placeholder="请输入不包含的服务项目..."></textarea>
+                <div class="visa-grid-2">
+                    <div class="visa-form-group">
+                        <label class="visa-form-label">包含项目</label>
+                        <textarea name="included_items" id="editGroupIncludedItems" rows="3" class="visa-form-control"></textarea>
+                    </div>
+                    <div class="visa-form-group">
+                        <label class="visa-form-label">不包含项目</label>
+                        <textarea name="excluded_items" id="editGroupExcludedItems" rows="3" class="visa-form-control"></textarea>
+                    </div>
                 </div>
                 <div class="visa-form-group">
                     <label class="visa-form-label">注意事项</label>
-                    <textarea name="important_notes" id="editGroupImportantNotes" rows="5" class="visa-form-control" placeholder="请输入重要注意事项..."></textarea>
+                    <textarea name="important_notes" id="editGroupImportantNotes" rows="3" class="visa-form-control"></textarea>
                 </div>
             </form>
         </div>
@@ -453,8 +501,8 @@
 <!-- 添加行程模态框 -->
 <div id="addItineraryModal" class="visa-modal" data-backdrop-close="false">
     <div class="visa-modal-dialog visa-modal-dialog-lg">
-        <div class="visa-modal-header" style="background: linear-gradient(135deg, var(--visa-success), #059669); color: white;">
-            <h3 class="visa-modal-title" style="color: white;">添加行程</h3>
+        <div class="visa-modal-header" style="background: linear-gradient(135deg, #10b981, #059669); color: white;">
+            <h3 class="visa-modal-title" style="color: white;"><i class="fas fa-plus-circle mr-2"></i>添加行程</h3>
             <button class="visa-modal-close" onclick="closeModal('addItineraryModal')" style="color: white;">&times;</button>
         </div>
         <div class="visa-modal-body">
@@ -463,16 +511,16 @@
                 <input type="hidden" name="group_id" id="addItineraryGroupId">
                 <div class="visa-grid-2">
                     <div class="visa-form-group">
-                        <label class="visa-form-label">日期标题</label>
-                        <input type="text" name="day_title" class="visa-form-control" required>
+                        <label class="visa-form-label">日期标题 <span style="color: red;">*</span></label>
+                        <input type="text" name="day_title" class="visa-form-control" required placeholder="例如：Day 1：抵达新加坡">
                     </div>
                     <div class="visa-form-group">
-                        <label class="visa-form-label">日期</label>
+                        <label class="visa-form-label">日期 <span style="color: red;">*</span></label>
                         <input type="date" name="date" class="visa-form-control" required>
                     </div>
                 </div>
                 <div class="visa-form-group">
-                    <label class="visa-form-label">行程内容</label>
+                    <label class="visa-form-label">行程内容 <span style="color: red;">*</span></label>
                     <textarea name="content" rows="8" class="visa-form-control" required placeholder="请输入详细的行程安排..."></textarea>
                 </div>
                 
@@ -481,16 +529,19 @@
                     <label class="visa-form-label">行程图片（最多3张）</label>
                     <div class="image-upload-container">
                         <div class="image-upload-item">
-                            <label class="visa-form-label">图片1</label>
-                            <input type="file" name="image1" accept="image/*" class="visa-form-control">
+                            <i class="fas fa-image text-2xl text-gray-400 mb-2"></i>
+                            <label class="visa-form-label text-xs">图片1</label>
+                            <input type="file" name="image1" accept="image/*" class="visa-form-control text-sm">
                         </div>
                         <div class="image-upload-item">
-                            <label class="visa-form-label">图片2</label>
-                            <input type="file" name="image2" accept="image/*" class="visa-form-control">
+                            <i class="fas fa-image text-2xl text-gray-400 mb-2"></i>
+                            <label class="visa-form-label text-xs">图片2</label>
+                            <input type="file" name="image2" accept="image/*" class="visa-form-control text-sm">
                         </div>
                         <div class="image-upload-item">
-                            <label class="visa-form-label">图片3</label>
-                            <input type="file" name="image3" accept="image/*" class="visa-form-control">
+                            <i class="fas fa-image text-2xl text-gray-400 mb-2"></i>
+                            <label class="visa-form-label text-xs">图片3</label>
+                            <input type="file" name="image3" accept="image/*" class="visa-form-control text-sm">
                         </div>
                     </div>
                 </div>
@@ -506,31 +557,30 @@
 <!-- 编辑行程模态框 -->
 <div id="editItineraryModal" class="visa-modal" data-backdrop-close="false">
     <div class="visa-modal-dialog visa-modal-dialog-lg">
-        <div class="visa-modal-header" style="background: linear-gradient(135deg, var(--visa-success), #059669); color: white;">
-            <h3 class="visa-modal-title" style="color: white;">编辑行程</h3>
+        <div class="visa-modal-header" style="background: linear-gradient(135deg, #10b981, #059669); color: white;">
+            <h3 class="visa-modal-title" style="color: white;"><i class="fas fa-edit mr-2"></i>编辑行程</h3>
             <button class="visa-modal-close" onclick="closeModal('editItineraryModal')" style="color: white;">&times;</button>
         </div>
         <div class="visa-modal-body">
             <form id="editItineraryForm" enctype="multipart/form-data">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="itinerary_id" id="editItineraryId">
-                <!-- 删除图片标记 -->
                 <input type="hidden" name="remove_image1" id="removeImage1Flag" value="">
                 <input type="hidden" name="remove_image2" id="removeImage2Flag" value="">
                 <input type="hidden" name="remove_image3" id="removeImage3Flag" value="">
                 <div class="visa-grid-2">
                     <div class="visa-form-group">
-                        <label class="visa-form-label">日期标题</label>
+                        <label class="visa-form-label">日期标题 <span style="color: red;">*</span></label>
                         <input type="text" name="day_title" id="editItineraryDayTitle" class="visa-form-control" required>
                     </div>
                     <div class="visa-form-group">
-                        <label class="visa-form-label">日期</label>
+                        <label class="visa-form-label">日期 <span style="color: red;">*</span></label>
                         <input type="date" name="date" id="editItineraryDate" class="visa-form-control" required>
                     </div>
                 </div>
                 <div class="visa-form-group">
-                    <label class="visa-form-label">行程内容</label>
-                    <textarea name="content" id="editItineraryContent" rows="8" class="visa-form-control" required placeholder="请输入详细的行程安排..."></textarea>
+                    <label class="visa-form-label">行程内容 <span style="color: red;">*</span></label>
+                    <textarea name="content" id="editItineraryContent" rows="8" class="visa-form-control" required></textarea>
                 </div>
                 
                 <!-- 图片上传区域 -->
@@ -538,27 +588,33 @@
                     <label class="visa-form-label">行程图片（最多3张）</label>
                     <div class="image-upload-container">
                         <div class="image-upload-item">
-                            <label class="visa-form-label">图片1</label>
-                            <input type="file" name="image1" accept="image/*" class="visa-form-control">
-                            <div id="editCurrentImage1" class="current-image visa-flex visa-gap-2" style="display: none;">
-                                <img id="editImage1Preview" src="" alt="当前图片1" style="max-width: 100px; max-height: 100px; border-radius: var(--visa-radius-sm);">
-                                <button type="button" class="visa-btn visa-btn-danger visa-btn-sm" onclick="markRemoveImage('image1')">删除</button>
+                            <label class="visa-form-label text-xs">图片1</label>
+                            <input type="file" name="image1" accept="image/*" class="visa-form-control text-sm">
+                            <div id="editCurrentImage1" class="current-image mt-2 flex items-center gap-2" style="display: none;">
+                                <img id="editImage1Preview" src="" alt="当前图片1">
+                                <button type="button" class="visa-btn visa-btn-danger visa-btn-sm" onclick="markRemoveImage('image1')">
+                                    <i class="fas fa-trash"></i>
+                                </button>
                             </div>
                         </div>
                         <div class="image-upload-item">
-                            <label class="visa-form-label">图片2</label>
-                            <input type="file" name="image2" accept="image/*" class="visa-form-control">
-                            <div id="editCurrentImage2" class="current-image visa-flex visa-gap-2" style="display: none;">
-                                <img id="editImage2Preview" src="" alt="当前图片2" style="max-width: 100px; max-height: 100px; border-radius: var(--visa-radius-sm);">
-                                <button type="button" class="visa-btn visa-btn-danger visa-btn-sm" onclick="markRemoveImage('image2')">删除</button>
+                            <label class="visa-form-label text-xs">图片2</label>
+                            <input type="file" name="image2" accept="image/*" class="visa-form-control text-sm">
+                            <div id="editCurrentImage2" class="current-image mt-2 flex items-center gap-2" style="display: none;">
+                                <img id="editImage2Preview" src="" alt="当前图片2">
+                                <button type="button" class="visa-btn visa-btn-danger visa-btn-sm" onclick="markRemoveImage('image2')">
+                                    <i class="fas fa-trash"></i>
+                                </button>
                             </div>
                         </div>
                         <div class="image-upload-item">
-                            <label class="visa-form-label">图片3</label>
-                            <input type="file" name="image3" accept="image/*" class="visa-form-control">
-                            <div id="editCurrentImage3" class="current-image visa-flex visa-gap-2" style="display: none;">
-                                <img id="editImage3Preview" src="" alt="当前图片3" style="max-width: 100px; max-height: 100px; border-radius: var(--visa-radius-sm);">
-                                <button type="button" class="visa-btn visa-btn-danger visa-btn-sm" onclick="markRemoveImage('image3')">删除</button>
+                            <label class="visa-form-label text-xs">图片3</label>
+                            <input type="file" name="image3" accept="image/*" class="visa-form-control text-sm">
+                            <div id="editCurrentImage3" class="current-image mt-2 flex items-center gap-2" style="display: none;">
+                                <img id="editImage3Preview" src="" alt="当前图片3">
+                                <button type="button" class="visa-btn visa-btn-danger visa-btn-sm" onclick="markRemoveImage('image3')">
+                                    <i class="fas fa-trash"></i>
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -575,8 +631,8 @@
 <!-- 编辑项目信息模态框 -->
 <div id="editProjectInfoModal" class="visa-modal" data-backdrop-close="false">
     <div class="visa-modal-dialog visa-modal-dialog-lg">
-        <div class="visa-modal-header" style="background: linear-gradient(135deg, var(--visa-success), #059669); color: white;">
-            <h3 class="visa-modal-title" style="color: white;">编辑项目信息</h3>
+        <div class="visa-modal-header" style="background: linear-gradient(135deg, #10b981, #059669); color: white;">
+            <h3 class="visa-modal-title" style="color: white;"><i class="fas fa-edit mr-2"></i>编辑项目信息</h3>
             <button class="visa-modal-close" onclick="closeModal('editProjectInfoModal')" style="color: white;">&times;</button>
         </div>
         <div class="visa-modal-body">
@@ -584,17 +640,48 @@
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="visa-grid-2">
                     <div class="visa-form-group">
-                        <label class="visa-form-label">项目名称</label>
+                        <label class="visa-form-label">项目名称 <span style="color: red;">*</span></label>
                         <input type="text" name="project_name" id="editProjectName" class="visa-form-control" required>
                     </div>
                     <div class="visa-form-group">
+                        <label class="visa-form-label">项目HID</label>
+                        <input type="text" name="project_hid" id="editProjectHid" class="visa-form-control" placeholder="项目编号">
+                    </div>
+                </div>
+                <div class="visa-grid-2">
+                    <div class="visa-form-group">
                         <label class="visa-form-label">项目类型</label>
-                        <input type="text" name="project_type" id="editProjectType" class="visa-form-control">
+                        <input type="text" name="project_type" id="editProjectType" class="visa-form-control" placeholder="例如：定制游、跟团游">
+                    </div>
+                    <div class="visa-form-group">
+                        <label class="visa-form-label">项目状态</label>
+                        <select name="project_status" id="editProjectStatus" class="visa-form-select">
+                            <option value="计划中">计划中</option>
+                            <option value="处理中">处理中</option>
+                            <option value="进行中">进行中</option>
+                            <option value="已完成">已完成</option>
+                            <option value="已取消">已取消</option>
+                            <option value="忽略单">忽略单</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="visa-grid-2">
+                    <div class="visa-form-group">
+                        <label class="visa-form-label">联系人</label>
+                        <input type="text" name="contact_person" id="editContactPerson" class="visa-form-control" placeholder="客户姓名">
+                    </div>
+                    <div class="visa-form-group">
+                        <label class="visa-form-label">联系方式</label>
+                        <input type="text" name="contact_info" id="editContactInfo" class="visa-form-control" placeholder="电话/微信/邮箱">
                     </div>
                 </div>
                 <div class="visa-form-group">
                     <label class="visa-form-label">项目预算 (SGD)</label>
-                    <input type="number" name="budget" id="editProjectBudget" class="visa-form-control" step="0.01" min="0">
+                    <input type="number" name="budget" id="editProjectBudget" class="visa-form-control" step="0.01" min="0" placeholder="0.00">
+                </div>
+                <div class="visa-form-group">
+                    <label class="visa-form-label">备注</label>
+                    <textarea name="remarks" id="editProjectRemarks" rows="3" class="visa-form-control" placeholder="项目备注信息..."></textarea>
                 </div>
             </form>
         </div>
@@ -610,33 +697,29 @@
 <script>
 // 显示提示信息
 function showAlert(message, type = 'info') {
-    // 创建提示元素
     const alertDiv = document.createElement('div');
-    alertDiv.className = `alert alert-${type === 'success' ? 'success' : type === 'danger' ? 'danger' : 'info'}`;
+    const bgColor = type === 'success' ? '#10b981' : type === 'danger' ? '#ef4444' : type === 'warning' ? '#f59e0b' : '#3b82f6';
     alertDiv.style.cssText = `
         position: fixed;
         top: 20px;
         left: 50%;
         transform: translateX(-50%);
         z-index: 9999;
-        padding: 15px 25px;
-        border-radius: 8px;
+        padding: 1rem 2rem;
+        border-radius: 12px;
         font-weight: 500;
         box-shadow: 0 4px 12px rgba(0,0,0,0.15);
         animation: slideDown 0.3s ease-out;
+        background: ${bgColor};
+        color: white;
     `;
     alertDiv.textContent = message;
-    
-    // 添加到页面
     document.body.appendChild(alertDiv);
     
-    // 3秒后自动移除
     setTimeout(() => {
         alertDiv.style.animation = 'slideUp 0.3s ease-out';
         setTimeout(() => {
-            if (alertDiv.parentNode) {
-                alertDiv.parentNode.removeChild(alertDiv);
-            }
+            if (alertDiv.parentNode) alertDiv.parentNode.removeChild(alertDiv);
         }, 300);
     }, 3000);
 }
@@ -658,48 +741,29 @@ document.head.appendChild(style);
 // 模态框控制函数
 function showModal(modalId) {
     const modal = document.getElementById(modalId);
-    if (modal) {
-        modal.style.display = 'flex';
-    }
+    if (modal) modal.style.display = 'flex';
 }
 
 function closeModal(modalId) {
     const modal = document.getElementById(modalId);
-    if (modal) {
-        modal.style.display = 'none';
-    }
+    if (modal) modal.style.display = 'none';
 }
 
 // 点击模态框外部关闭
 window.onclick = function(event) {
     if (event.target.classList.contains('visa-modal') || event.target.classList.contains('modal')) {
-        // 如果标记不允许背景点击关闭，则忽略
         const allowBackdropClose = event.target.getAttribute('data-backdrop-close');
-        if (allowBackdropClose === 'false') {
-            return;
-        }
+        if (allowBackdropClose === 'false') return;
         event.target.style.display = 'none';
     }
 }
 
-// 标记删除图片并隐藏预览
+// 标记删除图片
 function markRemoveImage(field) {
     const map = {
-        'image1': {
-            flag: 'removeImage1Flag',
-            container: 'editCurrentImage1',
-            input: 'editImage1Preview'
-        },
-        'image2': {
-            flag: 'removeImage2Flag',
-            container: 'editCurrentImage2',
-            input: 'editImage2Preview'
-        },
-        'image3': {
-            flag: 'removeImage3Flag',
-            container: 'editCurrentImage3',
-            input: 'editImage3Preview'
-        }
+        'image1': { flag: 'removeImage1Flag', container: 'editCurrentImage1' },
+        'image2': { flag: 'removeImage2Flag', container: 'editCurrentImage2' },
+        'image3': { flag: 'removeImage3Flag', container: 'editCurrentImage3' }
     }[field];
     if (!map) return;
     document.getElementById(map.flag).value = '1';
@@ -709,29 +773,25 @@ function markRemoveImage(field) {
 
 // 编辑项目信息
 function editProjectInfo() {
-    // 填充当前项目数据到表单
     document.getElementById('editProjectName').value = '{{ project.project_name }}';
+    document.getElementById('editProjectHid').value = '{{ project.project_hid or "" }}';
     document.getElementById('editProjectType').value = '{{ project.project_type or "" }}';
+    document.getElementById('editProjectStatus').value = '{{ project.project_status or "计划中" }}';
+    document.getElementById('editContactPerson').value = '{{ project.contact_person or "" }}';
+    document.getElementById('editContactInfo').value = '{{ project.contact_info or "" }}';
     var budgetValue = {% if project.budget %}{{ project.budget }}{% else %}null{% endif %};
     document.getElementById('editProjectBudget').value = budgetValue !== null ? budgetValue : '';
-    
+    document.getElementById('editProjectRemarks').value = `{{ project.remarks|replace('\n', '\\n')|replace('\r', '') if project.remarks else "" }}`;
     showModal('editProjectInfoModal');
 }
 
 function updateProjectInfo() {
     const form = document.getElementById('editProjectInfoForm');
-    if (!form) {
-        showAlert('表单未找到', 'danger');
-        return;
-    }
+    if (!form) { showAlert('表单未找到', 'danger'); return; }
     const formData = new FormData(form);
     
-    // 显示加载状态
     const updateBtn = document.querySelector('#editProjectInfoModal .visa-btn-primary');
-    if (!updateBtn) {
-        showAlert('更新按钮未找到', 'danger');
-        return;
-    }
+    if (!updateBtn) { showAlert('更新按钮未找到', 'danger'); return; }
     const originalText = updateBtn.textContent;
     updateBtn.textContent = '更新中...';
     updateBtn.disabled = true;
@@ -739,162 +799,31 @@ function updateProjectInfo() {
     fetch('{{ url_for("tour_projects.edit_tour_project", project_id=project.id) }}', {
         method: 'POST',
         body: formData,
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest'
-        }
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
     })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        return response.json();
-    })
+    .then(response => response.json())
     .then(data => {
         if (data.success) {
             showAlert('项目信息更新成功！', 'success');
-            setTimeout(() => {
-                location.reload();
-            }, 1000);
+            setTimeout(() => location.reload(), 1000);
         } else {
             showAlert('更新项目失败: ' + data.message, 'danger');
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        showAlert('更新项目时发生错误，请稍后重试', 'danger');
+        showAlert('更新项目时发生错误', 'danger');
     })
     .finally(() => {
-        // 恢复按钮状态
-        if (updateBtn) {
-            updateBtn.textContent = originalText;
-            updateBtn.disabled = false;
-        }
-    });
-}
-
-// 项目表单提交
-const projectForm = document.getElementById('projectForm');
-if (projectForm) {
-    projectForm.addEventListener('submit', function(e) {
-        e.preventDefault();
-        
-        const formData = new FormData(this);
-        
-        // 添加调试信息
-        console.log('表单提交数据:');
-        for (let [key, value] of formData.entries()) {
-            console.log(`${key}: ${value}`);
-        }
-        
-        // 显示加载状态
-        const submitBtn = this.querySelector('button[type="submit"]');
-        if (!submitBtn) return;
-        const originalText = submitBtn.textContent;
-        submitBtn.textContent = '保存中...';
-        submitBtn.disabled = true;
-    
-    fetch(window.location.href, {
-        method: 'POST',
-        body: formData,
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest'
-        }
-    })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        return response.json();
-    })
-    .then(data => {
-        if (data.success) {
-            showAlert('项目信息保存成功！', 'success');
-            // 可选：刷新页面以显示最新数据
-            // location.reload();
-        } else {
-            showAlert(data.message || '保存失败', 'danger');
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        showAlert('保存失败，请稍后重试', 'danger');
-    })
-    .finally(() => {
-        // 恢复按钮状态
-        if (submitBtn) {
-            submitBtn.textContent = originalText;
-            submitBtn.disabled = false;
-        }
-    });
-    });
-}
-
-// 创建团队
-function showCreateGroupModal() {
-    showModal('createGroupModal');
-}
-
-function createGroup() {
-    const form = document.getElementById('createGroupForm');
-    if (!form) {
-        showAlert('表单未找到', 'danger');
-        return;
-    }
-    const formData = new FormData(form);
-    
-    // 显示加载状态
-    const createBtn = document.querySelector('#createGroupModal .visa-btn-primary');
-    if (!createBtn) {
-        showAlert('创建按钮未找到', 'danger');
-        return;
-    }
-    const originalText = createBtn.textContent;
-    createBtn.textContent = '创建中...';
-    createBtn.disabled = true;
-    
-    fetch('{{ url_for("tour_projects.create_tour_group", project_id=project.id) }}', {
-        method: 'POST',
-        body: formData,
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest'
-        }
-    })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        return response.json();
-    })
-    .then(data => {
-        if (data.success) {
-            showAlert('团队创建成功！', 'success');
-            setTimeout(() => {
-                location.reload();
-            }, 1000);
-        } else {
-            showAlert('创建团队失败: ' + data.message, 'danger');
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        showAlert('创建团队时发生错误，请稍后重试', 'danger');
-    })
-    .finally(() => {
-        // 恢复按钮状态
-        if (createBtn) {
-            createBtn.textContent = originalText;
-            createBtn.disabled = false;
-        }
+        updateBtn.textContent = originalText;
+        updateBtn.disabled = false;
     });
 }
 
 // 编辑团队
 function editGroup(groupId) {
-    // 获取团队数据并填充表单
     fetch(`{{ url_for("tour_projects.edit_tour_group", group_id=0) }}`.replace('0', groupId), {
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest'
-        }
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
     })
     .then(response => response.json())
     .then(data => {
@@ -916,7 +845,6 @@ function editGroup(groupId) {
             document.getElementById('editGroupIncludedItems').value = group.included_items || '';
             document.getElementById('editGroupExcludedItems').value = group.excluded_items || '';
             document.getElementById('editGroupImportantNotes').value = group.important_notes || '';
-            
             showModal('editGroupModal');
         } else {
             alert('获取团队信息失败: ' + data.message);
@@ -933,58 +861,8 @@ function updateGroup() {
     const formData = new FormData(form);
     const groupId = document.getElementById('editGroupId').value;
     
-    // 检查日期变化
-    const departureDate = document.getElementById('editGroupDepartureDate').value;
-    const returnDate = document.getElementById('editGroupReturnDate').value;
-    
-    // 获取原始日期（从页面显示的信息中获取）
-    const groupCard = document.querySelector(`[data-group-id="${groupId}"]`);
-    let originalDepartureDate = '';
-    let originalReturnDate = '';
-    
-    if (groupCard) {
-        const departureElement = groupCard.querySelector('.info-item:nth-child(1) .info-content p');
-        const returnElement = groupCard.querySelector('.info-item:nth-child(2) .info-content p');
-        
-        if (departureElement) {
-            const departureText = departureElement.textContent.trim();
-            // 转换日期格式
-            if (departureText) {
-                const parts = departureText.split('-');
-                if (parts.length === 3) {
-                    originalDepartureDate = `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
-                }
-            }
-        }
-        
-        if (returnElement) {
-            const returnText = returnElement.textContent.trim();
-            // 转换日期格式
-            if (returnText) {
-                const parts = returnText.split('-');
-                if (parts.length === 3) {
-                    originalReturnDate = `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
-                }
-            }
-        }
-    }
-    
-    // 检查日期是否发生变化
-    const dateChanged = (departureDate !== originalDepartureDate) || (returnDate !== originalReturnDate);
-    
-    if (dateChanged) {
-        const confirmMessage = '您修改了出发日期或返回日期，系统将自动调整行程安排中的日期。是否继续？';
-        if (!confirm(confirmMessage)) {
-            return;
-        }
-    }
-    
-    // 显示加载状态
     const updateBtn = document.querySelector('#editGroupModal .visa-btn-primary');
-    if (!updateBtn) {
-        showAlert('更新按钮未找到', 'danger');
-        return;
-    }
+    if (!updateBtn) { showAlert('更新按钮未找到', 'danger'); return; }
     const originalText = updateBtn.textContent;
     updateBtn.textContent = '更新中...';
     updateBtn.disabled = true;
@@ -992,36 +870,22 @@ function updateGroup() {
     fetch(`{{ url_for("tour_projects.edit_tour_group", group_id=0) }}`.replace('0', groupId), {
         method: 'POST',
         body: formData,
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest'
-        }
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
     })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        return response.json();
-    })
+    .then(response => response.json())
     .then(data => {
         if (data.success) {
-            let message = '团队信息更新成功！';
-            if (dateChanged) {
-                message += ' 行程安排中的日期已自动调整。';
-            }
-            showAlert(message, 'success');
-            setTimeout(() => {
-                location.reload();
-            }, 1000);
+            showAlert('团队信息更新成功！', 'success');
+            setTimeout(() => location.reload(), 1000);
         } else {
             showAlert('更新团队失败: ' + data.message, 'danger');
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        showAlert('更新团队时发生错误，请稍后重试', 'danger');
+        showAlert('更新团队时发生错误', 'danger');
     })
     .finally(() => {
-        // 恢复按钮状态
         updateBtn.textContent = originalText;
         updateBtn.disabled = false;
     });
@@ -1035,25 +899,21 @@ function deleteGroup(groupId) {
         
         fetch(`{{ url_for("tour_projects.delete_tour_group", group_id=0) }}`.replace('0', groupId), {
             method: 'POST',
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest'
-            },
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
             body: formData
         })
         .then(response => response.json())
         .then(data => {
             if (data.success) {
                 showAlert('团队删除成功！', 'success');
-                setTimeout(() => {
-                    location.reload();
-                }, 1000);
+                setTimeout(() => location.reload(), 1000);
             } else {
                 showAlert('删除团队失败: ' + data.message, 'danger');
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            showAlert('删除团队时发生错误，请稍后重试', 'danger');
+            showAlert('删除团队时发生错误', 'danger');
         });
     }
 }
@@ -1061,64 +921,41 @@ function deleteGroup(groupId) {
 // 添加行程
 function addItinerary(groupId) {
     document.getElementById('addItineraryGroupId').value = groupId;
-    
-    // 清空表单字段
     const form = document.getElementById('addItineraryForm');
-    if (form) {
-        form.reset();
-    }
+    if (form) form.reset();
     
-    // 获取当前团队的所有行程日期
     const groupCard = document.querySelector(`[data-group-id="${groupId}"]`);
     if (groupCard) {
+        const existingItineraries = groupCard.querySelectorAll('.itinerary-table tbody tr');
+        const nextDayNumber = existingItineraries.length + 1;
+        
+        const dayTitleInput = document.querySelector('#addItineraryModal input[name="day_title"]');
+        if (dayTitleInput) dayTitleInput.value = `Day ${nextDayNumber}：`;
+        
         const dateCells = groupCard.querySelectorAll('.itinerary-table tbody td:nth-child(1)');
         let latestDate = null;
         
-        // 找到最新的日期
         dateCells.forEach(cell => {
             const dateText = cell.textContent.trim();
             if (dateText) {
                 const date = new Date(dateText);
-                if (!latestDate || date > latestDate) {
-                    latestDate = date;
-                }
+                if (!latestDate || date > latestDate) latestDate = date;
             }
         });
         
-        // 计算下一个天数
-        const existingItineraries = groupCard.querySelectorAll('.itinerary-table tbody tr');
-        const nextDayNumber = existingItineraries.length + 1;
-        
-        // 设置日期标题
-        const dayTitleInput = document.querySelector('#addItineraryModal input[name="day_title"]');
-        if (dayTitleInput) {
-            dayTitleInput.value = `Day ${nextDayNumber}：`;
-        }
-        
-        // 如果找到最新日期，计算下一天；否则使用团队出发日期
         if (latestDate) {
             const nextDate = new Date(latestDate);
             nextDate.setDate(nextDate.getDate() + 1);
-            
-            // 格式化为 YYYY-MM-DD
             const year = nextDate.getFullYear();
             const month = String(nextDate.getMonth() + 1).padStart(2, '0');
             const day = String(nextDate.getDate()).padStart(2, '0');
-            const formattedDate = `${year}-${month}-${day}`;
-            
-            // 设置日期输入框的值
             const dateInput = document.querySelector('#addItineraryModal input[name="date"]');
-            if (dateInput) {
-                dateInput.value = formattedDate;
-            }
+            if (dateInput) dateInput.value = `${year}-${month}-${day}`;
         } else {
-            // 如果没有现有行程，使用团队出发日期
-            const departureDateText = groupCard.querySelector('.info-item:nth-child(1) .info-value').textContent.trim();
-            if (departureDateText) {
+            const departureDateElement = groupCard.querySelector('.info-card .info-value');
+            if (departureDateElement) {
                 const dateInput = document.querySelector('#addItineraryModal input[name="date"]');
-                if (dateInput) {
-                    dateInput.value = departureDateText;
-                }
+                if (dateInput) dateInput.value = departureDateElement.textContent.trim();
             }
         }
     }
@@ -1131,9 +968,18 @@ function autoGenerateItineraries(groupId) {
     const groupCard = document.querySelector(`[data-group-id="${groupId}"]`);
     if (!groupCard) return;
     
-    // 获取出发日期和返回日期
-    const departureDateText = groupCard.querySelector('.info-item:nth-child(1) .info-value').textContent.trim();
-    const returnDateText = groupCard.querySelector('.info-item:nth-child(2) .info-value').textContent.trim();
+    const infoCards = groupCard.querySelectorAll('.info-card');
+    let departureDateText = '';
+    let returnDateText = '';
+    
+    infoCards.forEach(card => {
+        const label = card.querySelector('h6');
+        const value = card.querySelector('.info-value');
+        if (label && value) {
+            if (label.textContent.includes('出发')) departureDateText = value.textContent.trim();
+            if (label.textContent.includes('返回')) returnDateText = value.textContent.trim();
+        }
+    });
     
     if (!departureDateText || !returnDateText) {
         showAlert('请先设置团队的出发日期和返回日期', 'warning');
@@ -1148,9 +994,8 @@ function autoGenerateItineraries(groupId) {
         return;
     }
     
-    // 计算天数差
     const timeDiff = returnDate.getTime() - departureDate.getTime();
-    const daysDiff = Math.ceil(timeDiff / (1000 * 3600 * 24)) + 1; // +1 包含出发当天
+    const daysDiff = Math.ceil(timeDiff / (1000 * 3600 * 24)) + 1;
     
     if (daysDiff > 30) {
         showAlert('行程天数不能超过30天', 'warning');
@@ -1158,10 +1003,8 @@ function autoGenerateItineraries(groupId) {
     }
     
     if (confirm(`将自动生成 ${daysDiff} 天的行程安排（从 ${departureDateText} 到 ${returnDateText}），确定继续吗？`)) {
-        // 显示加载状态
         showAlert('正在生成行程安排...', 'info');
         
-        // 批量创建行程
         const promises = [];
         for (let i = 0; i < daysDiff; i++) {
             const currentDate = new Date(departureDate);
@@ -1181,33 +1024,25 @@ function autoGenerateItineraries(groupId) {
             const promise = fetch(`{{ url_for("tour_projects.create_itinerary", group_id=0) }}`.replace('0', groupId), {
                 method: 'POST',
                 body: formData,
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
             }).then(response => response.json());
             
             promises.push(promise);
         }
         
-        // 等待所有请求完成
         Promise.all(promises)
             .then(results => {
                 const successCount = results.filter(result => result.success).length;
                 if (successCount === daysDiff) {
                     showAlert(`成功生成 ${daysDiff} 天的行程安排！`, 'success');
-                    setTimeout(() => {
-                        location.reload();
-                    }, 1500);
                 } else {
                     showAlert(`部分行程生成失败，成功生成 ${successCount}/${daysDiff} 天`, 'warning');
-                    setTimeout(() => {
-                        location.reload();
-                    }, 1500);
                 }
+                setTimeout(() => location.reload(), 1500);
             })
             .catch(error => {
                 console.error('Error:', error);
-                showAlert('生成行程时发生错误，请稍后重试', 'danger');
+                showAlert('生成行程时发生错误', 'danger');
             });
     }
 }
@@ -1217,12 +1052,8 @@ function createItinerary() {
     const formData = new FormData(form);
     const groupId = document.getElementById('addItineraryGroupId').value;
     
-    // 显示加载状态
     const createBtn = document.querySelector('#addItineraryModal .visa-btn-primary');
-    if (!createBtn) {
-        showAlert('创建按钮未找到', 'danger');
-        return;
-    }
+    if (!createBtn) { showAlert('创建按钮未找到', 'danger'); return; }
     const originalText = createBtn.textContent;
     createBtn.textContent = '添加中...';
     createBtn.disabled = true;
@@ -1230,32 +1061,22 @@ function createItinerary() {
     fetch(`{{ url_for("tour_projects.create_itinerary", group_id=0) }}`.replace('0', groupId), {
         method: 'POST',
         body: formData,
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest'
-        }
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
     })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        return response.json();
-    })
+    .then(response => response.json())
     .then(data => {
         if (data.success) {
             showAlert('行程添加成功！', 'success');
-            setTimeout(() => {
-                location.reload();
-            }, 1000);
+            setTimeout(() => location.reload(), 1000);
         } else {
             showAlert('添加行程失败: ' + data.message, 'danger');
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        showAlert('添加行程时发生错误，请稍后重试', 'danger');
+        showAlert('添加行程时发生错误', 'danger');
     })
     .finally(() => {
-        // 恢复按钮状态
         createBtn.textContent = originalText;
         createBtn.disabled = false;
     });
@@ -1264,9 +1085,7 @@ function createItinerary() {
 // 编辑行程
 function editItinerary(itineraryId) {
     fetch(`{{ url_for("tour_projects.edit_itinerary", itinerary_id=0) }}`.replace('0', itineraryId), {
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest'
-        }
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
     })
     .then(response => response.json())
     .then(data => {
@@ -1277,27 +1096,22 @@ function editItinerary(itineraryId) {
             document.getElementById('editItineraryDate').value = itinerary.date;
             document.getElementById('editItineraryContent').value = itinerary.content;
             
+            // 重置删除标记
+            document.getElementById('removeImage1Flag').value = '';
+            document.getElementById('removeImage2Flag').value = '';
+            document.getElementById('removeImage3Flag').value = '';
+            
             // 处理图片显示
-            if (itinerary.image1) {
-                document.getElementById('editImage1Preview').src = `/static/${itinerary.image1}`;
-                document.getElementById('editCurrentImage1').style.display = 'flex';
-            } else {
-                document.getElementById('editCurrentImage1').style.display = 'none';
-            }
-            
-            if (itinerary.image2) {
-                document.getElementById('editImage2Preview').src = `/static/${itinerary.image2}`;
-                document.getElementById('editCurrentImage2').style.display = 'flex';
-            } else {
-                document.getElementById('editCurrentImage2').style.display = 'none';
-            }
-            
-            if (itinerary.image3) {
-                document.getElementById('editImage3Preview').src = `/static/${itinerary.image3}`;
-                document.getElementById('editCurrentImage3').style.display = 'flex';
-            } else {
-                document.getElementById('editCurrentImage3').style.display = 'none';
-            }
+            ['image1', 'image2', 'image3'].forEach((img, idx) => {
+                const preview = document.getElementById(`editImage${idx + 1}Preview`);
+                const container = document.getElementById(`editCurrentImage${idx + 1}`);
+                if (itinerary[img]) {
+                    preview.src = `/static/${itinerary[img]}`;
+                    container.style.display = 'flex';
+                } else {
+                    container.style.display = 'none';
+                }
+            });
             
             showModal('editItineraryModal');
         } else {
@@ -1315,12 +1129,8 @@ function updateItinerary() {
     const formData = new FormData(form);
     const itineraryId = document.getElementById('editItineraryId').value;
     
-    // 显示加载状态
     const updateBtn = document.querySelector('#editItineraryModal .visa-btn-primary');
-    if (!updateBtn) {
-        showAlert('更新按钮未找到', 'danger');
-        return;
-    }
+    if (!updateBtn) { showAlert('更新按钮未找到', 'danger'); return; }
     const originalText = updateBtn.textContent;
     updateBtn.textContent = '更新中...';
     updateBtn.disabled = true;
@@ -1328,32 +1138,22 @@ function updateItinerary() {
     fetch(`{{ url_for("tour_projects.edit_itinerary", itinerary_id=0) }}`.replace('0', itineraryId), {
         method: 'POST',
         body: formData,
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest'
-        }
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
     })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        return response.json();
-    })
+    .then(response => response.json())
     .then(data => {
         if (data.success) {
             showAlert('行程更新成功！', 'success');
-            setTimeout(() => {
-                location.reload();
-            }, 1000);
+            setTimeout(() => location.reload(), 1000);
         } else {
             showAlert('更新行程失败: ' + data.message, 'danger');
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        showAlert('更新行程时发生错误，请稍后重试', 'danger');
+        showAlert('更新行程时发生错误', 'danger');
     })
     .finally(() => {
-        // 恢复按钮状态
         updateBtn.textContent = originalText;
         updateBtn.disabled = false;
     });
@@ -1367,41 +1167,23 @@ function deleteItinerary(itineraryId) {
         
         fetch(`{{ url_for("tour_projects.delete_itinerary", itinerary_id=0) }}`.replace('0', itineraryId), {
             method: 'POST',
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest'
-            },
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
             body: formData
         })
         .then(response => response.json())
         .then(data => {
             if (data.success) {
                 showAlert('行程删除成功！', 'success');
-                setTimeout(() => {
-                    location.reload();
-                }, 1000);
+                setTimeout(() => location.reload(), 1000);
             } else {
                 showAlert('删除行程失败: ' + data.message, 'danger');
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            showAlert('删除行程时发生错误，请稍后重试', 'danger');
+            showAlert('删除行程时发生错误', 'danger');
         });
     }
 }
-
-// 显示提示消息
-function showAlert(message, type) {
-    const alertDiv = document.createElement('div');
-    alertDiv.className = `visa-flash visa-flash-${type === 'success' ? 'success' : type === 'danger' ? 'error' : type === 'warning' ? 'warning' : 'info'}`;
-    alertDiv.textContent = message;
-    alertDiv.style.cssText = 'position: fixed; top: 80px; right: 20px; z-index: 1050;';
-    
-    document.body.appendChild(alertDiv);
-    
-    setTimeout(() => {
-        alertDiv.remove();
-    }, 3000);
-}
 </script>
-{% endblock %} 
+{% endblock %}

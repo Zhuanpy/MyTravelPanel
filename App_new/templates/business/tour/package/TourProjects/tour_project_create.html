@@ -1,341 +1,427 @@
-﻿{% extends "shared/staff_base.html" %}
+{% extends "shared/staff_base.html" %}
 
 {% block title %}创建旅游项目 - MyTravelPanel{% endblock %}
 
-{% block page_title %}创建旅游项目{% endblock %}
-
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/staff_common.css') }}">
+<script src="https://cdn.tailwindcss.com"></script>
 <style>
-    /* 重置和基础样式 - 使用更具体的选择器避免与Bootstrap冲突 */
-    .tour-project-create-page * {
-        box-sizing: border-box !important;
+    /* 标签页样式 */
+    .tabs-header {
+        display: flex;
+        border-bottom: 2px solid #e5e7eb;
+        padding: 0;
+        margin: 0;
+        overflow-x: auto;
+        background: #f9fafb;
+        border-radius: 1rem 1rem 0 0;
     }
-
-    .tour-project-create-page {
-        background-color: #f0f2f5 !important;
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important;
-        line-height: 1.6 !important;
-        color: #333 !important;
-        margin: 0 !important;
-        padding: 20px !important;
-        min-height: 100vh !important;
+    .tab-button {
+        padding: 1rem 1.5rem;
+        background: transparent;
+        border: none;
+        border-bottom: 3px solid transparent;
+        cursor: pointer;
+        font-size: 0.95rem;
+        font-weight: 500;
+        color: #6b7280;
+        transition: all 0.3s ease;
+        white-space: nowrap;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
     }
-
-    /* 主容器 - 现代化设计 */
-    .tour-project-create-page .form-container {
-        max-width: 900px !important;
-        margin: 20px auto !important;
-        padding: 30px !important;
-        background: white !important;
-        box-shadow: 0 0 20px rgba(0, 0, 0, 0.1) !important;
-        border-radius: 12px !important;
+    .tab-button:hover {
+        background: #f3f4f6;
+        color: #374151;
     }
-
-    /* 标题样式 */
-    .tour-project-create-page h2 {
-        color: #4CAF50 !important;
-        text-align: center !important;
-        margin-bottom: 30px !important;
-        font-size: 28px !important;
-        font-weight: 600 !important;
+    .tab-button.active {
+        color: #10b981;
+        border-bottom-color: #10b981;
+        background: white;
     }
-
-    .tour-project-create-page .home-link {
-        text-decoration: none !important;
-        color: #007bff !important;
-        font-size: 14px !important;
-        display: inline-block !important;
-        margin-bottom: 20px !important;
-        transition: all 0.2s ease !important;
+    .tab-content {
+        display: none;
+        padding: 2rem;
+        animation: fadeIn 0.3s ease;
     }
-
-    .tour-project-create-page .home-link:hover {
-        color: #0056b3 !important;
-        transform: translateY(-1px) !important;
+    .tab-content.active {
+        display: block;
     }
-    
-    /* 表单行布局 - 一行3个输入框 */
-    .tour-project-create-page .form-row {
-        display: flex !important;
-        flex-wrap: wrap !important;
-        gap: 15px !important;
-        margin-bottom: 20px !important;
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
     }
-    
-    .tour-project-create-page .form-group {
-        flex: 1 !important;
-        min-width: 200px !important;
-        max-width: calc(33.333% - 10px) !important;
+    .tab-icon {
+        font-size: 1.1rem;
     }
-
-    /* 备注字段占满一行 */
-    .tour-project-create-page .form-group.full-width {
-        max-width: 100% !important;
-    }
-
-    /* 标签样式 */
-    .tour-project-create-page label {
-        font-size: 14px !important;
-        color: #495057 !important;
-        display: block !important;
-        margin-bottom: 8px !important;
-        font-weight: 500 !important;
-    }
-
-    /* 输入框和选择框样式 - 与列表页面保持一致 */
-    .tour-project-create-page input,
-    .tour-project-create-page select,
-    .tour-project-create-page textarea {
-        width: 100% !important;
-        padding: 10px 12px !important;
-        border: 1px solid #ced4da !important;
-        border-radius: 6px !important;
-        font-size: 14px !important;
-        box-sizing: border-box !important;
-        transition: all 0.2s ease !important;
-        background-color: white !important;
-    }
-
-    .tour-project-create-page input:focus,
-    .tour-project-create-page select:focus,
-    .tour-project-create-page textarea:focus {
-        outline: none !important;
-        border-color: #4CAF50 !important;
-        box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.1) !important;
-        transform: translateY(-1px) !important;
-    }
-
-    /* 数字输入框特殊样式 */
-    .tour-project-create-page input[type="number"] {
-        padding: 10px 12px !important;
-    }
-    
-    /* 文本域样式 */
-    .tour-project-create-page textarea {
-        min-height: 100px !important;
-        resize: vertical !important;
-    }
-
-    /* 按钮样式 - 与列表页面保持一致 */
-    .tour-project-create-page button {
-        width: 100% !important;
-        background: #4CAF50 !important;
-        color: white !important;
-        border: none !important;
-        padding: 12px 24px !important;
-        border-radius: 6px !important;
-        font-size: 16px !important;
-        font-weight: 500 !important;
-        cursor: pointer !important;
-        margin-top: 20px !important;
-        transition: all 0.2s ease !important;
-        text-transform: uppercase !important;
-        letter-spacing: 0.5px !important;
-    }
-
-    .tour-project-create-page button:hover {
-        background: #45a049 !important;
-        transform: translateY(-1px) !important;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
-    }
-
-    .tour-project-create-page button:active {
-        transform: translateY(0) !important;
-    }
-
-    /* 闪现消息样式 */
-    .tour-project-create-page .tour-flash-message {
-        position: fixed !important;
-        top: 20px !important;
-        left: 50% !important;
-        transform: translateX(-50%) !important;
-        padding: 15px 25px !important;
-        color: white !important;
-        border-radius: 8px !important;
-        z-index: 1000 !important;
-        font-size: 14px !important;
-        font-weight: 500 !important;
-        display: none !important;
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2) !important;
-    }
-
-    /* 响应式调整 */
-    @media (max-width: 1200px) {
-        .tour-project-create-page .form-container {
-            margin: 20px !important;
-            padding: 25px !important;
-        }
-        
-        .tour-project-create-page input,
-        .tour-project-create-page select,
-        .tour-project-create-page textarea {
-            padding: 8px 10px !important;
-            font-size: 13px !important;
-        }
-    }
-
-    @media (max-width: 768px) {
-        .tour-project-create-page {
-            padding: 10px !important;
-        }
-        
-        .tour-project-create-page .form-container {
-            margin: 10px !important;
-            padding: 20px !important;
-        }
-        
-        .tour-project-create-page .form-row {
-            flex-direction: column !important;
-            gap: 15px !important;
-        }
-        
-        .tour-project-create-page .form-group {
-            min-width: 100% !important;
-            max-width: 100% !important;
-        }
-        
-        .tour-project-create-page input,
-        .tour-project-create-page select,
-        .tour-project-create-page textarea {
-            padding: 8px 10px !important;
-            font-size: 14px !important;
-        }
-        
-        .tour-project-create-page h2 {
-            font-size: 24px !important;
-        }
-    }
-
-    /* 加载状态 */
-    .tour-project-create-page .tour-loading {
-        text-align: center !important;
-        padding: 40px !important;
-        color: #6c757d !important;
-    }
-
-    .tour-project-create-page .tour-loading i {
-        font-size: 24px !important;
-        animation: spin 1s linear infinite !important;
-    }
-
-    @keyframes spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
-    }
-
-    /* 表单验证样式 - 移除红色框标记 */
-    .tour-project-create-page input:invalid,
-    .tour-project-create-page select:invalid,
-    .tour-project-create-page textarea:invalid {
-        border-color: #ced4da !important;
-    }
-
-    .tour-project-create-page input:invalid:focus,
-    .tour-project-create-page select:invalid:focus,
-    .tour-project-create-page textarea:invalid:focus {
-        box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.1) !important;
-    }
-
-    /* 必填字段标识 */
-    .tour-project-create-page .required-field::after {
-        content: " *" !important;
-        color: #dc3545 !important;
-        font-weight: bold !important;
+    .required-badge {
+        background: #fef3c7;
+        color: #92400e;
+        font-size: 0.7rem;
+        padding: 0.15rem 0.4rem;
+        border-radius: 0.25rem;
+        font-weight: 600;
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="tour-project-create-page">
-    <div class="form-container">
-    <!-- 闪现消息区域 -->
-    <div id="flash-message" class="tour-flash-message" style="display: none;">
-        <span id="flash-message-text"></span>
-    </div>
-    
-    <!-- <a href="/" class="home-link">Home page</a> -->
-    <h2>创建旅游项目</h2>
-    <form id="tourForm" method="POST" action="{{url_for('tour_projects.create_tour_project')}}" onsubmit="return handleSubmit(event)">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <div class="form-row">
-            <div class="form-group">
-                <label for="project_name" class="required-field">项目名称:</label>
-                <input type="text" id="project_name" name="projectName" placeholder="例如: 环游世界" required>
+<div class="bg-gray-50 min-h-screen p-4 md:p-6">
+    <div class="max-w-7xl mx-auto">
+        <!-- 页面头部 -->
+        <div class="mb-8">
+            <div class="text-center">
+                <h1 class="text-4xl font-bold mb-4 text-gray-800">
+                    创建旅游项目
+                </h1>
+                <p class="text-gray-600 text-lg">
+                    创建新的旅游项目和团队信息
+                </p>
             </div>
-            <div class="form-group">
-                <label for="project_hid">项目HID (如有):</label>
-                <input type="text" id="project_hid" name="projectHID" placeholder="例如: HID12345">
-            </div>
-            <div class="form-group">
-                <label for="project_type">项目类型:</label>
-                <input type="text" id="project_type" name="projectType" placeholder="如：自由行/跟团游/定制游">
+            <div class="flex justify-center gap-3 mt-6">
+                <a href="{{ url_for('tour_projects.manage_tour_projects') }}" class="inline-flex items-center gap-2 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors text-sm font-medium">
+                    <i class="fas fa-arrow-left"></i> 返回列表
+                </a>
             </div>
         </div>
-        <div class="form-row">
-            <div class="form-group">
-                <label for="budget">项目预算 SGD:</label>
-                <input type="number" step="0.01" id="budget" name="budget" placeholder="如：10000">
+
+        <!-- 闪现消息 -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="mb-4 p-4 rounded-xl {% if category == 'success' %}bg-green-50 border-l-4 border-green-500 text-green-700{% else %}bg-red-50 border-l-4 border-red-500 text-red-700{% endif %}">
+                        <div class="flex items-center gap-2">
+                            <i class="fas {% if category == 'success' %}fa-check-circle{% else %}fa-exclamation-circle{% endif %}"></i>
+                            <span>{{ message }}</span>
+                        </div>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <form id="projectForm" method="POST" action="{{ url_for('tour_projects.create_tour_project') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            
+            <!-- 标签页容器 -->
+            <div class="tabs-container bg-white rounded-2xl shadow-md mb-8">
+                <!-- 标签页头部 -->
+                <div class="tabs-header">
+                    <button type="button" class="tab-button active" data-tab="basic">
+                        <i class="fas fa-info-circle tab-icon"></i>
+                        <span>项目信息</span>
+                        <span class="required-badge">必填</span>
+                    </button>
+                    <button type="button" class="tab-button" data-tab="group">
+                        <i class="fas fa-users tab-icon"></i>
+                        <span>团队信息</span>
+                        <span class="required-badge">必填</span>
+                    </button>
+                    <button type="button" class="tab-button" data-tab="details">
+                        <i class="fas fa-file-alt tab-icon"></i>
+                        <span>详细说明</span>
+                    </button>
+                </div>
+
+                <!-- Tab 1: 项目信息 -->
+                <div id="tab-basic" class="tab-content active">
+                    <h3 style="color: #10b981; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.5rem;">
+                        <i class="fas fa-info-circle"></i> 项目基本信息
+                    </h3>
+                    <div class="visa-grid-4">
+                        <div class="visa-form-group">
+                            <label class="visa-form-label">项目名称 <span style="color: red;">*</span></label>
+                            <input type="text" name="projectName" class="visa-form-control" required placeholder="例如：新加坡5天4晚定制游">
+                        </div>
+                        <div class="visa-form-group">
+                            <label class="visa-form-label">项目HID</label>
+                            <input type="text" name="projectHID" class="visa-form-control" placeholder="例如：HID12345（可选）">
+                        </div>
+                        <div class="visa-form-group">
+                            <label class="visa-form-label">项目类型</label>
+                            <select name="projectType" class="visa-form-select">
+                                <option value="">-- 选择类型 --</option>
+                                <option value="自由行">自由行</option>
+                                <option value="跟团游">跟团游</option>
+                                <option value="定制游">定制游</option>
+                                <option value="当地游">当地游</option>
+                            </select>
+                        </div>
+                        <div class="visa-form-group">
+                            <label class="visa-form-label">项目状态 <span style="color: red;">*</span></label>
+                            <select name="projectStatus" class="visa-form-select" required>
+                                <option value="处理中" selected>处理中</option>
+                                <option value="待出行">待出行</option>
+                                <option value="已完成">已完成</option>
+                                <option value="忽略单">忽略单</option>
+                            </select>
+                        </div>
+                        <div class="visa-form-group">
+                            <label class="visa-form-label">项目预算 (SGD)</label>
+                            <input type="number" step="0.01" name="budget" class="visa-form-control" placeholder="例如：10000">
+                        </div>
+                        <div class="visa-form-group">
+                            <label class="visa-form-label">联系人 <span style="color: red;">*</span></label>
+                            <input type="text" name="contactPerson" class="visa-form-control" required placeholder="例如：张三">
+                        </div>
+                        <div class="visa-form-group">
+                            <label class="visa-form-label">联系方式</label>
+                            <input type="text" name="contactInfo" class="visa-form-control" placeholder="例如：+65 1234 5678">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab 2: 团队信息 -->
+                <div id="tab-group" class="tab-content">
+                    <h3 style="color: #0ea5e9; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.5rem;">
+                        <i class="fas fa-users"></i> 团队信息
+                    </h3>
+                    <div style="background: #e0f2fe; border-left: 4px solid #0ea5e9; padding: 1rem; margin-bottom: 1.5rem; border-radius: 4px;">
+                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                            <i class="fas fa-info-circle" style="color: #0ea5e9;"></i>
+                            <strong style="color: #0c4a6e;">提示：</strong>
+                        </div>
+                        <p style="margin: 0.5rem 0 0 0; color: #0c4a6e; font-size: 0.9rem;">
+                            一个项目对应一个团队。创建项目后，团队信息将自动关联。
+                        </p>
+                    </div>
+                    <div class="visa-grid-4">
+                        <div class="visa-form-group">
+                            <label class="visa-form-label">团队名称</label>
+                            <input type="text" name="groupTitle" class="visa-form-control" placeholder="留空则使用项目名称">
+                        </div>
+                        <div class="visa-form-group">
+                            <label class="visa-form-label">出发日期 <span style="color: red;">*</span></label>
+                            <input type="date" name="departureDate" class="visa-form-control" required>
+                        </div>
+                        <div class="visa-form-group">
+                            <label class="visa-form-label">返回日期 <span style="color: red;">*</span></label>
+                            <input type="date" name="returnDate" class="visa-form-control" required>
+                        </div>
+                        <div class="visa-form-group">
+                            <label class="visa-form-label">人数 <span style="color: red;">*</span></label>
+                            <input type="number" name="pax" class="visa-form-control" required min="1" value="1" placeholder="1">
+                        </div>
+                        <div class="visa-form-group">
+                            <label class="visa-form-label">旅行社</label>
+                            <input type="text" name="agency" class="visa-form-control" placeholder="可选">
+                        </div>
+                        <div class="visa-form-group">
+                            <label class="visa-form-label">地接社</label>
+                            <input type="text" name="operator" class="visa-form-control" placeholder="可选">
+                        </div>
+                        <div class="visa-form-group">
+                            <label class="visa-form-label">团编号</label>
+                            <input type="text" name="groupCode" class="visa-form-control" placeholder="可选">
+                        </div>
+                        <div class="visa-form-group">
+                            <label class="visa-form-label">团状态</label>
+                            <select name="groupStatus" class="visa-form-select">
+                                <option value="计划中" selected>计划中</option>
+                                <option value="确认中">确认中</option>
+                                <option value="已确认">已确认</option>
+                                <option value="进行中">进行中</option>
+                                <option value="已完成">已完成</option>
+                                <option value="已取消">已取消</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab 3: 详细说明 -->
+                <div id="tab-details" class="tab-content">
+                    <h3 style="color: #8b5cf6; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.5rem;">
+                        <i class="fas fa-file-alt"></i> 详细说明（可选）
+                    </h3>
+                    <div class="visa-grid-2">
+                        <div class="visa-form-group">
+                            <label class="visa-form-label">酒店信息</label>
+                            <textarea name="hotelInfo" rows="4" class="visa-form-control" placeholder="请输入酒店详细信息..."></textarea>
+                        </div>
+                        <div class="visa-form-group">
+                            <label class="visa-form-label">交通工具</label>
+                            <textarea name="transport" rows="4" class="visa-form-control" placeholder="请输入交通工具安排..."></textarea>
+                        </div>
+                    </div>
+                    <div class="visa-grid-2">
+                        <div class="visa-form-group">
+                            <label class="visa-form-label">用餐安排</label>
+                            <textarea name="meals" rows="4" class="visa-form-control" placeholder="请输入用餐安排详情..."></textarea>
+                        </div>
+                        <div class="visa-form-group">
+                            <label class="visa-form-label">景点/活动</label>
+                            <textarea name="attractions" rows="4" class="visa-form-control" placeholder="请输入景点和活动安排..."></textarea>
+                        </div>
+                    </div>
+                    <div class="visa-grid-2">
+                        <div class="visa-form-group">
+                            <label class="visa-form-label">包含项目</label>
+                            <textarea name="includedItems" rows="4" class="visa-form-control" placeholder="请输入包含的服务项目..."></textarea>
+                        </div>
+                        <div class="visa-form-group">
+                            <label class="visa-form-label">不包含项目</label>
+                            <textarea name="excludedItems" rows="4" class="visa-form-control" placeholder="请输入不包含的服务项目..."></textarea>
+                        </div>
+                    </div>
+                    <div class="visa-form-group">
+                        <label class="visa-form-label">注意事项</label>
+                        <textarea name="importantNotes" rows="4" class="visa-form-control" placeholder="请输入重要注意事项..."></textarea>
+                    </div>
+                    <div class="visa-form-group">
+                        <label class="visa-form-label">项目备注</label>
+                        <textarea name="remarks" rows="4" class="visa-form-control" placeholder="填写其他备注信息..."></textarea>
+                    </div>
+                </div>
             </div>
-            <div class="form-group">
-                <label for="project_status" class="required-field">项目状态:</label>
-                <select id="project_status" name="projectStatus" required>
-                    <option value="处理中">处理中</option>
-                    <option value="待出行">待出行</option>
-                    <option value="已完成">已完成</option>
-                    <option value="忽略单">忽略单</option>
-                </select>
+
+            <!-- 操作按钮（底部固定） -->
+            <div class="bg-white rounded-2xl shadow-md p-6">
+                <div class="flex flex-col sm:flex-row justify-center gap-4">
+                    <a href="{{ url_for('tour_projects.manage_tour_projects') }}" 
+                       class="inline-flex items-center justify-center gap-2 px-6 py-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors font-medium">
+                        <i class="fas fa-arrow-left"></i> 返回列表
+                    </a>
+                    <button type="submit" 
+                            class="inline-flex items-center justify-center gap-2 px-6 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors font-medium">
+                        <i class="fas fa-save"></i> 创建项目
+                    </button>
+                </div>
             </div>
-            <div class="form-group">
-                <label for="departure_date" class="required-field">出发日期:</label>
-                <input type="date" id="departure_date" name="departureDate" required>
-            </div>
-        </div>
-        <div class="form-row">
-            <div class="form-group">
-                <label for="contact_person" class="required-field">联系人:</label>
-                <input type="text" id="contact_person" name="contactPerson" placeholder="例如: 张三" required>
-            </div>
-            <div class="form-group">
-                <label for="contact_info">联系方式:</label>
-                <input type="text" id="contact_info" name="contactInfo" placeholder="例如: 123456789">
-            </div>
-        </div>
-        <div class="form-row">
-            <div class="form-group full-width">
-                <label for="remarks">备注:</label>
-                <textarea id="remarks" name="remarks" placeholder="填写备注信息" rows="4"></textarea>
-            </div>
-        </div>
-        <button type="submit">创建项目</button>
-    </form>
+        </form>
     </div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
-    // 显示闪现消息函数
-    function showFlashMessage(message, isSuccess) {
-        const flashMessage = document.getElementById("flash-message");
-        flashMessage.textContent = message;
-        flashMessage.style.backgroundColor = isSuccess ? '#4CAF50' : '#dc3545';
-        flashMessage.style.display = 'block';
-        setTimeout(() => flashMessage.style.display = 'none', 3000);
+// 标签页切换功能
+document.addEventListener('DOMContentLoaded', function() {
+    const tabButtons = document.querySelectorAll('.tab-button');
+    const tabContents = document.querySelectorAll('.tab-content');
+    
+    function switchTab(targetTab) {
+        tabButtons.forEach(btn => btn.classList.remove('active'));
+        tabContents.forEach(content => content.classList.remove('active'));
+        
+        const targetButton = document.querySelector(`.tab-button[data-tab="${targetTab}"]`);
+        const targetContent = document.getElementById('tab-' + targetTab);
+        
+        if (targetButton && targetContent) {
+            targetButton.classList.add('active');
+            targetContent.classList.add('active');
+        }
     }
-
-    // 简化的表单提交处理函数
-    function handleSubmit(event) {
-        // 由于 type=date，浏览器已自动校验格式，无需额外校验
-        const submitButton = event.target.querySelector('button[type="submit"]');
-        const originalText = submitButton.textContent;
-        submitButton.textContent = '创建中...';
-        submitButton.disabled = true;
-        return true; // 允许表单提交
-    }
-
-    document.addEventListener('DOMContentLoaded', function() {
-        // 可选：输出调试信息
+    
+    tabButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const targetTab = this.getAttribute('data-tab');
+            switchTab(targetTab);
+        });
     });
+    
+    // 表单提交时验证
+    const form = document.getElementById('projectForm');
+    form.addEventListener('submit', function(e) {
+        const projectName = form.querySelector('input[name="projectName"]').value.trim();
+        const departureDate = form.querySelector('input[name="departureDate"]').value;
+        const returnDate = form.querySelector('input[name="returnDate"]').value;
+        const contactPerson = form.querySelector('input[name="contactPerson"]').value.trim();
+        const pax = form.querySelector('input[name="pax"]').value;
+        
+        // 验证必填字段
+        if (!projectName) {
+            e.preventDefault();
+            showAlert('请填写项目名称', 'danger');
+            switchTab('basic');
+            return false;
+        }
+        
+        if (!contactPerson) {
+            e.preventDefault();
+            showAlert('请填写联系人', 'danger');
+            switchTab('basic');
+            return false;
+        }
+        
+        if (!departureDate) {
+            e.preventDefault();
+            showAlert('请选择出发日期', 'danger');
+            switchTab('group');
+            return false;
+        }
+        
+        if (!returnDate) {
+            e.preventDefault();
+            showAlert('请选择返回日期', 'danger');
+            switchTab('group');
+            return false;
+        }
+        
+        if (!pax || parseInt(pax) < 1) {
+            e.preventDefault();
+            showAlert('请填写人数', 'danger');
+            switchTab('group');
+            return false;
+        }
+        
+        // 验证日期逻辑
+        if (new Date(departureDate) > new Date(returnDate)) {
+            e.preventDefault();
+            showAlert('返回日期必须晚于或等于出发日期', 'danger');
+            switchTab('group');
+            return false;
+        }
+        
+        // 显示加载状态
+        const submitBtn = form.querySelector('button[type="submit"]');
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 创建中...';
+        submitBtn.disabled = true;
+        
+        return true;
+    });
+});
+
+// 显示提示信息
+function showAlert(message, type = 'info') {
+    const alertDiv = document.createElement('div');
+    const bgColor = type === 'success' ? '#10b981' : type === 'danger' ? '#ef4444' : type === 'warning' ? '#f59e0b' : '#3b82f6';
+    alertDiv.style.cssText = `
+        position: fixed;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 9999;
+        padding: 1rem 2rem;
+        border-radius: 12px;
+        font-weight: 500;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        animation: slideDown 0.3s ease-out;
+        background: ${bgColor};
+        color: white;
+    `;
+    alertDiv.textContent = message;
+    document.body.appendChild(alertDiv);
+    
+    setTimeout(() => {
+        alertDiv.style.animation = 'slideUp 0.3s ease-out';
+        setTimeout(() => {
+            if (alertDiv.parentNode) alertDiv.parentNode.removeChild(alertDiv);
+        }, 300);
+    }, 3000);
+}
+
+// 添加动画样式
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes slideDown {
+        from { transform: translateX(-50%) translateY(-100%); opacity: 0; }
+        to { transform: translateX(-50%) translateY(0); opacity: 1; }
+    }
+    @keyframes slideUp {
+        from { transform: translateX(-50%) translateY(0); opacity: 1; }
+        to { transform: translateX(-50%) translateY(-100%); opacity: 0; }
+    }
+`;
+document.head.appendChild(style);
 </script>
 {% endblock %}

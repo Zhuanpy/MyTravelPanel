@@ -47,38 +47,52 @@ def save_uploaded_image(file, upload_folder):
 @tour_projects.route('/create', methods=['GET', 'POST'])
 @csrf.exempt
 def create_tour_project():
-    """创建旅游项目页面"""
+    """创建旅游项目页面 - 同时创建项目和团队"""
     if request.method == 'POST':
         try:
             print("=== 收到POST请求 ===")
             print(f"表单数据: {dict(request.form)}")
             print(f"请求头: {dict(request.headers)}")
             
-            # 从前端表单中获取用户输入的数据
-            project_name = request.form.get('projectName', '').strip()  # 项目名称
-            project_hid = request.form.get('projectHID', '').strip()  # 项目HID（可选）
-            project_type = request.form.get('projectType', '').strip()  # 项目类型
-            budget_value = request.form.get('budget', '').strip()  # 项目预算
-            departure_date = request.form.get('departureDate', '').strip()  # 出发日期
-            project_status = request.form.get('projectStatus', '').strip()  # 项目状态
-            contact_person = request.form.get('contactPerson', '').strip()  # 联系人
-            contact_info = request.form.get('contactInfo', '').strip()  # 联系方式
-            remarks = request.form.get('remarks', '').strip()  # 备注
+            # 从前端表单中获取项目信息
+            project_name = request.form.get('projectName', '').strip()
+            project_hid = request.form.get('projectHID', '').strip()
+            project_type = request.form.get('projectType', '').strip()
+            budget_value = request.form.get('budget', '').strip()
+            project_status = request.form.get('projectStatus', '').strip()
+            contact_person = request.form.get('contactPerson', '').strip()
+            contact_info = request.form.get('contactInfo', '').strip()
+            remarks = request.form.get('remarks', '').strip()
+            
+            # 从前端表单中获取团队信息
+            group_title = request.form.get('groupTitle', '').strip()
+            departure_date = request.form.get('departureDate', '').strip()
+            return_date = request.form.get('returnDate', '').strip()
+            pax = request.form.get('pax', '1').strip()
+            agency = request.form.get('agency', '').strip()
+            operator = request.form.get('operator', '').strip()
+            group_code = request.form.get('groupCode', '').strip()
+            group_status = request.form.get('groupStatus', '计划中').strip()
+            
+            # 详细说明字段
+            hotel_info = request.form.get('hotelInfo', '').strip()
+            transport = request.form.get('transport', '').strip()
+            meals = request.form.get('meals', '').strip()
+            attractions = request.form.get('attractions', '').strip()
+            included_items = request.form.get('includedItems', '').strip()
+            excluded_items = request.form.get('excludedItems', '').strip()
+            important_notes = request.form.get('importantNotes', '').strip()
+            
             creation_date = datetime.now().date()
 
             print(f"解析后的数据:")
             print(f"  project_name: '{project_name}'")
-            print(f"  project_hid: '{project_hid}'")
-            print(f"  project_type: '{project_type}'")
-            print(f"  budget_value: '{budget_value}'")
             print(f"  departure_date: '{departure_date}'")
-            print(f"  project_status: '{project_status}'")
-            print(f"  contact_person: '{contact_person}'")
-            print(f"  contact_info: '{contact_info}'")
-            print(f"  remarks: '{remarks}'")
+            print(f"  return_date: '{return_date}'")
+            print(f"  pax: '{pax}'")
 
             # 验证必填字段是否完整
-            required_fields = [project_name, departure_date, project_status, contact_person]
+            required_fields = [project_name, departure_date, return_date, project_status, contact_person, pax]
             print(f"必填字段检查: {required_fields}")
             print(f"所有字段都有值: {all(required_fields)}")
             
@@ -86,21 +100,30 @@ def create_tour_project():
                 missing_fields = []
                 if not project_name: missing_fields.append('项目名称')
                 if not departure_date: missing_fields.append('出发日期')
+                if not return_date: missing_fields.append('返回日期')
                 if not project_status: missing_fields.append('项目状态')
                 if not contact_person: missing_fields.append('联系人')
+                if not pax: missing_fields.append('人数')
                 
                 error_msg = f'缺少必填字段: {", ".join(missing_fields)}'
                 print(f"验证失败: {error_msg}")
                 flash(error_msg, 'error')
                 return redirect(url_for('tour_projects.create_tour_project'))
 
-            # 验证出发日期格式
+            # 验证日期格式
             try:
-                formatted_date = datetime.strptime(departure_date, "%Y-%m-%d").date()
-                print(f"日期解析成功: {formatted_date}")
+                formatted_departure_date = datetime.strptime(departure_date, "%Y-%m-%d").date()
+                formatted_return_date = datetime.strptime(return_date, "%Y-%m-%d").date()
+                print(f"日期解析成功: 出发 {formatted_departure_date}, 返回 {formatted_return_date}")
+                
+                # 验证返回日期不早于出发日期
+                if formatted_return_date < formatted_departure_date:
+                    flash('返回日期不能早于出发日期', 'error')
+                    return redirect(url_for('tour_projects.create_tour_project'))
+                    
             except ValueError as e:
                 print(f"日期解析失败: {e}")
-                flash('出发日期格式无效，请选择有效的日期', 'error')
+                flash('日期格式无效，请选择有效的日期', 'error')
                 return redirect(url_for('tour_projects.create_tour_project'))
 
             # 创建文件夹路径
@@ -128,14 +151,17 @@ def create_tour_project():
                 except ValueError:
                     budget = None
                     print(f"预算转换失败，设置为None")
-            else:
-                budget = None
-                print(f"预算为空，设置为None")
             
-            # 创建 TourProject 实例，准备保存到数据库
+            # 处理人数字段
+            try:
+                pax_int = int(pax)
+            except ValueError:
+                pax_int = 1
+            
+            # 创建 TourProject 实例
             new_project = TourProject(
                 project_name=project_name,
-                project_hid=project_hid if project_hid else None,  # 如果没有项目HID，则为 None
+                project_hid=project_hid if project_hid else None,
                 project_type=project_type,
                 budget=budget,
                 project_status=project_status,
@@ -143,23 +169,51 @@ def create_tour_project():
                 contact_person=contact_person,
                 contact_info=contact_info,
                 remarks=remarks,
-                departure_date=formatted_date
+                departure_date=formatted_departure_date
             )
 
             print("TourProject实例创建成功")
 
             # 将新项目添加到数据库会话
             db.session.add(new_project)
+            db.session.flush()  # 获取项目ID
+            
+            print(f"项目ID: {new_project.id}")
+            
+            # 创建 TourGroup 实例
+            new_group = TourGroup(
+                title=group_title if group_title else project_name,  # 如果团队名称为空，使用项目名称
+                departure_date=formatted_departure_date,
+                return_date=formatted_return_date,
+                pax=pax_int,
+                agency=agency if agency else None,
+                operator=operator if operator else None,
+                group_code=group_code if group_code else None,
+                group_status=group_status,
+                hotel_info=hotel_info if hotel_info else None,
+                transport=transport if transport else None,
+                meals=meals if meals else None,
+                attractions=attractions if attractions else None,
+                included_items=included_items if included_items else None,
+                excluded_items=excluded_items if excluded_items else None,
+                important_notes=important_notes if important_notes else None,
+                project_id=new_project.id
+            )
+            
+            print("TourGroup实例创建成功")
+            
+            db.session.add(new_group)
 
             # 提交到数据库
             db.session.commit()
             print("数据库提交成功")
 
-            flash('旅游项目创建成功！', 'success')
-            return redirect(url_for('tour_projects.manage_tour_projects'))
+            flash('旅游项目和团队创建成功！', 'success')
+            # 直接跳转到编辑页面，方便用户继续添加行程
+            return redirect(url_for('tour_projects.edit_tour_project', project_id=new_project.id))
 
         except Exception as e:
-            # 记录其他错误日志
+            db.session.rollback()
             print(f"发生异常: {str(e)}")
             import traceback
             traceback.print_exc()
@@ -167,7 +221,7 @@ def create_tour_project():
             flash('创建旅游项目失败，请稍后重试', 'error')
             return redirect(url_for('tour_projects.create_tour_project'))
 
-    # 不要传入与模板全局函数同名的 csrf_token，避免覆盖导致 'str' object is not callable
+    # GET请求：渲染创建页面
     return render_template('business/tour/package/TourProjects/tour_project_create.html')
 
 @tour_projects.route('/manage', methods=['GET'])
@@ -838,8 +892,13 @@ def edit_tour_project(project_id):
             
             # 更新项目基本信息
             project.project_name = request.form.get('project_name', '').strip()
-            project.project_type = request.form.get('project_type', '').strip()
-            
+            project.project_hid = request.form.get('project_hid', '').strip() or None
+            project.project_type = request.form.get('project_type', '').strip() or None
+            project.project_status = request.form.get('project_status', '').strip() or None
+            project.contact_person = request.form.get('contact_person', '').strip() or None
+            project.contact_info = request.form.get('contact_info', '').strip() or None
+            project.remarks = request.form.get('remarks', '').strip() or None
+
             # 处理预算字段
             budget_value = request.form.get('budget', '').strip()
             print(f"预算字段原始值: '{budget_value}'")

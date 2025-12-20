@@ -99,6 +99,16 @@ def create():
                 flash('成人数量必须大于0', 'error')
                 return render_template('business/tour/package/TourBudget/create.html', form=request.form)
             
+            # 获取当前用户名字
+            if current_user.is_authenticated and current_user.profile:
+                created_by_name = f"{current_user.profile.first_name or ''} {current_user.profile.last_name or ''}".strip()
+                if not created_by_name:
+                    created_by_name = current_user.email
+            elif current_user.is_authenticated:
+                created_by_name = current_user.email
+            else:
+                created_by_name = 'admin'
+            
             # 创建预算单
             budget = BudgetHeader(
                 package_name=package_name,
@@ -108,7 +118,7 @@ def create():
                 status=status,
                 is_template=is_template,
                 remarks=remarks,
-                created_by=request.form.get('created_by', 'admin'),  # 可以从session获取当前用户
+                created_by=created_by_name,
                 created_at=datetime.utcnow()
             )
             
@@ -532,6 +542,16 @@ def duplicate(budget_id):
         original_budget = BudgetHeader.query.get_or_404(budget_id)
         
         # 创建新的预算单
+        # 获取当前用户名字
+        if current_user.is_authenticated and current_user.profile:
+            created_by_name = f"{current_user.profile.first_name or ''} {current_user.profile.last_name or ''}".strip()
+            if not created_by_name:
+                created_by_name = current_user.email
+        elif current_user.is_authenticated:
+            created_by_name = current_user.email
+        else:
+            created_by_name = 'admin'
+        
         new_budget = BudgetHeader(
             package_name=f"{original_budget.package_name} - 副本",
             adult_count=original_budget.adult_count,
@@ -540,7 +560,7 @@ def duplicate(budget_id):
             status='draft',
             is_template=False,
             remarks=original_budget.remarks,
-            created_by=request.form.get('created_by', 'admin'),
+            created_by=created_by_name,
             created_at=datetime.utcnow()
         )
         
