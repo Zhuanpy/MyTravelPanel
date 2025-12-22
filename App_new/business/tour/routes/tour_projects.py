@@ -75,10 +75,6 @@ def create_tour_project():
             group_status = request.form.get('groupStatus', '计划中').strip()
             
             # 详细说明字段
-            hotel_info = request.form.get('hotelInfo', '').strip()
-            transport = request.form.get('transport', '').strip()
-            meals = request.form.get('meals', '').strip()
-            attractions = request.form.get('attractions', '').strip()
             included_items = request.form.get('includedItems', '').strip()
             excluded_items = request.form.get('excludedItems', '').strip()
             important_notes = request.form.get('importantNotes', '').strip()
@@ -190,10 +186,6 @@ def create_tour_project():
                 operator=operator if operator else None,
                 group_code=group_code if group_code else None,
                 group_status=group_status,
-                hotel_info=hotel_info if hotel_info else None,
-                transport=transport if transport else None,
-                meals=meals if meals else None,
-                attractions=attractions if attractions else None,
                 included_items=included_items if included_items else None,
                 excluded_items=excluded_items if excluded_items else None,
                 important_notes=important_notes if important_notes else None,
@@ -323,11 +315,22 @@ def delete_tour_project(project_id):
         if not project:
             return jsonify({"success": False, "message": "项目不存在"}), 404
 
+        # 先删除关联的行程数据
+        groups = TourGroup.query.filter_by(project_id=project_id).all()
+        for group in groups:
+            # 删除团组下的所有行程
+            TourItinerary.query.filter_by(tour_id=group.id).delete()
+            # 删除团组
+            db.session.delete(group)
+        
+        # 最后删除项目
         db.session.delete(project)
         db.session.commit()
-        return jsonify({"success": True, "message": "项目删除成功"}), 200
+        return jsonify({"success": True, "message": "项目及关联数据删除成功"}), 200
 
     except Exception as e:
+        db.session.rollback()
+        print(f"删除项目失败: {str(e)}")
         return jsonify({"success": False, "message": str(e)}), 500
 
 @tour_projects.route('/open_folder', methods=['GET', 'POST'])
@@ -442,14 +445,10 @@ def create_tour_group(project_id):
             pax=int(request.form.get('pax')),
             agency=request.form.get('agency'),
             operator=request.form.get('operator'),
-            hotel_info=request.form.get('hotel_info'),
             project_id=project_id,
             created_by=request.form.get('created_by'),
             group_code=request.form.get('group_code'),
             group_status=request.form.get('group_status'),
-            transport=request.form.get('transport'),
-            meals=request.form.get('meals'),
-            attractions=request.form.get('attractions'),
             included_items=request.form.get('included_items'),
             excluded_items=request.form.get('excluded_items'),
             important_notes=request.form.get('important_notes')
@@ -575,14 +574,10 @@ def edit_tour_group(group_id):
             group.pax = request.form.get('pax')
             group.agency = request.form.get('agency')
             group.operator = request.form.get('operator')
-            group.hotel_info = request.form.get('hotel_info')
             group.project_type = request.form.get('project_type')
             group.created_by = request.form.get('created_by')
             group.group_code = request.form.get('group_code')
             group.group_status = request.form.get('group_status')
-            group.transport = request.form.get('transport')
-            group.meals = request.form.get('meals')
-            group.attractions = request.form.get('attractions')
             group.included_items = request.form.get('included_items')
             group.excluded_items = request.form.get('excluded_items')
             group.important_notes = request.form.get('important_notes')
@@ -649,10 +644,6 @@ def edit_tour_group(group_id):
             'operator': group.operator,
             'group_code': group.group_code,
             'group_status': group.group_status,
-            'hotel_info': group.hotel_info,
-            'transport': group.transport,
-            'meals': group.meals,
-            'attractions': group.attractions,
             'included_items': group.included_items,
             'excluded_items': group.excluded_items,
             'important_notes': group.important_notes

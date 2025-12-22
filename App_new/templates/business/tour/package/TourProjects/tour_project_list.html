@@ -1,4 +1,4 @@
-﻿{% extends "shared/staff_base.html" %}
+{% extends "shared/staff_base.html" %}
 
 {% block title %}旅游项目列表 - MyTravelPanel{% endblock %}
 
@@ -68,9 +68,7 @@
                         <th>联系人</th>
                         <th>联系方式</th>
                         <th>备注</th>
-                        <th>保存修改</th>
                         <th>编辑项目</th>
-                        <th>项目详细</th>
                         <th>打开项目</th>
                         <th>删除项目</th>
                     </tr>
@@ -90,28 +88,17 @@
                             <td>{{ project.project_hid or 'N/A' }}</td>
                             <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ project.project_name }}</td>
                             <td>
-                                <select name="project_status" class="visa-form-select" style="min-width: 100px;" onchange="this.form.submit()">
-                                    <option value="处理中" {% if project.project_status == '处理中' %}selected{% endif %}>处理中</option>
-                                    <option value="待出行" {% if project.project_status == '待出行' %}selected{% endif %}>待出行</option>
-                                    <option value="已完成" {% if project.project_status == '已完成' %}selected{% endif %}>已完成</option>
-                                    <option value="忽略单" {% if project.project_status == '忽略单' %}selected{% endif %}>忽略单</option>
-                                </select>
+                                <span class="visa-badge {% if project.project_status == '处理中' %}visa-badge-primary{% elif project.project_status == '待出行' %}visa-badge-warning{% elif project.project_status == '已完成' %}visa-badge-success{% elif project.project_status == '忽略单' %}visa-badge-secondary{% else %}visa-badge-info{% endif %}">
+                                    {{ project.project_status or 'N/A' }}
+                                </span>
                             </td>
                             <td>{{ project.contact_person or 'N/A' }}</td>
                             <td>{{ project.contact_info or 'N/A' }}</td>
                             <td>{{ project.remarks or 'N/A' }}</td>
                             
-                            <!-- 保存修改按钮 -->
-                            <td><button type="submit" class="visa-btn visa-btn-primary visa-btn-sm">保存修改</button></td>
-                            
                             <!-- 编辑项目按钮 -->
                             <td>
                                 <a href="{{ url_for('tour_projects.edit_tour_project', project_id=project.id) }}" class="visa-btn visa-btn-info visa-btn-sm">编辑项目</a>
-                            </td>
-                            
-                            <!-- 项目详细按钮 -->
-                            <td>
-                                <a href="{{ url_for('tour_projects.project_details', project_id=project.id) }}" class="visa-btn visa-btn-success visa-btn-sm">项目详细</a>
                             </td>
                             
                             <!-- 打开项目按钮 -->
@@ -204,7 +191,7 @@
             }
             const csrfToken = csrfTokenElement.value;
             
-            fetch(`/tour_projects/delete/${projectId}`, {
+            fetch(`/tour/projects/delete/${projectId}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',

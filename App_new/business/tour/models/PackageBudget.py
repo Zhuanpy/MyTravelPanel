@@ -19,6 +19,10 @@ class BudgetHeader(db.Model):
     remarks = db.Column(db.Text)
     status = db.Column(db.String(20), default='draft')
     is_template = db.Column(db.Boolean, default=False)
+    
+    # 关联项目ID
+    project_id = db.Column(db.Integer, db.ForeignKey('tour_project.id'), nullable=True, index=True)
+    project = db.relationship("TourProject", backref=db.backref("budgets", lazy="dynamic"))
 
     items = db.relationship("BudgetItem", backref="header", cascade="all, delete-orphan")
 

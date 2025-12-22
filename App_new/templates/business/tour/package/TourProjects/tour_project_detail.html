@@ -614,7 +614,7 @@ document.addEventListener('DOMContentLoaded', function() {
 // 删除项目函数
 function deleteProject(projectId) {
     if (confirm('确定要删除这个项目吗？此操作不可恢复！\n\n删除项目将同时删除所有关联的团信息和行程数据。')) {
-        fetch(`/tour_projects/delete/${projectId}`, {
+        fetch(`/tour/projects/delete/${projectId}`, {
             method: 'POST',
             headers: {
                 'X-Requested-With': 'XMLHttpRequest'

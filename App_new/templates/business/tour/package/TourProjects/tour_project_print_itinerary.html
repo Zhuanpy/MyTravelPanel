@@ -410,9 +410,11 @@
                 height: auto !important;
             }
             
-            /* 隐藏Proposal印章 */
+            /* 保留Proposal印章 - 保持flex居中对齐 */
             .proposal-text {
-                display: none !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
             }
             
             /* 标题优化 */
@@ -513,10 +515,9 @@
                 border-radius: 4px !important;
             }
             
-            /* 行程卡片 */
+            /* 行程卡片 - 允许内容跨页以实现紧凑排版 */
             .itinerary-day {
-                page-break-inside: avoid !important;
-                break-inside: avoid !important;
+                /* 移除 page-break-inside: avoid 以允许内容跨页 */
                 border: 1.5px solid #4CAF50 !important;
                 background: #fafafa !important;
                 box-shadow: none !important;
@@ -531,6 +532,9 @@
                 border-bottom: 1.5px solid #4CAF50 !important;
                 padding-bottom: 5px !important;
                 margin-bottom: 6px !important;
+                /* 确保日期标题不会单独出现在页面底部 */
+                page-break-after: avoid !important;
+                break-after: avoid !important;
             }
             
             .day-date {
@@ -548,7 +552,7 @@
             /* 行程图片 */
             .day-images {
                 margin-top: 10px !important;
-                page-break-inside: avoid !important;
+                /* 允许图片区域跨页 */
             }
             
             .itinerary-image {
@@ -557,10 +561,9 @@
                 border-radius: 4px !important;
             }
             
-            /* 价格区块 */
+            /* 价格区块 - 允许跨页以紧凑排版 */
             .price-section {
-                page-break-inside: avoid !important;
-                break-inside: avoid !important;
+                /* 移除 page-break-inside: avoid 以紧贴行程后面 */
                 background: #f5f5f5 !important;
                 border: 1.5px solid #4CAF50 !important;
                 padding: 15px !important;
@@ -575,7 +578,7 @@
                 margin-bottom: 10px !important;
                 border-left: 4px solid #4CAF50 !important;
                 border-radius: 4px !important;
-                page-break-inside: avoid !important;
+                /* 允许单个项目跨页 */
             }
             
             .price-label {

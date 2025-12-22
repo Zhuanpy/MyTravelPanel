@@ -7,6 +7,7 @@ from sqlalchemy import or_, and_
 from sqlalchemy.exc import SQLAlchemyError
 from App_new.exts import db, csrf
 from ..models.PackageBudget import BudgetHeader, BudgetItem
+from ..models.TourProject import TourProject
 from App_new.shared.models.business_types import BusinessType
 import urllib.parse
 
@@ -89,6 +90,7 @@ def create():
             status = request.form.get('status', 'draft')
             is_template = request.form.get('is_template') == '1'
             remarks = request.form.get('remarks', '').strip()
+            project_id = request.form.get('project_id', type=int)
             
             # 验证必填字段
             if not package_name:
@@ -119,7 +121,8 @@ def create():
                 is_template=is_template,
                 remarks=remarks,
                 created_by=created_by_name,
-                created_at=datetime.utcnow()
+                created_at=datetime.utcnow(),
+                project_id=project_id
             )
             
             db.session.add(budget)
@@ -139,16 +142,32 @@ def create():
     
     # GET: 支持通过查询参数预填（来自旅游项目编辑页）
     if request.method == 'GET':
+        project_id = request.args.get('project_id', type=int)
+        project = None
+        
+        # 如果有project_id，获取项目信息用于预填
+        if project_id:
+            project = TourProject.query.get(project_id)
+        
+        # 尝试从项目关联的团队获取人数信息
+        adult_count = ''
+        child_count = '0'
+        if project and hasattr(project, 'groups') and project.groups:
+            first_group = project.groups[0] if project.groups else None
+            if first_group:
+                adult_count = first_group.pax or ''
+        
         prefill = {
-            'package_name': request.args.get('package_name', ''),
-            'adult_count': request.args.get('adult_count', ''),
-            'child_count': request.args.get('child_count', '0'),
-            'currency': request.args.get('currency', ''),
+            'package_name': request.args.get('package_name', project.project_name if project else ''),
+            'adult_count': request.args.get('adult_count', adult_count),
+            'child_count': request.args.get('child_count', child_count),
+            'currency': request.args.get('currency', project.currency if project else ''),
             'status': request.args.get('status', ''),
             'is_template': request.args.get('is_template', ''),
             'remarks': request.args.get('remarks', ''),
+            'project_id': project_id,
         }
-        return render_template('business/tour/package/TourBudget/create.html', form=prefill)
+        return render_template('business/tour/package/TourBudget/create.html', form=prefill, project=project)
 
     return render_template('business/tour/package/TourBudget/create.html')
 
@@ -209,6 +228,9 @@ def edit(budget_id):
     try:
         budget = BudgetHeader.query.get_or_404(budget_id)
         
+        # 获取所有项目用于下拉选择
+        projects = TourProject.query.order_by(TourProject.created_at.desc()).all()
+        
         if request.method == 'POST':
             # 获取表单数据
             package_name = request.form.get('package_name', '').strip()
@@ -218,15 +240,16 @@ def edit(budget_id):
             status = request.form.get('status', 'draft')
             is_template = request.form.get('is_template') == '1'
             remarks = request.form.get('remarks', '').strip()
+            project_id = request.form.get('project_id', type=int) or None
             
             # 验证必填字段
             if not package_name:
                 flash('套餐名称不能为空', 'error')
-                return render_template('business/tour/package/TourBudget/edit.html', budget=budget)
+                return render_template('business/tour/package/TourBudget/edit.html', budget=budget, projects=projects)
             
             if not adult_count or adult_count < 1:
                 flash('成人数量必须大于0', 'error')
-                return render_template('business/tour/package/TourBudget/edit.html', budget=budget)
+                return render_template('business/tour/package/TourBudget/edit.html', budget=budget, projects=projects)
             
             # 更新预算单
             budget.package_name = package_name
@@ -236,6 +259,7 @@ def edit(budget_id):
             budget.status = status
             budget.is_template = is_template
             budget.remarks = remarks
+            budget.project_id = project_id
             budget.updated_at = datetime.utcnow()
             
             db.session.commit()
@@ -243,7 +267,7 @@ def edit(budget_id):
             flash('预算单更新成功！', 'success')
             return redirect(url_for('package_budget.detail', budget_id=budget.id))
         
-        return render_template('business/tour/package/TourBudget/edit.html', budget=budget)
+        return render_template('business/tour/package/TourBudget/edit.html', budget=budget, projects=projects)
     
     except SQLAlchemyError as e:
         db.session.rollback()
@@ -561,7 +585,8 @@ def duplicate(budget_id):
             is_template=False,
             remarks=original_budget.remarks,
             created_by=created_by_name,
-            created_at=datetime.utcnow()
+            created_at=datetime.utcnow(),
+            project_id=original_budget.project_id  # 继承项目关联
         )
         
         db.session.add(new_budget)
@@ -817,4 +842,52 @@ def download_budget_txt(budget_id):
     except Exception as e:
         current_app.logger.error(f"Error in download_budget_txt for budget {budget_id}: {e}")
         flash(f'下载失败: {str(e)}', 'error')
-        return redirect(url_for('package_budget.detail', budget_id=budget_id)) 
+        return redirect(url_for('package_budget.detail', budget_id=budget_id))
+
+
+@login_required
+@staff_only
+@package_budget.route('/project/<int:project_id>')
+def budgets_by_project(project_id):
+    """根据项目ID获取关联的预算单列表"""
+    try:
+        project = TourProject.query.get_or_404(project_id)
+        budgets = BudgetHeader.query.filter_by(project_id=project_id).order_by(BudgetHeader.created_at.desc()).all()
+        
+        return render_template('business/tour/package/TourBudget/project_budgets.html',
+                             project=project,
+                             budgets=budgets)
+    
+    except Exception as e:
+        current_app.logger.error(f"Error in budgets_by_project: {e}")
+        flash('获取项目预算时发生错误', 'error')
+        return redirect(url_for('tour_projects.list_tour_projects'))
+
+
+@login_required
+@staff_only
+@package_budget.route('/project/<int:project_id>/json')
+def budgets_by_project_json(project_id):
+    """根据项目ID获取关联的预算单列表（JSON格式）"""
+    try:
+        budgets = BudgetHeader.query.filter_by(project_id=project_id).order_by(BudgetHeader.created_at.desc()).all()
+        
+        result = []
+        for budget in budgets:
+            result.append({
+                'id': budget.id,
+                'package_name': budget.package_name,
+                'adult_count': budget.adult_count,
+                'child_count': budget.child_count,
+                'currency': budget.currency,
+                'status': budget.status,
+                'total_price': float(budget.total_price),
+                'created_at': budget.created_at.strftime('%Y-%m-%d %H:%M') if budget.created_at else None,
+                'created_by': budget.created_by
+            })
+        
+        return jsonify({'success': True, 'budgets': result, 'count': len(result)})
+    
+    except Exception as e:
+        current_app.logger.error(f"Error in budgets_by_project_json: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500

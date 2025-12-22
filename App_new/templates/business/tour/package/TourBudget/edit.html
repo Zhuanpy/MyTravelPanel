@@ -77,6 +77,23 @@
                             </div>
                         </div>
 
+                        <div class="row mb-3">
+                            <div class="col-md-12">
+                                <label for="project_id" class="form-label">
+                                    <i class="fas fa-link"></i> 关联项目
+                                </label>
+                                <select id="project_id" name="project_id" class="form-control">
+                                    <option value="">-- 不关联项目 --</option>
+                                    {% for project in projects %}
+                                    <option value="{{ project.id }}" {{ 'selected' if budget.project_id == project.id }}>
+                                        {{ project.project_name }}{% if project.project_hid %} ({{ project.project_hid }}){% endif %}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                <small class="text-muted">选择要关联的旅游项目，关联后可从项目页面快速访问此预算</small>
+                            </div>
+                        </div>
+
                         <div class="mb-3">
                             <label for="remarks" class="form-label">备注</label>
                             <textarea id="remarks" name="remarks" class="form-control" rows="3" 
@@ -108,6 +125,16 @@
                                 <div class="mb-2">
                                     <strong>类型：</strong>
                                     <span id="preview_type">{{ '模板' if budget.is_template else '普通预算' }}</span>
+                                </div>
+                                <div class="mb-2">
+                                    <strong>关联项目：</strong>
+                                    <span id="preview_project">
+                                        {% if budget.project %}
+                                        {{ budget.project.project_name }}
+                                        {% else %}
+                                        无
+                                        {% endif %}
+                                    </span>
                                 </div>
                             </div>
                         </div>
@@ -141,6 +168,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const currency = document.getElementById('currency');
     const status = document.getElementById('status');
     const isTemplate = document.getElementById('is_template');
+    const projectId = document.getElementById('project_id');
 
     function updatePreview() {
         // 更新套餐名称预览
@@ -165,6 +193,13 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // 更新类型预览
         document.getElementById('preview_type').textContent = isTemplate.checked ? '模板' : '普通预算';
+        
+        // 更新关联项目预览
+        if (projectId.value) {
+            document.getElementById('preview_project').textContent = projectId.options[projectId.selectedIndex].text;
+        } else {
+            document.getElementById('preview_project').textContent = '无';
+        }
     }
 
     // 绑定事件监听器
@@ -174,6 +209,7 @@ document.addEventListener('DOMContentLoaded', function() {
     currency.addEventListener('change', updatePreview);
     status.addEventListener('change', updatePreview);
     isTemplate.addEventListener('change', updatePreview);
+    projectId.addEventListener('change', updatePreview);
 
     // 初始化预览
     updatePreview();

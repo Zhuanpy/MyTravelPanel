@@ -270,7 +270,11 @@
                             <i class="fas fa-edit"></i> 编辑团队
                         </button>
                     </div>
-                    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                        <div class="info-card">
+                            <h6>团队名称</h6>
+                            <p class="font-medium">{{ group.title or project.project_name }}</p>
+                        </div>
                         <div class="info-card">
                             <h6>出发日期</h6>
                             <p class="text-blue-600 font-medium">{{ group.departure_date.strftime('%Y-%m-%d') }}</p>
@@ -282,6 +286,12 @@
                         <div class="info-card">
                             <h6>人数</h6>
                             <p><i class="fas fa-user text-green-500 mr-1"></i> {{ group.pax }}人</p>
+                        </div>
+                        <div class="info-card">
+                            <h6>团编号</h6>
+                            <p style="{% if not group.group_code %}color: #94a3b8; font-style: italic;{% endif %}">
+                                {{ group.group_code or '未设置' }}
+                            </p>
                         </div>
                         <div class="info-card">
                             <h6>旅行社</h6>
@@ -309,6 +319,27 @@
                             </p>
                         </div>
                     </div>
+                    <!-- 详细信息 -->
+                    <div class="grid grid-cols-1 gap-3">
+                        {% if group.included_items %}
+                        <div class="info-card">
+                            <h6><i class="fas fa-check-circle text-green-500 mr-1"></i> 包含项目</h6>
+                            <p style="white-space: pre-line;">{{ group.included_items }}</p>
+                        </div>
+                        {% endif %}
+                        {% if group.excluded_items %}
+                        <div class="info-card">
+                            <h6><i class="fas fa-times-circle text-red-500 mr-1"></i> 不包含项目</h6>
+                            <p style="white-space: pre-line;">{{ group.excluded_items }}</p>
+                        </div>
+                        {% endif %}
+                        {% if group.important_notes %}
+                        <div class="info-card">
+                            <h6><i class="fas fa-exclamation-triangle text-yellow-500 mr-1"></i> 注意事项</h6>
+                            <p style="white-space: pre-line;">{{ group.important_notes }}</p>
+                        </div>
+                        {% endif %}
+                    </div>
                 </div>
                 {% endif %}
         </div>
@@ -329,7 +360,7 @@
                         <a href="{{ url_for('tour_projects.view_tour_itinerary', group_id=group.id) }}" target="_blank" class="inline-flex items-center gap-1 px-3 py-1.5 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors text-xs font-medium">
                             <i class="fas fa-route"></i> 行程单
                         </a>
-                        <a href="{{ url_for('package_budget.create', package_name=project.project_name, adult_count=group.pax, child_count=0, currency='SGD') }}" target="_blank" class="inline-flex items-center gap-1 px-3 py-1.5 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-xs font-medium">
+                        <a href="{{ url_for('package_budget.budgets_by_project', project_id=project.id) }}" target="_blank" class="inline-flex items-center gap-1 px-3 py-1.5 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-xs font-medium">
                             <i class="fas fa-calculator"></i> 价格预算
                         </a>
                         <button type="button" onclick="addItinerary({{ group.id }})" class="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-xs font-medium">
@@ -456,24 +487,6 @@
                             <option value="已取消">已取消</option>
                         </select>
                     </div>
-                </div>
-                <div class="visa-form-group">
-                    <label class="visa-form-label">酒店信息</label>
-                    <textarea name="hotel_info" id="editGroupHotelInfo" rows="3" class="visa-form-control"></textarea>
-                </div>
-                <div class="visa-grid-2">
-                    <div class="visa-form-group">
-                        <label class="visa-form-label">交通工具</label>
-                        <textarea name="transport" id="editGroupTransport" rows="3" class="visa-form-control"></textarea>
-                    </div>
-                    <div class="visa-form-group">
-                        <label class="visa-form-label">用餐安排</label>
-                        <textarea name="meals" id="editGroupMeals" rows="3" class="visa-form-control"></textarea>
-                    </div>
-                </div>
-                <div class="visa-form-group">
-                    <label class="visa-form-label">景点/活动</label>
-                    <textarea name="attractions" id="editGroupAttractions" rows="3" class="visa-form-control"></textarea>
                 </div>
                 <div class="visa-grid-2">
                     <div class="visa-form-group">
@@ -838,10 +851,6 @@ function editGroup(groupId) {
             document.getElementById('editGroupOperator').value = group.operator || '';
             document.getElementById('editGroupCode').value = group.group_code || '';
             document.getElementById('editGroupStatus').value = group.group_status || '计划中';
-            document.getElementById('editGroupHotelInfo').value = group.hotel_info || '';
-            document.getElementById('editGroupTransport').value = group.transport || '';
-            document.getElementById('editGroupMeals').value = group.meals || '';
-            document.getElementById('editGroupAttractions').value = group.attractions || '';
             document.getElementById('editGroupIncludedItems').value = group.included_items || '';
             document.getElementById('editGroupExcludedItems').value = group.excluded_items || '';
             document.getElementById('editGroupImportantNotes').value = group.important_notes || '';
