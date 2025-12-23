@@ -279,6 +279,46 @@ class SOAService:
             if balance_positive:
                 query = query.filter(AthinaBookingHeader.sub_total_balance > 0)
             
+            # 计算筛选后的余额统计（在所有记录上，不仅仅是当前页）
+            # 使用相同的查询条件构建统计查询
+            from sqlalchemy import func
+            stats_query = AthinaBookingHeader.query
+            
+            if search:
+                stats_query = stats_query.filter(
+                    AthinaBookingHeader.booking_header_id.contains(search) |
+                    AthinaBookingHeader.corporate_name.contains(search)
+                )
+            
+            if company:
+                stats_query = stats_query.filter(AthinaBookingHeader.corporate_name == company)
+            
+            if month:
+                try:
+                    year, month_num = month.split('-')
+                    year = int(year)
+                    month_num = int(month_num)
+                    from datetime import date
+                    start_date = date(year, month_num, 1)
+                    if month_num == 12:
+                        end_date = date(year + 1, 1, 1)
+                    else:
+                        end_date = date(year, month_num + 1, 1)
+                    stats_query = stats_query.filter(
+                        AthinaBookingHeader.book_date >= start_date,
+                        AthinaBookingHeader.book_date < end_date
+                    )
+                except (ValueError, TypeError):
+                    pass
+            
+            if balance_positive:
+                stats_query = stats_query.filter(AthinaBookingHeader.sub_total_balance > 0)
+            
+            # 计算总和和记录数
+            total_count = stats_query.count()
+            total_balance_result = stats_query.with_entities(func.sum(AthinaBookingHeader.sub_total_balance)).scalar()
+            total_balance = float(total_balance_result) if total_balance_result else 0
+            
             pagination = query.paginate(
                 page=page, per_page=per_page, error_out=False
             )
@@ -311,7 +351,11 @@ class SOAService:
                 'total': pagination.total,
                 'pages': pagination.pages,
                 'current_page': page,
-                'per_page': per_page
+                'per_page': per_page,
+                'statistics': {
+                    'total_balance': float(total_balance),
+                    'total_count': total_count
+                }
             }
             
         except Exception as e:
@@ -343,7 +387,7 @@ class SOAService:
                 'message': f'Failed to get company list: {str(e)}'
             }
     
-    def batch_download_soa(self, company=None, month=None, balance_positive=None, format='excel'):
+    def batch_download_soa(self, company=None, month=None, search=None, balance_positive=None, format='excel'):
         """批量下载SOA - 生成Excel表格"""
         try:
             import pandas as pd
@@ -352,6 +396,12 @@ class SOAService:
             
             # 构建查询条件
             query = AthinaBookingHeader.query
+            
+            if search:
+                query = query.filter(
+                    AthinaBookingHeader.booking_header_id.contains(search) |
+                    AthinaBookingHeader.corporate_name.contains(search)
+                )
             
             if company:
                 query = query.filter(AthinaBookingHeader.corporate_name == company)
@@ -524,11 +574,17 @@ class SOAService:
         except Exception as e:
             return None, f"Error generating Excel file: {str(e)}"
     
-    def batch_download_soa_pdf(self, company=None, month=None, balance_positive=None):
+    def batch_download_soa_pdf(self, company=None, month=None, search=None, balance_positive=None):
         """批量下载SOA - 生成PDF文件"""
         try:
             # 构建查询条件
             query = AthinaBookingHeader.query
+            
+            if search:
+                query = query.filter(
+                    AthinaBookingHeader.booking_header_id.contains(search) |
+                    AthinaBookingHeader.corporate_name.contains(search)
+                )
             
             if company:
                 query = query.filter(AthinaBookingHeader.corporate_name == company)

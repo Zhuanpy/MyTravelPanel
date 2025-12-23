@@ -1,4 +1,4 @@
-﻿{% extends "shared/staff_base.html" %}
+{% extends "shared/staff_base.html" %}
 
 {% block title %}SOA 对账单管理{% endblock %}
 
@@ -132,10 +132,10 @@
             </div>
             <div class="col-md-6 text-right">
                 <div class="btn-group btn-group-sm" role="group">
-                    <button class="btn btn-success" id="batchDownloadBtn" style="display: none;" title="下载Excel">
+                    <button class="btn btn-success" id="batchDownloadBtn" title="下载Excel">
                         <i class="fas fa-file-excel"></i>
                     </button>
-                    <button class="btn btn-danger" id="batchDownloadPdfBtn" style="display: none;" title="下载PDF">
+                    <button class="btn btn-danger" id="batchDownloadPdfBtn" title="下载PDF">
                         <i class="fas fa-file-pdf"></i>
                     </button>
                     <button class="btn btn-primary" id="refreshBtn" title="刷新">
@@ -147,6 +147,22 @@
                     <button class="btn btn-outline-warning" id="resetBtn" title="重置所有筛选条件">
                         <i class="fas fa-undo"></i>
                     </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 余额统计 -->
+    <div id="statisticsDiv" class="card mb-3" style="display: none;">
+        <div class="card-body py-2">
+            <div class="row text-center">
+                <div class="col-md-6">
+                    <small class="text-muted d-block mb-1">筛选记录数</small>
+                    <strong class="h5 mb-0" id="statTotalCount">0</strong>
+                </div>
+                <div class="col-md-6">
+                    <small class="text-muted d-block mb-1">余额总和</small>
+                    <strong class="h5 mb-0 text-success" id="statTotalBalance">SGD $0.00</strong>
                 </div>
             </div>
         </div>
@@ -430,7 +446,13 @@ class SOAManager {
 
         if (!data.headers || data.headers.length === 0) {
             this.showNoData();
+            this.hideStatistics();
             return;
+        }
+
+        // 显示统计信息
+        if (data.statistics) {
+            this.renderStatistics(data.statistics);
         }
 
         data.headers.forEach(header => {
@@ -464,6 +486,16 @@ class SOAManager {
         this.showTable();
         this.renderPagination(data);
         this.updateBatchDownloadButton();
+    }
+
+    renderStatistics(statistics) {
+        document.getElementById('statTotalCount').textContent = statistics.total_count || 0;
+        document.getElementById('statTotalBalance').textContent = `SGD $${(statistics.total_balance || 0).toFixed(2)}`;
+        document.getElementById('statisticsDiv').style.display = 'block';
+    }
+
+    hideStatistics() {
+        document.getElementById('statisticsDiv').style.display = 'none';
     }
 
     renderPagination(data) {
@@ -522,22 +554,18 @@ class SOAManager {
     updateBatchDownloadButton() {
         const batchBtn = document.getElementById('batchDownloadBtn');
         const batchPdfBtn = document.getElementById('batchDownloadPdfBtn');
-        const hasFilters = this.companyFilter || this.monthFilter;
-        batchBtn.style.display = hasFilters ? 'inline-block' : 'none';
-        batchPdfBtn.style.display = hasFilters ? 'inline-block' : 'none';
+        // 始终显示下载按钮，支持下载所有筛选结果
+        batchBtn.style.display = 'inline-block';
+        batchPdfBtn.style.display = 'inline-block';
     }
 
     async batchDownload() {
-        if (!this.companyFilter && !this.monthFilter) {
-            alert('请先选择公司或月份进行筛选');
-            return;
-        }
-
         if (confirm('确定要下载当前筛选条件下的所有数据到Excel表格吗？')) {
             try {
                 const params = new URLSearchParams({
                     company: this.companyFilter,
                     month: this.monthFilter,
+                    search: this.searchTerm,
                     balance_positive: this.balanceFilter,
                     format: 'excel'
                 });
@@ -582,16 +610,12 @@ class SOAManager {
     }
 
     async batchDownloadPdf() {
-        if (!this.companyFilter && !this.monthFilter) {
-            alert('请先选择公司或月份进行筛选');
-            return;
-        }
-
         if (confirm('确定要下载当前筛选条件下的所有数据到PDF文件吗？')) {
             try {
                 const params = new URLSearchParams({
                     company: this.companyFilter,
                     month: this.monthFilter,
+                    search: this.searchTerm,
                     balance_positive: this.balanceFilter
                 });
 
@@ -639,6 +663,7 @@ class SOAManager {
         document.getElementById('tableDiv').style.display = 'none';
         document.getElementById('noDataDiv').style.display = 'none';
         document.getElementById('paginationNav').style.display = 'none';
+        this.hideStatistics();
     }
 
     showTable() {
@@ -652,6 +677,7 @@ class SOAManager {
         document.getElementById('tableDiv').style.display = 'none';
         document.getElementById('noDataDiv').style.display = 'block';
         document.getElementById('paginationNav').style.display = 'none';
+        this.hideStatistics();
     }
 
     showError(message) {

@@ -1,69 +1,89 @@
 {% extends "shared/staff_base.html" %}
 
-{% block title %}{% if ref %}编辑签证明细{% else %}新建签证明细{% endif %}{% endblock %}
+{% block title %}{% if ref and not is_create %}Edit Visa Ref{% else %}New Visa Ref{% endif %}{% endblock %}
 {% block page_title %}Create Visa Ref{% endblock %}
 
 {% block content %}
 <div class="container mt-4">
     <div class="row justify-content-center">
-        <div class="col-lg-8 col-md-10">
+        <div class="col-lg-10 col-md-12">
             <div class="card">
-                <div class="card-header">
-                    <h2 class="mb-0">{% if ref %}编辑签证明细{% else %}新建签证明细{% endif %}</h2>
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-passport me-2"></i>Visa Booking - Ref: {{ ref.ref_number if ref else 'New' }}</h5>
                 </div>
                 <div class="card-body">
-                    <form method="post" action="{% if ref %}{{ url_for('business_projects.project_ref.edit_visa_ref', ref_id=ref.id) }}{% else %}{{ url_for('business_projects.project_ref.submit_visa_ref') }}{% endif %}">
+                    <form method="post" id="visaRefForm" action="{% if ref and not is_create %}{{ url_for('business_projects.project_ref.edit_visa_ref', ref_id=ref.id) }}{% else %}{{ url_for('business_projects.project_ref.submit_visa_ref') }}{% endif %}">
                         <!-- CSRF令牌 -->
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        
-                        <!-- 隐藏字段 -->
                         <input type="hidden" name="header_id" value="{{ header_id }}">
                         {% if ref and not is_create %}
                         <input type="hidden" name="ref_id" value="{{ ref.id }}">
                         {% endif %}
-                        
-                        <!-- 描述字段（自动生成，可通过 JavaScript 更新） -->
-                        <input type="hidden" name="description" id="auto_description" value="{{ ref.description if ref and not is_create else '' }}">
-                        <input type="hidden" name="detailed_description" id="auto_detailed_description" value="{{ ref.detailed_description if ref and not is_create else '' }}">
 
-                        <div class="row mb-4">
+                        <!-- 第一行：国家和签证类型 -->
+                        <div class="row mb-3">
                             <div class="col-md-6">
-                                <div class="form-group">
-                                    <label>国家 <span class="text-danger">*</span></label>
-                                    <select name="country" id="country" class="form-control" required>
-                                        <option value="">请选择国家</option>
-                                        {% for country in countries %}
-                                            <option value="{{ country.country_name_CN }}"
-                                                    data-country-id="{{ country.id }}"
-                                                    {% if visa_info and (visa_info.get('country') == country.country_name_CN or visa_info.get('visa_country') == country.country_name_CN) %}selected{% endif %}>
-                                                {{ country.country_name_CN }}
-                                            </option>
-                                        {% endfor %}
-                                    </select>
-                                    <div class="invalid-feedback">请选择国家</div>
-                                </div>
+                                <label class="form-label">Country: <span class="text-danger">*</span></label>
+                                <select name="country" id="country" class="form-select" required>
+                                    <option value="">请选择国家</option>
+                                    {% for country in countries %}
+                                        <option value="{{ country.country_name_CN }}"
+                                                data-country-id="{{ country.id }}"
+                                                {% if visa_info and (visa_info.get('country') == country.country_name_CN or visa_info.get('visa_country') == country.country_name_CN) %}selected{% endif %}>
+                                            {{ country.country_name_CN }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
                             </div>
                             <div class="col-md-6">
-                                <div class="form-group">
-                                    <label>签证类型 <span class="text-danger">*</span></label>
-                                    <select name="visa_type" id="visa_type" class="form-control" required>
-                                        <option value="">请先选择国家</option>
-                                        {% if not is_create and visa_types %}
-                                            {% for visa_type in visa_types %}
-                                                <option value="{{ visa_type.visa_type }}" 
-                                                        {% if visa_info and visa_info.get('visa_type') == visa_type.visa_type %}selected{% endif %}>
-                                                    {{ visa_type.visa_type }}
-                                                </option>
-                                            {% endfor %}
-                                        {% endif %}
-                                    </select>
-                                    <div class="invalid-feedback">请选择签证类型</div>
-                                </div>
+                                <label class="form-label">Visa Type: <span class="text-danger">*</span></label>
+                                <select name="visa_type" id="visa_type" class="form-select" required>
+                                    <option value="">请先选择国家</option>
+                                    {% if not is_create and visa_types %}
+                                        {% for visa_type in visa_types %}
+                                            <option value="{{ visa_type.visa_type }}" 
+                                                    {% if visa_info and visa_info.get('visa_type') == visa_type.visa_type %}selected{% endif %}>
+                                                {{ visa_type.visa_type }}
+                                            </option>
+                                        {% endfor %}
+                                    {% endif %}
+                                </select>
                             </div>
                         </div>
 
-                        <!-- Pax Name 选择 -->
-                        <div class="row mb-4">
+                        <!-- 第二行：Name（描述）-->
+                        <div class="row mb-3">
+                            <div class="col-md-2">
+                                <label class="form-label">Name:</label>
+                            </div>
+                            <div class="col-md-10">
+                                <input type="text" name="visa_name" id="visa_name" class="form-control" 
+                                       value="{{ extra_info.visa_name if extra_info and extra_info.visa_name else (ref.description if ref else '') }}"
+                                       placeholder="e.g. CHINA TOURIST VISA (auto-generated from country + type)">
+                                <small class="text-muted">可手动输入或自动生成</small>
+                            </div>
+                        </div>
+
+                        <!-- 第三行：Supplier -->
+                        <div class="row mb-3">
+                            <div class="col-md-2">
+                                <label class="form-label">Supplier:</label>
+                            </div>
+                            <div class="col-md-10">
+                                <select name="supplier_id" class="form-select">
+                                    <option value="">请选择供应商</option>
+                                    {% for supplier in suppliers %}
+                                        <option value="{{ supplier.supplier_id }}"
+                                                {% if ref and ref.supplier_id == supplier.supplier_id and not is_create %}selected{% endif %}>
+                                            {{ supplier.name }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- 第四行：Pax Name -->
+                        <div class="row mb-3">
                             <div class="col-md-2">
                                 <label class="form-label">Pax Name:</label>
                             </div>
@@ -91,9 +111,13 @@
                                             </td>
                                             <td>{{ loop.index }}.</td>
                                             <td>{{ member.title }} {{ member.member_name }}{% if member.member_name_en %} ({{ member.member_name_en }}){% endif %}</td>
-                                            <td>ADT</td>
+                                            <td>
+                                                {% if member.member_type == 'child' %}CHD
+                                                {% elif member.member_type == 'infant' %}INF
+                                                {% else %}ADT{% endif %}
+                                            </td>
                                             <td class="text-center">
-                                                <button type="button" class="btn btn-sm {% if member.id == leader_id or member.id|string == leader_id|string %}btn-success{% else %}btn-outline-secondary{% endif %} set-leader-btn" 
+                                                <button type="button" class="btn btn-sm {% if member.id == leader_id or member.id|string == leader_id|string %}btn-primary{% else %}btn-outline-secondary{% endif %} set-leader-btn" 
                                                         data-member-id="{{ member.id }}" title="设为Leader">
                                                     <i class="fas fa-user"></i>
                                                 </button>
@@ -104,84 +128,187 @@
                                 </table>
                                 <small class="text-muted">勾选人员，点击 <i class="fas fa-user"></i> 设置为Leader</small>
                                 {% else %}
-                                <p class="text-muted">项目暂无人员，请先在项目详情中添加人员</p>
+                                <div class="alert alert-warning py-2">
+                                    <i class="fas fa-exclamation-triangle me-2"></i>项目暂无人员，请先在项目详情中添加人员
+                                </div>
                                 {% endif %}
                             </div>
                         </div>
 
-                        <!-- Departure 日期 -->
+                        <!-- 操作按钮 -->
+                        <div class="row mb-3">
+                            <div class="col-12">
+                                <button type="button" class="btn btn-info btn-sm" onclick="location.reload()">Refresh</button>
+                                <button type="submit" class="btn btn-success btn-sm">Save</button>
+                                <a href="javascript:history.back()" class="btn btn-warning btn-sm">Exit</a>
+                            </div>
+                        </div>
+
+                        <!-- Details 面板 -->
+                        <div class="card mb-3">
+                            <div class="card-header bg-primary text-white py-2">
+                                <span><i class="fas fa-info-circle me-2"></i>Details</span>
+                            </div>
+                            <div class="card-body">
+                                <!-- Departure -->
+                                <div class="row mb-3">
+                                    <div class="col-md-2">
+                                        <label class="form-label">Departure:</label>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <input type="date" name="departure_date" class="form-control"
+                                               value="{{ extra_info.departure_date if extra_info and extra_info.departure_date else '' }}">
+                                    </div>
+                                </div>
+
+                                <!-- Pricing 区域 -->
+                                <div class="row mb-3">
+                                    <div class="col-md-2">
+                                        <label class="form-label">Pricing:</label>
+                                    </div>
+                                    <div class="col-md-10">
+                                        {% if has_invoice %}
+                                        <div class="alert alert-warning py-2 mb-2" style="font-size: 13px;">
+                                            <i class="fas fa-lock"></i> 该REF已生成发票，售价(Selling)不可修改。
+                                        </div>
+                                        {% endif %}
+                                        <table class="table table-bordered table-sm">
+                                            <thead class="table-light">
+                                                <tr>
+                                                    <th style="width: 100px;"></th>
+                                                    <th style="width: 100px;">Quantity</th>
+                                                    <th>Selling (SGD)</th>
+                                                    <th>Cost (SGD)</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <tr>
+                                                    <td><strong>Adult</strong></td>
+                                                    <td>
+                                                        <input type="number" name="adult_qty" class="form-control form-control-sm qty-input" 
+                                                               min="0" value="{{ extra_info.adult_qty if extra_info and extra_info.adult_qty else 1 }}"
+                                                               {% if has_invoice %}disabled{% endif %}>
+                                                    </td>
+                                                    <td>
+                                                        <div class="input-group input-group-sm">
+                                                            <span class="input-group-text">$</span>
+                                                            <input type="number" name="adult_selling" class="form-control selling-input" 
+                                                                   min="0" step="0.01" value="{{ extra_info.adult_selling if extra_info and extra_info.adult_selling else '0.00' }}"
+                                                                   {% if has_invoice %}disabled{% endif %}>
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                                                        <div class="input-group input-group-sm">
+                                                            <span class="input-group-text">$</span>
+                                                            <input type="number" name="adult_cost" class="form-control cost-input" 
+                                                                   min="0" step="0.01" value="{{ extra_info.adult_cost if extra_info and extra_info.adult_cost else '0.00' }}">
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                                <tr>
+                                                    <td><strong>Child</strong></td>
+                                                    <td>
+                                                        <input type="number" name="child_qty" class="form-control form-control-sm qty-input" 
+                                                               min="0" value="{{ extra_info.child_qty if extra_info and extra_info.child_qty else 0 }}"
+                                                               {% if has_invoice %}disabled{% endif %}>
+                                                    </td>
+                                                    <td>
+                                                        <div class="input-group input-group-sm">
+                                                            <span class="input-group-text">$</span>
+                                                            <input type="number" name="child_selling" class="form-control selling-input" 
+                                                                   min="0" step="0.01" value="{{ extra_info.child_selling if extra_info and extra_info.child_selling else '0.00' }}"
+                                                                   {% if has_invoice %}disabled{% endif %}>
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                                                        <div class="input-group input-group-sm">
+                                                            <span class="input-group-text">$</span>
+                                                            <input type="number" name="child_cost" class="form-control cost-input" 
+                                                                   min="0" step="0.01" value="{{ extra_info.child_cost if extra_info and extra_info.child_cost else '0.00' }}">
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                                <tr>
+                                                    <td><strong>Infant</strong></td>
+                                                    <td>
+                                                        <input type="number" name="infant_qty" class="form-control form-control-sm qty-input" 
+                                                               min="0" value="{{ extra_info.infant_qty if extra_info and extra_info.infant_qty else 0 }}"
+                                                               {% if has_invoice %}disabled{% endif %}>
+                                                    </td>
+                                                    <td>
+                                                        <div class="input-group input-group-sm">
+                                                            <span class="input-group-text">$</span>
+                                                            <input type="number" name="infant_selling" class="form-control selling-input" 
+                                                                   min="0" step="0.01" value="{{ extra_info.infant_selling if extra_info and extra_info.infant_selling else '0.00' }}"
+                                                                   {% if has_invoice %}disabled{% endif %}>
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                                                        <div class="input-group input-group-sm">
+                                                            <span class="input-group-text">$</span>
+                                                            <input type="number" name="infant_cost" class="form-control cost-input" 
+                                                                   min="0" step="0.01" value="{{ extra_info.infant_cost if extra_info and extra_info.infant_cost else '0.00' }}">
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                                <tr class="table-secondary">
+                                                    <td><strong>Total</strong></td>
+                                                    <td id="total_pax">0</td>
+                                                    <td><strong id="total_selling_display">$ 0.00</strong></td>
+                                                    <td><strong id="total_cost_display">$ 0.00</strong></td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+
+                                <!-- Status -->
+                                <div class="row mb-3">
+                                    <div class="col-md-2">
+                                        <label class="form-label">Status:</label>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <select name="status" class="form-select">
+                                            <option value="processing" {% if ref and ref.status == 'processing' and not is_create %}selected{% elif not ref %}selected{% endif %}>处理中</option>
+                                            <option value="draft" {% if ref and ref.status == 'draft' and not is_create %}selected{% endif %}>草稿</option>
+                                            <option value="completed" {% if ref and ref.status == 'completed' and not is_create %}selected{% endif %}>已完成</option>
+                                            <option value="cancelled" {% if ref and ref.status == 'cancelled' and not is_create %}selected{% endif %}>已取消</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 备注信息 -->
                         <div class="row mb-4">
                             <div class="col-md-2">
-                                <label class="form-label">Departure:</label>
+                                <label class="form-label">Remarks:</label>
                             </div>
-                            <div class="col-md-4">
-                                <input type="date" name="departure_date" class="form-control"
-                                       value="{{ extra_info.departure_date if extra_info and extra_info.departure_date else '' }}">
-                            </div>
-                        </div>
-
-                        <!-- 售价、成本、供应商 - 同一行 -->
-                        <div class="row mb-4">
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label>售价 (SGD) <span class="text-danger">*</span></label>
-                                    <div class="input-group">
-                                        <input type="number" name="selling_price" class="form-control" min="0" step="0.01" placeholder="0.00" required
-                                               value="{{ "%.2f"|format(ref.selling_price) if ref and ref.selling_price and not is_create else '' }}">
-                                        <span class="input-group-text">SGD</span>
-                                    </div>
-                                    <div class="invalid-feedback">请输入有效的售价</div>
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label>成本 (SGD) <span class="text-danger">*</span></label>
-                                    <div class="input-group">
-                                        <input type="number" name="cost_price" class="form-control" min="0" step="0.01" placeholder="0.00" required
-                                               value="{{ "%.2f"|format(ref.cost_price) if ref and ref.cost_price and not is_create else '' }}">
-                                        <span class="input-group-text">SGD</span>
-                                    </div>
-                                    <div class="invalid-feedback">请输入有效的成本价格</div>
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label>供应商</label>
-                                    <select name="supplier_id" class="form-control">
-                                        <option value="">请选择供应商</option>
-                                        {% for supplier in suppliers %}
-                                            <option value="{{ supplier.supplier_id }}"
-                                                    {% if ref and ref.supplier_id == supplier.supplier_id and not is_create %}selected{% endif %}>
-                                                {{ supplier.name }}
-                                            </option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
+                            <div class="col-md-10">
+                                <textarea name="remarks" class="form-control" rows="3" placeholder="Enter remarks...">{{ ref.remarks if ref and not is_create else '' }}</textarea>
                             </div>
                         </div>
 
-                        <div class="row mb-4">
-                            <div class="col-md-12">
-                                <div class="form-group">
-                                    <label>备注信息</label>
-                                    <textarea name="remarks" class="form-control" rows="3" placeholder="请输入备注信息，如特殊要求、注意事项等">{{ ref.remarks if ref and not is_create else '' }}</textarea>
-                                </div>
-                            </div>
-                        </div>
+                        <!-- 隐藏字段：汇总售价和成本 -->
+                        <input type="hidden" name="selling_price" id="total_selling_price" 
+                               value="{{ "%.2f"|format(ref.selling_price) if ref and ref.selling_price else '0.00' }}">
+                        <input type="hidden" name="cost_price" id="total_cost_price" 
+                               value="{{ "%.2f"|format(ref.cost_price) if ref and ref.cost_price else '0.00' }}">
 
+                        <!-- 底部按钮 -->
                         <div class="row mt-4">
                             <div class="col-12 text-center">
                                 <button type="submit" class="btn btn-success btn-lg px-5">
-                                    {% if ref %}更新{% else %}提交{% endif %}
+                                    {% if ref and not is_create %}Update{% else %}Submit{% endif %}
                                 </button>
-                                <a href="javascript:history.back()" class="btn btn-secondary btn-lg px-5 ms-2">返回</a>
+                                <a href="javascript:history.back()" class="btn btn-secondary btn-lg px-5 ms-2">Back</a>
                                 {% if ref and ref.eos %}
-                                                                            <span class="btn btn-outline-info btn-lg px-5 ms-2" style="cursor: default;">
-                                            <i class="fas fa-check"></i> EO: {{ ref.eos.eo_number }}
-                                        </span>
-                                {% else %}
-                                    <button type="button" class="btn btn-primary btn-lg px-5 ms-2" onclick="quickCreateEO({% if ref %}{{ ref.id }}{% else %}null{% endif %})">
-                                        <i class="fas fa-plus"></i> 生成EO
+                                    <span class="btn btn-outline-info btn-lg px-5 ms-2" style="cursor: default;">
+                                        <i class="fas fa-check"></i> EO: {{ ref.eos.eo_number }}
+                                    </span>
+                                {% elif ref and not is_create %}
+                                    <button type="button" class="btn btn-primary btn-lg px-5 ms-2" onclick="quickCreateEO({{ ref.id }})">
+                                        <i class="fas fa-plus"></i> Generate EO
                                     </button>
                                 {% endif %}
                             </div>
@@ -194,10 +321,68 @@
 </div>
 
 <script>
-// 表单校验和用户反馈
+// 获取CSRF Token函数
+function getCsrfToken() {
+    return document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+}
+
+// 计算总价
+function calculateTotals() {
+    const adultQty = parseFloat(document.querySelector('input[name="adult_qty"]').value) || 0;
+    const adultSelling = parseFloat(document.querySelector('input[name="adult_selling"]').value) || 0;
+    const adultCost = parseFloat(document.querySelector('input[name="adult_cost"]').value) || 0;
+    
+    const childQty = parseFloat(document.querySelector('input[name="child_qty"]').value) || 0;
+    const childSelling = parseFloat(document.querySelector('input[name="child_selling"]').value) || 0;
+    const childCost = parseFloat(document.querySelector('input[name="child_cost"]').value) || 0;
+    
+    const infantQty = parseFloat(document.querySelector('input[name="infant_qty"]').value) || 0;
+    const infantSelling = parseFloat(document.querySelector('input[name="infant_selling"]').value) || 0;
+    const infantCost = parseFloat(document.querySelector('input[name="infant_cost"]').value) || 0;
+    
+    const totalPax = adultQty + childQty + infantQty;
+    const totalSelling = (adultQty * adultSelling) + (childQty * childSelling) + (infantQty * infantSelling);
+    const totalCost = (adultQty * adultCost) + (childQty * childCost) + (infantQty * infantCost);
+    
+    document.getElementById('total_pax').textContent = totalPax;
+    document.getElementById('total_selling_display').textContent = '$ ' + totalSelling.toFixed(2);
+    document.getElementById('total_cost_display').textContent = '$ ' + totalCost.toFixed(2);
+    
+    document.getElementById('total_selling_price').value = totalSelling.toFixed(2);
+    document.getElementById('total_cost_price').value = totalCost.toFixed(2);
+}
+
+// 更新自动生成的名称
+function updateAutoName() {
+    const countryField = document.getElementById('country');
+    const visaTypeField = document.getElementById('visa_type');
+    const nameField = document.getElementById('visa_name');
+    
+    if (countryField && visaTypeField && nameField && !nameField.dataset.userEdited) {
+        const country = countryField.options[countryField.selectedIndex]?.text || '';
+        const visaType = visaTypeField.value || '';
+        
+        if (country && visaType) {
+            nameField.value = country + ' ' + visaType;
+        }
+    }
+}
+
 document.addEventListener('DOMContentLoaded', function() {
-    const form = document.querySelector('form');
-    const inputs = form.querySelectorAll('input, select, textarea');
+    // 为所有价格和数量输入框添加事件监听
+    const inputs = document.querySelectorAll('.qty-input, .selling-input, .cost-input');
+    inputs.forEach(input => {
+        input.addEventListener('change', calculateTotals);
+        input.addEventListener('input', calculateTotals);
+    });
+    
+    // 初始计算
+    calculateTotals();
+    
+    // 表单提交前再次计算
+    document.getElementById('visaRefForm').addEventListener('submit', function(e) {
+        calculateTotals();
+    });
     
     // 全选功能
     const selectAllCheckbox = document.getElementById('selectAllPax');
@@ -215,201 +400,46 @@ document.addEventListener('DOMContentLoaded', function() {
             const memberId = this.dataset.memberId;
             const leaderInput = document.getElementById('leader_id');
             
-            // 移除所有高亮和激活状态
             document.querySelectorAll('.set-leader-btn').forEach(b => {
-                b.classList.remove('btn-success');
+                b.classList.remove('btn-primary');
                 b.classList.add('btn-outline-secondary');
             });
             document.querySelectorAll('table tbody tr').forEach(row => {
                 row.classList.remove('table-primary');
             });
             
-            // 设置当前为leader
             this.classList.remove('btn-outline-secondary');
-            this.classList.add('btn-success');
+            this.classList.add('btn-primary');
             this.closest('tr').classList.add('table-primary');
             leaderInput.value = memberId;
             
-            // 自动勾选该人员
             const checkbox = this.closest('tr').querySelector('input[name="pax_names"]');
             if (checkbox) checkbox.checked = true;
         });
     });
 
-    // 实时校验函数
-    function validateField(field) {
-        const value = field.value.trim();
-        const isValid = field.checkValidity();
-
-        if (isValid) {
-            field.classList.remove('is-invalid');
-            field.classList.add('is-valid');
-        } else {
-            field.classList.remove('is-valid');
-            field.classList.add('is-invalid');
-        }
-
-        return isValid;
-    }
-
-
-    // 价格校验函数
-    function validatePrices() {
-        const sellingPrice = document.querySelector('input[name="selling_price"]');
-        const costPrice = document.querySelector('input[name="cost_price"]');
-
-        // 校验售价
-        if (sellingPrice.value !== '') {
-            const selling = parseFloat(sellingPrice.value);
-            if (isNaN(selling) || selling < 0) {
-                sellingPrice.classList.remove('is-valid');
-                sellingPrice.classList.add('is-invalid');
-                sellingPrice.nextElementSibling.textContent = '请输入有效的售价（支持0和小数）';
-                return false;
-            } else {
-                sellingPrice.classList.remove('is-invalid');
-                sellingPrice.classList.add('is-valid');
-            }
-        }
-
-        // 校验成本
-        if (costPrice.value !== '') {
-            const cost = parseFloat(costPrice.value);
-            if (isNaN(cost) || cost < 0) {
-                costPrice.classList.remove('is-valid');
-                costPrice.classList.add('is-invalid');
-                costPrice.nextElementSibling.textContent = '请输入有效的成本（支持0和小数）';
-                return false;
-            } else {
-                costPrice.classList.remove('is-invalid');
-                costPrice.classList.add('is-valid');
-            }
-        }
-
-        // 比较售价和成本
-        if (sellingPrice.value && costPrice.value) {
-            const selling = parseFloat(sellingPrice.value);
-            const cost = parseFloat(costPrice.value);
-
-            if (selling < cost) {
-                sellingPrice.classList.remove('is-valid');
-                sellingPrice.classList.add('is-invalid');
-                sellingPrice.nextElementSibling.textContent = '售价不能低于成本价格';
-                return false;
-            } else {
-                sellingPrice.classList.remove('is-invalid');
-                sellingPrice.classList.add('is-valid');
-                sellingPrice.nextElementSibling.textContent = '请输入有效的售价（支持0和小数）';
-            }
-        }
-        return true;
-    }
-
-    // 为每个输入字段添加实时校验
-    inputs.forEach(input => {
-        input.addEventListener('blur', function() {
-            validateField(this);
-
-            // 特殊校验
-            if (this.name === 'selling_price' || this.name === 'cost_price') {
-                validatePrices();
-            }
-        });
-
-        input.addEventListener('input', function() {
-            if (this.classList.contains('is-invalid')) {
-                validateField(this);
-            }
-        });
-    });
-
-    // 表单提交处理
-    form.addEventListener('submit', function(e) {
-        e.preventDefault();
-
-        // 清除之前的校验状态
-        inputs.forEach(input => {
-            input.classList.remove('is-valid', 'is-invalid');
-        });
-
-        // 校验所有字段
-        let isValid = true;
-        inputs.forEach(input => {
-            if (!validateField(input)) {
-                isValid = false;
-            }
-        });
-
-        // 特殊校验
-        if (!validatePrices()) {
-            isValid = false;
-        }
-
-        if (isValid) {
-            // 显示提交中状态
-            const submitBtn = form.querySelector('button[type="submit"]');
-            const originalText = submitBtn.textContent;
-            submitBtn.textContent = '提交中...';
-            submitBtn.disabled = true;
-
-            // 提交表单
-            form.submit();
-        } else {
-            // 滚动到第一个错误字段
-            const firstInvalid = form.querySelector('.is-invalid');
-            if (firstInvalid) {
-                firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                firstInvalid.focus();
-            }
-
-            // 显示错误提示
-            showAlert('请检查表单中的错误信息', 'danger');
-        }
-    });
-
-    // 显示提示信息
-    function showAlert(message, type) {
-        const alertDiv = document.createElement('div');
-        alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
-        alertDiv.innerHTML = `
-            ${message}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        `;
-
-        form.insertBefore(alertDiv, form.firstChild);
-
-        // 3秒后自动消失
-        setTimeout(() => {
-            if (alertDiv.parentNode) {
-                alertDiv.remove();
-            }
-        }, 3000);
-    }
-
-    // 获取国家选择元素
-    const countrySelectEl = document.getElementById('country');
+    // 国家选择变化时更新签证类型
+    const countrySelect = document.getElementById('country');
     const visaTypeSelect = document.getElementById('visa_type');
     
-    // 国家选择变化时更新签证类型和描述
-    if (countrySelectEl) {
-        countrySelectEl.addEventListener('change', function() {
+    // 保存之前选中的签证类型（用于编辑模式恢复）
+    const savedVisaType = '{{ visa_info.visa_type if visa_info and visa_info.visa_type else "" }}';
+    
+    if (countrySelect) {
+        countrySelect.addEventListener('change', function() {
             const selectedCountry = this.value;
-
-            // 清空签证类型下拉框
+            
             if (visaTypeSelect) {
                 visaTypeSelect.innerHTML = '<option value="">请先选择国家</option>';
             }
 
             if (selectedCountry) {
-                // 根据国家名称找到对应的国家ID
                 const countryOption = this.options[this.selectedIndex];
                 const countryId = countryOption.getAttribute('data-country-id');
 
                 if (countryId && visaTypeSelect) {
-                    // 显示加载状态
                     visaTypeSelect.disabled = true;
 
-                    // 获取该国家的签证类型
                     fetch(`/projects/ref/api/get_visa_types/${countryId}`)
                         .then(response => response.json())
                         .then(data => {
@@ -418,127 +448,48 @@ document.addEventListener('DOMContentLoaded', function() {
                                     const option = document.createElement('option');
                                     option.value = type.visa_type;
                                     option.textContent = type.visa_type;
+                                    // 恢复之前选中的签证类型
+                                    if (savedVisaType && type.visa_type === savedVisaType) {
+                                        option.selected = true;
+                                    }
                                     visaTypeSelect.appendChild(option);
                                 });
-
-                                // 如果是编辑模式，尝试恢复之前选择的签证类型
-                                {% if visa_info and visa_info.get('visa_type') %}
-                                const savedVisaType = '{{ visa_info.get("visa_type", "") }}';
-                                if (savedVisaType) {
-                                    for (let option of visaTypeSelect.options) {
-                                        if (option.value === savedVisaType) {
-                                            option.selected = true;
-                                            // 更新自动生成的描述
-                                            updateAutoName(savedVisaType);
-                                            break;
-                                        }
-                                    }
-                                }
-                                {% endif %}
-                            } else {
-                                console.error('获取签证类型失败:', data.message);
                             }
-                        })
-                        .catch(error => {
-                            console.error('请求签证类型时出错:', error);
                         })
                         .finally(() => {
-                            if (visaTypeSelect) {
-                                visaTypeSelect.disabled = false;
-                            }
+                            visaTypeSelect.disabled = false;
                         });
                 }
             }
             
-            // 更新详细描述（如果已有签证类型）
-            if (visaTypeSelect && visaTypeSelect.value) {
-                updateAutoName(visaTypeSelect.value);
-            }
+            updateAutoName();
         });
     }
 
     // 签证类型选择变化时自动更新名称
-    document.getElementById('visa_type').addEventListener('change', function() {
-        const selectedVisaType = this.value;
-        updateAutoName(selectedVisaType);
-    });
-
-    // 更新自动生成的描述
-    function updateAutoName(visaType) {
-        const descriptionField = document.getElementById('auto_description');
-        const detailedDescriptionField = document.getElementById('auto_detailed_description');
-        const countryField = document.getElementById('country');
-        
-        if (visaType && countryField && countryField.value) {
-            const countryName = countryField.options[countryField.selectedIndex].text;
-            const description = visaType + '申请';
-            const detailedDescription = countryName + ' ' + visaType + '申请服务';
-            
-            if (descriptionField) {
-                descriptionField.value = description;
-            }
-            if (detailedDescriptionField) {
-                detailedDescriptionField.value = detailedDescription;
-            }
-        } else if (visaType) {
-            const description = visaType + '申请';
-            if (descriptionField) {
-                descriptionField.value = description;
-            }
-            if (detailedDescriptionField) {
-                detailedDescriptionField.value = description;
-            }
-        } else {
-            if (descriptionField) {
-                descriptionField.value = '';
-            }
-            if (detailedDescriptionField) {
-                detailedDescriptionField.value = '';
-            }
-        }
+    if (visaTypeSelect) {
+        visaTypeSelect.addEventListener('change', updateAutoName);
     }
-
-    // 添加字段说明提示
-    const tooltips = {
-        'country': '请选择申请签证的国家',
-        'visa_type': '根据选择的国家显示可用的签证类型',
-        'selling_price': '向客户收取的价格',
-        'cost_price': '签证申请的实际成本',
-        'supplier_id': '选择提供签证服务的供应商',
-        'remarks': '可填写特殊要求、注意事项等'
-    };
     
-
-    // 为字段添加提示
-    Object.keys(tooltips).forEach(fieldName => {
-        const field = form.querySelector(`[name="${fieldName}"]`);
-        if (field) {
-            field.title = tooltips[fieldName];
-        }
-    });
+    // 名称字段被手动编辑时标记
+    const nameField = document.getElementById('visa_name');
+    if (nameField) {
+        nameField.addEventListener('input', function() {
+            this.dataset.userEdited = 'true';
+        });
+    }
 
     // 编辑模式：如果有预选的国家，触发change事件来加载签证类型
     {% if not is_create and visa_info and (visa_info.get('country') or visa_info.get('visa_country')) %}
-    if (countrySelectEl && countrySelectEl.value) {
-        var countryValue = '{{ visa_info.get("country", visa_info.get("visa_country", "")) }}';
-        console.log('编辑模式，预选国家:', countryValue);
-        // 延迟触发change事件，确保DOM完全加载
+    if (countrySelect && countrySelect.value) {
         setTimeout(function() {
-            if (countrySelectEl) {
-                countrySelectEl.dispatchEvent(new Event('change'));
-            }
+            countrySelect.dispatchEvent(new Event('change'));
         }, 100);
     }
     {% endif %}
 });
-</script>
 
-<script>
 // 一键生成EO函数
-function getCsrfToken() {
-    return document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-}
-
 function quickCreateEO(refId) {
     if (confirm('确定要生成EO吗？系统将自动创建EO并填充所有数据。')) {
         fetch(`/projects/eo/quick_create/${refId}`, {

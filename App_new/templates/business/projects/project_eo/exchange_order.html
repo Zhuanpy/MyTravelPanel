@@ -120,7 +120,7 @@
         border-bottom: 1px solid #e9ecef;
         background: #fafbfc;
     }
-    .table-container { max-height: 450px; overflow-y: auto; }
+    .table-container { overflow-x: auto; }
     .entries-select { width: 70px; display: inline-block; }
     
     .eo-checkbox { width: 16px; height: 16px; cursor: pointer; }
@@ -280,6 +280,50 @@
             </table>
         </div>
     </div>
+    
+    <!-- 分页组件 -->
+    {% if pagination and pagination.pages > 1 %}
+    <div class="d-flex justify-content-between align-items-center mt-3">
+        <div class="text-muted">
+            共 {{ pagination.total }} 条记录，第 {{ pagination.page }} / {{ pagination.pages }} 页
+        </div>
+        <nav>
+            <ul class="pagination mb-0">
+                {% if pagination.has_prev %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('business_projects.project_eo.exchange_order', page=pagination.prev_num, supplier=current_filters.supplier, date_filter_by=current_filters.date_filter_by, date_from=current_filters.date_from, date_to=current_filters.date_to) }}">
+                        <i class="fas fa-chevron-left"></i>
+                    </a>
+                </li>
+                {% else %}
+                <li class="page-item disabled"><span class="page-link"><i class="fas fa-chevron-left"></i></span></li>
+                {% endif %}
+                
+                {% for p in range(1, pagination.pages + 1) %}
+                    {% if p == pagination.page %}
+                    <li class="page-item active"><span class="page-link">{{ p }}</span></li>
+                    {% elif p == 1 or p == pagination.pages or (p >= pagination.page - 2 and p <= pagination.page + 2) %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('business_projects.project_eo.exchange_order', page=p, supplier=current_filters.supplier, date_filter_by=current_filters.date_filter_by, date_from=current_filters.date_from, date_to=current_filters.date_to) }}">{{ p }}</a>
+                    </li>
+                    {% elif p == 2 or p == pagination.pages - 1 %}
+                    <li class="page-item disabled"><span class="page-link">...</span></li>
+                    {% endif %}
+                {% endfor %}
+                
+                {% if pagination.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('business_projects.project_eo.exchange_order', page=pagination.next_num, supplier=current_filters.supplier, date_filter_by=current_filters.date_filter_by, date_from=current_filters.date_from, date_to=current_filters.date_to) }}">
+                        <i class="fas fa-chevron-right"></i>
+                    </a>
+                </li>
+                {% else %}
+                <li class="page-item disabled"><span class="page-link"><i class="fas fa-chevron-right"></i></span></li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
 </div>
 
 <!-- 付款模态框 -->

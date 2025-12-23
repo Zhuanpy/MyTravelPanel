@@ -85,7 +85,11 @@
                             <input type="hidden" name="folder_name" value="{{ project.folder_name }}">
                             <td>{{ project.id }}</td>
                             <td>{{ project.created_at.strftime('%Y-%m-%d') }}</td>
+                            {% if project.project_hid and hid_to_project_id.get(project.project_hid) %}
+                            <td><a href="{{ url_for('business_projects.detail.project_detail', project_id=hid_to_project_id[project.project_hid]) }}" class="text-primary" style="text-decoration: underline;">{{ project.project_hid }}</a></td>
+                            {% else %}
                             <td>{{ project.project_hid or 'N/A' }}</td>
+                            {% endif %}
                             <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ project.project_name }}</td>
                             <td>
                                 <span class="visa-badge {% if project.project_status == '处理中' %}visa-badge-primary{% elif project.project_status == '待出行' %}visa-badge-warning{% elif project.project_status == '已完成' %}visa-badge-success{% elif project.project_status == '忽略单' %}visa-badge-secondary{% else %}visa-badge-info{% endif %}">

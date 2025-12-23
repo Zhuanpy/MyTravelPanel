@@ -77,10 +77,10 @@
                      <!-- 基本信息 - 紧凑列表 -->
                      <div style="display: flex; flex-direction: column; gap: 8px; font-size: 0.85rem;">
                          <div style="display: flex; align-items: center; padding: 6px 10px; background: #f8f9fa; border-radius: 4px;">
-                             <span style="color: #6c757d; min-width: 60px; font-weight: 500;">公司</span>
-                             <span id="company-name-span" data-header-id="{{ header.id }}" style="flex: 1; color: #333; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ company.company_name if company else '未设置' }}">{{ company.company_name if company else '未设置' }}</span>
-                             <select id="company-select" style="display: none; flex: 1; font-size: 0.8rem; padding: 2px 4px;">
-                                 <option value="">清除选择</option>
+                            <span style="color: #6c757d; min-width: 60px; font-weight: 500;">公司</span>
+                            <span id="company-name-span" data-header-id="{{ header.id }}" style="flex: 1; color: #333; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ company.company_name if company else '个人' }}">{{ company.company_name if company else '个人' }}</span>
+                            <select id="company-select" style="display: none; flex: 1; font-size: 0.8rem; padding: 2px 4px;">
+                                <option value="">个人</option>
                                  {% for c in companies %}
                                      <option value="{{ c.id }}" {% if company and c.id == company.id %}selected{% endif %}>{{ c.company_name }}</option>
                                  {% endfor %}
@@ -535,8 +535,8 @@ function initCompanySelect() {
         .then(data => {
             console.log('响应数据:', data);
             if (data.success) {
-                companySpan.textContent = companyId ? selectedText : '未设置';
-                companySpan.title = companyId ? selectedText : '未设置';
+                companySpan.textContent = companyId ? selectedText : '个人';
+                companySpan.title = companyId ? selectedText : '个人';
                 console.log('公司更新成功');
             } else {
                 alert('更新失败：' + (data.message || '未知错误'));

@@ -7,119 +7,86 @@
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/project_detail.css') }}">
 <style>
-    /* 重置和基础样式 - 使用更具体的选择器避免与Bootstrap冲突 */
-    .tour-create-project-page * {
-        box-sizing: border-box !important;
-    }
-
     .tour-create-project-page {
-        background-color: #f0f2f5 !important;
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important;
-        line-height: 1.6 !important;
-        color: #333 !important;
-        margin: 0 !important;
-        padding: 20px !important;
-        min-height: 100vh !important;
+        background-color: #f0f2f5;
+        padding: 20px;
+        min-height: 100vh;
     }
 
-    /* 主容�?- 现代化设�?*/
     .tour-create-project-page .container-fluid {
-        max-width: 1400px !important;
-        margin: 20px auto !important;
-        padding: 30px !important;
-        background: white !important;
-        box-shadow: 0 0 20px rgba(0, 0, 0, 0.1) !important;
-        border-radius: 12px !important;
+        max-width: 1400px;
+        margin: 20px auto;
+        padding: 30px;
+        background: white;
+        box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+        border-radius: 12px;
     }
 
-    .tour-create-project-page .header-section {
-        background-color: #FFFF99 !important;
-        padding: 20px !important;
-        margin-bottom: 25px !important;
-        border: 1px solid #ddd !important;
-        border-radius: 8px !important;
+    .header-section {
+        background-color: #FFFF99;
+        padding: 20px;
+        margin-bottom: 25px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
     }
     
-    .header-row {
+    .form-row-4 {
         display: grid;
-        grid-template-columns: 120px 1fr;
-        margin-bottom: 8px;
-        align-items: center;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 20px;
+        align-items: end;
     }
     
-    .header-label {
-        font-weight: normal;
+    .form-group {
+        margin-bottom: 0;
+    }
+    
+    .form-group label {
+        display: block;
+        font-weight: 500;
+        margin-bottom: 5px;
         color: #333;
     }
     
+    .form-group input {
+        width: 100%;
+        padding: 8px 12px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+    }
+    
+    .form-group input[readonly] {
+        background-color: #f5f5f5;
+    }
+
     .action-buttons {
-        margin-top: 20px;
         text-align: center;
     }
     
     .action-button {
-        margin: 0 5px;
-        padding: 5px 15px;
-        border: 1px solid #ddd;
-        background-color: #f5f5f5;
-        cursor: pointer;
-    }
-    
-    input[readonly] {
-        background-color: #f5f5f5;
-        border: 1px solid #ddd;
-    }
-
-    .section-title {
-        font-weight: bold;
-        margin: 15px 0 10px 0;
-        padding-bottom: 5px;
-        border-bottom: 1px solid #ddd;
-    }
-
-    .ref-section {
-        background-color: #f8f9fa;
-        padding: 15px;
-        margin-bottom: 20px;
-        border: 1px solid #ddd;
-    }
-
-    .ref-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 10px;
-    }
-
-    .ref-content {
-        padding: 10px;
-        border: 1px solid #ddd;
-        margin-bottom: 10px;
-    }
-
-    .eo-section {
-        background-color: #fff;
-        padding: 10px;
-        margin-top: 10px;
-        border: 1px solid #eee;
-    }
-
-    .add-button {
+        padding: 10px 30px;
         background-color: #28a745;
         color: white;
         border: none;
-        padding: 5px 10px;
-        border-radius: 3px;
+        border-radius: 4px;
         cursor: pointer;
+        font-size: 16px;
     }
-
-    .remove-button {
-        background-color: #dc3545;
-        color: white;
-        border: none;
-        padding: 5px 10px;
-        border-radius: 3px;
-        cursor: pointer;
+    
+    .action-button:hover {
+        background-color: #218838;
+    }
+    
+    @media (max-width: 992px) {
+        .form-row-4 {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+    
+    @media (max-width: 576px) {
+        .form-row-4 {
+            grid-template-columns: 1fr;
+        }
     }
 </style>
 {% endblock %}
@@ -127,167 +94,27 @@
 {% block content %}
 <div class="tour-create-project-page">
     <div class="container-fluid">
-        <!-- Header Section -->
         <div class="header-section">
-            <div class="section-title">基本信息</div>
-            <div class="header-row">
-                <span class="header-label">HID编号:</span>
-                <input type="text" class="form-control" name="hid" readonly value="{{ generated_hid }}">
-            </div>
-            <div class="header-row">
-                <span class="header-label">项目名称:</span>
-                <input type="text" class="form-control" name="project_name" required>
-            </div>
-            <div class="header-row">
-                <span class="header-label">订单名称:</span>
-                <input type="text" class="form-control" name="name">
-            </div>
-        </div>
-
-        <!-- Customer Information Section -->
-        <div class="header-section">
-            <div class="section-title">客户信息</div>
-            <div class="header-row">
-                <span class="header-label">客户名称:</span>
-                <input type="text" class="form-control" name="client_name" required>
-            </div>
-            <div class="header-row">
-                <span class="header-label">客户电话:</span>
-                <input type="text" class="form-control" name="customer_phone">
-            </div>
-            <div class="header-row">
-                <span class="header-label">客户邮箱:</span>
-                <input type="email" class="form-control" name="customer_email">
-            </div>
-            <div class="header-row">
-                <span class="header-label">证件类型:</span>
-                <select class="form-control" name="customer_id_type">
-                    <option value="">请选择</option>
-                    <option value="passport">护照</option>
-                    <option value="id_card">身份证</option>
-                    <option value="other">其他</option>
-                </select>
-            </div>
-            <div class="header-row">
-                <span class="header-label">证件号码:</span>
-                <input type="text" class="form-control" name="customer_id_number">
-            </div>
-            <div class="header-row">
-                <span class="header-label">公司名称:</span>
-                <input type="text" class="form-control" name="customer_company">
-            </div>
-            <div class="header-row">
-                <span class="header-label">联系人:</span>
-                <input type="text" class="form-control" name="customer_contact_person">
-            </div>
-        </div>
-
-        <!-- Financial Information Section -->
-        <div class="header-section">
-            <div class="section-title">财务信息</div>
-            <div class="header-row">
-                <span class="header-label">总金额:</span>
-                <input type="number" class="form-control" name="total_amount" step="0.01">
-            </div>
-            <div class="header-row">
-                <span class="header-label">已付金额:</span>
-                <input type="number" class="form-control" name="paid_amount" step="0.01">
-            </div>
-        </div>
-
-        <!-- Date Information Section -->
-        <div class="header-section">
-            <div class="section-title">日期信息</div>
-            <div class="header-row">
-                <span class="header-label">开始日期:</span>
-                <input type="date" class="form-control" name="start_date" value="{{ now.strftime('%Y-%m-%d') }}" required onchange="updateEndDate()">
-            </div>
-            <div class="header-row">
-                <span class="header-label">结束日期:</span>
-                <input type="date" class="form-control" name="end_date" value="{{ now.strftime('%Y-%m-%d') }}" required>
-            </div>
-        </div>
-
-        <!-- REF Section -->
-        <div class="header-section">
-            <div class="section-title">REF信息</div>
-            <div id="refs-container">
-                <div class="ref-section">
-                    <div class="ref-header">
-                        <h4>REF #1</h4>
-                        <button class="add-button" onclick="addEO(this)">添加EO</button>
-                    </div>
-                    <div class="ref-content">
-                        <div class="header-row">
-                            <span class="header-label">REF编号:</span>
-                            <input type="text" class="form-control" name="ref_number[]" readonly>
-                        </div>
-                        <div class="header-row">
-                            <span class="header-label">REF名称:</span>
-                            <input type="text" class="form-control" name="ref_name[]">
-                        </div>
-                        <div class="header-row">
-                            <span class="header-label">REF类型:</span>
-                            <select class="form-control" name="ref_type_id[]" required>
-                                {% for type in business_types %}
-                                <option value="{{ type.id }}">{{ type.name }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <div class="header-row">
-                            <span class="header-label">描述:</span>
-                            <textarea class="form-control" name="ref_description[]" required></textarea>
-                        </div>
-                        <div class="header-row">
-                            <span class="header-label">供应商:</span>
-                            <select class="form-control" name="supplier_id[]">
-                                <option value="">请选择</option>
-                                {% for supplier in suppliers %}
-                                <option value="{{ supplier.supplier_id }}">{{ supplier.name }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <div class="header-row">
-                            <span class="header-label">销售价格:</span>
-                            <input type="number" class="form-control" name="selling_price[]" step="0.01">
-                        </div>
-                        <div class="header-row">
-                            <span class="header-label">成本价格:</span>
-                            <input type="number" class="form-control" name="cost_price[]" step="0.01">
-                        </div>
-                        <div class="header-row">
-                            <span class="header-label">货币:</span>
-                            <select class="form-control" name="currency[]">
-                                <option value="SGD">SGD</option>
-                                <option value="CNY">CNY</option>
-                                <option value="USD">USD</option>
-                            </select>
-                        </div>
-                        <div class="header-row">
-                            <span class="header-label">状态:</span>
-                            <select class="form-control" name="ref_status[]">
-                                <option value="draft">草稿</option>
-                                <option value="processing">处理中</option>
-                                <option value="completed">已完成</option>
-                                <option value="cancelled">已取消</option>
-                            </select>
-                        </div>
-                        <div class="header-row">
-                            <span class="header-label">支付状态:</span>
-                            <select class="form-control" name="ref_payment_status[]">
-                                <option value="unpaid">未支付</option>
-                                <option value="partial">部分支付</option>
-                                <option value="paid">已支付</option>
-                                <option value="refunded">已退款</option>
-                            </select>
-                        </div>
-                    </div>
+            <div class="form-row-4">
+                <div class="form-group">
+                    <label>HID编号</label>
+                    <input type="text" class="form-control" name="hid" readonly value="{{ generated_hid }}">
+                </div>
+                <div class="form-group">
+                    <label>项目名称</label>
+                    <input type="text" class="form-control" name="project_name" required placeholder="请输入项目名称">
+                </div>
+                <div class="form-group">
+                    <label>客户名称</label>
+                    <input type="text" class="form-control" name="client_name" required placeholder="请输入客户名称">
+                </div>
+                <div class="form-group">
+                    <label>开始日期</label>
+                    <input type="date" class="form-control" name="start_date" value="{{ now.strftime('%Y-%m-%d') }}" required>
                 </div>
             </div>
-            <button class="add-button" onclick="addRef()">添加REF</button>
         </div>
 
-        <!-- Action Buttons -->
         <div class="action-buttons">
             <button class="action-button" onclick="saveProject()">创建项目</button>
         </div>
@@ -295,188 +122,6 @@
 </div>
 
 <script>
-let refCount = 1;
-
-function updateEndDate() {
-    const startDate = document.querySelector('[name="start_date"]').value;
-    const endDateInput = document.querySelector('[name="end_date"]');
-    if (startDate > endDateInput.value) {
-        endDateInput.value = startDate;
-    }
-}
-
-function addRef() {
-    refCount++;
-    const refsContainer = document.getElementById('refs-container');
-    const newRef = document.createElement('div');
-    newRef.className = 'ref-section';
-    newRef.innerHTML = `
-        <div class="ref-header">
-            <h4>REF #${refCount}</h4>
-            <button class="add-button" onclick="addEO(this)">添加EO</button>
-        </div>
-        <div class="ref-content">
-            <div class="header-row">
-                <span class="header-label">REF编号:</span>
-                <input type="text" class="form-control" name="ref_number[]" readonly>
-            </div>
-            <div class="header-row">
-                <span class="header-label">REF名称:</span>
-                <input type="text" class="form-control" name="ref_name[]">
-            </div>
-            <div class="header-row">
-                <span class="header-label">REF类型:</span>
-                <select class="form-control" name="ref_type_id[]" required>
-                    {% for type in business_types %}
-                    <option value="{{ type.id }}">{{ type.name }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="header-row">
-                <span class="header-label">描述:</span>
-                <textarea class="form-control" name="ref_description[]" required></textarea>
-            </div>
-            <div class="header-row">
-                <span class="header-label">供应�?</span>
-                <select class="form-control" name="supplier_id[]">
-                    <option value="">请选择</option>
-                    {% for supplier in suppliers %}
-                    <option value="{{ supplier.supplier_id }}">{{ supplier.name }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="header-row">
-                <span class="header-label">销售价�?</span>
-                <input type="number" class="form-control" name="selling_price[]" step="0.01">
-            </div>
-            <div class="header-row">
-                <span class="header-label">成本价格:</span>
-                <input type="number" class="form-control" name="cost_price[]" step="0.01">
-            </div>
-            <div class="header-row">
-                <span class="header-label">货币:</span>
-                <select class="form-control" name="currency[]">
-                    <option value="SGD">SGD</option>
-                    <option value="CNY">CNY</option>
-                    <option value="USD">USD</option>
-                </select>
-            </div>
-            <div class="header-row">
-                <span class="header-label">状�?</span>
-                <select class="form-control" name="ref_status[]">
-                    <option value="draft">草稿</option>
-                    <option value="processing">处理�?/option>
-                    <option value="completed">已完�?/option>
-                    <option value="cancelled">已取�?/option>
-                </select>
-            </div>
-            <div class="header-row">
-                <span class="header-label">支付状�?</span>
-                <select class="form-control" name="ref_payment_status[]">
-                    <option value="unpaid">未支�?/option>
-                    <option value="partial">部分支付</option>
-                    <option value="paid">已支�?/option>
-                    <option value="refunded">已退�?/option>
-                </select>
-            </div>
-        </div>
-    `;
-    refsContainer.appendChild(newRef);
-    generateRefNumber(refCount - 1);
-}
-
-function addEO(refButton) {
-    const refSection = refButton.closest('.ref-section');
-    const eoSection = document.createElement('div');
-    eoSection.className = 'eo-section';
-    eoSection.innerHTML = `
-        <div class="header-row">
-            <span class="header-label">EO编号:</span>
-            <input type="text" class="form-control" name="eo_number[]" readonly>
-        </div>
-        <div class="header-row">
-            <span class="header-label">EO名称:</span>
-            <input type="text" class="form-control" name="eo_name[]">
-        </div>
-        <div class="header-row">
-            <span class="header-label">供应商类�?</span>
-            <select class="form-control" name="eo_supplier_type[]" required>
-                <option value="visa">签证</option>
-                <option value="flight">机票</option>
-                <option value="hotel">酒店</option>
-                <option value="transport">交�?/option>
-                <option value="local_operator">地接</option>
-                <option value="other">其他</option>
-            </select>
-        </div>
-        <div class="header-row">
-            <span class="header-label">供应�?</span>
-            <select class="form-control" name="eo_supplier_id[]" required>
-                {% for supplier in suppliers %}
-                <option value="{{ supplier.supplier_id }}">{{ supplier.name }}</option>
-                {% endfor %}
-            </select>
-        </div>
-        <div class="header-row">
-            <span class="header-label">金额:</span>
-            <input type="number" class="form-control" name="eo_amount[]" step="0.01" required>
-        </div>
-        <div class="header-row">
-            <span class="header-label">货币:</span>
-            <select class="form-control" name="eo_currency[]">
-                <option value="SGD">SGD</option>
-                <option value="CNY">CNY</option>
-                <option value="USD">USD</option>
-            </select>
-        </div>
-        <div class="header-row">
-            <span class="header-label">外部系统:</span>
-            <input type="text" class="form-control" name="eo_external_system[]">
-        </div>
-        <div class="header-row">
-            <span class="header-label">外部状�?</span>
-            <input type="text" class="form-control" name="eo_external_status[]">
-        </div>
-        <div class="header-row">
-            <span class="header-label">外部参考号:</span>
-            <input type="text" class="form-control" name="eo_external_reference[]">
-        </div>
-        <div class="header-row">
-            <span class="header-label">备注:</span>
-            <textarea class="form-control" name="eo_remarks[]"></textarea>
-        </div>
-        <div class="header-row">
-            <span class="header-label">状�?</span>
-            <select class="form-control" name="eo_status[]">
-                <option value="draft">草稿</option>
-                <option value="confirmed">已确�?/option>
-                <option value="paid">已支�?/option>
-                <option value="cancelled">已取�?/option>
-            </select>
-        </div>
-        <button class="remove-button" onclick="this.parentElement.remove()">删除EO</button>
-    `;
-    refSection.querySelector('.ref-content').appendChild(eoSection);
-    generateEONumber(refSection);
-}
-
-function generateRefNumber(index) {
-    // 新的REF编号格式：R01, R02, R03...
-    const refCount = document.querySelectorAll('.ref-section').length;
-    const refNumber = `R${String(refCount).padStart(2, '0')}`;
-    document.querySelectorAll('[name="ref_number[]"]')[index].value = refNumber;
-}
-
-function generateEONumber(refSection) {
-    const refNumber = refSection.querySelector('[name="ref_number[]"]').value;
-    const eoInputs = refSection.querySelectorAll('[name="eo_number[]"]');
-    eoInputs.forEach((input, index) => {
-        if (!input.value) {
-            input.value = `${refNumber}-E${String(index + 1).padStart(2, '0')}`;
-        }
-    });
-}
-
 function saveProject() {
     const formData = new FormData();
     
@@ -485,55 +130,24 @@ function saveProject() {
     
     // 基本信息
     const hid = document.querySelector('[name="hid"]').value;
-    formData.append('project_name', document.querySelector('[name="project_name"]').value);
-    formData.append('name', document.querySelector('[name="name"]').value);
+    const projectName = document.querySelector('[name="project_name"]').value;
+    const clientName = document.querySelector('[name="client_name"]').value;
+    const startDate = document.querySelector('[name="start_date"]').value;
     
-    // 客户信息
-    formData.append('client_name', document.querySelector('[name="client_name"]').value);
-    formData.append('customer_phone', document.querySelector('[name="customer_phone"]').value);
-    formData.append('customer_email', document.querySelector('[name="customer_email"]').value);
-    formData.append('customer_id_type', document.querySelector('[name="customer_id_type"]').value);
-    formData.append('customer_id_number', document.querySelector('[name="customer_id_number"]').value);
-    formData.append('customer_company', document.querySelector('[name="customer_company"]').value);
-    formData.append('customer_contact_person', document.querySelector('[name="customer_contact_person"]').value);
+    // 验证必填字段
+    if (!projectName) {
+        alert('请输入项目名称');
+        return;
+    }
+    if (!clientName) {
+        alert('请输入客户名称');
+        return;
+    }
     
-    // 财务信息
-    formData.append('total_amount', document.querySelector('[name="total_amount"]').value);
-    formData.append('paid_amount', document.querySelector('[name="paid_amount"]').value);
-    
-    // 日期信息
-    formData.append('start_date', document.querySelector('[name="start_date"]').value);
-    formData.append('end_date', document.querySelector('[name="end_date"]').value);
-    
-    // REF信息
-    document.querySelectorAll('.ref-section').forEach((refSection, refIndex) => {
-        const refContent = refSection.querySelector('.ref-content');
-        formData.append(`ref_number[${refIndex}]`, refContent.querySelector('[name="ref_number[]"]').value);
-        formData.append(`ref_name[${refIndex}]`, refContent.querySelector('[name="ref_name[]"]').value);
-        formData.append(`ref_type_id[${refIndex}]`, refContent.querySelector('[name="ref_type_id[]"]').value);
-        formData.append(`ref_description[${refIndex}]`, refContent.querySelector('[name="ref_description[]"]').value);
-        formData.append(`supplier_id[${refIndex}]`, refContent.querySelector('[name="supplier_id[]"]').value);
-        formData.append(`selling_price[${refIndex}]`, refContent.querySelector('[name="selling_price[]"]').value);
-        formData.append(`cost_price[${refIndex}]`, refContent.querySelector('[name="cost_price[]"]').value);
-        formData.append(`currency[${refIndex}]`, refContent.querySelector('[name="currency[]"]').value);
-        formData.append(`ref_status[${refIndex}]`, refContent.querySelector('[name="ref_status[]"]').value);
-        formData.append(`ref_payment_status[${refIndex}]`, refContent.querySelector('[name="ref_payment_status[]"]').value);
-        
-        // EO信息
-        refContent.querySelectorAll('.eo-section').forEach((eoSection, eoIndex) => {
-            formData.append(`eo_number[${refIndex}][${eoIndex}]`, eoSection.querySelector('[name="eo_number[]"]').value);
-            formData.append(`eo_name[${refIndex}][${eoIndex}]`, eoSection.querySelector('[name="eo_name[]"]').value);
-            formData.append(`eo_supplier_type[${refIndex}][${eoIndex}]`, eoSection.querySelector('[name="eo_supplier_type[]"]').value);
-            formData.append(`eo_supplier_id[${refIndex}][${eoIndex}]`, eoSection.querySelector('[name="eo_supplier_id[]"]').value);
-            formData.append(`eo_amount[${refIndex}][${eoIndex}]`, eoSection.querySelector('[name="eo_amount[]"]').value);
-            formData.append(`eo_currency[${refIndex}][${eoIndex}]`, eoSection.querySelector('[name="eo_currency[]"]').value);
-            formData.append(`eo_external_system[${refIndex}][${eoIndex}]`, eoSection.querySelector('[name="eo_external_system[]"]').value);
-            formData.append(`eo_external_status[${refIndex}][${eoIndex}]`, eoSection.querySelector('[name="eo_external_status[]"]').value);
-            formData.append(`eo_external_reference[${refIndex}][${eoIndex}]`, eoSection.querySelector('[name="eo_external_reference[]"]').value);
-            formData.append(`eo_remarks[${refIndex}][${eoIndex}]`, eoSection.querySelector('[name="eo_remarks[]"]').value);
-            formData.append(`eo_status[${refIndex}][${eoIndex}]`, eoSection.querySelector('[name="eo_status[]"]').value);
-        });
-    });
+    formData.append('project_name', projectName);
+    formData.append('client_name', clientName);
+    formData.append('start_date', startDate);
+    formData.append('end_date', startDate);
     
     // Submit form
     fetch(`/projects/create/${hid}`, {
@@ -546,7 +160,6 @@ function saveProject() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            // Redirect to project view page
             window.location.href = `/projects/${data.project_id}`;
         } else {
             alert('保存失败: ' + data.error);
@@ -554,13 +167,8 @@ function saveProject() {
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('保存失败，请检查网络连�?);
+        alert('保存失败，请检查网络连接');
     });
 }
-
-// 初始化第一个REF的编�?
-document.addEventListener('DOMContentLoaded', function() {
-    generateRefNumber(0);
-});
 </script>
-{% endblock %} 
+{% endblock %}

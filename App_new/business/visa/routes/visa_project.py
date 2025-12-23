@@ -674,9 +674,27 @@ def create_project_links(project_id):
             db.session.add(header)
             db.session.flush()  # 获取header.id
             
-            # 更新签证项目的header_id
+            # 更新签证项目的header_id和hid_or_serial
             project.header_id = header.id
+            project.hid_or_serial = hid  # 自动填充HID到hid_or_serial字段
             print(f"DEBUG: Created header with ID {header.id}, HID: {hid}")
+            
+            # 自动添加申请人到人员名单
+            from App_new.business.projects.models.project_member import ProjectMember
+            member = ProjectMember(
+                header_id=header.id,
+                title='',  # 默认无称谓
+                member_name=project.applicant_name,
+                member_name_en='',
+                member_role='申请人',
+                member_phone=project.contact_phone if hasattr(project, 'contact_phone') else '',
+                member_email=project.contact_email if hasattr(project, 'contact_email') else '',
+                is_leader=True,  # 设为Leader
+                remarks=f'从签证项目自动创建'
+            )
+            db.session.add(member)
+            db.session.flush()
+            print(f"DEBUG: Created member with ID {member.id}, name: {project.applicant_name}")
         
         # 创建REF明细
         ref = None
@@ -684,27 +702,12 @@ def create_project_links(project_id):
             # 生成REF编号
             ref_number = ProjectRef.generate_ref_number(header.hid if header else None)
             
-            # 准备签证相关的额外信息
-            visa_extra_info = {
-                'visa_type': project.visa_type,
-                'visa_country': types_info.country.country_name_CN if types_info and types_info.country else '未知',
-                'visa_country_code': types_info.country.country_code if types_info and types_info.country else None,
-                'singapore_status': project.singapore_status,
-                'visa_status': project.visa_status,
-                'processing_time': types_info.processing_time if types_info else None,
-                'visa_fee': types_info.fee if types_info else None,
-                'source_system': 'visa_system',
-                'created_from_visa_project': True,
-                'visa_project_id': project.id,
-                # 联系人信息保存到extra_info
-                'contact_name': project.contact_name or project.applicant_name,
-                'contact_phone': project.contact_phone if hasattr(project, 'contact_phone') else None,
-                'contact_email': project.contact_email if hasattr(project, 'contact_email') else None,
-                'leader_name': project.applicant_name
-            }
+            # 准备签证相关的额外信息（与签证REF页面结构兼容）
+            country_name = types_info.country.country_name_CN if types_info and types_info.country else '未知'
+            visa_name = f"{country_name} {project.visa_type}"
             
             # 解析申请费用，提取数字部分
-            selling_price = None
+            selling_price = 0
             if types_info and types_info.fee:
                 try:
                     # 尝试从费用字符串中提取数字
@@ -716,14 +719,64 @@ def create_project_links(project_id):
                 except (ValueError, AttributeError) as e:
                     print(f"DEBUG: Failed to extract selling price from fee '{types_info.fee}': {str(e)}")
             
+            # 获取人员信息
+            from App_new.business.projects.models.project_member import ProjectMember
+            member_id = None
+            pax_names_list = []
+            
+            # 查询项目的所有人员
+            header_id_to_use = header.id if header else project.header_id
+            existing_members = ProjectMember.query.filter_by(header_id=header_id_to_use).all()
+            if existing_members:
+                pax_names_list = [m.id for m in existing_members]
+                # 找到Leader或第一个人员
+                leader_member = next((m for m in existing_members if m.is_leader), existing_members[0] if existing_members else None)
+                member_id = leader_member.id if leader_member else None
+            
+            visa_extra_info = {
+                # 新版签证REF页面字段
+                'visa_name': visa_name,
+                'country': country_name,
+                'visa_type': project.visa_type,
+                'pax_names': pax_names_list,
+                'leader_id': member_id,
+                'departure_date': '',
+                'pax_names_display': project.applicant_name,
+                # Pricing 信息（默认1个成人，使用提取的费用）
+                'adult_qty': 1,
+                'adult_selling': selling_price,
+                'adult_cost': 0,
+                'child_qty': 0,
+                'child_selling': 0,
+                'child_cost': 0,
+                'infant_qty': 0,
+                'infant_selling': 0,
+                'infant_cost': 0,
+                # 原有签证项目字段（保留兼容性）
+                'visa_country': country_name,
+                'visa_country_code': types_info.country.country_code if types_info and types_info.country else None,
+                'singapore_status': project.singapore_status,
+                'visa_status': project.visa_status,
+                'processing_time': types_info.processing_time if types_info else None,
+                'visa_fee': types_info.fee if types_info else None,
+                'source_system': 'visa_system',
+                'created_from_visa_project': True,
+                'visa_project_id': project.id,
+                'contact_name': project.contact_name or project.applicant_name,
+                'contact_phone': project.contact_phone if hasattr(project, 'contact_phone') else None,
+                'contact_email': project.contact_email if hasattr(project, 'contact_email') else None,
+                'leader_name': project.applicant_name
+            }
+            
             # 创建REF明细
             ref = ProjectRef(
                 header_id=header.id if header else project.header_id,
                 ref_number=ref_number,
-                description=f"{project.applicant_name} {project.visa_type}签证",
+                description=visa_name,  # 使用统一的visa_name格式
                 ref_type_id=visa_business_type.id,
-                detailed_description=f"{project.applicant_name}的{project.visa_type}签证申请",
+                detailed_description=visa_name,
                 selling_price=selling_price,  # 使用申请费用作为售价
+                cost_price=0,
                 currency='SGD',
                 remarks=project.remarks,
                 status='processing',

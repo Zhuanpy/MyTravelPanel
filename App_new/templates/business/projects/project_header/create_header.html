@@ -1,4 +1,4 @@
-﻿{% extends "shared/staff_base.html" %}
+{% extends "shared/staff_base.html" %}
 {% block title %}{% if is_edit %}编辑项目{% else %}创建项目{% endif %} - MyTravelPanel{% endblock %}
 
 {% block page_title %}{% if is_edit %}编辑项目{% else %}创建项目{% endif %}{% endblock %}
@@ -79,90 +79,32 @@
     <form method="post" action="{% if is_edit %}{{ url_for('business_projects.project_header.edit_header', header_id=header.id) }}{% else %}{{ url_for('business_projects.project_create.create_header') }}{% endif %}">
         {{ form.hidden_tag() }}
         
-        <!-- 基本信息 -->
+        <!-- 基本信息 - 4个字段一行显示 -->
         <div class="card mb-4">
-            <div class="card-header">
-                <h5 class="mb-0"><i class="fas fa-info-circle"></i> 基本信息</h5>
-            </div>
             <div class="card-body">
-                
-                <!-- 选择公司、联系人 -->
                 <div class="row">
-                    <div class="col-md-6">
+                    <div class="col-md-3">
                         <div class="mb-3">
                             {{ form.company_id.label(class="form-label") }} <span class="text-danger">*</span>
-                            {{ form.company_id(class="form-select", id="company_id_simple") }}
-                            {% if form.company_id.errors %}
-                                <div class="text-danger">
-                                    {% for error in form.company_id.errors %}
-                                        <small>{{ error }}</small>
-                                    {% endfor %}
-                                </div>
-                            {% endif %}
+                            {{ form.company_id(class="form-select form-select-sm", id="company_id_simple") }}
                         </div>
                     </div>
-                    
-                    <div class="col-md-6">
+                    <div class="col-md-3">
                         <div class="mb-3">
                             {{ form.contact.label(class="form-label") }} <span class="text-danger">*</span>
-                            {{ form.contact(class="form-control") }}
-                            {% if form.contact.errors %}
-                                <div class="text-danger">
-                                    {% for error in form.contact.errors %}
-                                        <small>{{ error }}</small>
-                                    {% endfor %}
-                                </div>
-                            {% endif %}
+                            {{ form.contact(class="form-control form-control-sm") }}
                         </div>
                     </div>
-                </div>
-                
-            </div>
-        </div>
-        
-        <!-- 人员信息 -->
-        <div class="card mb-4">
-            <div class="card-header">
-                <h5 class="mb-0"><i class="fas fa-users"></i> 人员信息</h5>
-            </div>
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-md-6">
+                    <div class="col-md-3">
                         <div class="mb-3">
-                            {{ form.staff_name.label(class="form-label") }} <span class="text-danger">*</span>
-                            {{ form.staff_name(class="form-control", readonly=true, style="background-color: #f8f9fa;") }}
-                            {% if form.staff_name.errors %}
-                                <div class="text-danger">
-                                    {% for error in form.staff_name.errors %}
-                                        <small>{{ error }}</small>
-                                    {% endfor %}
-                                </div>
-                            {% endif %}
-                            <small class="form-text text-muted">{% if is_edit %}经办人信息不可更改{% else %}自动填充当前登录用户{% endif %}</small>
+                            {{ form.staff_name.label(class="form-label") }}
+                            {{ form.staff_name(class="form-control form-control-sm", readonly=true) }}
                         </div>
                     </div>
-                </div>
-            </div>
-        </div>
-        
-        <!-- 项目设置 -->
-        <div class="card mb-4">
-            <div class="card-header">
-                <h5 class="mb-0"><i class="fas fa-cog"></i> 项目设置</h5>
-            </div>
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-md-6">
+                    <div class="col-md-3">
                         <div class="mb-3">
                             {{ form.currency.label(class="form-label") }}
-                            {{ form.currency(class="form-select") }}
-                            {% if form.currency.errors %}
-                                <div class="text-danger">
-                                    {% for error in form.currency.errors %}
-                                        <small>{{ error }}</small>
-                                    {% endfor %}
-                                </div>
-                            {% endif %}
+                            {{ form.currency(class="form-select form-select-sm") }}
                         </div>
                     </div>
                 </div>

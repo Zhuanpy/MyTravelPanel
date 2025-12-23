@@ -167,6 +167,10 @@ def exchange_order():
         date_from = request.args.get('date_from', '')
         date_to = request.args.get('date_to', '')
         
+        # 分页参数
+        page = request.args.get('page', 1, type=int)
+        per_page = 25  # 每页显示30条
+        
         # 构建查询 - 查询未付款的EO（confirmed状态）
         query = db.session.query(
             ProjectEO,
@@ -211,19 +215,27 @@ def exchange_order():
         # 排序
         query = query.order_by(desc(ProjectEO.created_at))
         
-        # 获取结果
-        results = query.all()
+        # 使用分页获取结果
+        pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+        results = pagination.items
+        
+        # 批量获取所有 ref_id 对应的乘客信息，避免 N+1 问题
+        from App_new.business.flight.models.flight import ProjectFlightPassenger
+        ref_ids = [eo.ref_id for eo, *_ in results if eo.ref_id]
+        passengers_by_ref = {}
+        if ref_ids:
+            all_passengers = ProjectFlightPassenger.query.filter(ProjectFlightPassenger.ref_id.in_(ref_ids)).all()
+            for p in all_passengers:
+                if p.ref_id not in passengers_by_ref:
+                    passengers_by_ref[p.ref_id] = []
+                if p.name:
+                    passengers_by_ref[p.ref_id].append(p.name)
         
         # 处理数据
         eos = []
         for eo, supplier_name, ref_type_name, ref_number, description, project_id, project_hid, company_name in results:
-            # 获取乘客姓名
-            pax_names = ''
-            if eo.ref:
-                from App_new.business.flight.models.flight import ProjectFlightPassenger
-                passengers = ProjectFlightPassenger.query.filter_by(ref_id=eo.ref_id).all()
-                if passengers:
-                    pax_names = ', '.join([p.name for p in passengers if p.name])
+            # 从批量查询结果获取乘客姓名
+            pax_names = ', '.join(passengers_by_ref.get(eo.ref_id, []))
             
             cost_price = float(eo.ref.cost_price) if eo.ref and eo.ref.cost_price else 0
             paid_amount = float(eo.pay_amount) if eo.pay_amount else 0
@@ -254,13 +266,15 @@ def exchange_order():
                 'rate': 1.00
             })
         
-        # 获取供应商列表
-        suppliers = Supplier.query.order_by(Supplier.name).all()
-        
+        # 获取供应商列表（按名称排序，不区分大小写）
+        from sqlalchemy import func
+        suppliers = Supplier.query.order_by(func.lower(Supplier.name)).all()
+
         return render_template('business/projects/project_eo/exchange_order.html',
                              eos=eos,
                              suppliers=suppliers,
                              today=date.today().isoformat(),
+                             pagination=pagination,
                              current_filters={
                                  'supplier': supplier_id,
                                  'date_filter_by': date_filter_by,
@@ -427,6 +441,10 @@ def batch_pay():
         start_date = request.args.get('start_date', '')
         end_date = request.args.get('end_date', '')
         
+        # 分页参数
+        page = request.args.get('page', 1, type=int)
+        per_page = 25  # 每页显示25条
+        
         # 构建查询 - 只查询未付款的EO（confirmed状态）
         query = db.session.query(
             ProjectEO,
@@ -491,8 +509,24 @@ def batch_pay():
         # 排序
         query = query.order_by(desc(ProjectEO.created_at))
         
-        # 获取结果
-        results = query.all()
+        # 使用分页获取结果
+        pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+        results = pagination.items
+        
+        # 批量获取乘客信息，避免 N+1 问题
+        import json
+        from App_new.business.projects.models.project_member import ProjectMember
+        from App_new.business.flight.models.flight import ProjectFlightPassenger
+        
+        ref_ids = [eo.ref_id for eo, *_ in results if eo.ref_id]
+        passengers_by_ref = {}
+        if ref_ids:
+            all_passengers = ProjectFlightPassenger.query.filter(ProjectFlightPassenger.ref_id.in_(ref_ids)).all()
+            for p in all_passengers:
+                if p.ref_id not in passengers_by_ref:
+                    passengers_by_ref[p.ref_id] = []
+                if p.name:
+                    passengers_by_ref[p.ref_id].append(p.name)
         
         # 处理数据
         eos = []
@@ -500,10 +534,6 @@ def batch_pay():
             # 获取乘客姓名 - 支持所有类型的REF
             pax_names = ''
             if eo.ref:
-                import json
-                from App_new.business.projects.models.project_member import ProjectMember
-                from App_new.business.flight.models.flight import ProjectFlightPassenger
-                
                 # 方法1: 优先从extra_info获取（机票REF可能已有pax_names_display）
                 if eo.ref.extra_info:
                     try:
@@ -511,25 +541,14 @@ def batch_pay():
                         # 如果已有pax_names_display，直接使用
                         if extra_data.get('pax_names_display'):
                             pax_names = extra_data.get('pax_names_display')
-                        else:
-                            # 其他类型REF：从pax_names ID列表获取
-                            pax_names_ids = extra_data.get('pax_names', [])
-                            if pax_names_ids:
-                                members = ProjectMember.query.filter(ProjectMember.id.in_(pax_names_ids)).all()
-                                if members:
-                                    pax_names_list = [f"{m.title} {m.member_name}" if m.title else m.member_name for m in members]
-                                    pax_names = ', '.join(pax_names_list)
-                            else:
-                                # 单个姓名
-                                pax_names = extra_data.get('pax_name', '')
+                        elif extra_data.get('pax_name'):
+                            pax_names = extra_data.get('pax_name', '')
                     except (json.JSONDecodeError, TypeError):
                         pass
                 
-                # 方法2: 如果没有从extra_info获取到，尝试从flight_passengers获取（机票类型）
-                if not pax_names and hasattr(eo.ref, 'flight_passengers'):
-                    passengers = ProjectFlightPassenger.query.filter_by(ref_id=eo.ref_id).all()
-                    if passengers:
-                        pax_names = ', '.join([p.name for p in passengers if p.name])
+                # 方法2: 从批量查询结果获取乘客姓名
+                if not pax_names and eo.ref_id in passengers_by_ref:
+                    pax_names = ', '.join(passengers_by_ref[eo.ref_id])
             
             eos.append({
                 'id': eo.id,
@@ -547,13 +566,15 @@ def batch_pay():
                 'created_at': eo.created_at
             })
         
-        # 获取供应商列表
-        suppliers = Supplier.query.order_by(Supplier.name).all()
-        
+        # 获取供应商列表（按名称排序，不区分大小写）
+        from sqlalchemy import func
+        suppliers = Supplier.query.order_by(func.lower(Supplier.name)).all()
+
         return render_template('business/projects/project_eo/batch_pay.html',
                              eos=eos,
                              suppliers=suppliers,
                              today=date.today().isoformat(),
+                             pagination=pagination,
                              current_filters={
                                  'supplier_type': supplier_type,
                                  'supplier': supplier_id,

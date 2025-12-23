@@ -91,7 +91,7 @@
                     </div>
                 </div>
                 <div class="card-body p-0">
-                    <div class="table-responsive" style="max-height: 500px; overflow-y: auto;">
+                    <div class="table-responsive">
                         <table class="table table-bordered table-hover eo-table mb-0" id="eoTable">
                             <thead style="position: sticky; top: 0; z-index: 1;">
                                 <tr>
@@ -139,6 +139,50 @@
                         </table>
                     </div>
                 </div>
+                
+                <!-- 分页组件 -->
+                {% if pagination and pagination.pages > 1 %}
+                <div class="d-flex justify-content-between align-items-center mt-3 px-3 pb-3">
+                    <div class="text-muted small">
+                        共 {{ pagination.total }} 条记录，第 {{ pagination.page }} / {{ pagination.pages }} 页
+                    </div>
+                    <nav>
+                        <ul class="pagination pagination-sm mb-0">
+                            {% if pagination.has_prev %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('business_projects.project_eo.batch_pay', page=pagination.prev_num, supplier_type=current_filters.supplier_type, supplier=current_filters.supplier, keyword=current_filters.keyword, start_date=current_filters.start_date, end_date=current_filters.end_date) }}">
+                                    <i class="fas fa-chevron-left"></i>
+                                </a>
+                            </li>
+                            {% else %}
+                            <li class="page-item disabled"><span class="page-link"><i class="fas fa-chevron-left"></i></span></li>
+                            {% endif %}
+                            
+                            {% for p in range(1, pagination.pages + 1) %}
+                                {% if p == pagination.page %}
+                                <li class="page-item active"><span class="page-link">{{ p }}</span></li>
+                                {% elif p == 1 or p == pagination.pages or (p >= pagination.page - 2 and p <= pagination.page + 2) %}
+                                <li class="page-item">
+                                    <a class="page-link" href="{{ url_for('business_projects.project_eo.batch_pay', page=p, supplier_type=current_filters.supplier_type, supplier=current_filters.supplier, keyword=current_filters.keyword, start_date=current_filters.start_date, end_date=current_filters.end_date) }}">{{ p }}</a>
+                                </li>
+                                {% elif p == 2 or p == pagination.pages - 1 %}
+                                <li class="page-item disabled"><span class="page-link">...</span></li>
+                                {% endif %}
+                            {% endfor %}
+                            
+                            {% if pagination.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('business_projects.project_eo.batch_pay', page=pagination.next_num, supplier_type=current_filters.supplier_type, supplier=current_filters.supplier, keyword=current_filters.keyword, start_date=current_filters.start_date, end_date=current_filters.end_date) }}">
+                                    <i class="fas fa-chevron-right"></i>
+                                </a>
+                            </li>
+                            {% else %}
+                            <li class="page-item disabled"><span class="page-link"><i class="fas fa-chevron-right"></i></span></li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                </div>
+                {% endif %}
             </div>
         </div>
         

@@ -256,12 +256,21 @@ def manage_tour_projects():
     pagination = query.paginate(page=page, per_page=per_page, error_out=False)
     tour_projects = pagination.items
 
+    # 获取所有项目的 HID，构建 HID 到 ProjectHeader ID 的映射
+    from App_new.business.projects.models.project import ProjectHeader
+    hid_list = [p.project_hid for p in tour_projects if p.project_hid]
+    hid_to_project_id = {}
+    if hid_list:
+        headers = ProjectHeader.query.filter(ProjectHeader.hid.in_(hid_list)).all()
+        hid_to_project_id = {h.hid: h.id for h in headers}
+
     return render_template('business/tour/package/TourProjects/tour_project_list.html',
                          projects=tour_projects,
                          pagination=pagination,
                          travel_status=travel_status, 
                          sort_by=sort_by, 
-                         order=order)
+                         order=order,
+                         hid_to_project_id=hid_to_project_id)
 
 @tour_projects.route('/update/<int:project_id>', methods=['POST'])
 @csrf.exempt

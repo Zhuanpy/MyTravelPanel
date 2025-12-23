@@ -294,19 +294,22 @@ class ProjectHeaderForm(FlaskForm):
         Length(max=200, message='项目描述不能超过200个字符')
     ])
 
-    company_id = SelectField('选择公司', [
-        DataRequired(message='请选择公司或个人')
-    ], coerce=int, choices=[])
+    company_id = SelectField('选择公司', coerce=int, choices=[])
 
     def __init__(self, *args, **kwargs):
         super(ProjectHeaderForm, self).__init__(*args, **kwargs)
-        # 动态加载公司选项
+        # 动态加载公司选项，第一项为空占位符
         companies = CustomerCompany.query.filter_by(status='active').order_by(CustomerCompany.company_name).all()
-        self.company_id.choices = [(0, '个人')] + [(c.id, c.company_name) for c in companies]
+        self.company_id.choices = [(-1, '请选择公司')] + [(0, '个人')] + [(c.id, c.company_name) for c in companies]
 
         # 如果是编辑模式，移除项目编号的长度验证
         if 'obj' in kwargs and kwargs['obj']:
             self.hid.validators = [DataRequired(message='项目编号不能为空')]
+
+    def validate_company_id(self, field):
+        """验证必须选择公司或个人"""
+        if field.data == -1:
+            raise ValidationError('请选择公司或个人')
 
     limit = StringField('额度限制', [
         Length(max=50, message='额度限制不能超过50个字符')

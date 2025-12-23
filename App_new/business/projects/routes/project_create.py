@@ -28,10 +28,9 @@ def create_header():
             # 生成HID（不需要事务包装）
             hid = ProjectHeader.generate_hid()
             
-            # 处理公司信息
-            company_id = None
-            if form.company_id.data and form.company_id.data != 0:
-                company_id = form.company_id.data
+            # 处理公司信息（-1表示未选择，0表示个人，>0表示实际公司）
+            # 0和None都表示"个人"，>0表示实际公司ID
+            company_id = form.company_id.data if form.company_id.data and form.company_id.data > 0 else None
             
             # 如果负责人姓名为空，自动使用经办人姓名
             leader_name = form.leader_name.data if form.leader_name.data else form.staff_name.data
@@ -56,9 +55,6 @@ def create_header():
             db.session.add(header)
             db.session.commit()
             
-            # 提醒功能已移至项目详情页面
-            
-            flash('项目主表创建成功！', 'success')
             return redirect(url_for('business_projects.detail.project_detail', project_id=header.id))
         except Exception as e:
             db.session.rollback()
@@ -93,8 +89,8 @@ def create_header():
             # 如果用户资料未设置姓名，使用用户名
             form.staff_name.data = current_user.username
     
-    # 设置默认公司为"个人"
-    form.company_id.data = 0
+    # 默认选择"请选择公司"占位符
+    form.company_id.data = -1
     
     # 设置默认状态为"进行中"
     form.status.data = 'active'

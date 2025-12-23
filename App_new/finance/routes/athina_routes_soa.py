@@ -68,16 +68,18 @@ def soa_batch_download():
     try:
         company = request.args.get('company', '')
         month = request.args.get('month', '')
+        search = request.args.get('search', '')
         balance_positive = request.args.get('balance_positive', 'false').lower() == 'true'
         format_type = request.args.get('format', 'excel')
         
         # 记录请求参数用于调试
-        current_app.logger.info(f"SOA批量下载请求 - 公司: {company}, 月份: {month}, 余额正: {balance_positive}, 格式: {format_type}")
+        current_app.logger.info(f"SOA批量下载请求 - 公司: {company}, 月份: {month}, 搜索: {search}, 余额正: {balance_positive}, 格式: {format_type}")
         
         soa_service = SOAService()
         excel_content, error = soa_service.batch_download_soa(
             company=company if company else None,
             month=month if month else None,
+            search=search if search else None,
             balance_positive=balance_positive,
             format=format_type
         )
@@ -128,15 +130,17 @@ def soa_batch_download_pdf():
     try:
         company = request.args.get('company', '')
         month = request.args.get('month', '')
+        search = request.args.get('search', '')
         balance_positive = request.args.get('balance_positive', 'false').lower() == 'true'
         
         # 记录请求参数用于调试
-        current_app.logger.info(f"SOA批量下载PDF请求 - 公司: {company}, 月份: {month}, 余额正: {balance_positive}")
+        current_app.logger.info(f"SOA批量下载PDF请求 - 公司: {company}, 月份: {month}, 搜索: {search}, 余额正: {balance_positive}")
         
         soa_service = SOAService()
         pdf_content, error = soa_service.batch_download_soa_pdf(
             company=company if company else None,
             month=month if month else None,
+            search=search if search else None,
             balance_positive=balance_positive
         )
         
