@@ -95,8 +95,8 @@ def show_current_all_projects():
         page = request.args.get('page', 1, type=int)
         per_page = 20  # 每页显示20条数据
 
-        # 构建基础查询
-        query = VisaProject.query
+        # 构建基础查询（预加载header关系用于列表显示HID链接）
+        query = VisaProject.query.options(db.joinedload(VisaProject.header))
 
         # 应用状态筛选
         if visa_status != 'all':
@@ -1028,12 +1028,12 @@ def visa_create_project(visa_type):
             return jsonify({
                 'success': True,
                 'message': f'项目创建成功: {project_file_name}',
-                'redirect_url': url_for('visa_project.edit_project', project_id=new_project.id)
+                'redirect_url': url_for('visa_project.visa_detail', project_id=new_project.id)
             })
 
-        # 否则重定向到项目编辑页面
+        # 否则重定向到项目详情页面
         flash(f'项目创建成功: {project_file_name}', 'success')
-        return redirect(url_for('visa_project.edit_project', project_id=new_project.id))
+        return redirect(url_for('visa_project.visa_detail', project_id=new_project.id))
 
     except Exception as e:
         error_msg = f"创建项目失败: {str(e)}"

@@ -74,12 +74,14 @@
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
        
                 <div class="visa-grid-4 visa-gap-2">
+
                     <div class="visa-form-group">
-                        <label for="hid_or_serial" class="visa-form-label">HID或序列号</label>
-                        <input type="text" class="visa-form-control" id="hid_or_serial" name="hid_or_serial" 
-                               placeholder="可留空，后续自动填充">
-                        <div class="visa-form-hint" style="font-size: 0.75rem; color: var(--visa-text-muted);">可在详情页创建HID时自动填充</div>
+                        <label for="applicant_name" class="visa-form-label">申请人名字 *</label>
+                        <input type="text" class="visa-form-control" id="applicant_name" name="applicant_name" 
+                               placeholder="申请人全名" required>
+                        <div class="visa-form-error" id="applicant_name_error" style="display: none;">申请人名字不能为空</div>
                     </div>
+
 
                     <div class="visa-form-group">
                         <label for="visa_type" class="visa-form-label">签证类型 *</label>
@@ -87,6 +89,8 @@
                                placeholder="如：商务签证、旅游签证等" required value="{{ visa_type }}">
                         <div class="visa-form-error" id="visa_type_error" style="display: none;">签证类型不能为空</div>
                     </div>
+
+    
 
                     <div class="visa-form-group">
                         <label for="singapore_status" class="visa-form-label">在新加坡身份 *</label>
@@ -97,21 +101,6 @@
                     </div>
 
                     <div class="visa-form-group">
-                        <label for="applicant_name" class="visa-form-label">申请人名字 *</label>
-                        <input type="text" class="visa-form-control" id="applicant_name" name="applicant_name" 
-                               placeholder="申请人全名" required>
-                        <div class="visa-form-error" id="applicant_name_error" style="display: none;">申请人名字不能为空</div>
-                    </div>
-                </div>
-
-                <div class="visa-grid-3 visa-gap-2 visa-mt-2">
-                    <div class="visa-form-group">
-                        <label for="contact_name" class="visa-form-label">联系人名字</label>
-                        <input type="text" class="visa-form-control" id="contact_name" name="contact_name" 
-                               placeholder="联系人全名">
-                    </div>
-
-                    <div class="visa-form-group">
                         <label for="visa_status" class="visa-form-label">签证状态 *</label>
                         <select class="visa-form-select" id="visa_status" name="visa_status" required>
                             <option value="待递交">待递交</option>
@@ -119,6 +108,14 @@
                             <option value="已出签">已出签</option>
                             <option value="忽略单">忽略单</option>
                         </select>
+                    </div>
+                </div>
+
+                <div class="visa-grid-4 visa-gap-2 visa-mt-2">
+                    <div class="visa-form-group">
+                        <label for="contact_name" class="visa-form-label">联系人名字</label>
+                        <input type="text" class="visa-form-control" id="contact_name" name="contact_name" 
+                               placeholder="联系人全名">
                     </div>
 
                     <div class="visa-form-group">
@@ -132,7 +129,18 @@
                                data-input
                                autocomplete="off"
                                data-clear>
-                        <div class="visa-form-error" id="estimated_date_error">请选择有效的日期</div>
+                        <div class="visa-form-error" id="estimated_date_error" style="display: none;">请选择有效的日期</div>
+                    </div>
+
+                    <div class="visa-form-group">
+                        <label for="hid_or_serial" class="visa-form-label">HID或序列号</label>
+                        <input type="text" class="visa-form-control" id="hid_or_serial" name="hid_or_serial" 
+                               placeholder="可留空，后续自动填充">
+                        <div class="visa-form-hint" style="font-size: 0.75rem; color: var(--visa-text-muted);">详情页可自动填充</div>
+                    </div>
+
+                    <div class="visa-form-group">
+                        <!-- 占位，保持4列对齐 -->
                     </div>
                 </div>
             </form>

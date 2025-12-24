@@ -99,7 +99,18 @@
             {% for project in projects %}
             <tr>
                 <td>{{ project.id }}</td>
-                <td>{{ project.hid_or_serial }}</td>
+                <td>
+                    {% if project.header_id and project.header %}
+                    <a href="{{ url_for('business_projects.detail.project_detail', project_id=project.header_id) }}" 
+                       class="text-primary" target="_blank" title="查看HID项目详情">
+                        {{ project.header.hid }}
+                    </a>
+                    {% elif project.hid_or_serial %}
+                    <span style="color: #999;">{{ project.hid_or_serial }}</span>
+                    {% else %}
+                    <span style="color: #ccc;">-</span>
+                    {% endif %}
+                </td>
                 <td>{{ project.applicant_name }}</td>
                 <td>{{ project.visa_type }}</td>
                 <td>{{ project.created_date.strftime('%Y-%m-%d') }}</td>
@@ -225,19 +236,10 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    // 显示成功消息
-                    const successMessage = document.createElement('div');
-                    successMessage.className = 'alert alert-success';
-                    successMessage.textContent = data.message;
-                    document.querySelector('.visa-project-container').insertBefore(successMessage, document.querySelector('.visa-project-table'));
-                    
-                    // 0.5秒后移除消息并刷新页面
-                    setTimeout(() => {
-                        successMessage.remove();
-                        window.location.reload();
-                    }, 500);
+                    // 直接刷新页面
+                    window.location.reload();
                 } else {
-                    alert(data.message);
+                    alert('删除失败: ' + data.message);
                 }
             })
             .catch(error => {
@@ -273,16 +275,16 @@
                 showToast('success', data.message);
                 // 获取当前URL参数
                 const urlParams = new URLSearchParams(window.location.search);
-                // 保持当前页码和其他筛选条件
+                // 保持当前页码和其他筛选条件（默认使用"待递交"而不是"all"）
                 const currentPage = urlParams.get('page') || 1;
-                const visaStatus = urlParams.get('visa_status') || 'all';
+                const visaStatus = urlParams.get('visa_status') || '待递交';
                 const sortBy = urlParams.get('sort_by') || 'created_date';
                 const filterVisaType = urlParams.get('filter_visa_type') || 'all';
                 const filterCountry = urlParams.get('filter_country') || 'all';
                 const searchName = urlParams.get('search_name') || '';
                 
                 // 构建新的URL
-                const newUrl = `${window.location.pathname}?page=${currentPage}&visa_status=${visaStatus}&sort_by=${sortBy}&filter_visa_type=${filterVisaType}&filter_country=${filterCountry}&search_name=${searchName}`;
+                const newUrl = `${window.location.pathname}?page=${currentPage}&visa_status=${encodeURIComponent(visaStatus)}&sort_by=${sortBy}&filter_visa_type=${filterVisaType}&filter_country=${filterCountry}&search_name=${encodeURIComponent(searchName)}`;
                 
                 // 延迟一小段时间后刷新页面，让用户看到成功提示
                 setTimeout(() => {
