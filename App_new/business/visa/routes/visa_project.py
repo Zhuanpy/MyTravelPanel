@@ -6,7 +6,8 @@ import platform
 import subprocess
 from flask_login import login_required, current_user
 from App_new.exts import db, csrf
-from App_new.business.visa.models.Visamodels import VisaTypes, VisaDocuments, VisaLinks, VisaProject, VisaCountries, VisaSingaporeIdentity
+from App_new.business.visa.models.Visamodels import VisaTypes, VisaDocuments, VisaLinks, VisaProject, VisaCountries, VisaSingaporeIdentity, VisaProjectFile
+from werkzeug.utils import secure_filename
 from App_new.utils.VisaForm import VisasUtils
 from App_new.utils.decorators import staff_only
 import json
@@ -891,8 +892,8 @@ def visa_create_project(visa_type):
             document_statuses = []
             print("DEBUG: Failed to parse document_statuses JSON")
 
-        # 验证必填字段
-        if not hid_or_serial or not applicant_name or not visa_type_input or not singapore_status or not visa_status or not estimated_date:
+        # 验证必填字段（hid_or_serial为可选，可后续通过创建HID自动填充）
+        if not applicant_name or not visa_type_input or not singapore_status or not visa_status or not estimated_date:
             error_msg = "缺少必要的项目信息，请确保所有必填字段已填写"
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                 return jsonify({
@@ -902,8 +903,9 @@ def visa_create_project(visa_type):
             flash(error_msg, 'error')
             return redirect(url_for('visa_project.visa_processing', visa_type=visa_type))
 
-        # 自动生成项目名称
-        project_name = f"{visa_type_input}_{hid_or_serial}_{applicant_name}"
+        # 自动生成项目名称（hid_or_serial可能为空）
+        hid_part = hid_or_serial if hid_or_serial else 'NEW'
+        project_name = f"{visa_type_input}_{hid_part}_{applicant_name}"
 
         # 如果是生成表格，直接重定向到处理页面
         if submit_button == 'generate_form':
@@ -985,7 +987,7 @@ def visa_create_project(visa_type):
         new_project.applicant_name = applicant_name
         new_project.contact_name = request.form.get('contact_name')
         new_project.remarks = request.form.get('remarks')
-        new_project.hid_or_serial = hid_or_serial
+        new_project.hid_or_serial = hid_or_serial if hid_or_serial else None  # 可为空
         new_project.singapore_status = singapore_status
 
         db.session.add(new_project)
@@ -1061,8 +1063,8 @@ def update_project_details(project_id):
         estimated_date = request.form.get('estimated_date')
         remarks = request.form.get('remarks')
 
-        # 验证必填字段
-        if not all([hid_or_serial, visa_type, applicant_name, visa_status, singapore_status, estimated_date]):
+        # 验证必填字段（hid_or_serial为可选，可后续通过创建HID自动填充）
+        if not all([visa_type, applicant_name, visa_status, singapore_status, estimated_date]):
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                 return jsonify({
                     'success': False,
@@ -1071,8 +1073,8 @@ def update_project_details(project_id):
             flash('缺少必要的项目信息，请确保所有必填字段已填写', 'error')
             return redirect(url_for('visa_project.edit_project', project_id=project_id))
 
-        # 更新项目数据
-        project.hid_or_serial = hid_or_serial
+        # 更新项目数据（hid_or_serial可为空）
+        project.hid_or_serial = hid_or_serial if hid_or_serial else None
         project.visa_type = visa_type
         project.applicant_name = applicant_name
         project.contact_name = contact_name
@@ -2221,3 +2223,159 @@ def delete_link(link_id):
             'success': False,
             'message': f'删除链接失败: {str(e)}'
         }), 500
+
+
+# ==================== 文件上传管理 ====================
+
+ALLOWED_EXTENSIONS = {'pdf', 'doc', 'docx', 'xls', 'xlsx', 'jpg', 'jpeg', 'png', 'gif', 'txt', 'zip', 'rar'}
+
+def allowed_file(filename):
+    """检查文件扩展名是否允许"""
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+@visa_project.route('/api/files/<int:project_id>', methods=['GET'])
+@login_required
+@staff_only
+def get_project_files(project_id):
+    """获取项目的所有上传文件"""
+    try:
+        project = VisaProject.query.get_or_404(project_id)
+        files = VisaProjectFile.query.filter_by(project_id=project_id).order_by(VisaProjectFile.created_at.desc()).all()
+        
+        return jsonify({
+            'success': True,
+            'files': [{
+                'id': f.id,
+                'file_name': f.file_name,
+                'file_type': f.file_type,
+                'file_size': f.get_file_size_display(),
+                'description': f.description,
+                'uploaded_by': f.uploaded_by,
+                'created_at': f.created_at.strftime('%Y-%m-%d %H:%M') if f.created_at else ''
+            } for f in files]
+        })
+    except Exception as e:
+        current_app.logger.error(f"获取项目文件列表失败: {str(e)}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@visa_project.route('/api/files/<int:project_id>/upload', methods=['POST'])
+@login_required
+@staff_only
+@csrf.exempt
+def upload_project_file(project_id):
+    """上传项目文件"""
+    try:
+        project = VisaProject.query.get_or_404(project_id)
+        
+        if 'file' not in request.files:
+            return jsonify({'success': False, 'message': '没有选择文件'}), 400
+        
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({'success': False, 'message': '没有选择文件'}), 400
+        
+        if not allowed_file(file.filename):
+            return jsonify({'success': False, 'message': f'不支持的文件类型，支持: {", ".join(ALLOWED_EXTENSIONS)}'}), 400
+        
+        # 获取文件信息
+        original_filename = file.filename
+        file_ext = original_filename.rsplit('.', 1)[1].lower() if '.' in original_filename else ''
+        
+        # 创建上传目录
+        upload_folder = os.path.join(current_app.config.get('UPLOAD_FOLDER', 'uploads'), 'visa_projects', str(project_id))
+        os.makedirs(upload_folder, exist_ok=True)
+        
+        # 生成唯一文件名
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        safe_filename = secure_filename(original_filename)
+        new_filename = f"{timestamp}_{safe_filename}"
+        file_path = os.path.join(upload_folder, new_filename)
+        
+        # 保存文件
+        file.save(file_path)
+        file_size = os.path.getsize(file_path)
+        
+        # 获取描述
+        description = request.form.get('description', '')
+        
+        # 创建数据库记录
+        project_file = VisaProjectFile(
+            project_id=project_id,
+            file_name=original_filename,
+            file_path=file_path,
+            file_size=file_size,
+            file_type=file_ext,
+            description=description,
+            uploaded_by=current_user.username if current_user else None
+        )
+        db.session.add(project_file)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': '文件上传成功',
+            'file': {
+                'id': project_file.id,
+                'file_name': project_file.file_name,
+                'file_type': project_file.file_type,
+                'file_size': project_file.get_file_size_display(),
+                'description': project_file.description,
+                'uploaded_by': project_file.uploaded_by,
+                'created_at': project_file.created_at.strftime('%Y-%m-%d %H:%M') if project_file.created_at else ''
+            }
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f"上传文件失败: {str(e)}\n{traceback.format_exc()}")
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'上传失败: {str(e)}'}), 500
+
+
+@visa_project.route('/api/files/<int:file_id>/delete', methods=['POST'])
+@login_required
+@staff_only
+@csrf.exempt
+def delete_project_file(file_id):
+    """删除项目文件"""
+    try:
+        project_file = VisaProjectFile.query.get_or_404(file_id)
+        
+        # 删除物理文件
+        if project_file.file_path and os.path.exists(project_file.file_path):
+            os.remove(project_file.file_path)
+        
+        # 删除数据库记录
+        db.session.delete(project_file)
+        db.session.commit()
+        
+        return jsonify({'success': True, 'message': '文件删除成功'})
+        
+    except Exception as e:
+        current_app.logger.error(f"删除文件失败: {str(e)}")
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'删除失败: {str(e)}'}), 500
+
+
+@visa_project.route('/api/files/<int:file_id>/download')
+@login_required
+@staff_only
+def download_project_file(file_id):
+    """下载项目文件"""
+    from flask import send_file
+    try:
+        project_file = VisaProjectFile.query.get_or_404(file_id)
+        
+        if not os.path.exists(project_file.file_path):
+            return jsonify({'success': False, 'message': '文件不存在'}), 404
+        
+        return send_file(
+            project_file.file_path,
+            as_attachment=True,
+            download_name=project_file.file_name
+        )
+        
+    except Exception as e:
+        current_app.logger.error(f"下载文件失败: {str(e)}")
+        return jsonify({'success': False, 'message': f'下载失败: {str(e)}'}), 500

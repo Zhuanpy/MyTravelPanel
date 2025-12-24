@@ -748,3 +748,48 @@ class VisaTemplateFiles(db.Model):
         """获取所有模板类型"""
         return db.session.query(cls.template_type).distinct().all()
 
+
+class VisaProjectFile(db.Model):
+    """签证项目上传文件模型"""
+    __tablename__ = 'visa_project_files'
+    
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    project_id = db.Column(db.Integer, db.ForeignKey('visa_projects.id', ondelete='CASCADE'), nullable=False)
+    file_name = db.Column(db.String(255), nullable=False)  # 原始文件名
+    file_path = db.Column(db.String(500), nullable=False)  # 存储路径
+    file_size = db.Column(db.Integer, nullable=True)  # 文件大小（字节）
+    file_type = db.Column(db.String(50), nullable=True)  # 文件类型（扩展名）
+    description = db.Column(db.String(500), nullable=True)  # 文件描述
+    uploaded_by = db.Column(db.String(100), nullable=True)  # 上传人
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # 关系定义
+    project = db.relationship('VisaProject', backref=db.backref('files', lazy='dynamic', cascade='all, delete-orphan'))
+    
+    def __repr__(self):
+        return f'<VisaProjectFile(id={self.id}, file_name="{self.file_name}", project_id={self.project_id})>'
+    
+    def to_dict(self):
+        """转换为字典格式"""
+        return {
+            'id': self.id,
+            'project_id': self.project_id,
+            'file_name': self.file_name,
+            'file_path': self.file_path,
+            'file_size': self.file_size,
+            'file_type': self.file_type,
+            'description': self.description,
+            'uploaded_by': self.uploaded_by,
+            'created_at': self.created_at.isoformat() if self.created_at else None
+        }
+    
+    def get_file_size_display(self):
+        """获取友好的文件大小显示"""
+        if not self.file_size:
+            return '未知'
+        if self.file_size < 1024:
+            return f'{self.file_size} B'
+        elif self.file_size < 1024 * 1024:
+            return f'{self.file_size / 1024:.1f} KB'
+        else:
+            return f'{self.file_size / (1024 * 1024):.1f} MB'

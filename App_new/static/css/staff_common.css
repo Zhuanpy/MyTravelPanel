@@ -2651,28 +2651,33 @@ textarea.visa-form-control,
     margin: 0;
 }
 
-/* 项目信息网格 */
+/* 项目信息网格 - 单行6列显示 */
 .visa-project-info-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: 1.5rem;
-    padding: 1rem 0;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 1rem;
+    padding: 0.5rem 0;
+}
+
+.visa-project-info-grid > div {
+    min-width: 0;
 }
 
 .visa-info-label {
-    font-size: 0.875rem;
+    font-size: 0.75rem;
     font-weight: 500;
     color: var(--visa-text-secondary);
     margin-bottom: 0.25rem;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
+    white-space: nowrap;
 }
 
 .visa-info-value {
-    font-size: 1rem;
+    font-size: 0.875rem;
     color: var(--visa-text-primary);
-    font-weight: 500;
-    margin-bottom: 1rem;
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 /* 链接网格 */
@@ -2990,8 +2995,8 @@ textarea.visa-form-control,
 /* 响应式调整 */
 @media (max-width: 768px) {
     .visa-project-info-grid {
-        grid-template-columns: 1fr;
-        gap: 1rem;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 0.75rem;
     }
     
     .visa-links-grid {

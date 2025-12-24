@@ -75,10 +75,10 @@
        
                 <div class="visa-grid-4 visa-gap-2">
                     <div class="visa-form-group">
-                        <label for="hid_or_serial" class="visa-form-label">HID或序列号 *</label>
+                        <label for="hid_or_serial" class="visa-form-label">HID或序列号</label>
                         <input type="text" class="visa-form-control" id="hid_or_serial" name="hid_or_serial" 
-                               placeholder="输入HID或序列号" required>
-                        <div class="visa-form-error" id="hid_or_serial_error" style="display: none;">HID或序列号不能为空</div>
+                               placeholder="可留空，后续自动填充">
+                        <div class="visa-form-hint" style="font-size: 0.75rem; color: var(--visa-text-muted);">可在详情页创建HID时自动填充</div>
                     </div>
 
                     <div class="visa-form-group">
@@ -350,16 +350,7 @@
         e.preventDefault();
         // 表单验证
         let isValid = true;
-        // 验证HID或序列号
-        const hidOrSerial = document.getElementById('hid_or_serial');
-        if (!hidOrSerial.value.trim()) {
-            isValid = false;
-            document.getElementById('hid_or_serial_error').style.display = 'block';
-            hidOrSerial.classList.add('visa-project-form-control-error');
-        } else {
-            document.getElementById('hid_or_serial_error').style.display = 'none';
-            hidOrSerial.classList.remove('visa-project-form-control-error');
-        }
+        // HID或序列号为可选字段，不需要验证
         // 验证签证类型
         const visaType = document.getElementById('visa_type');
         if (!visaType.value.trim()) {

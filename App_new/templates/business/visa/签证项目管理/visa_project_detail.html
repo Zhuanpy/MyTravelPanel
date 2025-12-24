@@ -70,13 +70,41 @@
         </div>
     </div>
 
-    <!-- 相关链接 -->
+    <!-- 相关链接 & HID/Ref -->
     <div class="visa-card visa-mb-3">
-        <div class="visa-card-header">
+        <div class="visa-card-header" style="flex-wrap: wrap; gap: 0.5rem;">
             <h2><i class="fas fa-link"></i> 相关链接</h2>
-            <button type="button" class="visa-btn visa-btn-sm visa-btn-success" data-action="show-add-link-modal" style="width: 120px; flex-shrink: 0;">
-                <i class="fas fa-plus"></i> 添加链接
-            </button>
+            <div style="display: flex; align-items: center; gap: 0.75rem; margin-left: auto;">
+                <!-- HID/Ref 信息 -->
+                {% if has_header and project.header and has_ref and project.ref %}
+                <span style="font-size: 0.8rem; background: #e3f2fd; padding: 0.2rem 0.5rem; border-radius: 4px;">
+                    <strong>HID:</strong> 
+                    <a href="{{ url_for('business_projects.detail.project_detail', project_id=project.header.id) }}" class="text-primary" target="_blank">{{ project.header.hid }}</a>
+                </span>
+                <span style="font-size: 0.8rem; background: #e8f5e9; padding: 0.2rem 0.5rem; border-radius: 4px;">
+                    <strong>Ref:</strong> 
+                    <a href="{{ url_for('business_projects.project_ref.ref_detail', ref_id=project.ref.id) }}" class="text-primary" target="_blank">{{ project.ref.ref_number }}</a>
+                </span>
+                <button type="button" class="visa-btn visa-btn-sm visa-btn-info" data-action="copy-hid-ref" style="padding: 0.15rem 0.4rem; font-size: 0.7rem;" title="复制编号">
+                    <i class="fas fa-copy"></i>
+                </button>
+                <button type="button" class="visa-btn visa-btn-sm visa-btn-danger" data-action="unlink-hid-ref" data-project-id="{{ project.id }}" style="padding: 0.15rem 0.4rem; font-size: 0.7rem;" title="解除关联">
+                    <i class="fas fa-unlink"></i>
+                </button>
+                {% else %}
+                <span style="font-size: 0.75rem; color: #999; background: #f5f5f5; padding: 0.2rem 0.5rem; border-radius: 4px;">
+                    HID/Ref: 未关联
+                    {% if project.hid_or_serial %}<span style="color: #ff9800;"> (临时: {{ project.hid_or_serial }})</span>{% endif %}
+                </span>
+                <button type="button" class="visa-btn visa-btn-sm visa-btn-primary" data-action="create-project-links" data-project-id="{{ project.id }}" style="padding: 0.15rem 0.4rem; font-size: 0.7rem;">
+                    <i class="fas fa-plus"></i> 创建HID
+                </button>
+                {% endif %}
+                <span style="border-left: 1px solid #ddd; height: 20px;"></span>
+                <button type="button" class="visa-btn visa-btn-sm visa-btn-success" data-action="show-add-link-modal" style="padding: 0.15rem 0.4rem; font-size: 0.7rem;">
+                    <i class="fas fa-plus"></i> 添加链接
+                </button>
+            </div>
         </div>
         {% if links %}
         <div class="visa-links-grid">
@@ -87,7 +115,7 @@
             {% endfor %}
         </div>
         {% else %}
-        <div class="visa-card-body visa-text-center" style="color: var(--visa-text-muted);">
+        <div class="visa-card-body visa-text-center" style="color: var(--visa-text-muted); padding: 0.75rem;">
             暂无相关链接
         </div>
         {% endif %}
@@ -141,6 +169,18 @@
                     </form>
                 </div>
                 {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- 备注信息 -->
+    <div class="visa-card visa-mb-3">
+        <div class="visa-card-header">
+            <h2><i class="fas fa-comment"></i> 备注信息</h2>
+        </div>
+        <div class="visa-card-body" style="padding: 0.75rem 1rem;">
+            <div style="white-space: pre-line; color: var(--visa-text-secondary); font-size: 0.875rem;">
+                {{ project.remarks or '暂无备注信息' }}
             </div>
         </div>
     </div>
@@ -200,87 +240,90 @@
         </div>
     </div>
 
-    <!-- 备注信息 -->
+    <!-- 上传资料文件 -->
     <div class="visa-card visa-mb-3">
-        <div class="visa-card-header">
-            <h2><i class="fas fa-comment"></i> 备注信息</h2>
-        </div>
-        <div class="visa-card-body">
-            <div style="white-space: pre-line; color: var(--visa-text-secondary);">
-                {{ project.remarks or '暂无备注信息' }}
-            </div>
-        </div>
-    </div>
-
-    <!-- 提醒事件 -->
-    <div class="visa-card visa-mb-3">
-        <div class="visa-card-header">
-            <h2><i class="fas fa-bell"></i> 提醒事件</h2>
+        <div class="visa-card-header" style="padding: 0.5rem 1rem;">
+            <h2 style="font-size: 0.9rem;"><i class="fas fa-cloud-upload-alt"></i> 上传资料</h2>
             <div style="display: flex; gap: 0.5rem;">
-                <a href="{{ url_for('utils_blue.render_todo_list') }}" class="visa-btn visa-btn-sm visa-btn-info" target="_blank" style="width: 100px; flex-shrink: 0;">
-                    <i class="fas fa-tasks"></i> 任务中心
-                </a>
-                <button type="button" class="visa-btn visa-btn-sm visa-btn-success" data-bs-toggle="modal" data-bs-target="#reminderModal2" style="width: 100px; flex-shrink: 0;">
-                    <i class="fas fa-plus"></i> 添加提醒
+                <button type="button" class="visa-btn visa-btn-sm visa-btn-success" id="showUploadBtn" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">
+                    <i class="fas fa-plus"></i> 上传文件
                 </button>
             </div>
         </div>
-        <div class="visa-card-body">
-            <div id="remindersContainer">
-                <div class="visa-text-center" style="color: var(--visa-text-muted); padding: 2rem;">
-                    <i class="fas fa-spinner fa-spin fa-2x" style="margin-bottom: 1rem;"></i>
-                    <p>加载中...</p>
+        <div class="visa-card-body" style="padding: 0.75rem;">
+            <!-- 上传表单（默认隐藏） -->
+            <div id="uploadFormContainer" style="display: none; margin-bottom: 1rem; padding: 0.75rem; background: #f8f9fa; border-radius: 6px;">
+                <form id="fileUploadForm" enctype="multipart/form-data">
+                    <div style="display: flex; gap: 0.5rem; align-items: flex-end; flex-wrap: wrap;">
+                        <div style="flex: 2; min-width: 250px;">
+                            <label style="font-size: 0.75rem; color: #666;">选择文件（可多选）</label>
+                            <input type="file" id="fileInput" name="file" class="visa-form-control" style="font-size: 0.8rem; padding: 0.25rem;" multiple>
+                            <div id="selectedFilesInfo" style="font-size: 0.7rem; color: #666; margin-top: 0.25rem;"></div>
+                        </div>
+                        <button type="submit" class="visa-btn visa-btn-sm visa-btn-primary" id="uploadSubmitBtn" style="padding: 0.25rem 0.75rem; font-size: 0.8rem;">
+                            <i class="fas fa-upload"></i> 上传
+                        </button>
+                        <button type="button" id="cancelUploadBtn" class="visa-btn visa-btn-sm visa-btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">
+                            取消
+                        </button>
+                    </div>
+                    <div style="font-size: 0.7rem; color: #888; margin-top: 0.5rem;">
+                        支持格式: PDF, Word, Excel, 图片, TXT, ZIP等 | 可按住Ctrl多选文件
+                    </div>
+                </form>
+            </div>
+            <!-- 文件列表 -->
+            <div id="projectFilesContainer">
+                <div class="text-center" style="color: #999; padding: 1rem; font-size: 0.8rem;">
+                    <i class="fas fa-spinner fa-spin"></i> 加载中...
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- HID和Ref编号管理 -->
-    <div class="visa-card visa-mb-3">
-        <div class="visa-card-header">
-            <h2><i class="fas fa-link"></i> HID和Ref编号管理</h2>
+    <!-- 提醒事件 - 右下角悬浮 -->
+    <div class="reminder-float" id="reminderFloatContainer" style="position: fixed; bottom: 20px; right: 20px; z-index: 999; max-width: 350px;">
+        <!-- 悬浮按钮 - 默认显示 -->
+        <div id="reminderFloatBtn" class="reminder-float-btn" style="display: flex; gap: 0.5rem;">
+            <button type="button" class="visa-btn visa-btn-warning visa-btn-sm" id="toggleRemindersBtn" style="border-radius: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.15);">
+                <i class="fas fa-bell"></i> 提醒 <span id="reminderBadge" class="badge bg-danger" style="display: none; margin-left: 4px;">0</span>
+            </button>
+            <button type="button" class="visa-btn visa-btn-success visa-btn-sm" data-bs-toggle="modal" data-bs-target="#reminderModal2" style="border-radius: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.15);">
+                <i class="fas fa-plus"></i>
+            </button>
         </div>
-        <div class="visa-card-body">
-            {% if has_header and project.header and has_ref and project.ref %}
-            <!-- 已关联HID和REF -->
-            <div class="visa-hid-ref-grid">
-                <div class="visa-hid-ref-item">
-                    <span class="visa-hid-ref-label">HID编号</span>
-                    <span class="visa-hid-ref-value">{{ project.header.hid }}</span>
-                    <a href="{{ url_for('business_projects.detail.project_detail', project_id=project.header.id) }}" class="visa-btn-link visa-btn-link-primary" target="_blank">查看</a>
+        <!-- 展开的提醒列表 -->
+        <div id="reminderFloatPanel" style="display: none;">
+            <div class="card shadow" style="border-left: 4px solid #ffc107; max-height: 400px; overflow-y: auto;">
+                <div class="card-header p-2" style="background-color: #fffbeb; border-bottom: 1px solid #ffeeba;">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <span style="font-size: 0.85rem; font-weight: 600; color: #856404;">
+                            <i class="fas fa-bell text-warning"></i> 提醒事件
+                        </span>
+                        <div style="display: flex; gap: 0.25rem;">
+                            <a href="{{ url_for('utils_blue.render_todo_list') }}" class="btn btn-link btn-sm p-0 text-info" target="_blank" title="任务中心">
+                                <i class="fas fa-tasks" style="font-size: 0.8rem;"></i>
+                            </a>
+                            <button type="button" class="btn btn-link btn-sm p-0 text-success" data-bs-toggle="modal" data-bs-target="#reminderModal2" title="添加提醒">
+                                <i class="fas fa-plus" style="font-size: 0.8rem;"></i>
+                            </button>
+                            <button type="button" class="btn btn-link btn-sm p-0 text-secondary ms-1" id="closeRemindersBtn" title="关闭">
+                                <i class="fas fa-times" style="font-size: 0.8rem;"></i>
+                            </button>
+                        </div>
+                    </div>
                 </div>
-                <div class="visa-hid-ref-item">
-                    <span class="visa-hid-ref-label">Ref编号</span>
-                    <span class="visa-hid-ref-value">{{ project.ref.ref_number }}</span>
-                    <a href="{{ url_for('business_projects.project_ref.ref_detail', ref_id=project.ref.id) }}" class="visa-btn-link visa-btn-link-primary" target="_blank">查看</a>
+                <div class="card-body p-2" style="background-color: #fffbeb;">
+                    <div id="remindersContainer">
+                        <div class="text-center" style="color: #6c757d; padding: 1rem;">
+                            <i class="fas fa-spinner fa-spin"></i> 加载中...
+                        </div>
+                    </div>
                 </div>
             </div>
-            <div class="visa-flex visa-gap-2" style="justify-content: flex-end;">
-                <button type="button" class="visa-btn visa-btn-sm visa-btn-info" data-action="copy-hid-ref" style="width: 100px; flex-shrink: 0;">
-                    <i class="fas fa-copy"></i> 复制编号
-                </button>
-                <button type="button" class="visa-btn visa-btn-sm visa-btn-danger" data-action="unlink-hid-ref" data-project-id="{{ project.id }}" style="width: 100px; flex-shrink: 0;">
-                    <i class="fas fa-unlink"></i> 解除关联
-                </button>
-            </div>
-            {% else %}
-            <!-- 未关联HID和REF -->
-            <div class="visa-text-center" style="padding: 2rem;">
-                <p style="color: var(--visa-text-secondary); margin-bottom: 1rem;">
-                    当前项目尚未关联HID和Ref编号，点击下方按钮创建新的关联。系统将自动使用当前登录员工的姓名作为经办人和负责人。
-                </p>
-                {% if project.hid_or_serial %}
-                <p style="color: var(--visa-warning); font-style: italic; margin-bottom: 1rem;">
-                    临时编号: {{ project.hid_or_serial }}
-                </p>
-                {% endif %}
-                <button type="button" class="visa-btn visa-btn-primary" data-action="create-project-links" data-project-id="{{ project.id }}" style="width: 180px; flex-shrink: 0;">
-                    <i class="fas fa-plus"></i> 创建HID和Ref编号
-                </button>
-            </div>
-            {% endif %}
         </div>
     </div>
+
 </div>
 
 <!-- ==================== 模态框区域 ==================== -->
@@ -1137,13 +1180,22 @@ function loadReminders() {
 
 function displayReminders(reminders) {
     const container = document.getElementById('remindersContainer');
+    const badge = document.getElementById('reminderBadge');
+    
+    // 更新徽章显示
+    const pendingCount = reminders.filter(r => !r.is_completed).length;
+    if (pendingCount > 0) {
+        badge.textContent = pendingCount;
+        badge.style.display = 'inline';
+    } else {
+        badge.style.display = 'none';
+    }
     
     if (reminders.length === 0) {
         container.innerHTML = `
-            <div class="visa-text-center" style="color: var(--visa-text-muted); padding: 2rem;">
-                <i class="fas fa-bell-slash fa-2x" style="margin-bottom: 1rem;"></i>
-                <p>暂无提醒事件</p>
-                <p style="font-size: 0.875rem; margin-top: 0.5rem;">点击"添加提醒"按钮创建新的提醒</p>
+            <div class="text-center" style="color: #6c757d; padding: 1rem;">
+                <i class="fas fa-bell-slash" style="margin-bottom: 0.5rem;"></i>
+                <p style="margin: 0; font-size: 0.8rem;">暂无提醒</p>
             </div>
         `;
         return;
@@ -1151,30 +1203,28 @@ function displayReminders(reminders) {
     
     const remindersHtml = reminders.map(reminder => {
         const status = getReminderStatus(reminder);
-        const dueDate = reminder.due_date ? new Date(reminder.due_date).toLocaleDateString('zh-CN') : '无截止日期';
-        const createdDate = new Date(reminder.created_at).toLocaleDateString('zh-CN');
+        const dueDate = reminder.due_date ? new Date(reminder.due_date).toLocaleDateString('zh-CN') : '-';
         
         return `
-            <div class="visa-card-simple" style="margin-bottom: 0.75rem; ${reminder.is_completed ? 'opacity: 0.6;' : ''}">
-                <div class="visa-flex-between" style="margin-bottom: 0.5rem;">
-                    <h4 style="margin: 0; font-size: 1rem; color: var(--visa-text-primary);">${reminder.title}</h4>
-                    <span class="visa-badge visa-badge-${status.class}">${status.text}</span>
+            <div style="padding: 0.5rem; border-bottom: 1px solid #ffeeba; ${reminder.is_completed ? 'opacity: 0.6;' : ''}">
+                <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.25rem;">
+                    <span style="font-size: 0.8rem; font-weight: 500; color: #333; flex: 1;">${reminder.title}</span>
+                    <span class="badge bg-${status.class}" style="font-size: 0.65rem; margin-left: 0.5rem;">${status.text}</span>
                 </div>
-                ${reminder.description ? `<p style="font-size: 0.875rem; color: var(--visa-text-secondary); margin-bottom: 0.5rem;">${reminder.description}</p>` : ''}
-                <div style="font-size: 0.75rem; color: var(--visa-text-muted); margin-bottom: 0.5rem;">
-                    <span>创建: ${createdDate}</span> | <span>截止: ${dueDate}</span>
+                <div style="font-size: 0.7rem; color: #6c757d; margin-bottom: 0.25rem;">
+                    <i class="fas fa-calendar"></i> ${dueDate}
                 </div>
-                <div class="visa-flex visa-gap-1">
+                <div style="display: flex; gap: 0.5rem;">
                     ${!reminder.is_completed ? `
-                        <button class="visa-btn-link visa-btn-link-success" data-action="toggle-reminder" data-reminder-id="${reminder.id}" data-completed="true">
-                            <i class="fas fa-check"></i> 标记完成
+                        <button class="btn btn-link btn-sm p-0 text-success" style="font-size: 0.7rem;" data-action="toggle-reminder" data-reminder-id="${reminder.id}" data-completed="true">
+                            <i class="fas fa-check"></i> 完成
                         </button>
                     ` : `
-                        <button class="visa-btn-link visa-btn-link-warning" data-action="toggle-reminder" data-reminder-id="${reminder.id}" data-completed="false">
-                            <i class="fas fa-undo"></i> 标记待处理
+                        <button class="btn btn-link btn-sm p-0 text-warning" style="font-size: 0.7rem;" data-action="toggle-reminder" data-reminder-id="${reminder.id}" data-completed="false">
+                            <i class="fas fa-undo"></i> 恢复
                         </button>
                     `}
-                    <button class="visa-btn-link visa-btn-link-danger" data-action="delete-reminder" data-reminder-id="${reminder.id}">
+                    <button class="btn btn-link btn-sm p-0 text-danger" style="font-size: 0.7rem;" data-action="delete-reminder" data-reminder-id="${reminder.id}">
                         <i class="fas fa-trash"></i> 删除
                     </button>
                 </div>
@@ -1328,6 +1378,31 @@ document.addEventListener('DOMContentLoaded', function() {
     // 加载提醒事件列表
     loadReminders();
     
+    // 悬浮提醒面板切换
+    const toggleRemindersBtn = document.getElementById('toggleRemindersBtn');
+    const closeRemindersBtn = document.getElementById('closeRemindersBtn');
+    const reminderFloatBtn = document.getElementById('reminderFloatBtn');
+    const reminderFloatPanel = document.getElementById('reminderFloatPanel');
+    
+    if (toggleRemindersBtn && reminderFloatPanel) {
+        toggleRemindersBtn.addEventListener('click', function() {
+            if (reminderFloatPanel.style.display === 'none') {
+                reminderFloatPanel.style.display = 'block';
+                reminderFloatBtn.style.display = 'none';
+            } else {
+                reminderFloatPanel.style.display = 'none';
+                reminderFloatBtn.style.display = 'flex';
+            }
+        });
+    }
+    
+    if (closeRemindersBtn && reminderFloatPanel) {
+        closeRemindersBtn.addEventListener('click', function() {
+            reminderFloatPanel.style.display = 'none';
+            reminderFloatBtn.style.display = 'flex';
+        });
+    }
+    
     // 点击模态框外部关闭
     document.querySelectorAll('.visa-modal').forEach(modal => {
         modal.addEventListener('click', function(e) {
@@ -1337,7 +1412,303 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
     
+    // ==================== 文件上传功能 ====================
+    initFileUpload();
+    loadProjectFiles();
+    
     console.log('页面初始化完成');
 });
+
+// 文件上传初始化
+function initFileUpload() {
+    const showUploadBtn = document.getElementById('showUploadBtn');
+    const cancelUploadBtn = document.getElementById('cancelUploadBtn');
+    const uploadFormContainer = document.getElementById('uploadFormContainer');
+    const fileUploadForm = document.getElementById('fileUploadForm');
+    
+    if (showUploadBtn) {
+        showUploadBtn.addEventListener('click', function() {
+            uploadFormContainer.style.display = 'block';
+            showUploadBtn.style.display = 'none';
+        });
+    }
+    
+    if (cancelUploadBtn) {
+        cancelUploadBtn.addEventListener('click', function() {
+            uploadFormContainer.style.display = 'none';
+            showUploadBtn.style.display = 'inline-flex';
+            fileUploadForm.reset();
+            document.getElementById('selectedFilesInfo').innerHTML = '';
+        });
+    }
+    
+    // 显示选中的文件数量
+    const fileInput = document.getElementById('fileInput');
+    if (fileInput) {
+        fileInput.addEventListener('change', function() {
+            const info = document.getElementById('selectedFilesInfo');
+            if (this.files.length > 0) {
+                info.innerHTML = `已选择 <strong>${this.files.length}</strong> 个文件`;
+            } else {
+                info.innerHTML = '';
+            }
+        });
+    }
+    
+    if (fileUploadForm) {
+        fileUploadForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const fileInput = document.getElementById('fileInput');
+            
+            if (!fileInput.files || fileInput.files.length === 0) {
+                alert('请选择文件');
+                return;
+            }
+            
+            const files = fileInput.files;
+            const totalFiles = files.length;
+            let successCount = 0;
+            let failCount = 0;
+            const failedFiles = [];
+            
+            // 禁用上传按钮，显示进度
+            const submitBtn = document.getElementById('uploadSubmitBtn');
+            const originalBtnText = submitBtn.innerHTML;
+            submitBtn.disabled = true;
+            
+            for (let i = 0; i < totalFiles; i++) {
+                submitBtn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> 上传中 ${i + 1}/${totalFiles}`;
+                
+                const formData = new FormData();
+                formData.append('file', files[i]);
+                
+                try {
+                    const response = await fetch(`/visa/project/api/files/${PROJECT_ID}/upload`, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': CSRF_TOKEN
+                        },
+                        body: formData
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        successCount++;
+                    } else {
+                        failCount++;
+                        failedFiles.push(files[i].name);
+                    }
+                } catch (error) {
+                    console.error('上传错误:', error);
+                    failCount++;
+                    failedFiles.push(files[i].name);
+                }
+            }
+            
+            // 恢复按钮
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalBtnText;
+            
+            // 显示结果
+            if (failCount === 0) {
+                alert(`成功上传 ${successCount} 个文件`);
+            } else {
+                alert(`上传完成：成功 ${successCount} 个，失败 ${failCount} 个\n失败文件：${failedFiles.join(', ')}`);
+            }
+            
+            fileUploadForm.reset();
+            document.getElementById('selectedFilesInfo').innerHTML = '';
+            uploadFormContainer.style.display = 'none';
+            showUploadBtn.style.display = 'inline-flex';
+            loadProjectFiles();
+        });
+    }
+}
+
+// 加载项目文件列表
+async function loadProjectFiles() {
+    const container = document.getElementById('projectFilesContainer');
+    if (!container) return;
+    
+    try {
+        const response = await fetch(`/visa/project/api/files/${PROJECT_ID}`);
+        const data = await response.json();
+        
+        if (data.success) {
+            displayProjectFiles(data.files);
+        } else {
+            container.innerHTML = `<div class="text-center" style="color: #dc3545; padding: 1rem; font-size: 0.8rem;">加载失败: ${data.message}</div>`;
+        }
+    } catch (error) {
+        console.error('加载文件列表错误:', error);
+        container.innerHTML = `<div class="text-center" style="color: #dc3545; padding: 1rem; font-size: 0.8rem;">加载失败</div>`;
+    }
+}
+
+// 显示项目文件列表
+function displayProjectFiles(files) {
+    const container = document.getElementById('projectFilesContainer');
+    
+    if (!files || files.length === 0) {
+        container.innerHTML = `<div class="text-center" style="color: #999; padding: 1rem; font-size: 0.8rem;"><i class="fas fa-folder-open"></i> 暂无上传文件</div>`;
+        return;
+    }
+    
+    const getFileIcon = (type) => {
+        const icons = {
+            'pdf': 'fa-file-pdf text-danger',
+            'doc': 'fa-file-word text-primary',
+            'docx': 'fa-file-word text-primary',
+            'xls': 'fa-file-excel text-success',
+            'xlsx': 'fa-file-excel text-success',
+            'jpg': 'fa-file-image text-warning',
+            'jpeg': 'fa-file-image text-warning',
+            'png': 'fa-file-image text-info',
+            'gif': 'fa-file-image text-info',
+            'txt': 'fa-file-alt text-secondary',
+            'zip': 'fa-file-archive text-muted',
+            'rar': 'fa-file-archive text-muted'
+        };
+        return icons[type] || 'fa-file text-secondary';
+    };
+    
+    const html = `
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; padding: 0.25rem 0.5rem; background: #e9ecef; border-radius: 4px;">
+            <label style="font-size: 0.75rem; cursor: pointer;">
+                <input type="checkbox" id="selectAllFiles" onchange="toggleSelectAllFiles(this)"> 全选
+            </label>
+            <button type="button" class="visa-btn visa-btn-sm visa-btn-danger" style="padding: 0.2rem 0.5rem; font-size: 0.7rem;" onclick="deleteSelectedFiles()" id="batchDeleteBtn" disabled>
+                <i class="fas fa-trash"></i> 删除选中 (<span id="selectedCount">0</span>)
+            </button>
+        </div>
+        <div style="display: grid; gap: 0.5rem;">
+            ${files.map(file => `
+                <div style="display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem; background: #f8f9fa; border-radius: 4px; font-size: 0.8rem;">
+                    <input type="checkbox" class="file-checkbox" value="${file.id}" onchange="updateSelectedCount()">
+                    <i class="fas ${getFileIcon(file.file_type)}" style="font-size: 1.2rem;"></i>
+                    <div style="flex: 1; min-width: 0;">
+                        <div style="font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${file.file_name}">${file.file_name}</div>
+                        <div style="font-size: 0.7rem; color: #888;">
+                            ${file.file_size} | ${file.uploaded_by || '未知'} | ${file.created_at}
+                            ${file.description ? ` | ${file.description}` : ''}
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 0.25rem;">
+                        <a href="/visa/project/api/files/${file.id}/download" class="visa-btn visa-btn-sm visa-btn-info" style="padding: 0.2rem 0.4rem; font-size: 0.7rem;" title="下载">
+                            <i class="fas fa-download"></i>
+                        </a>
+                        <button type="button" class="visa-btn visa-btn-sm visa-btn-danger" style="padding: 0.2rem 0.4rem; font-size: 0.7rem;" onclick="deleteProjectFile(${file.id})" title="删除">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            `).join('')}
+        </div>
+    `;
+    
+    container.innerHTML = html;
+}
+
+// 删除项目文件
+async function deleteProjectFile(fileId) {
+    if (!confirm('确定要删除这个文件吗？')) return;
+    
+    try {
+        const response = await fetch(`/visa/project/api/files/${fileId}/delete`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': CSRF_TOKEN
+            }
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            loadProjectFiles();
+        } else {
+            alert('删除失败: ' + (data.message || '未知错误'));
+        }
+    } catch (error) {
+        console.error('删除错误:', error);
+        alert('删除失败: ' + error.message);
+    }
+}
+
+// 全选/取消全选
+function toggleSelectAllFiles(checkbox) {
+    const checkboxes = document.querySelectorAll('.file-checkbox');
+    checkboxes.forEach(cb => cb.checked = checkbox.checked);
+    updateSelectedCount();
+}
+
+// 更新选中数量
+function updateSelectedCount() {
+    const checkboxes = document.querySelectorAll('.file-checkbox:checked');
+    const count = checkboxes.length;
+    document.getElementById('selectedCount').textContent = count;
+    document.getElementById('batchDeleteBtn').disabled = count === 0;
+    
+    // 更新全选框状态
+    const allCheckboxes = document.querySelectorAll('.file-checkbox');
+    const selectAll = document.getElementById('selectAllFiles');
+    if (selectAll) {
+        selectAll.checked = allCheckboxes.length > 0 && checkboxes.length === allCheckboxes.length;
+    }
+}
+
+// 批量删除选中文件
+async function deleteSelectedFiles() {
+    const checkboxes = document.querySelectorAll('.file-checkbox:checked');
+    const fileIds = Array.from(checkboxes).map(cb => cb.value);
+    
+    if (fileIds.length === 0) {
+        alert('请选择要删除的文件');
+        return;
+    }
+    
+    if (!confirm(`确定要删除选中的 ${fileIds.length} 个文件吗？`)) return;
+    
+    const btn = document.getElementById('batchDeleteBtn');
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    
+    let successCount = 0;
+    let failCount = 0;
+    
+    for (let i = 0; i < fileIds.length; i++) {
+        btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> 删除中 ${i + 1}/${fileIds.length}`;
+        
+        try {
+            const response = await fetch(`/visa/project/api/files/${fileIds[i]}/delete`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': CSRF_TOKEN
+                }
+            });
+            
+            const data = await response.json();
+            if (data.success) {
+                successCount++;
+            } else {
+                failCount++;
+            }
+        } catch (error) {
+            failCount++;
+        }
+    }
+    
+    btn.innerHTML = originalText;
+    btn.disabled = false;
+    
+    if (failCount === 0) {
+        alert(`成功删除 ${successCount} 个文件`);
+    } else {
+        alert(`删除完成：成功 ${successCount} 个，失败 ${failCount} 个`);
+    }
+    
+    loadProjectFiles();
+}
 </script>
 {% endblock %}

@@ -207,7 +207,7 @@
             #projectsTable { 
                 table-layout: fixed; 
                 width: 100%; 
-                min-width: 1200px;
+                min-width: 1280px;
             }
             #projectsTable th, 
             #projectsTable td { 
@@ -223,19 +223,21 @@
             #projectsTable th:nth-child(3), 
             #projectsTable td:nth-child(3) { width: 100px; } /* 联系人 */
             #projectsTable th:nth-child(4), 
-            #projectsTable td:nth-child(4) { width: 80px; }  /* 类型 */
+            #projectsTable td:nth-child(4) { width: 80px; }  /* 经办人 */
             #projectsTable th:nth-child(5), 
-            #projectsTable td:nth-child(5) { width: 100px; } /* 销售金额 */
+            #projectsTable td:nth-child(5) { width: 80px; }  /* 类型 */
             #projectsTable th:nth-child(6), 
-            #projectsTable td:nth-child(6) { width: 100px; } /* 成本 */
+            #projectsTable td:nth-child(6) { width: 100px; } /* 销售金额 */
             #projectsTable th:nth-child(7), 
-            #projectsTable td:nth-child(7) { width: 100px; } /* 利润 */
+            #projectsTable td:nth-child(7) { width: 100px; } /* 成本 */
             #projectsTable th:nth-child(8), 
-            #projectsTable td:nth-child(8) { width: 100px; } /* 未付款 */
+            #projectsTable td:nth-child(8) { width: 100px; } /* 利润 */
             #projectsTable th:nth-child(9), 
-            #projectsTable td:nth-child(9) { width: 100px; } /* 创建时间 */
+            #projectsTable td:nth-child(9) { width: 100px; } /* 未付款 */
             #projectsTable th:nth-child(10), 
-            #projectsTable td:nth-child(10) { width: 80px; }  /* 操作 */
+            #projectsTable td:nth-child(10) { width: 100px; } /* 创建时间 */
+            #projectsTable th:nth-child(11), 
+            #projectsTable td:nth-child(11) { width: 80px; }  /* 操作 */
             </style>
 
             <form method="GET" action="{{ url_for('business_projects.list.list_projects') }}" id="filterForm">
@@ -303,6 +305,7 @@
                             <th>项目编号</th>
                             <th>客户公司</th>
                             <th>联系人</th>
+                            <th>经办人</th>
                             <th>类型</th>
                             <th>销售金额</th>
                             <th>成本</th>
@@ -338,6 +341,7 @@
                                 </div>
                             </td>
                             <td>{{ project.contact or '未指定' }}</td>
+                            <td>{{ project.staff_name or '-' }}</td>
                             <td>
                                 <span class="badge bg-secondary">{{ project.type or '综合' }}</span>
                             </td>
