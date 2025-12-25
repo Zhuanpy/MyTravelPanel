@@ -90,21 +90,6 @@ class ProjectCreateForm(FlaskForm):
         Length(max=100, message='项目负责人长度不能超过100个字符')
     ])
     
-    source = SelectField('项目来源', choices=[
-        ('direct', '直接客户'),
-        ('referral', '推荐'),
-        ('online', '线上推广'),
-        ('exhibition', '展会'),
-        ('other', '其他')
-    ], validators=[
-        Optional()
-    ])
-    
-    country = StringField('目标国家', validators=[
-        Optional(),
-        Length(max=100, message='目标国家长度不能超过100个字符')
-    ])
-    
     remarks = TextAreaField('备注', validators=[
         Optional(),
         Length(max=1000, message='备注长度不能超过1000个字符')
@@ -186,21 +171,6 @@ class ProjectEditForm(FlaskForm):
     leader_name = StringField('项目负责人', validators=[
         Optional(),
         Length(max=100, message='项目负责人长度不能超过100个字符')
-    ])
-    
-    source = SelectField('项目来源', choices=[
-        ('direct', '直接客户'),
-        ('referral', '推荐'),
-        ('online', '线上推广'),
-        ('exhibition', '展会'),
-        ('other', '其他')
-    ], validators=[
-        Optional()
-    ])
-    
-    country = StringField('目标国家', validators=[
-        Optional(),
-        Length(max=100, message='目标国家长度不能超过100个字符')
     ])
     
     remarks = TextAreaField('备注', validators=[
@@ -351,14 +321,6 @@ class ProjectHeaderForm(FlaskForm):
         ('tour', '旅游'),
         ('hotel', '酒店'),
         ('other', '其他')
-    ])
-
-    source = StringField('来源', [
-        Length(max=50, message='来源不能超过50个字符')
-    ])
-
-    country = StringField('国家', [
-        Length(max=50, message='国家不能超过50个字符')
     ])
 
     status = SelectField('状态', [

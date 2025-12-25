@@ -124,8 +124,6 @@ class ProjectHeader(db.Model):
     currency = db.Column(db.String(10), comment='币种')
     leader_name = db.Column(db.String(100), nullable=True)
     type = db.Column(db.String(50), comment='类型')
-    source = db.Column(db.String(50), comment='来源')
-    country = db.Column(db.String(50), comment='国家')
     status = db.Column(
         db.Enum('draft', 'active', 'completed', 'cancelled'),
         default='draft',

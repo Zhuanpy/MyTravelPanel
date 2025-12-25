@@ -44,8 +44,6 @@ def edit_project(project_id):
                     'status': form.status.data,
                     'currency': form.currency.data,
                     'leader_name': form.leader_name.data,
-                    'source': form.source.data,
-                    'country': form.country.data,
                     'remarks': form.remarks.data,
                     'updated_at': datetime.utcnow(),
                     'last_updated_by': current_user.username if hasattr(current_user, 'username') else 'system'

@@ -59,6 +59,10 @@ def edit_header(header_id):
     header = ProjectHeader.query.get_or_404(header_id)
     form = ProjectHeaderForm(obj=header)
     
+    # 获取第一个REF的描述（用于desc为空时的默认值）
+    first_ref = ProjectRef.query.filter_by(header_id=header_id).order_by(ProjectRef.id.asc()).first()
+    first_ref_name = first_ref.description if first_ref and first_ref.description else None
+    
     if form.validate_on_submit():
         try:
             # 处理company_id字段，将0转换为None
@@ -69,7 +73,13 @@ def edit_header(header_id):
             
             # 更新其他字段
             header.hid = form.hid.data
-            header.desc = form.desc.data
+            
+            # 处理desc字段：如果为空则使用第一个REF的描述
+            desc_value = form.desc.data
+            if not desc_value or desc_value.strip() == '' or desc_value.strip() == '-':
+                desc_value = first_ref_name or ''
+            header.desc = desc_value
+            
             header.limit = form.limit.data
             header.contact = form.contact.data
             header.dept = form.dept.data
@@ -79,8 +89,6 @@ def edit_header(header_id):
             header.leader_name = form.leader_name.data if form.leader_name.data else form.staff_name.data
             header.currency = form.currency.data
             header.type = form.type.data
-            header.source = form.source.data
-            header.country = form.country.data
             header.status = form.status.data
             header.remarks = form.remarks.data
             
@@ -95,7 +103,7 @@ def edit_header(header_id):
             for error in errors:
                 flash(f'{getattr(form, field).label.text}: {error}', 'error')
     
-    return render_template('business/projects/project_header/create_header.html', form=form, header=header, hid=header.hid, is_edit=True)
+    return render_template('business/projects/project_header/create_header.html', form=form, header=header, hid=header.hid, is_edit=True, first_ref_name=first_ref_name)
 
 @project_header.route('/<int:header_id>/delete', methods=['POST'])
 @csrf.exempt

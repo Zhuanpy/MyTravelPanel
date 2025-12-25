@@ -207,7 +207,7 @@
             #projectsTable { 
                 table-layout: fixed; 
                 width: 100%; 
-                min-width: 1280px;
+                min-width: 1400px;
             }
             #projectsTable th, 
             #projectsTable td { 
@@ -219,25 +219,27 @@
             #projectsTable th:nth-child(1), 
             #projectsTable td:nth-child(1) { width: 100px; } /* 项目编号 */
             #projectsTable th:nth-child(2), 
-            #projectsTable td:nth-child(2) { width: 150px; } /* 客户公司 */
+            #projectsTable td:nth-child(2) { width: 150px; } /* 描述 */
             #projectsTable th:nth-child(3), 
-            #projectsTable td:nth-child(3) { width: 100px; } /* 联系人 */
+            #projectsTable td:nth-child(3) { width: 150px; } /* 客户公司 */
             #projectsTable th:nth-child(4), 
-            #projectsTable td:nth-child(4) { width: 80px; }  /* 经办人 */
+            #projectsTable td:nth-child(4) { width: 80px; }  /* 联系人 */
             #projectsTable th:nth-child(5), 
-            #projectsTable td:nth-child(5) { width: 80px; }  /* 类型 */
+            #projectsTable td:nth-child(5) { width: 70px; }  /* 经办人 */
             #projectsTable th:nth-child(6), 
-            #projectsTable td:nth-child(6) { width: 100px; } /* 销售金额 */
+            #projectsTable td:nth-child(6) { width: 70px; }  /* 类型 */
             #projectsTable th:nth-child(7), 
-            #projectsTable td:nth-child(7) { width: 100px; } /* 成本 */
+            #projectsTable td:nth-child(7) { width: 100px; } /* 销售金额 */
             #projectsTable th:nth-child(8), 
-            #projectsTable td:nth-child(8) { width: 100px; } /* 利润 */
+            #projectsTable td:nth-child(8) { width: 100px; } /* 成本 */
             #projectsTable th:nth-child(9), 
-            #projectsTable td:nth-child(9) { width: 100px; } /* 未付款 */
+            #projectsTable td:nth-child(9) { width: 90px; }  /* 利润 */
             #projectsTable th:nth-child(10), 
-            #projectsTable td:nth-child(10) { width: 100px; } /* 创建时间 */
+            #projectsTable td:nth-child(10) { width: 90px; } /* 未付款 */
             #projectsTable th:nth-child(11), 
-            #projectsTable td:nth-child(11) { width: 80px; }  /* 操作 */
+            #projectsTable td:nth-child(11) { width: 90px; } /* 创建时间 */
+            #projectsTable th:nth-child(12), 
+            #projectsTable td:nth-child(12) { width: 60px; }  /* 操作 */
             </style>
 
             <form method="GET" action="{{ url_for('business_projects.list.list_projects') }}" id="filterForm">
@@ -303,6 +305,7 @@
                     <thead>
                         <tr>
                             <th>项目编号</th>
+                            <th>描述</th>
                             <th>客户公司</th>
                             <th>联系人</th>
                             <th>经办人</th>
@@ -324,6 +327,7 @@
                                     {{ project.hid }}
                                 </a>
                             </td>
+                            <td title="{{ project.desc or '-' }}">{{ project.desc or '-' }}</td>
                             <td>
                                 <div class="company-editable" data-project-id="{{ project.id }}">
                                     <span class="company-display">

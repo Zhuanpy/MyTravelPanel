@@ -47,8 +47,6 @@ def create_header():
                 leader_name=leader_name,
                 currency=form.currency.data,
                 type=form.type.data,
-                source=form.source.data,
-                country=form.country.data,
                 status=form.status.data,
                 remarks=form.remarks.data
             )

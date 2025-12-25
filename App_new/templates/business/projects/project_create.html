@@ -118,38 +118,9 @@
                                 {% endif %}
                             </div>
 
-                            <!-- 项目来源 -->
-                            <div class="col-md-6 mb-3">
-                                <label for="{{ form.source.id }}" class="form-label">
-                                    {{ form.source.label.text }}
-                                </label>
-                                {{ form.source(class="form-control", placeholder="如：网站、推荐、展会等") }}
-                                {% if form.source.errors %}
-                                    <div class="invalid-feedback d-block">
-                                        {% for error in form.source.errors %}
-                                            {{ error }}
-                                        {% endfor %}
-                                    </div>
-                                {% endif %}
-                            </div>
                         </div>
 
                         <div class="row">
-                            <!-- 目标国家 -->
-                            <div class="col-md-6 mb-3">
-                                <label for="{{ form.country.id }}" class="form-label">
-                                    {{ form.country.label.text }}
-                                </label>
-                                {{ form.country(class="form-control", placeholder="如：新加坡、马来西亚等") }}
-                                {% if form.country.errors %}
-                                    <div class="invalid-feedback d-block">
-                                        {% for error in form.country.errors %}
-                                            {{ error }}
-                                        {% endfor %}
-                                    </div>
-                                {% endif %}
-                            </div>
-
                             <!-- 货币类型 -->
                             <div class="col-md-6 mb-3">
                                 <label for="{{ form.currency.id }}" class="form-label">
