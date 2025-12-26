@@ -596,6 +596,73 @@ def delete_itinerary(product_id, itinerary_id):
         return jsonify({'success': False, 'message': str(e)}), 500
 
 
+@tour_products_bp.route('/<int:product_id>/itinerary/auto-assign-images', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def auto_assign_itinerary_images(product_id):
+    """自动从产品图片库分配图片给每日行程"""
+    try:
+        product = Product.query.get_or_404(product_id)
+        
+        # 获取产品图片库
+        gallery_images = []
+        if product.gallery_images:
+            try:
+                gallery_images = json.loads(product.gallery_images) if isinstance(product.gallery_images, str) else product.gallery_images
+            except:
+                gallery_images = []
+        
+        if not gallery_images:
+            return jsonify({'success': False, 'message': '产品图片库为空，请先上传产品图片'}), 400
+        
+        # 获取所有行程，按天数排序
+        itineraries = ProductItinerary.query.filter_by(product_id=product_id).order_by(ProductItinerary.day_number).all()
+        
+        if not itineraries:
+            return jsonify({'success': False, 'message': '暂无行程，请先添加行程'}), 400
+        
+        # 自动分配图片：每天最多3张，按顺序分配
+        image_index = 0
+        updated_count = 0
+        
+        for itinerary in itineraries:
+            images_for_day = []
+            # 每天最多分配3张图片
+            for i in range(3):
+                if image_index < len(gallery_images):
+                    images_for_day.append(gallery_images[image_index])
+                    image_index += 1
+                else:
+                    break
+            
+            # 更新行程图片
+            if images_for_day:
+                itinerary.image1 = images_for_day[0] if len(images_for_day) > 0 else None
+                itinerary.image2 = images_for_day[1] if len(images_for_day) > 1 else None
+                itinerary.image3 = images_for_day[2] if len(images_for_day) > 2 else None
+                updated_count += 1
+        
+        db.session.commit()
+        
+        total_images = len(gallery_images)
+        total_days = len(itineraries)
+        max_needed = total_days * 3
+        
+        message = f'已为 {updated_count} 天行程分配图片！'
+        if total_images < max_needed:
+            message += f'（产品图片库共 {total_images} 张，{total_days} 天行程最多需要 {max_needed} 张）'
+        
+        return jsonify({'success': True, 'message': message})
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"❌ 自动分配图片失败: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': f'分配失败：{str(e)}'}), 500
+
+
 @tour_products_bp.route('/itinerary/template/download')
 @login_required
 @staff_only

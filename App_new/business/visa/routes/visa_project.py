@@ -668,8 +668,6 @@ def create_project_links(project_id):
                 leader_name=leader_name or staff_name or project.applicant_name,  # 使用选择的员工姓名作为负责人姓名
                 currency='SGD',
                 type='visa',
-                source='visa_system',
-                country=types_info.country.country_name_CN if types_info and types_info.country else '未知',
                 status='active'
             )
             db.session.add(header)

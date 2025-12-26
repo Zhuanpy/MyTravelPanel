@@ -423,7 +423,7 @@
             {% if product %}
             <!-- Tab 6: 每日行程 -->
             <div id="tab-itinerary" class="tab-content">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
                     <h3 style="color: var(--visa-success); margin: 0;">
                         <i class="fas fa-route"></i> 每日行程安排
                     </h3>
@@ -438,6 +438,21 @@
                             <i class="fas fa-plus"></i> 添加行程
                         </button>
                     </div>
+                </div>
+                
+                <!-- 自动分配图片提示 -->
+                <div style="background: linear-gradient(135deg, #dbeafe, #ede9fe); border-radius: 12px; padding: 1rem 1.25rem; margin-bottom: 1.5rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
+                    <div style="flex: 1; min-width: 200px;">
+                        <div style="font-weight: 600; color: #1e40af; margin-bottom: 0.25rem;">
+                            <i class="fas fa-magic" style="color: #7c3aed;"></i> 自动分配行程图片
+                        </div>
+                        <div style="font-size: 0.85rem; color: #4b5563;">
+                            从"产品图片库"按顺序为每日行程分配图片（每天最多3张）。如4天行程需12张图片，不足时优先分配给前面日期。
+                        </div>
+                    </div>
+                    <button type="button" onclick="autoAssignItineraryImages()" class="visa-btn" style="background: linear-gradient(135deg, #7c3aed, #4f46e5); color: white; white-space: nowrap;">
+                        <i class="fas fa-images"></i> 自动分配图片
+                    </button>
                 </div>
                 
                 <!-- 隐藏的行程Excel上传表单 -->
@@ -730,26 +745,32 @@
                 </div>
                 
                 <div class="visa-form-group">
-                    <label class="visa-form-label">行程图片（最多3张）</label>
+                    <label class="visa-form-label">行程图片（可选）</label>
+                    <div style="background: #e0f2fe; border-left: 4px solid #0ea5e9; padding: 0.75rem; border-radius: 4px; margin-bottom: 0.5rem;">
+                        <small style="color: #0c4a6e;">
+                            <i class="fas fa-lightbulb" style="color: #0ea5e9;"></i>
+                            <strong>提示：</strong>推荐使用"自动分配图片"功能，从产品图片库按顺序自动为每日行程分配图片，无需手动选择。
+                        </small>
+                    </div>
                     <div class="visa-grid-3">
                         <div>
-                            <label for="image1" class="visa-form-label" style="font-size: 0.875rem;">图片1</label>
+                            <label for="image1" class="visa-form-label" style="font-size: 0.875rem;">图片1（可选）</label>
                             <input type="file" id="image1" name="image1" class="visa-form-control" accept="image/*">
                             <img id="image1Preview" src="" alt="" style="display: none; margin-top: 0.5rem; max-width: 100%; max-height: 150px; border-radius: 4px;">
                         </div>
                         <div>
-                            <label for="image2" class="visa-form-label" style="font-size: 0.875rem;">图片2</label>
+                            <label for="image2" class="visa-form-label" style="font-size: 0.875rem;">图片2（可选）</label>
                             <input type="file" id="image2" name="image2" class="visa-form-control" accept="image/*">
                             <img id="image2Preview" src="" alt="" style="display: none; margin-top: 0.5rem; max-width: 100%; max-height: 150px; border-radius: 4px;">
                         </div>
                         <div>
-                            <label for="image3" class="visa-form-label" style="font-size: 0.875rem;">图片3</label>
+                            <label for="image3" class="visa-form-label" style="font-size: 0.875rem;">图片3（可选）</label>
                             <input type="file" id="image3" name="image3" class="visa-form-control" accept="image/*">
                             <img id="image3Preview" src="" alt="" style="display: none; margin-top: 0.5rem; max-width: 100%; max-height: 150px; border-radius: 4px;">
                         </div>
                     </div>
                     <small style="color: var(--visa-text-muted); display: block; margin-top: 0.5rem;">
-                        <i class="fas fa-info-circle"></i> 支持 JPG、PNG、GIF 格式，建议尺寸 800x600 像素
+                        <i class="fas fa-info-circle"></i> 如需手动上传，支持 JPG、PNG、GIF 格式
                     </small>
                 </div>
             </form>
@@ -1220,6 +1241,77 @@ function closeItineraryModal() {
 
 // 移除点击模态框外部关闭功能，防止意外关闭
 // 用户必须点击关闭按钮或取消按钮才能关闭
+
+// 自动分配行程图片
+function autoAssignItineraryImages() {
+    const galleryCount = {% if product and product.gallery_images %}{{ (product.gallery_images|fromjson)|length if product.gallery_images else 0 }}{% else %}0{% endif %};
+    const itineraryCount = {{ itineraries|length if itineraries else 0 }};
+    
+    if (galleryCount === 0) {
+        alert('产品图片库为空！\n\n请先在"图片资源"标签页中上传产品图片，然后再使用自动分配功能。');
+        return;
+    }
+    
+    if (itineraryCount === 0) {
+        alert('暂无行程！\n\n请先添加行程，然后再使用自动分配功能。');
+        return;
+    }
+    
+    const maxNeeded = itineraryCount * 3;
+    let confirmMsg = `确定要自动分配图片吗？\n\n`;
+    confirmMsg += `• 产品图片库：${galleryCount} 张\n`;
+    confirmMsg += `• 行程天数：${itineraryCount} 天\n`;
+    confirmMsg += `• 最多需要：${maxNeeded} 张图片\n\n`;
+    
+    if (galleryCount < maxNeeded) {
+        confirmMsg += `⚠️ 图片数量不足，将优先分配给前面的日期。\n\n`;
+    }
+    
+    confirmMsg += `此操作将覆盖现有行程图片，是否继续？`;
+    
+    if (!confirm(confirmMsg)) {
+        return;
+    }
+    
+    // 显示加载提示
+    const loadingDiv = document.createElement('div');
+    loadingDiv.id = 'assignLoading';
+    loadingDiv.innerHTML = `
+        <div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 9999;">
+            <div style="background: white; padding: 2rem; border-radius: 12px; text-align: center;">
+                <i class="fas fa-spinner fa-spin" style="font-size: 2.5rem; color: #7c3aed; margin-bottom: 1rem;"></i>
+                <h4>正在分配图片...</h4>
+                <p style="color: #64748b; margin: 0;">请稍候</p>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(loadingDiv);
+    
+    fetch(`/tour/products/{{ product.id }}/itinerary/auto-assign-images`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        document.getElementById('assignLoading')?.remove();
+        if (data.success) {
+            alert(data.message);
+            // 保存当前活动标签
+            sessionStorage.setItem('activeTab', 'itinerary');
+            location.reload();
+        } else {
+            alert('分配失败：' + data.message);
+        }
+    })
+    .catch(error => {
+        document.getElementById('assignLoading')?.remove();
+        console.error('Error:', error);
+        alert('分配图片时发生错误');
+    });
+}
 
 // 处理行程Excel导入
 function handleItineraryExcelUpload(input) {

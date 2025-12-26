@@ -20,38 +20,7 @@
                         <input type="hidden" name="ref_id" value="{{ ref.id }}">
                         {% endif %}
 
-                        <!-- 第一行：国家和签证类型 -->
-                        <div class="row mb-3">
-                            <div class="col-md-6">
-                                <label class="form-label">Country: <span class="text-danger">*</span></label>
-                                <select name="country" id="country" class="form-select" required>
-                                    <option value="">请选择国家</option>
-                                    {% for country in countries %}
-                                        <option value="{{ country.country_name_CN }}"
-                                                data-country-id="{{ country.id }}"
-                                                {% if visa_info and (visa_info.get('country') == country.country_name_CN or visa_info.get('visa_country') == country.country_name_CN) %}selected{% endif %}>
-                                            {{ country.country_name_CN }}
-                                        </option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Visa Type: <span class="text-danger">*</span></label>
-                                <select name="visa_type" id="visa_type" class="form-select" required>
-                                    <option value="">请先选择国家</option>
-                                    {% if not is_create and visa_types %}
-                                        {% for visa_type in visa_types %}
-                                            <option value="{{ visa_type.visa_type }}" 
-                                                    {% if visa_info and visa_info.get('visa_type') == visa_type.visa_type %}selected{% endif %}>
-                                                {{ visa_type.visa_type }}
-                                            </option>
-                                        {% endfor %}
-                                    {% endif %}
-                                </select>
-                            </div>
-                        </div>
-
-                        <!-- 第二行：Name（描述）-->
+                        <!-- Name（描述）-->
                         <div class="row mb-3">
                             <div class="col-md-2">
                                 <label class="form-label">Name:</label>
@@ -262,20 +231,8 @@
                                     </div>
                                 </div>
 
-                                <!-- Status -->
-                                <div class="row mb-3">
-                                    <div class="col-md-2">
-                                        <label class="form-label">Status:</label>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <select name="status" class="form-select">
-                                            <option value="processing" {% if ref and ref.status == 'processing' and not is_create %}selected{% elif not ref %}selected{% endif %}>处理中</option>
-                                            <option value="draft" {% if ref and ref.status == 'draft' and not is_create %}selected{% endif %}>草稿</option>
-                                            <option value="completed" {% if ref and ref.status == 'completed' and not is_create %}selected{% endif %}>已完成</option>
-                                            <option value="cancelled" {% if ref and ref.status == 'cancelled' and not is_create %}selected{% endif %}>已取消</option>
-                                        </select>
-                                    </div>
-                                </div>
+                                <!-- Status 使用默认值 -->
+                                <input type="hidden" name="status" value="{{ ref.status if ref and not is_create else 'processing' }}">
                             </div>
                         </div>
 
@@ -352,21 +309,6 @@ function calculateTotals() {
     document.getElementById('total_cost_price').value = totalCost.toFixed(2);
 }
 
-// 更新自动生成的名称
-function updateAutoName() {
-    const countryField = document.getElementById('country');
-    const visaTypeField = document.getElementById('visa_type');
-    const nameField = document.getElementById('visa_name');
-    
-    if (countryField && visaTypeField && nameField && !nameField.dataset.userEdited) {
-        const country = countryField.options[countryField.selectedIndex]?.text || '';
-        const visaType = visaTypeField.value || '';
-        
-        if (country && visaType) {
-            nameField.value = country + ' ' + visaType;
-        }
-    }
-}
 
 document.addEventListener('DOMContentLoaded', function() {
     // 为所有价格和数量输入框添加事件监听
@@ -418,75 +360,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    // 国家选择变化时更新签证类型
-    const countrySelect = document.getElementById('country');
-    const visaTypeSelect = document.getElementById('visa_type');
-    
-    // 保存之前选中的签证类型（用于编辑模式恢复）
-    const savedVisaType = '{{ visa_info.visa_type if visa_info and visa_info.visa_type else "" }}';
-    
-    if (countrySelect) {
-        countrySelect.addEventListener('change', function() {
-            const selectedCountry = this.value;
-            
-            if (visaTypeSelect) {
-                visaTypeSelect.innerHTML = '<option value="">请先选择国家</option>';
-            }
-
-            if (selectedCountry) {
-                const countryOption = this.options[this.selectedIndex];
-                const countryId = countryOption.getAttribute('data-country-id');
-
-                if (countryId && visaTypeSelect) {
-                    visaTypeSelect.disabled = true;
-
-                    fetch(`/projects/ref/api/get_visa_types/${countryId}`)
-                        .then(response => response.json())
-                        .then(data => {
-                            if (data.success) {
-                                data.visa_types.forEach(type => {
-                                    const option = document.createElement('option');
-                                    option.value = type.visa_type;
-                                    option.textContent = type.visa_type;
-                                    // 恢复之前选中的签证类型
-                                    if (savedVisaType && type.visa_type === savedVisaType) {
-                                        option.selected = true;
-                                    }
-                                    visaTypeSelect.appendChild(option);
-                                });
-                            }
-                        })
-                        .finally(() => {
-                            visaTypeSelect.disabled = false;
-                        });
-                }
-            }
-            
-            updateAutoName();
-        });
-    }
-
-    // 签证类型选择变化时自动更新名称
-    if (visaTypeSelect) {
-        visaTypeSelect.addEventListener('change', updateAutoName);
-    }
-    
-    // 名称字段被手动编辑时标记
-    const nameField = document.getElementById('visa_name');
-    if (nameField) {
-        nameField.addEventListener('input', function() {
-            this.dataset.userEdited = 'true';
-        });
-    }
-
-    // 编辑模式：如果有预选的国家，触发change事件来加载签证类型
-    {% if not is_create and visa_info and (visa_info.get('country') or visa_info.get('visa_country')) %}
-    if (countrySelect && countrySelect.value) {
-        setTimeout(function() {
-            countrySelect.dispatchEvent(new Event('change'));
-        }, 100);
-    }
-    {% endif %}
 });
 
 // 一键生成EO函数

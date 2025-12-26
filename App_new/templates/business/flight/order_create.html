@@ -84,15 +84,7 @@
                             <select class="order-input" id="supplier_type" onchange="filterSuppliers()" style="width: 100%;">
                                 <option value="">所有类型</option>
                                 {% for type in supplier_types %}
-                                <option value="{{ type }}">
-                                    {% if type == 'visa' %}签证
-                                    {% elif type == 'flight' %}机票
-                                    {% elif type == 'hotel' %}酒店
-                                    {% elif type == 'transport' %}用车
-                                    {% elif type == 'local_operator' %}地接
-                                    {% else %}其他
-                                    {% endif %}
-                                </option>
+                                <option value="{{ type.code }}">{{ type.name }}</option>
                                 {% endfor %}
                             </select>
                         </div>
