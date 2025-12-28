@@ -69,6 +69,45 @@ class CustomerCompany(db.Model):
         }
 
 
+class CompanyContact(db.Model):
+    """公司联系人模型"""
+    __tablename__ = 'company_contacts'
+
+    id = db.Column(db.Integer, primary_key=True)
+    company_id = db.Column(db.Integer, db.ForeignKey('customer_companies.id', ondelete='CASCADE'), nullable=False, comment='公司ID')
+    name = db.Column(db.String(100), nullable=False, comment='联系人姓名')
+    position = db.Column(db.String(100), nullable=True, comment='职位')
+    phone = db.Column(db.String(50), nullable=True, comment='电话')
+    email = db.Column(db.String(100), nullable=True, comment='邮箱')
+    wechat = db.Column(db.String(50), nullable=True, comment='微信')
+    is_primary = db.Column(db.Boolean, default=False, comment='是否主要联系人')
+    remarks = db.Column(db.Text, nullable=True, comment='备注')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # 关联关系
+    company = db.relationship('CustomerCompany', backref=db.backref('contacts', lazy='dynamic', cascade='all, delete-orphan'))
+
+    def __repr__(self):
+        return f'<CompanyContact {self.name}>'
+
+    def to_dict(self):
+        """转换为字典格式"""
+        return {
+            'id': self.id,
+            'company_id': self.company_id,
+            'name': self.name,
+            'position': self.position,
+            'phone': self.phone,
+            'email': self.email,
+            'wechat': self.wechat,
+            'is_primary': self.is_primary,
+            'remarks': self.remarks,
+            'created_at': self.created_at.strftime('%Y-%m-%d %H:%M') if self.created_at else None,
+            'updated_at': self.updated_at.strftime('%Y-%m-%d %H:%M') if self.updated_at else None
+        }
+
+
 class Customer(db.Model):
     """客户模型"""
     __tablename__ = 'customers'
@@ -263,4 +302,76 @@ class ProjectHeader(db.Model):
             'partial': partial_count,
             'unpaid': unpaid_count,
             'total': total_count
+        }
+
+
+class EmailTemplate(db.Model):
+    """邮件模板模型"""
+    __tablename__ = 'email_templates'
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False, comment='模板名称')
+    subject = db.Column(db.String(255), nullable=False, comment='邮件主题')
+    body = db.Column(db.Text, nullable=False, comment='邮件正文（支持HTML和变量替换）')
+    category = db.Column(db.String(50), nullable=True, comment='分类：flight/hotel/visa/invoice等')
+    is_active = db.Column(db.Boolean, default=True, comment='是否启用')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_by = db.Column(db.String(50), nullable=True, comment='创建人')
+
+    def __repr__(self):
+        return f'<EmailTemplate {self.name}>'
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'subject': self.subject,
+            'body': self.body,
+            'category': self.category,
+            'is_active': self.is_active,
+            'created_at': self.created_at.strftime('%Y-%m-%d %H:%M') if self.created_at else None
+        }
+
+
+class ProjectEmail(db.Model):
+    """项目邮件发送记录"""
+    __tablename__ = 'project_emails'
+
+    id = db.Column(db.Integer, primary_key=True)
+    header_id = db.Column(db.Integer, db.ForeignKey('project_headers.id', ondelete='CASCADE'), nullable=False, comment='项目ID')
+    template_id = db.Column(db.Integer, db.ForeignKey('email_templates.id', ondelete='SET NULL'), nullable=True, comment='使用的模板ID')
+    subject = db.Column(db.String(255), nullable=False, comment='邮件主题')
+    body = db.Column(db.Text, nullable=False, comment='邮件正文')
+    recipients = db.Column(db.Text, nullable=False, comment='收件人（JSON格式）')
+    cc = db.Column(db.Text, nullable=True, comment='抄送人（JSON格式）')
+    attachments = db.Column(db.Text, nullable=True, comment='附件列表（JSON格式）')
+    status = db.Column(db.Enum('draft', 'sent', 'failed'), default='draft', comment='状态')
+    sent_at = db.Column(db.DateTime, nullable=True, comment='发送时间')
+    error_message = db.Column(db.Text, nullable=True, comment='错误信息')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_by = db.Column(db.String(50), nullable=True, comment='发送人')
+
+    # 关联关系
+    header = db.relationship('ProjectHeader', backref=db.backref('emails', lazy='dynamic'))
+    template = db.relationship('EmailTemplate', backref=db.backref('emails', lazy='dynamic'))
+
+    def __repr__(self):
+        return f'<ProjectEmail {self.id} - {self.subject}>'
+
+    def to_dict(self):
+        import json
+        return {
+            'id': self.id,
+            'header_id': self.header_id,
+            'template_id': self.template_id,
+            'subject': self.subject,
+            'body': self.body,
+            'recipients': json.loads(self.recipients) if self.recipients else [],
+            'cc': json.loads(self.cc) if self.cc else [],
+            'attachments': json.loads(self.attachments) if self.attachments else [],
+            'status': self.status,
+            'sent_at': self.sent_at.strftime('%Y-%m-%d %H:%M') if self.sent_at else None,
+            'created_at': self.created_at.strftime('%Y-%m-%d %H:%M') if self.created_at else None,
+            'created_by': self.created_by
         }

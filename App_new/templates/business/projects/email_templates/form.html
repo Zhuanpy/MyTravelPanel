@@ -1,0 +1,108 @@
+{% extends "shared/staff_base.html" %}
+
+{% block title %}{{ '编辑' if template else '新建' }}邮件模板 - MyTravelPanel{% endblock %}
+
+{% block page_title %}{{ '编辑' if template else '新建' }}邮件模板{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/staff_common.css') }}">
+<style>
+.variable-hint {
+    background: #f0f9ff;
+    border: 1px solid #bae6fd;
+    border-radius: 6px;
+    padding: 0.75rem;
+    margin-bottom: 1rem;
+    font-size: 0.85rem;
+}
+
+.variable-hint code {
+    background: #e0f2fe;
+    padding: 0.125rem 0.375rem;
+    border-radius: 3px;
+    font-size: 0.8rem;
+    color: #0369a1;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="visa-container-lg">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="fas fa-{{ 'edit' if template else 'plus' }}"></i> {{ '编辑' if template else '新建' }}邮件模板</h2>
+        <a href="{{ url_for('business_projects.detail.email_templates_list') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> 返回列表
+        </a>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <form method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                
+                <div class="mb-3">
+                    <label class="form-label">模板名称 <span class="text-danger">*</span></label>
+                    <input type="text" name="name" class="form-control" 
+                           value="{{ template.name if template else '' }}" 
+                           placeholder="如：机票确认邮件" required>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">分类</label>
+                        <select name="category" class="form-select">
+                            <option value="">-- 选择分类 --</option>
+                            {% for cat in categories %}
+                            <option value="{{ cat }}" {% if template and template.category == cat %}selected{% endif %}>
+                                {{ cat }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">状态</label>
+                        <select name="is_active" class="form-select">
+                            <option value="1" {% if not template or template.is_active %}selected{% endif %}>启用</option>
+                            <option value="0" {% if template and not template.is_active %}selected{% endif %}>禁用</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">邮件主题 <span class="text-danger">*</span></label>
+                    <input type="text" name="subject" class="form-control" 
+                           value="{{ template.subject if template else '' }}" 
+                           placeholder="如：[{hid}] 机票确认" required>
+                    <small class="text-muted">可使用变量：{hid}（项目编号）、{contact}（联系人）、{company}（公司名称）</small>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">邮件正文 <span class="text-danger">*</span></label>
+                    <textarea name="body" class="form-control" rows="12" 
+                              placeholder="邮件内容..." required>{{ template.body if template else '' }}</textarea>
+                    <small class="text-muted">支持HTML格式，可使用变量：{hid}、{contact}、{company}</small>
+                </div>
+
+                <div class="variable-hint">
+                    <strong><i class="fas fa-info-circle"></i> 可用变量：</strong>
+                    <div class="mt-2">
+                        <code>{hid}</code> - 项目编号<br>
+                        <code>{contact}</code> - 联系人姓名<br>
+                        <code>{company}</code> - 公司名称
+                    </div>
+                </div>
+
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> 保存
+                    </button>
+                    <a href="{{ url_for('business_projects.detail.email_templates_list') }}" class="btn btn-secondary">
+                        取消
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

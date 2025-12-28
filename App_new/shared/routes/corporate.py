@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, request, flash, redirect, url_for, jsonify, send_file
 from flask_login import login_required, current_user
 from App_new.exts import db, csrf
-from App_new.business.projects.models.project import CustomerCompany
+from App_new.business.projects.models.project import CustomerCompany, CompanyContact
 from App_new.shared.forms.company_forms import CustomerCompanyForm
 from App_new.utils.decorators import staff_only
 from sqlalchemy import or_
@@ -420,4 +420,138 @@ def import_excel():
             'success': False,
             'message': f'导入失败：{str(e)}'
         })
+
+
+# ==================== 联系人管理 API ====================
+
+@corporate.route('/<int:company_id>/contacts')
+@login_required
+@staff_only
+def get_contacts(company_id):
+    """获取公司联系人列表"""
+    company = CustomerCompany.query.get_or_404(company_id)
+    contacts = CompanyContact.query.filter_by(company_id=company_id).order_by(
+        CompanyContact.is_primary.desc(),
+        CompanyContact.created_at.desc()
+    ).all()
+    return jsonify({
+        'success': True,
+        'contacts': [c.to_dict() for c in contacts]
+    })
+
+
+@corporate.route('/<int:company_id>/contacts/add', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def add_contact(company_id):
+    """添加联系人"""
+    try:
+        company = CustomerCompany.query.get_or_404(company_id)
+        data = request.get_json()
+        
+        if not data.get('name'):
+            return jsonify({'success': False, 'message': '联系人姓名不能为空'}), 400
+        
+        contact = CompanyContact(
+            company_id=company_id,
+            name=data.get('name'),
+            position=data.get('position'),
+            phone=data.get('phone'),
+            email=data.get('email'),
+            wechat=data.get('wechat'),
+            is_primary=data.get('is_primary', False),
+            remarks=data.get('remarks')
+        )
+        
+        # 如果设为主要联系人，取消其他主要联系人
+        if contact.is_primary:
+            CompanyContact.query.filter_by(company_id=company_id, is_primary=True).update({'is_primary': False})
+        
+        db.session.add(contact)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': '联系人添加成功',
+            'contact': contact.to_dict()
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@corporate.route('/<int:company_id>/contacts/<int:contact_id>', methods=['GET'])
+@login_required
+@staff_only
+def get_contact(company_id, contact_id):
+    """获取单个联系人"""
+    contact = CompanyContact.query.filter_by(id=contact_id, company_id=company_id).first_or_404()
+    return jsonify({
+        'success': True,
+        'contact': contact.to_dict()
+    })
+
+
+@corporate.route('/<int:company_id>/contacts/<int:contact_id>/update', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def update_contact(company_id, contact_id):
+    """更新联系人"""
+    try:
+        contact = CompanyContact.query.filter_by(id=contact_id, company_id=company_id).first_or_404()
+        data = request.get_json()
+        
+        if not data.get('name'):
+            return jsonify({'success': False, 'message': '联系人姓名不能为空'}), 400
+        
+        contact.name = data.get('name')
+        contact.position = data.get('position')
+        contact.phone = data.get('phone')
+        contact.email = data.get('email')
+        contact.wechat = data.get('wechat')
+        contact.remarks = data.get('remarks')
+        
+        # 处理主要联系人
+        new_is_primary = data.get('is_primary', False)
+        if new_is_primary and not contact.is_primary:
+            # 取消其他主要联系人
+            CompanyContact.query.filter(
+                CompanyContact.company_id == company_id,
+                CompanyContact.id != contact_id,
+                CompanyContact.is_primary == True
+            ).update({'is_primary': False})
+        contact.is_primary = new_is_primary
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': '联系人更新成功',
+            'contact': contact.to_dict()
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@corporate.route('/<int:company_id>/contacts/<int:contact_id>/delete', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def delete_contact(company_id, contact_id):
+    """删除联系人"""
+    try:
+        contact = CompanyContact.query.filter_by(id=contact_id, company_id=company_id).first_or_404()
+        db.session.delete(contact)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': '联系人删除成功'
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
 

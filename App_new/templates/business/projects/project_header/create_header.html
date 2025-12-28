@@ -92,7 +92,19 @@
                     <div class="col-md-3">
                         <div class="mb-3">
                             {{ form.contact.label(class="form-label") }} <span class="text-danger">*</span>
-                            {{ form.contact(class="form-control form-control-sm") }}
+                            <div class="input-group input-group-sm">
+                                {{ form.contact(class="form-control form-control-sm", list="contactDatalist", id="contact") }}
+                                <datalist id="contactDatalist"></datalist>
+                                <a id="addContactBtn" href="#" target="_blank" class="btn btn-outline-primary btn-sm" style="display: none;" title="添加联系人">
+                                    <i class="fas fa-user-plus"></i>
+                                </a>
+                            </div>
+                            <small id="contactHint" class="text-muted" style="display: none; font-size: 0.75rem;">
+                                <i class="fas fa-check-circle text-success"></i> 已加载公司联系人
+                            </small>
+                            <small id="noContactHint" class="text-warning" style="display: none; font-size: 0.75rem;">
+                                <i class="fas fa-exclamation-triangle"></i> 暂无联系人 <a href="#" id="addContactLink" target="_blank">添加</a>
+                            </small>
                         </div>
                     </div>
                     <div class="col-md-3">
@@ -147,6 +159,74 @@
 
 {% block extra_js %}
 <script>
+// 公司联系人列表缓存
+let companyContacts = [];
+
+// 加载公司联系人
+function loadCompanyContacts(companyId) {
+    if (!companyId || companyId === '0' || companyId === '') {
+        clearContactOptions();
+        hideContactHints();
+        return;
+    }
+    
+    // 设置添加联系人链接
+    const editUrl = `/company/${companyId}/edit`;
+    document.getElementById('addContactBtn').href = editUrl;
+    document.getElementById('addContactLink').href = editUrl;
+    
+    fetch(`/company/${companyId}/contacts`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.contacts && data.contacts.length > 0) {
+                companyContacts = data.contacts;
+                populateContactOptions(data.contacts);
+                document.getElementById('contactHint').style.display = 'block';
+                document.getElementById('noContactHint').style.display = 'none';
+                document.getElementById('addContactBtn').style.display = 'none';
+            } else {
+                companyContacts = [];
+                clearContactOptions();
+                document.getElementById('contactHint').style.display = 'none';
+                document.getElementById('noContactHint').style.display = 'block';
+                document.getElementById('addContactBtn').style.display = 'block';
+            }
+        })
+        .catch(error => {
+            console.error('Error loading contacts:', error);
+            clearContactOptions();
+            document.getElementById('noContactHint').style.display = 'block';
+            document.getElementById('addContactBtn').style.display = 'block';
+        });
+}
+
+// 隐藏所有联系人提示
+function hideContactHints() {
+    document.getElementById('contactHint').style.display = 'none';
+    document.getElementById('noContactHint').style.display = 'none';
+    document.getElementById('addContactBtn').style.display = 'none';
+}
+
+// 填充联系人选项
+function populateContactOptions(contacts) {
+    const contactDatalist = document.getElementById('contactDatalist');
+    contactDatalist.innerHTML = '';
+    
+    contacts.forEach(contact => {
+        const option = document.createElement('option');
+        option.value = contact.name;
+        option.textContent = contact.position ? `${contact.name} (${contact.position})` : contact.name;
+        contactDatalist.appendChild(option);
+    });
+}
+
+// 清空联系人选项
+function clearContactOptions() {
+    document.getElementById('contactDatalist').innerHTML = '';
+    companyContacts = [];
+    document.getElementById('contactHint').style.display = 'none';
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     // 移除隐藏字段的 required 属性并设置默认值
     const descField = document.getElementById('desc');
@@ -166,6 +246,19 @@ document.addEventListener('DOMContentLoaded', function() {
     if (statusField) {
         statusField.removeAttribute('required');
         if (!statusField.value) statusField.value = 'active';
+    }
+    
+    // 监听公司选择变化
+    const companySelect = document.getElementById('company_id_simple');
+    if (companySelect) {
+        companySelect.addEventListener('change', function() {
+            loadCompanyContacts(this.value);
+        });
+        
+        // 如果已选择公司，加载联系人
+        if (companySelect.value && companySelect.value !== '0') {
+            loadCompanyContacts(companySelect.value);
+        }
     }
 });
 </script>

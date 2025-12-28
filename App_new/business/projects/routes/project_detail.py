@@ -329,3 +329,350 @@ def project_documents(project_id):
             'success': False,
             'error': str(e)
         }), 500
+
+
+# ==================== 邮件功能 ====================
+
+@bp.route('/<int:project_id>/email/templates')
+@login_required
+@staff_only
+def get_email_templates(project_id):
+    """获取可用的邮件模板列表"""
+    try:
+        from App_new.business.projects.models.project import EmailTemplate
+        templates = EmailTemplate.query.filter_by(is_active=True).order_by(EmailTemplate.category, EmailTemplate.name).all()
+        return jsonify({
+            'success': True,
+            'templates': [t.to_dict() for t in templates]
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@bp.route('/<int:project_id>/email/contacts')
+@login_required
+@staff_only
+def get_email_contacts(project_id):
+    """获取项目关联公司的联系人列表"""
+    try:
+        from App_new.business.projects.models.project import ProjectHeader, CompanyContact
+        
+        header = ProjectHeader.query.get_or_404(project_id)
+        contacts = []
+        
+        # 如果有关联公司，获取公司联系人
+        if header.company_id:
+            company_contacts = CompanyContact.query.filter_by(company_id=header.company_id).all()
+            for c in company_contacts:
+                if c.email:  # 只返回有邮箱的联系人
+                    contacts.append({
+                        'id': c.id,
+                        'name': c.name,
+                        'email': c.email,
+                        'position': c.position,
+                        'is_primary': c.is_primary
+                    })
+        
+        # 添加项目头部的联系人信息（如果有邮箱）
+        if header.contact:
+            # 尝试从公司信息获取邮箱
+            if header.company and header.company.contact_email:
+                contacts.insert(0, {
+                    'id': 0,
+                    'name': header.contact,
+                    'email': header.company.contact_email,
+                    'position': '项目联系人',
+                    'is_primary': True
+                })
+        
+        return jsonify({
+            'success': True,
+            'contacts': contacts,
+            'company_name': header.company.company_name if header.company else None
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@bp.route('/<int:project_id>/email/send', methods=['POST'])
+@login_required
+@staff_only
+def send_project_email(project_id):
+    """发送项目邮件"""
+    try:
+        from flask import current_app
+        from flask_mail import Mail, Message
+        from App_new.business.projects.models.project import ProjectHeader, ProjectEmail, EmailTemplate
+        from werkzeug.utils import secure_filename
+        import json
+        import os
+        import tempfile
+        
+        header = ProjectHeader.query.get_or_404(project_id)
+        
+        # 处理FormData（支持文件上传）
+        if request.content_type and 'multipart/form-data' in request.content_type:
+            recipients = json.loads(request.form.get('recipients', '[]'))
+            cc = json.loads(request.form.get('cc', '[]'))
+            subject = request.form.get('subject', '')
+            body = request.form.get('body', '')
+            template_id = request.form.get('template_id')
+            attachment_count = int(request.form.get('attachment_count', 0))
+        else:
+            # 兼容JSON格式
+            data = request.get_json()
+            recipients = data.get('recipients', [])
+            cc = data.get('cc', [])
+            subject = data.get('subject', '')
+            body = data.get('body', '')
+            template_id = data.get('template_id')
+            attachment_count = 0
+        
+        # 验证必填字段
+        if not recipients:
+            return jsonify({'success': False, 'message': '请选择收件人'}), 400
+        if not subject:
+            return jsonify({'success': False, 'message': '请输入邮件主题'}), 400
+        if not body:
+            return jsonify({'success': False, 'message': '请输入邮件内容'}), 400
+        
+        # 处理附件
+        attachments_info = []
+        temp_files = []  # 保存临时文件路径，发送后删除
+        
+        if attachment_count > 0:
+            upload_folder = os.path.join(current_app.static_folder, 'uploads', 'email_attachments')
+            os.makedirs(upload_folder, exist_ok=True)
+            
+            for i in range(attachment_count):
+                file_key = f'attachment_{i}'
+                if file_key in request.files:
+                    file = request.files[file_key]
+                    if file and file.filename:
+                        # 保存临时文件
+                        filename = secure_filename(file.filename)
+                        timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S_')
+                        unique_filename = timestamp + filename
+                        file_path = os.path.join(upload_folder, unique_filename)
+                        file.save(file_path)
+                        temp_files.append(file_path)
+                        
+                        # 获取文件MIME类型
+                        import mimetypes
+                        mime_type, _ = mimetypes.guess_type(filename)
+                        if not mime_type:
+                            mime_type = 'application/octet-stream'
+                        
+                        attachments_info.append({
+                            'name': filename,
+                            'path': file_path,
+                            'type': mime_type
+                        })
+        
+        # 创建邮件记录
+        email_record = ProjectEmail(
+            header_id=project_id,
+            template_id=int(template_id) if template_id else None,
+            subject=subject,
+            body=body,
+            recipients=json.dumps(recipients),
+            cc=json.dumps(cc),
+            attachments=json.dumps(attachments_info),
+            status='draft',
+            created_by=current_user.username if current_user.is_authenticated else 'system'
+        )
+        db.session.add(email_record)
+        
+        # 发送邮件
+        try:
+            mail = Mail(current_app)
+            sender_email = current_app.config.get('MAIL_DEFAULT_SENDER') or current_app.config.get('MAIL_USERNAME', 'noreply@mytravelpanel.com')
+            
+            # 处理邮件正文：将换行符转换为HTML格式
+            # 检查是否包含HTML标签（简单判断）
+            has_html_tags = '<' in body and '>' in body and any(tag in body.lower() for tag in ['<br', '<p', '<div', '<span', '<h'])
+            
+            if not has_html_tags:
+                # 纯文本格式，将换行符转换为<br>，并包装在HTML中
+                # 先转义HTML特殊字符
+                import html
+                escaped_body = html.escape(body)
+                html_body = escaped_body.replace('\n', '<br>')
+                html_body = f'<div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">{html_body}</div>'
+            else:
+                # 已经是HTML格式，但可能还有未转换的换行符，补充转换
+                # 只转换不在HTML标签内的换行符（简单处理）
+                html_body = body.replace('\n', '<br>')
+            
+            msg = Message(
+                subject=subject,
+                sender=sender_email,
+                recipients=recipients,
+                cc=cc if cc else None,
+                html=html_body
+            )
+            
+            # 添加附件
+            for att_info in attachments_info:
+                with open(att_info['path'], 'rb') as f:
+                    msg.attach(
+                        att_info['name'],
+                        att_info['type'],
+                        f.read()
+                    )
+            
+            mail.send(msg)
+            
+            # 更新发送状态
+            email_record.status = 'sent'
+            email_record.sent_at = datetime.utcnow()
+            db.session.commit()
+            
+            # 清理临时文件
+            for temp_file in temp_files:
+                try:
+                    if os.path.exists(temp_file):
+                        os.remove(temp_file)
+                except Exception as e:
+                    print(f"清理临时文件失败: {temp_file}, 错误: {e}")
+            
+            return jsonify({
+                'success': True,
+                'message': f'邮件发送成功，已发送至 {len(recipients)} 位收件人' + (f'，包含 {len(attachments_info)} 个附件' if attachments_info else ''),
+                'email_id': email_record.id
+            })
+            
+        except Exception as mail_error:
+            email_record.status = 'failed'
+            email_record.error_message = str(mail_error)
+            db.session.commit()
+            
+            # 清理临时文件
+            for temp_file in temp_files:
+                try:
+                    if os.path.exists(temp_file):
+                        os.remove(temp_file)
+                except:
+                    pass
+            
+            return jsonify({'success': False, 'message': f'邮件发送失败：{str(mail_error)}'}), 500
+        
+    except Exception as e:
+        db.session.rollback()
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@bp.route('/<int:project_id>/email/history')
+@login_required
+@staff_only
+def get_email_history(project_id):
+    """获取项目邮件发送历史"""
+    try:
+        from App_new.business.projects.models.project import ProjectEmail
+        
+        emails = ProjectEmail.query.filter_by(header_id=project_id).order_by(ProjectEmail.created_at.desc()).all()
+        return jsonify({
+            'success': True,
+            'emails': [e.to_dict() for e in emails]
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+# ==================== 邮件模板管理 ====================
+
+@bp.route('/email/templates')
+@login_required
+@staff_only
+def email_templates_list():
+    """邮件模板列表页面"""
+    from App_new.business.projects.models.project import EmailTemplate
+    
+    templates = EmailTemplate.query.order_by(EmailTemplate.category, EmailTemplate.name).all()
+    categories = db.session.query(EmailTemplate.category).distinct().filter(EmailTemplate.category.isnot(None)).all()
+    categories = [c[0] for c in categories]
+    
+    return render_template('business/projects/email_templates/list.html', 
+                         templates=templates, 
+                         categories=categories)
+
+
+@bp.route('/email/templates/create', methods=['GET', 'POST'])
+@login_required
+@staff_only
+def create_email_template():
+    """创建邮件模板"""
+    from App_new.business.projects.models.project import EmailTemplate
+    
+    if request.method == 'POST':
+        try:
+            template = EmailTemplate(
+                name=request.form.get('name'),
+                subject=request.form.get('subject'),
+                body=request.form.get('body'),
+                category=request.form.get('category'),
+                is_active=request.form.get('is_active') == '1',
+                created_by=current_user.username if current_user.is_authenticated else 'system'
+            )
+            db.session.add(template)
+            db.session.commit()
+            flash('模板创建成功！', 'success')
+            return redirect(url_for('business_projects.detail.email_templates_list'))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'创建失败：{str(e)}', 'error')
+    
+    categories = ['flight', 'hotel', 'visa', 'invoice', 'general']
+    return render_template('business/projects/email_templates/form.html', 
+                         template=None, 
+                         categories=categories)
+
+
+@bp.route('/email/templates/<int:template_id>/edit', methods=['GET', 'POST'])
+@login_required
+@staff_only
+def edit_email_template(template_id):
+    """编辑邮件模板"""
+    from App_new.business.projects.models.project import EmailTemplate
+    
+    template = EmailTemplate.query.get_or_404(template_id)
+    
+    if request.method == 'POST':
+        try:
+            template.name = request.form.get('name')
+            template.subject = request.form.get('subject')
+            template.body = request.form.get('body')
+            template.category = request.form.get('category')
+            template.is_active = request.form.get('is_active') == '1'
+            db.session.commit()
+            flash('模板更新成功！', 'success')
+            return redirect(url_for('business_projects.detail.email_templates_list'))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'更新失败：{str(e)}', 'error')
+    
+    categories = ['flight', 'hotel', 'visa', 'invoice', 'general']
+    return render_template('business/projects/email_templates/form.html', 
+                         template=template, 
+                         categories=categories)
+
+
+@bp.route('/email/templates/<int:template_id>/delete', methods=['POST'])
+@login_required
+@staff_only
+def delete_email_template(template_id):
+    """删除邮件模板"""
+    from App_new.business.projects.models.project import EmailTemplate
+    
+    template = EmailTemplate.query.get_or_404(template_id)
+    try:
+        db.session.delete(template)
+        db.session.commit()
+        flash('模板删除成功！', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'删除失败：{str(e)}', 'error')
+    
+    return redirect(url_for('business_projects.detail.email_templates_list'))

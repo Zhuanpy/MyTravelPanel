@@ -354,7 +354,6 @@ class AthinaImportService:
                         if header.is_count_performance:
                             # 如果已核算业绩，检查是否有数据变更
                             corporate_name = self.clean_string(row_values[1]) if len(row_values) > 1 else None
-                            book_date = self.parse_date(row_values[5]) if len(row_values) > 5 else None
                             
                             data_changed = False
                             changes = []
@@ -362,10 +361,6 @@ class AthinaImportService:
                             if corporate_name and corporate_name != header.corporate_name:
                                 data_changed = True
                                 changes.append(f'公司名称: {header.corporate_name} -> {corporate_name}')
-                            
-                            if book_date and book_date != header.book_date:
-                                data_changed = True
-                                changes.append(f'预订日期: {header.book_date} -> {book_date}')
                             
                             if data_changed:
                                 error_msg = f'错误：HID {booking_header_id} 的数据已核算业绩，不允许修改。检测到以下变更：{"; ".join(changes)}'

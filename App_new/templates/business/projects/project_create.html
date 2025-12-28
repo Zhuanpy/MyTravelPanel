@@ -76,7 +76,19 @@
                                 <label for="{{ form.contact.id }}" class="form-label">
                                     {{ form.contact.label.text }} <span class="text-danger">*</span>
                                 </label>
-                                {{ form.contact(class="form-control", placeholder="请输入联系人姓名") }}
+                                <div class="input-group">
+                                    {{ form.contact(class="form-control", placeholder="请输入或选择联系人姓名", list="contactDatalist") }}
+                                    <datalist id="contactDatalist"></datalist>
+                                    <a id="addContactBtn" href="#" target="_blank" class="btn btn-outline-primary" style="display: none;" title="添加联系人">
+                                        <i class="fas fa-user-plus"></i>
+                                    </a>
+                                </div>
+                                <small id="contactHint" class="text-muted" style="display: none;">
+                                    <i class="fas fa-check-circle text-success"></i> 已加载公司联系人，可选择或手动输入
+                                </small>
+                                <small id="noContactHint" class="text-warning" style="display: none;">
+                                    <i class="fas fa-exclamation-triangle"></i> 该公司暂无联系人，可手动输入或 <a href="#" id="addContactLink" target="_blank">点击添加</a>
+                                </small>
                                 {% if form.contact.errors %}
                                     <div class="invalid-feedback d-block">
                                         {% for error in form.contact.errors %}
@@ -91,7 +103,8 @@
                                 <label for="{{ form.contact_phone.id }}" class="form-label">
                                     {{ form.contact_phone.label.text }}
                                 </label>
-                                {{ form.contact_phone(class="form-control", placeholder="请输入联系电话") }}
+                                {{ form.contact_phone(class="form-control", placeholder="请输入联系电话", list="phoneDatalist") }}
+                                <datalist id="phoneDatalist"></datalist>
                                 {% if form.contact_phone.errors %}
                                     <div class="invalid-feedback d-block">
                                         {% for error in form.contact_phone.errors %}
@@ -108,7 +121,8 @@
                                 <label for="{{ form.contact_email.id }}" class="form-label">
                                     {{ form.contact_email.label.text }}
                                 </label>
-                                {{ form.contact_email(class="form-control", placeholder="请输入联系邮箱") }}
+                                {{ form.contact_email(class="form-control", placeholder="请输入联系邮箱", list="emailDatalist") }}
+                                <datalist id="emailDatalist"></datalist>
                                 {% if form.contact_email.errors %}
                                     <div class="invalid-feedback d-block">
                                         {% for error in form.contact_email.errors %}
@@ -242,6 +256,116 @@
         }, 3000);
     }
     
+    // 公司联系人列表缓存
+    let companyContacts = [];
+    
+    // 加载公司联系人
+    function loadCompanyContacts(companyId) {
+        if (!companyId || companyId === '0' || companyId === '') {
+            clearContactOptions();
+            hideContactHints();
+            return;
+        }
+        
+        // 设置添加联系人链接
+        const editUrl = `/company/${companyId}/edit`;
+        document.getElementById('addContactBtn').href = editUrl;
+        document.getElementById('addContactLink').href = editUrl;
+        
+        fetch(`/company/${companyId}/contacts`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.contacts && data.contacts.length > 0) {
+                    companyContacts = data.contacts;
+                    populateContactOptions(data.contacts);
+                    document.getElementById('contactHint').style.display = 'block';
+                    document.getElementById('noContactHint').style.display = 'none';
+                    document.getElementById('addContactBtn').style.display = 'none';
+                } else {
+                    companyContacts = [];
+                    clearContactOptions();
+                    document.getElementById('contactHint').style.display = 'none';
+                    document.getElementById('noContactHint').style.display = 'block';
+                    document.getElementById('addContactBtn').style.display = 'block';
+                }
+            })
+            .catch(error => {
+                console.error('Error loading contacts:', error);
+                clearContactOptions();
+                document.getElementById('noContactHint').style.display = 'block';
+                document.getElementById('addContactBtn').style.display = 'block';
+            });
+    }
+    
+    // 隐藏所有联系人提示
+    function hideContactHints() {
+        document.getElementById('contactHint').style.display = 'none';
+        document.getElementById('noContactHint').style.display = 'none';
+        document.getElementById('addContactBtn').style.display = 'none';
+    }
+    
+    // 填充联系人选项
+    function populateContactOptions(contacts) {
+        const contactDatalist = document.getElementById('contactDatalist');
+        const phoneDatalist = document.getElementById('phoneDatalist');
+        const emailDatalist = document.getElementById('emailDatalist');
+        
+        // 清空现有选项
+        contactDatalist.innerHTML = '';
+        phoneDatalist.innerHTML = '';
+        emailDatalist.innerHTML = '';
+        
+        contacts.forEach(contact => {
+            // 联系人姓名选项
+            const nameOption = document.createElement('option');
+            nameOption.value = contact.name;
+            nameOption.textContent = contact.position ? `${contact.name} (${contact.position})` : contact.name;
+            contactDatalist.appendChild(nameOption);
+            
+            // 电话选项
+            if (contact.phone) {
+                const phoneOption = document.createElement('option');
+                phoneOption.value = contact.phone;
+                phoneDatalist.appendChild(phoneOption);
+            }
+            
+            // 邮箱选项
+            if (contact.email) {
+                const emailOption = document.createElement('option');
+                emailOption.value = contact.email;
+                emailDatalist.appendChild(emailOption);
+            }
+        });
+    }
+    
+    // 清空联系人选项
+    function clearContactOptions() {
+        document.getElementById('contactDatalist').innerHTML = '';
+        document.getElementById('phoneDatalist').innerHTML = '';
+        document.getElementById('emailDatalist').innerHTML = '';
+        companyContacts = [];
+    }
+    
+    // 联系人姓名变化时自动填充电话和邮箱
+    function onContactNameChange(name) {
+        if (!name || companyContacts.length === 0) return;
+        
+        const contact = companyContacts.find(c => c.name === name);
+        if (contact) {
+            // 自动填充电话
+            const phoneField = document.getElementById('{{ form.contact_phone.id }}');
+            if (contact.phone && !phoneField.value) {
+                phoneField.value = contact.phone;
+            }
+            
+            // 自动填充邮箱
+            const emailField = document.getElementById('{{ form.contact_email.id }}');
+            if (contact.email && !emailField.value) {
+                emailField.value = contact.email;
+            }
+        }
+    }
+    
     // 页面加载完成后的初始化
     document.addEventListener('DOMContentLoaded', function() {
         console.log('创建项目页面加载完成');
@@ -250,6 +374,35 @@
         const hidField = document.getElementById('{{ form.hid.id }}');
         if (!hidField.value) {
             generateHid();
+        }
+        
+        // 监听公司选择变化
+        const companySelect = document.getElementById('{{ form.company_id.id }}');
+        if (companySelect) {
+            companySelect.addEventListener('change', function() {
+                loadCompanyContacts(this.value);
+                // 清空联系人相关字段
+                document.getElementById('{{ form.contact.id }}').value = '';
+                document.getElementById('{{ form.contact_phone.id }}').value = '';
+                document.getElementById('{{ form.contact_email.id }}').value = '';
+            });
+            
+            // 如果已选择公司，加载联系人
+            if (companySelect.value && companySelect.value !== '0') {
+                loadCompanyContacts(companySelect.value);
+            }
+        }
+        
+        // 监听联系人姓名变化
+        const contactField = document.getElementById('{{ form.contact.id }}');
+        if (contactField) {
+            contactField.addEventListener('change', function() {
+                onContactNameChange(this.value);
+            });
+            // 也监听 input 事件以支持 datalist 选择
+            contactField.addEventListener('input', function() {
+                onContactNameChange(this.value);
+            });
         }
     });
 </script>

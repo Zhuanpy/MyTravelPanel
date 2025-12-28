@@ -6,6 +6,9 @@
 
 {% block page_actions %}
 <div class="d-flex gap-2">
+    <button type="button" class="btn btn-info btn-sm" onclick="showEmailModal()">
+        <i class="fas fa-envelope"></i> 发送邮件
+    </button>
     <a href="{{ url_for('business_projects.project_create.create_header') }}" 
        class="btn btn-primary btn-sm">
         <i class="fas fa-plus"></i> 新建HID
@@ -1365,6 +1368,587 @@ document.getElementById('invoiceModal')?.addEventListener('click', function(e) {
     font-size: 0.75rem;
     margin-top: 0.25rem;
 }
+
+/* 邮件模态框样式 */
+.email-modal {
+    display: none;
+    position: fixed;
+    z-index: 1050;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+}
+
+.email-modal-dialog {
+    background-color: #fff;
+    margin: 3% auto;
+    padding: 0;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 800px;
+    max-height: 90vh;
+    overflow: hidden;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+}
+
+.email-modal-header {
+    background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+    color: white;
+    padding: 1rem 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.email-modal-body {
+    padding: 1.5rem;
+    max-height: calc(90vh - 150px);
+    overflow-y: auto;
+}
+
+.email-modal-footer {
+    padding: 1rem 1.5rem;
+    background: #f8f9fa;
+    border-top: 1px solid #e5e7eb;
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+}
+
+.recipient-tag {
+    display: inline-flex;
+    align-items: center;
+    background: #e0f2fe;
+    color: #0369a1;
+    padding: 0.25rem 0.5rem;
+    border-radius: 1rem;
+    font-size: 0.8rem;
+    margin: 0.25rem;
+}
+
+.recipient-tag .remove-btn {
+    margin-left: 0.5rem;
+    cursor: pointer;
+    color: #dc2626;
+}
+
+.template-card {
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 0.75rem;
+    margin-bottom: 0.5rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.template-card:hover {
+    border-color: #3b82f6;
+    background: #f0f9ff;
+}
+
+.template-card.selected {
+    border-color: #3b82f6;
+    background: #eff6ff;
+}
+
+.attachment-item {
+    padding: 0.5rem;
+    background: white;
+    border-radius: 4px;
+    margin-bottom: 0.5rem;
+    border: 1px solid #e5e7eb;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.attachment-item:hover {
+    background: #f8f9fa;
+}
+
+/* 联系人多选框响应式布局 */
+@media (max-width: 768px) {
+    #contactsCheckboxContainer {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+}
+
+@media (max-width: 480px) {
+    #contactsCheckboxContainer {
+        grid-template-columns: 1fr !important;
+    }
+}
 </style>
+
+<!-- 发送邮件模态框 -->
+<div id="emailModal" class="email-modal">
+    <div class="email-modal-dialog">
+        <div class="email-modal-header">
+            <h5 style="margin: 0; color: white;"><i class="fas fa-envelope"></i> 发送邮件 - {{ header.hid }}</h5>
+            <button type="button" onclick="closeEmailModal()" style="background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer;">&times;</button>
+        </div>
+        <div class="email-modal-body">
+            <!-- 收件人选择 -->
+            <div class="mb-3">
+                <label class="form-label"><i class="fas fa-users"></i> 收件人 <span class="text-danger">*</span></label>
+                <div id="recipientsContainer" style="border: 1px solid #d1d5db; border-radius: 0.375rem; padding: 0.5rem; min-height: 40px; display: flex; flex-wrap: wrap; align-items: center; margin-bottom: 0.5rem;">
+                    <!-- 选中的收件人标签将在这里显示 -->
+                </div>
+                <!-- 联系人多选框 -->
+                <div id="contactsCheckboxContainer" style="max-height: 200px; overflow-y: auto; border: 1px solid #d1d5db; border-radius: 0.375rem; padding: 0.5rem; background: #f8f9fa; display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem;">
+                    <div class="text-muted text-center py-2" style="grid-column: 1 / -1;">加载联系人中...</div>
+                </div>
+                <!-- 手动输入邮箱 -->
+                <div class="mt-2 d-flex gap-2">
+                    <input type="email" id="customEmail" class="form-control" placeholder="或输入邮箱地址" onkeypress="if(event.key==='Enter'){addCustomRecipient();return false;}">
+                    <button type="button" class="btn btn-outline-primary btn-sm" onclick="addCustomRecipient()">添加</button>
+                </div>
+            </div>
+            
+            <!-- 抄送 -->
+            <div class="mb-3">
+                <label class="form-label"><i class="fas fa-copy"></i> 抄送 (CC)</label>
+                <input type="text" id="emailCc" class="form-control" placeholder="多个邮箱用逗号分隔">
+            </div>
+            
+            <!-- 邮件模板选择 -->
+            <div class="mb-3">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <label class="form-label mb-0"><i class="fas fa-file-alt"></i> 选择模板（可选）</label>
+                    <a href="{{ url_for('business_projects.detail.email_templates_list') }}" 
+                       target="_blank" 
+                       class="btn btn-outline-info btn-sm" 
+                       title="管理邮件模板">
+                        <i class="fas fa-cog"></i> 管理模板
+                    </a>
+                </div>
+                <div id="templatesContainer" style="max-height: 150px; overflow-y: auto;">
+                    <div class="text-muted text-center py-2">加载中...</div>
+                </div>
+            </div>
+            
+            <!-- 邮件主题 -->
+            <div class="mb-3">
+                <label class="form-label"><i class="fas fa-heading"></i> 主题 <span class="text-danger">*</span></label>
+                <input type="text" id="emailSubject" class="form-control" placeholder="邮件主题" value="[{{ header.hid }}] ">
+            </div>
+            
+            <!-- 邮件正文 -->
+            <div class="mb-3">
+                <label class="form-label"><i class="fas fa-align-left"></i> 正文 <span class="text-danger">*</span></label>
+                <textarea id="emailBody" class="form-control" rows="8" placeholder="邮件内容...">尊敬的客户，
+
+您好！
+
+关于项目 {{ header.hid }}，相关文件已准备好，请查收附件。
+
+如有任何问题，请随时联系我们。
+
+祝好！
+{{ current_user.username if current_user.is_authenticated else '' }}</textarea>
+            </div>
+            
+            <!-- 附件 -->
+            <div class="mb-3">
+                <label class="form-label"><i class="fas fa-paperclip"></i> 附件</label>
+                <div style="background: #f8f9fa; border: 1px dashed #d1d5db; border-radius: 8px; padding: 1rem;">
+                    <div class="d-flex align-items-center justify-content-center" style="margin-bottom: 0.75rem;">
+                        <input type="file" id="emailAttachments" multiple class="d-none" onchange="handleFileSelect(event)">
+                        <button type="button" class="btn btn-outline-primary btn-sm" onclick="document.getElementById('emailAttachments').click()">
+                            <i class="fas fa-plus"></i> 选择文件
+                        </button>
+                    </div>
+                    <div id="attachmentsList" style="max-height: 120px; overflow-y: auto;">
+                        <!-- 附件列表将在这里显示 -->
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="email-modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="closeEmailModal()">取消</button>
+            <button type="button" class="btn btn-primary" onclick="sendEmail()">
+                <i class="fas fa-paper-plane"></i> 发送邮件
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+// ==================== 邮件功能 ====================
+let emailRecipients = [];
+let selectedTemplateId = null;
+let emailAttachments = []; // 存储附件信息 {name, file, size}
+
+// 显示邮件模态框
+function showEmailModal() {
+    document.getElementById('emailModal').style.display = 'block';
+    // 重置收件人列表
+    emailRecipients = [];
+    updateRecipientsDisplay();
+    loadEmailContacts();
+    loadEmailTemplates();
+    // 初始化附件列表显示
+    updateAttachmentsDisplay();
+}
+
+// 关闭邮件模态框
+function closeEmailModal() {
+    document.getElementById('emailModal').style.display = 'none';
+}
+
+// 存储联系人数据
+let availableContacts = [];
+
+// 加载联系人列表
+function loadEmailContacts() {
+    fetch(`/projects/detail/{{ header.id }}/email/contacts`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                availableContacts = data.contacts;
+                const container = document.getElementById('contactsCheckboxContainer');
+                
+                if (data.contacts.length > 0) {
+                    container.innerHTML = '';
+                    data.contacts.forEach(contact => {
+                        const checkboxDiv = document.createElement('div');
+                        checkboxDiv.style.cssText = 'display: flex; align-items: flex-start; padding: 0.5rem; background: white; border-radius: 4px; gap: 0.5rem; border: 1px solid #e5e7eb;';
+                        
+                        const checkbox = document.createElement('input');
+                        checkbox.type = 'checkbox';
+                        checkbox.className = 'contact-checkbox';
+                        checkbox.id = `contact_${contact.id || contact.email}`;
+                        checkbox.value = contact.email;
+                        checkbox.dataset.name = contact.name;
+                        checkbox.style.cssText = 'width: 18px; height: 18px; margin-top: 2px; flex-shrink: 0; cursor: pointer;';
+                        checkbox.onchange = function() {
+                            toggleRecipient(contact.email, contact.name, this.checked);
+                        };
+                        
+                        const label = document.createElement('label');
+                        label.htmlFor = checkbox.id;
+                        label.style.cssText = 'cursor: pointer; flex: 1; margin: 0; min-width: 0; font-size: 0.85rem;';
+                        label.innerHTML = `
+                            <div style="margin-bottom: 0.25rem;">
+                                <strong style="display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${contact.name}</strong>
+                                ${contact.position ? `<small class="text-muted" style="font-size: 0.75rem;">${contact.position}</small>` : ''}
+                                ${contact.is_primary ? '<span class="badge bg-success" style="font-size: 0.65rem; margin-left: 0.25rem;">主要</span>' : ''}
+                            </div>
+                            <small class="text-muted" style="font-size: 0.75rem; word-break: break-all; display: block;">${contact.email}</small>
+                        `;
+                        
+                        checkboxDiv.appendChild(checkbox);
+                        checkboxDiv.appendChild(label);
+                        container.appendChild(checkboxDiv);
+                    });
+                } else {
+                    container.innerHTML = '<div class="text-muted text-center py-2" style="grid-column: 1 / -1;">暂无联系人，请手动输入邮箱</div>';
+                }
+            }
+        })
+        .catch(error => {
+            console.error('加载联系人失败:', error);
+            document.getElementById('contactsCheckboxContainer').innerHTML = '<div class="text-danger text-center py-2">加载失败</div>';
+        });
+}
+
+// 切换收件人（通过复选框）
+function toggleRecipient(email, name, isChecked) {
+    if (isChecked) {
+        if (!emailRecipients.includes(email)) {
+            emailRecipients.push(email);
+            updateRecipientsDisplay();
+        }
+    } else {
+        const index = emailRecipients.indexOf(email);
+        if (index > -1) {
+            emailRecipients.splice(index, 1);
+            updateRecipientsDisplay();
+        }
+    }
+}
+
+// 加载邮件模板
+function loadEmailTemplates() {
+    fetch(`/projects/detail/{{ header.id }}/email/templates`)
+        .then(response => response.json())
+        .then(data => {
+            const container = document.getElementById('templatesContainer');
+            
+            if (data.success && data.templates.length > 0) {
+                container.innerHTML = '';
+                data.templates.forEach(template => {
+                    const card = document.createElement('div');
+                    card.className = 'template-card';
+                    card.dataset.id = template.id;
+                    card.innerHTML = `
+                        <strong>${template.name}</strong>
+                        <small class="text-muted d-block">${template.category || '通用'} - ${template.subject}</small>
+                    `;
+                    card.onclick = () => selectTemplate(template);
+                    container.appendChild(card);
+                });
+            } else {
+                container.innerHTML = '<div class="text-muted text-center py-2">暂无模板，可直接编写邮件内容</div>';
+            }
+        })
+        .catch(error => {
+            console.error('加载模板失败:', error);
+            document.getElementById('templatesContainer').innerHTML = '<div class="text-muted text-center py-2">加载失败</div>';
+        });
+}
+
+// 选择模板
+function selectTemplate(template) {
+    selectedTemplateId = template.id;
+    
+    // 更新UI
+    document.querySelectorAll('.template-card').forEach(card => {
+        card.classList.toggle('selected', card.dataset.id == template.id);
+    });
+    
+    // 填充主题和正文（替换变量）
+    const hid = '{{ header.hid }}';
+    const contact = '{{ header.contact or "客户" }}';
+    const company = '{{ company.company_name if company else "贵公司" }}';
+    
+    let subject = template.subject;
+    subject = subject.replace(/{hid}/g, hid);
+    subject = subject.replace(/{contact}/g, contact);
+    subject = subject.replace(/{company}/g, company);
+    
+    let body = template.body;
+    body = body.replace(/{hid}/g, hid);
+    body = body.replace(/{contact}/g, contact);
+    body = body.replace(/{company}/g, company);
+    
+    document.getElementById('emailSubject').value = subject;
+    document.getElementById('emailBody').value = body;
+}
+
+
+// 添加自定义收件人
+function addCustomRecipient() {
+    const input = document.getElementById('customEmail');
+    const email = input.value.trim();
+    
+    if (email && isValidEmail(email) && !emailRecipients.includes(email)) {
+        emailRecipients.push(email);
+        updateRecipientsDisplay();
+        input.value = '';
+    } else if (!isValidEmail(email)) {
+        alert('请输入有效的邮箱地址');
+    }
+}
+
+// 验证邮箱格式
+function isValidEmail(email) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+// 更新收件人显示
+function updateRecipientsDisplay() {
+    const container = document.getElementById('recipientsContainer');
+    container.innerHTML = '';
+    
+    if (emailRecipients.length === 0) {
+        container.innerHTML = '<span class="text-muted" style="font-size: 0.85rem;">请选择或输入收件人</span>';
+    } else {
+        emailRecipients.forEach((email, index) => {
+            // 查找联系人名称
+            const contact = availableContacts.find(c => c.email === email);
+            const displayName = contact ? `${contact.name} <${email}>` : email;
+            
+            const tag = document.createElement('span');
+            tag.className = 'recipient-tag';
+            tag.innerHTML = `${displayName} <span class="remove-btn" onclick="removeRecipient(${index})">&times;</span>`;
+            container.appendChild(tag);
+        });
+    }
+    
+    // 同步复选框状态
+    document.querySelectorAll('.contact-checkbox').forEach(checkbox => {
+        checkbox.checked = emailRecipients.includes(checkbox.value);
+    });
+}
+
+// 移除收件人
+function removeRecipient(index) {
+    emailRecipients.splice(index, 1);
+    updateRecipientsDisplay();
+}
+
+// 处理文件选择
+function handleFileSelect(event) {
+    const files = Array.from(event.target.files);
+    
+    files.forEach(file => {
+        // 检查文件大小（限制10MB）
+        if (file.size > 10 * 1024 * 1024) {
+            alert(`文件 ${file.name} 超过10MB限制，已跳过`);
+            return;
+        }
+        
+        // 检查是否已存在同名文件
+        if (emailAttachments.some(att => att.name === file.name)) {
+            alert(`文件 ${file.name} 已添加，已跳过`);
+            return;
+        }
+        
+        emailAttachments.push({
+            name: file.name,
+            file: file,
+            size: file.size
+        });
+    });
+    
+    updateAttachmentsDisplay();
+    // 清空input以便可以再次选择相同文件
+    event.target.value = '';
+}
+
+// 更新附件显示
+function updateAttachmentsDisplay() {
+    const container = document.getElementById('attachmentsList');
+    
+    if (emailAttachments.length === 0) {
+        container.innerHTML = '<div class="text-muted text-center py-2" style="font-size: 0.85rem;">暂无附件</div>';
+        return;
+    }
+    
+    container.innerHTML = '';
+    emailAttachments.forEach((att, index) => {
+        const item = document.createElement('div');
+        item.className = 'd-flex align-items-center justify-content-between';
+        item.style.cssText = 'padding: 0.5rem; background: white; border-radius: 4px; margin-bottom: 0.5rem; border: 1px solid #e5e7eb;';
+        
+        const sizeText = att.size < 1024 ? `${att.size} B` : 
+                        att.size < 1024 * 1024 ? `${(att.size / 1024).toFixed(1)} KB` : 
+                        `${(att.size / (1024 * 1024)).toFixed(1)} MB`;
+        
+        item.innerHTML = `
+            <div class="d-flex align-items-center" style="flex: 1; min-width: 0;">
+                <i class="fas fa-file text-primary me-2"></i>
+                <span style="font-size: 0.85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${att.name}">${att.name}</span>
+                <small class="text-muted ms-2">${sizeText}</small>
+            </div>
+            <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeAttachment(${index})" style="padding: 0.125rem 0.5rem;">
+                <i class="fas fa-times"></i>
+            </button>
+        `;
+        container.appendChild(item);
+    });
+}
+
+// 移除附件
+function removeAttachment(index) {
+    emailAttachments.splice(index, 1);
+    updateAttachmentsDisplay();
+}
+
+// 格式化文件大小
+function formatFileSize(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+// 发送邮件
+function sendEmail() {
+    const subject = document.getElementById('emailSubject').value.trim();
+    const body = document.getElementById('emailBody').value.trim();
+    const ccInput = document.getElementById('emailCc').value.trim();
+    const cc = ccInput ? ccInput.split(',').map(e => e.trim()).filter(e => e) : [];
+    
+    if (emailRecipients.length === 0) {
+        alert('请添加至少一个收件人');
+        return;
+    }
+    
+    if (!subject) {
+        alert('请输入邮件主题');
+        return;
+    }
+    
+    if (!body) {
+        alert('请输入邮件内容');
+        return;
+    }
+    
+    // 确认发送
+    let confirmMsg = `确定要发送邮件给 ${emailRecipients.length} 位收件人吗？\n\n收件人：${emailRecipients.join(', ')}`;
+    if (emailAttachments.length > 0) {
+        confirmMsg += `\n\n附件：${emailAttachments.length} 个文件`;
+    }
+    if (!confirm(confirmMsg)) {
+        return;
+    }
+    
+    // 禁用按钮
+    const sendBtn = document.querySelector('#emailModal .btn-primary');
+    const originalText = sendBtn.innerHTML;
+    sendBtn.disabled = true;
+    sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 发送中...';
+    
+    // 使用FormData发送，支持文件上传
+    const formData = new FormData();
+    formData.append('recipients', JSON.stringify(emailRecipients));
+    formData.append('cc', JSON.stringify(cc));
+    formData.append('subject', subject);
+    formData.append('body', body);
+    if (selectedTemplateId) {
+        formData.append('template_id', selectedTemplateId);
+    }
+    
+    // 添加附件
+    emailAttachments.forEach((att, index) => {
+        formData.append(`attachment_${index}`, att.file);
+    });
+    formData.append('attachment_count', emailAttachments.length);
+    
+    fetch(`/projects/detail/{{ header.id }}/email/send`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token() }}'
+        },
+        body: formData
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            alert(result.message);
+            closeEmailModal();
+            // 重置表单
+            emailRecipients = [];
+            emailAttachments = [];
+            updateRecipientsDisplay();
+            updateAttachmentsDisplay();
+            selectedTemplateId = null;
+            document.getElementById('emailSubject').value = '[{{ header.hid }}] ';
+            document.getElementById('emailBody').value = '';
+            document.getElementById('emailCc').value = '';
+        } else {
+            alert('发送失败：' + result.message);
+        }
+    })
+    .catch(error => {
+        console.error('发送邮件失败:', error);
+        alert('发送邮件时发生错误');
+    })
+    .finally(() => {
+        sendBtn.disabled = false;
+        sendBtn.innerHTML = originalText;
+    });
+}
+
+// 点击模态框外部关闭
+document.getElementById('emailModal')?.addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeEmailModal();
+    }
+});
+</script>
 
 {% endblock %} 

@@ -1,0 +1,117 @@
+{% extends "shared/staff_base.html" %}
+
+{% block title %}邮件模板管理 - MyTravelPanel{% endblock %}
+
+{% block page_title %}邮件模板管理{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/staff_common.css') }}">
+<style>
+.template-card {
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    transition: all 0.2s;
+}
+
+.template-card:hover {
+    border-color: #3b82f6;
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.1);
+}
+
+.template-card.inactive {
+    opacity: 0.6;
+    background: #f8f9fa;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="visa-container-lg">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="fas fa-envelope"></i> 邮件模板</h2>
+        <a href="{{ url_for('business_projects.detail.create_email_template') }}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> 新建模板
+        </a>
+    </div>
+
+    {% if templates %}
+        <div class="row">
+            {% for template in templates %}
+            <div class="col-md-6 mb-3">
+                <div class="template-card {% if not template.is_active %}inactive{% endif %}">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <div>
+                            <h5 class="mb-1">
+                                {{ template.name }}
+                                {% if not template.is_active %}
+                                    <span class="badge bg-secondary">已禁用</span>
+                                {% endif %}
+                            </h5>
+                            {% if template.category %}
+                                <span class="badge bg-info">{{ template.category }}</span>
+                            {% endif %}
+                        </div>
+                        <div class="btn-group btn-group-sm">
+                            <a href="{{ url_for('business_projects.detail.edit_email_template', template_id=template.id) }}" 
+                               class="btn btn-outline-primary" title="编辑">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                            <button type="button" class="btn btn-outline-danger" 
+                                    onclick="deleteTemplate({{ template.id }}, '{{ template.name }}')" title="删除">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="mb-2">
+                        <strong>主题：</strong>
+                        <span class="text-muted">{{ template.subject }}</span>
+                    </div>
+                    <div style="max-height: 100px; overflow: hidden; font-size: 0.85rem; color: #6b7280;">
+                        {{ template.body[:200] }}{% if template.body|length > 200 %}...{% endif %}
+                    </div>
+                    <div class="mt-2 text-muted" style="font-size: 0.75rem;">
+                        <i class="fas fa-clock"></i> {{ template.created_at.strftime('%Y-%m-%d') if template.created_at else '' }}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="text-center py-5">
+            <i class="fas fa-inbox" style="font-size: 3rem; color: #d1d5db;"></i>
+            <p class="text-muted mt-3">暂无邮件模板</p>
+            <a href="{{ url_for('business_projects.detail.create_email_template') }}" class="btn btn-primary">
+                <i class="fas fa-plus"></i> 创建第一个模板
+            </a>
+        </div>
+    {% endif %}
+</div>
+
+<form id="deleteForm" method="POST" style="display: none;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+</form>
+
+<script>
+function deleteTemplate(id, name) {
+    if (confirm(`确定要删除模板 "${name}" 吗？此操作不可撤销。`)) {
+        const form = document.getElementById('deleteForm');
+        form.action = `/projects/detail/email/templates/${id}/delete`;
+        form.submit();
+    }
+}
+</script>
+{% endblock %}
+

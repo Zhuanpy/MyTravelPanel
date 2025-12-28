@@ -263,8 +263,287 @@
                 </form>
             </div>
         </div>
+        
+        {% if company %}
+        <!-- 联系人列表 -->
+        <div class="visa-card visa-mt-4">
+            <div class="visa-card-header visa-flex-between">
+                <h3>
+                    <i class="fas fa-address-book"></i> 联系人列表
+                </h3>
+                <button type="button" class="visa-btn visa-btn-success visa-btn-sm" onclick="showAddContactModal()">
+                    <i class="fas fa-plus"></i> 添加联系人
+                </button>
+            </div>
+            <div class="visa-card-body">
+                <div id="contactsContainer">
+                    <div class="visa-text-center" style="padding: 2rem; color: #94a3b8;">
+                        <i class="fas fa-spinner fa-spin"></i> 加载中...
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
     </div>
 </div>
+
+{% if company %}
+<!-- 添加/编辑联系人模态框 -->
+<div id="contactModal" class="visa-modal" style="display: none;">
+    <div class="visa-modal-dialog">
+        <div class="visa-modal-header" style="background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: white;">
+            <h3 class="visa-modal-title" style="color: white;" id="contactModalTitle">添加联系人</h3>
+            <button class="visa-modal-close" onclick="closeContactModal()" style="color: white; font-size: 1.5rem;">&times;</button>
+        </div>
+        <div class="visa-modal-body">
+            <form id="contactForm">
+                <input type="hidden" id="contactId" value="">
+                
+                <div class="visa-grid-2">
+                    <div class="visa-form-group">
+                        <label class="visa-form-label">姓名 <span style="color: #ef4444;">*</span></label>
+                        <input type="text" id="contactName" class="visa-form-control" required placeholder="联系人姓名">
+                    </div>
+                    <div class="visa-form-group">
+                        <label class="visa-form-label">职位</label>
+                        <input type="text" id="contactPosition" class="visa-form-control" placeholder="如：采购经理">
+                    </div>
+                </div>
+                
+                <div class="visa-grid-2">
+                    <div class="visa-form-group">
+                        <label class="visa-form-label">电话</label>
+                        <input type="text" id="contactPhone" class="visa-form-control" placeholder="联系电话">
+                    </div>
+                    <div class="visa-form-group">
+                        <label class="visa-form-label">邮箱</label>
+                        <input type="email" id="contactEmail" class="visa-form-control" placeholder="email@example.com">
+                    </div>
+                </div>
+                
+                <div class="visa-grid-2">
+                    <div class="visa-form-group">
+                        <label class="visa-form-label">微信</label>
+                        <input type="text" id="contactWechat" class="visa-form-control" placeholder="微信号">
+                    </div>
+                    <div class="visa-form-group">
+                        <label class="visa-form-label">主要联系人</label>
+                        <div style="padding-top: 0.5rem;">
+                            <label style="display: flex; align-items: center; cursor: pointer;">
+                                <input type="checkbox" id="contactIsPrimary" style="width: 18px; height: 18px; margin-right: 8px;">
+                                <span>设为主要联系人</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="visa-form-group">
+                    <label class="visa-form-label">备注</label>
+                    <textarea id="contactRemarks" class="visa-form-control" rows="2" placeholder="备注信息..."></textarea>
+                </div>
+            </form>
+        </div>
+        <div class="visa-modal-footer">
+            <button type="button" class="visa-btn visa-btn-secondary" onclick="closeContactModal()">取消</button>
+            <button type="button" class="visa-btn visa-btn-primary" onclick="saveContact()">保存</button>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 {% endblock %}
+
+{% if company %}
+{% block extra_js %}
+<script>
+const companyId = {{ company.id }};
+
+// 页面加载时获取联系人列表
+document.addEventListener('DOMContentLoaded', function() {
+    loadContacts();
+});
+
+// 加载联系人列表
+function loadContacts() {
+    fetch(`/company/${companyId}/contacts`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                displayContacts(data.contacts);
+            } else {
+                document.getElementById('contactsContainer').innerHTML = 
+                    '<div class="visa-text-center" style="padding: 2rem; color: #ef4444;">加载失败</div>';
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            document.getElementById('contactsContainer').innerHTML = 
+                '<div class="visa-text-center" style="padding: 2rem; color: #ef4444;">加载出错</div>';
+        });
+}
+
+// 显示联系人列表
+function displayContacts(contacts) {
+    const container = document.getElementById('contactsContainer');
+    
+    if (contacts.length === 0) {
+        container.innerHTML = `
+            <div class="visa-text-center" style="padding: 2rem; color: #94a3b8;">
+                <i class="fas fa-address-book" style="font-size: 2rem; margin-bottom: 0.5rem;"></i>
+                <p>暂无联系人</p>
+                <button type="button" class="visa-btn visa-btn-success visa-btn-sm" onclick="showAddContactModal()">
+                    <i class="fas fa-plus"></i> 添加第一个联系人
+                </button>
+            </div>
+        `;
+        return;
+    }
+    
+    let html = '<div class="visa-table-responsive"><table class="visa-table"><thead><tr>';
+    html += '<th style="width: 120px;">姓名</th>';
+    html += '<th style="width: 100px;">职位</th>';
+    html += '<th style="width: 130px;">电话</th>';
+    html += '<th>邮箱</th>';
+    html += '<th style="width: 100px;">微信</th>';
+    html += '<th style="width: 80px;">主要</th>';
+    html += '<th style="width: 120px;">操作</th>';
+    html += '</tr></thead><tbody>';
+    
+    contacts.forEach(contact => {
+        html += `<tr>
+            <td><strong>${contact.name}</strong></td>
+            <td>${contact.position || '-'}</td>
+            <td>${contact.phone || '-'}</td>
+            <td>${contact.email || '-'}</td>
+            <td>${contact.wechat || '-'}</td>
+            <td>${contact.is_primary ? '<span class="visa-badge visa-badge-success">主要</span>' : '-'}</td>
+            <td>
+                <div class="visa-flex visa-gap-1">
+                    <button type="button" class="visa-btn visa-btn-primary visa-btn-sm" onclick="editContact(${contact.id})" title="编辑">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button type="button" class="visa-btn visa-btn-danger visa-btn-sm" onclick="deleteContact(${contact.id})" title="删除">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </td>
+        </tr>`;
+    });
+    
+    html += '</tbody></table></div>';
+    container.innerHTML = html;
+}
+
+// 显示添加联系人模态框
+function showAddContactModal() {
+    document.getElementById('contactModalTitle').textContent = '添加联系人';
+    document.getElementById('contactId').value = '';
+    document.getElementById('contactForm').reset();
+    document.getElementById('contactModal').style.display = 'flex';
+}
+
+// 编辑联系人
+function editContact(contactId) {
+    fetch(`/company/${companyId}/contacts/${contactId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const c = data.contact;
+                document.getElementById('contactModalTitle').textContent = '编辑联系人';
+                document.getElementById('contactId').value = c.id;
+                document.getElementById('contactName').value = c.name || '';
+                document.getElementById('contactPosition').value = c.position || '';
+                document.getElementById('contactPhone').value = c.phone || '';
+                document.getElementById('contactEmail').value = c.email || '';
+                document.getElementById('contactWechat').value = c.wechat || '';
+                document.getElementById('contactIsPrimary').checked = c.is_primary;
+                document.getElementById('contactRemarks').value = c.remarks || '';
+                document.getElementById('contactModal').style.display = 'flex';
+            } else {
+                alert('获取联系人信息失败');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('获取联系人信息出错');
+        });
+}
+
+// 保存联系人
+function saveContact() {
+    const contactId = document.getElementById('contactId').value;
+    const name = document.getElementById('contactName').value.trim();
+    
+    if (!name) {
+        alert('请输入联系人姓名');
+        return;
+    }
+    
+    const data = {
+        name: name,
+        position: document.getElementById('contactPosition').value.trim(),
+        phone: document.getElementById('contactPhone').value.trim(),
+        email: document.getElementById('contactEmail').value.trim(),
+        wechat: document.getElementById('contactWechat').value.trim(),
+        is_primary: document.getElementById('contactIsPrimary').checked,
+        remarks: document.getElementById('contactRemarks').value.trim()
+    };
+    
+    const url = contactId 
+        ? `/company/${companyId}/contacts/${contactId}/update`
+        : `/company/${companyId}/contacts/add`;
+    
+    fetch(url, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            closeContactModal();
+            loadContacts();
+        } else {
+            alert('保存失败：' + result.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('保存联系人时出错');
+    });
+}
+
+// 删除联系人
+function deleteContact(contactId) {
+    if (!confirm('确定要删除这个联系人吗？')) {
+        return;
+    }
+    
+    fetch(`/company/${companyId}/contacts/${contactId}/delete`, {
+        method: 'POST'
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            loadContacts();
+        } else {
+            alert('删除失败：' + result.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('删除联系人时出错');
+    });
+}
+
+// 关闭模态框
+function closeContactModal() {
+    document.getElementById('contactModal').style.display = 'none';
+}
+</script>
+{% endblock %}
+{% endif %}
 
 
