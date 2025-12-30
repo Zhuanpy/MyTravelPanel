@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, jsonify, redirect, url_for, flash
+from flask import Blueprint, render_template, request, jsonify, redirect, url_for, flash, current_app
 from App_new.exts import db, csrf
 from App_new.business.tour.models.TourProject import TourGroup, TourItinerary, TourProject, TourProjectAttachment
 from flask import send_file
@@ -1103,23 +1103,26 @@ def save_attachment_file(file, project_id):
         original_filename = secure_filename(file.filename)
         name, ext = os.path.splitext(original_filename)
         unique_filename = f"{name}_{uuid.uuid4().hex[:8]}{ext}"
-        
-        # 确保上传目录存在
-        upload_folder = os.path.join('App_new', 'static', 'project_attachments', str(project_id))
+
+        # 使用 Flask 的 static_folder 获取正确的绝对路径
+        upload_folder = os.path.join(current_app.static_folder, 'project_attachments', str(project_id))
         if not os.path.exists(upload_folder):
             os.makedirs(upload_folder)
-        
-        # 保存文件
+
+        # 保存文件（使用绝对路径）
         file_path = os.path.join(upload_folder, unique_filename)
         file.save(file_path)
-        
+
         # 获取文件大小
         file_size = os.path.getsize(file_path)
-        
+
+        # 存储相对于 static 目录的路径，便于跨环境使用
+        relative_path = os.path.join('project_attachments', str(project_id), unique_filename)
+
         return {
             'original_filename': file.filename,
             'stored_filename': unique_filename,
-            'file_path': file_path,
+            'file_path': relative_path,  # 存储相对路径
             'file_size': file_size,
             'file_type': file.content_type
         }
@@ -1200,22 +1203,49 @@ def upload_attachment(project_id):
         return jsonify({'success': False, 'message': str(e)}), 500
 
 
+def get_attachment_full_path(attachment):
+    """获取附件的完整路径，兼容新旧两种路径格式"""
+    stored_path = attachment.file_path
+
+    # 新格式：相对路径 (project_attachments/69/xxx.docx)
+    file_path = os.path.join(current_app.static_folder, stored_path)
+    if os.path.exists(file_path):
+        return file_path
+
+    # 旧格式：包含 App_new 前缀 (App_new/static/project_attachments/69/xxx.docx)
+    # 尝试移除多余的前缀
+    if stored_path.startswith('App_new/static/') or stored_path.startswith('App_new\\static\\'):
+        relative_path = stored_path.replace('App_new/static/', '').replace('App_new\\static\\', '')
+        file_path = os.path.join(current_app.static_folder, relative_path)
+        if os.path.exists(file_path):
+            return file_path
+
+    # 尝试作为绝对路径直接访问
+    if os.path.exists(stored_path):
+        return stored_path
+
+    return None
+
+
 @tour_projects.route('/attachments/<int:attachment_id>/download', methods=['GET'])
 def download_attachment(attachment_id):
     """下载附件"""
     try:
         attachment = TourProjectAttachment.query.get_or_404(attachment_id)
-        
-        if not os.path.exists(attachment.file_path):
+
+        # 获取完整的文件路径（兼容新旧格式）
+        file_path = get_attachment_full_path(attachment)
+
+        if not file_path:
             flash('文件不存在', 'error')
             return redirect(url_for('tour_projects.edit_tour_project', project_id=attachment.project_id))
-        
+
         return send_file(
-            attachment.file_path,
+            file_path,
             as_attachment=True,
             download_name=attachment.filename
         )
-        
+
     except Exception as e:
         print(f"下载附件失败: {str(e)}")
         flash(f'下载失败：{str(e)}', 'error')
@@ -1227,16 +1257,19 @@ def view_attachment(attachment_id):
     """在线查看附件（主要用于PDF和图片）"""
     try:
         attachment = TourProjectAttachment.query.get_or_404(attachment_id)
-        
-        if not os.path.exists(attachment.file_path):
+
+        # 获取完整的文件路径（兼容新旧格式）
+        file_path = get_attachment_full_path(attachment)
+
+        if not file_path:
             return jsonify({'success': False, 'message': '文件不存在'}), 404
-        
+
         return send_file(
-            attachment.file_path,
+            file_path,
             as_attachment=False,
             download_name=attachment.filename
         )
-        
+
     except Exception as e:
         print(f"查看附件失败: {str(e)}")
         return jsonify({'success': False, 'message': str(e)}), 500
@@ -1249,10 +1282,13 @@ def delete_attachment(attachment_id):
     try:
         attachment = TourProjectAttachment.query.get_or_404(attachment_id)
         project_id = attachment.project_id
-        
+
+        # 获取完整的文件路径（兼容新旧格式）
+        file_path = get_attachment_full_path(attachment)
+
         # 删除物理文件
-        if os.path.exists(attachment.file_path):
-            os.remove(attachment.file_path)
+        if file_path and os.path.exists(file_path):
+            os.remove(file_path)
         
         # 删除数据库记录
         db.session.delete(attachment)
