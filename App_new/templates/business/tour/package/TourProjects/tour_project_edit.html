@@ -318,6 +318,12 @@
                                 </span>
                             </p>
                         </div>
+                        <div class="info-card">
+                            <h6>人均预算</h6>
+                            <p class="text-green-600 font-medium" style="{% if not group.budget_per_person %}color: #94a3b8; font-style: italic;{% endif %}">
+                                {% if group.budget_per_person %}S${{ "%.2f"|format(group.budget_per_person) }}{% else %}未设置{% endif %}
+                            </p>
+                        </div>
                     </div>
                     <!-- 详细信息 -->
                     <div class="grid grid-cols-1 gap-3">
@@ -433,6 +439,57 @@
         </div>
         {% endif %}
 
+        <!-- 项目附件区块 -->
+        <div class="bg-white rounded-2xl shadow-md overflow-hidden mt-6">
+            <div class="flex justify-between items-center p-4 bg-gray-50 border-b border-gray-200">
+                <h4 class="text-base font-semibold text-gray-700 flex items-center gap-2 m-0">
+                    <i class="fas fa-paperclip text-orange-500"></i> 项目附件
+                    <span class="text-xs text-gray-400 font-normal">（供应商报价、合同等文档）</span>
+                </h4>
+                <button type="button" onclick="showUploadModal()" class="inline-flex items-center gap-1 px-3 py-1.5 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors text-xs font-medium">
+                    <i class="fas fa-upload"></i> 上传文件
+                </button>
+            </div>
+            <div class="p-4">
+                <div id="attachmentsList">
+                    {% if attachments and attachments|length > 0 %}
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                        {% for attachment in attachments %}
+                        <div class="attachment-item flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-200 hover:bg-gray-100 transition-colors" data-id="{{ attachment.id }}">
+                            <div class="flex-shrink-0">
+                                <i class="fas {{ attachment.icon_class }} text-2xl"></i>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <p class="text-sm font-medium text-gray-800 truncate" title="{{ attachment.filename }}">{{ attachment.filename }}</p>
+                                <p class="text-xs text-gray-500">{{ attachment.file_size_display }} · {{ attachment.created_at.strftime('%Y-%m-%d') if attachment.created_at else '' }}</p>
+                            </div>
+                            <div class="flex gap-1">
+                                <a href="{{ url_for('tour_projects.view_attachment', attachment_id=attachment.id) }}" target="_blank" class="inline-flex items-center px-2 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600" title="查看">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                <a href="{{ url_for('tour_projects.download_attachment', attachment_id=attachment.id) }}" class="inline-flex items-center px-2 py-1 bg-green-500 text-white rounded text-xs hover:bg-green-600" title="下载">
+                                    <i class="fas fa-download"></i>
+                                </a>
+                                <button type="button" onclick="deleteAttachment({{ attachment.id }})" class="inline-flex items-center px-2 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600" title="删除">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-8 bg-gray-50 rounded-xl">
+                        <i class="fas fa-folder-open text-4xl text-gray-300 mb-3"></i>
+                        <p class="text-gray-500 mb-3">暂无附件</p>
+                        <button type="button" onclick="showUploadModal()" class="inline-flex items-center gap-1 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors text-sm font-medium">
+                            <i class="fas fa-upload"></i> 上传第一个文件
+                        </button>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
     </div>
 </div>
 
@@ -486,6 +543,10 @@
                             <option value="已完成">已完成</option>
                             <option value="已取消">已取消</option>
                         </select>
+                    </div>
+                    <div class="visa-form-group">
+                        <label class="visa-form-label">人均预算 (SGD)</label>
+                        <input type="number" name="budget_per_person" id="editGroupBudgetPerPerson" class="visa-form-control" step="0.01" min="0" placeholder="请输入人均预算">
                     </div>
                 </div>
                 <div class="visa-grid-2">
@@ -637,6 +698,34 @@
         <div class="visa-modal-footer">
             <button type="button" class="visa-btn visa-btn-secondary" onclick="closeModal('editItineraryModal')">取消</button>
             <button type="button" class="visa-btn visa-btn-primary" onclick="updateItinerary()">更新行程</button>
+        </div>
+    </div>
+</div>
+
+<!-- 上传附件模态框 -->
+<div id="uploadAttachmentModal" class="visa-modal" data-backdrop-close="false">
+    <div class="visa-modal-dialog">
+        <div class="visa-modal-header" style="background: linear-gradient(135deg, #f97316, #ea580c); color: white;">
+            <h3 class="visa-modal-title" style="color: white;"><i class="fas fa-upload mr-2"></i>上传附件</h3>
+            <button class="visa-modal-close" onclick="closeModal('uploadAttachmentModal')" style="color: white;">&times;</button>
+        </div>
+        <div class="visa-modal-body">
+            <form id="uploadAttachmentForm" enctype="multipart/form-data">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="visa-form-group">
+                    <label class="visa-form-label">选择文件 <span style="color: red;">*</span></label>
+                    <input type="file" name="file" id="attachmentFile" class="visa-form-control" required>
+                    <small class="text-gray-500">支持 PDF、Word、Excel、图片等常见格式，最大 50MB</small>
+                </div>
+                <div class="visa-form-group">
+                    <label class="visa-form-label">文件描述（可选）</label>
+                    <input type="text" name="description" id="attachmentDescription" class="visa-form-control" placeholder="例如：供应商A的报价单">
+                </div>
+            </form>
+        </div>
+        <div class="visa-modal-footer">
+            <button type="button" class="visa-btn visa-btn-secondary" onclick="closeModal('uploadAttachmentModal')">取消</button>
+            <button type="button" class="visa-btn visa-btn-primary" onclick="uploadAttachment()">上传</button>
         </div>
     </div>
 </div>
@@ -851,6 +940,7 @@ function editGroup(groupId) {
             document.getElementById('editGroupOperator').value = group.operator || '';
             document.getElementById('editGroupCode').value = group.group_code || '';
             document.getElementById('editGroupStatus').value = group.group_status || '计划中';
+            document.getElementById('editGroupBudgetPerPerson').value = group.budget_per_person || '';
             document.getElementById('editGroupIncludedItems').value = group.included_items || '';
             document.getElementById('editGroupExcludedItems').value = group.excluded_items || '';
             document.getElementById('editGroupImportantNotes').value = group.important_notes || '';
@@ -974,19 +1064,23 @@ function addItinerary(groupId) {
 
 // 自动生成行程
 function autoGenerateItineraries(groupId) {
-    const groupCard = document.querySelector(`[data-group-id="${groupId}"]`);
-    if (!groupCard) return;
-    
-    const infoCards = groupCard.querySelectorAll('.info-card');
+    // 从整个页面的团队信息区域查找日期（不是从 data-group-id 区域）
+    const allInfoCards = document.querySelectorAll('.info-card');
     let departureDateText = '';
     let returnDateText = '';
     
-    infoCards.forEach(card => {
+    allInfoCards.forEach(card => {
         const label = card.querySelector('h6');
-        const value = card.querySelector('.info-value');
+        const value = card.querySelector('p');
         if (label && value) {
-            if (label.textContent.includes('出发')) departureDateText = value.textContent.trim();
-            if (label.textContent.includes('返回')) returnDateText = value.textContent.trim();
+            const labelText = label.textContent.trim();
+            const valueText = value.textContent.trim();
+            if (labelText === '出发日期') {
+                departureDateText = valueText;
+            }
+            if (labelText === '返回日期') {
+                returnDateText = valueText;
+            }
         }
     });
     
@@ -995,8 +1089,27 @@ function autoGenerateItineraries(groupId) {
         return;
     }
     
-    const departureDate = new Date(departureDateText);
-    const returnDate = new Date(returnDateText);
+    // 解析日期，支持 YYYY-MM-DD 格式
+    const parseDate = (dateStr) => {
+        // 移除可能的额外文本（如"人"等）
+        const cleanDateStr = dateStr.replace(/[^\d-]/g, '').trim();
+        // 如果是 YYYY-MM-DD 格式，直接解析
+        if (/^\d{4}-\d{2}-\d{2}$/.test(cleanDateStr)) {
+            const [year, month, day] = cleanDateStr.split('-').map(Number);
+            return new Date(year, month - 1, day);
+        }
+        // 否则尝试标准日期解析
+        return new Date(cleanDateStr);
+    };
+    
+    const departureDate = parseDate(departureDateText);
+    const returnDate = parseDate(returnDateText);
+    
+    // 检查日期是否有效
+    if (isNaN(departureDate.getTime()) || isNaN(returnDate.getTime())) {
+        showAlert('日期格式不正确，请检查出发日期和返回日期', 'warning');
+        return;
+    }
     
     if (departureDate >= returnDate) {
         showAlert('返回日期必须晚于出发日期', 'warning');
@@ -1191,6 +1304,100 @@ function deleteItinerary(itineraryId) {
         .catch(error => {
             console.error('Error:', error);
             showAlert('删除行程时发生错误', 'danger');
+        });
+    }
+}
+
+// ========== 附件管理功能 ==========
+
+// 显示上传附件模态框
+function showUploadModal() {
+    document.getElementById('uploadAttachmentForm').reset();
+    showModal('uploadAttachmentModal');
+}
+
+// 上传附件
+function uploadAttachment() {
+    const form = document.getElementById('uploadAttachmentForm');
+    const fileInput = document.getElementById('attachmentFile');
+    
+    if (!fileInput.files || fileInput.files.length === 0) {
+        showAlert('请选择要上传的文件', 'warning');
+        return;
+    }
+    
+    const file = fileInput.files[0];
+    
+    // 检查文件大小（50MB限制）
+    if (file.size > 50 * 1024 * 1024) {
+        showAlert('文件大小不能超过50MB', 'warning');
+        return;
+    }
+    
+    const formData = new FormData(form);
+    
+    const uploadBtn = document.querySelector('#uploadAttachmentModal .visa-btn-primary');
+    const originalText = uploadBtn.textContent;
+    uploadBtn.textContent = '上传中...';
+    uploadBtn.disabled = true;
+    
+    fetch('{{ url_for("tour_projects.upload_attachment", project_id=project.id) }}', {
+        method: 'POST',
+        body: formData,
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('文件上传成功！', 'success');
+            closeModal('uploadAttachmentModal');
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showAlert('上传失败: ' + data.message, 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showAlert('上传文件时发生错误', 'danger');
+    })
+    .finally(() => {
+        uploadBtn.textContent = originalText;
+        uploadBtn.disabled = false;
+    });
+}
+
+// 删除附件
+function deleteAttachment(attachmentId) {
+    if (confirm('确定要删除这个附件吗？此操作不可撤销。')) {
+        const formData = new FormData();
+        formData.append('csrf_token', '{{ csrf_token() }}');
+        
+        fetch(`{{ url_for("tour_projects.delete_attachment", attachment_id=0) }}`.replace('0', attachmentId), {
+            method: 'POST',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showAlert('附件删除成功！', 'success');
+                // 从DOM中移除附件项
+                const attachmentItem = document.querySelector(`.attachment-item[data-id="${attachmentId}"]`);
+                if (attachmentItem) {
+                    attachmentItem.remove();
+                }
+                // 如果没有附件了，显示空状态
+                const remainingItems = document.querySelectorAll('.attachment-item');
+                if (remainingItems.length === 0) {
+                    setTimeout(() => location.reload(), 500);
+                }
+            } else {
+                showAlert('删除附件失败: ' + data.message, 'danger');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showAlert('删除附件时发生错误', 'danger');
         });
     }
 }

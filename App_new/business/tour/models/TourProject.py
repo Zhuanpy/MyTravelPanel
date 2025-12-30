@@ -24,6 +24,7 @@ class TourGroup(db.Model):
     created_by = db.Column(db.String(100), nullable=True, comment='创建人')
     group_code = db.Column(db.String(100), nullable=True, comment='团编号')
     group_status = db.Column(db.String(50), nullable=True, comment='团状态')
+    budget_per_person = db.Column(db.Float, nullable=True, comment='人均预算')
     included_items = db.Column(db.Text, nullable=True, comment='包含项目')
     excluded_items = db.Column(db.Text, nullable=True, comment='不包含项目')
     important_notes = db.Column(db.Text, nullable=True, comment='注意事项')
@@ -163,3 +164,63 @@ class TourProject(db.Model):
             "contact_info": self.contact_info,
             "remarks": self.remarks
         }
+
+
+class TourProjectAttachment(db.Model):
+    """旅游项目附件模型"""
+    __tablename__ = 'tour_project_attachment'
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    project_id = db.Column(db.Integer, db.ForeignKey('tour_project.id'), nullable=False, comment='所属项目')
+    filename = db.Column(db.String(255), nullable=False, comment='原始文件名')
+    stored_filename = db.Column(db.String(255), nullable=False, comment='存储文件名')
+    file_path = db.Column(db.String(500), nullable=False, comment='文件存储路径')
+    file_size = db.Column(db.Integer, nullable=True, comment='文件大小（字节）')
+    file_type = db.Column(db.String(100), nullable=True, comment='文件类型/MIME类型')
+    description = db.Column(db.String(500), nullable=True, comment='文件描述')
+    uploaded_by = db.Column(db.String(100), nullable=True, comment='上传人')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, comment='上传时间')
+
+    # 关联关系
+    project = db.relationship('TourProject', backref=db.backref('attachments', lazy='dynamic', cascade='all, delete-orphan'))
+
+    def __repr__(self):
+        return f'<TourProjectAttachment {self.filename}>'
+
+    @property
+    def file_size_display(self):
+        """格式化显示文件大小"""
+        if not self.file_size:
+            return '未知'
+        if self.file_size < 1024:
+            return f'{self.file_size} B'
+        elif self.file_size < 1024 * 1024:
+            return f'{self.file_size / 1024:.1f} KB'
+        else:
+            return f'{self.file_size / (1024 * 1024):.1f} MB'
+
+    @property
+    def file_extension(self):
+        """获取文件扩展名"""
+        import os
+        _, ext = os.path.splitext(self.filename)
+        return ext.lower() if ext else ''
+
+    @property
+    def icon_class(self):
+        """根据文件类型返回图标类名"""
+        ext = self.file_extension
+        if ext in ['.pdf']:
+            return 'fa-file-pdf text-red-500'
+        elif ext in ['.doc', '.docx']:
+            return 'fa-file-word text-blue-500'
+        elif ext in ['.xls', '.xlsx']:
+            return 'fa-file-excel text-green-500'
+        elif ext in ['.ppt', '.pptx']:
+            return 'fa-file-powerpoint text-orange-500'
+        elif ext in ['.jpg', '.jpeg', '.png', '.gif', '.webp']:
+            return 'fa-file-image text-purple-500'
+        elif ext in ['.zip', '.rar', '.7z']:
+            return 'fa-file-archive text-yellow-500'
+        else:
+            return 'fa-file text-gray-500'

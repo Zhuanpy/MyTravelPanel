@@ -267,6 +267,16 @@
                             <option value="paid" {{ 'selected' if filters.payment_status == 'paid' }}>已付款</option>
                         </select>
                     </div>
+                    <div class="filter-item">
+                        <label for="date_from" class="form-label">创建时间（起）</label>
+                        <input type="date" class="form-control filter-input" id="date_from" name="date_from" 
+                               value="{{ filters.date_from }}" placeholder="开始日期">
+                    </div>
+                    <div class="filter-item">
+                        <label for="date_to" class="form-label">创建时间（止）</label>
+                        <input type="date" class="form-control filter-input" id="date_to" name="date_to" 
+                               value="{{ filters.date_to }}" placeholder="结束日期">
+                    </div>
                     <div class="filter-item d-flex align-items-end">
                         <button type="submit" class="btn btn-primary w-100">
                             <i class="fas fa-search"></i> 筛选
@@ -292,9 +302,14 @@
                         {{ projects|length if projects else 0 }}
                     </span>
                 </h6>
-                <a href="{{ url_for('business_projects.project_create.create_header') }}" class="btn btn-primary btn-sm">
-                     <i class="fas fa-plus"></i> 新建项目
-                </a>
+                <div class="d-flex gap-2">
+                    <a href="{{ url_for('business_projects.list.export_excel', **filters) }}" class="btn btn-success btn-sm">
+                        <i class="fas fa-file-excel"></i> 导出Excel
+                    </a>
+                    <a href="{{ url_for('business_projects.project_create.create_header') }}" class="btn btn-primary btn-sm">
+                         <i class="fas fa-plus"></i> 新建项目
+                    </a>
+                </div>
             </div>
         </div>
 
@@ -392,6 +407,33 @@
                             </td>
                         </tr>
                         {% endfor %}
+                        <!-- 总计行 -->
+                        {% if projects and summary_stats %}
+                        <tr class="table-info fw-bold">
+                            <td colspan="6" class="text-end">总计：</td>
+                            <td>
+                                <span class="text-success">
+                                    S${{ "%.2f"|format(summary_stats.total_selling or 0) }}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="text-secondary">
+                                    S${{ "%.2f"|format(summary_stats.total_cost or 0) }}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="{% if (summary_stats.total_profit or 0) > 0 %}text-success{% elif (summary_stats.total_profit or 0) < 0 %}text-danger{% else %}text-muted{% endif %}">
+                                    S${{ "%.2f"|format(summary_stats.total_profit or 0) }}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="{% if (summary_stats.total_balance or 0) > 0 %}text-danger{% elif (summary_stats.total_balance or 0) < 0 %}text-success{% else %}text-muted{% endif %}">
+                                    S${{ "%.2f"|format(summary_stats.total_balance or 0) }}
+                                </span>
+                            </td>
+                            <td colspan="2"></td>
+                        </tr>
+                        {% endif %}
                     </tbody>
                 </table>
             </div>

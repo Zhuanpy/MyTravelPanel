@@ -4,7 +4,7 @@
 包含项目列表显示、筛选、分页等功能
 """
 
-from flask import Blueprint, render_template, request, flash, jsonify
+from flask import Blueprint, render_template, request, flash, jsonify, send_file, redirect
 from flask_login import login_required, current_user
 from App_new.exts import db, csrf
 from App_new.business.projects.models.project import ProjectHeader, CustomerCompany
@@ -15,6 +15,9 @@ from ..services.project_stats import ProjectStatsService
 from App_new.utils.decorators import staff_only
 from datetime import datetime
 import traceback
+import pandas as pd
+from io import BytesIO
+from openpyxl.utils import get_column_letter
 
 
 # 创建蓝图
@@ -562,6 +565,22 @@ def list_projects():
                 # 如果筛选失败，继续使用原始查询结果
                 pass
         
+        # 计算总计（成本、利润、未付款）
+        total_cost = sum(stats.get('total_cost_price', 0) for stats in project_stats.values())
+        total_profit = sum(stats.get('total_profit', 0) for stats in project_stats.values())
+        total_balance = sum(
+            (stats.get('total_selling_price', 0) - stats.get('total_received', 0))
+            for stats in project_stats.values()
+        )
+        total_selling = sum(stats.get('total_selling_price', 0) for stats in project_stats.values())
+        
+        summary_stats = {
+            'total_cost': total_cost,
+            'total_profit': total_profit,
+            'total_balance': total_balance,
+            'total_selling': total_selling
+        }
+        
         # 提供客户公司列表用于前端下拉选择
         companies = CustomerCompany.query.order_by(CustomerCompany.company_name).all()
 
@@ -571,6 +590,7 @@ def list_projects():
             project_stats=project_stats,
             pagination=pagination,
             total_stats=total_stats,
+            summary_stats=summary_stats,
             companies=companies,
             filters={
                 'status': status,
@@ -604,6 +624,7 @@ def list_projects():
             project_stats={},
             pagination=None,
             total_stats={},
+            summary_stats={'total_cost': 0, 'total_profit': 0, 'total_balance': 0, 'total_selling': 0},
             companies=[],
             filters={}
         )
@@ -657,3 +678,257 @@ def api_quick_filter(filter_type):
             'success': False,
             'error': str(e)
         }), 500
+
+@bp.route('/export/excel')
+@login_required
+@staff_only
+def export_excel():
+    """导出项目列表为Excel"""
+    try:
+        # 获取筛选参数（与list_projects相同）
+        status = request.args.get('status', '')
+        search = request.args.get('search', '')
+        company = request.args.get('company', '')
+        leader = request.args.get('leader', '')
+        contact = request.args.get('contact', '')
+        staff_name = request.args.get('staff_name', '')
+        date_from = request.args.get('date_from', '')
+        date_to = request.args.get('date_to', '')
+        selling_min = request.args.get('selling_min', '')
+        selling_max = request.args.get('selling_max', '')
+        profit_min = request.args.get('profit_min', '')
+        profit_max = request.args.get('profit_max', '')
+        balance_min = request.args.get('balance_min', '')
+        balance_max = request.args.get('balance_max', '')
+        payment_status = request.args.get('payment_status', '')
+        sort_by = request.args.get('sort_by', 'created_at_desc')
+        
+        # 构建查询（与list_projects相同逻辑）
+        base_query = ProjectHeader.query
+        base_query = base_query.options(db.joinedload(ProjectHeader.company))
+        
+        # 根据员工等级过滤项目
+        if current_user.role and current_user.role.name == 'staff':
+            staff_level = 1
+            if current_user.profile:
+                staff_level = current_user.profile.staff_level or 1
+            
+            if staff_level == 1:
+                user_full_name = current_user.profile.get_full_name() if current_user.profile else None
+                if user_full_name and user_full_name != "未设置姓名":
+                    base_query = base_query.filter(
+                        db.or_(
+                            ProjectHeader.staff_id == current_user.id,
+                            ProjectHeader.staff_name == current_user.username,
+                            ProjectHeader.staff_name == user_full_name
+                        )
+                    )
+                else:
+                    base_query = base_query.filter(
+                        db.or_(
+                            ProjectHeader.staff_id == current_user.id,
+                            ProjectHeader.staff_name == current_user.username
+                        )
+                    )
+        
+        # 应用筛选条件
+        if status:
+            base_query = base_query.filter(ProjectHeader.status == status)
+        if search:
+            search_lower = search.lower()
+            base_query = base_query.filter(
+                db.or_(
+                    ProjectHeader.hid.like(f'%{search_lower}%'),
+                    ProjectHeader.desc.like(f'%{search_lower}%'),
+                    ProjectHeader.contact.like(f'%{search_lower}%')
+                )
+            )
+        if company:
+            base_query = base_query.join(CustomerCompany).filter(
+                CustomerCompany.company_name.like(f'%{company}%')
+            )
+        if leader:
+            base_query = base_query.filter(ProjectHeader.leader_name.like(f'%{leader}%'))
+        if contact:
+            base_query = base_query.filter(ProjectHeader.contact.like(f'%{contact}%'))
+        if staff_name:
+            base_query = base_query.filter(ProjectHeader.staff_name.like(f'%{staff_name}%'))
+        
+        project_type = request.args.get('type', '')
+        if project_type:
+            base_query = base_query.filter(ProjectHeader.type == project_type)
+        
+        # 付款状态筛选
+        if payment_status:
+            refs_sum_subq = db.session.query(
+                ProjectRef.header_id.label('hid'),
+                db.func.coalesce(db.func.sum(ProjectRef.selling_price), 0).label('total_selling')
+            ).group_by(ProjectRef.header_id).subquery()
+            
+            receipts_sum_subq = db.session.query(
+                ProjectReceipt.header_id.label('hid'),
+                db.func.coalesce(db.func.sum(ProjectReceipt.amount), 0).label('total_received')
+            ).group_by(ProjectReceipt.header_id).subquery()
+            
+            totals_subq = db.session.query(
+                refs_sum_subq.c.hid.label('header_id'),
+                refs_sum_subq.c.total_selling.label('total_selling'),
+                db.func.coalesce(receipts_sum_subq.c.total_received, 0).label('total_received')
+            ).outerjoin(
+                receipts_sum_subq,
+                receipts_sum_subq.c.hid == refs_sum_subq.c.hid
+            ).subquery()
+            
+            if payment_status == 'unpaid':
+                condition = db.and_(
+                    totals_subq.c.total_selling > 0,
+                    (totals_subq.c.total_selling - totals_subq.c.total_received) > 0
+                )
+            elif payment_status == 'paid':
+                condition = db.and_(
+                    totals_subq.c.total_selling > 0,
+                    (totals_subq.c.total_selling - totals_subq.c.total_received) <= 0
+                )
+            else:
+                condition = None
+            
+            if condition is not None:
+                base_query = base_query.filter(
+                    ProjectHeader.id.in_(
+                        db.session.query(totals_subq.c.header_id).filter(condition)
+                    )
+                )
+        
+        if date_from:
+            base_query = base_query.filter(ProjectHeader.created_at >= date_from)
+        if date_to:
+            base_query = base_query.filter(ProjectHeader.created_at <= date_to + ' 23:59:59')
+        
+        # 应用排序
+        if sort_by == 'created_at_desc':
+            base_query = base_query.order_by(ProjectHeader.created_at.desc())
+        elif sort_by == 'created_at_asc':
+            base_query = base_query.order_by(ProjectHeader.created_at.asc())
+        elif sort_by == 'updated_at_desc':
+            base_query = base_query.order_by(ProjectHeader.updated_at.desc())
+        elif sort_by == 'updated_at_asc':
+            base_query = base_query.order_by(ProjectHeader.updated_at.asc())
+        else:
+            base_query = base_query.order_by(ProjectHeader.created_at.desc())
+        
+        # 获取所有符合条件的项目（不分页）
+        projects = base_query.all()
+        
+        # 批量获取项目统计信息
+        project_ids = [project.id for project in projects]
+        project_stats = {}
+        
+        if project_ids:
+            refs_data = db.session.query(
+                ProjectRef.header_id,
+                db.func.sum(ProjectRef.selling_price).label('total_selling'),
+                db.func.sum(ProjectRef.cost_price).label('total_cost')
+            ).filter(ProjectRef.header_id.in_(project_ids)).group_by(ProjectRef.header_id).all()
+            
+            receipts_data = db.session.query(
+                ProjectReceipt.header_id,
+                db.func.sum(ProjectReceipt.amount).label('total_received')
+            ).filter(ProjectReceipt.header_id.in_(project_ids)).group_by(ProjectReceipt.header_id).all()
+            
+            for project_id in project_ids:
+                ref_info = next((r for r in refs_data if r.header_id == project_id), None)
+                receipt_info = next((r for r in receipts_data if r.header_id == project_id), None)
+                
+                total_selling = float(ref_info.total_selling or 0) if ref_info else 0
+                total_cost = float(ref_info.total_cost or 0) if ref_info else 0
+                total_received = float(receipt_info.total_received or 0) if receipt_info else 0
+                
+                project_stats[project_id] = {
+                    'total_selling_price': total_selling,
+                    'total_cost_price': total_cost,
+                    'total_profit': total_selling - total_cost,
+                    'total_received': total_received,
+                    'balance': total_selling - total_received
+                }
+        
+        # 准备Excel数据
+        data = []
+        for project in projects:
+            stats = project_stats.get(project.id, {})
+            data.append({
+                '项目编号': project.hid or '',
+                '描述': project.desc or '',
+                '客户公司': project.company.company_name if project.company else '',
+                '联系人': project.contact or '',
+                '经办人': project.staff_name or '',
+                '类型': project.type or '综合',
+                '销售金额': stats.get('total_selling_price', 0),
+                '成本': stats.get('total_cost_price', 0),
+                '利润': stats.get('total_profit', 0),
+                '未付款': stats.get('balance', 0),
+                '创建时间': project.created_at.strftime('%Y-%m-%d %H:%M:%S') if project.created_at else '',
+                '状态': project.status or ''
+            })
+        
+        # 添加总计行
+        if data:
+            total_cost = sum(stats.get('total_cost_price', 0) for stats in project_stats.values())
+            total_profit = sum(stats.get('total_profit', 0) for stats in project_stats.values())
+            total_balance = sum(stats.get('balance', 0) for stats in project_stats.values())
+            
+            data.append({
+                '项目编号': '总计',
+                '描述': '',
+                '客户公司': '',
+                '联系人': '',
+                '经办人': '',
+                '类型': '',
+                '销售金额': '',
+                '成本': total_cost,
+                '利润': total_profit,
+                '未付款': total_balance,
+                '创建时间': '',
+                '状态': ''
+            })
+        
+        df = pd.DataFrame(data)
+        
+        # 创建Excel文件
+        output = BytesIO()
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            df.to_excel(writer, index=False, sheet_name='项目列表')
+            worksheet = writer.sheets['项目列表']
+            
+            # 设置列宽
+            for idx, col in enumerate(df.columns):
+                max_length = max(
+                    df[col].astype(str).apply(len).max() if len(df) > 0 else 0,
+                    len(col)
+                ) + 2
+                col_letter = get_column_letter(idx + 1)
+                worksheet.column_dimensions[col_letter].width = min(max_length, 50)
+            
+            # 设置总计行样式
+            if len(df) > 0:
+                from openpyxl.styles import Font, PatternFill
+                total_row = len(df)
+                for idx, cell in enumerate(worksheet[total_row]):
+                    cell.font = Font(bold=True)
+                    if idx == 0:  # 项目编号列
+                        cell.fill = PatternFill(start_color="E0E0E0", end_color="E0E0E0", fill_type="solid")
+        
+        output.seek(0)
+        filename = f'项目列表_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
+        
+        return send_file(
+            output,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name=filename
+        )
+        
+    except Exception as e:
+        flash(f'导出失败：{str(e)}', 'error')
+        import traceback
+        traceback.print_exc()
+        return redirect(url_for('business_projects.list.list_projects'))

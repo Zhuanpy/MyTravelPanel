@@ -1,6 +1,7 @@
 from flask import Blueprint, render_template, request, jsonify, redirect, url_for, flash
 from App_new.exts import db, csrf
-from App_new.business.tour.models.TourProject import TourGroup, TourItinerary, TourProject
+from App_new.business.tour.models.TourProject import TourGroup, TourItinerary, TourProject, TourProjectAttachment
+from flask import send_file
 from App_new.business.tour.models.Packagemodels import CompanyInfo
 from datetime import datetime
 import os
@@ -587,6 +588,9 @@ def edit_tour_group(group_id):
             group.created_by = request.form.get('created_by')
             group.group_code = request.form.get('group_code')
             group.group_status = request.form.get('group_status')
+            # 处理人均预算
+            budget_per_person_str = request.form.get('budget_per_person', '').strip()
+            group.budget_per_person = float(budget_per_person_str) if budget_per_person_str else None
             group.included_items = request.form.get('included_items')
             group.excluded_items = request.form.get('excluded_items')
             group.important_notes = request.form.get('important_notes')
@@ -653,6 +657,7 @@ def edit_tour_group(group_id):
             'operator': group.operator,
             'group_code': group.group_code,
             'group_status': group.group_status,
+            'budget_per_person': group.budget_per_person,
             'included_items': group.included_items,
             'excluded_items': group.excluded_items,
             'important_notes': group.important_notes
@@ -956,10 +961,19 @@ def edit_tour_project(project_id):
             print(f"⚠️ 获取预算单失败: {str(e)}")
             recent_budgets = []
         
+        # 获取项目附件
+        try:
+            attachments = TourProjectAttachment.query.filter_by(project_id=project_id).order_by(TourProjectAttachment.created_at.desc()).all()
+            print(f"✅ 找到 {len(attachments)} 个附件")
+        except Exception as e:
+            print(f"⚠️ 获取附件失败: {str(e)}")
+            attachments = []
+        
         return render_template('business/tour/package/TourProjects/tour_project_edit.html',
                              project=project, 
                              groups=groups,
-                             recent_budgets=recent_budgets)
+                             recent_budgets=recent_budgets,
+                             attachments=attachments)
     except Exception as e:
         import traceback
         error_msg = f"❌ 渲染项目编辑页面时出错: {str(e)}\n{traceback.format_exc()}"
@@ -1078,3 +1092,183 @@ def create_itinerary(group_id):
                 return redirect(url_for('tour_projects.edit_tour_project', project_id=group.project_id))
     
     return render_template('business/tour/package/TourProjects/create_itinerary.html', group=group)
+
+
+# ========== 附件管理路由 ==========
+
+def save_attachment_file(file, project_id):
+    """保存上传的附件文件"""
+    if file and file.filename:
+        # 生成唯一的文件名
+        original_filename = secure_filename(file.filename)
+        name, ext = os.path.splitext(original_filename)
+        unique_filename = f"{name}_{uuid.uuid4().hex[:8]}{ext}"
+        
+        # 确保上传目录存在
+        upload_folder = os.path.join('App_new', 'static', 'project_attachments', str(project_id))
+        if not os.path.exists(upload_folder):
+            os.makedirs(upload_folder)
+        
+        # 保存文件
+        file_path = os.path.join(upload_folder, unique_filename)
+        file.save(file_path)
+        
+        # 获取文件大小
+        file_size = os.path.getsize(file_path)
+        
+        return {
+            'original_filename': file.filename,
+            'stored_filename': unique_filename,
+            'file_path': file_path,
+            'file_size': file_size,
+            'file_type': file.content_type
+        }
+    return None
+
+
+@tour_projects.route('/project/<int:project_id>/attachments', methods=['GET'])
+def list_attachments(project_id):
+    """获取项目附件列表"""
+    project = TourProject.query.get_or_404(project_id)
+    attachments = TourProjectAttachment.query.filter_by(project_id=project_id).order_by(TourProjectAttachment.created_at.desc()).all()
+    
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        attachments_data = [{
+            'id': a.id,
+            'filename': a.filename,
+            'file_size': a.file_size_display,
+            'file_type': a.file_type,
+            'description': a.description,
+            'icon_class': a.icon_class,
+            'created_at': a.created_at.strftime('%Y-%m-%d %H:%M') if a.created_at else ''
+        } for a in attachments]
+        return jsonify({'success': True, 'attachments': attachments_data})
+    
+    return redirect(url_for('tour_projects.edit_tour_project', project_id=project_id))
+
+
+@tour_projects.route('/project/<int:project_id>/attachments/upload', methods=['POST'])
+@csrf.exempt
+def upload_attachment(project_id):
+    """上传项目附件"""
+    try:
+        project = TourProject.query.get_or_404(project_id)
+        
+        if 'file' not in request.files:
+            return jsonify({'success': False, 'message': '没有选择文件'}), 400
+        
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({'success': False, 'message': '没有选择文件'}), 400
+        
+        # 保存文件
+        file_info = save_attachment_file(file, project_id)
+        if not file_info:
+            return jsonify({'success': False, 'message': '文件保存失败'}), 500
+        
+        # 创建附件记录
+        attachment = TourProjectAttachment(
+            project_id=project_id,
+            filename=file_info['original_filename'],
+            stored_filename=file_info['stored_filename'],
+            file_path=file_info['file_path'],
+            file_size=file_info['file_size'],
+            file_type=file_info['file_type'],
+            description=request.form.get('description', '')
+        )
+        
+        db.session.add(attachment)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True, 
+            'message': '文件上传成功',
+            'attachment': {
+                'id': attachment.id,
+                'filename': attachment.filename,
+                'file_size': attachment.file_size_display,
+                'icon_class': attachment.icon_class,
+                'created_at': attachment.created_at.strftime('%Y-%m-%d %H:%M')
+            }
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"上传附件失败: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@tour_projects.route('/attachments/<int:attachment_id>/download', methods=['GET'])
+def download_attachment(attachment_id):
+    """下载附件"""
+    try:
+        attachment = TourProjectAttachment.query.get_or_404(attachment_id)
+        
+        if not os.path.exists(attachment.file_path):
+            flash('文件不存在', 'error')
+            return redirect(url_for('tour_projects.edit_tour_project', project_id=attachment.project_id))
+        
+        return send_file(
+            attachment.file_path,
+            as_attachment=True,
+            download_name=attachment.filename
+        )
+        
+    except Exception as e:
+        print(f"下载附件失败: {str(e)}")
+        flash(f'下载失败：{str(e)}', 'error')
+        return redirect(url_for('tour_projects.edit_tour_project', project_id=attachment.project_id))
+
+
+@tour_projects.route('/attachments/<int:attachment_id>/view', methods=['GET'])
+def view_attachment(attachment_id):
+    """在线查看附件（主要用于PDF和图片）"""
+    try:
+        attachment = TourProjectAttachment.query.get_or_404(attachment_id)
+        
+        if not os.path.exists(attachment.file_path):
+            return jsonify({'success': False, 'message': '文件不存在'}), 404
+        
+        return send_file(
+            attachment.file_path,
+            as_attachment=False,
+            download_name=attachment.filename
+        )
+        
+    except Exception as e:
+        print(f"查看附件失败: {str(e)}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@tour_projects.route('/attachments/<int:attachment_id>/delete', methods=['POST'])
+@csrf.exempt
+def delete_attachment(attachment_id):
+    """删除附件"""
+    try:
+        attachment = TourProjectAttachment.query.get_or_404(attachment_id)
+        project_id = attachment.project_id
+        
+        # 删除物理文件
+        if os.path.exists(attachment.file_path):
+            os.remove(attachment.file_path)
+        
+        # 删除数据库记录
+        db.session.delete(attachment)
+        db.session.commit()
+        
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': True, 'message': '附件删除成功'})
+        else:
+            flash('附件删除成功', 'success')
+            return redirect(url_for('tour_projects.edit_tour_project', project_id=project_id))
+            
+    except Exception as e:
+        db.session.rollback()
+        print(f"删除附件失败: {str(e)}")
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': False, 'message': str(e)}), 500
+        else:
+            flash(f'删除失败：{str(e)}', 'error')
+            return redirect(url_for('tour_projects.edit_tour_project', project_id=project_id))
