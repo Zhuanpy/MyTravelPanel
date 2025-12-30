@@ -338,6 +338,9 @@
                                 <i class="fas fa-images mr-1"></i>从图片库选择
                             </button>
                         </div>
+                        <small style="color: var(--visa-text-secondary); font-size: 0.75rem; display: block; margin-bottom: 0.5rem;">
+                            <i class="fas fa-info-circle"></i> 建议尺寸：1200 × 800 像素（宽 × 高），支持 JPG、PNG 格式
+                        </small>
                         <input type="hidden" id="selectedCoverImage" name="selected_cover_image">
                         {% if product and product.cover_image %}
                         <div class="visa-mt-2" id="coverImagePreview" style="position: relative; display: inline-block;">
@@ -362,8 +365,8 @@
                             </button>
                         </div>
                         <input type="hidden" id="selectedGalleryImages" name="selected_gallery_images">
-                        <small style="color: var(--visa-text-secondary); font-size: 0.75rem;">
-                            可以选择多张图片一次上传，或从图片库选择已有图片
+                        <small style="color: var(--visa-text-secondary); font-size: 0.75rem; display: block; margin-bottom: 0.5rem;">
+                            <i class="fas fa-info-circle"></i> 建议尺寸：1200 × 800 像素（宽 × 高），支持 JPG、PNG 格式。可以选择多张图片一次上传，或从图片库选择已有图片
                         </small>
                         {% if product and product.gallery_images %}
                         <div class="visa-flex visa-gap-2 visa-mt-2" style="flex-wrap: wrap;" id="galleryImagesContainer">
@@ -770,7 +773,7 @@
                         </div>
                     </div>
                     <small style="color: var(--visa-text-muted); display: block; margin-top: 0.5rem;">
-                        <i class="fas fa-info-circle"></i> 如需手动上传，支持 JPG、PNG、GIF 格式
+                        <i class="fas fa-info-circle"></i> 如需手动上传，建议尺寸：1200 × 800 像素（宽 × 高），支持 JPG、PNG、GIF 格式
                     </small>
                 </div>
             </form>

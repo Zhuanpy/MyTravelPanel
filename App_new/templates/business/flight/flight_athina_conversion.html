@@ -13,7 +13,7 @@
 <style>
     /* 页面专用样式 - 机票转换工具特定布局 */
     .athina-conversion-container {
-        max-width: 810px;
+        max-width: 1050px;
         margin: 0 auto;
         padding: 20px;
     }
@@ -106,6 +106,115 @@
         background: var(--visa-bg-hover);
     }
 
+    /* 记忆功能卡片样式 */
+    .memory-card {
+        background: white;
+        border: 1px solid var(--visa-border);
+        border-radius: var(--visa-radius-md);
+        margin-bottom: 1.5rem;
+    }
+
+    .memory-card-header {
+        background: linear-gradient(135deg, #6366f1, #4f46e5);
+        color: white;
+        padding: 0.75rem 1rem;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border-radius: var(--visa-radius-md) var(--visa-radius-md) 0 0;
+    }
+
+    .memory-card-header i {
+        margin-right: 0.5rem;
+    }
+
+    .memory-card-body {
+        padding: 0;
+        max-height: 300px;
+        overflow-y: auto;
+    }
+
+    .memory-item {
+        display: flex;
+        align-items: center;
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid var(--visa-border);
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .memory-item:last-child {
+        border-bottom: none;
+    }
+
+    .memory-item:hover {
+        background: var(--visa-bg-hover);
+    }
+
+    .memory-item-content {
+        flex: 1;
+        overflow: hidden;
+    }
+
+    .memory-item-title {
+        font-weight: 500;
+        color: var(--visa-text-primary);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        margin-bottom: 0.25rem;
+    }
+
+    .memory-item-meta {
+        font-size: 0.75rem;
+        color: var(--visa-text-muted);
+    }
+
+    .memory-item-delete {
+        background: none;
+        border: none;
+        color: #dc2626;
+        cursor: pointer;
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        transition: all 0.2s ease;
+        opacity: 0.6;
+    }
+
+    .memory-item-delete:hover {
+        background: #fee2e2;
+        opacity: 1;
+    }
+
+    .memory-empty {
+        padding: 2rem;
+        text-align: center;
+        color: var(--visa-text-muted);
+    }
+
+    .memory-empty i {
+        font-size: 2rem;
+        margin-bottom: 0.5rem;
+        display: block;
+    }
+
+    .clear-memory-btn {
+        background: none;
+        border: none;
+        color: rgba(255,255,255,0.8);
+        cursor: pointer;
+        font-size: 0.85rem;
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        transition: all 0.2s ease;
+    }
+
+    .clear-memory-btn:hover {
+        background: rgba(255,255,255,0.2);
+        color: white;
+    }
+
     /* 复制提示框 */
     .copy-toast {
         position: fixed;
@@ -161,7 +270,47 @@
         }
     }
 
+    /* 工具区域左右布局 */
+    .tool-layout {
+        display: flex;
+        gap: 1.5rem;
+        align-items: flex-start;
+    }
+
+    .tool-layout .memory-card {
+        width: 220px;
+        flex-shrink: 0;
+        position: sticky;
+        top: 20px;
+        margin-bottom: 0;
+    }
+
+    .tool-layout .tool-main-content {
+        flex: 1;
+        min-width: 600px;
+    }
+
+    /* 工具切换按钮与主内容对齐 */
+    .tool-switch-container {
+        margin-left: calc(220px + 1.5rem);
+    }
+
     /* 响应式设计 */
+    @media (max-width: 1024px) {
+        .tool-layout {
+            flex-direction: column;
+        }
+
+        .tool-layout .memory-card {
+            width: 100%;
+            position: static;
+        }
+
+        .tool-switch-container {
+            margin-left: 0;
+        }
+    }
+
     @media (max-width: 768px) {
         .athina-conversion-container {
             padding: 10px;
@@ -210,7 +359,26 @@
     <div class="tool-content-container">
         <!-- 机票行程转换工具 -->
         <div id="itineraryTool" class="tool-section active">
-            <div class="visa-card">
+            <div class="tool-layout">
+                <!-- 左侧记忆功能区域 -->
+                <div class="memory-card" id="itineraryMemoryCard">
+                    <div class="memory-card-header">
+                        <span><i class="fas fa-history"></i> 历史记录</span>
+                        <button class="clear-memory-btn" onclick="clearItineraryMemory()" title="清空记录">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                    </div>
+                    <div class="memory-card-body" id="itineraryMemoryList">
+                        <div class="memory-empty">
+                            <i class="fas fa-inbox"></i>
+                            <span>暂无历史记录</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 右侧主要内容 -->
+                <div class="tool-main-content">
+                    <div class="visa-card">
                 <h2 class="section-header">
                     <i class="fas fa-exchange-alt"></i>
                     机票行程转换
@@ -290,11 +458,32 @@
                 </div>
             </div>
         </div>
-        </div>
+        </div><!-- /tool-main-content -->
+            </div><!-- /tool-layout -->
+        </div><!-- /itineraryTool -->
 
         <!-- ATHINA 预订代码生成器工具 -->
         <div id="athinaTool" class="tool-section">
-            <div class="visa-card">
+            <div class="tool-layout">
+                <!-- 左侧记忆功能区域 -->
+                <div class="memory-card" id="athinaMemoryCard">
+                    <div class="memory-card-header">
+                        <span><i class="fas fa-history"></i> 历史记录</span>
+                        <button class="clear-memory-btn" onclick="clearAthinaMemory()" title="清空记录">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                    </div>
+                    <div class="memory-card-body" id="athinaMemoryList">
+                        <div class="memory-empty">
+                            <i class="fas fa-inbox"></i>
+                            <span>暂无历史记录</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 右侧主要内容 -->
+                <div class="tool-main-content">
+                    <div class="visa-card">
                 <h2 class="section-header">
                     <i class="fas fa-code"></i>
                     ATHINA 预订代码生成器
@@ -346,10 +535,12 @@
                 </div>
             </div>
         </div>
-        </div>
-    </div>
-    </div>
-</div>
+                </div><!-- /tool-main-content -->
+            </div><!-- /tool-layout -->
+        </div><!-- /athinaTool -->
+    </div><!-- /tool-content-container -->
+    </div><!-- /athina-conversion-container -->
+</div><!-- /container-fluid -->
 
 <!-- 添加提示框元素 -->
 <div id="copyToast" class="copy-toast">已复制到剪贴板</div>
@@ -357,7 +548,334 @@
 
 {% block extra_js %}
 <script>
+    // ========================================
+    // 记忆功能相关常量和函数
+    // ========================================
+    const MAX_MEMORY_ITEMS = 10;  // 最多保存10条记录
+    const ITINERARY_MEMORY_KEY = 'itinerary_conversion_memory';
+    const ATHINA_MEMORY_KEY = 'athina_code_memory';
+
+    // 获取记忆数据
+    function getMemory(key) {
+        try {
+            return JSON.parse(localStorage.getItem(key)) || [];
+        } catch (e) {
+            return [];
+        }
+    }
+
+    // 保存记忆数据
+    function saveMemory(key, data) {
+        localStorage.setItem(key, JSON.stringify(data));
+    }
+
+    // 格式化时间
+    function formatTime(timestamp) {
+        const date = new Date(timestamp);
+        const now = new Date();
+        const diff = now - date;
+        
+        if (diff < 60000) return '刚刚';
+        if (diff < 3600000) return Math.floor(diff / 60000) + '分钟前';
+        if (diff < 86400000) return Math.floor(diff / 3600000) + '小时前';
+        if (diff < 604800000) return Math.floor(diff / 86400000) + '天前';
+        
+        return date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' });
+    }
+
+    // ========================================
+    // 机票行程转换 - 记忆功能
+    // ========================================
+    
+    // 保存行程转换记忆
+    function saveItineraryMemory(inputText, luggage, price, language) {
+        if (!inputText || !inputText.trim()) return;
+        
+        const memory = getMemory(ITINERARY_MEMORY_KEY);
+        
+        // 提取行程摘要（取前50个字符作为标题）
+        const title = inputText.trim().substring(0, 50).replace(/\n/g, ' ') + (inputText.length > 50 ? '...' : '');
+        
+        // 检查是否已存在相同的输入
+        const existingIndex = memory.findIndex(item => item.inputText === inputText);
+        if (existingIndex !== -1) {
+            // 更新时间戳并移到最前面
+            memory.splice(existingIndex, 1);
+        }
+        
+        // 添加新记录到开头
+        memory.unshift({
+            id: Date.now(),
+            title: title,
+            inputText: inputText,
+            luggage: luggage || '',
+            price: price || '',
+            language: language || 'chinese',
+            timestamp: Date.now()
+        });
+        
+        // 只保留最近的N条
+        if (memory.length > MAX_MEMORY_ITEMS) {
+            memory.pop();
+        }
+        
+        saveMemory(ITINERARY_MEMORY_KEY, memory);
+        renderItineraryMemory();
+    }
+
+    // 渲染行程转换记忆列表
+    function renderItineraryMemory() {
+        const container = document.getElementById('itineraryMemoryList');
+        const memory = getMemory(ITINERARY_MEMORY_KEY);
+        
+        if (memory.length === 0) {
+            container.innerHTML = `
+                <div class="memory-empty">
+                    <i class="fas fa-inbox"></i>
+                    <span>暂无历史记录</span>
+                </div>
+            `;
+            return;
+        }
+        
+        container.innerHTML = memory.map(item => `
+            <div class="memory-item" onclick="loadItineraryMemory(${item.id})">
+                <div class="memory-item-content">
+                    <div class="memory-item-title">${escapeHtml(item.title)}</div>
+                    <div class="memory-item-meta">
+                        ${item.luggage ? '行李: ' + item.luggage + ' | ' : ''}
+                        ${item.price ? '价格: ' + item.price + ' | ' : ''}
+                        ${item.language === 'english' ? '英文' : '中文'} | 
+                        ${formatTime(item.timestamp)}
+                    </div>
+                </div>
+                <button class="memory-item-delete" onclick="deleteItineraryMemory(event, ${item.id})" title="删除">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        `).join('');
+    }
+
+    // 加载行程转换记忆
+    function loadItineraryMemory(id) {
+        const memory = getMemory(ITINERARY_MEMORY_KEY);
+        const item = memory.find(m => m.id === id);
+        
+        if (item) {
+            document.getElementById('input_text').value = item.inputText;
+            document.getElementById('luggage').value = item.luggage;
+            document.getElementById('price').value = item.price;
+            
+            // 设置语言选项
+            if (item.language === 'english') {
+                document.getElementById('english').checked = true;
+            } else {
+                document.getElementById('chinese').checked = true;
+            }
+            
+            // 同步行李下拉框
+            const luggageSelect = document.getElementById('luggage_select');
+            if (luggageSelect) {
+                for (let i = 0; i < luggageSelect.options.length; i++) {
+                    if (luggageSelect.options[i].value === item.luggage) {
+                        luggageSelect.selectedIndex = i;
+                        break;
+                    }
+                }
+            }
+            
+            // 显示提示
+            showToast('已加载历史记录');
+        }
+    }
+
+    // 删除行程转换记忆
+    function deleteItineraryMemory(event, id) {
+        event.stopPropagation();
+        
+        const memory = getMemory(ITINERARY_MEMORY_KEY);
+        const index = memory.findIndex(m => m.id === id);
+        
+        if (index !== -1) {
+            memory.splice(index, 1);
+            saveMemory(ITINERARY_MEMORY_KEY, memory);
+            renderItineraryMemory();
+        }
+    }
+
+    // 清空行程转换记忆
+    function clearItineraryMemory() {
+        if (confirm('确定要清空所有历史记录吗？')) {
+            localStorage.removeItem(ITINERARY_MEMORY_KEY);
+            renderItineraryMemory();
+        }
+    }
+
+    // ========================================
+    // ATHINA代码生成 - 记忆功能
+    // ========================================
+    
+    // 保存ATHINA记忆
+    function saveAthinaMemory(flights) {
+        if (!flights || flights.length === 0) return;
+        
+        const memory = getMemory(ATHINA_MEMORY_KEY);
+        
+        // 生成标题
+        const title = flights.map(f => f.flightDate + ' ' + f.flightNumber).join(' → ');
+        
+        // 生成唯一标识（用于去重）
+        const key = flights.map(f => f.flightDate + f.flightNumber).join('|');
+        
+        // 检查是否已存在相同的输入
+        const existingIndex = memory.findIndex(item => item.key === key);
+        if (existingIndex !== -1) {
+            // 更新时间戳并移到最前面
+            memory.splice(existingIndex, 1);
+        }
+        
+        // 添加新记录到开头
+        memory.unshift({
+            id: Date.now(),
+            key: key,
+            title: title,
+            flights: flights,
+            timestamp: Date.now()
+        });
+        
+        // 只保留最近的N条
+        if (memory.length > MAX_MEMORY_ITEMS) {
+            memory.pop();
+        }
+        
+        saveMemory(ATHINA_MEMORY_KEY, memory);
+        renderAthinaMemory();
+    }
+
+    // 渲染ATHINA记忆列表
+    function renderAthinaMemory() {
+        const container = document.getElementById('athinaMemoryList');
+        const memory = getMemory(ATHINA_MEMORY_KEY);
+        
+        if (memory.length === 0) {
+            container.innerHTML = `
+                <div class="memory-empty">
+                    <i class="fas fa-inbox"></i>
+                    <span>暂无历史记录</span>
+                </div>
+            `;
+            return;
+        }
+        
+        container.innerHTML = memory.map(item => `
+            <div class="memory-item" onclick="loadAthinaMemory(${item.id})">
+                <div class="memory-item-content">
+                    <div class="memory-item-title">${escapeHtml(item.title)}</div>
+                    <div class="memory-item-meta">
+                        ${item.flights.length}个航班 | ${formatTime(item.timestamp)}
+                    </div>
+                </div>
+                <button class="memory-item-delete" onclick="deleteAthinaMemory(event, ${item.id})" title="删除">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        `).join('');
+    }
+
+    // 加载ATHINA记忆
+    function loadAthinaMemory(id) {
+        const memory = getMemory(ATHINA_MEMORY_KEY);
+        const item = memory.find(m => m.id === id);
+        
+        if (item) {
+            const container = document.getElementById('inputContainer');
+            container.innerHTML = '';
+            
+            item.flights.forEach((flight, index) => {
+                const inputGroup = document.createElement('div');
+                inputGroup.className = 'visa-input-group-fixed';
+                inputGroup.dataset.id = index;
+                inputGroup.innerHTML = `
+                    <label>
+                        航班日期
+                        <input type="text" class="flightDate visa-form-control" placeholder="例如: 01JUN" 
+                               value="${flight.flightDate}" onblur="saveInput(this)" ondblclick="showDropdown(this)">
+                    </label>
+                    <label>
+                        航班号码
+                        <input type="text" class="flightNumber visa-form-control" placeholder="例如: TR 898" 
+                               value="${flight.flightNumber}" onblur="saveInput(this)" ondblclick="showDropdown(this)">
+                    </label>
+                    <div class="visa-flex visa-gap-1">
+                        <button class="visa-btn visa-btn-danger" onclick="removeInput(this)">删除</button>
+                        <button class="visa-btn visa-btn-success" onclick="addInput()">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                    </div>
+                `;
+                container.appendChild(inputGroup);
+                
+                // 为新添加的输入框添加实时输入处理
+                const newInputs = inputGroup.querySelectorAll('.flightDate, .flightNumber');
+                newInputs.forEach(input => {
+                    input.addEventListener('input', function() {
+                        this.value = this.value.replace(/\s/g, '').toUpperCase();
+                    });
+                });
+            });
+            
+            // 显示提示
+            showToast('已加载历史记录');
+        }
+    }
+
+    // 删除ATHINA记忆
+    function deleteAthinaMemory(event, id) {
+        event.stopPropagation();
+        
+        const memory = getMemory(ATHINA_MEMORY_KEY);
+        const index = memory.findIndex(m => m.id === id);
+        
+        if (index !== -1) {
+            memory.splice(index, 1);
+            saveMemory(ATHINA_MEMORY_KEY, memory);
+            renderAthinaMemory();
+        }
+    }
+
+    // 清空ATHINA记忆
+    function clearAthinaMemory() {
+        if (confirm('确定要清空所有历史记录吗？')) {
+            localStorage.removeItem(ATHINA_MEMORY_KEY);
+            renderAthinaMemory();
+        }
+    }
+
+    // ========================================
+    // 工具函数
+    // ========================================
+    
+    // HTML转义
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    // 显示Toast提示
+    function showToast(message) {
+        const toast = document.getElementById('copyToast');
+        toast.textContent = message;
+        toast.classList.add('show');
+        setTimeout(() => {
+            toast.classList.remove('show');
+            toast.textContent = '已复制到剪贴板';
+        }, 1000);
+    }
+
+    // ========================================
     // 工具切换功能
+    // ========================================
     function switchTool(toolName) {
         // 移除所有按钮的active类
         document.querySelectorAll('.tool-switch-btn').forEach(btn => {
@@ -376,9 +894,13 @@
         document.getElementById(toolName + 'Tool').classList.add('active');
     }
 
-    // 页面加载时默认显示机票行程转换工具
+    // 页面加载时初始化
     document.addEventListener('DOMContentLoaded', function() {
         switchTool('itinerary');
+        
+        // 初始化记忆列表
+        renderItineraryMemory();
+        renderAthinaMemory();
     });
 
     // 行程转换相关功能
@@ -492,6 +1014,13 @@
                              console.log('Success, updating output text');
                              // 更新输出文本
                              document.getElementById('output_text').value = data.output_text;
+                             
+                             // 保存到记忆
+                             const inputText = document.getElementById('input_text').value;
+                             const luggage = document.getElementById('luggage').value;
+                             const price = document.getElementById('price').value;
+                             const language = document.querySelector('input[name="language"]:checked').value;
+                             saveItineraryMemory(inputText, luggage, price, language);
                              
                              // 检查输出文本中是否包含"未知机场"
                              if (data.output_text.includes('未知机场') || data.output_text.includes('Unknown Airport')) {
@@ -805,6 +1334,8 @@
                 }
             } else {
                 textarea.value = result.itinerary;
+                // 保存到记忆
+                saveAthinaMemory(data);
             }
         })
         .catch(error => {

@@ -485,8 +485,28 @@ def send_project_email(project_id):
         
         # 发送邮件
         try:
+            # 检查邮件配置
+            mail_server = current_app.config.get('MAIL_SERVER')
+            mail_username = current_app.config.get('MAIL_USERNAME')
+            mail_password = current_app.config.get('MAIL_PASSWORD')
+            mail_port = current_app.config.get('MAIL_PORT')
+            mail_use_ssl = current_app.config.get('MAIL_USE_SSL', False)
+            mail_use_tls = current_app.config.get('MAIL_USE_TLS', False)
+            
+            # 记录配置信息（用于调试，不记录密码）
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.info(f"邮件发送配置检查 - 服务器: {mail_server}, 端口: {mail_port}, SSL: {mail_use_ssl}, TLS: {mail_use_tls}, 用户名: {mail_username}")
+            
+            if not mail_server:
+                raise ValueError('邮件服务器(MAIL_SERVER)未配置，请检查环境变量或配置文件')
+            if not mail_username:
+                raise ValueError('邮件用户名(MAIL_USERNAME)未配置，请检查环境变量或配置文件')
+            if not mail_password:
+                raise ValueError('邮件密码(MAIL_PASSWORD)未配置，请检查环境变量或配置文件')
+            
             mail = Mail(current_app)
-            sender_email = current_app.config.get('MAIL_DEFAULT_SENDER') or current_app.config.get('MAIL_USERNAME', 'noreply@mytravelpanel.com')
+            sender_email = current_app.config.get('MAIL_DEFAULT_SENDER') or mail_username
             
             # 处理邮件正文：将换行符转换为HTML格式
             # 检查是否包含HTML标签（简单判断）
@@ -521,7 +541,9 @@ def send_project_email(project_id):
                         f.read()
                     )
             
+            logger.info(f"准备发送邮件 - 主题: {subject}, 收件人: {recipients}, 抄送: {cc}")
             mail.send(msg)
+            logger.info("邮件发送成功")
             
             # 更新发送状态
             email_record.status = 'sent'
@@ -543,8 +565,33 @@ def send_project_email(project_id):
             })
             
         except Exception as mail_error:
+            import traceback
+            import logging
+            logger = logging.getLogger(__name__)
+            
+            # 记录详细错误信息
+            error_detail = str(mail_error)
+            error_traceback = traceback.format_exc()
+            logger.error(f"邮件发送失败 - 错误: {error_detail}")
+            logger.error(f"错误堆栈: {error_traceback}")
+            
+            # 检查常见错误原因并提供友好提示
+            error_message = f'邮件发送失败：{error_detail}'
+            
+            # 常见错误提示
+            if 'timeout' in error_detail.lower() or 'timed out' in error_detail.lower():
+                error_message += '。可能原因：网络连接超时，请检查服务器是否能访问SMTP服务器'
+            elif 'connection' in error_detail.lower() or 'refused' in error_detail.lower():
+                error_message += '。可能原因：无法连接到SMTP服务器，请检查网络连接和防火墙设置'
+            elif 'authentication' in error_detail.lower() or 'login' in error_detail.lower() or '535' in error_detail:
+                error_message += '。可能原因：邮箱账号或密码错误，请检查MAIL_USERNAME和MAIL_PASSWORD配置'
+            elif 'ssl' in error_detail.lower() or 'certificate' in error_detail.lower():
+                error_message += '。可能原因：SSL/TLS证书验证失败，请检查MAIL_USE_SSL和MAIL_USE_TLS配置'
+            elif '550' in error_detail or '553' in error_detail:
+                error_message += '。可能原因：邮件被拒绝，请检查发件人地址和收件人地址是否正确'
+            
             email_record.status = 'failed'
-            email_record.error_message = str(mail_error)
+            email_record.error_message = error_detail
             db.session.commit()
             
             # 清理临时文件
@@ -555,7 +602,7 @@ def send_project_email(project_id):
                 except:
                     pass
             
-            return jsonify({'success': False, 'message': f'邮件发送失败：{str(mail_error)}'}), 500
+            return jsonify({'success': False, 'message': error_message}), 500
         
     except Exception as e:
         db.session.rollback()
