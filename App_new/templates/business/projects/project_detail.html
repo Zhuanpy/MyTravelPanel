@@ -1510,6 +1510,13 @@ document.getElementById('invoiceModal')?.addEventListener('click', function(e) {
             <!-- 抄送 -->
             <div class="mb-3">
                 <label class="form-label"><i class="fas fa-copy"></i> 抄送 (CC)</label>
+                <!-- 快捷选择 -->
+                <div class="mb-2" style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
+                    <label style="display: flex; align-items: center; gap: 0.25rem; padding: 0.25rem 0.5rem; background: #f3f4f6; border-radius: 4px; cursor: pointer; font-size: 0.85rem;">
+                        <input type="checkbox" class="cc-checkbox" value="zhangzhuan@joyesc.com" onchange="updateCcField()">
+                        <span>zhangzhuan@joyesc.com</span>
+                    </label>
+                </div>
                 <input type="text" id="emailCc" class="form-control" placeholder="多个邮箱用逗号分隔">
             </div>
             
@@ -1778,6 +1785,27 @@ function updateRecipientsDisplay() {
 function removeRecipient(index) {
     emailRecipients.splice(index, 1);
     updateRecipientsDisplay();
+}
+
+// 更新CC字段（根据复选框状态）
+function updateCcField() {
+    const ccInput = document.getElementById('emailCc');
+    const checkboxes = document.querySelectorAll('.cc-checkbox');
+    const currentEmails = ccInput.value.split(',').map(e => e.trim()).filter(e => e);
+
+    checkboxes.forEach(checkbox => {
+        const email = checkbox.value;
+        const isChecked = checkbox.checked;
+        const emailIndex = currentEmails.indexOf(email);
+
+        if (isChecked && emailIndex === -1) {
+            currentEmails.push(email);
+        } else if (!isChecked && emailIndex > -1) {
+            currentEmails.splice(emailIndex, 1);
+        }
+    });
+
+    ccInput.value = currentEmails.join(', ');
 }
 
 // 处理文件选择

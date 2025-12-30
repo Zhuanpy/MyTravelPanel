@@ -727,8 +727,11 @@ def tour_package_detail(package_id):
             'product_type': product.product_type,
             'supplier': product.display_company_name
         }
-        
-        return render_template('guest/tour/tour_package_detail.html', package=package_data)
+
+        # 获取公司联系信息
+        company_info = CompanyInfo.query.first()
+
+        return render_template('guest/tour/tour_package_detail.html', package=package_data, company=company_info)
     except Exception as e:
         current_app.logger.error(f"加载旅游配套详情失败: {e}")
         import traceback
