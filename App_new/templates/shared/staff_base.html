@@ -34,16 +34,18 @@
         <div class="container-fluid">
             <a class="navbar-brand" href="{{ url_for('public.index') }}" style="position: relative;">
                 <div class="logo-container">
-                   {% if company and company.logo_path %}
-                   <img src="{{ url_for('static', filename=company.logo_path) }}" 
-                        alt="{{ company.company_name }}" height="40"
+                   {# 优先使用 get_company_info() 函数获取公司信息，避免被其他模板的 company 变量覆盖 #}
+                   {% set own_company = get_company_info() if get_company_info else (company if company and hasattr(company, 'logo_path') and hasattr(company, 'company_name_cn') else None) %}
+                   {% if own_company and own_company.logo_path %}
+                   <img src="{{ url_for('static', filename=own_company.logo_path) }}" 
+                        alt="{{ own_company.company_name }}" height="40"
                         onerror="this.onerror=null; this.src='{{ url_for('static', filename='JE/LOGO.jpg') }}';">
                    {% else %}
                    <img src="{{ url_for('static', filename='JE/LOGO.jpg') }}" alt="Company Logo" height="40">
                    {% endif %}
                    <div class="logo-text">
-                       <div class="logo-chinese">{{ company.company_name_cn if company else '' }}</div>
-                       <div class="logo-english">{{ company.company_short_name.upper() if company and company.company_short_name else '' }}</div>
+                       <div class="logo-chinese">{{ own_company.company_name_cn if own_company else '' }}</div>
+                       <div class="logo-english">{{ own_company.company_short_name.upper() if own_company and own_company.company_short_name else '' }}</div>
                    </div>
                 </div>
                 <span class="badge bg-light text-success" style="position: absolute; top: -5px; right: -10px; font-size: 10px; padding: 2px 5px;">员工版</span>

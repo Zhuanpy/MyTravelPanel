@@ -424,7 +424,12 @@ def create_app():
                 print(traceback.format_exc())
                 return None
         
-        return dict(get_company_info=get_company_info)
+        # 同时返回函数和直接值，确保兼容性
+        company_info = get_company_info()
+        return dict(
+            get_company_info=get_company_info,
+            company=company_info
+        )
 
     # 统一设置响应编码
     @app.after_request
