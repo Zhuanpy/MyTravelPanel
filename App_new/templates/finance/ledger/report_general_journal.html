@@ -1,0 +1,187 @@
+{% extends "staff_base.html" %}
+
+{% block title %}General Journal - MyTravelPanel{% endblock %}
+
+{% block page_title %}General Journal{% endblock %}
+
+{% block extra_css %}
+<style>
+    .report-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+
+    .report-header {
+        text-align: center;
+        margin-bottom: 30px;
+        padding-bottom: 20px;
+        border-bottom: 2px solid #333;
+    }
+
+    .filter-section {
+        background: #f8f9fa;
+        padding: 15px;
+        border-radius: 5px;
+        margin-bottom: 20px;
+    }
+
+    .journal-table {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        overflow: hidden;
+    }
+
+    .journal-table th {
+        background-color: #343a40;
+        color: white;
+    }
+
+    .entry-header {
+        background-color: #e9ecef;
+        font-weight: 600;
+    }
+
+    .line-row td {
+        padding-left: 40px !important;
+    }
+
+    .amount-cell {
+        text-align: right;
+        font-family: monospace;
+    }
+
+    .debit-amount { color: #1976d2; }
+    .credit-amount { color: #388e3c; }
+
+    .total-row {
+        background-color: #343a40;
+        color: white;
+        font-weight: bold;
+    }
+
+    .entry-number {
+        font-family: monospace;
+        font-weight: 500;
+    }
+
+    .badge-invoice { background-color: #17a2b8; }
+    .badge-receipt { background-color: #28a745; }
+    .badge-eo { background-color: #dc3545; }
+    .badge-manual { background-color: #6c757d; }
+
+    @media print {
+        .filter-section { display: none !important; }
+        .journal-table { box-shadow: none; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="report-container">
+    <!-- Filter -->
+    <div class="filter-section">
+        <form class="row g-3" method="GET">
+            <div class="col-md-2">
+                <label class="form-label">Start Date</label>
+                <input type="date" class="form-control" name="start_date" value="{{ start_date }}">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">End Date</label>
+                <input type="date" class="form-control" name="end_date" value="{{ end_date }}">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Source Type</label>
+                <select class="form-select" name="source_type">
+                    <option value="">All</option>
+                    <option value="invoice" {% if current_source_type == 'invoice' %}selected{% endif %}>Invoice</option>
+                    <option value="receipt" {% if current_source_type == 'receipt' %}selected{% endif %}>Receipt</option>
+                    <option value="eo" {% if current_source_type == 'eo' %}selected{% endif %}>EO</option>
+                    <option value="manual" {% if current_source_type == 'manual' %}selected{% endif %}>Manual</option>
+                </select>
+            </div>
+            <div class="col-md-4 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary me-2">
+                    <i class="fas fa-sync"></i> Generate
+                </button>
+                <button type="button" class="btn btn-outline-secondary" onclick="window.print()">
+                    <i class="fas fa-print"></i> Print
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Report Header -->
+    <div class="report-header">
+        <h2>General Journal</h2>
+        <p class="text-muted">Period: {{ start_date }} to {{ end_date }}</p>
+    </div>
+
+    <!-- Journal Table -->
+    <div class="journal-table">
+        <table class="table mb-0">
+            <thead>
+                <tr>
+                    <th width="12%">Date</th>
+                    <th width="28%">Account / Description</th>
+                    <th width="20%">Reference</th>
+                    <th width="15%" class="text-end">Debit</th>
+                    <th width="15%" class="text-end">Credit</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for entry in entries %}
+                <!-- Entry Header -->
+                <tr class="entry-header">
+                    <td>{{ entry.entry_date.strftime('%Y-%m-%d') if entry.entry_date else '-' }}</td>
+                    <td>
+                        <span class="entry-number">{{ entry.entry_number }}</span>
+                        - {{ entry.description or 'No description' }}
+                    </td>
+                    <td>
+                        <span class="badge badge-{{ entry.source_type }}">{{ entry.source_type }}</span>
+                        {{ entry.source_number or '' }}
+                    </td>
+                    <td></td>
+                    <td></td>
+                </tr>
+                <!-- Entry Lines -->
+                {% for line in entry.lines %}
+                <tr class="line-row">
+                    <td></td>
+                    <td>
+                        <code>{{ line.account.code if line.account else '???' }}</code>
+                        {{ line.account.name if line.account else 'Unknown Account' }}
+                        {% if line.memo %}<small class="text-muted">({{ line.memo }})</small>{% endif %}
+                    </td>
+                    <td></td>
+                    <td class="amount-cell debit-amount">
+                        {% if line.debit and line.debit > 0 %}{{ '{:,.2f}'.format(line.debit|float) }}{% endif %}
+                    </td>
+                    <td class="amount-cell credit-amount">
+                        {% if line.credit and line.credit > 0 %}{{ '{:,.2f}'.format(line.credit|float) }}{% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+                {% else %}
+                <tr>
+                    <td colspan="5" class="text-center text-muted py-4">
+                        No journal entries found for this period
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            {% if entries %}
+            <tfoot>
+                <tr class="total-row">
+                    <td colspan="3" class="text-end">Period Total:</td>
+                    <td class="amount-cell">{{ '{:,.2f}'.format(total_debit|float) }}</td>
+                    <td class="amount-cell">{{ '{:,.2f}'.format(total_credit|float) }}</td>
+                </tr>
+            </tfoot>
+            {% endif %}
+        </table>
+    </div>
+</div>
+{% endblock %}

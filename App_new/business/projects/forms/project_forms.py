@@ -268,8 +268,10 @@ class ProjectHeaderForm(FlaskForm):
 
     def __init__(self, *args, **kwargs):
         super(ProjectHeaderForm, self).__init__(*args, **kwargs)
-        # 动态加载公司选项，第一项为空占位符
-        companies = CustomerCompany.query.filter_by(status='active').order_by(CustomerCompany.company_name).all()
+        # 动态加载公司选项，包含 active 和 inactive 状态（排除 suspended）
+        companies = CustomerCompany.query.filter(
+            CustomerCompany.status.in_(['active', 'inactive'])
+        ).order_by(CustomerCompany.company_name).all()
         self.company_id.choices = [(-1, '请选择公司')] + [(0, '个人')] + [(c.id, c.company_name) for c in companies]
 
         # 如果是编辑模式，移除项目编号的长度验证

@@ -40,9 +40,11 @@ def header_detail(header_id):
     
     # 获取公司信息（通过backref自动关联）
     company = header.company
-    
-    # 获取所有活跃的公司列表供选择
-    companies = CustomerCompany.query.filter_by(status='active').order_by(CustomerCompany.company_name).all()
+
+    # 获取所有公司列表供选择（包含 active 和 inactive，排除 suspended）
+    companies = CustomerCompany.query.filter(
+        CustomerCompany.status.in_(['active', 'inactive'])
+    ).order_by(CustomerCompany.company_name).all()
     
     return render_template('business/projects/project_header/header_detail.html', 
                          header=header, 

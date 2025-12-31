@@ -889,23 +889,27 @@ def send_verification_code_email(email, verification_code):
         from flask_mail import Message
         from flask import current_app
         from ...exts import mail
-        
+
         # 检查邮件配置
         if not current_app.config.get('MAIL_SERVER'):
             print("❌ 邮件服务器未配置")
             return False
-        
+
         if not current_app.config.get('MAIL_USERNAME') or not current_app.config.get('MAIL_PASSWORD'):
             print("❌ 邮件用户名或密码未配置")
             return False
-        
+
+        # 构建发件人（包含显示名称）
+        sender_email = current_app.config.get('MAIL_DEFAULT_SENDER') or current_app.config.get('MAIL_USERNAME')
+        sender_str = f"悦行假期 Joyeful Escapes <{sender_email}>"
+
         print(f"📧 正在发送验证码到: {email}")
         print(f"🔧 邮件服务器: {current_app.config.get('MAIL_SERVER')}")
-        print(f"👤 发件人: {current_app.config.get('MAIL_USERNAME')}")
-        
+        print(f"👤 发件人: {sender_str}")
+
         msg = Message(
-            subject='悦行假期 - 邮箱验证码',
-            sender=current_app.config.get('MAIL_DEFAULT_SENDER', current_app.config.get('MAIL_USERNAME')),
+            subject='【悦行假期】邮箱验证码',
+            sender=sender_str,
             recipients=[email],
             html=f"""
             <html>
@@ -953,51 +957,81 @@ def send_verification_email(email, token, first_name):
     """发送邮箱验证邮件"""
     try:
         from flask_mail import Message
+        from flask import current_app
         from ...exts import mail
-        
+
         verification_url = url_for('auth_profile.verify_email', token=token, _external=True)
-        
+
+        # 构建发件人（包含显示名称）
+        sender_email = current_app.config.get('MAIL_DEFAULT_SENDER') or current_app.config.get('MAIL_USERNAME')
+        sender_str = f"悦行假期 Joyeful Escapes <{sender_email}>"
+
         msg = Message(
-            subject='MyTravelPanel - 邮箱验证',
+            subject='【悦行假期】邮箱验证',
+            sender=sender_str,
             recipients=[email],
             html=f"""
+            <!DOCTYPE html>
             <html>
-            <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-                <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
-                    <div style="text-align: center; margin-bottom: 30px;">
-                        <h1 style="color: #007bff;">MyTravelPanel</h1>
-                    </div>
-                    
-                    <div style="background: #f8f9fa; padding: 30px; border-radius: 10px; margin-bottom: 20px;">
-                        <h2 style="color: #007bff; margin-bottom: 20px;">欢迎加入MyTravelPanel！</h2>
-                        <p>亲爱的 {first_name}，</p>
-                        <p>感谢您注册MyTravelPanel会员账户。为了确保账户安全，请点击下面的按钮验证您的邮箱地址：</p>
-                        
-                        <div style="text-align: center; margin: 30px 0;">
-                            <a href="{verification_url}" 
-                               style="background: #007bff; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">
-                               验证邮箱地址
-                            </a>
-                        </div>
-                        
-                        <p>如果按钮无法点击，请复制以下链接到浏览器中打开：</p>
-                        <p style="word-break: break-all; background: #e9ecef; padding: 10px; border-radius: 5px; font-family: monospace;">
-                            {verification_url}
-                        </p>
-                        
-                        <p><strong>注意：</strong>此验证链接将在24小时后失效。</p>
-                    </div>
-                    
-                    <div style="text-align: center; color: #666; font-size: 14px;">
-                        <p>此邮件由系统自动发送，请勿回复。</p>
-                        <p>如有疑问，请联系客服：support@mytravelpanel.com</p>
-                    </div>
-                </div>
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            </head>
+            <body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f5f5f5;">
+                <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+                    <!-- Header -->
+                    <tr>
+                        <td style="background: linear-gradient(135deg, #28a745 0%, #34ce57 100%); padding: 40px 30px; text-align: center; border-radius: 10px 10px 0 0;">
+                            <div style="width: 70px; height: 70px; background: rgba(255,255,255,0.2); border-radius: 50%; margin: 0 auto 15px; display: flex; align-items: center; justify-content: center;">
+                                <span style="font-size: 32px;">✉️</span>
+                            </div>
+                            <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 600;">邮箱验证</h1>
+                            <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0; font-size: 14px;">悦行假期 Joyeful Escapes</p>
+                        </td>
+                    </tr>
+
+                    <!-- Content -->
+                    <tr>
+                        <td style="padding: 40px 30px; background-color: #ffffff; border-left: 1px solid #e9ecef; border-right: 1px solid #e9ecef;">
+                            <p style="color: #333; font-size: 16px; margin: 0 0 20px;">亲爱的 <strong>{first_name}</strong>，</p>
+
+                            <p style="color: #666; font-size: 15px; line-height: 1.6; margin: 0 0 25px;">
+                                感谢您注册悦行假期会员账户！为了确保账户安全，请点击下面的按钮验证您的邮箱地址：
+                            </p>
+
+                            <div style="text-align: center; margin: 30px 0;">
+                                <a href="{verification_url}" style="display: inline-block; background: linear-gradient(135deg, #28a745 0%, #34ce57 100%); color: #ffffff; padding: 15px 40px; text-decoration: none; border-radius: 10px; font-weight: 600; font-size: 16px; box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);">
+                                    验证邮箱地址
+                                </a>
+                            </div>
+
+                            <p style="color: #666; font-size: 14px; margin: 20px 0 10px;">如果按钮无法点击，请复制以下链接到浏览器中访问：</p>
+                            <p style="word-break: break-all; background: #f8f9fa; padding: 12px 15px; border-radius: 8px; font-size: 12px; color: #28a745; border: 1px solid #e9ecef; margin: 0;">
+                                {verification_url}
+                            </p>
+
+                            <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 10px; padding: 15px 20px; margin: 25px 0;">
+                                <p style="color: #166534; font-size: 14px; margin: 0;">
+                                    ⏱️ 此验证链接将在 <strong>24小时</strong> 后失效
+                                </p>
+                            </div>
+                        </td>
+                    </tr>
+
+                    <!-- Footer -->
+                    <tr>
+                        <td style="background-color: #f8f9fa; padding: 25px 30px; text-align: center; border: 1px solid #e9ecef; border-top: none; border-radius: 0 0 10px 10px;">
+                            <p style="color: #999; font-size: 12px; margin: 0 0 8px;">此邮件由系统自动发送，请勿直接回复。</p>
+                            <p style="color: #999; font-size: 12px; margin: 0;">如有疑问，请联系客服：info@joyesc.com</p>
+                            <p style="color: #999; font-size: 12px; margin: 8px 0 0;">© 2025 悦行假期 Joyeful Escapes. All rights reserved.</p>
+                        </td>
+                    </tr>
+                </table>
             </body>
             </html>
             """
         )
-        
+
         mail.send(msg)
         return True
     except Exception as e:

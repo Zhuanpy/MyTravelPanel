@@ -639,11 +639,14 @@
                             </div>
                         </div>
                         
-                        <a href="{{ url_for('public.contact') }}" class="btn-book">
+                        <a href="{{ url_for('orders.book_tour', product_id=package.id) }}" class="btn-book">
+                            <i class="fas fa-shopping-cart me-2"></i>立即预订
+                        </a>
+                        <a href="{{ url_for('public.contact') }}" class="btn-contact">
                             <i class="fas fa-paper-plane me-2"></i>立即咨询
                         </a>
-                        <a href="tel:{{ company.phone if company and company.phone else '+6512345678' }}" class="btn-contact">
-                            <i class="fas fa-phone me-2"></i>电话咨询 {{ company.phone if company and company.phone else '+65 1234 5678' }}
+                        <a href="tel:{{ company.phone if company and company.phone else '+6512345678' }}" class="btn-contact" style="margin-top: 0.5rem;">
+                            <i class="fas fa-phone me-2"></i>{{ company.phone if company and company.phone else '+65 1234 5678' }}
                         </a>
                     </div>
                 </div>

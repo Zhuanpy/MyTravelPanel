@@ -1,0 +1,257 @@
+{% extends "staff_base.html" %}
+
+{% block title %}Chart of Accounts - MyTravelPanel{% endblock %}
+
+{% block page_title %}Chart of Accounts{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/finance_common.css') }}">
+<style>
+    .coa-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+
+    .coa-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        padding-bottom: 15px;
+        border-bottom: 1px solid #e9ecef;
+    }
+
+    .type-tabs {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 20px;
+    }
+
+    .type-tab {
+        padding: 8px 16px;
+        border-radius: 20px;
+        text-decoration: none;
+        font-size: 0.9em;
+        transition: all 0.2s;
+    }
+
+    .type-tab.active, .type-tab:hover {
+        color: white !important;
+    }
+
+    .type-tab.asset { background-color: #e3f2fd; color: #1976d2; }
+    .type-tab.asset.active, .type-tab.asset:hover { background-color: #1976d2; }
+    .type-tab.liability { background-color: #fce4ec; color: #c2185b; }
+    .type-tab.liability.active, .type-tab.liability:hover { background-color: #c2185b; }
+    .type-tab.equity { background-color: #e8f5e9; color: #388e3c; }
+    .type-tab.equity.active, .type-tab.equity:hover { background-color: #388e3c; }
+    .type-tab.income { background-color: #fff3e0; color: #f57c00; }
+    .type-tab.income.active, .type-tab.income:hover { background-color: #f57c00; }
+    .type-tab.expense { background-color: #ffebee; color: #d32f2f; }
+    .type-tab.expense.active, .type-tab.expense:hover { background-color: #d32f2f; }
+
+    .coa-table {
+        background-color: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        overflow: hidden;
+    }
+
+    .coa-table th {
+        background-color: #f8f9fa;
+        font-weight: 600;
+        color: #495057;
+        border-bottom: 2px solid #dee2e6;
+    }
+
+    .level-indent {
+        display: inline-block;
+    }
+
+    .level-1 { padding-left: 0; font-weight: bold; }
+    .level-2 { padding-left: 20px; }
+    .level-3 { padding-left: 40px; }
+    .level-4 { padding-left: 60px; }
+
+    .account-code {
+        font-family: monospace;
+        font-weight: 500;
+        color: #495057;
+    }
+
+    .badge-asset { background-color: #1976d2; }
+    .badge-liability { background-color: #c2185b; }
+    .badge-equity { background-color: #388e3c; }
+    .badge-income { background-color: #f57c00; }
+    .badge-expense { background-color: #d32f2f; }
+
+    .system-badge { background-color: #6c757d; font-size: 0.7em; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="coa-container">
+    <div class="coa-header">
+        <h2>Chart of Accounts</h2>
+        <div>
+            <button class="btn btn-outline-secondary" onclick="initDefaultAccounts()">
+                <i class="fas fa-magic"></i> Initialize Defaults
+            </button>
+            <a href="{{ url_for('ledger_routes.chart_of_accounts_add') }}" class="btn btn-primary">
+                <i class="fas fa-plus"></i> Add Account
+            </a>
+        </div>
+    </div>
+
+    <!-- Type Tabs -->
+    <div class="type-tabs">
+        <a href="{{ url_for('ledger_routes.chart_of_accounts') }}"
+           class="type-tab {% if not current_type %}active{% endif %}" style="background-color: #f8f9fa; color: #495057;">
+            All ({{ accounts|length }})
+        </a>
+        <a href="{{ url_for('ledger_routes.chart_of_accounts', type='asset') }}"
+           class="type-tab asset {% if current_type == 'asset' %}active{% endif %}">
+            Asset ({{ type_stats.get('asset', 0) }})
+        </a>
+        <a href="{{ url_for('ledger_routes.chart_of_accounts', type='liability') }}"
+           class="type-tab liability {% if current_type == 'liability' %}active{% endif %}">
+            Liability ({{ type_stats.get('liability', 0) }})
+        </a>
+        <a href="{{ url_for('ledger_routes.chart_of_accounts', type='equity') }}"
+           class="type-tab equity {% if current_type == 'equity' %}active{% endif %}">
+            Equity ({{ type_stats.get('equity', 0) }})
+        </a>
+        <a href="{{ url_for('ledger_routes.chart_of_accounts', type='income') }}"
+           class="type-tab income {% if current_type == 'income' %}active{% endif %}">
+            Income ({{ type_stats.get('income', 0) }})
+        </a>
+        <a href="{{ url_for('ledger_routes.chart_of_accounts', type='expense') }}"
+           class="type-tab expense {% if current_type == 'expense' %}active{% endif %}">
+            Expense ({{ type_stats.get('expense', 0) }})
+        </a>
+    </div>
+
+    <!-- Accounts Table -->
+    <div class="coa-table">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th width="12%">Code</th>
+                    <th width="25%">Name</th>
+                    <th width="15%">Chinese Name</th>
+                    <th width="12%">Type</th>
+                    <th width="10%">Direction</th>
+                    <th width="8%">Currency</th>
+                    <th width="8%">Status</th>
+                    <th width="10%">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for account in accounts %}
+                <tr>
+                    <td>
+                        <span class="account-code">{{ account.code }}</span>
+                    </td>
+                    <td>
+                        <span class="level-indent level-{{ account.level }}">
+                            {% if account.level > 1 %}
+                                {% for i in range(account.level - 1) %}&nbsp;&nbsp;{% endfor %}
+                                <i class="fas fa-level-up-alt fa-rotate-90 text-muted me-1"></i>
+                            {% endif %}
+                            {{ account.name }}
+                        </span>
+                    </td>
+                    <td class="text-muted">{{ account.name_cn or '-' }}</td>
+                    <td>
+                        <span class="badge badge-{{ account.account_type }}">
+                            {{ account.account_type|capitalize }}
+                        </span>
+                    </td>
+                    <td>
+                        {% if account.balance_direction == 'debit' %}
+                            <span class="text-primary"><i class="fas fa-arrow-left"></i> Debit</span>
+                        {% else %}
+                            <span class="text-success"><i class="fas fa-arrow-right"></i> Credit</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ account.currency }}</td>
+                    <td>
+                        {% if account.is_system %}
+                            <span class="badge system-badge">System</span>
+                        {% endif %}
+                        {% if account.is_active %}
+                            <span class="badge bg-success">Active</span>
+                        {% else %}
+                            <span class="badge bg-secondary">Inactive</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <a href="{{ url_for('ledger_routes.chart_of_accounts_edit', account_id=account.id) }}"
+                           class="btn btn-sm btn-outline-primary" title="Edit">
+                            <i class="fas fa-edit"></i>
+                        </a>
+                        {% if not account.is_system %}
+                        <button class="btn btn-sm btn-outline-danger"
+                                onclick="deleteAccount({{ account.id }}, '{{ account.name }}')" title="Delete">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="8" class="text-center text-muted py-4">
+                        <i class="fas fa-inbox fa-2x mb-2"></i><br>
+                        No accounts found. Click "Initialize Defaults" to create default chart of accounts.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+function initDefaultAccounts() {
+    if (confirm('This will create default chart of accounts. Existing accounts will not be affected. Continue?')) {
+        fetch('{{ url_for("ledger_routes.chart_of_accounts_init") }}', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'}
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Default accounts initialized successfully!');
+                location.reload();
+            } else {
+                alert('Failed: ' + data.message);
+            }
+        })
+        .catch(error => {
+            alert('Error: ' + error);
+        });
+    }
+}
+
+function deleteAccount(id, name) {
+    if (confirm(`Are you sure you want to delete account "${name}"?`)) {
+        fetch(`/ledger/chart-of-accounts/delete/${id}`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'}
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Failed: ' + data.message);
+            }
+        })
+        .catch(error => {
+            alert('Error: ' + error);
+        });
+    }
+}
+</script>
+{% endblock %}

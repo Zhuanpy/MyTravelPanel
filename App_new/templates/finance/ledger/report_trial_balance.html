@@ -1,0 +1,183 @@
+{% extends "staff_base.html" %}
+
+{% block title %}Trial Balance - MyTravelPanel{% endblock %}
+
+{% block page_title %}Trial Balance{% endblock %}
+
+{% block extra_css %}
+<style>
+    .report-container {
+        max-width: 1000px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+
+    .report-header {
+        text-align: center;
+        margin-bottom: 30px;
+        padding-bottom: 20px;
+        border-bottom: 2px solid #333;
+    }
+
+    .report-header h2 {
+        margin-bottom: 5px;
+    }
+
+    .report-date {
+        color: #666;
+        font-size: 0.95em;
+    }
+
+    .filter-section {
+        background: #f8f9fa;
+        padding: 15px;
+        border-radius: 5px;
+        margin-bottom: 20px;
+    }
+
+    .report-table {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        overflow: hidden;
+    }
+
+    .report-table th {
+        background-color: #343a40;
+        color: white;
+        font-weight: 600;
+    }
+
+    .report-table .account-code {
+        font-family: monospace;
+    }
+
+    .total-row {
+        font-weight: bold;
+        background-color: #e9ecef;
+        font-size: 1.05em;
+    }
+
+    .balance-row {
+        font-weight: bold;
+    }
+
+    .balance-ok {
+        background-color: #d4edda;
+        color: #155724;
+    }
+
+    .balance-error {
+        background-color: #f8d7da;
+        color: #721c24;
+    }
+
+    .amount-cell {
+        text-align: right;
+        font-family: monospace;
+    }
+
+    .print-btn {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+    }
+
+    @media print {
+        .filter-section, .print-btn, .navbar, .sidebar {
+            display: none !important;
+        }
+        .report-container {
+            max-width: 100%;
+            margin: 0;
+            padding: 10px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="report-container">
+    <!-- Filter -->
+    <div class="filter-section">
+        <form class="row g-3" method="GET">
+            <div class="col-md-4">
+                <label class="form-label">As of Date</label>
+                <input type="date" class="form-control" name="as_of_date" value="{{ as_of_date }}">
+            </div>
+            <div class="col-md-4 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary me-2">
+                    <i class="fas fa-sync"></i> Generate
+                </button>
+                <button type="button" class="btn btn-outline-secondary" onclick="window.print()">
+                    <i class="fas fa-print"></i> Print
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Report Header -->
+    <div class="report-header">
+        <h2>Trial Balance</h2>
+        <p class="report-date">As of: {{ as_of_date }}</p>
+    </div>
+
+    <!-- Report Table -->
+    <div class="report-table">
+        <table class="table mb-0">
+            <thead>
+                <tr>
+                    <th width="15%">Code</th>
+                    <th width="35%">Account Name</th>
+                    <th width="20%">Chinese Name</th>
+                    <th width="15%" class="text-end">Debit</th>
+                    <th width="15%" class="text-end">Credit</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in trial_balance %}
+                <tr>
+                    <td class="account-code">{{ item.code }}</td>
+                    <td>{{ item.name }}</td>
+                    <td class="text-muted">{{ item.name_cn or '-' }}</td>
+                    <td class="amount-cell">
+                        {% if item.debit > 0 %}{{ '{:,.2f}'.format(item.debit|float) }}{% endif %}
+                    </td>
+                    <td class="amount-cell">
+                        {% if item.credit > 0 %}{{ '{:,.2f}'.format(item.credit|float) }}{% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="5" class="text-center text-muted py-4">
+                        No data available. Please ensure accounts have posted journal entries.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr class="total-row">
+                    <td colspan="3" class="text-end">Total:</td>
+                    <td class="amount-cell">{{ '{:,.2f}'.format(total_debit|float) }}</td>
+                    <td class="amount-cell">{{ '{:,.2f}'.format(total_credit|float) }}</td>
+                </tr>
+                <tr class="balance-row {% if is_balanced %}balance-ok{% else %}balance-error{% endif %}">
+                    <td colspan="3" class="text-end">Balance Status:</td>
+                    <td colspan="2" class="text-center">
+                        {% if is_balanced %}
+                        <i class="fas fa-check-circle"></i> BALANCED
+                        {% else %}
+                        <i class="fas fa-exclamation-triangle"></i> NOT BALANCED
+                        (Difference: {{ '{:,.2f}'.format((total_debit - total_credit)|float) }})
+                        {% endif %}
+                    </td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+</div>
+
+<button class="btn btn-primary print-btn" onclick="window.print()">
+    <i class="fas fa-print"></i>
+</button>
+{% endblock %}

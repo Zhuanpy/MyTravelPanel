@@ -215,10 +215,18 @@ MyTravelPanel/
 - Athina系统预订数据导入
 - 供应商对账
 - 银行关键词分类
+- **会计科目表管理 (Chart of Accounts)**
+- **日记账分录 (Journal Entry)**
+- **总账报表 (Ledger Listing)**
+- **试算平衡表 (Trial Balance)**
+- **损益表 (Profit and Loss)**
+- **资产负债表 (Balance Sheet)**
+- **普通日记账 (General Journal)**
 
 **关键路由文件:**
 - `App_new/finance/routes/cmb_routes.py` - 招商银行
 - `App_new/finance/routes/athina_routes.py` - Athina导入
+- `App_new/finance/routes/ledger_routes.py` - 总账与会计科目管理
 
 ### 4.6 其他模块
 | 模块 | 功能 |
@@ -243,7 +251,8 @@ ProjectHeader (项目主表)
 │   └── ProjectFlightSegment (机票航段) ─── 三级表
 ├── ProjectEO (EO合同)
 ├── ProjectInvoice (发票)
-└── ProjectReceipt (收据)
+├── ProjectReceipt (收据)
+└── JournalEntry (日记账分录) ─── 财务分录
 ```
 
 ### 5.2 旅游模块
@@ -273,6 +282,22 @@ BankStatement (银行对账单)
 
 AthinaBookingHeader (Athina预订)
 └── AthinaBookingDetail (预订明细)
+
+ChartOfAccount (会计科目表)
+├── code (科目代码)
+├── name (科目名称)
+├── account_type (科目类型: asset/liability/equity/income/expense)
+└── balance_direction (余额方向: debit/credit)
+
+JournalEntry (日记账分录)
+├── entry_number (分录编号)
+├── entry_date (分录日期)
+├── source_type (来源: invoice/receipt/eo/manual)
+├── source_id (来源单据ID)
+└── JournalEntryLine (分录明细)
+    ├── account_id (科目ID)
+    ├── debit (借方)
+    └── credit (贷方)
 ```
 
 ### 5.5 共享模型

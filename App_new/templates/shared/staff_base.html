@@ -88,6 +88,31 @@
                             <li><a class="dropdown-item" href="{{ url_for('business_projects.project_receipt.receipt_list') }}">
                                 <i class="fas fa-receipt me-2"></i>收据列表
                             </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><h6 class="dropdown-header">Ledger</h6></li>
+                            <li><a class="dropdown-item" href="{{ url_for('ledger_routes.chart_of_accounts') }}">
+                                <i class="fas fa-sitemap me-2"></i>Chart of Accounts
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('ledger_routes.journal_entries') }}">
+                                <i class="fas fa-book me-2"></i>Journal Entries
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><h6 class="dropdown-header">Reports</h6></li>
+                            <li><a class="dropdown-item" href="{{ url_for('ledger_routes.report_ledger') }}">
+                                <i class="fas fa-file-alt me-2"></i>Ledger Listing
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('ledger_routes.report_trial_balance') }}">
+                                <i class="fas fa-balance-scale me-2"></i>Trial Balance
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('ledger_routes.report_profit_loss') }}">
+                                <i class="fas fa-chart-line me-2"></i>Profit & Loss
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('ledger_routes.report_balance_sheet') }}">
+                                <i class="fas fa-file-invoice-dollar me-2"></i>Balance Sheet
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('ledger_routes.report_general_journal') }}">
+                                <i class="fas fa-journal-whills me-2"></i>General Journal
+                            </a></li>
                         </ul>
                     </li>
                     <li class="nav-item dropdown">

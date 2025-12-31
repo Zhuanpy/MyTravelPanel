@@ -3,7 +3,7 @@
 """
 
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app
-from flask_login import login_required, current_user
+from flask_login import current_user
 from flask_wtf.csrf import generate_csrf
 from datetime import datetime, timedelta
 from decimal import Decimal
@@ -11,7 +11,7 @@ import uuid
 import os
 from werkzeug.utils import secure_filename
 
-from ...utils.decorators import member_only
+from ...utils.decorators import member_only, login_required
 from ...exts import db
 from ..models.order import Order, OrderItem, OrderDocument, Payment, ServiceTemplate, OrderStatus, ServiceType
 
@@ -431,10 +431,10 @@ def api_service_templates():
     try:
         service_type = request.args.get('type')
         templates = ServiceTemplate.query.filter_by(is_active=True)
-        
+
         if service_type:
             templates = templates.filter_by(service_type=service_type)
-        
+
         result = []
         for template in templates:
             result.append({
@@ -448,7 +448,7 @@ def api_service_templates():
                 'requirements': template.requirements,
                 'required_documents': template.required_documents
             })
-        
+
         return jsonify({
             'success': True,
             'data': result
@@ -459,3 +459,170 @@ def api_service_templates():
             'success': False,
             'message': '获取服务模板失败'
         }), 500
+
+
+@orders_bp.route('/book-tour/<int:product_id>', methods=['GET', 'POST'])
+@login_required
+@member_only
+def book_tour(product_id):
+    """预订旅游产品"""
+    try:
+        from App_new.business.tour.models.Packagemodels import Product
+
+        # 获取产品信息
+        product = Product.query.get_or_404(product_id)
+
+        # 检查产品是否可预订
+        from datetime import date
+        today = date.today()
+        if product.product_status != 'active':
+            flash('该产品目前不可预订', 'error')
+            return redirect(url_for('public.tour_package_detail', package_id=product_id))
+
+        if product.valid_until and product.valid_until < today:
+            flash('该产品已过期', 'error')
+            return redirect(url_for('public.tour_package_detail', package_id=product_id))
+
+        if request.method == 'POST':
+            # 处理预订提交
+            try:
+                # 获取表单数据
+                travel_date = request.form.get('travel_date')
+                adult_count = int(request.form.get('adult_count', 1))
+                child_count = int(request.form.get('child_count', 0))
+                infant_count = int(request.form.get('infant_count', 0))
+
+                # 联系人信息
+                contact_name = request.form.get('contact_name')
+                contact_email = request.form.get('contact_email')
+                contact_phone = request.form.get('contact_phone')
+
+                # 特殊要求
+                special_requirements = request.form.get('special_requirements', '')
+
+                # 计算参考价格（工作人员会确认最终价格）
+                base_price = Decimal(str(product.base_price or 0))
+                child_price = Decimal(str(product.child_price or base_price * Decimal('0.7')))
+                infant_price = Decimal(str(product.infant_price or 0))
+
+                estimated_price = (base_price * adult_count) + (child_price * child_count) + (infant_price * infant_count)
+
+                # 生成订单号
+                order_number = f"TOUR{datetime.now().strftime('%Y%m%d')}{str(uuid.uuid4())[:8].upper()}"
+
+                # 构建产品详情描述
+                destination = product.city_name or product.destination_city or '未指定'
+                if product.city and product.city.country_name:
+                    destination = f"{product.city.country_name} {destination}"
+
+                duration = f"{product.duration_days}天{product.duration_days-1 if product.duration_days else 0}夜" if product.duration_days else "待定"
+
+                description = f"""旅游产品: {product.product_name}
+产品编号: {product.product_code or f'PKG-{product.id:04d}'}
+目的地: {destination}
+行程: {duration}
+出发日期: {travel_date}
+人数: 成人{adult_count}人"""
+                if child_count > 0:
+                    description += f", 儿童{child_count}人"
+                if infant_count > 0:
+                    description += f", 婴儿{infant_count}人"
+
+                # 创建订单
+                order = Order(
+                    order_number=order_number,
+                    user_id=current_user.id,
+                    service_type='tour',
+                    service_name=product.product_name,
+                    description=description,
+                    base_price=estimated_price,
+                    total_amount=estimated_price,
+                    currency=product.currency or 'SGD',
+                    customer_name=contact_name,
+                    customer_email=contact_email,
+                    customer_phone=contact_phone,
+                    special_requirements=special_requirements,
+                    notes=f"产品ID: {product.id}, 出发日期: {travel_date}, 成人: {adult_count}, 儿童: {child_count}, 婴儿: {infant_count}",
+                    status=OrderStatus.PENDING.value  # 直接设为待处理，等待工作人员确认价格
+                )
+
+                db.session.add(order)
+                db.session.flush()
+
+                # 添加订单项目
+                order_item = OrderItem(
+                    order_id=order.id,
+                    item_name=product.product_name,
+                    item_description=f"{destination} | {duration}",
+                    item_type='tour_package',
+                    quantity=adult_count + child_count + infant_count,
+                    unit_price=base_price,
+                    total_price=estimated_price,
+                    properties={
+                        'product_id': product.id,
+                        'product_code': product.product_code,
+                        'travel_date': travel_date,
+                        'adult_count': adult_count,
+                        'child_count': child_count,
+                        'infant_count': infant_count,
+                        'adult_price': float(base_price),
+                        'child_price': float(child_price),
+                        'infant_price': float(infant_price)
+                    }
+                )
+                db.session.add(order_item)
+
+                db.session.commit()
+
+                flash('预订提交成功！我们的工作人员将尽快与您确认价格和行程详情。', 'success')
+                return redirect(url_for('orders.order_detail', order_id=order.id))
+
+            except Exception as e:
+                db.session.rollback()
+                current_app.logger.error(f'创建旅游订单失败: {str(e)}')
+                import traceback
+                current_app.logger.error(traceback.format_exc())
+                flash(f'预订失败: {str(e)}', 'error')
+                return redirect(url_for('orders.book_tour', product_id=product_id))
+
+        # GET 请求：显示预订表单
+        # 准备产品数据用于模板
+        destination = product.city_name or product.destination_city or '未指定'
+        if product.city and product.city.country_name:
+            destination = f"{product.city.country_name} {destination}"
+
+        duration = f"{product.duration_days}天{product.duration_days-1 if product.duration_days else 0}夜" if product.duration_days else "待定"
+
+        price_display = f"{product.currency or 'SGD'} {product.base_price:,.0f}" if product.base_price else "价格面议"
+
+        product_data = {
+            'id': product.id,
+            'code': product.product_code or f'PKG-{product.id:04d}',
+            'name': product.product_name,
+            'destination': destination,
+            'duration': duration,
+            'duration_days': product.duration_days,
+            'price': price_display,
+            'base_price': float(product.base_price) if product.base_price else 0,
+            'child_price': float(product.child_price) if product.child_price else 0,
+            'infant_price': float(product.infant_price) if product.infant_price else 0,
+            'currency': product.currency or 'SGD',
+            'image': product.cover_image,
+            'min_pax': product.min_pax,
+            'max_pax': product.max_pax,
+            'product_type': product.product_type
+        }
+
+        # 获取用户信息预填
+        user_profile = current_user.profile if hasattr(current_user, 'profile') else None
+
+        return render_template('member/order/book_tour.html',
+                             product=product_data,
+                             user_profile=user_profile)
+
+    except Exception as e:
+        current_app.logger.error(f'加载旅游预订页面失败: {str(e)}')
+        import traceback
+        current_app.logger.error(traceback.format_exc())
+        flash('加载页面失败，请稍后重试', 'error')
+        return redirect(url_for('public.tour_packages'))

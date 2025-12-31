@@ -1,0 +1,336 @@
+{% extends "staff_base.html" %}
+
+{% block title %}{{ form_title }} - Journal Entry{% endblock %}
+
+{% block page_title %}{{ form_title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .je-form-container {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+
+    .je-form-card {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        padding: 25px;
+    }
+
+    .lines-section {
+        margin-top: 25px;
+        padding-top: 20px;
+        border-top: 1px solid #eee;
+    }
+
+    .lines-table {
+        margin-top: 15px;
+    }
+
+    .lines-table th {
+        background-color: #f8f9fa;
+    }
+
+    .add-line-btn {
+        margin-top: 10px;
+    }
+
+    .total-row {
+        font-weight: bold;
+        background-color: #f8f9fa;
+    }
+
+    .balance-indicator {
+        font-size: 1.1em;
+        padding: 10px;
+        border-radius: 5px;
+        text-align: center;
+        margin-top: 15px;
+    }
+
+    .balance-ok {
+        background-color: #d4edda;
+        color: #155724;
+    }
+
+    .balance-error {
+        background-color: #f8d7da;
+        color: #721c24;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="je-form-container">
+    <div class="je-form-card">
+        <form id="journalEntryForm">
+            <!-- Header Info -->
+            <div class="row">
+                <div class="col-md-3 mb-3">
+                    <label class="form-label">Entry Date <span class="text-danger">*</span></label>
+                    <input type="date" class="form-control" name="entry_date" id="entry_date"
+                           value="{{ today }}" required>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <label class="form-label">Currency</label>
+                    <select class="form-select" name="currency" id="currency">
+                        <option value="SGD">SGD</option>
+                        <option value="USD">USD</option>
+                        <option value="CNY">CNY</option>
+                    </select>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Description</label>
+                    <input type="text" class="form-control" name="description" id="description"
+                           placeholder="Entry description...">
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-12 mb-3">
+                    <label class="form-label">Remarks</label>
+                    <textarea class="form-control" name="remarks" id="remarks" rows="2"
+                              placeholder="Optional remarks..."></textarea>
+                </div>
+            </div>
+
+            <!-- Entry Lines -->
+            <div class="lines-section">
+                <h5><i class="fas fa-list text-primary me-2"></i>Entry Lines</h5>
+
+                <table class="table lines-table" id="linesTable">
+                    <thead>
+                        <tr>
+                            <th width="5%">#</th>
+                            <th width="35%">Account</th>
+                            <th width="20%">Memo</th>
+                            <th width="15%">Debit</th>
+                            <th width="15%">Credit</th>
+                            <th width="10%"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="linesBody">
+                        <tr class="line-row" data-line="1">
+                            <td>1</td>
+                            <td>
+                                <select class="form-select account-select" name="account_1" required>
+                                    <option value="">-- Select Account --</option>
+                                    {% for account in accounts %}
+                                    <option value="{{ account.id }}">{{ account.code }} - {{ account.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                            <td><input type="text" class="form-control" name="memo_1" placeholder="Memo"></td>
+                            <td><input type="number" class="form-control debit-input" name="debit_1" step="0.01" min="0" placeholder="0.00" onchange="updateTotals()"></td>
+                            <td><input type="number" class="form-control credit-input" name="credit_1" step="0.01" min="0" placeholder="0.00" onchange="updateTotals()"></td>
+                            <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="removeLine(this)"><i class="fas fa-times"></i></button></td>
+                        </tr>
+                        <tr class="line-row" data-line="2">
+                            <td>2</td>
+                            <td>
+                                <select class="form-select account-select" name="account_2" required>
+                                    <option value="">-- Select Account --</option>
+                                    {% for account in accounts %}
+                                    <option value="{{ account.id }}">{{ account.code }} - {{ account.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                            <td><input type="text" class="form-control" name="memo_2" placeholder="Memo"></td>
+                            <td><input type="number" class="form-control debit-input" name="debit_2" step="0.01" min="0" placeholder="0.00" onchange="updateTotals()"></td>
+                            <td><input type="number" class="form-control credit-input" name="credit_2" step="0.01" min="0" placeholder="0.00" onchange="updateTotals()"></td>
+                            <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="removeLine(this)"><i class="fas fa-times"></i></button></td>
+                        </tr>
+                    </tbody>
+                    <tfoot>
+                        <tr class="total-row">
+                            <td colspan="3" class="text-end">Total:</td>
+                            <td class="text-end" id="totalDebit">0.00</td>
+                            <td class="text-end" id="totalCredit">0.00</td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                </table>
+
+                <button type="button" class="btn btn-outline-primary add-line-btn" onclick="addLine()">
+                    <i class="fas fa-plus"></i> Add Line
+                </button>
+
+                <div class="balance-indicator" id="balanceIndicator">
+                    <i class="fas fa-check-circle"></i> Balanced
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="d-flex justify-content-between mt-4">
+                <a href="{{ url_for('ledger_routes.journal_entries') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left"></i> Cancel
+                </a>
+                <div>
+                    <button type="button" class="btn btn-secondary" onclick="saveAsDraft()">
+                        <i class="fas fa-save"></i> Save as Draft
+                    </button>
+                    <button type="button" class="btn btn-success" onclick="saveAndPost()">
+                        <i class="fas fa-check"></i> Save & Post
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+let lineCount = 2;
+
+function addLine() {
+    lineCount++;
+    const tbody = document.getElementById('linesBody');
+    const accountOptions = document.querySelector('.account-select').innerHTML;
+
+    const row = document.createElement('tr');
+    row.className = 'line-row';
+    row.dataset.line = lineCount;
+    row.innerHTML = `
+        <td>${lineCount}</td>
+        <td><select class="form-select account-select" name="account_${lineCount}" required>${accountOptions}</select></td>
+        <td><input type="text" class="form-control" name="memo_${lineCount}" placeholder="Memo"></td>
+        <td><input type="number" class="form-control debit-input" name="debit_${lineCount}" step="0.01" min="0" placeholder="0.00" onchange="updateTotals()"></td>
+        <td><input type="number" class="form-control credit-input" name="credit_${lineCount}" step="0.01" min="0" placeholder="0.00" onchange="updateTotals()"></td>
+        <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="removeLine(this)"><i class="fas fa-times"></i></button></td>
+    `;
+    tbody.appendChild(row);
+}
+
+function removeLine(btn) {
+    const rows = document.querySelectorAll('.line-row');
+    if (rows.length > 2) {
+        btn.closest('tr').remove();
+        renumberLines();
+        updateTotals();
+    } else {
+        alert('Minimum 2 lines required');
+    }
+}
+
+function renumberLines() {
+    const rows = document.querySelectorAll('.line-row');
+    rows.forEach((row, index) => {
+        row.querySelector('td:first-child').textContent = index + 1;
+    });
+}
+
+function updateTotals() {
+    let totalDebit = 0;
+    let totalCredit = 0;
+
+    document.querySelectorAll('.debit-input').forEach(input => {
+        totalDebit += parseFloat(input.value) || 0;
+    });
+
+    document.querySelectorAll('.credit-input').forEach(input => {
+        totalCredit += parseFloat(input.value) || 0;
+    });
+
+    document.getElementById('totalDebit').textContent = totalDebit.toFixed(2);
+    document.getElementById('totalCredit').textContent = totalCredit.toFixed(2);
+
+    const indicator = document.getElementById('balanceIndicator');
+    if (Math.abs(totalDebit - totalCredit) < 0.01 && totalDebit > 0) {
+        indicator.className = 'balance-indicator balance-ok';
+        indicator.innerHTML = '<i class="fas fa-check-circle"></i> Balanced';
+    } else {
+        indicator.className = 'balance-indicator balance-error';
+        const diff = (totalDebit - totalCredit).toFixed(2);
+        indicator.innerHTML = `<i class="fas fa-exclamation-circle"></i> Not Balanced (Diff: ${diff})`;
+    }
+}
+
+function collectFormData() {
+    const data = {
+        entry_date: document.getElementById('entry_date').value,
+        currency: document.getElementById('currency').value,
+        description: document.getElementById('description').value,
+        remarks: document.getElementById('remarks').value,
+        lines: []
+    };
+
+    document.querySelectorAll('.line-row').forEach(row => {
+        const lineNum = row.dataset.line;
+        const accountId = row.querySelector(`[name="account_${lineNum}"]`).value;
+        if (accountId) {
+            data.lines.push({
+                account_id: accountId,
+                memo: row.querySelector(`[name="memo_${lineNum}"]`).value,
+                debit: parseFloat(row.querySelector(`[name="debit_${lineNum}"]`).value) || 0,
+                credit: parseFloat(row.querySelector(`[name="credit_${lineNum}"]`).value) || 0
+            });
+        }
+    });
+
+    return data;
+}
+
+function saveAsDraft() {
+    const data = collectFormData();
+
+    fetch('{{ url_for("ledger_routes.journal_entry_add") }}', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            alert('Journal entry saved as draft!');
+            window.location.href = `/ledger/journal-entries/${result.entry_id}`;
+        } else {
+            alert('Failed: ' + result.message);
+        }
+    })
+    .catch(error => {
+        alert('Error: ' + error);
+    });
+}
+
+function saveAndPost() {
+    const data = collectFormData();
+
+    // First save
+    fetch('{{ url_for("ledger_routes.journal_entry_add") }}', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            // Then post
+            return fetch(`/ledger/journal-entries/${result.entry_id}/post`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'}
+            }).then(r => r.json()).then(postResult => {
+                if (postResult.success) {
+                    alert('Journal entry saved and posted!');
+                    window.location.href = `/ledger/journal-entries/${result.entry_id}`;
+                } else {
+                    alert('Saved but failed to post: ' + postResult.message);
+                    window.location.href = `/ledger/journal-entries/${result.entry_id}`;
+                }
+            });
+        } else {
+            alert('Failed to save: ' + result.message);
+        }
+    })
+    .catch(error => {
+        alert('Error: ' + error);
+    });
+}
+
+// Initialize
+document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('entry_date').value = new Date().toISOString().split('T')[0];
+    updateTotals();
+});
+</script>
+{% endblock %}

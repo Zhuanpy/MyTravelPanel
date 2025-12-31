@@ -194,6 +194,10 @@ def create_app():
     from .finance.routes.keyword_routes import keyword_blue
     app.register_blueprint(keyword_blue, url_prefix='/statement')
 
+    # 总账与会计科目模块
+    from .finance.routes.ledger_routes import ledger_blue
+    app.register_blueprint(ledger_blue, url_prefix='/ledger')
+
     # 注册自定义Jinja2过滤器
     @app.template_filter('fromjson')
     def fromjson_filter(value):
@@ -460,6 +464,9 @@ def import_all_models():
         from .finance.models.bank_keywords import BankStatementKeyword, BankKeywordCategory
         # Athina账单模型
         from .finance.models.athina_booking import AthinaBookingHeader, AthinaBookingDetail
+        # 会计科目与日记账模型
+        from .finance.models.chart_of_account import ChartOfAccount
+        from .finance.models.journal_entry import JournalEntry, JournalEntryLine
         # 航班
         try:
             from .business.flight.models.flight import ProjectFlightPassenger, ProjectFlightSegment

@@ -1,0 +1,507 @@
+{% extends "member/base.html" %}
+
+{% block title %}预订旅游产品 - {{ product.name }} - MyTravelPanel{% endblock %}
+
+{% block page_title %}预订旅游产品{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{{ url_for('orders.list') }}">我的订单</a></li>
+<li class="breadcrumb-item active">预订旅游产品</li>
+{% endblock %}
+
+{% block page_actions %}
+<div class="btn-toolbar mb-2 mb-md-0">
+    <a href="{{ url_for('public.tour_package_detail', package_id=product.id) }}" class="btn btn-sm btn-outline-secondary">
+        <i class="fas fa-arrow-left me-1"></i>返回产品详情
+    </a>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+{{ super() }}
+<style>
+    .product-info-card {
+        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+        color: white;
+        border-radius: 15px;
+        overflow: hidden;
+        margin-bottom: 2rem;
+    }
+
+    .product-info-card .product-image {
+        height: 200px;
+        background-size: cover;
+        background-position: center;
+    }
+
+    .product-info-card .product-details {
+        padding: 1.5rem;
+    }
+
+    .product-info-card h3 {
+        color: white;
+        margin-bottom: 1rem;
+        font-size: 1.5rem;
+    }
+
+    .product-info-card .meta-info {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .product-info-card .meta-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.95rem;
+        opacity: 0.9;
+    }
+
+    .product-info-card .price {
+        font-size: 2rem;
+        font-weight: bold;
+    }
+
+    .product-info-card .price small {
+        font-size: 1rem;
+        font-weight: 400;
+        opacity: 0.8;
+    }
+
+    .form-section {
+        background: white;
+        border-radius: 15px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+
+    .form-section h5 {
+        color: #10b981;
+        margin-bottom: 1.5rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid #10b981;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .pax-counter {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .pax-counter .btn {
+        width: 36px;
+        height: 36px;
+        padding: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+    }
+
+    .pax-counter input {
+        width: 60px;
+        text-align: center;
+        font-weight: 600;
+    }
+
+    .pax-type {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1rem;
+        background: #f8fafc;
+        border-radius: 10px;
+        margin-bottom: 0.75rem;
+    }
+
+    .pax-type .pax-label {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .pax-type .pax-label strong {
+        font-size: 1rem;
+        color: #1e293b;
+    }
+
+    .pax-type .pax-label small {
+        color: #64748b;
+        font-size: 0.85rem;
+    }
+
+    .price-summary {
+        background: linear-gradient(135deg, #10b981, #059669);
+        color: white;
+        border-radius: 15px;
+        padding: 1.5rem;
+        position: sticky;
+        top: 100px;
+    }
+
+    .price-summary h5 {
+        color: white;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid rgba(255,255,255,0.3);
+        padding-bottom: 0.75rem;
+    }
+
+    .price-row {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 0.5rem;
+        font-size: 0.95rem;
+    }
+
+    .price-row.total {
+        font-size: 1.3rem;
+        font-weight: bold;
+        border-top: 1px solid rgba(255, 255, 255, 0.3);
+        padding-top: 0.75rem;
+        margin-top: 1rem;
+    }
+
+    .price-note {
+        background: rgba(255,255,255,0.15);
+        padding: 0.75rem;
+        border-radius: 8px;
+        margin-top: 1rem;
+        font-size: 0.85rem;
+        text-align: center;
+    }
+
+    .price-note i {
+        color: #fbbf24;
+    }
+
+    .info-box {
+        background: #fef3c7;
+        border: 1px solid #fcd34d;
+        border-radius: 10px;
+        padding: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .info-box h6 {
+        color: #92400e;
+        margin-bottom: 0.5rem;
+    }
+
+    .info-box p {
+        color: #78350f;
+        margin: 0;
+        font-size: 0.9rem;
+    }
+
+    .submit-btn {
+        background: linear-gradient(135deg, #10b981, #059669);
+        border: none;
+        padding: 1rem 2rem;
+        font-size: 1.1rem;
+        font-weight: 600;
+        border-radius: 12px;
+        width: 100%;
+        transition: all 0.3s ease;
+    }
+
+    .submit-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(16, 185, 129, 0.35);
+    }
+</style>
+{% endblock %}
+
+{% block member_content %}
+<div class="container">
+    <!-- 产品信息卡片 -->
+    <div class="product-info-card">
+        <div class="row g-0">
+            {% if product.image %}
+            <div class="col-md-4">
+                <div class="product-image" style="background-image: url('{{ url_for('static', filename=product.image) }}');"></div>
+            </div>
+            {% endif %}
+            <div class="col-md-{% if product.image %}8{% else %}12{% endif %}">
+                <div class="product-details">
+                    <span class="badge bg-light text-dark mb-2">{{ product.code }}</span>
+                    <h3>{{ product.name }}</h3>
+                    <div class="meta-info">
+                        <div class="meta-item">
+                            <i class="fas fa-map-marker-alt"></i>
+                            <span>{{ product.destination }}</span>
+                        </div>
+                        <div class="meta-item">
+                            <i class="fas fa-calendar-alt"></i>
+                            <span>{{ product.duration }}</span>
+                        </div>
+                        {% if product.product_type %}
+                        <div class="meta-item">
+                            <i class="fas fa-tag"></i>
+                            <span>{{ product.product_type }}</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="price">
+                        {{ product.price }}<small>/人起</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <form id="bookingForm" method="POST" action="{{ url_for('orders.book_tour', product_id=product.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <div class="row">
+            <!-- 左侧：预订表单 -->
+            <div class="col-lg-8">
+                <!-- 出行日期 -->
+                <div class="form-section">
+                    <h5><i class="fas fa-calendar-check"></i>出行日期</h5>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <label for="travel_date" class="form-label">选择出发日期 <span class="text-danger">*</span></label>
+                            <input type="date" class="form-control" id="travel_date" name="travel_date" required>
+                            <small class="text-muted">建议提前至少3天预订</small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 出行人数 -->
+                <div class="form-section">
+                    <h5><i class="fas fa-users"></i>出行人数</h5>
+
+                    <div class="pax-type">
+                        <div class="pax-label">
+                            <strong>成人</strong>
+                            <small>{{ product.currency }} {{ "%.0f"|format(product.base_price) }}/人</small>
+                        </div>
+                        <div class="pax-counter">
+                            <button type="button" class="btn btn-outline-secondary" onclick="adjustPax('adult', -1)">
+                                <i class="fas fa-minus"></i>
+                            </button>
+                            <input type="number" class="form-control" id="adult_count" name="adult_count"
+                                   value="1" min="1" max="{{ product.max_pax or 20 }}" readonly>
+                            <button type="button" class="btn btn-outline-secondary" onclick="adjustPax('adult', 1)">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="pax-type">
+                        <div class="pax-label">
+                            <strong>儿童</strong>
+                            <small>{{ product.currency }} {{ "%.0f"|format(product.child_price or product.base_price * 0.7) }}/人 (2-12岁)</small>
+                        </div>
+                        <div class="pax-counter">
+                            <button type="button" class="btn btn-outline-secondary" onclick="adjustPax('child', -1)">
+                                <i class="fas fa-minus"></i>
+                            </button>
+                            <input type="number" class="form-control" id="child_count" name="child_count"
+                                   value="0" min="0" max="10" readonly>
+                            <button type="button" class="btn btn-outline-secondary" onclick="adjustPax('child', 1)">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="pax-type">
+                        <div class="pax-label">
+                            <strong>婴儿</strong>
+                            <small>{{ product.currency }} {{ "%.0f"|format(product.infant_price or 0) }}/人 (0-2岁)</small>
+                        </div>
+                        <div class="pax-counter">
+                            <button type="button" class="btn btn-outline-secondary" onclick="adjustPax('infant', -1)">
+                                <i class="fas fa-minus"></i>
+                            </button>
+                            <input type="number" class="form-control" id="infant_count" name="infant_count"
+                                   value="0" min="0" max="5" readonly>
+                            <button type="button" class="btn btn-outline-secondary" onclick="adjustPax('infant', 1)">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    {% if product.min_pax and product.min_pax > 1 %}
+                    <div class="alert alert-info mt-3 mb-0">
+                        <i class="fas fa-info-circle me-2"></i>
+                        此产品最少需要 {{ product.min_pax }} 人成团
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- 联系人信息 -->
+                <div class="form-section">
+                    <h5><i class="fas fa-user-circle"></i>联系人信息</h5>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="contact_name" class="form-label">联系人姓名 <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="contact_name" name="contact_name"
+                                   value="{{ current_user.username if current_user else '' }}" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="contact_phone" class="form-label">联系电话 <span class="text-danger">*</span></label>
+                            <input type="tel" class="form-control" id="contact_phone" name="contact_phone"
+                                   value="{{ user_profile.phone if user_profile else '' }}" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="contact_email" class="form-label">电子邮箱 <span class="text-danger">*</span></label>
+                        <input type="email" class="form-control" id="contact_email" name="contact_email"
+                               value="{{ current_user.email if current_user else '' }}" required>
+                    </div>
+                </div>
+
+                <!-- 特殊要求 -->
+                <div class="form-section">
+                    <h5><i class="fas fa-comment-alt"></i>特殊要求</h5>
+                    <div class="mb-3">
+                        <label for="special_requirements" class="form-label">备注说明</label>
+                        <textarea class="form-control" id="special_requirements" name="special_requirements" rows="4"
+                                  placeholder="请填写您的特殊需求，如饮食要求、住宿偏好、行程调整等..."></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 右侧：价格摘要 -->
+            <div class="col-lg-4">
+                <div class="price-summary">
+                    <h5><i class="fas fa-calculator me-2"></i>费用明细</h5>
+
+                    <div class="price-row">
+                        <span>成人 x <span id="displayAdult">1</span></span>
+                        <span>{{ product.currency }} <span id="adultTotal">{{ "%.0f"|format(product.base_price) }}</span></span>
+                    </div>
+                    <div class="price-row" id="childRow" style="display: none;">
+                        <span>儿童 x <span id="displayChild">0</span></span>
+                        <span>{{ product.currency }} <span id="childTotal">0</span></span>
+                    </div>
+                    <div class="price-row" id="infantRow" style="display: none;">
+                        <span>婴儿 x <span id="displayInfant">0</span></span>
+                        <span>{{ product.currency }} <span id="infantTotal">0</span></span>
+                    </div>
+
+                    <div class="price-row total">
+                        <span>预估总价</span>
+                        <span>{{ product.currency }} <span id="grandTotal">{{ "%.0f"|format(product.base_price) }}</span></span>
+                    </div>
+
+                    <div class="price-note">
+                        <i class="fas fa-info-circle me-1"></i>
+                        最终价格以工作人员确认为准
+                    </div>
+                </div>
+
+                <div class="info-box mt-3">
+                    <h6><i class="fas fa-shield-alt me-2"></i>预订说明</h6>
+                    <p>提交预订后，我们的工作人员将在24小时内与您联系确认行程详情和最终价格。确认后再进行付款，无需担心。</p>
+                </div>
+
+                <button type="submit" class="submit-btn mt-3">
+                    <i class="fas fa-paper-plane me-2"></i>提交预订
+                </button>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{{ super() }}
+<script>
+// 价格数据
+const prices = {
+    adult: {{ product.base_price or 0 }},
+    child: {{ product.child_price or (product.base_price * 0.7) if product.base_price else 0 }},
+    infant: {{ product.infant_price or 0 }}
+};
+
+const currency = '{{ product.currency }}';
+const minPax = {{ product.min_pax or 1 }};
+const maxPax = {{ product.max_pax or 20 }};
+
+// 设置最小日期为3天后
+document.addEventListener('DOMContentLoaded', function() {
+    const today = new Date();
+    today.setDate(today.getDate() + 3);
+    const minDate = today.toISOString().split('T')[0];
+    document.getElementById('travel_date').setAttribute('min', minDate);
+});
+
+// 调整人数
+function adjustPax(type, delta) {
+    const input = document.getElementById(type + '_count');
+    let value = parseInt(input.value) + delta;
+
+    const min = parseInt(input.min);
+    const max = parseInt(input.max);
+
+    if (value < min) value = min;
+    if (value > max) value = max;
+
+    input.value = value;
+    updatePriceSummary();
+}
+
+// 更新价格摘要
+function updatePriceSummary() {
+    const adultCount = parseInt(document.getElementById('adult_count').value) || 0;
+    const childCount = parseInt(document.getElementById('child_count').value) || 0;
+    const infantCount = parseInt(document.getElementById('infant_count').value) || 0;
+
+    const adultTotal = adultCount * prices.adult;
+    const childTotal = childCount * prices.child;
+    const infantTotal = infantCount * prices.infant;
+    const grandTotal = adultTotal + childTotal + infantTotal;
+
+    // 更新显示
+    document.getElementById('displayAdult').textContent = adultCount;
+    document.getElementById('adultTotal').textContent = adultTotal.toLocaleString();
+
+    document.getElementById('displayChild').textContent = childCount;
+    document.getElementById('childTotal').textContent = childTotal.toLocaleString();
+    document.getElementById('childRow').style.display = childCount > 0 ? 'flex' : 'none';
+
+    document.getElementById('displayInfant').textContent = infantCount;
+    document.getElementById('infantTotal').textContent = infantTotal.toLocaleString();
+    document.getElementById('infantRow').style.display = infantCount > 0 ? 'flex' : 'none';
+
+    document.getElementById('grandTotal').textContent = grandTotal.toLocaleString();
+}
+
+// 表单验证
+document.getElementById('bookingForm').addEventListener('submit', function(e) {
+    const adultCount = parseInt(document.getElementById('adult_count').value) || 0;
+    const childCount = parseInt(document.getElementById('child_count').value) || 0;
+    const totalPax = adultCount + childCount;
+
+    if (totalPax < minPax) {
+        e.preventDefault();
+        alert('至少需要 ' + minPax + ' 人才能预订此产品');
+        return;
+    }
+
+    const travelDate = document.getElementById('travel_date').value;
+    if (!travelDate) {
+        e.preventDefault();
+        alert('请选择出发日期');
+        return;
+    }
+
+    const contactName = document.getElementById('contact_name').value.trim();
+    const contactPhone = document.getElementById('contact_phone').value.trim();
+    const contactEmail = document.getElementById('contact_email').value.trim();
+
+    if (!contactName || !contactPhone || !contactEmail) {
+        e.preventDefault();
+        alert('请填写完整的联系人信息');
+        return;
+    }
+});
+</script>
+{% endblock %}

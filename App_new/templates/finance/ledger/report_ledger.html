@@ -1,0 +1,211 @@
+{% extends "staff_base.html" %}
+
+{% block title %}Ledger Listing - MyTravelPanel{% endblock %}
+
+{% block page_title %}Ledger Listing{% endblock %}
+
+{% block extra_css %}
+<style>
+    .report-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+
+    .filter-section {
+        background: #f8f9fa;
+        padding: 15px;
+        border-radius: 5px;
+        margin-bottom: 20px;
+    }
+
+    .account-info {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+
+    .account-code {
+        font-family: monospace;
+        font-size: 1.5em;
+        color: #1976d2;
+    }
+
+    .account-name {
+        font-size: 1.3em;
+        font-weight: 600;
+    }
+
+    .ledger-table {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        overflow: hidden;
+    }
+
+    .ledger-table th {
+        background-color: #343a40;
+        color: white;
+    }
+
+    .ledger-table .amount-cell {
+        text-align: right;
+        font-family: monospace;
+    }
+
+    .opening-row {
+        background-color: #e3f2fd;
+        font-weight: 500;
+    }
+
+    .closing-row {
+        background-color: #fff3e0;
+        font-weight: bold;
+    }
+
+    .entry-link {
+        font-family: monospace;
+        text-decoration: none;
+    }
+
+    .debit-amount { color: #1976d2; }
+    .credit-amount { color: #388e3c; }
+    .balance-positive { color: #1976d2; }
+    .balance-negative { color: #dc3545; }
+
+    @media print {
+        .filter-section { display: none !important; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="report-container">
+    <!-- Filter -->
+    <div class="filter-section">
+        <form class="row g-3" method="GET">
+            <div class="col-md-4">
+                <label class="form-label">Account</label>
+                <select class="form-select" name="account_id" required>
+                    <option value="">-- Select Account --</option>
+                    {% for account in accounts %}
+                    <option value="{{ account.id }}" {% if selected_account and selected_account.id == account.id %}selected{% endif %}>
+                        {{ account.code }} - {{ account.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Start Date</label>
+                <input type="date" class="form-control" name="start_date" value="{{ start_date }}">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">End Date</label>
+                <input type="date" class="form-control" name="end_date" value="{{ end_date }}">
+            </div>
+            <div class="col-md-4 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary me-2">
+                    <i class="fas fa-sync"></i> Generate
+                </button>
+                <button type="button" class="btn btn-outline-secondary" onclick="window.print()">
+                    <i class="fas fa-print"></i> Print
+                </button>
+            </div>
+        </form>
+    </div>
+
+    {% if selected_account %}
+    <!-- Account Info -->
+    <div class="account-info">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <span class="account-code">{{ selected_account.code }}</span>
+                <span class="account-name ms-3">{{ selected_account.name }}</span>
+                {% if selected_account.name_cn %}
+                <span class="text-muted ms-2">({{ selected_account.name_cn }})</span>
+                {% endif %}
+            </div>
+            <div class="col-md-4 text-end">
+                <span class="badge bg-{{ selected_account.account_type }}">{{ selected_account.account_type|capitalize }}</span>
+                <span class="badge bg-secondary">{{ selected_account.balance_direction|capitalize }}</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Ledger Table -->
+    <div class="ledger-table">
+        <table class="table mb-0">
+            <thead>
+                <tr>
+                    <th width="12%">Date</th>
+                    <th width="15%">Entry No.</th>
+                    <th width="28%">Description</th>
+                    <th width="15%">Memo</th>
+                    <th width="10%" class="text-end">Debit</th>
+                    <th width="10%" class="text-end">Credit</th>
+                    <th width="10%" class="text-end">Balance</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Opening Balance -->
+                <tr class="opening-row">
+                    <td>{{ start_date or 'Beginning' }}</td>
+                    <td>-</td>
+                    <td colspan="3">Opening Balance</td>
+                    <td class="amount-cell {% if opening_balance >= 0 %}balance-positive{% else %}balance-negative{% endif %}">
+                        {{ '{:,.2f}'.format(opening_balance|float) }}
+                    </td>
+                </tr>
+
+                {% for item in ledger_data %}
+                <tr>
+                    <td>{{ item.date.strftime('%Y-%m-%d') if item.date else '-' }}</td>
+                    <td>
+                        <a href="{{ url_for('ledger_routes.journal_entry_detail', entry_id=1) }}" class="entry-link">
+                            {{ item.entry_number }}
+                        </a>
+                    </td>
+                    <td>{{ item.description or '-' }}</td>
+                    <td class="text-muted">{{ item.memo or '-' }}</td>
+                    <td class="amount-cell debit-amount">
+                        {% if item.debit and item.debit > 0 %}{{ '{:,.2f}'.format(item.debit|float) }}{% endif %}
+                    </td>
+                    <td class="amount-cell credit-amount">
+                        {% if item.credit and item.credit > 0 %}{{ '{:,.2f}'.format(item.credit|float) }}{% endif %}
+                    </td>
+                    <td class="amount-cell {% if item.balance >= 0 %}balance-positive{% else %}balance-negative{% endif %}">
+                        {{ '{:,.2f}'.format(item.balance|float) }}
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="7" class="text-center text-muted py-4">
+                        No transactions found for this period
+                    </td>
+                </tr>
+                {% endfor %}
+
+                <!-- Closing Balance -->
+                {% if ledger_data %}
+                <tr class="closing-row">
+                    <td>{{ end_date or 'Ending' }}</td>
+                    <td>-</td>
+                    <td colspan="3">Closing Balance</td>
+                    <td class="amount-cell {% if ledger_data[-1].balance >= 0 %}balance-positive{% else %}balance-negative{% endif %}">
+                        {{ '{:,.2f}'.format(ledger_data[-1].balance|float) }}
+                    </td>
+                </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="text-center text-muted py-5">
+        <i class="fas fa-search fa-3x mb-3"></i>
+        <p>Please select an account to view the ledger</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

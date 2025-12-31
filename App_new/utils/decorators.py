@@ -34,13 +34,13 @@ def guest_only(f):
 def login_required(f):
     """
     登录必需装饰器
-    要求用户必须登录才能访问
+    要求用户必须登录才能访问（重定向到会员登录）
     """
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if not current_user.is_authenticated:
             flash('请先登录', 'warning')
-            return redirect(url_for('shared.auth_member_login', next=request.url))
+            return redirect(url_for('auth_profile.member_login', next=request.url))
         return f(*args, **kwargs)
     return decorated_function
 
@@ -55,12 +55,12 @@ def role_required(role_name):
         def decorated_function(*args, **kwargs):
             if not current_user.is_authenticated:
                 flash('请先登录', 'warning')
-                return redirect(url_for('shared.auth_member_login', next=request.url))
-            
+                return redirect(url_for('auth_profile.member_login', next=request.url))
+
             if not hasattr(current_user, 'role') or current_user.role.name != role_name:
                 flash('您没有权限访问此页面', 'error')
-                return redirect(url_for('guest.main.index'))
-            
+                return redirect(url_for('public.index'))
+
             return f(*args, **kwargs)
         return decorated_function
     return decorator
@@ -92,22 +92,22 @@ def staff_level_required(min_level=1):
         def decorated_function(*args, **kwargs):
             if not current_user.is_authenticated:
                 flash('请先登录', 'warning')
-                return redirect(url_for('shared.auth_member_login', next=request.url))
-            
+                return redirect(url_for('auth_profile.staff_login', next=request.url))
+
             # 检查用户是否为员工
             if not hasattr(current_user, 'role') or current_user.role.name != 'staff':
                 flash('此功能仅限员工使用', 'error')
                 return redirect(url_for('public.index'))
-            
+
             # 检查员工等级
             staff_level = 1  # 默认等级
             if current_user.profile:
                 staff_level = current_user.profile.staff_level or 1
-            
+
             if staff_level < min_level:
                 flash(f'此功能需要员工等级{min_level}或以上，您当前的等级为{staff_level}', 'error')
                 return redirect(url_for('public.index'))
-            
+
             return f(*args, **kwargs)
         return decorated_function
     return decorator
@@ -128,12 +128,12 @@ def permission_required(permission):
         def decorated_function(*args, **kwargs):
             if not current_user.is_authenticated:
                 flash('请先登录', 'warning')
-                return redirect(url_for('shared.auth_member_login', next=request.url))
-            
+                return redirect(url_for('auth_profile.member_login', next=request.url))
+
             if not hasattr(current_user, 'has_permission') or not current_user.has_permission(permission):
                 flash('您没有权限执行此操作', 'error')
-                return redirect(request.referrer or url_for('guest.main.index'))
-            
+                return redirect(request.referrer or url_for('public.index'))
+
             return f(*args, **kwargs)
         return decorated_function
     return decorator

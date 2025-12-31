@@ -1,0 +1,261 @@
+{% extends "staff_base.html" %}
+
+{% block title %}Journal Entry {{ entry.entry_number }} - MyTravelPanel{% endblock %}
+
+{% block page_title %}Journal Entry Detail{% endblock %}
+
+{% block extra_css %}
+<style>
+    .je-detail-container {
+        max-width: 1000px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+
+    .je-card {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+    }
+
+    .je-card-header {
+        background-color: #f8f9fa;
+        padding: 15px 20px;
+        border-bottom: 1px solid #dee2e6;
+        border-radius: 8px 8px 0 0;
+    }
+
+    .je-card-body {
+        padding: 20px;
+    }
+
+    .info-row {
+        display: flex;
+        margin-bottom: 10px;
+    }
+
+    .info-label {
+        width: 150px;
+        color: #6c757d;
+        font-weight: 500;
+    }
+
+    .info-value {
+        flex: 1;
+    }
+
+    .lines-table th {
+        background-color: #f8f9fa;
+    }
+
+    .amount-debit { color: #1976d2; }
+    .amount-credit { color: #388e3c; }
+
+    .total-row {
+        font-weight: bold;
+        background-color: #f8f9fa;
+    }
+
+    .balance-ok { color: #28a745; }
+    .balance-error { color: #dc3545; }
+
+    .badge-draft { background-color: #ffc107; color: #212529; }
+    .badge-posted { background-color: #28a745; }
+    .badge-reversed { background-color: #6c757d; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="je-detail-container">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <a href="{{ url_for('ledger_routes.journal_entries') }}" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-arrow-left"></i> Back to List
+            </a>
+        </div>
+        <div>
+            {% if entry.status == 'draft' %}
+            <button class="btn btn-success" onclick="postEntry({{ entry.id }})">
+                <i class="fas fa-check"></i> Post Entry
+            </button>
+            {% elif entry.status == 'posted' %}
+            <button class="btn btn-warning" onclick="reverseEntry({{ entry.id }})">
+                <i class="fas fa-undo"></i> Reverse Entry
+            </button>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Entry Info -->
+    <div class="je-card">
+        <div class="je-card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">
+                <i class="fas fa-file-alt text-primary me-2"></i>
+                {{ entry.entry_number }}
+            </h5>
+            <span class="badge badge-{{ entry.status }} fs-6">{{ entry.status|capitalize }}</span>
+        </div>
+        <div class="je-card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="info-row">
+                        <span class="info-label">Entry Date:</span>
+                        <span class="info-value">{{ entry.entry_date.strftime('%Y-%m-%d') if entry.entry_date else '-' }}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Source Type:</span>
+                        <span class="info-value">{{ entry.source_type_display }}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Source No.:</span>
+                        <span class="info-value">{{ entry.source_number or '-' }}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Currency:</span>
+                        <span class="info-value">{{ entry.currency }}</span>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="info-row">
+                        <span class="info-label">Created By:</span>
+                        <span class="info-value">{{ entry.created_by or '-' }}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Created At:</span>
+                        <span class="info-value">{{ entry.created_at.strftime('%Y-%m-%d %H:%M') if entry.created_at else '-' }}</span>
+                    </div>
+                    {% if entry.status == 'posted' %}
+                    <div class="info-row">
+                        <span class="info-label">Posted By:</span>
+                        <span class="info-value">{{ entry.posted_by or '-' }}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Posted At:</span>
+                        <span class="info-value">{{ entry.posted_at.strftime('%Y-%m-%d %H:%M') if entry.posted_at else '-' }}</span>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% if entry.description %}
+            <div class="info-row mt-3">
+                <span class="info-label">Description:</span>
+                <span class="info-value">{{ entry.description }}</span>
+            </div>
+            {% endif %}
+            {% if entry.remarks %}
+            <div class="info-row">
+                <span class="info-label">Remarks:</span>
+                <span class="info-value">{{ entry.remarks }}</span>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Entry Lines -->
+    <div class="je-card">
+        <div class="je-card-header">
+            <h5 class="mb-0"><i class="fas fa-list text-success me-2"></i>Entry Lines</h5>
+        </div>
+        <div class="je-card-body p-0">
+            <table class="table lines-table mb-0">
+                <thead>
+                    <tr>
+                        <th width="5%">#</th>
+                        <th width="15%">Account Code</th>
+                        <th width="25%">Account Name</th>
+                        <th width="20%">Memo</th>
+                        <th width="15%" class="text-end">Debit</th>
+                        <th width="15%" class="text-end">Credit</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for line in entry.lines %}
+                    <tr>
+                        <td>{{ line.line_no }}</td>
+                        <td><code>{{ line.account.code if line.account else '-' }}</code></td>
+                        <td>{{ line.account.name if line.account else '-' }}</td>
+                        <td class="text-muted">{{ line.memo or '-' }}</td>
+                        <td class="text-end amount-debit">
+                            {% if line.debit and line.debit > 0 %}
+                            {{ '{:,.2f}'.format(line.debit|float) }}
+                            {% endif %}
+                        </td>
+                        <td class="text-end amount-credit">
+                            {% if line.credit and line.credit > 0 %}
+                            {{ '{:,.2f}'.format(line.credit|float) }}
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr class="total-row">
+                        <td colspan="4" class="text-end">Total:</td>
+                        <td class="text-end amount-debit">{{ '{:,.2f}'.format(entry.total_debit|float) }}</td>
+                        <td class="text-end amount-credit">{{ '{:,.2f}'.format(entry.total_credit|float) }}</td>
+                    </tr>
+                    <tr>
+                        <td colspan="4" class="text-end">Balance:</td>
+                        <td colspan="2" class="text-center {% if entry.is_balanced %}balance-ok{% else %}balance-error{% endif %}">
+                            {% if entry.is_balanced %}
+                            <i class="fas fa-check-circle"></i> Balanced
+                            {% else %}
+                            <i class="fas fa-exclamation-circle"></i> Not Balanced (Diff: {{ '{:,.2f}'.format((entry.total_debit - entry.total_credit)|float) }})
+                            {% endif %}
+                        </td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+
+    {% if entry.reversed_entry_id %}
+    <div class="alert alert-warning">
+        <i class="fas fa-info-circle"></i>
+        This entry has been reversed. See:
+        <a href="{{ url_for('ledger_routes.journal_entry_detail', entry_id=entry.reversed_entry_id) }}">
+            Reversing Entry
+        </a>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+function postEntry(id) {
+    if (confirm('Post this journal entry? This action cannot be undone.')) {
+        fetch(`/ledger/journal-entries/${id}/post`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'}
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Failed: ' + data.message);
+            }
+        });
+    }
+}
+
+function reverseEntry(id) {
+    if (confirm('Reverse this journal entry? This will create a new reversing entry.')) {
+        fetch(`/ledger/journal-entries/${id}/reverse`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'}
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Entry reversed successfully!');
+                window.location.href = `/ledger/journal-entries/${data.reverse_entry_id}`;
+            } else {
+                alert('Failed: ' + data.message);
+            }
+        });
+    }
+}
+</script>
+{% endblock %}
