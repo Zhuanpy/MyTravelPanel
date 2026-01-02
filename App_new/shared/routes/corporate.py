@@ -1,7 +1,9 @@
 from flask import Blueprint, render_template, request, flash, redirect, url_for, jsonify, send_file
 from flask_login import login_required, current_user
 from App_new.exts import db, csrf
-from App_new.business.projects.models.project import CustomerCompany, CompanyContact
+from App_new.business.projects.models.project import CustomerCompany, CompanyContact, CompanyFile
+from werkzeug.utils import secure_filename
+import uuid
 from App_new.shared.forms.company_forms import CustomerCompanyForm
 from App_new.utils.decorators import staff_only
 from sqlalchemy import or_
@@ -546,10 +548,176 @@ def delete_contact(company_id, contact_id):
         contact = CompanyContact.query.filter_by(id=contact_id, company_id=company_id).first_or_404()
         db.session.delete(contact)
         db.session.commit()
-        
+
         return jsonify({
             'success': True,
             'message': '联系人删除成功'
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+# ==================== 公司文件管理 API ====================
+
+# 允许的文件扩展名
+ALLOWED_EXTENSIONS = {'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'jpg', 'jpeg', 'png', 'gif', 'zip', 'rar', '7z', 'txt'}
+
+def allowed_file(filename):
+    """检查文件扩展名是否允许"""
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+def get_company_files_path(company_id):
+    """获取公司文件存储路径"""
+    from pathlib import Path
+    base_path = Path(os.getcwd()) / '资源' / 'Company' / str(company_id)
+    base_path.mkdir(parents=True, exist_ok=True)
+    return base_path
+
+
+@corporate.route('/<int:company_id>/files')
+@login_required
+@staff_only
+def get_files(company_id):
+    """获取公司文件列表"""
+    company = CustomerCompany.query.get_or_404(company_id)
+    files = CompanyFile.query.filter_by(company_id=company_id).order_by(
+        CompanyFile.created_at.desc()
+    ).all()
+    return jsonify({
+        'success': True,
+        'files': [f.to_dict() for f in files]
+    })
+
+
+@corporate.route('/<int:company_id>/files/upload', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def upload_file(company_id):
+    """上传公司文件"""
+    try:
+        company = CustomerCompany.query.get_or_404(company_id)
+
+        if 'file' not in request.files:
+            return jsonify({'success': False, 'message': '没有选择文件'}), 400
+
+        file = request.files['file']
+
+        if file.filename == '':
+            return jsonify({'success': False, 'message': '没有选择文件'}), 400
+
+        if not allowed_file(file.filename):
+            return jsonify({'success': False, 'message': '不支持的文件类型'}), 400
+
+        # 生成安全的文件名
+        original_filename = file.filename
+        file_ext = original_filename.rsplit('.', 1)[1].lower() if '.' in original_filename else ''
+        stored_filename = f"{uuid.uuid4().hex}.{file_ext}"
+
+        # 获取存储路径
+        files_path = get_company_files_path(company_id)
+        file_path = files_path / stored_filename
+
+        # 保存文件
+        file.save(str(file_path))
+
+        # 获取文件大小
+        file_size = os.path.getsize(str(file_path))
+
+        # 获取描述（如果有）
+        description = request.form.get('description', '')
+
+        # 创建数据库记录
+        company_file = CompanyFile(
+            company_id=company_id,
+            filename=original_filename,
+            stored_filename=stored_filename,
+            file_path=str(file_path),
+            file_size=file_size,
+            file_type=file.content_type,
+            description=description,
+            uploaded_by=current_user.username if current_user.is_authenticated else 'system'
+        )
+
+        db.session.add(company_file)
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': '文件上传成功',
+            'file': company_file.to_dict()
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@corporate.route('/<int:company_id>/files/<int:file_id>/download')
+@login_required
+@staff_only
+def download_file(company_id, file_id):
+    """下载公司文件"""
+    try:
+        company_file = CompanyFile.query.filter_by(id=file_id, company_id=company_id).first_or_404()
+
+        if not os.path.exists(company_file.file_path):
+            return jsonify({'success': False, 'message': '文件不存在'}), 404
+
+        return send_file(
+            company_file.file_path,
+            as_attachment=True,
+            download_name=company_file.filename
+        )
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@corporate.route('/<int:company_id>/files/<int:file_id>/delete', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def delete_file(company_id, file_id):
+    """删除公司文件"""
+    try:
+        company_file = CompanyFile.query.filter_by(id=file_id, company_id=company_id).first_or_404()
+
+        # 删除物理文件
+        if os.path.exists(company_file.file_path):
+            os.remove(company_file.file_path)
+
+        # 删除数据库记录
+        db.session.delete(company_file)
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': '文件删除成功'
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@corporate.route('/<int:company_id>/files/<int:file_id>/update', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def update_file(company_id, file_id):
+    """更新文件描述"""
+    try:
+        company_file = CompanyFile.query.filter_by(id=file_id, company_id=company_id).first_or_404()
+        data = request.get_json()
+
+        if 'description' in data:
+            company_file.description = data['description']
+
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': '更新成功',
+            'file': company_file.to_dict()
         })
     except Exception as e:
         db.session.rollback()

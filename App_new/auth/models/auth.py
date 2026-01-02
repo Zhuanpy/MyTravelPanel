@@ -334,6 +334,7 @@ class UserProfile(db.Model):
     phone = db.Column(db.String(20))
     company = db.Column(db.String(100))
     position = db.Column(db.String(50))
+    address = db.Column(db.String(255))  # 地址
     avatar = db.Column(db.String(255))  # 头像文件路径
     preferences = db.Column(db.JSON)  # 用户偏好设置
     staff_level = db.Column(db.Integer, default=1, comment='员工等级：1-普通员工(只能看自己的订单), 2-高级员工(可看所有订单)')
@@ -362,6 +363,7 @@ class UserProfile(db.Model):
             'phone': self.phone,
             'company': self.company,
             'position': self.position,
+            'address': self.address,
             'avatar': self.avatar,
             'preferences': self.preferences,
             'staff_level': self.staff_level,

@@ -53,7 +53,7 @@
                 <form method="post" action="{{ url_for('corporate.edit_company', company_id=company.id) if company else url_for('corporate.create_company') }}">
                     {{ form.hidden_tag() }}
                     
-                    <!-- 第一行：公司名称*、公司代码、联系人、联系电话 -->
+                    <!-- 第一行：公司名称*、公司代码、行业、公司规模 -->
                     <div class="visa-grid-4">
                         <div class="visa-form-group">
                             <label class="visa-form-label">
@@ -68,7 +68,7 @@
                                 </div>
                             {% endif %}
                         </div>
-                        
+
                         <div class="visa-form-group">
                             <label class="visa-form-label">{{ form.company_code.label.text }}</label>
                             {{ form.company_code(class="visa-form-control") }}
@@ -80,44 +80,7 @@
                                 </div>
                             {% endif %}
                         </div>
-                        
-                        <div class="visa-form-group">
-                            <label class="visa-form-label">{{ form.contact_person.label.text }}</label>
-                            {{ form.contact_person(class="visa-form-control") }}
-                            {% if form.contact_person.errors %}
-                                <div style="color: #ef4444; font-size: 0.875rem; margin-top: 0.25rem;">
-                                    {% for error in form.contact_person.errors %}
-                                        <small>{{ error }}</small>
-                                    {% endfor %}
-                                </div>
-                            {% endif %}
-                        </div>
-                        
-                        <div class="visa-form-group">
-                            <label class="visa-form-label">{{ form.contact_phone.label.text }}</label>
-                            {{ form.contact_phone(class="visa-form-control") }}
-                            {% if form.contact_phone.errors %}
-                                <div style="color: #ef4444; font-size: 0.875rem; margin-top: 0.25rem;">
-                                    {% for error in form.contact_phone.errors %}
-                                        <small>{{ error }}</small>
-                                    {% endfor %}
-                                </div>
-                            {% endif %}
-                        </div>
-                        
-                        <!-- 第二行：联系邮箱、行业、公司规模、状态 -->
-                        <div class="visa-form-group">
-                            <label class="visa-form-label">{{ form.contact_email.label.text }}</label>
-                            {{ form.contact_email(class="visa-form-control") }}
-                            {% if form.contact_email.errors %}
-                                <div style="color: #ef4444; font-size: 0.875rem; margin-top: 0.25rem;">
-                                    {% for error in form.contact_email.errors %}
-                                        <small>{{ error }}</small>
-                                    {% endfor %}
-                                </div>
-                            {% endif %}
-                        </div>
-                        
+
                         <div class="visa-form-group">
                             <label class="visa-form-label">{{ form.industry.label.text }}</label>
                             {{ form.industry(class="visa-form-select") }}
@@ -129,7 +92,7 @@
                                 </div>
                             {% endif %}
                         </div>
-                        
+
                         <div class="visa-form-group">
                             <label class="visa-form-label">{{ form.company_size.label.text }}</label>
                             {{ form.company_size(class="visa-form-select") }}
@@ -141,7 +104,8 @@
                                 </div>
                             {% endif %}
                         </div>
-                        
+
+                        <!-- 第二行：状态、信用额度、币种、创建时间 -->
                         <div class="visa-form-group">
                             <label class="visa-form-label">
                                 {{ form.status.label.text }} <span style="color: #ef4444;">*</span>
@@ -155,10 +119,7 @@
                                 </div>
                             {% endif %}
                         </div>
-                    </div>
-                    
-                    <!-- 第三行：信用额度、币种、创建时间、集团/关联公司 -->
-                    <div class="visa-grid-4">
+
                         <div class="visa-form-group">
                             <label class="visa-form-label">{{ form.credit_limit.label.text }}</label>
                             {{ form.credit_limit(class="visa-form-control") }}
@@ -170,7 +131,7 @@
                                 </div>
                             {% endif %}
                         </div>
-                        
+
                         <div class="visa-form-group">
                             <label class="visa-form-label">
                                 {{ form.currency.label.text }} <span style="color: #ef4444;">*</span>
@@ -184,7 +145,7 @@
                                 </div>
                             {% endif %}
                         </div>
-                        
+
                         <div class="visa-form-group">
                             <label class="visa-form-label">
                                 {{ form.created_at.label.text }} <small style="color: #94a3b8;">(可选)</small>
@@ -198,7 +159,10 @@
                                 </div>
                             {% endif %}
                         </div>
-                        
+                    </div>
+                    
+                    <!-- 第三行：集团/关联公司 -->
+                    <div class="visa-grid-4">
                         <div class="visa-form-group">
                             <label class="visa-form-label">
                                 {{ form.group_name.label.text }} <small style="color: #94a3b8;">(可选)</small>
@@ -219,7 +183,7 @@
                             {% endif %}
                         </div>
                     </div>
-                    
+
                     <!-- 公司地址 -->
                     <div class="visa-form-group">
                         <label class="visa-form-label">{{ form.address.label.text }}</label>
@@ -277,6 +241,25 @@
             </div>
             <div class="visa-card-body">
                 <div id="contactsContainer">
+                    <div class="visa-text-center" style="padding: 2rem; color: #94a3b8;">
+                        <i class="fas fa-spinner fa-spin"></i> 加载中...
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 公司文件/附件 -->
+        <div class="visa-card visa-mt-4">
+            <div class="visa-card-header visa-flex-between">
+                <h3>
+                    <i class="fas fa-folder-open"></i> 公司文件
+                </h3>
+                <button type="button" class="visa-btn visa-btn-success visa-btn-sm" onclick="showUploadModal()">
+                    <i class="fas fa-upload"></i> 上传文件
+                </button>
+            </div>
+            <div class="visa-card-body">
+                <div id="filesContainer">
                     <div class="visa-text-center" style="padding: 2rem; color: #94a3b8;">
                         <i class="fas fa-spinner fa-spin"></i> 加载中...
                     </div>
@@ -349,6 +332,41 @@
         </div>
     </div>
 </div>
+
+<!-- 上传文件模态框 -->
+<div id="uploadModal" class="visa-modal" style="display: none;">
+    <div class="visa-modal-dialog">
+        <div class="visa-modal-header" style="background: linear-gradient(135deg, #10b981, #059669); color: white;">
+            <h3 class="visa-modal-title" style="color: white;">上传文件</h3>
+            <button class="visa-modal-close" onclick="closeUploadModal()" style="color: white; font-size: 1.5rem;">&times;</button>
+        </div>
+        <div class="visa-modal-body">
+            <form id="uploadForm" enctype="multipart/form-data">
+                <div class="visa-form-group">
+                    <label class="visa-form-label">选择文件 <span style="color: #ef4444;">*</span></label>
+                    <input type="file" id="fileInput" class="visa-form-control" required>
+                    <small style="color: #94a3b8;">支持: PDF, Word, Excel, PPT, 图片, 压缩包等</small>
+                </div>
+                <div class="visa-form-group">
+                    <label class="visa-form-label">文件描述</label>
+                    <textarea id="fileDescription" class="visa-form-control" rows="2" placeholder="可选，添加文件描述..."></textarea>
+                </div>
+            </form>
+            <div id="uploadProgress" style="display: none; margin-top: 1rem;">
+                <div style="background: #e2e8f0; border-radius: 4px; height: 8px; overflow: hidden;">
+                    <div id="progressBar" style="background: #10b981; height: 100%; width: 0%; transition: width 0.3s;"></div>
+                </div>
+                <small style="color: #94a3b8; margin-top: 0.5rem; display: block;">正在上传...</small>
+            </div>
+        </div>
+        <div class="visa-modal-footer">
+            <button type="button" class="visa-btn visa-btn-secondary" onclick="closeUploadModal()">取消</button>
+            <button type="button" class="visa-btn visa-btn-success" onclick="uploadFile()" id="uploadBtn">
+                <i class="fas fa-upload"></i> 上传
+            </button>
+        </div>
+    </div>
+</div>
 {% endif %}
 
 {% endblock %}
@@ -358,9 +376,10 @@
 <script>
 const companyId = {{ company.id }};
 
-// 页面加载时获取联系人列表
+// 页面加载时获取联系人列表和文件列表
 document.addEventListener('DOMContentLoaded', function() {
     loadContacts();
+    loadFiles();
 });
 
 // 加载联系人列表
@@ -541,6 +560,178 @@ function deleteContact(contactId) {
 // 关闭模态框
 function closeContactModal() {
     document.getElementById('contactModal').style.display = 'none';
+}
+
+// ==================== 文件管理功能 ====================
+
+// 加载文件列表
+function loadFiles() {
+    fetch(`/company/${companyId}/files`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                displayFiles(data.files);
+            } else {
+                document.getElementById('filesContainer').innerHTML =
+                    '<div class="visa-text-center" style="padding: 2rem; color: #ef4444;">加载失败</div>';
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            document.getElementById('filesContainer').innerHTML =
+                '<div class="visa-text-center" style="padding: 2rem; color: #ef4444;">加载出错</div>';
+        });
+}
+
+// 显示文件列表
+function displayFiles(files) {
+    const container = document.getElementById('filesContainer');
+
+    if (files.length === 0) {
+        container.innerHTML = `
+            <div class="visa-text-center" style="padding: 2rem; color: #94a3b8;">
+                <i class="fas fa-folder-open" style="font-size: 2rem; margin-bottom: 0.5rem;"></i>
+                <p>暂无文件</p>
+                <button type="button" class="visa-btn visa-btn-success visa-btn-sm" onclick="showUploadModal()">
+                    <i class="fas fa-upload"></i> 上传第一个文件
+                </button>
+            </div>
+        `;
+        return;
+    }
+
+    let html = '<div class="visa-table-responsive"><table class="visa-table"><thead><tr>';
+    html += '<th style="width: 40px;"></th>';
+    html += '<th>文件名</th>';
+    html += '<th style="width: 100px;">大小</th>';
+    html += '<th>描述</th>';
+    html += '<th style="width: 120px;">上传时间</th>';
+    html += '<th style="width: 80px;">上传人</th>';
+    html += '<th style="width: 120px;">操作</th>';
+    html += '</tr></thead><tbody>';
+
+    files.forEach(file => {
+        const iconColor = getIconColor(file.file_extension);
+        html += `<tr>
+            <td><i class="fas ${file.icon_class}" style="color: ${iconColor}; font-size: 1.2rem;"></i></td>
+            <td><strong>${file.filename}</strong></td>
+            <td>${file.file_size_display}</td>
+            <td>${file.description || '-'}</td>
+            <td>${file.created_at || '-'}</td>
+            <td>${file.uploaded_by || '-'}</td>
+            <td>
+                <div class="visa-flex visa-gap-1">
+                    <a href="/company/${companyId}/files/${file.id}/download" class="visa-btn visa-btn-info visa-btn-sm" title="下载">
+                        <i class="fas fa-download"></i>
+                    </a>
+                    <button type="button" class="visa-btn visa-btn-danger visa-btn-sm" onclick="deleteFile(${file.id})" title="删除">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </td>
+        </tr>`;
+    });
+
+    html += '</tbody></table></div>';
+    container.innerHTML = html;
+}
+
+// 根据文件扩展名获取图标颜色
+function getIconColor(ext) {
+    if (ext === '.pdf') return '#ef4444';
+    if (['.doc', '.docx'].includes(ext)) return '#3b82f6';
+    if (['.xls', '.xlsx'].includes(ext)) return '#10b981';
+    if (['.ppt', '.pptx'].includes(ext)) return '#f97316';
+    if (['.jpg', '.jpeg', '.png', '.gif', '.webp'].includes(ext)) return '#8b5cf6';
+    if (['.zip', '.rar', '.7z'].includes(ext)) return '#eab308';
+    return '#6b7280';
+}
+
+// 显示上传模态框
+function showUploadModal() {
+    document.getElementById('uploadForm').reset();
+    document.getElementById('uploadProgress').style.display = 'none';
+    document.getElementById('uploadBtn').disabled = false;
+    document.getElementById('uploadModal').style.display = 'flex';
+}
+
+// 关闭上传模态框
+function closeUploadModal() {
+    document.getElementById('uploadModal').style.display = 'none';
+}
+
+// 上传文件
+function uploadFile() {
+    const fileInput = document.getElementById('fileInput');
+    const description = document.getElementById('fileDescription').value.trim();
+
+    if (!fileInput.files.length) {
+        alert('请选择要上传的文件');
+        return;
+    }
+
+    const file = fileInput.files[0];
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('description', description);
+
+    // 显示进度条
+    document.getElementById('uploadProgress').style.display = 'block';
+    document.getElementById('uploadBtn').disabled = true;
+
+    const xhr = new XMLHttpRequest();
+
+    xhr.upload.addEventListener('progress', function(e) {
+        if (e.lengthComputable) {
+            const percent = (e.loaded / e.total) * 100;
+            document.getElementById('progressBar').style.width = percent + '%';
+        }
+    });
+
+    xhr.onreadystatechange = function() {
+        if (xhr.readyState === 4) {
+            if (xhr.status === 200) {
+                const result = JSON.parse(xhr.responseText);
+                if (result.success) {
+                    closeUploadModal();
+                    loadFiles();
+                } else {
+                    alert('上传失败：' + result.message);
+                }
+            } else {
+                alert('上传失败，请重试');
+            }
+            document.getElementById('uploadBtn').disabled = false;
+            document.getElementById('uploadProgress').style.display = 'none';
+            document.getElementById('progressBar').style.width = '0%';
+        }
+    };
+
+    xhr.open('POST', `/company/${companyId}/files/upload`);
+    xhr.send(formData);
+}
+
+// 删除文件
+function deleteFile(fileId) {
+    if (!confirm('确定要删除这个文件吗？')) {
+        return;
+    }
+
+    fetch(`/company/${companyId}/files/${fileId}/delete`, {
+        method: 'POST'
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            loadFiles();
+        } else {
+            alert('删除失败：' + result.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('删除文件时出错');
+    });
 }
 </script>
 {% endblock %}

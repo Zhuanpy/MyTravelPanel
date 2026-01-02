@@ -9,112 +9,88 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/staff_common.css') }}">
 <style>
     /* 页面整体布局 */
-    .profile-page { max-width: 1000px; margin: 0 auto; padding: 0 15px; }
-    
-    /* 头部卡片优化 */
+    .profile-page { max-width: 900px; margin: 0 auto; padding: 0 15px; }
+
+    /* 头部卡片 - 绿色主题 */
     .profile-header-card {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        border-radius: 20px;
-        padding: 2rem;
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        border-radius: 16px;
+        padding: 1.5rem 2rem;
         color: white;
-        box-shadow: 0 10px 40px rgba(102, 126, 234, 0.3);
+        box-shadow: 0 8px 30px rgba(16, 185, 129, 0.25);
     }
     .profile-header-card .profile-avatar {
-        width: 100px;
-        height: 100px;
-        font-size: 2.5rem;
+        width: 80px;
+        height: 80px;
+        font-size: 2rem;
         background: rgba(255,255,255,0.2);
         border: 3px solid rgba(255,255,255,0.5);
-    }
-    .profile-header-card h4 { color: white; font-weight: 600; }
-    .profile-header-card .text-muted { color: rgba(255,255,255,0.8) !important; }
-    .profile-header-card .badge { background: rgba(255,255,255,0.2); }
-    .profile-header-card .btn-light { 
-        background: white; 
-        color: #667eea; 
-        border: none;
-        font-weight: 500;
-    }
-    .profile-header-card .btn-outline-light { 
-        border-color: rgba(255,255,255,0.5); 
-        color: white;
-    }
-    .profile-header-card .btn-outline-light:hover { 
-        background: rgba(255,255,255,0.1); 
-    }
-    
-    /* 统计卡片优化 */
-    .stats-card-new {
-        border: none;
-        border-radius: 16px;
-        background: white;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.08);
-        transition: all 0.3s ease;
-        overflow: hidden;
-    }
-    .stats-card-new:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 8px 30px rgba(0,0,0,0.12);
-    }
-    .stats-card-new .card-body { padding: 1.5rem; }
-    .stats-card-new .stats-icon {
-        width: 50px;
-        height: 50px;
-        border-radius: 12px;
+        border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 1.25rem;
     }
-    .stats-card-new .stats-icon.purple { background: linear-gradient(135deg, #667eea, #764ba2); color: white; }
-    .stats-card-new .stats-icon.green { background: linear-gradient(135deg, #10b981, #059669); color: white; }
-    .stats-card-new .stats-icon.blue { background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; }
-    .stats-card-new .stats-icon.orange { background: linear-gradient(135deg, #f59e0b, #d97706); color: white; }
-    .stats-card-new h3 { font-size: 1.5rem; font-weight: 700; color: #1f2937; margin: 0; }
-    .stats-card-new p { font-size: 0.85rem; color: #6b7280; margin: 0; }
-    
-    /* 信息卡片优化 */
+    .profile-header-card h4 { color: white; font-weight: 600; font-size: 1.25rem; }
+    .profile-header-card .text-muted { color: rgba(255,255,255,0.8) !important; font-size: 0.9rem; }
+    .profile-header-card .badge { background: rgba(255,255,255,0.2); font-size: 0.8rem; }
+    .profile-header-card .btn-light {
+        background: white;
+        color: #059669;
+        border: none;
+        font-weight: 500;
+    }
+    .profile-header-card .btn-light:hover { background: #f0fdf4; color: #047857; }
+    .profile-header-card .btn-outline-light { border-color: rgba(255,255,255,0.5); color: white; }
+    .profile-header-card .btn-outline-light:hover { background: rgba(255,255,255,0.1); }
+
+    /* 信息卡片 */
     .info-card {
         border: none;
-        border-radius: 16px;
+        border-radius: 12px;
         background: white;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        box-shadow: 0 2px 12px rgba(0,0,0,0.06);
     }
     .info-card .card-header {
         background: transparent;
         border-bottom: 1px solid #f3f4f6;
-        padding: 1.25rem 1.5rem;
+        padding: 1rem 1.25rem;
     }
-    .info-card .card-header h5 {
-        font-weight: 600;
-        color: #374151;
-        font-size: 1rem;
-    }
-    .info-card .card-header i { color: #667eea; }
-    .info-card .card-body { padding: 1.5rem; }
-    
-    /* 信息项优化 */
+    .info-card .card-header h5 { font-weight: 600; color: #374151; font-size: 0.95rem; margin: 0; }
+    .info-card .card-header i { color: #10b981; }
+    .info-card .card-body { padding: 1.25rem; }
+
+    /* 信息项 */
     .info-item {
         background: #f9fafb;
-        border-radius: 12px;
-        padding: 1rem 1.25rem;
+        border-radius: 8px;
+        padding: 0.875rem 1rem;
         height: 100%;
     }
     .info-item .info-label {
-        font-size: 0.75rem;
+        font-size: 0.7rem;
         color: #6b7280;
         text-transform: uppercase;
         letter-spacing: 0.5px;
-        margin-bottom: 0.35rem;
+        margin-bottom: 0.25rem;
     }
-    .info-item .info-value {
-        font-size: 0.95rem;
-        color: #1f2937;
-        font-weight: 500;
-    }
+    .info-item .info-value { font-size: 0.9rem; color: #1f2937; font-weight: 500; }
     .info-item .info-value.empty { color: #9ca3af; font-weight: 400; }
-    .info-item .info-value a { color: #667eea; text-decoration: none; }
-    .info-item .info-value a:hover { text-decoration: underline; }
+
+    /* 信息行 - 横向排列 */
+    .info-row {
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+    .info-row .info-item {
+        flex: 1;
+        min-width: 150px;
+    }
+    @media (max-width: 768px) {
+        .info-row .info-item {
+            flex: 1 1 calc(50% - 0.5rem);
+        }
+    }
 </style>
 {% endblock %}
 
@@ -150,10 +126,16 @@
                         {% else %}
                             员工
                         {% endif %}
+                        {% if user.profile and user.profile.company %}
+                            <span class="ms-2">@ {{ user.profile.company }}</span>
+                        {% endif %}
                     </p>
                     <span class="badge">
                         <i class="fas fa-user-tie me-1"></i>{{ user.role.name if user.role else '员工' }}
                     </span>
+                    {% if user.is_active %}
+                        <span class="badge ms-1" style="background: rgba(255,255,255,0.3);"><i class="fas fa-check me-1"></i>已激活</span>
+                    {% endif %}
                 </div>
                 <div class="d-flex gap-2">
                     <a href="{{ url_for('staff.edit_profile') }}" class="btn btn-light btn-sm">
@@ -168,187 +150,32 @@
     </div>
 </div>
 
-<!-- 统计信息 -->
-<div class="row mb-4 g-3">
-    <div class="col-6 col-md-3">
-        <div class="card stats-card-new">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h3>{{ user.created_at.strftime('%Y') if user.created_at else 'N/A' }}</h3>
-                        <p>注册年份</p>
-                    </div>
-                    <div class="stats-icon purple">
-                        <i class="fas fa-calendar-alt"></i>
-                    </div>
+<!-- 详细信息 -->
+<div class="card info-card">
+    <div class="card-body">
+        <div class="info-row">
+            <div class="info-item">
+                <div class="info-label">联系电话</div>
+                <div class="info-value {{ 'empty' if not (user.profile and user.profile.phone) }}">
+                    {{ user.profile.phone if user.profile and user.profile.phone else '未设置' }}
                 </div>
             </div>
-        </div>
-    </div>
-    
-    <div class="col-6 col-md-3">
-        <div class="card stats-card-new">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h3>{{ user.last_login_at.strftime('%m-%d') if user.last_login_at else 'N/A' }}</h3>
-                        <p>最后登录</p>
-                    </div>
-                    <div class="stats-icon blue">
-                        <i class="fas fa-sign-in-alt"></i>
-                    </div>
+            <div class="info-item">
+                <div class="info-label">地址</div>
+                <div class="info-value {{ 'empty' if not (user.profile and user.profile.address) }}">
+                    {{ user.profile.address if user.profile and user.profile.address else '未设置' }}
                 </div>
             </div>
-        </div>
-    </div>
-    
-    <div class="col-6 col-md-3">
-        <div class="card stats-card-new">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h3>{{ user.is_active and '活跃' or '未激活' }}</h3>
-                        <p>账户状态</p>
-                    </div>
-                    <div class="stats-icon green">
-                        <i class="fas fa-check-circle"></i>
-                    </div>
+            <div class="info-item">
+                <div class="info-label">注册时间</div>
+                <div class="info-value">
+                    {{ user.created_at.strftime('%Y-%m-%d') if user.created_at else '未知' }}
                 </div>
             </div>
-        </div>
-    </div>
-    
-    <div class="col-6 col-md-3">
-        <div class="card stats-card-new">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h3>{{ user.role.name if user.role else 'N/A' }}</h3>
-                        <p>用户角色</p>
-                    </div>
-                    <div class="stats-icon orange">
-                        <i class="fas fa-user-shield"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- 基本信息 -->
-<div class="row mb-4">
-    <div class="col-12">
-        <div class="card info-card">
-            <div class="card-header">
-                <h5 class="mb-0">
-                    <i class="fas fa-info-circle me-2"></i>基本信息
-                </h5>
-            </div>
-            <div class="card-body">
-                <div class="row g-3">
-                    <div class="col-md-6">
-                        <div class="info-item">
-                            <div class="info-label">姓名</div>
-                            <div class="info-value {{ 'empty' if not (user.profile and user.profile.first_name) }}">
-                                {{ user.profile.first_name if user.profile and user.profile.first_name else '未设置' }}
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="info-item">
-                            <div class="info-label">姓氏</div>
-                            <div class="info-value {{ 'empty' if not (user.profile and user.profile.last_name) }}">
-                                {{ user.profile.last_name if user.profile and user.profile.last_name else '未设置' }}
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="info-item">
-                            <div class="info-label">联系电话</div>
-                            <div class="info-value {{ 'empty' if not (user.profile and user.profile.phone) }}">
-                                {{ user.profile.phone if user.profile and user.profile.phone else '未设置' }}
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="info-item">
-                            <div class="info-label">公司</div>
-                            <div class="info-value {{ 'empty' if not (user.profile and user.profile.company) }}">
-                                {{ user.profile.company if user.profile and user.profile.company else '未设置' }}
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="info-item">
-                            <div class="info-label">职位</div>
-                            <div class="info-value {{ 'empty' if not (user.profile and user.profile.position) }}">
-                                {{ user.profile.position if user.profile and user.profile.position else '未设置' }}
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="info-item">
-                            <div class="info-label">地址</div>
-                            <div class="info-value {{ 'empty' if not (user.profile and user.profile.address) }}">
-                                {{ user.profile.address if user.profile and user.profile.address else '未设置' }}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- 账户安全 -->
-<div class="row mb-4">
-    <div class="col-12">
-        <div class="card info-card">
-            <div class="card-header">
-                <h5 class="mb-0">
-                    <i class="fas fa-shield-alt me-2"></i>账户安全
-                </h5>
-            </div>
-            <div class="card-body">
-                <div class="row g-3">
-                    <div class="col-md-6">
-                        <div class="info-item">
-                            <div class="info-label">账户状态</div>
-                            <div class="info-value">
-                                {% if user.is_active %}
-                                    <span class="badge bg-success"><i class="fas fa-check me-1"></i>已激活</span>
-                                {% else %}
-                                    <span class="badge bg-danger"><i class="fas fa-times me-1"></i>未激活</span>
-                                {% endif %}
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="info-item">
-                            <div class="info-label">注册时间</div>
-                            <div class="info-value">
-                                {{ user.created_at.strftime('%Y-%m-%d %H:%M') if user.created_at else '未知' }}
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="info-item">
-                            <div class="info-label">最后登录</div>
-                            <div class="info-value">
-                                {{ user.last_login_at.strftime('%Y-%m-%d %H:%M') if user.last_login_at else '从未登录' }}
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="info-item">
-                            <div class="info-label">密码安全</div>
-                            <div class="info-value">
-                                <a href="{{ url_for('staff.change_password') }}">
-                                    <i class="fas fa-key me-1"></i>修改密码
-                                </a>
-                            </div>
-                        </div>
-                    </div>
+            <div class="info-item">
+                <div class="info-label">最后登录</div>
+                <div class="info-value {{ 'empty' if not user.last_login }}">
+                    {{ user.last_login.strftime('%m-%d %H:%M') if user.last_login else '从未' }}
                 </div>
             </div>
         </div>

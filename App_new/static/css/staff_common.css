@@ -782,11 +782,26 @@ main {
     color: #dc3545;
 }
 
-.btn-group {
+/* 表单底部按钮组样式 - 使用更具体的选择器避免影响表格 */
+.form-actions .btn-group,
+.modal-footer .btn-group,
+form > .btn-group {
     text-align: center;
     padding-top: 1rem;
     border-top: 1px solid #dee2e6;
     margin-top: 2rem;
+}
+
+/* 表格内的按钮组不需要额外的间距 */
+table .btn-group,
+.account-table .btn-group,
+td .btn-group {
+    text-align: left;
+    padding-top: 0;
+    border-top: none;
+    margin-top: 0;
+    display: flex;
+    gap: 0.25rem;
 }
 
 /* ==================== Profile页面样式系统 ==================== */

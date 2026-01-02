@@ -108,6 +108,83 @@ class CompanyContact(db.Model):
         }
 
 
+class CompanyFile(db.Model):
+    """公司文件/附件模型"""
+    __tablename__ = 'company_files'
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    company_id = db.Column(db.Integer, db.ForeignKey('customer_companies.id', ondelete='CASCADE'), nullable=False, comment='公司ID')
+    filename = db.Column(db.String(255), nullable=False, comment='原始文件名')
+    stored_filename = db.Column(db.String(255), nullable=False, comment='存储文件名')
+    file_path = db.Column(db.String(500), nullable=False, comment='文件存储路径')
+    file_size = db.Column(db.Integer, nullable=True, comment='文件大小（字节）')
+    file_type = db.Column(db.String(100), nullable=True, comment='文件类型/MIME类型')
+    description = db.Column(db.String(500), nullable=True, comment='文件描述')
+    uploaded_by = db.Column(db.String(100), nullable=True, comment='上传人')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, comment='上传时间')
+
+    # 关联关系
+    company = db.relationship('CustomerCompany', backref=db.backref('files', lazy='dynamic', cascade='all, delete-orphan'))
+
+    def __repr__(self):
+        return f'<CompanyFile {self.filename}>'
+
+    @property
+    def file_size_display(self):
+        """格式化显示文件大小"""
+        if not self.file_size:
+            return '未知'
+        if self.file_size < 1024:
+            return f'{self.file_size} B'
+        elif self.file_size < 1024 * 1024:
+            return f'{self.file_size / 1024:.1f} KB'
+        else:
+            return f'{self.file_size / (1024 * 1024):.1f} MB'
+
+    @property
+    def file_extension(self):
+        """获取文件扩展名"""
+        import os
+        _, ext = os.path.splitext(self.filename)
+        return ext.lower() if ext else ''
+
+    @property
+    def icon_class(self):
+        """根据文件类型返回图标类名"""
+        ext = self.file_extension
+        if ext in ['.pdf']:
+            return 'fa-file-pdf'
+        elif ext in ['.doc', '.docx']:
+            return 'fa-file-word'
+        elif ext in ['.xls', '.xlsx']:
+            return 'fa-file-excel'
+        elif ext in ['.ppt', '.pptx']:
+            return 'fa-file-powerpoint'
+        elif ext in ['.jpg', '.jpeg', '.png', '.gif', '.webp']:
+            return 'fa-file-image'
+        elif ext in ['.zip', '.rar', '.7z']:
+            return 'fa-file-archive'
+        else:
+            return 'fa-file'
+
+    def to_dict(self):
+        """转换为字典格式"""
+        return {
+            'id': self.id,
+            'company_id': self.company_id,
+            'filename': self.filename,
+            'stored_filename': self.stored_filename,
+            'file_size': self.file_size,
+            'file_size_display': self.file_size_display,
+            'file_type': self.file_type,
+            'file_extension': self.file_extension,
+            'icon_class': self.icon_class,
+            'description': self.description,
+            'uploaded_by': self.uploaded_by,
+            'created_at': self.created_at.strftime('%Y-%m-%d %H:%M') if self.created_at else None
+        }
+
+
 class Customer(db.Model):
     """客户模型"""
     __tablename__ = 'customers'
