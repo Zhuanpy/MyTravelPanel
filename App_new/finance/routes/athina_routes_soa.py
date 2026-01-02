@@ -241,24 +241,103 @@ def soa_download_html(header_id):
     try:
         soa_service = SOAService()
         html_content, error = soa_service.generate_soa_html(header_id)
-        
+
         if error:
             flash(f'生成SOA HTML失败: {error}', 'error')
             return redirect(url_for('soa_routes.soa_list'))
-        
+
         # 获取头部信息用于文件名
         header = AthinaBookingHeader.query.get(header_id)
         filename = f"SOA_{header.booking_header_id}_{header.corporate_name or 'Unknown'}_{datetime.now().strftime('%Y%m%d')}.html"
-        
+
         # 清理文件名中的特殊字符
         filename = "".join(c for c in filename if c.isalnum() or c in (' ', '-', '_', '.')).rstrip()
-        
+
         response = make_response(html_content)
         response.headers['Content-Type'] = 'text/html; charset=utf-8'
         response.headers['Content-Disposition'] = f'attachment; filename="{filename}"'
-        
+
         return response
-        
+
     except Exception as e:
         flash(f'下载SOA HTML时出错: {str(e)}', 'error')
         return redirect(url_for('soa_routes.soa_list'))
+
+
+@soa_blue.route('/soa_reset_balance/<int:header_id>', methods=['POST'])
+@login_required
+@staff_only
+def soa_reset_balance(header_id):
+    """重置单个SOA记录的余额为0"""
+    try:
+        header = AthinaBookingHeader.query.get(header_id)
+        if not header:
+            return jsonify({'success': False, 'message': '找不到指定的SOA记录'})
+
+        old_balance = header.sub_total_balance
+        header.sub_total_balance = 0
+
+        # 同时更新所有相关的detail记录的balance
+        for detail in header.details:
+            detail.balance = 0
+
+        db.session.commit()
+
+        current_app.logger.info(f"SOA余额重置成功 - Header ID: {header_id}, 原余额: {old_balance}, 新余额: 0")
+
+        return jsonify({
+            'success': True,
+            'message': f'余额已重置为0（原余额: ${old_balance:.2f}）',
+            'header_id': header_id,
+            'old_balance': old_balance,
+            'new_balance': 0
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.exception(f"SOA余额重置失败: {str(e)}")
+        return jsonify({'success': False, 'message': f'重置余额失败: {str(e)}'})
+
+
+@soa_blue.route('/soa_batch_reset_balance', methods=['POST'])
+@login_required
+@staff_only
+def soa_batch_reset_balance():
+    """批量重置SOA记录的余额为0"""
+    try:
+        data = request.get_json()
+        header_ids = data.get('header_ids', [])
+
+        if not header_ids:
+            return jsonify({'success': False, 'message': '请选择要重置的记录'})
+
+        reset_count = 0
+        total_old_balance = 0
+
+        for header_id in header_ids:
+            header = AthinaBookingHeader.query.get(header_id)
+            if header:
+                total_old_balance += header.sub_total_balance
+                header.sub_total_balance = 0
+
+                # 同时更新所有相关的detail记录的balance
+                for detail in header.details:
+                    detail.balance = 0
+
+                reset_count += 1
+
+        db.session.commit()
+
+        current_app.logger.info(f"SOA批量余额重置成功 - 共{reset_count}条记录, 原总余额: {total_old_balance}")
+
+        return jsonify({
+            'success': True,
+            'message': f'已成功重置{reset_count}条记录的余额为0（原总余额: ${total_old_balance:.2f}）',
+            'reset_count': reset_count,
+            'total_old_balance': total_old_balance
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.exception(f"SOA批量余额重置失败: {str(e)}")
+        return jsonify({'success': False, 'message': f'批量重置余额失败: {str(e)}'})

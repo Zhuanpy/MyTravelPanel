@@ -132,6 +132,9 @@
             </div>
             <div class="col-md-6 text-right">
                 <div class="btn-group btn-group-sm" role="group">
+                    <button class="btn btn-warning" id="batchResetBalanceBtn" title="批量清零余额" style="display: none;">
+                        <i class="fas fa-eraser"></i> 清零选中(<span id="selectedCount">0</span>)
+                    </button>
                     <button class="btn btn-success" id="batchDownloadBtn" title="下载Excel">
                         <i class="fas fa-file-excel"></i>
                     </button>
@@ -187,6 +190,7 @@
             <table class="table table-hover">
                 <thead>
                     <tr>
+                        <th style="width: 40px;"><input type="checkbox" id="selectAllCheckbox" title="全选/取消全选"></th>
                         <th>HID</th>
                         <th>COMPANY</th>
                         <th>BK.DATE</th>
@@ -222,6 +226,7 @@ class SOAManager {
         this.monthFilter = '';
         this.companyFilter = '';
         this.balanceFilter = false;
+        this.selectedItems = new Set();
         this.init();
     }
 
@@ -457,7 +462,9 @@ class SOAManager {
 
         data.headers.forEach(header => {
             const row = document.createElement('tr');
+            const isSelected = this.selectedItems.has(header.id);
             row.innerHTML = `
+                <td><input type="checkbox" class="row-checkbox" data-id="${header.id}" ${isSelected ? 'checked' : ''}></td>
                 <td>${header.booking_header_id}</td>
                 <td>${header.corporate_name || 'N/A'}</td>
                 <td>${header.book_date || 'N/A'}</td>
@@ -477,11 +484,17 @@ class SOAManager {
                         <button class="btn btn-sm btn-outline-success" onclick="soaManager.downloadHTML(${header.id})" title="下载HTML">
                             <i class="fas fa-file-code"></i>
                         </button>
+                        <button class="btn btn-sm btn-outline-warning" onclick="soaManager.resetBalance(${header.id})" title="清零余额">
+                            <i class="fas fa-eraser"></i>
+                        </button>
                     </div>
                 </td>
             `;
             tbody.appendChild(row);
         });
+
+        // 绑定复选框事件
+        this.bindCheckboxEvents();
 
         this.showTable();
         this.renderPagination(data);
@@ -683,6 +696,130 @@ class SOAManager {
     showError(message) {
         alert('错误: ' + message);
         this.showNoData();
+    }
+
+    bindCheckboxEvents() {
+        // 全选/取消全选
+        const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+        if (selectAllCheckbox) {
+            selectAllCheckbox.addEventListener('change', (e) => {
+                const checkboxes = document.querySelectorAll('.row-checkbox');
+                checkboxes.forEach(cb => {
+                    cb.checked = e.target.checked;
+                    const id = parseInt(cb.dataset.id);
+                    if (e.target.checked) {
+                        this.selectedItems.add(id);
+                    } else {
+                        this.selectedItems.delete(id);
+                    }
+                });
+                this.updateSelectedCount();
+            });
+        }
+
+        // 单个复选框事件
+        const checkboxes = document.querySelectorAll('.row-checkbox');
+        checkboxes.forEach(cb => {
+            cb.addEventListener('change', (e) => {
+                const id = parseInt(e.target.dataset.id);
+                if (e.target.checked) {
+                    this.selectedItems.add(id);
+                } else {
+                    this.selectedItems.delete(id);
+                }
+                this.updateSelectedCount();
+
+                // 更新全选复选框状态
+                const allChecked = document.querySelectorAll('.row-checkbox:checked').length === checkboxes.length;
+                document.getElementById('selectAllCheckbox').checked = allChecked;
+            });
+        });
+
+        // 批量清零按钮事件
+        const batchResetBtn = document.getElementById('batchResetBalanceBtn');
+        if (batchResetBtn) {
+            batchResetBtn.onclick = () => this.batchResetBalance();
+        }
+    }
+
+    updateSelectedCount() {
+        const countSpan = document.getElementById('selectedCount');
+        const batchBtn = document.getElementById('batchResetBalanceBtn');
+        const count = this.selectedItems.size;
+
+        countSpan.textContent = count;
+        batchBtn.style.display = count > 0 ? 'inline-block' : 'none';
+    }
+
+    getCSRFToken() {
+        const meta = document.querySelector('meta[name="csrf-token"]');
+        return meta ? meta.getAttribute('content') : '';
+    }
+
+    async resetBalance(headerId) {
+        if (!confirm('确定要将此记录的余额清零吗？此操作不可撤销！')) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`/statement/soa_reset_balance/${headerId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': this.getCSRFToken()
+                }
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                alert(data.message);
+                this.loadData();
+            } else {
+                alert('清零失败: ' + (data.message || '未知错误'));
+            }
+        } catch (error) {
+            console.error('清零余额失败:', error);
+            alert('清零余额失败，请稍后重试');
+        }
+    }
+
+    async batchResetBalance() {
+        const count = this.selectedItems.size;
+        if (count === 0) {
+            alert('请先选择要清零的记录');
+            return;
+        }
+
+        if (!confirm(`确定要将选中的 ${count} 条记录的余额全部清零吗？此操作不可撤销！`)) {
+            return;
+        }
+
+        try {
+            const headerIds = Array.from(this.selectedItems);
+            const response = await fetch('/statement/soa_batch_reset_balance', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': this.getCSRFToken()
+                },
+                body: JSON.stringify({ header_ids: headerIds })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                alert(data.message);
+                this.selectedItems.clear();
+                this.updateSelectedCount();
+                this.loadData();
+            } else {
+                alert('批量清零失败: ' + (data.message || '未知错误'));
+            }
+        } catch (error) {
+            console.error('批量清零余额失败:', error);
+            alert('批量清零余额失败，请稍后重试');
+        }
     }
 }
 
