@@ -4,7 +4,7 @@
 管理员登录等功能
 """
 
-from flask import Blueprint, render_template, request, redirect, url_for, flash
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session
 from flask_login import login_user
 from ..models import AuthUser
 from ...utils.decorators import guest_only
@@ -56,8 +56,12 @@ def login():
                 # 登录成功
                 login_user(user, remember=remember)
                 user.record_login_success()
+
+                # 存储会话版本用于密码修改后强制登出其他设备
+                session['session_version'] = user.session_version
+
                 flash('登录成功！', 'success')
-                
+
                 # 获取重定向目标
                 next_page = request.args.get('next')
                 if next_page and next_page.startswith('/admin/'):

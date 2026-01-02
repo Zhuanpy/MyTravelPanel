@@ -4,7 +4,7 @@
 包含所有员工功能模块
 """
 
-from flask import Blueprint, render_template, request, flash, redirect, url_for, jsonify, current_app, send_from_directory
+from flask import Blueprint, render_template, request, flash, redirect, url_for, jsonify, current_app, send_from_directory, session
 from flask_login import login_required, current_user
 from datetime import datetime, timedelta
 from ...utils.decorators import staff_only
@@ -114,11 +114,14 @@ def change_password():
                 flash('新密码长度至少6位', 'error')
                 return render_template('staff/change_password.html')
             
-            # 更新密码
+            # 更新密码（会自动递增session_version）
             current_user.set_password(new_password)
             db.session.commit()
-            
-            flash('密码修改成功', 'success')
+
+            # 更新当前会话的版本号，避免自己被登出
+            session['session_version'] = current_user.session_version
+
+            flash('密码修改成功，其他设备需要重新登录', 'success')
             return redirect(url_for('staff.profile'))
             
         except Exception as e:

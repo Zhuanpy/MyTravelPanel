@@ -3,7 +3,7 @@
 管理员仪表板、用户管理、权限管理、系统配置等功能
 """
 
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app, session
 from flask_login import login_required, current_user
 from App_new.utils.decorators import admin_only, permission_required
 from App_new.auth.models.auth import AuthUser, Role, UserProfile, InvitationCode
@@ -1051,15 +1051,21 @@ def change_password():
                 # 更新密码（临时使用明文存储，避免哈希问题）
                 old_password = current_user.password_hash
                 current_user.password_hash = new_password
-                
+
+                # 递增会话版本，强制其他设备退出
+                current_user.session_version = (current_user.session_version or 0) + 1
+
                 try:
                     db.session.commit()
-                    
+
+                    # 更新当前会话的版本号，避免自己被登出
+                    session['session_version'] = current_user.session_version
+
                     # 验证密码是否真的被更新了
                     db.session.refresh(current_user)
                     if current_user.password_hash == new_password:
                         current_app.logger.info(f"管理员密码修改成功: {current_user.email}")
-                        flash('密码修改成功！', 'success')
+                        flash('密码修改成功，其他设备需要重新登录', 'success')
                         return redirect(url_for('admin.dashboard'))
                     else:
                         current_app.logger.error(f"密码更新验证失败: {current_user.email}")

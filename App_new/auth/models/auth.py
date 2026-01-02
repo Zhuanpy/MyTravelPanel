@@ -49,6 +49,9 @@ class AuthUser(db.Model, UserMixin):
     is_locked = db.Column(db.Boolean, default=False, comment='账户是否被锁定')
     locked_at = db.Column(db.DateTime, nullable=True, comment='账户锁定时间')
     unlock_at = db.Column(db.DateTime, nullable=True, comment='账户解锁时间')
+
+    # 会话版本控制（密码修改后递增，强制其他会话失效）
+    session_version = db.Column(db.Integer, default=1, comment='会话版本号')
     
     # 关系
     profile = db.relationship('UserProfile', backref='user', uselist=False, cascade='all, delete-orphan')
@@ -56,9 +59,16 @@ class AuthUser(db.Model, UserMixin):
     def __repr__(self):
         return f'<User {self.username}>'
     
-    def set_password(self, password):
-        """设置密码"""
+    def set_password(self, password, increment_session_version=True):
+        """设置密码
+
+        Args:
+            password: 新密码
+            increment_session_version: 是否递增会话版本（密码修改时为True，新用户创建时为False）
+        """
         self.password_hash = generate_password_hash(password)
+        if increment_session_version and self.session_version is not None:
+            self.session_version = (self.session_version or 0) + 1
     
     def check_password(self, password):
         """验证密码"""
@@ -141,7 +151,8 @@ class AuthUser(db.Model, UserMixin):
             'is_locked': self.is_locked,
             'login_attempts': self.login_attempts,
             'locked_at': self.locked_at.isoformat() if self.locked_at else None,
-            'unlock_at': self.unlock_at.isoformat() if self.unlock_at else None
+            'unlock_at': self.unlock_at.isoformat() if self.unlock_at else None,
+            'session_version': self.session_version
         }
 
 class EmailVerificationCode(db.Model):

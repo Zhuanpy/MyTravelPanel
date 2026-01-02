@@ -139,7 +139,10 @@ def login():
                 # 登录成功，记录成功登录并重置失败计数
                 user.record_login_success()
                 login_user(user, remember=remember)
-                
+
+                # 存储会话版本用于密码修改后强制登出其他设备
+                session['session_version'] = user.session_version
+
                 # 重定向到原来想访问的页面或默认页面
                 next_page = request.args.get('next')
                 if next_page:
@@ -292,11 +295,14 @@ def change_password():
                 flash('新密码长度至少6位', 'error')
                 return render_template('auth/change_password.html')
             
-            # 更新密码
+            # 更新密码（会自动递增session_version）
             current_user.set_password(new_password)
             db.session.commit()
-            
-            flash('密码修改成功', 'success')
+
+            # 更新当前会话的版本号，避免自己被登出
+            session['session_version'] = current_user.session_version
+
+            flash('密码修改成功，其他设备需要重新登录', 'success')
             return redirect(url_for('auth_profile.profile'))
             
         except Exception as e:
@@ -712,12 +718,15 @@ def _handle_role_login(role_name, template_name):
             # 登录成功，记录成功登录并重置失败计数
             user.record_login_success()
             login_user(user, remember=remember)
-            
+
+            # 存储会话版本用于密码修改后强制登出其他设备
+            session['session_version'] = user.session_version
+
             # 重定向到原来想访问的页面或默认页面
             next_page = request.args.get('next')
             if next_page:
                 return redirect(next_page)
-            
+
             # 根据用户角色重定向到不同页面
             if role_name == 'admin':
                 return redirect(url_for('admin.dashboard'))

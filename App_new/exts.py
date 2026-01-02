@@ -97,8 +97,20 @@ def init_exts(app):
     # 用户加载函数
     @login_manager.user_loader
     def load_user(user_id):
+        from flask import session
+        from flask_login import logout_user
         from .auth.models import AuthUser
-        return AuthUser.query.get(int(user_id))
+
+        user = AuthUser.query.get(int(user_id))
+        if user:
+            # 检查会话版本是否匹配
+            stored_session_version = session.get('session_version')
+            if stored_session_version is not None and user.session_version is not None:
+                if stored_session_version != user.session_version:
+                    # 会话版本不匹配（密码已被修改），强制登出
+                    session.clear()
+                    return None
+        return user
     
     # 未授权处理器
     @login_manager.unauthorized_handler
