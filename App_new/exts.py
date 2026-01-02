@@ -105,11 +105,17 @@ def init_exts(app):
         if user:
             # 检查会话版本是否匹配
             stored_session_version = session.get('session_version')
-            if stored_session_version is not None and user.session_version is not None:
-                if stored_session_version != user.session_version:
-                    # 会话版本不匹配（密码已被修改），强制登出
-                    session.clear()
-                    return None
+            user_session_version = user.session_version or 1
+
+            # 如果session中没有版本号（旧会话），或版本号不匹配，强制登出
+            if stored_session_version is None:
+                # 旧会话没有版本号，需要重新登录
+                session.clear()
+                return None
+            elif stored_session_version != user_session_version:
+                # 版本号不匹配（密码已被修改），强制登出
+                session.clear()
+                return None
         return user
     
     # 未授权处理器
