@@ -30,12 +30,14 @@ def dashboard():
             'new_users_this_month': get_new_users_count(),
         }
         
-        # 获取业务数据统计
+        # 获取业务数据统计（使用优化后的方法）
         try:
             from App_new.business.projects.services.project_stats import ProjectStatsService
             project_stats_service = ProjectStatsService()
-            business_stats = project_stats_service.get_total_stats()
-            
+
+            # 使用优化后的统计方法
+            business_stats = project_stats_service.get_optimized_total_stats()
+
             # 添加业务统计数据
             stats.update({
                 'total_projects': business_stats.get('total_projects', 0),
@@ -45,7 +47,22 @@ def dashboard():
                 'total_cost': round(business_stats.get('total_cost', 0), 2),
                 'total_profit': round(business_stats.get('total_profit', 0), 2),
                 'total_received': round(business_stats.get('total_received', 0), 2),
+                'profit_margin': round(business_stats.get('profit_margin', 0), 1),
+                'payment_ratio': round(business_stats.get('payment_ratio', 0), 1),
             })
+
+            # 获取预警统计
+            warning_stats = project_stats_service.get_warning_stats()
+            stats['warnings'] = warning_stats
+
+            # 获取旅游团统计
+            tour_stats = project_stats_service.get_tour_stats()
+            stats['tour'] = tour_stats
+
+            # 获取TOP客户
+            top_customers = project_stats_service.get_top_customers(5)
+            stats['top_customers'] = top_customers
+
         except Exception as e:
             current_app.logger.warning(f'获取业务统计数据失败: {str(e)}')
             # 如果业务统计失败，设置默认值
@@ -57,6 +74,9 @@ def dashboard():
                 'total_cost': 0,
                 'total_profit': 0,
                 'total_received': 0,
+                'warnings': {},
+                'tour': {},
+                'top_customers': [],
             })
         
         # 获取系统健康度
@@ -1066,4 +1086,192 @@ def change_password():
 def admin_center():
     """管理员中心"""
     return render_template('admin/admin_center.html')
+
+
+@admin.route('/export/stats')
+@login_required
+@admin_only
+def export_stats():
+    """导出统计报表"""
+    try:
+        import io
+        from flask import send_file
+
+        # 检查是否安装了 openpyxl
+        try:
+            from openpyxl import Workbook
+            from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+        except ImportError:
+            flash('请先安装 openpyxl: pip install openpyxl', 'error')
+            return redirect(url_for('admin.dashboard'))
+
+        from App_new.business.projects.services.project_stats import ProjectStatsService
+        project_stats_service = ProjectStatsService()
+
+        # 获取统计数据
+        business_stats = project_stats_service.get_optimized_total_stats()
+        warning_stats = project_stats_service.get_warning_stats()
+        tour_stats = project_stats_service.get_tour_stats()
+        top_customers = project_stats_service.get_top_customers(10)
+
+        # 创建工作簿
+        wb = Workbook()
+
+        # 样式定义
+        header_font = Font(bold=True, color='FFFFFF')
+        header_fill = PatternFill(start_color='10B981', end_color='10B981', fill_type='solid')
+        border = Border(
+            left=Side(style='thin'),
+            right=Side(style='thin'),
+            top=Side(style='thin'),
+            bottom=Side(style='thin')
+        )
+
+        # Sheet 1: 业务统计概览
+        ws1 = wb.active
+        ws1.title = '业务统计概览'
+
+        # 添加标题
+        ws1['A1'] = '业务统计报表'
+        ws1['A1'].font = Font(bold=True, size=16)
+        ws1['A2'] = f'导出时间: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}'
+
+        # 项目统计
+        ws1['A4'] = '项目统计'
+        ws1['A4'].font = Font(bold=True, size=12)
+        data_rows = [
+            ['指标', '数值'],
+            ['总项目数', business_stats.get('total_projects', 0)],
+            ['活跃项目', business_stats.get('active_projects', 0)],
+            ['已完成项目', business_stats.get('completed_projects', 0)],
+            ['草稿项目', business_stats.get('draft_projects', 0)],
+        ]
+        for i, row in enumerate(data_rows, start=5):
+            for j, val in enumerate(row, start=1):
+                cell = ws1.cell(row=i, column=j, value=val)
+                cell.border = border
+                if i == 5:
+                    cell.font = header_font
+                    cell.fill = header_fill
+
+        # 财务统计
+        ws1['A11'] = '财务统计'
+        ws1['A11'].font = Font(bold=True, size=12)
+        finance_rows = [
+            ['指标', '金额 (S$)'],
+            ['总收入', round(business_stats.get('total_revenue', 0), 2)],
+            ['总成本', round(business_stats.get('total_cost', 0), 2)],
+            ['总利润', round(business_stats.get('total_profit', 0), 2)],
+            ['已收款', round(business_stats.get('total_received', 0), 2)],
+            ['利润率', f"{round(business_stats.get('profit_margin', 0), 1)}%"],
+            ['回款率', f"{round(business_stats.get('payment_ratio', 0), 1)}%"],
+        ]
+        for i, row in enumerate(finance_rows, start=12):
+            for j, val in enumerate(row, start=1):
+                cell = ws1.cell(row=i, column=j, value=val)
+                cell.border = border
+                if i == 12:
+                    cell.font = header_font
+                    cell.fill = header_fill
+
+        # 调整列宽
+        ws1.column_dimensions['A'].width = 20
+        ws1.column_dimensions['B'].width = 20
+
+        # Sheet 2: 预警统计
+        ws2 = wb.create_sheet('预警统计')
+        ws2['A1'] = '预警统计'
+        ws2['A1'].font = Font(bold=True, size=14)
+
+        warning_rows = [
+            ['预警类型', '数量', '说明'],
+            ['超期项目', warning_stats.get('overdue_projects', 0), '活跃超过30天未完成'],
+            ['逾期应收款', warning_stats.get('overdue_receivables', 0), f"金额: S${warning_stats.get('overdue_amount', 0)}"],
+            ['草稿项目', warning_stats.get('draft_projects', 0), '待跟进处理'],
+            ['低利润项目', warning_stats.get('low_profit_projects', 0), '利润率低于10%'],
+        ]
+        for i, row in enumerate(warning_rows, start=3):
+            for j, val in enumerate(row, start=1):
+                cell = ws2.cell(row=i, column=j, value=val)
+                cell.border = border
+                if i == 3:
+                    cell.font = header_font
+                    cell.fill = header_fill
+
+        ws2.column_dimensions['A'].width = 15
+        ws2.column_dimensions['B'].width = 10
+        ws2.column_dimensions['C'].width = 25
+
+        # Sheet 3: 旅游团统计
+        ws3 = wb.create_sheet('旅游团统计')
+        ws3['A1'] = '旅游团运营统计'
+        ws3['A1'].font = Font(bold=True, size=14)
+
+        tour_rows = [
+            ['指标', '数值'],
+            ['总团数', tour_stats.get('total_groups', 0)],
+            ['本月出发', tour_stats.get('departing_this_month', 0)],
+            ['近7天出发', tour_stats.get('upcoming_7days', 0)],
+            ['进行中', tour_stats.get('ongoing_tours', 0)],
+            ['待出发', tour_stats.get('pending_departure', 0)],
+            ['已完成', tour_stats.get('completed_tours', 0)],
+            ['总人数', tour_stats.get('total_pax', 0)],
+            ['平均人数/团', tour_stats.get('avg_pax', 0)],
+        ]
+        for i, row in enumerate(tour_rows, start=3):
+            for j, val in enumerate(row, start=1):
+                cell = ws3.cell(row=i, column=j, value=val)
+                cell.border = border
+                if i == 3:
+                    cell.font = header_font
+                    cell.fill = header_fill
+
+        ws3.column_dimensions['A'].width = 15
+        ws3.column_dimensions['B'].width = 15
+
+        # Sheet 4: TOP客户
+        ws4 = wb.create_sheet('TOP客户')
+        ws4['A1'] = 'TOP客户排名'
+        ws4['A1'].font = Font(bold=True, size=14)
+
+        customer_rows = [['排名', '客户名称', '项目数', '总收入 (S$)']]
+        for i, customer in enumerate(top_customers, start=1):
+            customer_rows.append([
+                i,
+                customer.get('name', ''),
+                customer.get('project_count', 0),
+                round(customer.get('total_revenue', 0), 2)
+            ])
+
+        for i, row in enumerate(customer_rows, start=3):
+            for j, val in enumerate(row, start=1):
+                cell = ws4.cell(row=i, column=j, value=val)
+                cell.border = border
+                if i == 3:
+                    cell.font = header_font
+                    cell.fill = header_fill
+
+        ws4.column_dimensions['A'].width = 8
+        ws4.column_dimensions['B'].width = 30
+        ws4.column_dimensions['C'].width = 10
+        ws4.column_dimensions['D'].width = 15
+
+        # 保存到内存
+        output = io.BytesIO()
+        wb.save(output)
+        output.seek(0)
+
+        # 返回文件
+        filename = f'统计报表_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
+        return send_file(
+            output,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name=filename
+        )
+
+    except Exception as e:
+        current_app.logger.error(f'导出报表失败: {str(e)}', exc_info=True)
+        flash(f'导出报表失败：{str(e)}', 'error')
+        return redirect(url_for('admin.dashboard'))
 

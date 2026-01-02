@@ -11,10 +11,10 @@
     
     <style>
         :root {
-            --admin-primary: #dc3545;
-            --admin-secondary: #e74c3c;
-            --admin-light: rgba(220, 53, 69, 0.1);
-            --admin-gradient: linear-gradient(135deg, #dc3545 0%, #e74c3c 100%);
+            --admin-primary: #10b981;
+            --admin-secondary: #059669;
+            --admin-light: rgba(16, 185, 129, 0.1);
+            --admin-gradient: linear-gradient(135deg, #10b981 0%, #059669 100%);
         }
 
         body {
@@ -38,7 +38,7 @@
             background: white;
             border-radius: 20px;
             padding: 3rem 2.5rem;
-            box-shadow: 0 20px 60px rgba(220, 53, 69, 0.2);
+            box-shadow: 0 20px 60px rgba(16, 185, 129, 0.2);
             text-align: center;
             position: relative;
             overflow: hidden;
@@ -67,7 +67,7 @@
             align-items: center;
             justify-content: center;
             margin: 0 auto 1.5rem;
-            box-shadow: 0 10px 30px rgba(220, 53, 69, 0.3);
+            box-shadow: 0 10px 30px rgba(16, 185, 129, 0.3);
         }
 
         .auth-icon i {
@@ -113,7 +113,7 @@
 
         .form-control:focus {
             border-color: var(--admin-primary);
-            box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25);
+            box-shadow: 0 0 0 0.2rem rgba(16, 185, 129, 0.25);
             outline: none;
         }
 
@@ -126,12 +126,12 @@
             color: white;
             width: 100%;
             transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(220, 53, 69, 0.3);
+            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
         }
 
         .btn-admin:hover {
             transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(220, 53, 69, 0.4);
+            box-shadow: 0 8px 25px rgba(16, 185, 129, 0.4);
             color: white;
         }
 
@@ -145,7 +145,7 @@
         }
 
         .form-check-input:focus {
-            box-shadow: 0 0 0 0.25rem rgba(220, 53, 69, 0.25);
+            box-shadow: 0 0 0 0.25rem rgba(16, 185, 129, 0.25);
         }
 
         .auth-links {
@@ -215,14 +215,14 @@
         }
 
         .alert-danger {
-            background-color: rgba(220, 53, 69, 0.1);
-            border-color: var(--admin-primary);
-            color: #721c24;
+            background-color: rgba(239, 68, 68, 0.1);
+            border-color: #ef4444;
+            color: #991b1b;
         }
 
         .admin-badge {
             display: inline-block;
-            background: rgba(220, 53, 69, 0.1);
+            background: rgba(16, 185, 129, 0.1);
             color: var(--admin-primary);
             padding: 0.25rem 0.75rem;
             border-radius: 15px;
@@ -232,8 +232,8 @@
         }
 
         .security-notice {
-            background: rgba(255, 193, 7, 0.1);
-            border-left: 4px solid #ffc107;
+            background: rgba(16, 185, 129, 0.08);
+            border-left: 4px solid #10b981;
             padding: 1rem;
             border-radius: 8px;
             margin-bottom: 1.5rem;
@@ -241,13 +241,13 @@
         }
 
         .security-notice h6 {
-            color: #856404;
+            color: #059669;
             font-weight: 600;
             margin-bottom: 0.5rem;
         }
 
         .security-notice p {
-            color: #856404;
+            color: #047857;
             font-size: 0.9rem;
             margin: 0;
         }
@@ -300,7 +300,7 @@
 
             <!-- 安全提示 -->
             <div class="security-notice">
-                <h6><i class="fas fa-exclamation-triangle me-2"></i>安全提示</h6>
+                <h6><i class="fas fa-shield-alt me-2"></i>安全提示</h6>
                 <p>您正在访问系统管理员界面，请确保您有相应的访问权限。</p>
             </div>
 

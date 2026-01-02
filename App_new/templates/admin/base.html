@@ -63,7 +63,7 @@
         <div class="container-fluid">
             <a class="navbar-brand" href="{{ url_for('public.index') }}">
                 <i class="fas fa-plane"></i> MyTravelPanel
-                <span class="badge bg-danger ms-2">管理员</span>
+                <span class="badge ms-2" style="background: #10b981;">管理员</span>
             </a>
             
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
@@ -291,7 +291,7 @@
                         <h6 class="admin-name mt-2 mb-1">{{ current_user.username or current_user.email }}</h6>
                         <p class="admin-email text-muted small mb-0">{{ current_user.email }}</p>
                         <div class="admin-badges mt-2">
-                            <span class="badge bg-danger me-1">管理员</span>
+                            <span class="badge me-1" style="background: #10b981;">管理员</span>
                             <span class="badge bg-success">活跃</span>
                         </div>
                     </div>
@@ -334,7 +334,7 @@
     }
 
     .admin-center-header {
-        background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
         border: none;
         padding: 1.5rem;
     }
@@ -354,12 +354,12 @@
         width: 80px;
         height: 80px;
         border-radius: 50%;
-        background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
         display: flex;
         align-items: center;
         justify-content: center;
         margin: 0 auto;
-        box-shadow: 0 8px 20px rgba(220, 53, 69, 0.3);
+        box-shadow: 0 8px 20px rgba(16, 185, 129, 0.3);
     }
 
     .admin-avatar i {
@@ -417,8 +417,8 @@
     }
 
     .logout-btn:hover {
-        border-color: #dc3545;
-        background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
+        border-color: #ef4444;
+        background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
     }
 
     .admin-action-icon {
@@ -438,7 +438,7 @@
     }
 
     .logout-btn .admin-action-icon {
-        background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+        background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
         color: white;
     }
 

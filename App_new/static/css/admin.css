@@ -1,12 +1,13 @@
 /* 管理员后台样式 */
 
 :root {
-    --primary-color: #dc3545;
+    --primary-color: #10b981;
+    --primary-dark: #059669;
     --secondary-color: #6c757d;
-    --success-color: #28a745;
-    --danger-color: #dc3545;
-    --warning-color: #ffc107;
-    --info-color: #17a2b8;
+    --success-color: #10b981;
+    --danger-color: #ef4444;
+    --warning-color: #f59e0b;
+    --info-color: #3b82f6;
     --light-color: #f8f9fa;
     --dark-color: #343a40;
     --sidebar-width: 250px;
@@ -46,7 +47,7 @@ body {
 }
 
 .sidebar .nav-link:hover {
-    background-color: rgba(220, 53, 69, 0.1);
+    background-color: rgba(16, 185, 129, 0.1);
     color: var(--primary-color);
 }
 
@@ -159,7 +160,7 @@ main {
 }
 
 .admin-table .table thead th {
-    background: linear-gradient(135deg, var(--primary-color), #b02a37);
+    background: linear-gradient(135deg, #10b981, #059669);
     color: white;
     border: none;
     font-weight: 600;
@@ -176,7 +177,7 @@ main {
 }
 
 .admin-table .table tbody tr:hover {
-    background-color: rgba(220, 53, 69, 0.05);
+    background-color: rgba(16, 185, 129, 0.05);
 }
 
 /* 用户状态 */
@@ -208,8 +209,8 @@ main {
 }
 
 .role-badge.admin {
-    background-color: rgba(220, 53, 69, 0.2);
-    color: #721c24;
+    background-color: rgba(16, 185, 129, 0.2);
+    color: #065f46;
 }
 
 .role-badge.staff {
@@ -376,13 +377,13 @@ main {
 }
 
 .btn-admin-primary {
-    background: linear-gradient(135deg, var(--primary-color), #b02a37);
+    background: linear-gradient(135deg, #10b981, #059669);
     border: none;
     color: white;
 }
 
 .btn-admin-primary:hover {
-    background: linear-gradient(135deg, #b02a37, #8e1e28);
+    background: linear-gradient(135deg, #059669, #047857);
 }
 
 /* 图表容器 */
@@ -505,7 +506,7 @@ main {
     display: inline-block;
     width: 20px;
     height: 20px;
-    border: 3px solid rgba(220, 53, 69, 0.3);
+    border: 3px solid rgba(16, 185, 129, 0.3);
     border-radius: 50%;
     border-top-color: var(--primary-color);
     animation: spin 1s ease-in-out infinite;
@@ -517,8 +518,8 @@ main {
 
 /* 危险操作确认 */
 .danger-zone {
-    background: rgba(220, 53, 69, 0.05);
-    border: 1px solid rgba(220, 53, 69, 0.2);
+    background: rgba(239, 68, 68, 0.05);
+    border: 1px solid rgba(239, 68, 68, 0.2);
     border-radius: 10px;
     padding: 1.5rem;
     margin-top: 2rem;
@@ -567,5 +568,5 @@ main {
 
 .progress-custom .progress-bar {
     border-radius: 4px;
-    background: linear-gradient(135deg, var(--primary-color), #b02a37);
+    background: linear-gradient(135deg, #10b981, #059669);
 } 

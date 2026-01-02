@@ -32,7 +32,10 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h1 class="h3 mb-0">管理员仪表板</h1>
     <div class="btn-group">
-        <button type="button" class="btn btn-danger btn-lg" data-bs-toggle="modal" data-bs-target="#adminCenterModal">
+        <a href="{{ url_for('admin.export_stats') }}" class="btn btn-outline-success">
+            <i class="fas fa-file-excel me-2"></i>导出报表
+        </a>
+        <button type="button" class="btn btn-lg" style="background: linear-gradient(135deg, #10b981, #059669); color: white;" data-bs-toggle="modal" data-bs-target="#adminCenterModal">
             <i class="fas fa-user-crown me-2"></i>管理员中心
         </button>
         <a href="{{ url_for('admin.users') }}" class="btn btn-outline-primary">
@@ -124,11 +127,76 @@
     </div>
 </div>
 
+<!-- 预警卡片 -->
+{% if stats.warnings %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h5 class="mb-3"><i class="fas fa-exclamation-triangle text-warning me-2"></i>业务预警</h5>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card admin-stats-card" style="border-left: 4px solid #ef4444;">
+            <div class="card-body py-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h4 class="mb-1 text-danger">{{ stats.warnings.overdue_projects or 0 }}</h4>
+                        <p class="mb-0 text-muted small">超期项目</p>
+                    </div>
+                    <i class="fas fa-clock text-danger" style="font-size: 1.5rem; opacity: 0.5;"></i>
+                </div>
+                <small class="text-muted">活跃超过30天未完成</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card admin-stats-card" style="border-left: 4px solid #f59e0b;">
+            <div class="card-body py-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h4 class="mb-1 text-warning">{{ stats.warnings.overdue_receivables or 0 }}</h4>
+                        <p class="mb-0 text-muted small">逾期应收款</p>
+                    </div>
+                    <i class="fas fa-hand-holding-usd text-warning" style="font-size: 1.5rem; opacity: 0.5;"></i>
+                </div>
+                <small class="text-muted">S${{ "{:,.2f}".format(stats.warnings.overdue_amount or 0) }}</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card admin-stats-card" style="border-left: 4px solid #6b7280;">
+            <div class="card-body py-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h4 class="mb-1 text-secondary">{{ stats.warnings.draft_projects or 0 }}</h4>
+                        <p class="mb-0 text-muted small">草稿项目</p>
+                    </div>
+                    <i class="fas fa-file-alt text-secondary" style="font-size: 1.5rem; opacity: 0.5;"></i>
+                </div>
+                <small class="text-muted">待跟进处理</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card admin-stats-card" style="border-left: 4px solid #8b5cf6;">
+            <div class="card-body py-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h4 class="mb-1" style="color: #8b5cf6;">{{ stats.warnings.low_profit_projects or 0 }}</h4>
+                        <p class="mb-0 text-muted small">低利润项目</p>
+                    </div>
+                    <i class="fas fa-chart-line-down" style="font-size: 1.5rem; opacity: 0.5; color: #8b5cf6;"></i>
+                </div>
+                <small class="text-muted">利润率低于10%</small>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 <!-- 业务数据统计卡片 -->
 {% if stats.total_projects is defined %}
 <div class="row mb-4">
     <div class="col-md-3 mb-3">
-        <div class="card admin-stats-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+        <div class="card admin-stats-card" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white;">
             <div class="card-body">
                 <h3 class="admin-stats-number">{{ stats.total_projects or 0 }}</h3>
                 <p class="admin-stats-label">总项目数</p>
@@ -141,48 +209,154 @@
             </div>
         </div>
     </div>
-    
+
     <div class="col-md-3 mb-3">
-        <div class="card admin-stats-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white;">
+        <div class="card admin-stats-card" style="background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); color: white;">
             <div class="card-body">
-                <h3 class="admin-stats-number">¥{{ "{:,.2f}".format(stats.total_revenue or 0) }}</h3>
+                <h3 class="admin-stats-number">S${{ "{:,.0f}".format(stats.total_revenue or 0) }}</h3>
                 <p class="admin-stats-label">总收入</p>
                 <i class="fas fa-dollar-sign admin-stats-icon"></i>
                 <div class="admin-stats-trend">
                     <small style="color: rgba(255,255,255,0.9);">
-                        <i class="fas fa-wallet"></i> 已收款: ¥{{ "{:,.2f}".format(stats.total_received or 0) }}
+                        <i class="fas fa-percentage"></i> 回款率: {{ stats.payment_ratio or 0 }}%
                     </small>
                 </div>
             </div>
         </div>
     </div>
-    
+
     <div class="col-md-3 mb-3">
-        <div class="card admin-stats-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white;">
+        <div class="card admin-stats-card" style="background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%); color: white;">
             <div class="card-body">
-                <h3 class="admin-stats-number">¥{{ "{:,.2f}".format(stats.total_profit or 0) }}</h3>
+                <h3 class="admin-stats-number">S${{ "{:,.0f}".format(stats.total_profit or 0) }}</h3>
                 <p class="admin-stats-label">总利润</p>
                 <i class="fas fa-chart-pie admin-stats-icon"></i>
                 <div class="admin-stats-trend">
                     <small style="color: rgba(255,255,255,0.9);">
-                        <i class="fas fa-percentage"></i> 利润率: {{ "{:.1f}".format((stats.total_profit / stats.total_revenue * 100) if stats.total_revenue and stats.total_revenue > 0 else 0) }}%
+                        <i class="fas fa-percentage"></i> 利润率: {{ stats.profit_margin or 0 }}%
                     </small>
                 </div>
             </div>
         </div>
     </div>
-    
+
     <div class="col-md-3 mb-3">
-        <div class="card admin-stats-card" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); color: white;">
+        <div class="card admin-stats-card" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white;">
             <div class="card-body">
-                <h3 class="admin-stats-number">{{ stats.completed_projects or 0 }}</h3>
-                <p class="admin-stats-label">已完成项目</p>
-                <i class="fas fa-check-circle admin-stats-icon"></i>
+                <h3 class="admin-stats-number">S${{ "{:,.0f}".format(stats.total_received or 0) }}</h3>
+                <p class="admin-stats-label">已收款</p>
+                <i class="fas fa-wallet admin-stats-icon"></i>
                 <div class="admin-stats-trend">
                     <small style="color: rgba(255,255,255,0.9);">
-                        <i class="fas fa-tasks"></i> 完成率: {{ "{:.1f}".format((stats.completed_projects / stats.total_projects * 100) if stats.total_projects and stats.total_projects > 0 else 0) }}%
+                        <i class="fas fa-check-circle"></i> 已完成: {{ stats.completed_projects or 0 }}
                     </small>
                 </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- 旅游团运营统计 -->
+{% if stats.tour %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h5 class="mb-3"><i class="fas fa-plane text-primary me-2"></i>旅游团运营</h5>
+    </div>
+    <div class="col-md-2 mb-3">
+        <div class="card admin-stats-card text-center" style="border-top: 3px solid #10b981;">
+            <div class="card-body py-3">
+                <h4 class="mb-1" style="color: #10b981;">{{ stats.tour.total_groups or 0 }}</h4>
+                <p class="mb-0 text-muted small">总团数</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2 mb-3">
+        <div class="card admin-stats-card text-center" style="border-top: 3px solid #3b82f6;">
+            <div class="card-body py-3">
+                <h4 class="mb-1" style="color: #3b82f6;">{{ stats.tour.departing_this_month or 0 }}</h4>
+                <p class="mb-0 text-muted small">本月出发</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2 mb-3">
+        <div class="card admin-stats-card text-center" style="border-top: 3px solid #f59e0b;">
+            <div class="card-body py-3">
+                <h4 class="mb-1" style="color: #f59e0b;">{{ stats.tour.upcoming_7days or 0 }}</h4>
+                <p class="mb-0 text-muted small">近7天出发</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2 mb-3">
+        <div class="card admin-stats-card text-center" style="border-top: 3px solid #8b5cf6;">
+            <div class="card-body py-3">
+                <h4 class="mb-1" style="color: #8b5cf6;">{{ stats.tour.ongoing_tours or 0 }}</h4>
+                <p class="mb-0 text-muted small">进行中</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2 mb-3">
+        <div class="card admin-stats-card text-center" style="border-top: 3px solid #6b7280;">
+            <div class="card-body py-3">
+                <h4 class="mb-1" style="color: #6b7280;">{{ stats.tour.total_pax or 0 }}</h4>
+                <p class="mb-0 text-muted small">总人数</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2 mb-3">
+        <div class="card admin-stats-card text-center" style="border-top: 3px solid #ec4899;">
+            <div class="card-body py-3">
+                <h4 class="mb-1" style="color: #ec4899;">{{ stats.tour.avg_pax or 0 }}</h4>
+                <p class="mb-0 text-muted small">平均人数/团</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- TOP客户 -->
+{% if stats.top_customers %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h5 class="mb-3"><i class="fas fa-trophy text-warning me-2"></i>TOP客户排名</h5>
+    </div>
+    <div class="col-12">
+        <div class="card admin-stats-card">
+            <div class="card-body p-0">
+                <table class="table table-hover mb-0">
+                    <thead style="background: #f8f9fa;">
+                        <tr>
+                            <th style="width: 60px;">排名</th>
+                            <th>客户名称</th>
+                            <th style="width: 100px;">项目数</th>
+                            <th style="width: 150px;">总收入</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for customer in stats.top_customers[:5] %}
+                        <tr>
+                            <td>
+                                {% if loop.index == 1 %}
+                                    <span class="badge" style="background: #fbbf24;">🥇</span>
+                                {% elif loop.index == 2 %}
+                                    <span class="badge" style="background: #9ca3af;">🥈</span>
+                                {% elif loop.index == 3 %}
+                                    <span class="badge" style="background: #cd7f32;">🥉</span>
+                                {% else %}
+                                    <span class="text-muted">{{ loop.index }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{{ url_for('corporate.edit_company', id=customer.id) }}" class="text-decoration-none">
+                                    {{ customer.name }}
+                                </a>
+                            </td>
+                            <td><span class="badge bg-primary">{{ customer.project_count }}</span></td>
+                            <td><strong class="text-success">S${{ "{:,.2f}".format(customer.total_revenue) }}</strong></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
@@ -307,7 +481,7 @@
                     </a>
                 </div>
                 <div class="col-md-6 mb-3">
-                    <a href="{{ url_for('admin.roles') }}" class="btn btn-outline-danger btn-admin w-100">
+                    <a href="{{ url_for('admin.roles') }}" class="btn btn-outline-success btn-admin w-100">
                         <i class="fas fa-user-shield me-2"></i>角色权限
                     </a>
                 </div>
@@ -327,7 +501,7 @@
                     </a>
                 </div>
                 <div class="col-md-6 mb-3">
-                    <button type="button" class="btn btn-outline-danger btn-admin w-100" data-bs-toggle="modal" data-bs-target="#adminCenterModal">
+                    <button type="button" class="btn btn-admin btn-admin-primary w-100" data-bs-toggle="modal" data-bs-target="#adminCenterModal">
                         <i class="fas fa-user-crown me-2"></i>管理员中心
                     </button>
                 </div>
@@ -445,8 +619,8 @@ function createUserGrowthChart() {
             datasets: [{
                 label: '用户数量',
                 data: data,
-                borderColor: '#dc3545',
-                backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                borderColor: '#10b981',
+                backgroundColor: 'rgba(16, 185, 129, 0.1)',
                 borderWidth: 3,
                 fill: true,
                 tension: 0.4
@@ -490,7 +664,7 @@ function createRoleDistributionChart() {
     // 准备图表数据
     const labels = [];
     const data = [];
-    const colors = ['#dc3545', '#28a745', '#007bff', '#6c757d', '#ffc107', '#17a2b8'];
+    const colors = ['#10b981', '#3b82f6', '#f59e0b', '#6c757d', '#ef4444', '#8b5cf6'];
     let colorIndex = 0;
     
     for (const [roleName, count] of Object.entries(roleDistribution)) {
@@ -572,7 +746,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <h6 class="admin-name mt-2 mb-1">{{ current_user.username or current_user.email }}</h6>
                     <p class="admin-email text-muted small mb-0">{{ current_user.email }}</p>
                     <div class="admin-badges mt-2">
-                        <span class="badge bg-danger me-1">管理员</span>
+                        <span class="badge me-1" style="background: #10b981;">管理员</span>
                         <span class="badge bg-success">活跃</span>
                     </div>
                 </div>

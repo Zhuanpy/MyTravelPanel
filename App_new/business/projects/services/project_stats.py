@@ -9,14 +9,271 @@ from App_new.business.projects.models.project import ProjectHeader, CustomerComp
 from App_new.business.projects.models.ref import ProjectRef
 from App_new.business.projects.models.receipt import ProjectReceipt
 from App_new.business.projects.models.eo import ProjectEO
-from datetime import datetime, timedelta
-from sqlalchemy import func, and_
+from datetime import datetime, timedelta, date
+from sqlalchemy import func, and_, or_
 
 class ProjectStatsService:
     """项目统计服务类"""
-    
+
     def __init__(self):
         pass
+
+    def get_optimized_total_stats(self):
+        """优化后的总体统计（使用SQL聚合）"""
+        try:
+            # 项目状态统计 - 单次查询
+            status_counts = db.session.query(
+                ProjectHeader.status,
+                func.count(ProjectHeader.id)
+            ).group_by(ProjectHeader.status).all()
+
+            status_dict = dict(status_counts)
+            total_projects = sum(status_dict.values())
+
+            # 财务统计 - 使用SQL聚合
+            revenue_stats = db.session.query(
+                func.coalesce(func.sum(ProjectRef.selling_price), 0).label('total_revenue'),
+                func.coalesce(func.sum(ProjectRef.cost_price), 0).label('total_cost')
+            ).first()
+
+            receipt_stats = db.session.query(
+                func.coalesce(func.sum(ProjectReceipt.amount), 0).label('total_received')
+            ).first()
+
+            total_revenue = float(revenue_stats.total_revenue or 0)
+            total_cost = float(revenue_stats.total_cost or 0)
+            total_received = float(receipt_stats.total_received or 0)
+            total_profit = total_revenue - total_cost
+
+            return {
+                'total_projects': total_projects,
+                'active_projects': status_dict.get('active', 0),
+                'completed_projects': status_dict.get('completed', 0),
+                'draft_projects': status_dict.get('draft', 0),
+                'total_revenue': total_revenue,
+                'total_cost': total_cost,
+                'total_profit': total_profit,
+                'total_received': total_received,
+                'total_balance': total_revenue - total_received,
+                'profit_margin': (total_profit / total_revenue * 100) if total_revenue > 0 else 0,
+                'payment_ratio': (total_received / total_revenue * 100) if total_revenue > 0 else 0
+            }
+        except Exception as e:
+            print(f"获取优化统计失败: {e}")
+            return self.get_total_stats()  # 回退到原方法
+
+    def get_warning_stats(self):
+        """获取预警统计信息"""
+        try:
+            today = date.today()
+
+            # 1. 超期未完成项目（active状态且创建超过30天）
+            thirty_days_ago = datetime.now() - timedelta(days=30)
+            overdue_projects = ProjectHeader.query.filter(
+                and_(
+                    ProjectHeader.status == 'active',
+                    ProjectHeader.created_at < thirty_days_ago
+                )
+            ).count()
+
+            # 2. 逾期应收款（有未收完的款项且项目已完成超过7天）
+            seven_days_ago = datetime.now() - timedelta(days=7)
+
+            # 获取已完成但有未收款的项目
+            overdue_receivables_query = db.session.query(
+                ProjectHeader.id,
+                func.coalesce(func.sum(ProjectRef.selling_price), 0).label('total_selling'),
+                func.coalesce(func.sum(ProjectReceipt.amount), 0).label('total_received')
+            ).outerjoin(
+                ProjectRef, ProjectRef.header_id == ProjectHeader.id
+            ).outerjoin(
+                ProjectReceipt, ProjectReceipt.header_id == ProjectHeader.id
+            ).filter(
+                and_(
+                    ProjectHeader.status == 'completed',
+                    ProjectHeader.updated_at < seven_days_ago
+                )
+            ).group_by(ProjectHeader.id).having(
+                func.coalesce(func.sum(ProjectRef.selling_price), 0) > func.coalesce(func.sum(ProjectReceipt.amount), 0)
+            )
+
+            overdue_receivables = overdue_receivables_query.count()
+
+            # 计算逾期应收款总额
+            overdue_amount = 0
+            for row in overdue_receivables_query.all():
+                overdue_amount += float(row.total_selling or 0) - float(row.total_received or 0)
+
+            # 3. 草稿项目数（可能需要跟进）
+            draft_projects = ProjectHeader.query.filter_by(status='draft').count()
+
+            # 4. 低利润项目（利润率低于10%）
+            low_profit_count = 0
+            # 简化查询：获取每个项目的利润率
+            projects_with_refs = db.session.query(
+                ProjectHeader.id,
+                func.coalesce(func.sum(ProjectRef.selling_price), 0).label('selling'),
+                func.coalesce(func.sum(ProjectRef.cost_price), 0).label('cost')
+            ).outerjoin(
+                ProjectRef, ProjectRef.header_id == ProjectHeader.id
+            ).filter(
+                ProjectHeader.status.in_(['active', 'completed'])
+            ).group_by(ProjectHeader.id).having(
+                func.coalesce(func.sum(ProjectRef.selling_price), 0) > 0
+            )
+
+            for row in projects_with_refs.all():
+                selling = float(row.selling or 0)
+                cost = float(row.cost or 0)
+                if selling > 0:
+                    profit_margin = ((selling - cost) / selling) * 100
+                    if profit_margin < 10:
+                        low_profit_count += 1
+
+            return {
+                'overdue_projects': overdue_projects,
+                'overdue_receivables': overdue_receivables,
+                'overdue_amount': round(overdue_amount, 2),
+                'draft_projects': draft_projects,
+                'low_profit_projects': low_profit_count,
+                'total_warnings': overdue_projects + overdue_receivables + draft_projects
+            }
+        except Exception as e:
+            print(f"获取预警统计失败: {e}")
+            return {
+                'overdue_projects': 0,
+                'overdue_receivables': 0,
+                'overdue_amount': 0,
+                'draft_projects': 0,
+                'low_profit_projects': 0,
+                'total_warnings': 0
+            }
+
+    def get_tour_stats(self):
+        """获取旅游团运营统计"""
+        try:
+            from App_new.business.tour.models.TourProject import TourProject, TourGroup
+
+            today = date.today()
+            current_month_start = today.replace(day=1)
+
+            # 下个月第一天
+            if today.month == 12:
+                next_month_start = today.replace(year=today.year + 1, month=1, day=1)
+            else:
+                next_month_start = today.replace(month=today.month + 1, day=1)
+
+            # 1. 旅游项目总数
+            total_tour_projects = TourProject.query.count()
+
+            # 2. 按状态统计
+            status_counts = db.session.query(
+                TourProject.project_status,
+                func.count(TourProject.id)
+            ).group_by(TourProject.project_status).all()
+            status_dict = dict(status_counts)
+
+            # 3. 本月出发团数
+            departing_this_month = TourGroup.query.filter(
+                and_(
+                    TourGroup.departure_date >= current_month_start,
+                    TourGroup.departure_date < next_month_start
+                )
+            ).count()
+
+            # 4. 待出发团数（出发日期在今天之后）
+            pending_departure = TourGroup.query.filter(
+                TourGroup.departure_date > today
+            ).count()
+
+            # 5. 进行中团数（出发日期 <= 今天 <= 返回日期）
+            ongoing_tours = TourGroup.query.filter(
+                and_(
+                    TourGroup.departure_date <= today,
+                    TourGroup.return_date >= today
+                )
+            ).count()
+
+            # 6. 已完成团数（返回日期 < 今天）
+            completed_tours = TourGroup.query.filter(
+                TourGroup.return_date < today
+            ).count()
+
+            # 7. 总人数统计
+            total_pax = db.session.query(
+                func.coalesce(func.sum(TourGroup.pax), 0)
+            ).scalar() or 0
+
+            # 8. 平均每团人数
+            total_groups = TourGroup.query.count()
+            avg_pax = round(total_pax / total_groups, 1) if total_groups > 0 else 0
+
+            # 9. 近7天出发
+            seven_days_later = today + timedelta(days=7)
+            upcoming_7days = TourGroup.query.filter(
+                and_(
+                    TourGroup.departure_date >= today,
+                    TourGroup.departure_date <= seven_days_later
+                )
+            ).count()
+
+            return {
+                'total_tour_projects': total_tour_projects,
+                'status_processing': status_dict.get('处理中', 0),
+                'status_pending': status_dict.get('待出行', 0),
+                'status_completed': status_dict.get('已完成', 0),
+                'status_ignored': status_dict.get('忽略单', 0),
+                'total_groups': total_groups,
+                'departing_this_month': departing_this_month,
+                'pending_departure': pending_departure,
+                'ongoing_tours': ongoing_tours,
+                'completed_tours': completed_tours,
+                'total_pax': total_pax,
+                'avg_pax': avg_pax,
+                'upcoming_7days': upcoming_7days
+            }
+        except Exception as e:
+            print(f"获取旅游团统计失败: {e}")
+            return {
+                'total_tour_projects': 0,
+                'total_groups': 0,
+                'departing_this_month': 0,
+                'pending_departure': 0,
+                'ongoing_tours': 0,
+                'completed_tours': 0,
+                'total_pax': 0,
+                'avg_pax': 0,
+                'upcoming_7days': 0
+            }
+
+    def get_top_customers(self, limit=5):
+        """获取TOP客户统计"""
+        try:
+            # 按客户统计项目数和收入
+            customer_stats = db.session.query(
+                CustomerCompany.id,
+                CustomerCompany.name,
+                func.count(ProjectHeader.id).label('project_count'),
+                func.coalesce(func.sum(ProjectRef.selling_price), 0).label('total_revenue')
+            ).join(
+                ProjectHeader, ProjectHeader.company_id == CustomerCompany.id
+            ).outerjoin(
+                ProjectRef, ProjectRef.header_id == ProjectHeader.id
+            ).group_by(
+                CustomerCompany.id, CustomerCompany.name
+            ).order_by(
+                func.coalesce(func.sum(ProjectRef.selling_price), 0).desc()
+            ).limit(limit).all()
+
+            return [{
+                'id': row.id,
+                'name': row.name,
+                'project_count': row.project_count,
+                'total_revenue': round(float(row.total_revenue or 0), 2)
+            } for row in customer_stats]
+        except Exception as e:
+            print(f"获取TOP客户统计失败: {e}")
+            return []
     
     def get_project_stats(self, project_id):
         """获取单个项目的统计信息"""
