@@ -408,16 +408,17 @@
                     <td style="vertical-align: top;">
                         {% if item.ref and item.ref.ref_type %}
                             {% set type_code = item.ref.ref_type.code|default('') %}
-                            {% if type_code == 'flight' %}Air Ticket
-                            {% elif type_code == 'hotel' %}Hotel
-                            {% elif type_code == 'visa' %}Visa
-                            {% elif type_code == 'tour' %}Tour
-                            {% elif type_code == 'insurance' %}Insurance
-                            {% elif type_code == 'transport' %}Transport
-                            {% elif type_code == 'attraction' %}Attraction
-                            {% elif type_code == 'cruise' %}Cruise
-                            {% elif type_code == 'other' %}Miscellaneous
-                            {% else %}{{ item.ref.ref_type.name }}{% endif %}
+                            {% set type_name = item.ref.ref_type.name|default('') %}
+                            {% if type_code == 'flight' or type_name == '机票' %}Air Ticket
+                            {% elif type_code == 'hotel' or type_name == '酒店' %}Hotel
+                            {% elif type_code == 'visa' or type_name == '签证' %}Visa
+                            {% elif type_code == 'tour' or type_name in ['旅游团', '旅游套餐'] %}Tour
+                            {% elif type_code == 'insurance' or type_name == '保险' %}Insurance
+                            {% elif type_code == 'transport' or type_name == '交通' %}Transport
+                            {% elif type_code == 'attraction' or type_name in ['景点/活动', '门票'] %}Attraction
+                            {% elif type_code == 'cruise' or type_name == '邮轮' %}Cruise
+                            {% elif type_code == 'other' or type_name == '其他' %}Miscellaneous
+                            {% else %}Service{% endif %}
                         {% else %}Service{% endif %}
                         <br>({{ item.ref.ref_number if item.ref else '' }})
                     </td>
@@ -449,7 +450,7 @@
                                 <tr>
                                     <td style="border: none; vertical-align: top; padding: 1px 0;">Details</td>
                                     <td style="border: none; vertical-align: top; padding: 1px 0;">:</td>
-                                    <td style="border: none; padding: 1px 0;">{{ item.ref.detailed_description or '-' }}</td>
+                                    <td style="border: none; padding: 1px 0;">{{ (item.ref.detailed_description or '-') | replace('\n', '<br>') | safe }}</td>
                                 </tr>
                                 <tr>
                                     <td style="border: none; vertical-align: top; padding: 1px 0;">Note</td>
@@ -471,22 +472,24 @@
                     <td style="vertical-align: top;">
                         {% if ref.ref_type %}
                             {% set type_code = ref.ref_type.code|default('') %}
-                            {% if type_code == 'flight' %}Air Ticket
-                            {% elif type_code == 'hotel' %}Hotel
-                            {% elif type_code == 'visa' %}Visa
-                            {% elif type_code == 'tour' %}Tour
-                            {% elif type_code == 'insurance' %}Insurance
-                            {% elif type_code == 'transport' %}Transport
-                            {% elif type_code == 'attraction' %}Attraction
-                            {% elif type_code == 'cruise' %}Cruise
-                            {% elif type_code == 'other' %}Miscellaneous
-                            {% else %}{{ ref.ref_type.name }}{% endif %}
+                            {% set type_name = ref.ref_type.name|default('') %}
+                            {% if type_code == 'flight' or type_name == '机票' %}Air Ticket
+                            {% elif type_code == 'hotel' or type_name == '酒店' %}Hotel
+                            {% elif type_code == 'visa' or type_name == '签证' %}Visa
+                            {% elif type_code == 'tour' or type_name in ['旅游团', '旅游套餐'] %}Tour
+                            {% elif type_code == 'insurance' or type_name == '保险' %}Insurance
+                            {% elif type_code == 'transport' or type_name == '交通' %}Transport
+                            {% elif type_code == 'attraction' or type_name in ['景点/活动', '门票'] %}Attraction
+                            {% elif type_code == 'cruise' or type_name == '邮轮' %}Cruise
+                            {% elif type_code == 'other' or type_name == '其他' %}Miscellaneous
+                            {% else %}Service{% endif %}
                         {% else %}Service{% endif %}
                         <br>({{ ref.ref_number }})
                     </td>
                     <td style="vertical-align: top; line-height: 1.8;">
                         {% set type_code = ref.ref_type.code|default('') if ref.ref_type else '' %}
-                        {% if type_code == 'flight' %}
+                        {% set type_name = ref.ref_type.name|default('') if ref.ref_type else '' %}
+                        {% if type_code == 'flight' or type_name == '机票' %}
                             {# 机票类型详细显示 #}
                             {% set segments = ref.flight_segments %}
                             {% set passengers = ref.flight_passengers %}
@@ -577,7 +580,7 @@
                                 <tr>
                                     <td style="border: none; vertical-align: top; padding: 1px 0;">Details</td>
                                     <td style="border: none; vertical-align: top; padding: 1px 0;">:</td>
-                                    <td style="border: none; padding: 1px 0;">{{ ref.detailed_description or '-' }}</td>
+                                    <td style="border: none; padding: 1px 0;">{{ (ref.detailed_description or '-') | replace('\n', '<br>') | safe }}</td>
                                 </tr>
                                 <tr>
                                     <td style="border: none; vertical-align: top; padding: 1px 0;">Note</td>

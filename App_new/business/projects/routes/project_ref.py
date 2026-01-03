@@ -9,6 +9,7 @@ from flask_login import login_required, current_user
 from App_new.business.projects.models.project import ProjectHeader
 from App_new.business.projects.models.ref import ProjectRef
 from App_new.business.flight.models.flight import ProjectFlightPassenger, ProjectFlightSegment
+from App_new.business.flight.models.models import AirportData
 from App_new.exts import csrf, db
 from App_new.shared.models.Suppliers import Supplier
 from App_new.business.visa.models.Visamodels import VisaCountries
@@ -21,6 +22,20 @@ import traceback
 import json
 
 project_ref = Blueprint('project_ref', __name__)
+
+
+def get_city_name_en(iata_code):
+    """从机场IATA代码获取城市英文名"""
+    if not iata_code:
+        return iata_code
+
+    iata_code = iata_code.upper().strip()
+    airport = AirportData.query.filter_by(airport_IATA=iata_code).first()
+
+    # 优先使用 city_name_en，回退到机场代码
+    if airport and airport.city_name_en:
+        return airport.city_name_en
+    return iata_code
 
 @project_ref.route('/general/create/<int:header_id>', methods=['GET', 'POST'])
 @login_required
@@ -288,79 +303,74 @@ def submit_flight_ref():
         arrival_dates = request.form.getlist('arrival_date[]')
         arrival_times = request.form.getlist('arrival_time[]')
 
-        # 生成基于航段信息的名称
-        def generate_flight_ref_name(departure_airports, arrival_airports, departure_dates):
-            """根据航段信息生成REF名称：支持多航段"""
+        # 生成 description：首末日期 + 机场代码航线
+        def generate_flight_description(departure_airports, arrival_airports, departure_dates):
+            """
+            生成简洁描述：12AUG-15AUG SIN-HKG-SIN
+            """
             if not departure_airports or not arrival_airports or not departure_dates:
                 return '机票订单'
 
-            # 收集所有有效的航段信息
             valid_segments = []
-            first_dep_date = None
+            valid_dates = []
 
-            for i, (dep_airport, arr_airport, dep_date) in enumerate(
-                    zip(departure_airports, arrival_airports, departure_dates)):
-                if dep_airport and arr_airport and dep_date:
-                    if first_dep_date is None:
-                        first_dep_date = dep_date
-                    valid_segments.append((dep_airport, arr_airport))
+            for dep, arr, date in zip(departure_airports, arrival_airports, departure_dates):
+                if dep and arr and date:
+                    valid_segments.append((dep, arr))
+                    valid_dates.append(date)
 
-            if not valid_segments or not first_dep_date:
+            if not valid_segments or not valid_dates:
                 return '机票订单'
 
-            # 格式化日期为 DDMON 格式 (例如: 12AUG)
+            # 格式化首末日期
             try:
-                date_obj = datetime.strptime(first_dep_date, '%Y-%m-%d')
-                formatted_date = date_obj.strftime('%d%b').upper()
+                first_date = datetime.strptime(valid_dates[0], '%Y-%m-%d').strftime('%d%b').upper()
+                last_date = datetime.strptime(valid_dates[-1], '%Y-%m-%d').strftime('%d%b').upper()
+                date_str = f"{first_date}-{last_date}" if first_date != last_date else first_date
             except ValueError:
-                formatted_date = first_dep_date
+                date_str = valid_dates[0]
 
-            # 根据航段数量和类型生成不同的名称格式
-            if len(valid_segments) == 1:
-                # 单航段：出发日期 + 出发机场-到达机场
-                dep_airport, arr_airport = valid_segments[0]
-                ref_name = f"{formatted_date} {dep_airport}-{arr_airport}"
+            # 构建航线路径
+            route_parts = [valid_segments[0][0]]
+            for dep, arr in valid_segments:
+                if arr not in route_parts or arr == valid_segments[-1][1]:
+                    route_parts.append(arr)
 
-            elif len(valid_segments) == 2:
-                # 双航段：检查是否为往返
-                dep1, arr1 = valid_segments[0]
-                dep2, arr2 = valid_segments[1]
+            return f"{date_str} {'-'.join(route_parts)}"
 
-                if dep1 == arr2 and arr1 == dep2:
-                    # 往返：出发日期 + 出发机场-到达机场-出发机场
-                    ref_name = f"{formatted_date} {dep1}-{arr1}-{dep1}"
-                else:
-                    # 非往返：出发日期 + 出发机场-到达机场-最终到达机场
-                    ref_name = f"{formatted_date} {dep1}-{arr1}-{arr2}"
+        # 生成 detailed_description：分行格式
+        def generate_flight_detailed_description(flight_nums, dep_airports, arr_airports, dep_dates):
+            """
+            生成详细描述（分行）：
+            CX714 12AUG Singapore-Hong Kong
+            CX735 15AUG Hong Kong-Singapore
+            """
+            lines = []
 
-            else:
-                # 多航段：构建完整的航线路径
-                route_parts = []
-                for i, (dep_airport, arr_airport) in enumerate(valid_segments):
-                    if i == 0:
-                        # 第一个航段：包含出发机场
-                        route_parts.append(f"{dep_airport}-{arr_airport}")
-                    else:
-                        # 后续航段：只包含到达机场
-                        route_parts.append(arr_airport)
+            for flight_num, dep, arr, dep_date in zip(flight_nums, dep_airports, arr_airports, dep_dates):
+                if not dep or not arr:
+                    continue
 
-                # 检查是否为往返
-                first_dep, first_arr = valid_segments[0]
-                last_dep, last_arr = valid_segments[-1]
+                # 格式化日期
+                try:
+                    formatted_date = datetime.strptime(dep_date, '%Y-%m-%d').strftime('%d%b').upper()
+                except (ValueError, TypeError):
+                    formatted_date = dep_date or ''
 
-                if first_dep == last_arr and first_arr == last_dep:
-                    # 往返：出发日期 + 完整路径
-                    ref_name = f"{formatted_date} {'-'.join(route_parts)}"
-                else:
-                    # 非往返：出发日期 + 完整路径
-                    ref_name = f"{formatted_date} {'-'.join(route_parts)}"
+                # 获取城市英文名
+                dep_city = get_city_name_en(dep)
+                arr_city = get_city_name_en(arr)
 
-            return ref_name
+                flight_num = (flight_num or '').upper()
+                lines.append(f"{flight_num} {formatted_date} {dep_city}-{arr_city}".strip())
 
-        # 生成REF名称并更新
-        generated_name = generate_flight_ref_name(departure_airports, arrival_airports, departure_dates)
-        ref.description = generated_name
-        ref.detailed_description = generated_name
+            return '\n'.join(lines) if lines else '机票订单'
+
+        # 生成并更新描述
+        ref.description = generate_flight_description(departure_airports, arrival_airports, departure_dates)
+        ref.detailed_description = generate_flight_detailed_description(
+            flight_numbers, departure_airports, arrival_airports, departure_dates
+        )
 
         # 删除现有航段
         ProjectFlightSegment.query.filter_by(ref_id=ref.id).delete()
@@ -415,7 +425,7 @@ def submit_flight_ref():
             'pax_names_display': ', '.join([name for name in passenger_names if name]),  # 乘客姓名列表
             'departure_date': departure_dates[0] if departure_dates and departure_dates[0] else '',  # 第一个航段的出发日期
             'leader_name': request.form.get('leader_name', passenger_names[0] if passenger_names else ''),
-            'flight_route': generated_name,  # 航线描述
+            'flight_route': ref.description,  # 航线描述
             'total_passengers': len([name for name in passenger_names if name])
         }
         ref.extra_info = json.dumps(extra_info)
