@@ -98,22 +98,6 @@ def itinerary_conversion():
     # GET请求返回行程转换页面
     return render_template('business/flight/flight_conversion.html')
 
-@flights_schedule.route('/confirmation_detail/<int:order_id>', methods=['GET'])
-@login_required
-@staff_only
-def confirmation_detail(order_id):
-    """显示机票确认单详细信息"""
-    # 在实际应用中，这里应该从数据库中获取确认单信息
-    # 目前只是返回一个带有订单ID的模板
-    return render_template('business/flight/flight_confirmation_detail.html', order_id=order_id)
-
-@flights_schedule.route('/confirmation_detail', methods=['GET'])
-@login_required
-@staff_only
-def confirmation_detail_default():
-    """显示默认的确认单页面（无订单ID）"""
-    return render_template('business/flight/flight_confirmation_detail.html')
-
 @flights_schedule.route('/simple_itinerary', methods=['GET'])
 @login_required
 @staff_only
