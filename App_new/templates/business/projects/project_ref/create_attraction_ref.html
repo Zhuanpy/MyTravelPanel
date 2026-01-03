@@ -1,7 +1,7 @@
 {% extends "shared/staff_base.html" %}
 
-{% block title %}{% if ref and not is_create %}Edit Transport REF{% else %}New Transport REF{% endif %}{% endblock %}
-{% block page_title %}{% if ref and not is_create %}Edit Transport REF{% else %}Create Transport REF{% endif %}{% endblock %}
+{% block title %}{% if ref and not is_create %}Edit Attraction REF{% else %}New Attraction REF{% endif %}{% endblock %}
+{% block page_title %}{% if ref and not is_create %}Edit Attraction REF{% else %}Create Attraction REF{% endif %}{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/flight_order_common.css') }}">
@@ -84,12 +84,21 @@
         white-space: pre-line;
         min-height: 80px;
     }
+    .time-slot-badge {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 500;
+        background: #EDF2F7;
+        color: #4A5568;
+    }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="container-fluid mt-3">
-    <form method="post" id="transportRefForm" action="{% if ref and not is_create %}{{ url_for('business_projects.project_ref.edit_transport_ref', ref_id=ref.id) }}{% else %}{{ url_for('business_projects.project_ref.submit_transport_ref') }}{% endif %}">
+    <form method="post" id="attractionRefForm" action="{% if ref and not is_create %}{{ url_for('business_projects.project_ref.edit_attraction_ref', ref_id=ref.id) }}{% else %}{{ url_for('business_projects.project_ref.submit_attraction_ref') }}{% endif %}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="header_id" value="{{ header_id }}">
         <input type="hidden" name="extra_info" id="extra_info_json">
@@ -102,7 +111,7 @@
             <div class="row align-items-center">
                 <div class="col-auto">
                     <span style="font-size: 16px; font-weight: 600;">
-                        <i class="fas fa-shuttle-van me-2"></i>Transport REF: {{ ref.ref_number if ref else 'New' }}
+                        <i class="fas fa-ticket-alt me-2"></i>Attraction REF: {{ ref.ref_number if ref else 'New' }}
                     </span>
                 </div>
                 <div class="col">
@@ -159,61 +168,80 @@
                     </div>
                 </div>
 
-                <!-- Transport Information -->
+                <!-- Attraction Information -->
                 <div class="form-section">
-                    <div class="section-title"><i class="fas fa-route me-2"></i>Transport Information</div>
+                    <div class="section-title"><i class="fas fa-map-marker-alt me-2"></i>Attraction Information</div>
                     <div class="row mb-3">
                         <div class="col-md-4">
-                            <label class="form-label">Transport Type <span class="text-danger">*</span></label>
-                            <select name="transport_type" id="transport_type" class="form-select form-select-sm" required onchange="updateDescription()">
+                            <label class="form-label">Attraction Type <span class="text-danger">*</span></label>
+                            <select name="attraction_type" id="attraction_type" class="form-select form-select-sm" required onchange="updateDescription()">
                                 <option value="">-- Select Type --</option>
-                                <option value="AIRPORT_TRANSFER" {% if extra_info and extra_info.get('transport_type') == 'AIRPORT_TRANSFER' %}selected{% endif %}>Airport Transfer</option>
-                                <option value="PRIVATE_CAR" {% if extra_info and extra_info.get('transport_type') == 'PRIVATE_CAR' %}selected{% endif %}>Private Car</option>
-                                <option value="COACH" {% if extra_info and extra_info.get('transport_type') == 'COACH' %}selected{% endif %}>Coach / Bus</option>
-                                <option value="TRAIN" {% if extra_info and extra_info.get('transport_type') == 'TRAIN' %}selected{% endif %}>Train</option>
-                                <option value="FERRY" {% if extra_info and extra_info.get('transport_type') == 'FERRY' %}selected{% endif %}>Ferry</option>
-                                <option value="TAXI" {% if extra_info and extra_info.get('transport_type') == 'TAXI' %}selected{% endif %}>Taxi</option>
-                                <option value="RENTAL_CAR" {% if extra_info and extra_info.get('transport_type') == 'RENTAL_CAR' %}selected{% endif %}>Car Rental</option>
-                                <option value="LIMOUSINE" {% if extra_info and extra_info.get('transport_type') == 'LIMOUSINE' %}selected{% endif %}>Limousine</option>
-                                <option value="OTHER" {% if extra_info and extra_info.get('transport_type') == 'OTHER' %}selected{% endif %}>Other</option>
+                                <option value="THEME_PARK" {% if extra_info and extra_info.get('attraction_type') == 'THEME_PARK' %}selected{% endif %}>Theme Park</option>
+                                <option value="MUSEUM" {% if extra_info and extra_info.get('attraction_type') == 'MUSEUM' %}selected{% endif %}>Museum</option>
+                                <option value="SHOW" {% if extra_info and extra_info.get('attraction_type') == 'SHOW' %}selected{% endif %}>Show / Performance</option>
+                                <option value="ACTIVITY" {% if extra_info and extra_info.get('attraction_type') == 'ACTIVITY' %}selected{% endif %}>Activity / Experience</option>
+                                <option value="DAY_TOUR" {% if extra_info and extra_info.get('attraction_type') == 'DAY_TOUR' %}selected{% endif %}>Day Tour</option>
+                                <option value="WATER_PARK" {% if extra_info and extra_info.get('attraction_type') == 'WATER_PARK' %}selected{% endif %}>Water Park</option>
+                                <option value="ZOO" {% if extra_info and extra_info.get('attraction_type') == 'ZOO' %}selected{% endif %}>Zoo / Aquarium</option>
+                                <option value="LANDMARK" {% if extra_info and extra_info.get('attraction_type') == 'LANDMARK' %}selected{% endif %}>Landmark / Observatory</option>
+                                <option value="CRUISE" {% if extra_info and extra_info.get('attraction_type') == 'CRUISE' %}selected{% endif %}>River / Harbor Cruise</option>
+                                <option value="OTHER" {% if extra_info and extra_info.get('attraction_type') == 'OTHER' %}selected{% endif %}>Other</option>
                             </select>
                         </div>
-                        <div class="col-md-4">
-                            <label class="form-label">From <span class="text-danger">*</span></label>
-                            <input type="text" name="start_point" id="start_point" class="form-control form-control-sm"
-                                   placeholder="e.g. Changi Airport T3" required
-                                   value="{{ extra_info.start_point if extra_info and extra_info.start_point else '' }}"
-                                   onchange="updateDescription()">
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label">To <span class="text-danger">*</span></label>
-                            <input type="text" name="end_point" id="end_point" class="form-control form-control-sm"
-                                   placeholder="e.g. Marina Bay Sands" required
-                                   value="{{ extra_info.end_point if extra_info and extra_info.end_point else '' }}"
+                        <div class="col-md-8">
+                            <label class="form-label">Attraction Name <span class="text-danger">*</span></label>
+                            <input type="text" name="attraction_name" id="attraction_name" class="form-control form-control-sm"
+                                   placeholder="e.g. Universal Studios Singapore" required
+                                   value="{{ extra_info.attraction_name if extra_info and extra_info.attraction_name else '' }}"
                                    onchange="updateDescription()">
                         </div>
                     </div>
                     <div class="row mb-3">
-                        <div class="col-md-3">
-                            <label class="form-label">Date</label>
-                            <input type="date" name="departure_date" id="departure_date" class="form-control form-control-sm"
-                                   value="{{ extra_info.departure_date if extra_info and extra_info.departure_date else '' }}"
+                        <div class="col-md-4">
+                            <label class="form-label">Location</label>
+                            <input type="text" name="location" id="location" class="form-control form-control-sm"
+                                   placeholder="e.g. Sentosa Island"
+                                   value="{{ extra_info.location if extra_info and extra_info.location else '' }}"
                                    onchange="updateDescription()">
                         </div>
-                        <div class="col-md-3">
-                            <label class="form-label">Time</label>
-                            <input type="time" name="departure_time" id="departure_time" class="form-control form-control-sm"
-                                   value="{{ extra_info.departure_time if extra_info and extra_info.departure_time else '' }}"
+                        <div class="col-md-4">
+                            <label class="form-label">Visit Date</label>
+                            <input type="date" name="visit_date" id="visit_date" class="form-control form-control-sm"
+                                   value="{{ extra_info.visit_date if extra_info and extra_info.visit_date else '' }}"
                                    onchange="updateDescription()">
                         </div>
-                        <div class="col-md-3">
+                        <div class="col-md-4">
+                            <label class="form-label">Time Slot</label>
+                            <select name="time_slot" id="time_slot" class="form-select form-select-sm" onchange="updateDescription()">
+                                <option value="">-- Select --</option>
+                                <option value="MORNING" {% if extra_info and extra_info.get('time_slot') == 'MORNING' %}selected{% endif %}>Morning (AM)</option>
+                                <option value="AFTERNOON" {% if extra_info and extra_info.get('time_slot') == 'AFTERNOON' %}selected{% endif %}>Afternoon (PM)</option>
+                                <option value="EVENING" {% if extra_info and extra_info.get('time_slot') == 'EVENING' %}selected{% endif %}>Evening</option>
+                                <option value="FULL_DAY" {% if extra_info and extra_info.get('time_slot') == 'FULL_DAY' %}selected{% endif %}>Full Day</option>
+                                <option value="FLEXIBLE" {% if extra_info and extra_info.get('time_slot') == 'FLEXIBLE' %}selected{% endif %}>Flexible</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label">Ticket Type</label>
+                            <select name="ticket_type" id="ticket_type" class="form-select form-select-sm" onchange="updateDescription()">
+                                <option value="">-- Select --</option>
+                                <option value="STANDARD" {% if extra_info and extra_info.get('ticket_type') == 'STANDARD' %}selected{% endif %}>Standard</option>
+                                <option value="EXPRESS" {% if extra_info and extra_info.get('ticket_type') == 'EXPRESS' %}selected{% endif %}>Express Pass</option>
+                                <option value="VIP" {% if extra_info and extra_info.get('ticket_type') == 'VIP' %}selected{% endif %}>VIP</option>
+                                <option value="COMBO" {% if extra_info and extra_info.get('ticket_type') == 'COMBO' %}selected{% endif %}>Combo Package</option>
+                                <option value="GROUP" {% if extra_info and extra_info.get('ticket_type') == 'GROUP' %}selected{% endif %}>Group Ticket</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
                             <label class="form-label">Confirmation No.</label>
                             <input type="text" name="confirmation_number" id="confirmation_number" class="form-control form-control-sm"
-                                   placeholder="e.g. TRF123456"
+                                   placeholder="e.g. ATT123456"
                                    value="{{ extra_info.confirmation_number if extra_info and extra_info.confirmation_number else '' }}"
                                    onchange="updateDescription()">
                         </div>
-                        <div class="col-md-3">
+                        <div class="col-md-4">
                             <label class="form-label">Status</label>
                             <select name="status" id="status" class="form-select form-select-sm">
                                 <option value="processing" {% if ref and ref.status == 'processing' %}selected{% elif not ref %}selected{% endif %}>Processing</option>
@@ -334,9 +362,9 @@
                     <input type="hidden" name="cost_price" id="cost_price" value="{{ ref.cost_price if ref else '0.00' }}">
                 </div>
 
-                <!-- Passenger Selection -->
+                <!-- Visitor Selection -->
                 <div class="form-section">
-                    <div class="section-title"><i class="fas fa-users me-2"></i>Passenger Selection</div>
+                    <div class="section-title"><i class="fas fa-users me-2"></i>Visitor Selection</div>
                     {% if members and members|length > 0 %}
                     {% set selected_pax = extra_info.pax_names if extra_info and extra_info.pax_names else [] %}
                     {% set leader_id = extra_info.leader_id if extra_info and extra_info.leader_id else '' %}
@@ -380,7 +408,7 @@
                     </table>
                     {% else %}
                     <div class="alert alert-info py-2 mb-0">
-                        <i class="fas fa-info-circle me-2"></i>No passengers in project. Please add members first.
+                        <i class="fas fa-info-circle me-2"></i>No visitors in project. Please add members first.
                     </div>
                     {% endif %}
                 </div>
@@ -430,15 +458,32 @@
 
 <script>
 const typeNames = {
-    'AIRPORT_TRANSFER': 'AIRPORT TRANSFER',
-    'PRIVATE_CAR': 'PRIVATE CAR',
-    'COACH': 'COACH',
-    'TRAIN': 'TRAIN',
-    'FERRY': 'FERRY',
-    'TAXI': 'TAXI',
-    'RENTAL_CAR': 'CAR RENTAL',
-    'LIMOUSINE': 'LIMOUSINE',
-    'OTHER': 'TRANSPORT'
+    'THEME_PARK': 'THEME PARK',
+    'MUSEUM': 'MUSEUM',
+    'SHOW': 'SHOW',
+    'ACTIVITY': 'ACTIVITY',
+    'DAY_TOUR': 'DAY TOUR',
+    'WATER_PARK': 'WATER PARK',
+    'ZOO': 'ZOO / AQUARIUM',
+    'LANDMARK': 'LANDMARK',
+    'CRUISE': 'CRUISE',
+    'OTHER': 'ATTRACTION'
+};
+
+const timeSlotNames = {
+    'MORNING': 'Morning',
+    'AFTERNOON': 'Afternoon',
+    'EVENING': 'Evening',
+    'FULL_DAY': 'Full Day',
+    'FLEXIBLE': 'Flexible'
+};
+
+const ticketTypeNames = {
+    'STANDARD': 'Standard',
+    'EXPRESS': 'Express Pass',
+    'VIP': 'VIP',
+    'COMBO': 'Combo',
+    'GROUP': 'Group'
 };
 
 function filterSuppliers() {
@@ -526,36 +571,46 @@ function formatDate(dateStr) {
 }
 
 function updateDescription() {
-    const transportType = document.getElementById('transport_type').value;
-    const startPoint = document.getElementById('start_point').value.trim();
-    const endPoint = document.getElementById('end_point').value.trim();
-    const departureDate = document.getElementById('departure_date').value;
-    const departureTime = document.getElementById('departure_time').value;
+    const attractionType = document.getElementById('attraction_type').value;
+    const attractionName = document.getElementById('attraction_name').value.trim();
+    const location = document.getElementById('location').value.trim();
+    const visitDate = document.getElementById('visit_date').value;
+    const timeSlot = document.getElementById('time_slot').value;
+    const ticketType = document.getElementById('ticket_type').value;
     const confirmationNo = document.getElementById('confirmation_number').value.trim();
 
-    const typeName = typeNames[transportType] || 'TRANSPORT';
+    const typeName = typeNames[attractionType] || 'ATTRACTION';
 
     // Build description (short form)
-    let description = typeName;
-    if (startPoint && endPoint) {
-        description += ' | ' + startPoint.toUpperCase() + ' - ' + endPoint.toUpperCase();
-    } else if (startPoint) {
-        description += ' | FROM ' + startPoint.toUpperCase();
+    let description = attractionName ? attractionName.toUpperCase() : typeName;
+    if (visitDate) {
+        description += ' | ' + formatDate(visitDate);
     }
 
     document.getElementById('description').value = description;
 
     // Build detailed description
-    let detailed = typeName + '\n';
-    if (startPoint && endPoint) {
-        detailed += startPoint + ' → ' + endPoint + '\n';
+    let detailed = '';
+    if (attractionName) {
+        detailed += attractionName + '\n';
+    } else {
+        detailed += typeName + '\n';
     }
-    if (departureDate) {
-        detailed += formatDate(departureDate);
-        if (departureTime) {
-            detailed += ' ' + departureTime;
+
+    if (location) {
+        detailed += location + '\n';
+    }
+
+    if (visitDate) {
+        detailed += formatDate(visitDate);
+        if (timeSlot && timeSlotNames[timeSlot]) {
+            detailed += ' (' + timeSlotNames[timeSlot] + ')';
         }
         detailed += '\n';
+    }
+
+    if (ticketType && ticketTypeNames[ticketType]) {
+        detailed += 'Ticket: ' + ticketTypeNames[ticketType] + '\n';
     }
 
     // Count selected pax
@@ -595,11 +650,12 @@ function buildExtraInfo() {
     });
 
     return {
-        transport_type: document.getElementById('transport_type').value,
-        start_point: document.getElementById('start_point').value,
-        end_point: document.getElementById('end_point').value,
-        departure_date: document.getElementById('departure_date').value,
-        departure_time: document.getElementById('departure_time').value,
+        attraction_type: document.getElementById('attraction_type').value,
+        attraction_name: document.getElementById('attraction_name').value,
+        location: document.getElementById('location').value,
+        visit_date: document.getElementById('visit_date').value,
+        time_slot: document.getElementById('time_slot').value,
+        ticket_type: document.getElementById('ticket_type').value,
         confirmation_number: document.getElementById('confirmation_number').value,
         pax_names: paxNames,
         leader_id: document.getElementById('leader_id').value,
@@ -658,7 +714,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // Form submission
-    document.getElementById('transportRefForm').addEventListener('submit', function(e) {
+    document.getElementById('attractionRefForm').addEventListener('submit', function(e) {
         calculateTotals();
         document.getElementById('extra_info_json').value = JSON.stringify(buildExtraInfo());
     });
@@ -674,7 +730,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function quickCreateEO(refId) {
-    if (confirm('Generate EO for this Transport REF?')) {
+    if (confirm('Generate EO for this Attraction REF?')) {
         fetch(`/projects/eo/quick_create/${refId}`, {
             method: 'POST',
             headers: {

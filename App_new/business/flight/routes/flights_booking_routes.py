@@ -16,6 +16,20 @@ import json
 
 flights_booking = Blueprint('flights_booking', __name__, url_prefix='/flights_booking')
 
+
+def get_city_name_en(iata_code):
+    """从机场IATA代码获取城市英文名"""
+    if not iata_code:
+        return iata_code
+
+    iata_code = iata_code.upper().strip()
+    airport = AirportData.query.filter_by(airport_IATA=iata_code).first()
+
+    # 优先使用 city_name_en，回退到机场代码
+    if airport and airport.city_name_en:
+        return airport.city_name_en
+    return iata_code
+
 def generate_order_number():
     """生成订单编号：TP + 年月日 + 6位随机数"""
     date_str = datetime.now().strftime('%Y%m%d')
@@ -112,17 +126,23 @@ def submit_order():
             'infant': '婴儿'
         }
         
+        first_member_added = False
         for idx, pname in enumerate(passenger_names_for_members):
             if pname:
                 ptype = passenger_types_for_members[idx] if idx < len(passenger_types_for_members) else 'adult'
+                # 第一个有效乘客设置为 leader
+                is_leader = not first_member_added
                 member = ProjectMember(
                     header_id=project_header.id,
                     member_name=pname,
                     member_role=passenger_type_map.get(ptype, '成人'),
+                    is_leader=is_leader,
                     remarks=f'从机票订单自动创建'
                 )
                 db.session.add(member)
-                print(f"创建项目人员: {pname} ({passenger_type_map.get(ptype, '成人')})")
+                first_member_added = True
+                leader_flag = ' [Leader]' if is_leader else ''
+                print(f"创建项目人员: {pname} ({passenger_type_map.get(ptype, '成人')}){leader_flag}")
         
         # 获取机票业务类型
         flight_business_type = BusinessType.query.filter_by(name='机票').first()
@@ -151,65 +171,101 @@ def submit_order():
         total_selling_price = sum(float(price) for price in selling_prices if price)
         total_cost_price = sum(float(price) for price in cost_prices if price)
         
-        # 生成机票REF名称：参考项目模块的生成规则（出发日期DDMON + 航线路径）
-        def generate_flight_ref_name(departure_airports, arrival_airports, departure_times):
-            try:
-                first_dep_time_str = departure_times[0] if departure_times else None
-                if first_dep_time_str:
-                    try:
-                        first_dep_dt = datetime.strptime(first_dep_time_str, '%Y-%m-%dT%H:%M')
-                    except ValueError:
-                        first_dep_dt = datetime.strptime(first_dep_time_str, '%Y-%m-%d %H:%M')
-                    formatted_date = first_dep_dt.strftime('%d%b').upper()
-                else:
-                    formatted_date = datetime.now().strftime('%d%b').upper()
-            except Exception:
-                formatted_date = datetime.now().strftime('%d%b').upper()
-
-            # 构建有效航段
+        # 生成 description：首末日期 + 机场代码航线
+        def generate_flight_description(departure_airports, arrival_airports, departure_times):
+            """生成简洁描述：12AUG-15AUG SIN-HKG-SIN"""
             valid_segments = []
-            for dep, arr in zip(departure_airports, arrival_airports):
-                if dep and arr:
+            valid_dates = []
+
+            for dep, arr, dep_time in zip(departure_airports, arrival_airports, departure_times):
+                if dep and arr and dep_time:
                     valid_segments.append((dep, arr))
+                    valid_dates.append(dep_time)
 
-            if not valid_segments:
-                return f"{formatted_date} 机票订单"
+            if not valid_segments or not valid_dates:
+                return '机票订单'
 
-            if len(valid_segments) == 1:
-                dep_airport, arr_airport = valid_segments[0]
-                return f"{formatted_date} {dep_airport}-{arr_airport}"
+            # 格式化首末日期
+            try:
+                # 处理两种日期格式
+                first_time_str = valid_dates[0]
+                last_time_str = valid_dates[-1]
+                try:
+                    first_dt = datetime.strptime(first_time_str, '%Y-%m-%dT%H:%M')
+                except ValueError:
+                    first_dt = datetime.strptime(first_time_str, '%Y-%m-%d %H:%M')
+                try:
+                    last_dt = datetime.strptime(last_time_str, '%Y-%m-%dT%H:%M')
+                except ValueError:
+                    last_dt = datetime.strptime(last_time_str, '%Y-%m-%d %H:%M')
 
-            if len(valid_segments) == 2:
-                dep1, arr1 = valid_segments[0]
-                dep2, arr2 = valid_segments[1]
-                if dep1 == arr2 and arr1 == dep2:
-                    return f"{formatted_date} {dep1}-{arr1}-{dep1}"
-                return f"{formatted_date} {dep1}-{arr1}-{arr2}"
+                first_date = first_dt.strftime('%d%b').upper()
+                last_date = last_dt.strftime('%d%b').upper()
+                date_str = f"{first_date}-{last_date}" if first_date != last_date else first_date
+            except Exception:
+                date_str = datetime.now().strftime('%d%b').upper()
 
-            route_parts = []
-            for i, (dep_airport, arr_airport) in enumerate(valid_segments):
-                if i == 0:
-                    route_parts.append(f"{dep_airport}-{arr_airport}")
-                else:
-                    route_parts.append(arr_airport)
-            return f"{formatted_date} {'-'.join(route_parts)}"
+            # 构建航线路径
+            route_parts = [valid_segments[0][0]]
+            for dep, arr in valid_segments:
+                if arr not in route_parts or arr == valid_segments[-1][1]:
+                    route_parts.append(arr)
+
+            return f"{date_str} {'-'.join(route_parts)}"
+
+        # 生成 detailed_description：分行格式
+        def generate_flight_detailed_description(flight_nums, dep_airports, arr_airports, dep_times):
+            """
+            生成详细描述（分行）：
+            CX714 12AUG Singapore-Hong Kong
+            CX735 15AUG Hong Kong-Singapore
+            """
+            lines = []
+
+            for flight_num, dep, arr, dep_time in zip(flight_nums, dep_airports, arr_airports, dep_times):
+                if not dep or not arr:
+                    continue
+
+                # 格式化日期
+                try:
+                    try:
+                        dt = datetime.strptime(dep_time, '%Y-%m-%dT%H:%M')
+                    except ValueError:
+                        dt = datetime.strptime(dep_time, '%Y-%m-%d %H:%M')
+                    formatted_date = dt.strftime('%d%b').upper()
+                except (ValueError, TypeError):
+                    formatted_date = ''
+
+                # 获取城市英文名
+                dep_city = get_city_name_en(dep)
+                arr_city = get_city_name_en(arr)
+
+                flight_num = (flight_num or '').upper()
+                lines.append(f"{flight_num} {formatted_date} {dep_city}-{arr_city}".strip())
+
+            return '\n'.join(lines) if lines else '机票订单'
 
         # 取第一个乘客作为出行人(leader_name)
         passenger_names_for_leader = request.form.getlist('passenger_name[]')
         first_passenger_name_for_leader = passenger_names_for_leader[0] if passenger_names_for_leader else contact_name
 
-        # 生成REF名称
+        # 生成REF描述
         dep_airports_list = request.form.getlist('departure_airport[]')
         arr_airports_list = request.form.getlist('arrival_airport[]')
         dep_times_list = request.form.getlist('departure_time[]')
-        generated_ref_name = generate_flight_ref_name(dep_airports_list, arr_airports_list, dep_times_list)
+        flight_nums_list = request.form.getlist('flight_number[]')
+
+        ref_description = generate_flight_description(dep_airports_list, arr_airports_list, dep_times_list)
+        ref_detailed_description = generate_flight_detailed_description(
+            flight_nums_list, dep_airports_list, arr_airports_list, dep_times_list
+        )
 
         project_ref = ProjectRef(
             header_id=project_header.id,
             ref_number=ref_number,
-            description=generated_ref_name,
+            description=ref_description,
             ref_type_id=flight_business_type.id,
-            detailed_description=f"{first_departure_airport} > {last_arrival_airport} 机票订单",
+            detailed_description=ref_detailed_description,
             supplier_id=int(selected_supplier_id) if selected_supplier_id else None,
             selling_price=total_selling_price,
             cost_price=total_cost_price,

@@ -217,6 +217,9 @@
                 <a href="{{ url_for('business_projects.project_ref.create_transport_ref', header_id=header.id) }}" class="btn btn-success btn-sm">
                     <i class="fas fa-car"></i> 交通
                 </a>
+                <a href="{{ url_for('business_projects.project_ref.create_attraction_ref', header_id=header.id) }}" class="btn btn-success btn-sm">
+                    <i class="fas fa-ticket-alt"></i> 景点
+                </a>
                 <a href="{{ url_for('business_projects.project_ref.create_other_ref', header_id=header.id) }}" class="btn btn-success btn-sm">
                     <i class="fas fa-plus"></i> 其他
                 </a>
@@ -266,11 +269,15 @@
                                     <strong>{{ ref.ref_number }}</strong>
                                 </a>
                             {% elif ref.ref_type and ref.ref_type.name == '酒店' %}
-                                <a href="{{ url_for('business_projects.project_ref.edit_ref', ref_id=ref.id) }}" class="ref-number-link" title="点击编辑酒店REF">
+                                <a href="{{ url_for('business_projects.project_ref.edit_hotel_ref', ref_id=ref.id) }}" class="ref-number-link" title="点击编辑酒店REF">
                                     <strong>{{ ref.ref_number }}</strong>
                                 </a>
                             {% elif ref.ref_type and ref.ref_type.name == '交通' %}
-                                <a href="{{ url_for('business_projects.project_ref.edit_ref', ref_id=ref.id) }}" class="ref-number-link" title="点击编辑交通REF">
+                                <a href="{{ url_for('business_projects.project_ref.edit_transport_ref', ref_id=ref.id) }}" class="ref-number-link" title="点击编辑交通REF">
+                                    <strong>{{ ref.ref_number }}</strong>
+                                </a>
+                            {% elif ref.ref_type and ref.ref_type.name == '景点/活动' %}
+                                <a href="{{ url_for('business_projects.project_ref.edit_attraction_ref', ref_id=ref.id) }}" class="ref-number-link" title="点击编辑景点REF">
                                     <strong>{{ ref.ref_number }}</strong>
                                 </a>
                             {% else %}

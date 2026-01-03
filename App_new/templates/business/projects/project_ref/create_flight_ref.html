@@ -12,7 +12,7 @@
 <!-- 添加 Select2 样式 -->
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 <!-- 添加公共机票订单样式 -->
-<link rel="stylesheet" href="{{ url_for('static', filename='css/flight_order_common.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/flight_order_common.css') }}?v=5.3&t=20260103">
 
 <style>
     /* 页面特定样式可以在这里添加 */
@@ -75,6 +75,65 @@
             </div>
         </div>
 
+        <!-- 价格汇总栏 -->
+        <div class="order-card price-summary-card">
+            <div class="price-summary">
+                <div class="price-item">
+                    <span class="price-label">总售价</span>
+                    <span class="price-value" id="totalSellingPrice">SGD 0.00</span>
+                </div>
+                <div class="price-item">
+                    <span class="price-label">总成本</span>
+                    <span class="price-value" id="totalCostPrice">SGD 0.00</span>
+                </div>
+                <div class="price-item profit-item">
+                    <span class="price-label">预计利润</span>
+                    <span class="price-value profit-value" id="totalProfit">SGD 0.00</span>
+                </div>
+                <div class="price-item passenger-count-item">
+                    <span class="price-label">乘客数量</span>
+                    <span class="price-value" id="passengerCount">0 人</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 供应商信息和备注信息 -->
+        <div style="display: flex; gap: 20px; align-items: stretch;">
+            <div style="flex: 1; min-width: 0;">
+                <div class="order-card" style="height: 100%; display: flex; flex-direction: column;">
+                    <h2 class="order-section-title">供应商信息</h2>
+                    <div style="display: flex; gap: 15px; flex: 1; align-items: flex-end;">
+                        <div style="flex: 1;">
+                            <label class="order-label">供应商类型</label>
+                            <select class="order-input" id="supplier_type" onchange="filterSuppliers()" style="width: 100%;">
+                                <option value="">All Types</option>
+                                {% for type in supplier_types %}
+                                <option value="{{ type }}">{{ type | replace('_', ' ') | title }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div style="flex: 2;">
+                            <label class="order-label">供应商名称</label>
+                            <select class="order-input" name="supplier_id" id="supplier_name" required style="width: 100%;">
+                                <option value="">请选择供应商</option>
+                                {% for supplier in suppliers %}
+                                <option value="{{ supplier.supplier_id }}" data-type="{{ supplier.supplier_type_code or '' }}" {% if ref is defined and ref and ref.supplier_id == supplier.supplier_id %}selected{% endif %}>{{ supplier.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div style="flex: 1; min-width: 0;">
+                <div class="order-card" style="height: 100%; display: flex; flex-direction: column;">
+                    <h2 class="order-section-title">备注信息</h2>
+                    <div style="flex: 1; display: flex; flex-direction: column;">
+                        <textarea class="order-input" name="remarks" rows="2" placeholder="请输入备注信息" style="width: 100%; box-sizing: border-box; flex: 1; min-height: 38px;">{{ ref.remarks if ref is defined and ref else '' }}</textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- 航段信息 -->
         <div class="order-card">
             <h2 class="order-section-title">航段信息</h2>
@@ -93,54 +152,31 @@
 
         <!-- 乘客信息 -->
         <div class="order-card">
-            <h2 class="order-section-title">乘客信息</h2>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding-bottom: 6px; border-bottom: 1px solid #f0f0f0;">
+                <h2 class="order-section-title" style="margin-bottom: 0; padding-bottom: 0; border-bottom: none;">乘客信息</h2>
+                <div style="display: flex; gap: 8px;">
+                    <button type="button" class="order-btn order-btn-outline" onclick="copyLastPassenger()" title="复制最后一位乘客的价格信息">
+                        <i class="fas fa-copy"></i> 复制价格
+                    </button>
+                    <button type="button" class="order-btn order-btn-primary" onclick="addPassenger()">
+                        <i class="fas fa-plus"></i> 添加乘客
+                    </button>
+                </div>
+            </div>
+            <!-- 表头 -->
+            <div class="passenger-header-row">
+                <span class="col-num"></span>
+                <span class="col-name">姓名</span>
+                <span class="col-type">类型</span>
+                <span class="col-price">售价</span>
+                <span class="col-price">成本</span>
+                <span class="col-ticket">票号</span>
+                <span class="col-pnr">PNR</span>
+                <span class="col-profit">利润</span>
+                <span class="col-action"></span>
+            </div>
             <div id="passengersContainer">
                 <!-- 乘客信息将在这里动态添加 -->
-            </div>
-            <button type="button" class="order-btn order-btn-primary" onclick="addPassenger()">
-                <i class="fas fa-plus"></i> 添加乘客
-            </button>
-        </div>
-
-
-        <!-- 供应商信息和备注信息 -->
-        <div class="order-card">
-            <h2 class="order-section-title">供应商信息和备注</h2>
-            <div style="display: flex; gap: 20px; align-items: flex-start;">
-                <div style="flex: 0 0 auto; width: 200px;">
-                    <div style="display: flex; flex-direction: column; gap: 10px;">
-                        <div>
-                            <label class="order-label">供应商类型</label>
-                            <select class="order-input" id="supplier_type" onchange="filterSuppliers()" style="width: 100%;">
-                                <option value="">所有类型</option>
-                                {% for type in supplier_types %}
-                                <option value="{{ type }}">
-                                    {% if type == 'visa' %}签证
-                                    {% elif type == 'flight' %}机票
-                                    {% elif type == 'hotel' %}酒店
-                                    {% elif type == 'transport' %}用车
-                                    {% elif type == 'local_operator' %}地接
-                                    {% else %}其他
-                                    {% endif %}
-                                </option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <div>
-                            <label class="order-label">供应商名称</label>
-                            <select class="order-input" name="supplier_id" id="supplier_name" required style="width: 100%;">
-                                <option value="">请选择供应商</option>
-                                {% for supplier in suppliers %}
-                                <option value="{{ supplier.supplier_id }}" data-type="{{ supplier.supplier_type_code or '' }}" {% if ref is defined and ref and ref.supplier_id == supplier.supplier_id %}selected{% endif %}>{{ supplier.name }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                    </div>
-                </div>
-                <div style="flex: 1; min-width: 0;">
-                    <label class="order-label">备注信息</label>
-                    <textarea class="order-input" name="remarks" rows="6" placeholder="请输入备注信息" style="width: 100%; box-sizing: border-box;">{{ ref.remarks if ref is defined and ref else '' }}</textarea>
-                </div>
             </div>
         </div>
 
@@ -456,66 +492,55 @@ function loadExistingData() {
 
 // 添加带数据的乘客
 function addPassengerWithData(data) {
+    const passengerIndex = $('.passenger-card').length + 1;
     const template = `
-        <div class="passenger-card">
-            <button type="button" class="remove-btn" onclick="removeElement(this)">
-                <i class="fas fa-times"></i>
-            </button>
-            <div class="passenger-form">
-                <!-- 乘客姓名 -->
-                <div class="passenger-field passenger-field-name">
-                    <label class="required">乘客姓名</label>
-                    <input type="text" class="order-input passenger-name-input" name="passenger_name[]" value="${data.name}" required onchange="updateLeaderName()">
-                </div>
-                
-                <!-- 乘客类型 -->
-                <div class="passenger-field passenger-field-type">
-                    <label class="required">乘客类型</label>
-                    <select class="order-select" name="passenger_type[]" required>
-                        <option value="adult" ${data.passenger_type === 'adult' ? 'selected' : ''}>成人</option>
-                        <option value="child" ${data.passenger_type === 'child' ? 'selected' : ''}>儿童</option>
-                        <option value="infant" ${data.passenger_type === 'infant' ? 'selected' : ''}>婴儿</option>
-                    </select>
-                </div>
-                
-                <!-- 售价 -->
-                <div class="passenger-field" style="width: 170px; min-width: 170px; flex-shrink: 0;">
-                    <label class="required">售价</label>
-                    <div style="position: relative; display: flex; align-items: center;">
-                        <span style="position: absolute; left: 8px; color: #4a5568; font-size: 0.85rem; font-weight: 500; pointer-events: none; z-index: 1;">SGD</span>
-                        <input type="number" step="0.01" class="order-input" name="selling_price[]" value="${data.selling_price}" required style="padding-left: 45px; width: 100%; box-sizing: border-box;">
-                    </div>
-                </div>
-                
-                <!-- 成本 -->
-                <div class="passenger-field" style="width: 170px; min-width: 170px; flex-shrink: 0;">
-                    <label>成本</label>
-                    <div style="position: relative; display: flex; align-items: center;">
-                        <span style="position: absolute; left: 8px; color: #4a5568; font-size: 0.85rem; font-weight: 500; pointer-events: none; z-index: 1;">SGD</span>
-                        <input type="number" step="0.01" class="order-input" name="cost_price[]" value="${data.cost_price || 0}" style="padding-left: 45px; width: 100%; box-sizing: border-box;">
-                    </div>
-                </div>
-                
-                <!-- 电子客票号 -->
-                <div class="passenger-field" style="width: 170px; min-width: 170px; flex-shrink: 0;">
-                    <label>电子客票号</label>
-                    <input type="text" class="order-input" name="ticket_number[]" value="${data.ticket_number}" placeholder="可选">
-                </div>
-                
-                <!-- PNR编码 -->
-                <div class="passenger-field" style="width: 120px; min-width: 120px; flex-shrink: 0;">
-                    <label>PNR编码</label>
-                    <input type="text" class="order-input" name="pnr[]" value="${data.pnr}" placeholder="可选" maxlength="6">
+        <div class="passenger-card passenger-card-inline">
+            <span class="passenger-number-inline col-num">${passengerIndex}</span>
+            <div class="passenger-field-inline col-name">
+                <input type="text" class="order-input passenger-name-input" name="passenger_name[]" value="${data.name}" required placeholder="姓名" onchange="updateLeaderName()">
+            </div>
+            <div class="passenger-field-inline col-type">
+                <select class="order-select passenger-type-select" name="passenger_type[]" required onchange="updatePriceSummary()">
+                    <option value="adult" ${data.passenger_type === 'adult' ? 'selected' : ''}>成人</option>
+                    <option value="child" ${data.passenger_type === 'child' ? 'selected' : ''}>儿童</option>
+                    <option value="infant" ${data.passenger_type === 'infant' ? 'selected' : ''}>婴儿</option>
+                </select>
+            </div>
+            <div class="passenger-field-inline col-price">
+                <div class="input-with-currency-sm">
+                    <span class="currency-label-sm">SGD</span>
+                    <input type="number" step="0.01" class="order-input selling-price-input" name="selling_price[]" value="${data.selling_price}" required oninput="updatePriceSummary()">
                 </div>
             </div>
+            <div class="passenger-field-inline col-price">
+                <div class="input-with-currency-sm">
+                    <span class="currency-label-sm">SGD</span>
+                    <input type="number" step="0.01" class="order-input cost-price-input" name="cost_price[]" value="${data.cost_price || 0}" oninput="updatePriceSummary()">
+                </div>
+            </div>
+            <div class="passenger-field-inline col-ticket">
+                <input type="text" class="order-input" name="ticket_number[]" value="${data.ticket_number}" placeholder="票号">
+            </div>
+            <div class="passenger-field-inline col-pnr">
+                <input type="text" class="order-input" name="pnr[]" value="${data.pnr}" placeholder="PNR" maxlength="6">
+            </div>
+            <div class="passenger-field-inline col-profit profit-inline">
+                <span class="profit-amount-inline">+0.00</span>
+            </div>
+            <button type="button" class="remove-btn-inline col-action" onclick="removeElement(this)">
+                <i class="fas fa-times"></i>
+            </button>
         </div>
     `;
     $('#passengersContainer').append(template);
-    
+
     // 如果是第一个乘客，自动设置为负责人
     if ($('.passenger-card').length === 1) {
         updateLeaderName();
     }
+
+    // 更新价格汇总
+    updatePriceSummary();
 }
 
 // 添加带数据的航段
@@ -752,73 +777,142 @@ function addFlightSegment(data = null, isDefault = false) {
 }
 
 function addPassenger() {
+    const passengerIndex = $('.passenger-card').length + 1;
     const template = `
-        <div class="passenger-card">
-            <button type="button" class="remove-btn" onclick="removeElement(this)">
-                <i class="fas fa-times"></i>
-            </button>
-            <div class="passenger-form">
-                <!-- 乘客姓名 -->
-                <div class="passenger-field passenger-field-name">
-                    <label class="required">乘客姓名</label>
-                    <input type="text" class="order-input passenger-name-input" name="passenger_name[]" required onchange="updateLeaderName()">
-                </div>
-                
-                <!-- 乘客类型 -->
-                <div class="passenger-field passenger-field-type">
-                    <label class="required">乘客类型</label>
-                    <select class="order-select" name="passenger_type[]" required>
-                        <option value="adult">成人</option>
-                        <option value="child">儿童</option>
-                        <option value="infant">婴儿</option>
-                    </select>
-                </div>
-                
-                <!-- 售价 -->
-                <div class="passenger-field" style="width: 170px; min-width: 170px; flex-shrink: 0;">
-                    <label class="required">售价</label>
-                    <div style="position: relative; display: flex; align-items: center;">
-                        <span style="position: absolute; left: 8px; color: #4a5568; font-size: 0.85rem; font-weight: 500; pointer-events: none; z-index: 1;">SGD</span>
-                        <input type="number" step="0.01" class="order-input" name="selling_price[]" value="0" required style="padding-left: 45px; width: 100%; box-sizing: border-box;">
-                    </div>
-                </div>
-                
-                <!-- 成本 -->
-                <div class="passenger-field" style="width: 170px; min-width: 170px; flex-shrink: 0;">
-                    <label>成本</label>
-                    <div style="position: relative; display: flex; align-items: center;">
-                        <span style="position: absolute; left: 8px; color: #4a5568; font-size: 0.85rem; font-weight: 500; pointer-events: none; z-index: 1;">SGD</span>
-                        <input type="number" step="0.01" class="order-input" name="cost_price[]" value="0" style="padding-left: 45px; width: 100%; box-sizing: border-box;">
-                    </div>
-                </div>
-                
-                <!-- 电子客票号 -->
-                <div class="passenger-field" style="width: 170px; min-width: 170px; flex-shrink: 0;">
-                    <label>电子客票号</label>
-                    <input type="text" class="order-input" name="ticket_number[]" placeholder="可选">
-                </div>
-                
-                <!-- PNR编码 -->
-                <div class="passenger-field" style="width: 120px; min-width: 120px; flex-shrink: 0;">
-                    <label>PNR编码</label>
-                    <input type="text" class="order-input" name="pnr[]" placeholder="可选" maxlength="6">
+        <div class="passenger-card passenger-card-inline">
+            <span class="passenger-number-inline col-num">${passengerIndex}</span>
+            <div class="passenger-field-inline col-name">
+                <input type="text" class="order-input passenger-name-input" name="passenger_name[]" required placeholder="姓名" onchange="updateLeaderName()">
+            </div>
+            <div class="passenger-field-inline col-type">
+                <select class="order-select passenger-type-select" name="passenger_type[]" required onchange="updatePriceSummary()">
+                    <option value="adult">成人</option>
+                    <option value="child">儿童</option>
+                    <option value="infant">婴儿</option>
+                </select>
+            </div>
+            <div class="passenger-field-inline col-price">
+                <div class="input-with-currency-sm">
+                    <span class="currency-label-sm">SGD</span>
+                    <input type="number" step="0.01" class="order-input selling-price-input" name="selling_price[]" value="0" required oninput="updatePriceSummary()">
                 </div>
             </div>
+            <div class="passenger-field-inline col-price">
+                <div class="input-with-currency-sm">
+                    <span class="currency-label-sm">SGD</span>
+                    <input type="number" step="0.01" class="order-input cost-price-input" name="cost_price[]" value="0" oninput="updatePriceSummary()">
+                </div>
+            </div>
+            <div class="passenger-field-inline col-ticket">
+                <input type="text" class="order-input" name="ticket_number[]" placeholder="票号">
+            </div>
+            <div class="passenger-field-inline col-pnr">
+                <input type="text" class="order-input" name="pnr[]" placeholder="PNR" maxlength="6">
+            </div>
+            <div class="passenger-field-inline col-profit profit-inline">
+                <span class="profit-amount-inline">+0.00</span>
+            </div>
+            <button type="button" class="remove-btn-inline col-action" onclick="removeElement(this)">
+                <i class="fas fa-times"></i>
+            </button>
         </div>
     `;
     $('#passengersContainer').append(template);
+    updatePriceSummary();
+    updatePassengerNumbers();
+}
+
+// 更新乘客编号
+function updatePassengerNumbers() {
+    $('.passenger-card').each(function(index) {
+        $(this).find('.passenger-number-inline').text(index + 1);
+    });
+}
+
+// 实时更新价格汇总
+function updatePriceSummary() {
+    let totalSelling = 0;
+    let totalCost = 0;
+    let passengerCount = 0;
+
+    $('.passenger-card').each(function() {
+        const sellingPrice = parseFloat($(this).find('.selling-price-input').val()) || 0;
+        const costPrice = parseFloat($(this).find('.cost-price-input').val()) || 0;
+        const profit = sellingPrice - costPrice;
+
+        totalSelling += sellingPrice;
+        totalCost += costPrice;
+        passengerCount++;
+
+        // 更新单人利润显示
+        const profitDisplay = $(this).find('.profit-amount-inline');
+        const sign = profit >= 0 ? '+' : '';
+        profitDisplay.text(sign + profit.toFixed(2));
+
+        if (profit > 0) {
+            profitDisplay.css('color', '#48BB78');
+        } else if (profit < 0) {
+            profitDisplay.css('color', '#E53E3E');
+        } else {
+            profitDisplay.css('color', '#718096');
+        }
+    });
+
+    const totalProfit = totalSelling - totalCost;
+
+    $('#totalSellingPrice').text('SGD ' + totalSelling.toFixed(2));
+    $('#totalCostPrice').text('SGD ' + totalCost.toFixed(2));
+    $('#totalProfit').text('SGD ' + totalProfit.toFixed(2));
+    $('#passengerCount').text(passengerCount + ' 人');
+
+    if (totalProfit > 0) {
+        $('#totalProfit').css('color', '#48BB78');
+    } else if (totalProfit < 0) {
+        $('#totalProfit').css('color', '#E53E3E');
+    } else {
+        $('#totalProfit').css('color', '#718096');
+    }
+}
+
+// 复制最后一位乘客的价格信息
+function copyLastPassenger() {
+    const passengers = $('.passenger-card');
+    if (passengers.length === 0) {
+        alert('请先添加至少一位乘客');
+        return;
+    }
+
+    const lastPassenger = passengers.last();
+    const lastType = lastPassenger.find('.passenger-type-select').val();
+    const lastSellingPrice = lastPassenger.find('.selling-price-input').val();
+    const lastCostPrice = lastPassenger.find('.cost-price-input').val();
+
+    addPassenger();
+
+    const newPassenger = $('.passenger-card').last();
+    newPassenger.find('.passenger-type-select').val(lastType);
+    newPassenger.find('.selling-price-input').val(lastSellingPrice);
+    newPassenger.find('.cost-price-input').val(lastCostPrice);
+
+    updatePriceSummary();
+    newPassenger.find('.passenger-name-input').focus();
 }
 
 function removeElement(button) {
     const container = $(button).closest('.passenger-card, .flight-segment');
     const containerType = container.hasClass('passenger-card') ? 'passenger-card' : 'flight-segment';
     const minElements = 1;
-    
+
     if ($(`.${containerType}`).length > minElements) {
         container.remove();
         // 在航段移除后更新描述
         if (containerType === 'flight-segment') {
             updateFlightDescription();
+        }
+        // 在乘客移除后更新汇总和编号
+        if (containerType === 'passenger-card') {
+            updatePriceSummary();
+            updatePassengerNumbers();
         }
     } else {
         alert('至少需要保留一个' + (containerType === 'passenger-card' ? '乘客' : '航段'));

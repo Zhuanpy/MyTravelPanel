@@ -1,4 +1,4 @@
-/* Flight Order Common Styles - High Priority - Version 4.1 - Two Column Layout + Responsive + Centered Title */
+/* Flight Order Common Styles - High Priority - Version 5.0 - Enhanced Layout + Price Summary + Copy Feature */
 
 /* Force override base styles */
 .order-container * {
@@ -431,14 +431,332 @@ input[type="number"].order-input {
         flex-direction: column !important;
         gap: 15px !important;
     }
-    
+
     .order-container > form > div[style*="display: flex"] > div {
         flex: none !important;
         max-width: none !important;
     }
-    
+
     /* 调整供应商信息在小屏幕上的显示 */
     .order-card div[style*="overflow-x: auto"] {
         overflow-x: auto !important;
     }
+}
+
+/* ===== 价格汇总栏样式 ===== */
+.price-summary-card {
+    background: linear-gradient(135deg, #38A169 0%, #48BB78 100%) !important;
+    color: white !important;
+    padding: 12px 20px !important;
+}
+
+.price-summary {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.price-item {
+    text-align: center;
+    min-width: 120px;
+}
+
+.price-label {
+    display: block;
+    font-size: 0.85rem;
+    opacity: 0.9;
+    margin-bottom: 4px;
+}
+
+.price-value {
+    display: block;
+    font-size: 1.3rem;
+    font-weight: 600;
+}
+
+.profit-item .price-value {
+    color: #48BB78;
+}
+
+.passenger-count-item {
+    border-left: 1px solid rgba(255,255,255,0.3);
+    padding-left: 20px;
+}
+
+/* ===== 改进的乘客卡片样式 ===== */
+.passenger-card {
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    padding: 15px 20px;
+    margin-bottom: 12px;
+    position: relative;
+    border: 1px solid #e2e8f0;
+    transition: box-shadow 0.2s;
+}
+
+.passenger-card:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.passenger-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.passenger-number {
+    font-weight: 600;
+    color: #4a5568;
+    font-size: 0.95rem;
+}
+
+.passenger-header .remove-btn {
+    position: static;
+    background: none;
+    border: none;
+    color: #E53E3E;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+}
+
+.passenger-header .remove-btn:hover {
+    background-color: rgba(229, 62, 62, 0.1);
+}
+
+.passenger-form-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.passenger-row {
+    display: flex;
+    gap: 12px;
+    align-items: flex-end;
+}
+
+.passenger-row .passenger-field {
+    display: flex;
+    flex-direction: column;
+}
+
+.passenger-row .passenger-field label {
+    font-size: 0.85rem;
+    color: #4a5568;
+    margin-bottom: 4px;
+    white-space: nowrap;
+}
+
+/* 利润显示样式 */
+.profit-display {
+    background-color: #f0f4f8;
+    border-radius: 4px;
+    padding: 6px 12px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+}
+
+.profit-amount {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: #718096;
+}
+
+/* ===== 按钮样式扩展 ===== */
+.order-btn-outline {
+    background-color: transparent !important;
+    color: #48BB78 !important;
+    border: 1px solid #48BB78 !important;
+}
+
+.order-btn-outline:hover {
+    background-color: #48BB78 !important;
+    color: white !important;
+}
+
+.order-btn-lg {
+    padding: 10px 24px !important;
+    font-size: 1rem !important;
+}
+
+/* ===== 输入框货币标签修复 ===== */
+.input-with-currency {
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 100%;
+}
+
+.input-with-currency .currency-label {
+    position: absolute;
+    left: 8px;
+    color: #4a5568;
+    font-size: 0.85rem;
+    font-weight: 500;
+    pointer-events: none;
+    z-index: 1;
+}
+
+.input-with-currency input {
+    padding-left: 45px !important;
+    width: 100% !important;
+}
+
+/* ===== 乘客列宽度定义 ===== */
+.col-num { width: 28px; flex-shrink: 0; }
+.col-name { flex: 2.5; min-width: 120px; }
+.col-type { flex: 1; min-width: 70px; }
+.col-price { flex: 1.5; min-width: 100px; }
+.col-ticket { flex: 2; min-width: 100px; }
+.col-pnr { flex: 1; min-width: 70px; }
+.col-profit { flex: 1.2; min-width: 80px; text-align: right; }
+.col-action { width: 28px; flex-shrink: 0; }
+
+/* ===== 乘客表头行 ===== */
+.passenger-header-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    margin-bottom: 6px;
+    font-size: 0.8rem;
+    color: #718096;
+    font-weight: 500;
+    border-bottom: 1px solid #e2e8f0;
+    background-color: #f8fafc;
+    border-radius: 4px 4px 0 0;
+}
+
+/* ===== 内联乘客卡片样式 ===== */
+.passenger-card-inline {
+    background-color: #fff;
+    border-radius: 4px;
+    padding: 8px 12px;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border: 1px solid #e2e8f0;
+    transition: background-color 0.2s;
+}
+
+.passenger-card-inline:hover {
+    background-color: #f8fafc;
+}
+
+.passenger-number-inline {
+    height: 24px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.passenger-field-inline .order-input,
+.passenger-field-inline .order-select {
+    width: 100%;
+    height: 32px;
+    font-size: 0.85rem;
+    padding: 4px 8px;
+}
+
+/* 小尺寸货币输入框 */
+.input-with-currency-sm {
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 100%;
+}
+
+.currency-label-sm {
+    position: absolute;
+    left: 6px;
+    color: #718096;
+    font-size: 0.75rem;
+    font-weight: 500;
+    pointer-events: none;
+    z-index: 1;
+}
+
+.input-with-currency-sm input {
+    padding-left: 35px !important;
+    width: 100% !important;
+}
+
+/* 内联利润显示 */
+.profit-inline {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+}
+
+.profit-amount-inline {
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: #718096;
+}
+
+/* 内联删除按钮 */
+.remove-btn-inline {
+    background: none;
+    border: none;
+    color: #a0aec0;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    transition: all 0.2s;
+    flex-shrink: 0;
+}
+
+.remove-btn-inline:hover {
+    color: #E53E3E;
+    background-color: rgba(229, 62, 62, 0.1);
+}
+
+/* ===== 响应式乘客表单 ===== */
+@media (max-width: 1200px) {
+    .passenger-card-inline {
+        flex-wrap: wrap;
+    }
+
+    .col-name { flex: 2; min-width: 150px; }
+    .col-ticket { flex: 1.5; min-width: 120px; }
+}
+
+@media (max-width: 900px) {
+    .price-summary {
+        justify-content: center;
+    }
+
+    .passenger-count-item {
+        border-left: none;
+        padding-left: 0;
+        border-top: 1px solid rgba(255,255,255,0.3);
+        padding-top: 10px;
+        width: 100%;
+    }
+
+    .passenger-header-row {
+        display: none;
+    }
+
+    .passenger-card-inline {
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .col-num { order: -1; }
+    .col-action { order: -1; margin-left: auto; }
 } 
