@@ -709,13 +709,14 @@ def update_airport():
         # 直接使用原始SQL更新避免加载完整模型
         try:
             sql = text("UPDATE airport_data SET airport_IATA = :iata, city_name = :city, "
-                       "airport_name_cn = :name_cn, airport_name_en = :name_en WHERE id = :id")
+                       "city_name_en = :city_en, airport_name_cn = :name_cn, airport_name_en = :name_en WHERE id = :id")
 
             db.session.execute(
                 sql,
                 {
                     "iata": data['iata'],
                     "city": data['city'],
+                    "city_en": data.get('city_en', ''),
                     "name_cn": data['airport_name_cn'],
                     "name_en": data['airport_name_en'],
                     "id": airport_id
@@ -755,13 +756,14 @@ def input_airport_code_info():
         try:
             iata_list = request.form.getlist('iata[]')
             city_list = request.form.getlist('city[]')
+            city_en_list = request.form.getlist('cityEN[]')
             airport_name_cn_list = request.form.getlist('airportNameCN[]')
             airport_name_en_list = request.form.getlist('airportNameEN[]')
 
             # 验证所有输入
             for iata, city, name_cn, name_en in zip(iata_list, city_list, airport_name_cn_list, airport_name_en_list):
                 if not iata or not city or not name_cn or not name_en:
-                    flash('所有字段都是必填项。', 'error')
+                    flash('必填字段不能为空。', 'error')
                     return render_template('business/flight/flight_airport_code_input.html')
 
                 if len(iata) != 3:
@@ -779,10 +781,12 @@ def input_airport_code_info():
 
             # 批量创建机场数据
             airports_to_add = []
-            for iata, city, name_cn, name_en in zip(iata_list, city_list, airport_name_cn_list, airport_name_en_list):
+            for i, (iata, city, name_cn, name_en) in enumerate(zip(iata_list, city_list, airport_name_cn_list, airport_name_en_list)):
+                city_en = city_en_list[i] if i < len(city_en_list) else ''
                 airport = AirportData(
                     airport_IATA=iata.upper(),
                     city_name=city.strip(),
+                    city_name_en=city_en.strip() if city_en else None,
                     airport_name_cn=name_cn.strip(),
                     airport_name_en=name_en.strip()
                 )

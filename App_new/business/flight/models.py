@@ -5,10 +5,11 @@ from datetime import datetime
 class AirportData(db.Model):
     # 表名
     __tablename__ = 'airport_data'
-    
+
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     airport_IATA = db.Column(db.String(3), unique=True, index=True, nullable=False)
     city_name = db.Column(db.String(100), index=True, nullable=False)
+    city_name_en = db.Column(db.String(100), nullable=True, comment='城市英文名')
     airport_name_cn = db.Column(db.String(100), nullable=False)
     airport_name_en = db.Column(db.String(100), nullable=False)
     created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
@@ -22,6 +23,7 @@ class AirportData(db.Model):
             'id': self.id,
             'iata': self.airport_IATA,
             'city': self.city_name,
+            'city_en': self.city_name_en,
             'airport_name_cn': self.airport_name_cn,
             'airport_name_en': self.airport_name_en,
             'created_at': self.created_at.isoformat() if self.created_at else None,
@@ -36,17 +38,19 @@ class AirportData(db.Model):
         return iata_code.isalpha() and iata_code.isupper()
 
     @classmethod
-    def create_or_update(cls, iata, city, name_cn, name_en):
+    def create_or_update(cls, iata, city, name_cn, name_en, city_en=None):
         """创建或更新机场信息"""
         airport = cls.query.filter_by(airport_IATA=iata.upper()).first()
         if airport:
             airport.city_name = city.strip()
+            airport.city_name_en = city_en.strip() if city_en else None
             airport.airport_name_cn = name_cn.strip()
             airport.airport_name_en = name_en.strip()
         else:
             airport = cls(
                 airport_IATA=iata.upper(),
                 city_name=city.strip(),
+                city_name_en=city_en.strip() if city_en else None,
                 airport_name_cn=name_cn.strip(),
                 airport_name_en=name_en.strip()
             )

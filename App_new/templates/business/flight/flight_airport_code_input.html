@@ -90,11 +90,12 @@
                 <table class="table table-sm table-hover airport-table mb-0">
                     <thead>
                         <tr>
-                            <th style="width: 100px;">IATA</th>
-                            <th style="width: 150px;">城市</th>
-                            <th>中文名</th>
-                            <th>英文名</th>
-                            <th style="width: 120px;" class="text-center">操作</th>
+                            <th style="width: 80px;">IATA</th>
+                            <th>城市中文</th>
+                            <th>城市英文</th>
+                            <th>机场中文</th>
+                            <th>机场英文</th>
+                            <th style="width: 100px;" class="text-center">操作</th>
                         </tr>
                     </thead>
                     <tbody id="searchResultsBody"></tbody>
@@ -111,27 +112,32 @@
             <div class="airport-container">
                 <div class="airport-entry">
                     <div class="row g-2">
-                        <div class="col-md-2">
-                            <label class="form-label small">IATA 代码 <span class="text-danger">*</span></label>
+                        <div class="col-md-1">
+                            <label class="form-label small">IATA <span class="text-danger">*</span></label>
                             <input type="text" name="iata[]" class="form-control form-control-sm text-uppercase iata-input"
                                    placeholder="SIN" maxlength="3" required>
                         </div>
                         <div class="col-md-2">
-                            <label class="form-label small">城市名 <span class="text-danger">*</span></label>
+                            <label class="form-label small">城市中文 <span class="text-danger">*</span></label>
                             <input type="text" name="city[]" class="form-control form-control-sm"
                                    placeholder="新加坡" required>
                         </div>
+                        <div class="col-md-2">
+                            <label class="form-label small">城市英文</label>
+                            <input type="text" name="cityEN[]" class="form-control form-control-sm"
+                                   placeholder="Singapore">
+                        </div>
                         <div class="col-md-3">
-                            <label class="form-label small">机场中文名 <span class="text-danger">*</span></label>
+                            <label class="form-label small">机场中文 <span class="text-danger">*</span></label>
                             <input type="text" name="airportNameCN[]" class="form-control form-control-sm"
                                    placeholder="樟宜机场" required>
                         </div>
                         <div class="col-md-3">
-                            <label class="form-label small">机场英文名 <span class="text-danger">*</span></label>
+                            <label class="form-label small">机场英文 <span class="text-danger">*</span></label>
                             <input type="text" name="airportNameEN[]" class="form-control form-control-sm"
                                    placeholder="Changi Airport" required>
                         </div>
-                        <div class="col-md-2 d-flex align-items-end">
+                        <div class="col-md-1 d-flex align-items-end">
                             <button type="button" class="btn btn-outline-danger btn-sm w-100 delete-entry-btn">
                                 <i class="fas fa-trash"></i>
                             </button>
@@ -162,20 +168,24 @@
             <div class="modal-body">
                 <input type="hidden" id="editId">
                 <div class="row g-3">
-                    <div class="col-6">
+                    <div class="col-4">
                         <label class="form-label small">IATA 代码</label>
                         <input type="text" id="editIata" class="form-control form-control-sm text-uppercase" maxlength="3">
                     </div>
-                    <div class="col-6">
-                        <label class="form-label small">城市名</label>
+                    <div class="col-4">
+                        <label class="form-label small">城市中文</label>
                         <input type="text" id="editCity" class="form-control form-control-sm">
                     </div>
+                    <div class="col-4">
+                        <label class="form-label small">城市英文</label>
+                        <input type="text" id="editCityEN" class="form-control form-control-sm">
+                    </div>
                     <div class="col-6">
-                        <label class="form-label small">机场中文名</label>
+                        <label class="form-label small">机场中文</label>
                         <input type="text" id="editNameCN" class="form-control form-control-sm">
                     </div>
                     <div class="col-6">
-                        <label class="form-label small">机场英文名</label>
+                        <label class="form-label small">机场英文</label>
                         <input type="text" id="editNameEN" class="form-control form-control-sm">
                     </div>
                 </div>
@@ -242,6 +252,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         row.innerHTML = `
                             <td><strong>${airport.iata || airport.airport_IATA}</strong></td>
                             <td>${airport.city || airport.city_name}</td>
+                            <td>${airport.city_en || airport.city_name_en || ''}</td>
                             <td>${airport.airport_name_cn}</td>
                             <td>${airport.airport_name_en}</td>
                             <td class="text-center">
@@ -249,6 +260,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                         data-id="${airport.id}"
                                         data-iata="${airport.iata || airport.airport_IATA}"
                                         data-city="${airport.city || airport.city_name}"
+                                        data-city-en="${airport.city_en || airport.city_name_en || ''}"
                                         data-cn="${airport.airport_name_cn}"
                                         data-en="${airport.airport_name_en}">
                                     <i class="fas fa-edit"></i>
@@ -261,7 +273,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         searchResultsBody.appendChild(row);
                     });
                 } else {
-                    searchResultsBody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">未找到匹配的机场信息</td></tr>';
+                    searchResultsBody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">未找到匹配的机场信息</td></tr>';
                 }
                 searchResults.style.display = 'block';
             } else {
@@ -290,6 +302,7 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('editId').value = editBtn.dataset.id;
             document.getElementById('editIata').value = editBtn.dataset.iata;
             document.getElementById('editCity').value = editBtn.dataset.city;
+            document.getElementById('editCityEN').value = editBtn.dataset.cityEn || '';
             document.getElementById('editNameCN').value = editBtn.dataset.cn;
             document.getElementById('editNameEN').value = editBtn.dataset.en;
             new bootstrap.Modal(document.getElementById('editModal')).show();
@@ -308,12 +321,13 @@ document.addEventListener('DOMContentLoaded', function() {
             id: parseInt(document.getElementById('editId').value),
             iata: document.getElementById('editIata').value.toUpperCase(),
             city: document.getElementById('editCity').value,
+            city_en: document.getElementById('editCityEN').value,
             airport_name_cn: document.getElementById('editNameCN').value,
             airport_name_en: document.getElementById('editNameEN').value
         };
 
         if (!data.iata || !data.city || !data.airport_name_cn || !data.airport_name_en) {
-            showToast('请填写所有字段', 'error');
+            showToast('请填写必填字段', 'error');
             return;
         }
 
