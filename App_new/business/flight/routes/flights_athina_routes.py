@@ -163,67 +163,6 @@ def itinerary_conversion():
     # GET请求返回行程转换页面
     return render_template('flights/flight_conversion.html', output_text="")
 
-@flights_athina.route('/simplify_itinerary_by_flight_and_date', methods=['GET', 'POST'])
-@login_required
-@staff_only
-def simplify_itinerary_by_flight_and_date():
-    """
-    通过航班号和日期简化行程
-    """
-    if request.method == 'POST':
-        try:
-            # 获取提交的数据
-            data = request.get_json()
-            language = data.get('language', '中文')
-            baggage = data.get('baggage', '')
-            price = data.get('price', 0)
-            flights = data.get('flights', [])
-            
-            # 简单验证
-            if not flights:
-                return jsonify({'error': '没有提供航班信息。'}), 400
-
-            if not baggage:
-                return jsonify({'error': '没有提供行李信息。'}), 400
-
-            if not price:
-                return jsonify({'error': '没有提供价格信息。'}), 400
-
-            # 生成行程信息
-            input_text = ""
-            start_num = 1
-
-            for idx, f in enumerate(flights, start=1):
-                flight_number = f.get('flightNumber').upper().replace(' ', '')
-                flight_date = f.get('flightDate').upper().replace(' ', '')
-                schedule_dic = request_schedule_data(flight_number)
-                r = flight.athina_booking_code(start_num, schedule_dic, flight_date)
-                input_text += f'{r}\n\n'
-                start_num += 1
-
-            if language == "中文":
-                # 中文行程转换逻辑
-                itinerary = format_flight_info(city_language,
-                                               texts=input_text,
-                                               luggage=baggage,
-                                               price=price)
-
-            elif language == "英文":
-                # 英文行程转换逻辑
-                itinerary = format_flight_info(city_language,
-                                               texts=input_text,
-                                               language='EN',
-                                               luggage=baggage,
-                                               price=price)
-            
-            return jsonify({'itinerary': itinerary})
-                                 
-        except Exception as e:
-            return jsonify({'error': str(e)}), 500
-    
-    # GET请求返回页面
-    return render_template('business/flight/flight_itinerary_simple.html', output_text="")
-
 @flights_athina.route('/athinaPage', methods=['GET', 'POST'])
 @csrf.exempt
 @login_required

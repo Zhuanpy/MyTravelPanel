@@ -98,68 +98,6 @@ def itinerary_conversion():
         return render_template('flights/conversion.html', output_text=output_text)
 
 
-# 机票 行程转换
-@flight_blue.route('/simplify_itinerary_by_flight_and_date', methods=['GET', 'POST'])
-def simplify_itinerary_by_flight_and_date():
-
-    if request.method == 'GET':  # 加载页面
-
-        return render_template('flights/简化行程_日期-航班号.html', output_text="")
-
-    if request.method == 'POST':
-
-        try:
-            data = request.get_json()
-            print(data)
-            # 获取语言、行李、价格和航班信息
-            language = data.get('language', '中文')
-            baggage = data.get('baggage', '')
-            price = data.get('price', 0)
-            flights = data.get('flights', [])
-
-            # 简单验证
-            if not flights:
-                return jsonify({'error': '没有提供航班信息。'}), 400
-
-            if not baggage:
-                return jsonify({'error': '没有提供行李信息。'}), 400
-
-            if not price :
-                return jsonify({'error': '没有提供价格信息。'}), 400
-
-            # 生成行程信息（此处为示例，您可以根据实际需求进行生成）
-            input_text = f""
-            start_num = 1
-
-            for idx, f in enumerate(flights, start=1):
-                flight_number = f.get('flightNumber').upper().replace(' ', '')
-                flight_date = f.get('flightDate').upper().replace(' ', '')
-                schedule_dic = request_schedule_data(flight_number)
-                r = flight.athina_booking_code(start_num, schedule_dic, flight_date)
-                input_text += f'{r}\n\n'
-                start_num += 1
-
-            if language == "中文":
-                # 中文行程转换逻辑
-                itinerary = format_flight_info(city_language=city_language,
-                                               texts=input_text,
-                                               luggage=baggage,
-                                               price=price)
-
-            elif language == "英文":
-                # 英文行程转换逻辑
-                itinerary = format_flight_info(city_language=city_language,
-                                               texts=input_text,
-                                               language='EN',
-                                               luggage=baggage,
-                                               price=price)
-            print(itinerary)
-            return jsonify({'itinerary': itinerary})
-
-        except Exception as e:
-            return jsonify({'error': str(e)}), 500
-
-
 @flight_blue.route('/athinaPage', methods=['GET', 'POST'])
 def flight_to_athina_page():
     if request.method == 'GET':

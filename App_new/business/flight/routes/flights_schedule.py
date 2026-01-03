@@ -98,55 +98,6 @@ def itinerary_conversion():
     # GET请求返回行程转换页面
     return render_template('business/flight/flight_conversion.html')
 
-@flights_schedule.route('/simple_itinerary', methods=['GET'])
-@login_required
-@staff_only
-def simple_itinerary():
-    """简化行程页面"""
-    return render_template('business/flight/flight_itinerary_simple.html')
-
-@flights_schedule.route('/simplify_itinerary', methods=['POST'])
-@login_required
-@staff_only
-def simplify_itinerary_by_flight_and_date():
-    """处理简化行程表单提交"""
-    try:
-        # 获取表单数据
-        itinerary_text = request.form.get('itinerary_text', '')
-        
-        if not itinerary_text:
-            flash('请输入需要简化的行程信息', 'error')
-            return redirect(url_for('flights_schedule.simple_itinerary'))
-        
-        # 这里应该有处理行程简化的逻辑
-        # 实际项目中这里可能有更复杂的处理逻辑
-        simplified_text = process_itinerary(itinerary_text)
-        
-        # 返回结果到模板
-        return render_template('business/flight/flight_itinerary_simple.html', 
-                               original_text=itinerary_text,
-                               simplified_text=simplified_text)
-        
-    except Exception as e:
-        flash(f'处理行程时出错: {str(e)}', 'error')
-        return redirect(url_for('flights_schedule.simple_itinerary'))
-        
-def process_itinerary(text):
-    """简单处理行程文本的函数"""
-    # 这只是一个占位实现，实际项目中应该有更复杂的逻辑
-    # 例如提取日期、航班号等信息，并按特定格式重新组织
-    lines = text.split('\n')
-    processed_lines = []
-    
-    for line in lines:
-        # 简单处理：尝试提取日期和航班号
-        # 实际应用中可能需要更复杂的正则表达式和处理逻辑
-        line = line.strip()
-        if line:
-            processed_lines.append(f"处理后: {line}")
-    
-    return '\n'.join(processed_lines)
-
 @flights_schedule.route('/input_flight_schedule', methods=['GET', 'POST'])
 @login_required
 @staff_only
