@@ -803,6 +803,20 @@ def input_airport_code_info():
     # GET 请求时渲染页面
     return render_template('business/flight/flight_airport_code_input.html')
 
+@flights_schedule.route('/delete_airport/<int:airport_id>', methods=['DELETE'])
+@login_required
+@staff_only
+def delete_airport(airport_id):
+    """删除机场信息"""
+    try:
+        airport = AirportData.query.get_or_404(airport_id)
+        db.session.delete(airport)
+        db.session.commit()
+        return jsonify({'status': 'success', 'message': '机场信息删除成功'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'status': 'error', 'message': f'删除失败：{str(e)}'})
+
 @flights_schedule.route('/delete_flight/<int:flight_id>', methods=['DELETE'])
 @login_required
 @staff_only
