@@ -163,65 +163,61 @@ def itinerary_conversion():
     # GET请求返回行程转换页面
     return render_template('flights/flight_conversion.html', output_text="")
 
-@flights_athina.route('/athinaPage', methods=['GET', 'POST'])
+@flights_athina.route('/generate_booking_code', methods=['POST'])
 @csrf.exempt
 @login_required
 @staff_only
-def athina_page():
+def generate_booking_code():
     """
-    Athina主页面处理
+    生成Athina预订代码API
     """
-    if request.method == 'POST':
-        try:
-            # 获取并验证请求数据
-            data = request.get_json()
-            
-            if not data:
-                return jsonify({'error': '未提供任何订单数据'}), 400
+    try:
+        # 获取并验证请求数据
+        data = request.get_json()
 
-            itinerary = ""
-            num = 1
+        if not data:
+            return jsonify({'error': '未提供任何订单数据'}), 400
 
-            for entry in data:
+        itinerary = ""
+        num = 1
+
+        for entry in data:
+            try:
+                # 获取并验证航班信息
+                flight_number = entry.get('flightNumber', '').strip().replace(" ", "").upper()
+                flight_date = entry.get('flightDate', '').strip().replace(" ", "").upper()
+
+                if not flight_number or not flight_date:
+                    return jsonify({'error': f'订单条目 {num} 缺少航班号或日期'}), 400
+
+                # 获取航班时刻表数据
+                schedule_dic = request_schedule_data(flight_number)
+
+                if not schedule_dic:
+                    return jsonify({
+                        'error': f'未找到航班号 {flight_number} 的时刻表数据。请先在航班时刻表中添加该航班信息。'
+                    }), 404
+
                 try:
-                    # 获取并验证航班信息
-                    flight_number = entry.get('flightNumber', '').strip().replace(" ", "").upper()
-                    flight_date = entry.get('flightDate', '').strip().replace(" ", "").upper()
+                    # 生成预订代码
+                    r = flight.athina_booking_code(num, schedule_dic, flight_date)
 
-                    if not flight_number or not flight_date:
-                        return jsonify({'error': f'订单条目 {num} 缺少航班号或日期'}), 400
-
-                    # 获取航班时刻表数据
-                    schedule_dic = request_schedule_data(flight_number)
-
-                    if not schedule_dic:
-                        return jsonify({
-                            'error': f'未找到航班号 {flight_number} 的时刻表数据。请先在航班时刻表中添加该航班信息。'
-                        }), 404
-
-                    try:
-                        # 生成预订代码
-                        r = flight.athina_booking_code(num, schedule_dic, flight_date)
-
-                        if r.startswith("An error occurred") or r.startswith("Database error"):
-                            return jsonify({'error': r}), 500
-                        itinerary += f"{r}\n"
-                        num += 1
-                    except Exception as e:
-                        return jsonify({
-                            'error': f'生成航班 {flight_number} 的预订代码时出错：{str(e)}'
-                        }), 500
-
+                    if r.startswith("An error occurred") or r.startswith("Database error"):
+                        return jsonify({'error': r}), 500
+                    itinerary += f"{r}\n"
+                    num += 1
                 except Exception as e:
                     return jsonify({
-                        'error': f'处理航班信息时出错：{str(e)}'
+                        'error': f'生成航班 {flight_number} 的预订代码时出错：{str(e)}'
                     }), 500
 
-            return jsonify({'itinerary': itinerary})
-                                 
-        except Exception as e:
-            return jsonify({'error': str(e)}), 500
-    
-    # GET请求返回页面
-    return render_template('business/flight/flight_athina_booking_code.html')
+            except Exception as e:
+                return jsonify({
+                    'error': f'处理航班信息时出错：{str(e)}'
+                }), 500
+
+        return jsonify({'itinerary': itinerary})
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
