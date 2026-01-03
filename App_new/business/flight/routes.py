@@ -502,10 +502,6 @@ def open_refund_folder():
 
     return redirect(url_for('index.index'))
 
-@flight_blue.route('/确认单详细')
-def confirmation_detail():
-    return render_template('flights/确认单详细.html')
-
 def convert_date_format(date_str):
     if not date_str:
         return ''

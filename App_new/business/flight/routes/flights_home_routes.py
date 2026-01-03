@@ -331,12 +331,6 @@ def open_refund_folder():
     if not request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         return redirect(url_for('index.index'))
 
-@flight_home.route('/确认单详细')
-@login_required
-@staff_only
-def confirmation_detail():
-    return render_template('business/flight/flight_confirmation_detail.html')
-
 def convert_date_format(date_str):
     if not date_str:
         return ''
