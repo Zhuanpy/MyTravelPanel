@@ -1,331 +1,182 @@
 {% extends "shared/staff_base.html" %}
 
-{% block title %}航班时刻表信息 - MyTravelPanel{% endblock %}
-
-{% block page_title %}航班时刻表信息{% endblock %}
+{% block title %}航班时刻表管理{% endblock %}
+{% block page_title %}航班时刻表管理{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/flight_order_common.css') }}">
 <style>
-    /* 简化CSS，只保留必要动画 */
-    @keyframes slide-in-up {
-        from {
-            opacity: 0;
-            transform: translateY(-20px);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
+    .form-section {
+        background: #fff;
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
     }
-    
-    @keyframes slideInRight {
-        from {
-            opacity: 0;
-            transform: translateX(100px);
-        }
-        to {
-            opacity: 1;
-            transform: translateX(0);
-        }
+    .section-title {
+        font-size: 14px;
+        font-weight: 600;
+        color: #2D3748;
+        margin-bottom: 15px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #4299E1;
     }
-    
-    .animate-slide-in-up {
-        animation: slide-in-up 0.3s ease-out;
+    .schedule-table th {
+        background: #f8f9fa;
+        font-weight: 600;
+        font-size: 12px;
+        white-space: nowrap;
     }
-    
-    .animate-slideInRight {
-        animation: slideInRight 0.3s ease-out;
+    .schedule-table td {
+        vertical-align: middle;
+        font-size: 13px;
+    }
+    .schedule-table .flight-number {
+        font-weight: 600;
+        color: #2563EB;
+    }
+    .toast-container {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 9999;
+    }
+    .filter-tag {
+        display: inline-block;
+        background: #E0F2FE;
+        color: #0369A1;
+        padding: 2px 10px;
+        border-radius: 12px;
+        font-size: 12px;
+        margin-right: 5px;
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
-    <!-- 页面标题 -->
-    <div class="text-center mb-8">
-        <h1 class="text-3xl font-bold text-gray-900 mb-4">航班时刻表信息</h1>
-        <div class="w-16 h-1 bg-blue-500 mx-auto"></div>
-    </div>
+<div class="container mt-3" style="max-width: 1400px;">
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
 
-    <!-- 搜索和筛选区域 -->
-    <div class="bg-white rounded-xl shadow-lg p-6 mb-6 transition-all duration-200 hover:shadow-xl">
-        <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between mb-6">
-            <h2 class="text-xl font-semibold text-gray-800 mb-4 lg:mb-0 border-l-4 border-blue-500 pl-3">搜索和筛选航班</h2>
-            <button type="button" onclick="openFlightModal()" 
-                    class="bg-gradient-to-r from-green-500 to-green-600 text-white px-6 py-3 rounded-lg font-medium shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-0.5 flex items-center gap-2">
-                <i class="fas fa-plus"></i> 添加航班信息
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{% if category == 'error' %}danger{% else %}success{% endif %} alert-dismissible fade show mb-3">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <!-- Search Section -->
+    <div class="form-section">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div class="section-title mb-0 border-0 pb-0"><i class="fas fa-search me-2"></i>搜索航班</div>
+            <button type="button" class="btn btn-success btn-sm" onclick="openFlightModal()">
+                <i class="fas fa-plus me-1"></i>添加航班
             </button>
         </div>
-        
         <form id="searchForm" method="GET" action="{{ url_for('flights_schedule.input_flight_schedule') }}">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            
-            <!-- 搜索字段网格布局 -->
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">航班号:</label>
-                    <input type="text" name="search_flight_number" placeholder="如: 9C6907" 
-                           value="{{ search_flight_number }}" 
-                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200">
+            <div class="row g-2 align-items-end">
+                <div class="col-md-3">
+                    <label class="form-label small">航班号</label>
+                    <input type="text" name="search_flight_number" class="form-control form-control-sm text-uppercase"
+                           placeholder="如: TR100" value="{{ search_flight_number }}">
                 </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">航司代码:</label>
-                    <input type="text" name="search_airline_code" placeholder="如: 9C" 
-                           value="{{ search_airline_code }}"
-                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200">
+                <div class="col-md-2">
+                    <label class="form-label small">航司代码</label>
+                    <input type="text" name="search_airline_code" class="form-control form-control-sm text-uppercase"
+                           placeholder="如: TR" value="{{ search_airline_code }}">
                 </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">航班编号:</label>
-                    <input type="text" name="search_airline_num" placeholder="如: 6907" 
-                           value="{{ search_airline_num }}"
-                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200">
+                <div class="col-md-2">
+                    <label class="form-label small">航班编号</label>
+                    <input type="text" name="search_airline_num" class="form-control form-control-sm"
+                           placeholder="如: 100" value="{{ search_airline_num }}">
                 </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">起始地点:</label>
-                    <input type="text" name="search_schedule_city" placeholder="如: SHE HFE" 
-                           value="{{ search_schedule_city }}"
-                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200">
+                <div class="col-md-3">
+                    <label class="form-label small">起始地点</label>
+                    <input type="text" name="search_schedule_city" class="form-control form-control-sm text-uppercase"
+                           placeholder="如: SIN PVG" value="{{ search_schedule_city }}">
                 </div>
-            </div>
-            
-            <!-- 操作按钮 -->
-            <div class="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-                <button type="submit" 
-                        class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg font-medium transition-colors duration-200 flex items-center gap-2">
-                    <i class="fas fa-search"></i> 搜索
-                </button>
-                <button type="button" onclick="clearSearchForm()" 
-                        class="bg-gray-600 hover:bg-gray-700 text-white px-6 py-2 rounded-lg font-medium transition-colors duration-200 flex items-center gap-2">
-                    <i class="fas fa-eraser"></i> 清空
-                </button>
-                <span class="text-gray-600 text-sm">支持模糊搜索，多条件同时生效</span>
+                <div class="col-md-2">
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary btn-sm flex-fill">
+                            <i class="fas fa-search me-1"></i>搜索
+                        </button>
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="clearSearch()">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
             </div>
         </form>
-    </div>
 
-    <!-- 搜索状态提示 -->
-    {% if search_flight_number or search_airline_code or search_airline_num or search_schedule_city %}
-    <div class="bg-white rounded-xl shadow-lg p-4 mb-6">
-        <div class="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-lg flex items-center gap-3">
-            <i class="fas fa-filter text-blue-500"></i>
-            <div class="flex-1">
-                <strong class="font-medium">当前筛选条件：</strong>
-                {% if search_flight_number %}<span class="inline-block bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium mr-2 border border-blue-200">航班号: {{ search_flight_number }}</span>{% endif %}
-                {% if search_airline_code %}<span class="inline-block bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium mr-2 border border-blue-200">航司代码: {{ search_airline_code }}</span>{% endif %}
-                {% if search_airline_num %}<span class="inline-block bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium mr-2 border border-blue-200">航班编号: {{ search_airline_num }}</span>{% endif %}
-                {% if search_schedule_city %}<span class="inline-block bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium mr-2 border border-blue-200">起始地点: {{ search_schedule_city }}</span>{% endif %}
+        {% if search_flight_number or search_airline_code or search_airline_num or search_schedule_city %}
+        <div class="mt-3 p-2 bg-light rounded d-flex align-items-center justify-content-between">
+            <div>
+                <i class="fas fa-filter text-muted me-2"></i>
+                {% if search_flight_number %}<span class="filter-tag">航班号: {{ search_flight_number }}</span>{% endif %}
+                {% if search_airline_code %}<span class="filter-tag">航司: {{ search_airline_code }}</span>{% endif %}
+                {% if search_airline_num %}<span class="filter-tag">编号: {{ search_airline_num }}</span>{% endif %}
+                {% if search_schedule_city %}<span class="filter-tag">地点: {{ search_schedule_city }}</span>{% endif %}
             </div>
-            <a href="{{ url_for('flights_schedule.input_flight_schedule') }}" 
-               class="text-gray-600 hover:text-gray-800 border border-gray-400 hover:border-gray-600 px-3 py-1 rounded text-sm transition-colors duration-200 flex items-center gap-1">
-                <i class="fas fa-times"></i> 清除所有筛选
+            <a href="{{ url_for('flights_schedule.input_flight_schedule') }}" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-times me-1"></i>清除
             </a>
         </div>
-    </div>
-    {% endif %}
-
-    <!-- 航班录入弹窗 -->
-    <div id="flightInputModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden backdrop-blur-sm">
-        <div class="flex items-center justify-center min-h-screen p-4">
-            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-6xl max-h-[90vh] overflow-y-auto animate-slide-in-up">
-                <div class="flex justify-between items-center border-b border-gray-200 px-6 py-4">
-                    <h2 class="text-2xl font-bold text-blue-600 flex items-center gap-2">
-                        <i class="fas fa-plane"></i> 添加航班信息
-                    </h2>
-                    <button onclick="closeFlightModal()" 
-                            class="text-gray-400 hover:text-gray-600 hover:bg-gray-100 w-8 h-8 rounded-full flex items-center justify-center transition-colors duration-200">
-                        <i class="fas fa-times text-xl"></i>
-                    </button>
-                </div>
-                
-                <form id="flightForm" method="POST" action="{{ url_for('flights_schedule.input_flight_schedule') }}" class="p-6">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <input type="hidden" name="search_flight_number" value="{{ search_flight_number }}">
-                    <input type="hidden" name="search_airline_code" value="{{ search_airline_code }}">
-                    <input type="hidden" name="search_airline_num" value="{{ search_airline_num }}">
-                    <input type="hidden" name="search_schedule_city" value="{{ search_schedule_city }}">
-                    
-                    <div id="flightInputsContainer">
-                        <div class="space-y-4">
-                            <!-- 航班号搜索行 -->
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2">航班号:</label>
-                                <div class="flex gap-3">
-                                    <input type="text" id="flightNumber" name="flight_number[]" placeholder="例如: TR100" 
-                                           class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
-                                           onchange="updateAirlineInfo(this)">
-                                    <button type="button" onclick="searchFlightInfo(this)"
-                                            class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors duration-200 flex items-center gap-2 whitespace-nowrap">
-                                        <i class="fas fa-search"></i> 搜索
-                                    </button>
-                                </div>
-                            </div>
-                            
-                            <!-- 详细信息行 -->
-                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                                <!-- 航司代码 -->
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-2">航司代码:</label>
-                                    <input type="text" id="airlineCode" name="airline_code[]" 
-                                           class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500" readonly>
-                                </div>
-                                
-                                <!-- 航班编号 -->
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-2">航班编号:</label>
-                                    <input type="text" id="airlineNum" name="airline_num[]" 
-                                           class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500" readonly>
-                                </div>
-                                
-                                <!-- 起始地点 -->
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-2">起始地点:</label>
-                                    <input type="text" id="scheduleCity" name="schedule_city[]" placeholder="例如: SIN CAN" 
-                                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200">
-                                    <span class="text-xs text-gray-500 mt-1 block">可搜索或手动输入，格式：出发地 目的地</span>
-                                </div>
-                                
-                                <!-- 起始时间 -->
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-2">起始时间:</label>
-                                    <input type="text" id="scheduleTiming" name="schedule_timing[]" placeholder="例如: 0515 0925" 
-                                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200">
-                                    <span class="text-xs text-gray-500 mt-1 block">可搜索或手动输入，格式：出发时间 到达时间</span>
-                                </div>
-                                
-                                <!-- 出发航站楼 -->
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-2">出发航站楼:</label>
-                                    <input type="text" id="departureTerminal" name="departure_terminal[]" placeholder="例如: T1" 
-                                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200">
-                                    <span class="text-xs text-gray-500 mt-1 block">出发机场航站楼，如：T1, Terminal 2, 航站楼A</span>
-                                </div>
-                                
-                                <!-- 出发登机口 -->
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-2">出发登机口:</label>
-                                    <input type="text" id="departureGate" name="departure_gate[]" placeholder="例如: A15" 
-                                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200">
-                                    <span class="text-xs text-gray-500 mt-1 block">出发登机口，如：A15, Gate B22, 登机口C8</span>
-                                </div>
-                                
-                                <!-- 到达航站楼 -->
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-2">到达航站楼:</label>
-                                    <input type="text" id="arrivalTerminal" name="arrival_terminal[]" placeholder="例如: T2" 
-                                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200">
-                                    <span class="text-xs text-gray-500 mt-1 block">到达机场航站楼，如：T2, Terminal 3, 航站楼B</span>
-                                </div>
-                                
-                                <!-- 到达登机口 -->
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-2">到达登机口:</label>
-                                    <input type="text" id="arrivalGate" name="arrival_gate[]" placeholder="例如: B22" 
-                                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200">
-                                    <span class="text-xs text-gray-500 mt-1 block">到达登机口，如：B22, Gate C12, 登机口D5</span>
-                                </div>
-                                
-                                <!-- 飞机型号 -->
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-2">飞机型号:</label>
-                                    <input type="text" id="aircraft" name="aircraft[]" placeholder="例如: 77W" 
-                                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200">
-                                    <span class="text-xs text-gray-500 mt-1 block">飞机型号代码，如：77W, A320, B737</span>
-                                </div>
-                            </div>
-                            
-                            <!-- 删除按钮 -->
-                            <div class="flex justify-end">
-                                <button type="button" onclick="removeFlightInput(this)"
-                                        class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors duration-200 flex items-center gap-2">
-                                    <i class="fas fa-trash"></i> 删除
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- 表单操作按钮 -->
-                    <div class="flex flex-col sm:flex-row justify-between items-center gap-4 mt-8 pt-6 border-t border-gray-200">
-                        <button type="button" onclick="addFlightInput()"
-                                class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg transition-colors duration-200 flex items-center gap-2">
-                            <i class="fas fa-plus"></i> 增加航班
-                        </button>
-                        <div class="flex gap-3">
-                            <button type="button" onclick="closeFlightModal()"
-                                    class="bg-gray-600 hover:bg-gray-700 text-white px-6 py-2 rounded-lg transition-colors duration-200">
-                                取消
-                            </button>
-                            <button type="submit"
-                                    class="bg-green-500 hover:bg-green-600 text-white px-6 py-2 rounded-lg transition-colors duration-200 flex items-center gap-2">
-                                <i class="fas fa-save"></i> 提交
-                            </button>
-                        </div>
-                    </div>
-                </form>
-            </div>
-        </div>
+        {% endif %}
     </div>
 
-
-
-    <!-- 航班时刻表 -->
-    <div class="bg-white rounded-xl shadow-lg p-6 transition-all duration-200 hover:shadow-xl">
-        <h2 class="text-xl font-semibold text-gray-800 mb-6 border-l-4 border-blue-500 pl-3">航班时刻表</h2>
-        
-        <div class="overflow-x-auto mb-6">
-            <table class="min-w-[1400px] w-full border-collapse border border-gray-300">
+    <!-- Flight Schedule Table -->
+    <div class="form-section">
+        <div class="section-title"><i class="fas fa-plane me-2"></i>航班时刻表</div>
+        <div class="table-responsive">
+            <table class="table table-sm table-hover schedule-table mb-0">
                 <thead>
-                    <tr class="bg-gray-50">
-                        <th class="border border-gray-300 px-4 py-3 text-sm font-semibold text-gray-700 text-center">航班号</th>
-                        <th class="border border-gray-300 px-4 py-3 text-sm font-semibold text-gray-700 text-center">航司代码</th>
-                        <th class="border border-gray-300 px-4 py-3 text-sm font-semibold text-gray-700 text-center">航班编号</th>
-                        <th class="border border-gray-300 px-4 py-3 text-sm font-semibold text-gray-700 text-center" style="min-width: 120px;">起始地点</th>
-                        <th class="border border-gray-300 px-4 py-3 text-sm font-semibold text-gray-700 text-center" style="min-width: 120px;">起始时间</th>
-                        <th class="border border-gray-300 px-4 py-3 text-sm font-semibold text-gray-700 text-center">出发航站楼</th>
-                        <th class="border border-gray-300 px-4 py-3 text-sm font-semibold text-gray-700 text-center">出发登机口</th>
-                        <th class="border border-gray-300 px-4 py-3 text-sm font-semibold text-gray-700 text-center">到达航站楼</th>
-                        <th class="border border-gray-300 px-4 py-3 text-sm font-semibold text-gray-700 text-center">到达登机口</th>
-                        <th class="border border-gray-300 px-4 py-3 text-sm font-semibold text-gray-700 text-center">飞机型号</th>
-                        <th class="border border-gray-300 px-4 py-3 text-sm font-semibold text-gray-700 text-center">操作</th>
+                    <tr>
+                        <th>航班号</th>
+                        <th>航司</th>
+                        <th>编号</th>
+                        <th>起始地点</th>
+                        <th>起始时间</th>
+                        <th>机型</th>
+                        <th class="text-center" style="width: 100px;">操作</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for flight in flights.items %}
-                    <tr class="even:bg-gray-50 hover:bg-gray-100 transition-colors duration-150">
-                        <td class="border border-gray-300 px-4 py-3 text-sm text-center">{{ flight.flight_number }}</td>
-                        <td class="border border-gray-300 px-4 py-3 text-sm text-center">{{ flight.airline_code }}</td>
-                        <td class="border border-gray-300 px-4 py-3 text-sm text-center">{{ flight.airline_num }}</td>
-                        <td class="border border-gray-300 px-4 py-3 text-sm text-center" style="min-width: 120px;">{{ flight.schedule_city }}</td>
-                        <td class="border border-gray-300 px-4 py-3 text-sm text-center" style="min-width: 120px;">{{ flight.schedule_timing }}</td>
-                        <td class="border border-gray-300 px-4 py-3 text-sm text-center">{{ flight.departure_terminal or 'Unknown' }}</td>
-                        <td class="border border-gray-300 px-4 py-3 text-sm text-center">{{ flight.departure_gate or 'Unknown' }}</td>
-                        <td class="border border-gray-300 px-4 py-3 text-sm text-center">{{ flight.arrival_terminal or 'Unknown' }}</td>
-                        <td class="border border-gray-300 px-4 py-3 text-sm text-center">{{ flight.arrival_gate or 'Unknown' }}</td>
-                        <td class="border border-gray-300 px-4 py-3 text-sm text-center">{{ flight.aircraft or 'Unknown' }}</td>
-                        <td class="border border-gray-300 px-4 py-3 text-center">
-                            <div class="flex flex-col sm:flex-row gap-2 justify-center">
-                                <button class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm transition-colors duration-200 edit-button"
-                                        data-flight-id="{{ flight.id }}"
-                                        data-flight-number="{{ flight.flight_number }}"
-                                        data-airline-code="{{ flight.airline_code }}"
-                                        data-airline-num="{{ flight.airline_num }}"
-                                        data-schedule-city="{{ flight.schedule_city }}"
-                                        data-schedule-timing="{{ flight.schedule_timing }}"
-                                        data-departure-terminal="{{ flight.departure_terminal or '' }}"
-                                        data-departure-gate="{{ flight.departure_gate or '' }}"
-                                        data-arrival-terminal="{{ flight.arrival_terminal or '' }}"
-                                        data-arrival-gate="{{ flight.arrival_gate or '' }}"
-                                        data-aircraft="{{ flight.aircraft or '' }}"
-                                        onclick="openEditModalFromButton(this)"
-                                        title="编辑">
-                                    <i class="fas fa-edit"></i>
-                                </button>
-                                <button class="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm transition-colors duration-200 delete-button"
-                                        data-flight-id="{{ flight.id }}"
-                                        title="删除">
-                                    <i class="fas fa-trash"></i>
-                                </button>
-                            </div>
+                    <tr>
+                        <td class="flight-number">{{ flight.flight_number }}</td>
+                        <td>{{ flight.airline_code }}</td>
+                        <td>{{ flight.airline_num }}</td>
+                        <td>{{ flight.schedule_city }}</td>
+                        <td>{{ flight.schedule_timing }}</td>
+                        <td>{{ flight.aircraft or '-' }}</td>
+                        <td class="text-center">
+                            <button class="btn btn-outline-primary btn-sm me-1 edit-btn"
+                                    data-id="{{ flight.id }}"
+                                    data-flight-number="{{ flight.flight_number }}"
+                                    data-airline-code="{{ flight.airline_code }}"
+                                    data-airline-num="{{ flight.airline_num }}"
+                                    data-schedule-city="{{ flight.schedule_city }}"
+                                    data-schedule-timing="{{ flight.schedule_timing }}"
+                                    data-departure-terminal="{{ flight.departure_terminal or '' }}"
+                                    data-departure-gate="{{ flight.departure_gate or '' }}"
+                                    data-arrival-terminal="{{ flight.arrival_terminal or '' }}"
+                                    data-arrival-gate="{{ flight.arrival_gate or '' }}"
+                                    data-aircraft="{{ flight.aircraft or '' }}">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn btn-outline-danger btn-sm delete-btn" data-id="{{ flight.id }}">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="text-center text-muted py-4">
+                            <i class="fas fa-plane-slash me-2"></i>暂无航班数据
                         </td>
                     </tr>
                     {% endfor %}
@@ -333,1059 +184,314 @@
             </table>
         </div>
 
-        <!-- 编辑航班信息的模态框 -->
-        <div id="editFlightModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden backdrop-blur-sm">
-            <div class="flex items-center justify-center min-h-screen p-4">
-                <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto animate-slide-in-up">
-                    <div class="flex justify-between items-center border-b border-gray-200 px-6 py-4">
-                        <h2 class="text-2xl font-bold text-blue-600 flex items-center gap-2">
-                            <i class="fas fa-edit"></i> 编辑航班信息
-                        </h2>
-                        <button onclick="closeEditModal()" 
-                                class="text-gray-400 hover:text-gray-600 hover:bg-gray-100 w-8 h-8 rounded-full flex items-center justify-center transition-colors duration-200">
-                            <i class="fas fa-times text-xl"></i>
-                        </button>
-                    </div>
-                    
-                    <form id="editFlightForm" class="p-6">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <input type="hidden" id="editFlightId" name="flight_id">
-                        
-                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                            <!-- 航班号 -->
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2">航班号:</label>
-                                <input type="text" id="editFlightNumber" name="flight_number" 
-                                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
-                                       readonly>
-                            </div>
-                            
-                            <!-- 航司代码 -->
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2">航司代码:</label>
-                                <input type="text" id="editAirlineCode" name="airline_code" 
-                                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200">
-                            </div>
-                            
-                            <!-- 航班编号 -->
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2">航班编号:</label>
-                                <input type="text" id="editAirlineNum" name="airline_num" 
-                                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200">
-                            </div>
-                            
-                            <!-- 起始地点 -->
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2">起始地点:</label>
-                                <input type="text" id="editScheduleCity" name="schedule_city" placeholder="例如: SIN CAN" 
-                                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200">
-                                <span class="text-xs text-gray-500 mt-1 block">格式：出发地 目的地</span>
-                            </div>
-                            
-                            <!-- 起始时间 -->
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2">起始时间:</label>
-                                <input type="text" id="editScheduleTiming" name="schedule_timing" placeholder="例如: 0515 0925" 
-                                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200">
-                                <span class="text-xs text-gray-500 mt-1 block">格式：出发时间 到达时间</span>
-                            </div>
-                            
-                            <!-- 出发航站楼 -->
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2">出发航站楼:</label>
-                                <input type="text" id="editDepartureTerminal" name="departure_terminal" placeholder="例如: T1" 
-                                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200">
-                            </div>
-                            
-                            <!-- 出发登机口 -->
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2">出发登机口:</label>
-                                <input type="text" id="editDepartureGate" name="departure_gate" placeholder="例如: A15" 
-                                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200">
-                            </div>
-                            
-                            <!-- 到达航站楼 -->
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2">到达航站楼:</label>
-                                <input type="text" id="editArrivalTerminal" name="arrival_terminal" placeholder="例如: T2" 
-                                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200">
-                            </div>
-                            
-                            <!-- 到达登机口 -->
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2">到达登机口:</label>
-                                <input type="text" id="editArrivalGate" name="arrival_gate" placeholder="例如: B22" 
-                                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200">
-                            </div>
-                            
-                            <!-- 飞机型号 -->
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2">飞机型号:</label>
-                                <input type="text" id="editAircraft" name="aircraft" placeholder="例如: 77W" 
-                                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200">
-                            </div>
-                        </div>
-                        
-                        <!-- 表单操作按钮 -->
-                        <div class="flex justify-end gap-3 mt-8 pt-6 border-t border-gray-200">
-                            <button type="button" onclick="closeEditModal()"
-                                    class="bg-gray-600 hover:bg-gray-700 text-white px-6 py-2 rounded-lg transition-colors duration-200">
-                                取消
-                            </button>
-                            <button type="submit"
-                                    class="bg-green-500 hover:bg-green-600 text-white px-6 py-2 rounded-lg transition-colors duration-200 flex items-center gap-2">
-                                <i class="fas fa-save"></i> 保存修改
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-
-        <!-- 确认删除的模态框 -->
-        <div id="deleteConfirmModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50" style="display: none;">
-            <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
-                <div class="mt-3 text-center">
-                    <h3 class="text-lg font-medium text-gray-900 mb-2">确认删除</h3>
-                    <p class="text-sm text-gray-500 mb-6">确定要删除这条航班信息吗？此操作不可恢复。</p>
-                    <div class="flex justify-center gap-4">
-                        <button id="confirmDelete" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-md font-medium transition-colors duration-200">
-                            确认删除
-                        </button>
-                        <button id="cancelDelete" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-md font-medium transition-colors duration-200">
-                            取消
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- 分页导航 -->
+        <!-- Pagination -->
         {% if flights.pages > 1 %}
-        <div class="flex flex-col sm:flex-row items-center justify-between gap-4 pt-6 border-t border-gray-200">
-            <div class="text-sm text-gray-600">
-                第 {{ flights.page }} 页，共 {{ flights.pages }} 页
-            </div>
-            <div class="flex items-center gap-1">
-                <!-- 首页 -->
-                <a href="{{ url_for('flights_schedule.input_flight_schedule', page=1, 
-                        search_flight_number=search_flight_number,
-                        search_airline_code=search_airline_code,
-                        search_airline_num=search_airline_num,
-                        search_schedule_city=search_schedule_city) }}"
-                   class="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors duration-200 {% if not flights.has_prev %}opacity-50 cursor-not-allowed{% endif %}">
-                    首页
-                </a>
-                
-                <!-- 上一页 -->
-                {% if flights.has_prev %}
-                    <a href="{{ url_for('flights_schedule.input_flight_schedule', page=flights.prev_num,
-                            search_flight_number=search_flight_number,
-                            search_airline_code=search_airline_code,
-                            search_airline_num=search_airline_num,
-                            search_schedule_city=search_schedule_city) }}"
-                       class="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors duration-200">
-                        上一页
-                    </a>
-                {% endif %}
-                
-                <!-- 页码 -->
-                {% for page_num in flights.iter_pages(left_edge=2, right_edge=2, left_current=2, right_current=2) %}
-                    {% if page_num %}
-                        <a href="{{ url_for('flights_schedule.input_flight_schedule', page=page_num,
-                                search_flight_number=search_flight_number,
-                                search_airline_code=search_airline_code,
-                                search_airline_num=search_airline_num,
-                                search_schedule_city=search_schedule_city) }}"
-                           class="px-3 py-2 rounded-lg transition-colors duration-200 {% if page_num == flights.page %}bg-blue-500 text-white{% else %}bg-gray-100 text-gray-700 hover:bg-gray-200{% endif %}">
-                            {{ page_num }}
-                        </a>
-                    {% else %}
-                        <span class="px-2 text-gray-500">...</span>
+        <div class="d-flex justify-content-between align-items-center mt-3 pt-3 border-top">
+            <small class="text-muted">第 {{ flights.page }} / {{ flights.pages }} 页，共 {{ flights.total }} 条</small>
+            <nav>
+                <ul class="pagination pagination-sm mb-0">
+                    <li class="page-item {% if not flights.has_prev %}disabled{% endif %}">
+                        <a class="page-link" href="{{ url_for('flights_schedule.input_flight_schedule', page=1, search_flight_number=search_flight_number, search_airline_code=search_airline_code, search_airline_num=search_airline_num, search_schedule_city=search_schedule_city) }}">首页</a>
+                    </li>
+                    {% if flights.has_prev %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('flights_schedule.input_flight_schedule', page=flights.prev_num, search_flight_number=search_flight_number, search_airline_code=search_airline_code, search_airline_num=search_airline_num, search_schedule_city=search_schedule_city) }}">上一页</a>
+                    </li>
                     {% endif %}
-                {% endfor %}
-                
-                <!-- 下一页 -->
-                {% if flights.has_next %}
-                    <a href="{{ url_for('flights_schedule.input_flight_schedule', page=flights.next_num,
-                            search_flight_number=search_flight_number,
-                            search_airline_code=search_airline_code,
-                            search_airline_num=search_airline_num,
-                            search_schedule_city=search_schedule_city) }}"
-                       class="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors duration-200">
-                        下一页
-                    </a>
-                {% endif %}
-                
-                <!-- 末页 -->
-                <a href="{{ url_for('flights_schedule.input_flight_schedule', page=flights.pages,
-                        search_flight_number=search_flight_number,
-                        search_airline_code=search_airline_code,
-                        search_airline_num=search_airline_num,
-                        search_schedule_city=search_schedule_city) }}"
-                   class="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors duration-200 {% if not flights.has_next %}opacity-50 cursor-not-allowed{% endif %}">
-                    末页
-                </a>
-            </div>
+                    {% for page_num in flights.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+                        {% if page_num %}
+                        <li class="page-item {% if page_num == flights.page %}active{% endif %}">
+                            <a class="page-link" href="{{ url_for('flights_schedule.input_flight_schedule', page=page_num, search_flight_number=search_flight_number, search_airline_code=search_airline_code, search_airline_num=search_airline_num, search_schedule_city=search_schedule_city) }}">{{ page_num }}</a>
+                        </li>
+                        {% else %}
+                        <li class="page-item disabled"><span class="page-link">...</span></li>
+                        {% endif %}
+                    {% endfor %}
+                    {% if flights.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('flights_schedule.input_flight_schedule', page=flights.next_num, search_flight_number=search_flight_number, search_airline_code=search_airline_code, search_airline_num=search_airline_num, search_schedule_city=search_schedule_city) }}">下一页</a>
+                    </li>
+                    {% endif %}
+                    <li class="page-item {% if not flights.has_next %}disabled{% endif %}">
+                        <a class="page-link" href="{{ url_for('flights_schedule.input_flight_schedule', page=flights.pages, search_flight_number=search_flight_number, search_airline_code=search_airline_code, search_airline_num=search_airline_num, search_schedule_city=search_schedule_city) }}">末页</a>
+                    </li>
+                </ul>
+            </nav>
         </div>
         {% endif %}
     </div>
 </div>
-{% endblock %}
 
-{% block extra_js %}
+<!-- Add Flight Modal -->
+<div class="modal fade" id="addModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header py-2">
+                <h6 class="modal-title"><i class="fas fa-plus-circle me-2"></i>添加航班信息</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="addForm" method="POST" action="{{ url_for('flights_schedule.input_flight_schedule') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label small">航班号 <span class="text-danger">*</span></label>
+                            <div class="input-group input-group-sm">
+                                <input type="text" name="flight_number[]" id="addFlightNumber" class="form-control text-uppercase" placeholder="TR100" required>
+                                <button type="button" class="btn btn-outline-primary" onclick="searchFlightAPI()">
+                                    <i class="fas fa-search"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small">航司代码</label>
+                            <input type="text" name="airline_code[]" id="addAirlineCode" class="form-control form-control-sm" readonly>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small">航班编号</label>
+                            <input type="text" name="airline_num[]" id="addAirlineNum" class="form-control form-control-sm" readonly>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small">起始地点 <span class="text-danger">*</span></label>
+                            <input type="text" name="schedule_city[]" id="addScheduleCity" class="form-control form-control-sm text-uppercase" placeholder="SIN PVG" required>
+                            <small class="text-muted">格式: 出发地 目的地</small>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small">起始时间 <span class="text-danger">*</span></label>
+                            <input type="text" name="schedule_timing[]" id="addScheduleTiming" class="form-control form-control-sm" placeholder="0800 1200" required>
+                            <small class="text-muted">格式: 出发时间 到达时间</small>
+                        </div>
+                        <div class="col-12"><hr class="my-2"><small class="text-muted">以下为可选信息</small></div>
+                        <div class="col-md-4">
+                            <label class="form-label small">出发航站楼</label>
+                            <input type="text" name="departure_terminal[]" id="addDepTerminal" class="form-control form-control-sm" placeholder="T1">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small">到达航站楼</label>
+                            <input type="text" name="arrival_terminal[]" id="addArrTerminal" class="form-control form-control-sm" placeholder="T2">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small">机型</label>
+                            <input type="text" name="aircraft[]" id="addAircraft" class="form-control form-control-sm text-uppercase" placeholder="A320">
+                        </div>
+                        <input type="hidden" name="departure_gate[]" value="">
+                        <input type="hidden" name="arrival_gate[]" value="">
+                        <input type="hidden" name="status[]" value="Unknown">
+                    </div>
+                </div>
+                <div class="modal-footer py-2">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-success btn-sm"><i class="fas fa-save me-1"></i>保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Flight Modal -->
+<div class="modal fade" id="editModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header py-2">
+                <h6 class="modal-title"><i class="fas fa-edit me-2"></i>编辑航班信息</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="editForm">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" id="editId" name="flight_id">
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label small">航班号</label>
+                            <input type="text" id="editFlightNumber" name="flight_number" class="form-control form-control-sm" readonly>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small">航司代码</label>
+                            <input type="text" id="editAirlineCode" name="airline_code" class="form-control form-control-sm">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small">航班编号</label>
+                            <input type="text" id="editAirlineNum" name="airline_num" class="form-control form-control-sm">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small">起始地点</label>
+                            <input type="text" id="editScheduleCity" name="schedule_city" class="form-control form-control-sm text-uppercase">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small">起始时间</label>
+                            <input type="text" id="editScheduleTiming" name="schedule_timing" class="form-control form-control-sm">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small">出发航站楼</label>
+                            <input type="text" id="editDepTerminal" name="departure_terminal" class="form-control form-control-sm">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small">到达航站楼</label>
+                            <input type="text" id="editArrTerminal" name="arrival_terminal" class="form-control form-control-sm">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small">机型</label>
+                            <input type="text" id="editAircraft" name="aircraft" class="form-control form-control-sm text-uppercase">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer py-2">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-save me-1"></i>保存修改</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <script>
-    // 测试函数已移除，功能已稳定
-    
-    // 页面加载时验证功能
-    document.addEventListener('DOMContentLoaded', function() {
-        console.log('航班时刻表页面加载完成 - 版本2.0');
-        
-        // 验证关键函数是否存在
-        const functions = ['searchFlightInfo', 'openFlightModal', 'closeFlightModal', 'addFlightInput', 'openEditModal', 'closeEditModal', 'openEditModalFromButton'];
-        functions.forEach(funcName => {
-            console.log(`${funcName}函数:`, typeof window[funcName] === 'function' ? '✅ 可用' : '❌ 缺失');
-        });
-        
-        // 验证弹窗容器是否存在
-        const container = document.getElementById('flightInputsContainer');
-        const editModal = document.getElementById('editFlightModal');
-        console.log('弹窗容器:', container ? '✅ 存在' : '❌ 不存在');
-        console.log('编辑弹窗:', editModal ? '✅ 存在' : '❌ 不存在');
-        
-        if (container) {
-            const spaceContainer = container.querySelector('.space-y-4');
-            console.log('space-y-4容器:', spaceContainer ? '✅ 存在' : '❌ 不存在');
-            console.log('容器内容:', container.innerHTML.substring(0, 200) + '...');
-        }
-    });
+document.addEventListener('DOMContentLoaded', function() {
+    const csrfToken = document.querySelector('input[name="csrf_token"]').value;
+    const addModal = new bootstrap.Modal(document.getElementById('addModal'));
+    const editModal = new bootstrap.Modal(document.getElementById('editModal'));
 
-    // 模态框控制函数
-    function openFlightModal() {
-        const modal = document.getElementById('flightInputModal');
-        modal.classList.remove('hidden');
-        document.body.style.overflow = 'hidden'; // 防止背景滚动
-        
-        // 检查是否需要重置表单内容
-        const container = document.getElementById('flightInputsContainer');
-        const existingContent = container.querySelector('.space-y-4');
-        
-        if (!existingContent || existingContent.children.length === 0) {
-            resetFlightForm();
-        }
-        
-        console.log('DEBUG: 打开航班录入弹窗');
+    // Toast notification
+    function showToast(message, type = 'success') {
+        const container = document.getElementById('toastContainer');
+        const toast = document.createElement('div');
+        toast.className = `alert alert-${type === 'error' ? 'danger' : 'success'} alert-dismissible fade show`;
+        toast.innerHTML = `${message}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>`;
+        container.appendChild(toast);
+        setTimeout(() => toast.remove(), 3000);
     }
 
-    function closeFlightModal() {
-        const modal = document.getElementById('flightInputModal');
-        modal.classList.add('hidden');
-        document.body.style.overflow = 'auto'; // 恢复背景滚动
-        
-        console.log('DEBUG: 关闭航班录入弹窗');
-    }
-
-    // 编辑模态框控制函数
-    function openEditModal(flightId, flightNumber, airlineCode, airlineNum, scheduleCity, scheduleTiming, departureTerminal, departureGate, arrivalTerminal, arrivalGate, aircraft) {
-        const modal = document.getElementById('editFlightModal');
-        modal.classList.remove('hidden');
-        document.body.style.overflow = 'hidden'; // 防止背景滚动
-        
-        // 填充表单数据
-        document.getElementById('editFlightId').value = flightId;
-        document.getElementById('editFlightNumber').value = flightNumber;
-        document.getElementById('editAirlineCode').value = airlineCode;
-        document.getElementById('editAirlineNum').value = airlineNum;
-        document.getElementById('editScheduleCity').value = scheduleCity;
-        document.getElementById('editScheduleTiming').value = scheduleTiming;
-        document.getElementById('editDepartureTerminal').value = departureTerminal;
-        document.getElementById('editDepartureGate').value = departureGate;
-        document.getElementById('editArrivalTerminal').value = arrivalTerminal;
-        document.getElementById('editArrivalGate').value = arrivalGate;
-        document.getElementById('editAircraft').value = aircraft;
-        
-        console.log('DEBUG: 打开编辑弹窗，航班ID:', flightId);
-    }
-
-    function openEditModalFromButton(button) {
-        const flightId = button.getAttribute('data-flight-id');
-        const flightNumber = button.getAttribute('data-flight-number');
-        const airlineCode = button.getAttribute('data-airline-code');
-        const airlineNum = button.getAttribute('data-airline-num');
-        const scheduleCity = button.getAttribute('data-schedule-city');
-        const scheduleTiming = button.getAttribute('data-schedule-timing');
-        const departureTerminal = button.getAttribute('data-departure-terminal');
-        const departureGate = button.getAttribute('data-departure-gate');
-        const arrivalTerminal = button.getAttribute('data-arrival-terminal');
-        const arrivalGate = button.getAttribute('data-arrival-gate');
-        const aircraft = button.getAttribute('data-aircraft');
-        
-        openEditModal(flightId, flightNumber, airlineCode, airlineNum, scheduleCity, scheduleTiming, 
-                     departureTerminal, departureGate, arrivalTerminal, arrivalGate, aircraft);
-    }
-
-    function closeEditModal() {
-        const modal = document.getElementById('editFlightModal');
-        modal.classList.add('hidden');
-        document.body.style.overflow = 'auto'; // 恢复背景滚动
-        
-        console.log('DEBUG: 关闭编辑弹窗');
-    }
-
-    // 重置表单内容
-    function resetFlightForm() {
-        const container = document.getElementById('flightInputsContainer');
-        
-        // 清空所有现有的航班输入行
-        container.innerHTML = `
-            <div class="space-y-4">
-                <!-- 航班号搜索行 -->
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">航班号:</label>
-                    <div class="flex gap-3">
-                        <input type="text" id="flightNumber" name="flight_number[]" placeholder="例如: TR100" 
-                               class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
-                               onchange="updateAirlineInfo(this)">
-                        <button type="button" onclick="searchFlightInfo(this)"
-                                class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors duration-200 flex items-center gap-2 whitespace-nowrap">
-                            <i class="fas fa-search"></i> 搜索
-                        </button>
-                    </div>
-                </div>
-                
-                <!-- 详细信息行 -->
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                    <!-- 航司代码 -->
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">航司代码:</label>
-                        <input type="text" id="airlineCode" name="airline_code[]" 
-                               class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500" readonly>
-                    </div>
-                    
-                    <!-- 航班编号 -->
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">航班编号:</label>
-                        <input type="text" id="airlineNum" name="airline_num[]" 
-                               class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500" readonly>
-                    </div>
-                    
-                    <!-- 起始地点 -->
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">起始地点:</label>
-                        <input type="text" id="scheduleCity" name="schedule_city[]" placeholder="例如: SIN CAN" 
-                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200">
-                        <span class="text-xs text-gray-500 mt-1 block">可搜索或手动输入，格式：出发地 目的地</span>
-                    </div>
-                    
-                    <!-- 起始时间 -->
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">起始时间:</label>
-                        <input type="text" id="scheduleTiming" name="schedule_timing[]" placeholder="例如: 0515 0925" 
-                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200">
-                        <span class="text-xs text-gray-500 mt-1 block">可搜索或手动输入，格式：出发时间 到达时间</span>
-                    </div>
-                    
-                    <!-- 出发航站楼 -->
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">出发航站楼:</label>
-                        <input type="text" id="departureTerminal" name="departure_terminal[]" placeholder="例如: T1" 
-                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200">
-                        <span class="text-xs text-gray-500 mt-1 block">出发机场航站楼，如：T1, Terminal 2, 航站楼A</span>
-                    </div>
-                    
-                    <!-- 出发登机口 -->
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">出发登机口:</label>
-                        <input type="text" id="departureGate" name="departure_gate[]" placeholder="例如: A15" 
-                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200">
-                        <span class="text-xs text-gray-500 mt-1 block">出发登机口，如：A15, Gate B22, 登机口C8</span>
-                    </div>
-                    
-                    <!-- 到达航站楼 -->
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">到达航站楼:</label>
-                        <input type="text" id="arrivalTerminal" name="arrival_terminal[]" placeholder="例如: T2" 
-                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200">
-                        <span class="text-xs text-gray-500 mt-1 block">到达机场航站楼，如：T2, Terminal 3, 航站楼B</span>
-                    </div>
-                    
-                    <!-- 到达登机口 -->
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">到达登机口:</label>
-                        <input type="text" id="arrivalGate" name="arrival_gate[]" placeholder="例如: B22" 
-                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200">
-                        <span class="text-xs text-gray-500 mt-1 block">到达登机口，如：B22, Gate C12, 登机口D5</span>
-                    </div>
-                    
-                    <!-- 飞机型号 -->
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">飞机型号:</label>
-                        <input type="text" id="aircraft" name="aircraft[]" placeholder="例如: 77W" 
-                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200">
-                        <span class="text-xs text-gray-500 mt-1 block">飞机型号代码，如：77W, A320, B737</span>
-                    </div>
-                </div>
-                
-                <!-- 删除按钮 -->
-                <div class="flex justify-end">
-                    <button type="button" onclick="removeFlightInput(this)"
-                            class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors duration-200 flex items-center gap-2">
-                        <i class="fas fa-trash"></i> 删除
-                    </button>
-                </div>
-            </div>
-        `;
-        
-        console.log('DEBUG: 重置航班录入表单');
-    }
-
-    // 点击背景关闭弹窗
-    window.onclick = function(event) {
-        const flightModal = document.getElementById('flightInputModal');
-        const editModal = document.getElementById('editFlightModal');
-        
-        if (event.target === flightModal) {
-            closeFlightModal();
-        } else if (event.target === editModal) {
-            closeEditModal();
-        }
-    }
-
-    // ESC键关闭弹窗
-    document.addEventListener('keydown', function(event) {
-        if (event.key === 'Escape') {
-            const flightModal = document.getElementById('flightInputModal');
-            const editModal = document.getElementById('editFlightModal');
-            
-            if (!flightModal.classList.contains('hidden')) {
-                closeFlightModal();
-            } else if (!editModal.classList.contains('hidden')) {
-                closeEditModal();
-            }
-        }
-    });
-
-    // 处理表单提交
-    document.getElementById('flightForm').addEventListener('submit', function(e) {
-        e.preventDefault(); // 阻止默认表单提交
-        
-        const form = this;
-        const formData = new FormData(form);
-        const submitBtn = form.querySelector('button[type="submit"]');
-        
-        // 显示提交中状态
-        const originalBtnText = submitBtn.innerHTML;
-        submitBtn.disabled = true;
-        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 提交中...';
-        
-        console.log('DEBUG: 开始提交航班信息表单');
-        
-        // 使用AJAX提交表单
-        fetch(form.action, {
-            method: 'POST',
-            body: formData,
-            credentials: 'include'
-        })
-        .then(response => {
-            console.log('DEBUG: 表单提交响应状态:', response.status);
-            return response.text(); // 获取HTML响应
-        })
-        .then(html => {
-            console.log('DEBUG: 表单提交成功');
-            
-            // 关闭弹窗
-            closeFlightModal();
-            
-            // 显示成功提示
-            showSuccessMessage('航班信息提交成功！');
-            
-            // 延迟刷新页面以显示新添加的数据
-            setTimeout(() => {
-                window.location.reload();
-            }, 1500);
-        })
-        .catch(error => {
-            console.error('DEBUG: 表单提交失败:', error);
-            
-            // 显示错误提示
-            showErrorMessage('提交失败：' + error.message);
-        })
-        .finally(() => {
-            // 恢复按钮状态
-            submitBtn.disabled = false;
-            submitBtn.innerHTML = originalBtnText;
+    // Auto uppercase
+    document.querySelectorAll('.text-uppercase').forEach(input => {
+        input.addEventListener('input', function() {
+            this.value = this.value.toUpperCase();
         });
     });
 
-    // 编辑表单提交处理
-    document.getElementById('editFlightForm').addEventListener('submit', function(e) {
-        e.preventDefault(); // 阻止默认表单提交
-        
-        const form = this;
-        const formData = new FormData(form);
-        const submitBtn = form.querySelector('button[type="submit"]');
-        
-        // 显示提交中状态
-        const originalBtnText = submitBtn.innerHTML;
-        submitBtn.disabled = true;
-        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 保存中...';
-        
-        console.log('DEBUG: 开始提交编辑表单');
-        
-        // 使用AJAX提交表单
-        fetch('{{ url_for("flights_schedule.update_flight_info") }}', {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-            }
-            return response.text(); // 获取HTML响应
-        })
-        .then(html => {
-            console.log('DEBUG: 编辑表单提交成功');
-            
-            // 关闭弹窗
-            closeEditModal();
-            
-            // 显示成功提示
-            showSuccessMessage('航班信息更新成功！');
-            
-            // 延迟刷新页面以显示更新的数据
-            setTimeout(() => {
-                window.location.reload();
-            }, 1500);
-        })
-        .catch(error => {
-            console.error('DEBUG: 编辑表单提交失败:', error);
-            
-            // 显示错误提示
-            showErrorMessage('更新失败：' + error.message);
-        })
-        .finally(() => {
-            // 恢复按钮状态
-            submitBtn.disabled = false;
-            submitBtn.innerHTML = originalBtnText;
-        });
+    // Auto split flight number
+    document.getElementById('addFlightNumber').addEventListener('input', function() {
+        const val = this.value.toUpperCase();
+        if (val.length >= 2) {
+            document.getElementById('addAirlineCode').value = val.substring(0, 2);
+            document.getElementById('addAirlineNum').value = val.substring(2);
+        }
     });
 
-    // 显示成功消息
-    function showSuccessMessage(message) {
-        const alertHtml = `
-            <div class="fixed top-5 right-5 z-50 bg-green-50 border border-green-200 rounded-lg p-4 shadow-lg min-w-80 animate-slideInRight">
-                <div class="flex items-center">
-                    <i class="fas fa-check-circle text-green-600 mr-3"></i>
-                    <span class="text-green-800 font-medium">${message}</span>
-                </div>
-            </div>
-        `;
-        document.body.insertAdjacentHTML('beforeend', alertHtml);
-        
-        // 3秒后自动消失
-        setTimeout(() => {
-            const alert = document.querySelector('.fixed.top-5.right-5');
-            if (alert) {
-                alert.remove();
-            }
-        }, 3000);
-    }
+    // Clear search
+    window.clearSearch = function() {
+        window.location.href = "{{ url_for('flights_schedule.input_flight_schedule') }}";
+    };
 
-    // 显示错误消息
-    function showErrorMessage(message) {
-        const alertHtml = `
-            <div class="fixed top-5 right-5 z-50 bg-red-50 border border-red-200 rounded-lg p-4 shadow-lg min-w-80 animate-slideInRight">
-                <div class="flex items-center">
-                    <i class="fas fa-exclamation-circle text-red-600 mr-3"></i>
-                    <span class="text-red-800 font-medium">${message}</span>
-                </div>
-            </div>
-        `;
-        document.body.insertAdjacentHTML('beforeend', alertHtml);
-        
-        // 5秒后自动消失
-        setTimeout(() => {
-            const alert = document.querySelector('.fixed.top-5.right-5');
-            if (alert) {
-                alert.remove();
-            }
-        }, 5000);
-    }
+    // Open add modal
+    window.openFlightModal = function() {
+        document.getElementById('addForm').reset();
+        addModal.show();
+    };
 
-    async function searchFlightInfo(button) {
-        console.log('DEBUG: searchFlightInfo函数被调用 - 版本2.0');
-        console.log('DEBUG: 按钮元素:', button);
-        console.log('DEBUG: 按钮父级元素:', button.parentElement);
-        
-        // 在函数开头声明变量
-        let row, flightNumberInput, scheduleCityInput, scheduleTimingInput, airlineCodeInput, airlineNumInput, flightNumber;
-        let departureTerminalInput, departureGateInput, arrivalTerminalInput, arrivalGateInput, aircraftInput, statusInput;
-        
-        try {
-            // 寻找最近的包含航班信息的父级容器
-            row = button.closest('.space-y-4') || button.closest('[class*="flight"]') || button.closest('div');
-            console.log('DEBUG: 找到行元素:', row);
-            console.log('DEBUG: 行元素类名:', row ? row.className : 'null');
-            
-            if (!row) {
-                throw new Error('找不到父级容器元素');
-            }
-            
-            // 在弹窗容器中查找元素，而不是只在当前行中查找
-            const container = document.getElementById('flightInputsContainer');
-            if (!container) {
-                throw new Error('找不到弹窗容器(#flightInputsContainer)');
-            }
-            
-            flightNumberInput = container.querySelector('input[name="flight_number[]"]');
-            scheduleCityInput = container.querySelector('input[name="schedule_city[]"]');
-            scheduleTimingInput = container.querySelector('input[name="schedule_timing[]"]');
-            airlineCodeInput = container.querySelector('input[name="airline_code[]"]');
-            airlineNumInput = container.querySelector('input[name="airline_num[]"]');
-            
-            // 新增字段
-            departureTerminalInput = container.querySelector('input[name="departure_terminal[]"]');
-            departureGateInput = container.querySelector('input[name="departure_gate[]"]');
-            arrivalTerminalInput = container.querySelector('input[name="arrival_terminal[]"]');
-            arrivalGateInput = container.querySelector('input[name="arrival_gate[]"]');
-            aircraftInput = container.querySelector('input[name="aircraft[]"]');
-            
-            console.log('DEBUG: 找到输入框元素:', {
-                flightNumber: flightNumberInput,
-                scheduleCity: scheduleCityInput,
-                scheduleTiming: scheduleTimingInput,
-                airlineCode: airlineCodeInput,
-                airlineNum: airlineNumInput,
-                departureTerminal: departureTerminalInput,
-                departureGate: departureGateInput,
-                arrivalTerminal: arrivalTerminalInput,
-                arrivalGate: arrivalGateInput,
-                aircraft: aircraftInput
-            });
-            
-            if (!flightNumberInput) {
-                throw new Error('找不到航班号输入框(input[name="flight_number[]"])');
-            }
-            
-            flightNumber = flightNumberInput.value.trim();
-            console.log('DEBUG: 航班号原始值:', `"${flightNumberInput.value}"`);
-            console.log('DEBUG: 航班号处理后值:', `"${flightNumber}"`);
-            console.log('DEBUG: 航班号长度:', flightNumber.length);
-            
-            if (!flightNumber) {
-                alert('请输入航班号');
-                return;
-            }
-        } catch (error) {
-            console.error('DEBUG: 初始化阶段出错:', error);
-            alert('搜索功能初始化失败，请查看控制台错误信息');
+    // Search flight API
+    window.searchFlightAPI = async function() {
+        const flightNumber = document.getElementById('addFlightNumber').value.trim().toUpperCase();
+        if (!flightNumber) {
+            showToast('请输入航班号', 'error');
             return;
         }
 
-        // 自动分割航班号
-        if (flightNumber.length >= 2) {
-            airlineCodeInput.value = flightNumber.substring(0, 2);
-            airlineNumInput.value = flightNumber.substring(2);
-        }
+        const btn = event.target.closest('button');
+        const originalHTML = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        btn.disabled = true;
 
         try {
-            // 显示加载状态
-            console.log('DEBUG: 开始搜索航班信息');
-            button.disabled = true;
-            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 搜索中...';
-
-            // 调用后端API获取航班信息（强制使用Aerodatabox优先）
-            const scheduleCityVal = (scheduleCityInput && scheduleCityInput.value) ? scheduleCityInput.value.trim() : '';
-            const qs = new URLSearchParams({ flight_number: flightNumber, source: 'aerodatabox' });
-            
-            if (scheduleCityVal) {
-                qs.append('schedule_city', scheduleCityVal);
-                // 从schedule_city中提取IATA代码
-                const parts = scheduleCityVal.split(' ');
-                if (parts.length >= 2) {
-                    qs.append('dep_iata', parts[0]);
-                    qs.append('arr_iata', parts[1]);
-                }
-            } else {
-                // 如果没有schedule_city，尝试从航班号推断或使用常见机场
-                // 对于TR156，我们知道是SIN到SHE的航线
-                if (flightNumber === 'TR156') {
-                    qs.append('dep_iata', 'SIN');
-                    qs.append('arr_iata', 'SHE');
-                    qs.append('schedule_city', 'SIN SHE');
-                }
-                // 可以在这里添加更多航班的默认航线
-            }
-            
-            // 添加日期参数（今天）
-            const today = new Date();
-            qs.append('flight_date', today.toISOString().split('T')[0]);
-            const url = `/flight_schedule/get-flight-info?${qs.toString()}`;
-            console.log('DEBUG: 请求URL(Aerodatabox优先，带完整参数):', url);
-            
-            const response = await fetch(url, {
-                method: 'GET',
-                credentials: 'include',  // 包含cookies，确保session认证有效
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-            });
-            
-            console.log('DEBUG: 收到响应:', response.status, response.statusText);
-            
-            // 检查响应是否为JSON格式
-            const contentType = response.headers.get('content-type');
-            if (!contentType || !contentType.includes('application/json')) {
-                throw new Error('需要登录后才能使用搜索功能');
-            }
-            
+            const today = new Date().toISOString().split('T')[0];
+            const response = await fetch(`/flight_schedule/get-flight-info?flight_number=${flightNumber}&flight_date=${today}&source=aerodatabox`);
             const data = await response.json();
 
-            if (data.success) {
-                // 填充表单
-                if (scheduleCityInput) scheduleCityInput.value = data.data.schedule_city || '';
-                if (scheduleTimingInput) scheduleTimingInput.value = data.data.schedule_timing || '';
-                
-                // 填充新增字段
-                if (departureTerminalInput) departureTerminalInput.value = data.data.departure_terminal || '';
-                if (departureGateInput) departureGateInput.value = data.data.departure_gate || '';
-                if (arrivalTerminalInput) arrivalTerminalInput.value = data.data.arrival_terminal || '';
-                if (arrivalGateInput) arrivalGateInput.value = data.data.arrival_gate || '';
-                if (aircraftInput) aircraftInput.value = data.data.aircraft || '';
-                
-                alert("航班信息已自动填充，包括航站楼和登机口信息！");
+            if (data.success && data.data) {
+                document.getElementById('addScheduleCity').value = data.data.schedule_city || '';
+                document.getElementById('addScheduleTiming').value = data.data.schedule_timing || '';
+                document.getElementById('addDepTerminal').value = data.data.departure_terminal || '';
+                document.getElementById('addArrTerminal').value = data.data.arrival_terminal || '';
+                document.getElementById('addAircraft').value = data.data.aircraft || '';
+                showToast('航班信息已自动填充');
             } else {
-                // 显示未找到提示
-                alert('未找到航班信息，请检查航班号是否正确');
-                // 清空相关输入框
-                if (scheduleCityInput) scheduleCityInput.value = '';
-                if (scheduleTimingInput) scheduleTimingInput.value = '';
-                if (departureTerminalInput) departureTerminalInput.value = '';
-                if (departureGateInput) departureGateInput.value = '';
-                if (arrivalTerminalInput) arrivalTerminalInput.value = '';
-                if (arrivalGateInput) arrivalGateInput.value = '';
-                if (aircraftInput) aircraftInput.value = '';
-                if (statusInput) statusInput.value = 'Unknown';
+                showToast('未找到航班信息，请手动输入', 'error');
             }
         } catch (error) {
-            console.error('DEBUG: 获取航班信息失败:', error);
-            if (error.message.includes('Unexpected token') || error.message.includes('需要登录')) {
-                alert('请先登录后再使用搜索功能');
-            } else {
-                alert('获取航班信息失败：' + error.message);
-            }
+            showToast('搜索失败: ' + error.message, 'error');
         } finally {
-            // 恢复按钮状态
-            button.disabled = false;
-            button.innerHTML = '<i class="fas fa-search"></i> 搜索';
+            btn.innerHTML = originalHTML;
+            btn.disabled = false;
         }
-    }
+    };
 
-
-    function addFlightInput() {
-        const container = document.getElementById('flightInputsContainer');
-        const spaceContainer = container.querySelector('.space-y-4');
-        
-        // 创建航班号搜索行
-        const flightRow = document.createElement('div');
-        flightRow.innerHTML = `
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">航班号:</label>
-                <div class="flex gap-3">
-                    <input type="text" name="flight_number[]" placeholder="例如: TR100" 
-                           class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
-                           onchange="updateAirlineInfo(this)">
-                    <button type="button" onclick="searchFlightInfo(this)"
-                            class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors duration-200 flex items-center gap-2 whitespace-nowrap">
-                        <i class="fas fa-search"></i> 搜索
-                    </button>
-                </div>
-            </div>
-        `;
-        spaceContainer.appendChild(flightRow);
-        
-        // 添加其他字段网格布局
-        const fieldsRow = document.createElement('div');
-        fieldsRow.className = 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4';
-        fieldsRow.innerHTML = `
-            <!-- 航司代码 -->
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">航司代码:</label>
-                <input type="text" name="airline_code[]" 
-                       class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500" readonly>
-            </div>
-            
-            <!-- 航班编号 -->
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">航班编号:</label>
-                <input type="text" name="airline_num[]" 
-                       class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500" readonly>
-            </div>
-            
-            <!-- 起始地点 -->
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">起始地点:</label>
-                <input type="text" name="schedule_city[]" placeholder="例如: SIN CAN" 
-                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200">
-                <span class="text-xs text-gray-500 mt-1 block">可搜索或手动输入，格式：出发地 目的地</span>
-            </div>
-            
-            <!-- 起始时间 -->
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">起始时间:</label>
-                <input type="text" name="schedule_timing[]" placeholder="例如: 0515 0925" 
-                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200">
-                <span class="text-xs text-gray-500 mt-1 block">可搜索或手动输入，格式：出发时间 到达时间</span>
-            </div>
-            
-            <!-- 出发航站楼 -->
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">出发航站楼:</label>
-                <input type="text" name="departure_terminal[]" placeholder="例如: T1" 
-                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200">
-                <span class="text-xs text-gray-500 mt-1 block">出发机场航站楼，如：T1, Terminal 2, 航站楼A</span>
-            </div>
-            
-            <!-- 出发登机口 -->
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">出发登机口:</label>
-                <input type="text" name="departure_gate[]" placeholder="例如: A15" 
-                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200">
-                <span class="text-xs text-gray-500 mt-1 block">出发登机口，如：A15, Gate B22, 登机口C8</span>
-            </div>
-            
-            <!-- 到达航站楼 -->
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">到达航站楼:</label>
-                <input type="text" name="arrival_terminal[]" placeholder="例如: T2" 
-                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200">
-                <span class="text-xs text-gray-500 mt-1 block">到达机场航站楼，如：T2, Terminal 3, 航站楼B</span>
-            </div>
-            
-            <!-- 到达登机口 -->
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">到达登机口:</label>
-                <input type="text" name="arrival_gate[]" placeholder="例如: B22" 
-                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200">
-                <span class="text-xs text-gray-500 mt-1 block">到达登机口，如：B22, Gate C12, 登机口D5</span>
-            </div>
-            
-            <!-- 飞机型号 -->
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">飞机型号:</label>
-                <input type="text" name="aircraft[]" placeholder="例如: 77W" 
-                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200">
-                <span class="text-xs text-gray-500 mt-1 block">飞机型号代码，如：77W, A320, B737</span>
-            </div>
-        `;
-        spaceContainer.appendChild(fieldsRow);
-        
-        // 添加删除按钮行
-        const deleteRow = document.createElement('div');
-        deleteRow.className = 'flex justify-end';
-        deleteRow.innerHTML = `
-            <button type="button" onclick="removeFlightInput(this)"
-                    class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors duration-200 flex items-center gap-2">
-                <i class="fas fa-trash"></i> 删除
-            </button>
-        `;
-        spaceContainer.appendChild(deleteRow);
-    }
-
-    function removeFlightInput(button) {
-        const spaceContainer = document.getElementById('flightInputsContainer').querySelector('.space-y-4');
-        const allRows = spaceContainer.querySelectorAll('> div');
-        
-        if (allRows.length > 3) { // 至少保留一个航班输入组（航班号行 + 字段网格 + 删除按钮）
-            // 找到删除按钮所在的行
-            const deleteRow = button.closest('div');
-            const deleteIndex = Array.from(allRows).indexOf(deleteRow);
-            
-            // 删除对应的三个行：航班号行、字段网格、删除按钮
-            if (deleteIndex >= 2) {
-                // 删除删除按钮行
-                deleteRow.remove();
-                // 删除字段网格行（前一行）
-                allRows[deleteIndex - 1].remove();
-                // 删除航班号行（前两行）
-                allRows[deleteIndex - 2].remove();
-            }
-        } else {
-            alert('至少保留一行输入！');
-        }
-    }
-
-    function updateAirlineInfo(input) {
-        const flightNumber = input.value.trim().toUpperCase();
-        // 在整个弹窗容器中查找航司代码和航班编号输入框
-        const container = document.getElementById('flightInputsContainer');
-        const airlineCodeInput = container.querySelector('[name="airline_code[]"]');
-        const airlineNumInput = container.querySelector('[name="airline_num[]"]');
-        
-        if (flightNumber && airlineCodeInput && airlineNumInput) {
-            // 提取航司代码（前两个字符）和航班编号（剩余数字）
-            const airlineCode = flightNumber.substring(0, 2);
-            const airlineNum = flightNumber.substring(2);
-            
-            airlineCodeInput.value = airlineCode;
-            airlineNumInput.value = airlineNum;
-        } else if (airlineCodeInput && airlineNumInput) {
-            airlineCodeInput.value = '';
-            airlineNumInput.value = '';
-        }
-    }
-
-    // 为所有航班号输入框添加事件监听器
-    document.addEventListener('DOMContentLoaded', function() {
-        const flightInputs = document.querySelectorAll('[name="flight_number[]"]');
-        flightInputs.forEach(input => {
-            input.addEventListener('input', function() {
-                updateAirlineInfo(this);
-            });
+    // Edit button click
+    document.querySelectorAll('.edit-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            document.getElementById('editId').value = this.dataset.id;
+            document.getElementById('editFlightNumber').value = this.dataset.flightNumber;
+            document.getElementById('editAirlineCode').value = this.dataset.airlineCode;
+            document.getElementById('editAirlineNum').value = this.dataset.airlineNum;
+            document.getElementById('editScheduleCity').value = this.dataset.scheduleCity;
+            document.getElementById('editScheduleTiming').value = this.dataset.scheduleTiming;
+            document.getElementById('editDepTerminal').value = this.dataset.departureTerminal;
+            document.getElementById('editArrTerminal').value = this.dataset.arrivalTerminal;
+            document.getElementById('editAircraft').value = this.dataset.aircraft;
+            editModal.show();
         });
     });
 
-    document.addEventListener("DOMContentLoaded", function () {
-        document.querySelectorAll(".save-button").forEach(button => {
-            button.addEventListener("click", function () {
-                let flightId = this.getAttribute("data-flight-id");
-                let timingField = document.querySelector(`input[data-flight-id='${flightId}']`);
-                let newTiming = timingField ? timingField.value : '';
-    
-                fetch("{{ url_for('flights_schedule.update_flight_timing') }}", {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        "X-CSRFToken": "{{ csrf_token() }}"
-                    },
-                    body: JSON.stringify({
-                        flight_id: flightId,
-                        schedule_timing: newTiming
-                    })
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        alert("更新成功！");
-                    } else {
-                        alert("更新失败：" + data.error);
-                    }
-                })
-                .catch(error => {
-                    console.error("Error:", error);
-                    alert("请求失败，请检查网络连接！");
-                });
-            });
-        });
-    });
-
-    // 清空搜索表单函数
-    function clearSearchForm() {
-        const form = document.getElementById('searchForm');
-        const inputs = form.querySelectorAll('input[type="text"]');
-        inputs.forEach(input => {
-            input.value = '';
-        });
-        
-        // 直接跳转到无搜索条件的页面
-        window.location.href = "{{ url_for('flights_schedule.input_flight_schedule_info') }}";
-    }
-
-    document.getElementById('searchForm').addEventListener('submit', function(e) {
+    // Edit form submit
+    document.getElementById('editForm').addEventListener('submit', async function(e) {
         e.preventDefault();
-        
-        // 获取所有搜索字段的值
-        const searchParams = {
-            search_flight_number: this.querySelector('[name="search_flight_number"]').value.trim(),
-            search_airline_code: this.querySelector('[name="search_airline_code"]').value.trim(),
-            search_airline_num: this.querySelector('[name="search_airline_num"]').value.trim(),
-            search_schedule_city: this.querySelector('[name="search_schedule_city"]').value.trim()
-        };
-        
-        console.log('DEBUG: 多字段搜索参数:', searchParams);
-        
-        // 构建搜索URL
-        const currentUrl = new URL(window.location);
-        
-        // 清除所有现有的搜索参数
-        currentUrl.searchParams.delete('search_flight_number');
-        currentUrl.searchParams.delete('search_airline_code');
-        currentUrl.searchParams.delete('search_airline_num');
-        currentUrl.searchParams.delete('search_schedule_city');
-        currentUrl.searchParams.delete('page'); // 重置到第一页
-        
-        // 添加非空的搜索参数
-        Object.entries(searchParams).forEach(([key, value]) => {
-            if (value) {
-                currentUrl.searchParams.set(key, value);
+        const formData = new FormData(this);
+        const btn = this.querySelector('button[type="submit"]');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>保存中...';
+
+        try {
+            const response = await fetch('{{ url_for("flights_schedule.update_flight_info") }}', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (response.ok) {
+                editModal.hide();
+                showToast('航班信息已更新');
+                setTimeout(() => location.reload(), 1000);
+            } else {
+                throw new Error('更新失败');
             }
-        });
-        
-        console.log('DEBUG: 重新加载页面，URL:', currentUrl.toString());
-        
-        // 重新加载页面
-        window.location.href = currentUrl.toString();
+        } catch (error) {
+            showToast('更新失败: ' + error.message, 'error');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-save me-1"></i>保存修改';
+        }
     });
 
-    document.addEventListener('DOMContentLoaded', function() {
-        const modal = document.getElementById('deleteConfirmModal');
-        const confirmDeleteBtn = document.getElementById('confirmDelete');
-        const cancelDeleteBtn = document.getElementById('cancelDelete');
-        let flightIdToDelete = null;
+    // Delete button click
+    document.querySelectorAll('.delete-btn').forEach(btn => {
+        btn.addEventListener('click', async function() {
+            if (!confirm('确定要删除这条航班信息吗？')) return;
 
-        // 为所有删除按钮添加点击事件
-        document.querySelectorAll('.delete-button').forEach(button => {
-            button.addEventListener('click', function() {
-                flightIdToDelete = this.getAttribute('data-flight-id');
-                modal.style.display = 'block';
-            });
-        });
-
-        // 取消删除
-        cancelDeleteBtn.addEventListener('click', function() {
-            modal.style.display = 'none';
-            flightIdToDelete = null;
-        });
-
-        // 点击模态框外部关闭
-        window.addEventListener('click', function(event) {
-            if (event.target == modal) {
-                modal.style.display = 'none';
-                flightIdToDelete = null;
-            }
-        });
-
-        // 确认删除
-        confirmDeleteBtn.addEventListener('click', async function() {
-            if (!flightIdToDelete) return;
-
+            const flightId = this.dataset.id;
             try {
-                                        const response = await fetch(`/flight_schedule/delete_flight/${flightIdToDelete}`, {
+                const response = await fetch(`/flight_schedule/delete_flight/${flightId}`, {
                     method: 'DELETE',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': '{{ csrf_token() }}'
-                    }
+                    headers: { 'X-CSRFToken': csrfToken }
                 });
-
                 const data = await response.json();
-                
+
                 if (data.success) {
-                    // 删除成功，移除对应的表格行
-                    const row = document.querySelector(`button[data-flight-id="${flightIdToDelete}"]`).closest('tr');
-                    row.remove();
-                    alert('删除成功！');
+                    this.closest('tr').remove();
+                    showToast('删除成功');
                 } else {
-                    alert('删除失败：' + data.message);
+                    throw new Error(data.message || '删除失败');
                 }
             } catch (error) {
-                console.error('删除出错:', error);
-                alert('删除失败，请稍后重试');
-            } finally {
-                modal.style.display = 'none';
-                flightIdToDelete = null;
+                showToast('删除失败: ' + error.message, 'error');
             }
         });
     });
+});
 </script>
 {% endblock %}
