@@ -174,6 +174,7 @@
         <div class="form-section">
             <div class="section-title"><i class="fas fa-dollar-sign me-2"></i>Pricing</div>
             {% if has_invoice %}<div class="alert alert-warning py-1 mb-2" style="font-size: 12px;"><i class="fas fa-lock me-1"></i>Invoice generated. Selling prices locked.</div>{% endif %}
+            {% if eo_paid %}<div class="alert alert-info py-1 mb-2" style="font-size: 12px;"><i class="fas fa-lock me-1"></i>EO paid. Cost prices locked.</div>{% endif %}
             <table class="table table-bordered table-sm pricing-table mb-0">
                 <thead class="table-light">
                     <tr><th style="width: 70px;">Type</th><th style="width: 90px;">Qty</th><th>Selling</th><th>Cost</th><th style="width: 100px;">Profit</th></tr>
@@ -183,21 +184,21 @@
                         <td><strong>ADT</strong></td>
                         <td><input type="number" name="adult_qty" id="adult_qty" class="form-control form-control-sm" min="0" value="{{ extra_info.adult_qty if extra_info and extra_info.adult_qty else 1 }}" onchange="calculateTotals()" {% if has_invoice %}readonly{% endif %}></td>
                         <td><div class="input-group input-group-sm"><span class="input-group-text py-0">$</span><input type="number" name="adult_selling" id="adult_selling" class="form-control" min="0" step="0.01" value="{{ extra_info.adult_selling if extra_info and extra_info.adult_selling else '0.00' }}" onchange="calculateTotals()" {% if has_invoice %}readonly{% endif %}></div></td>
-                        <td><div class="input-group input-group-sm"><span class="input-group-text py-0">$</span><input type="number" name="adult_cost" id="adult_cost" class="form-control" min="0" step="0.01" value="{{ extra_info.adult_cost if extra_info and extra_info.adult_cost else '0.00' }}" onchange="calculateTotals()"></div></td>
+                        <td><div class="input-group input-group-sm"><span class="input-group-text py-0">$</span><input type="number" name="adult_cost" id="adult_cost" class="form-control" min="0" step="0.01" value="{{ extra_info.adult_cost if extra_info and extra_info.adult_cost else '0.00' }}" onchange="calculateTotals()" {% if eo_paid %}readonly{% endif %}></div></td>
                         <td class="text-end"><span id="adult_profit" class="profit-positive">$0.00</span></td>
                     </tr>
                     <tr>
                         <td><strong>CHD</strong></td>
                         <td><input type="number" name="child_qty" id="child_qty" class="form-control form-control-sm" min="0" value="{{ extra_info.child_qty if extra_info and extra_info.child_qty else 0 }}" onchange="calculateTotals()" {% if has_invoice %}readonly{% endif %}></td>
                         <td><div class="input-group input-group-sm"><span class="input-group-text py-0">$</span><input type="number" name="child_selling" id="child_selling" class="form-control" min="0" step="0.01" value="{{ extra_info.child_selling if extra_info and extra_info.child_selling else '0.00' }}" onchange="calculateTotals()" {% if has_invoice %}readonly{% endif %}></div></td>
-                        <td><div class="input-group input-group-sm"><span class="input-group-text py-0">$</span><input type="number" name="child_cost" id="child_cost" class="form-control" min="0" step="0.01" value="{{ extra_info.child_cost if extra_info and extra_info.child_cost else '0.00' }}" onchange="calculateTotals()"></div></td>
+                        <td><div class="input-group input-group-sm"><span class="input-group-text py-0">$</span><input type="number" name="child_cost" id="child_cost" class="form-control" min="0" step="0.01" value="{{ extra_info.child_cost if extra_info and extra_info.child_cost else '0.00' }}" onchange="calculateTotals()" {% if eo_paid %}readonly{% endif %}></div></td>
                         <td class="text-end"><span id="child_profit" class="profit-positive">$0.00</span></td>
                     </tr>
                     <tr>
                         <td><strong>INF</strong></td>
                         <td><input type="number" name="infant_qty" id="infant_qty" class="form-control form-control-sm" min="0" value="{{ extra_info.infant_qty if extra_info and extra_info.infant_qty else 0 }}" onchange="calculateTotals()" {% if has_invoice %}readonly{% endif %}></td>
                         <td><div class="input-group input-group-sm"><span class="input-group-text py-0">$</span><input type="number" name="infant_selling" id="infant_selling" class="form-control" min="0" step="0.01" value="{{ extra_info.infant_selling if extra_info and extra_info.infant_selling else '0.00' }}" onchange="calculateTotals()" {% if has_invoice %}readonly{% endif %}></div></td>
-                        <td><div class="input-group input-group-sm"><span class="input-group-text py-0">$</span><input type="number" name="infant_cost" id="infant_cost" class="form-control" min="0" step="0.01" value="{{ extra_info.infant_cost if extra_info and extra_info.infant_cost else '0.00' }}" onchange="calculateTotals()"></div></td>
+                        <td><div class="input-group input-group-sm"><span class="input-group-text py-0">$</span><input type="number" name="infant_cost" id="infant_cost" class="form-control" min="0" step="0.01" value="{{ extra_info.infant_cost if extra_info and extra_info.infant_cost else '0.00' }}" onchange="calculateTotals()" {% if eo_paid %}readonly{% endif %}></div></td>
                         <td class="text-end"><span id="infant_profit" class="profit-positive">$0.00</span></td>
                     </tr>
                 </tbody>

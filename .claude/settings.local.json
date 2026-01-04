@@ -23,7 +23,12 @@
       "Bash(\".venv/Scripts/python.exe\":*)",
       "Bash(del scriptscheck_allocations.py)",
       "Bash(\".venv/Scripts/python.exe\" scripts/check_h308.py)",
-      "Bash(cd:*)"
+      "Bash(cd:*)",
+      "Bash(\".venv/Scripts/python.exe\" scripts/20260104_add_todo_timeliness_fields.py)",
+      "Bash(dir \"E:\\\\MyProject\\\\MyTravelWork\\\\MyTravelPanel\\\\*.py\")",
+      "Bash(\".venv/Scripts/python.exe\" scripts/20260104_enhance_checklist.py)",
+      "Bash(\".venv/Scripts/python.exe\" -c \"\nfrom App_new.shared.routes.tasks import todo_statistics\nprint\\(''Import OK''\\)\n\")",
+      "Bash(\".venv/Scripts/python.exe\" scripts/20260104_fix_visa_ref_cost.py)"
     ]
   }
 }

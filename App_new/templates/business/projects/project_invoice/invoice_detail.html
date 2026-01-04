@@ -429,20 +429,25 @@
                                 <tr>
                                     <td style="width: 50px; border: none; vertical-align: top; padding: 1px 0;">Descrp</td>
                                     <td style="width: 10px; border: none; vertical-align: top; padding: 1px 0;">:</td>
-                                    <td style="border: none; padding: 1px 0;">{{ item.description or item.ref.description or '-' }}</td>
+                                    <td style="border: none; padding: 1px 0;">{{ item.ref.description or item.description or '-' }}</td>
                                 </tr>
                                 <tr>
                                     <td style="border: none; vertical-align: top; padding: 1px 0;">Pax</td>
                                     <td style="border: none; vertical-align: top; padding: 1px 0;">:</td>
                                     <td style="border: none; padding: 1px 0;">{{ extra_data.pax_names_display if extra_data.pax_names_display is defined and extra_data.pax_names_display else (extra_data.pax_name if extra_data.pax_name is defined else '-') }}</td>
                                 </tr>
+                                {% if extra_data.departure_date is defined and extra_data.departure_date %}
                                 <tr>
                                     <td style="border: none; vertical-align: top; padding: 1px 0;">Date</td>
                                     <td style="border: none; vertical-align: top; padding: 1px 0;">:</td>
+                                    <td style="border: none; padding: 1px 0;">{{ extra_data.departure_date }}</td>
+                                </tr>
+                                {% endif %}
+                                <tr>
+                                    <td style="border: none; vertical-align: top; padding: 1px 0;">Pax Qty</td>
+                                    <td style="border: none; vertical-align: top; padding: 1px 0;">:</td>
                                     <td style="border: none; padding: 1px 0;">
-                                        {{ extra_data.departure_date if extra_data.departure_date is defined else '-' }}
-                                        &nbsp;&nbsp;&nbsp;
-                                        ADULT - {{ extra_data.adult_qty if extra_data.adult_qty is defined else item.quantity }}
+                                        ADULT - {{ extra_data.adult_qty if extra_data.adult_qty is defined and extra_data.adult_qty else item.quantity }}
                                         {% if extra_data.child_qty is defined and extra_data.child_qty > 0 %}, CHILD - {{ extra_data.child_qty }}{% endif %}
                                         {% if extra_data.infant_qty is defined and extra_data.infant_qty > 0 %}, INFANT - {{ extra_data.infant_qty }}{% endif %}
                                     </td>
@@ -459,7 +464,7 @@
                                 </tr>
                             </table>
                         {% else %}
-                            {{ item.description }}
+                            {{ item.ref.description if item.ref else item.description }}
                             {% if item.ref %}<br>Pax : {{ item.quantity }}.{% endif %}
                         {% endif %}
                     </td>
@@ -566,13 +571,18 @@
                                     <td style="border: none; vertical-align: top; padding: 1px 0;">:</td>
                                     <td style="border: none; padding: 1px 0;">{{ extra_data.pax_names_display if extra_data.pax_names_display is defined and extra_data.pax_names_display else (extra_data.pax_name if extra_data.pax_name is defined else '-') }}</td>
                                 </tr>
+                                {% if extra_data.departure_date is defined and extra_data.departure_date %}
                                 <tr>
                                     <td style="border: none; vertical-align: top; padding: 1px 0;">Date</td>
                                     <td style="border: none; vertical-align: top; padding: 1px 0;">:</td>
+                                    <td style="border: none; padding: 1px 0;">{{ extra_data.departure_date }}</td>
+                                </tr>
+                                {% endif %}
+                                <tr>
+                                    <td style="border: none; vertical-align: top; padding: 1px 0;">Pax Qty</td>
+                                    <td style="border: none; vertical-align: top; padding: 1px 0;">:</td>
                                     <td style="border: none; padding: 1px 0;">
-                                        {{ extra_data.departure_date if extra_data.departure_date is defined else '-' }}
-                                        &nbsp;&nbsp;&nbsp;
-                                        ADULT - {{ extra_data.adult_qty if extra_data.adult_qty is defined else 1 }}
+                                        ADULT - {{ extra_data.adult_qty if extra_data.adult_qty is defined and extra_data.adult_qty else 1 }}
                                         {% if extra_data.child_qty is defined and extra_data.child_qty > 0 %}, CHILD - {{ extra_data.child_qty }}{% endif %}
                                         {% if extra_data.infant_qty is defined and extra_data.infant_qty > 0 %}, INFANT - {{ extra_data.infant_qty }}{% endif %}
                                     </td>

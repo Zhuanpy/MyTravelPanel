@@ -167,6 +167,7 @@
         <div class="form-section">
             <div class="section-title"><i class="fas fa-dollar-sign me-2"></i>Pricing (Per Room Per Night)</div>
             {% if has_invoice %}<div class="alert alert-warning py-1 mb-2" style="font-size: 12px;"><i class="fas fa-lock me-1"></i>Invoice generated. Selling prices locked.</div>{% endif %}
+            {% if eo_paid %}<div class="alert alert-info py-1 mb-2" style="font-size: 12px;"><i class="fas fa-lock me-1"></i>EO paid. Cost prices locked.</div>{% endif %}
             <div class="row g-2 mb-2">
                 <div class="col-3">
                     <label class="form-label small mb-1">Selling / Night</label>
@@ -179,7 +180,7 @@
                     <label class="form-label small mb-1">Cost / Night</label>
                     <div class="input-group input-group-sm">
                         <span class="input-group-text py-0">$</span>
-                        <input type="number" name="cost_per_night" id="cost_per_night" class="form-control" min="0" step="0.01" value="{{ extra_info.cost_per_night if extra_info and extra_info.cost_per_night else '0.00' }}" onchange="calculateTotals()">
+                        <input type="number" name="cost_per_night" id="cost_per_night" class="form-control" min="0" step="0.01" value="{{ extra_info.cost_per_night if extra_info and extra_info.cost_per_night else '0.00' }}" onchange="calculateTotals()" {% if eo_paid %}readonly{% endif %}>
                     </div>
                 </div>
                 <div class="col-2">

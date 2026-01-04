@@ -81,18 +81,11 @@
                      <div style="display: flex; flex-direction: column; gap: 8px; font-size: 0.85rem;">
                          <div style="display: flex; align-items: center; padding: 6px 10px; background: #f8f9fa; border-radius: 4px;">
                             <span style="color: #6c757d; min-width: 60px; font-weight: 500;">公司</span>
-                            <span id="company-name-span" data-header-id="{{ header.id }}" style="flex: 1; color: #333; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ company.company_name if company else '个人' }}">{{ company.company_name if company else '个人' }}</span>
-                            <select id="company-select" style="display: none; flex: 1; font-size: 0.8rem; padding: 2px 4px;">
-                                <option value="">个人</option>
-                                 {% for c in companies %}
-                                     <option value="{{ c.id }}" {% if company and c.id == company.id %}selected{% endif %}>{{ c.company_name }}</option>
-                                 {% endfor %}
-                             </select>
+                            <span id="company-name-span" style="flex: 1; color: #333; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ company.company_name if company else '个人' }}">{{ company.company_name if company else '个人' }}</span>
                          </div>
                          <div style="display: flex; align-items: center; padding: 6px 10px; background: #f8f9fa; border-radius: 4px;">
                              <span style="color: #6c757d; min-width: 60px; font-weight: 500;">联系人</span>
-                             <span id="contact-span" data-header-id="{{ header.id }}" style="flex: 1; color: #333; cursor: pointer;">{{ header.contact or '未设置' }}</span>
-                             <input type="text" id="contact-input" style="display: none; flex: 1; font-size: 0.8rem; padding: 2px 4px;" />
+                             <span id="contact-span" style="flex: 1; color: #333;">{{ header.contact or '未设置' }}</span>
                              <span style="color: #6c757d; margin-left: 15px; min-width: 40px; font-weight: 500;">币种</span>
                              <span style="color: #333;">{{ header.currency or '-' }}</span>
                          </div>
@@ -487,76 +480,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // 初始化人员管理
     initMembersManagement();
-    
-    // 初始化公司选择
-    initCompanySelect();
 });
-
-// 公司选择功能
-function initCompanySelect() {
-    const companySpan = document.getElementById('company-name-span');
-    const companySelect = document.getElementById('company-select');
-    
-    if (!companySpan || !companySelect) return;
-    
-    // 点击公司名称显示下拉框
-    companySpan.addEventListener('click', function() {
-        companySpan.style.display = 'none';
-        companySelect.style.display = 'block';
-        companySelect.focus();
-    });
-    
-    // 选择公司后更新
-    companySelect.addEventListener('change', function() {
-        const headerId = parseInt(companySpan.dataset.headerId);
-        const companyId = this.value ? parseInt(this.value) : null;
-        const selectedText = this.options[this.selectedIndex].text;
-        
-        console.log('更新公司:', { headerId, companyId, selectedText });
-        
-        fetch('/projects/header/update_company', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
-            },
-            body: JSON.stringify({
-                header_id: headerId,
-                company_id: companyId
-            })
-        })
-        .then(response => {
-            console.log('响应状态:', response.status);
-            return response.json();
-        })
-        .then(data => {
-            console.log('响应数据:', data);
-            if (data.success) {
-                companySpan.textContent = companyId ? selectedText : '个人';
-                companySpan.title = companyId ? selectedText : '个人';
-                console.log('公司更新成功');
-            } else {
-                alert('更新失败：' + (data.message || '未知错误'));
-            }
-        })
-        .catch(error => {
-            console.error('更新公司失败:', error);
-            alert('更新公司失败: ' + error.message);
-        })
-        .finally(() => {
-            companySelect.style.display = 'none';
-            companySpan.style.display = 'block';
-        });
-    });
-    
-    // 失去焦点时隐藏下拉框
-    companySelect.addEventListener('blur', function() {
-        setTimeout(() => {
-            companySelect.style.display = 'none';
-            companySpan.style.display = 'block';
-        }, 200);
-    });
-}
 
 // 人员管理功能
 function initMembersManagement() {

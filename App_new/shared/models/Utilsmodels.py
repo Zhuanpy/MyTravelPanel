@@ -39,7 +39,11 @@ class Todo(db.Model):
     # 任务完成记录字段
     completed_by = db.Column(db.Integer, db.ForeignKey('auth_users.id'), nullable=True, comment='完成者用户ID')
     completed_at = db.Column(db.DateTime, nullable=True, comment='完成时间')
-    
+
+    # 准时性跟踪字段
+    is_on_time = db.Column(db.Boolean, nullable=True, comment='任务是否准时完成: TRUE=准时, FALSE=延迟, NULL=未完成')
+    delay_days = db.Column(db.Integer, default=0, comment='延迟天数（负数表示提前完成）')
+
     # 关系
     assignee = db.relationship('AuthUser', foreign_keys=[assigned_to], backref='assigned_todos')
     assigner = db.relationship('AuthUser', foreign_keys=[assigned_by], backref='assigned_todos_by_me')
@@ -48,7 +52,8 @@ class Todo(db.Model):
     def __init__(self, title, description=None, due_date=None, priority=2, user_id=None, category=None, is_completed=False,
                  recipient_email=None, send_email=False, email_reminder_sent=False, email_sent_at=None,
                  assigned_to=None, assigned_by=None, assigned_at=None, source_type=None, source_id=None,
-                 reminder_days_before=0, auto_generated=False, completed_by=None, completed_at=None):
+                 reminder_days_before=0, auto_generated=False, completed_by=None, completed_at=None,
+                 is_on_time=None, delay_days=0):
         self.title = title
         self.description = description
         self.due_date = due_date
@@ -69,6 +74,8 @@ class Todo(db.Model):
         self.auto_generated = bool(auto_generated)
         self.completed_by = completed_by
         self.completed_at = completed_at
+        self.is_on_time = is_on_time
+        self.delay_days = delay_days
 
     def to_dict(self):
         """将模型转换为字典"""
@@ -98,14 +105,17 @@ class Todo(db.Model):
             'assigner_name': self.assigner.username if self.assigner else None,
             'completed_by': self.completed_by,
             'completed_at': self.completed_at.isoformat() if self.completed_at else None,
-            'completer_name': self.completer.username if self.completer else None
+            'completer_name': self.completer.username if self.completer else None,
+            'is_on_time': self.is_on_time,
+            'delay_days': self.delay_days
         }
 
     @classmethod
     def create(cls, title, description=None, due_date=None, priority=2, user_id=None, category=None, is_completed=False,
                recipient_email=None, send_email=False, email_reminder_sent=False, email_sent_at=None,
                assigned_to=None, assigned_by=None, assigned_at=None, source_type=None, source_id=None,
-               reminder_days_before=0, auto_generated=False, completed_by=None, completed_at=None):
+               reminder_days_before=0, auto_generated=False, completed_by=None, completed_at=None,
+               is_on_time=None, delay_days=0):
         """创建新的待办事项"""
         todo = cls(
             title=title,
@@ -127,7 +137,9 @@ class Todo(db.Model):
             reminder_days_before=reminder_days_before,
             auto_generated=bool(auto_generated),
             completed_by=completed_by,
-            completed_at=completed_at
+            completed_at=completed_at,
+            is_on_time=is_on_time,
+            delay_days=delay_days
         )
         db.session.add(todo)
         db.session.commit()
@@ -198,26 +210,30 @@ class Todo(db.Model):
 class TodoChecklist(db.Model):
     """任务清单模型 - 用于管理一组相关的任务"""
     __tablename__ = 'todo_checklists'
-    
+
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(255), nullable=False, comment='清单名称')
     description = db.Column(db.Text, comment='清单描述')
     category = db.Column(db.String(50), nullable=True, comment='分类')
-    
+
     # 重复设置
     is_recurring = db.Column(db.Boolean, default=False, comment='是否为重复任务')
     recurrence_type = db.Column(db.String(20), comment='重复类型: daily, weekly, monthly')
     recurrence_days = db.Column(db.String(50), comment='重复的星期几（用于weekly）：1,2,3,4,5,6,0（周一到周日）')
     recurrence_time = db.Column(db.String(10), comment='重复的时间: HH:MM')
-    
+
     is_active = db.Column(db.Boolean, default=True, comment='是否启用')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     user_id = db.Column(db.Integer, db.ForeignKey('auth_users.id', ondelete='CASCADE'), nullable=True)
-    
+
     # 最后生成任务的时间
     last_generated_at = db.Column(db.DateTime, nullable=True, comment='最后一次生成任务的时间')
-    
+
+    # 新增字段
+    default_due_days = db.Column(db.Integer, default=7, comment='默认截止天数')
+    is_team_visible = db.Column(db.Boolean, default=False, comment='是否团队可见')
+
     # 任务项（一对多）
     items = db.relationship('TodoChecklistItem', backref='checklist', lazy='dynamic', cascade='all, delete-orphan')
     
@@ -236,6 +252,8 @@ class TodoChecklist(db.Model):
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
             'last_generated_at': self.last_generated_at.isoformat() if self.last_generated_at else None,
+            'default_due_days': self.default_due_days or 7,
+            'is_team_visible': self.is_team_visible or False,
             'items': [item.to_dict() for item in self.items.all()]
         }
 
@@ -243,14 +261,21 @@ class TodoChecklist(db.Model):
 class TodoChecklistItem(db.Model):
     """任务清单项目模型 - 清单中的具体任务"""
     __tablename__ = 'todo_checklist_items'
-    
+
     id = db.Column(db.Integer, primary_key=True)
     checklist_id = db.Column(db.Integer, db.ForeignKey('todo_checklists.id', ondelete='CASCADE'), nullable=False)
     title = db.Column(db.String(255), nullable=False, comment='任务标题')
     description = db.Column(db.Text, comment='任务描述')
     priority = db.Column(db.Integer, default=2, comment='优先级：1=高，2=中，3=低')
     order_index = db.Column(db.Integer, default=0, comment='排序索引')
-    
+
+    # 新增字段
+    assigned_to = db.Column(db.Integer, db.ForeignKey('auth_users.id'), nullable=True, comment='默认分配给的员工ID')
+    due_days_offset = db.Column(db.Integer, default=0, comment='截止天数偏移（生成后多少天截止）')
+
+    # 关系
+    assignee = db.relationship('AuthUser', foreign_keys=[assigned_to])
+
     def to_dict(self):
         """转换为字典"""
         return {
@@ -259,5 +284,8 @@ class TodoChecklistItem(db.Model):
             'title': self.title,
             'description': self.description,
             'priority': self.priority,
-            'order_index': self.order_index
+            'order_index': self.order_index,
+            'assigned_to': self.assigned_to,
+            'due_days_offset': self.due_days_offset or 0,
+            'assignee_name': self.assignee.username if self.assignee else None
         }

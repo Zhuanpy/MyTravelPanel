@@ -670,23 +670,18 @@ def edit_hotel_ref(ref_id):
         except (json.JSONDecodeError, TypeError):
             extra_info = None
     
-    # 检查REF是否已关联发票
-    from App_new.business.projects.models.invoice import ProjectInvoice
-    has_invoice = False
-    invoices = ProjectInvoice.query.filter_by(header_id=ref.header_id).all()
-    for invoice in invoices:
-        if invoice.ref_ids:
-            try:
-                ref_id_list = json.loads(invoice.ref_ids)
-                if ref.id in ref_id_list:
-                    has_invoice = True
-                    break
-            except (json.JSONDecodeError, TypeError):
-                pass
-    
+    # 检查是否已生成发票
+    has_invoice = len(ref.invoice_items) > 0 if ref.invoice_items else False
+
+    # 检查关联的EO是否已付款
+    eo_paid = False
+    if ref.eos and ref.eos.status != 'void':
+        if ref.eos.pay_amount or ref.eos.status == 'paid':
+            eo_paid = True
+
     header = ProjectHeader.query.get(ref.header_id)
-    
-    return render_template('business/projects/project_ref/create_hotel_ref.html', 
+
+    return render_template('business/projects/project_ref/create_hotel_ref.html',
                          header_id=ref.header_id,
                          header=header,
                          ref_id=ref.id,
@@ -696,7 +691,8 @@ def edit_hotel_ref(ref_id):
                          members=members,
                          extra_info=extra_info,
                          is_create=False,
-                         has_invoice=has_invoice)
+                         has_invoice=has_invoice,
+                         eo_paid=eo_paid)
 
 
 # 签证REF相关函数
@@ -793,9 +789,27 @@ def submit_visa_ref():
                 'infant_cost': float(request.form.get('infant_cost', 0) or 0),
             }
 
-        # 获取描述字段（前端自动生成）
-        description = request.form.get('description', extra_info.get('visa_name', 'Visa Application'))
-        detailed_description = request.form.get('detailed_description', description)
+        # 基于 extra_info 生成英文 description（确保格式正确）
+        country = extra_info.get('country', '')
+        visa_type = extra_info.get('visa_type', '')
+        departure_date = extra_info.get('departure_date', '')
+
+        if country and visa_type:
+            description_generated = f"{country} {visa_type} VISA"
+        elif country:
+            description_generated = f"{country} VISA"
+        elif visa_type:
+            description_generated = f"{visa_type} VISA"
+        else:
+            description_generated = 'VISA APPLICATION'
+
+        # 如果有出发日期，添加到 description
+        if departure_date:
+            description_generated += f" | {departure_date}"
+
+        # 使用前端传的值，如果为空则使用生成的
+        description = request.form.get('description') or description_generated
+        detailed_description = request.form.get('detailed_description') or description
 
         # 生成 pax_names_display
         pax_names = extra_info.get('pax_names', [])
@@ -1463,9 +1477,13 @@ def edit_transport_ref(ref_id):
     header = ProjectHeader.query.get(ref.header_id)
 
     # 检查是否有发票
-    has_invoice = False
-    if ref.invoice_items:
-        has_invoice = len(ref.invoice_items) > 0
+    has_invoice = len(ref.invoice_items) > 0 if ref.invoice_items else False
+
+    # 检查关联的EO是否已付款
+    eo_paid = False
+    if ref.eos and ref.eos.status != 'void':
+        if ref.eos.pay_amount or ref.eos.status == 'paid':
+            eo_paid = True
 
     return render_template('business/projects/project_ref/create_transport_ref.html',
                          ref=ref,
@@ -1476,7 +1494,8 @@ def edit_transport_ref(ref_id):
                          extra_info=extra_info,
                          members=members,
                          is_create=False,
-                         has_invoice=has_invoice)
+                         has_invoice=has_invoice,
+                         eo_paid=eo_paid)
 
 
 @project_ref.route('/flight/edit/<int:ref_id>', methods=['GET'])
@@ -1486,6 +1505,15 @@ def edit_flight_ref(ref_id):
 
     # 直接查询REF，不需要预加载
     ref = ProjectRef.query.get_or_404(ref_id)
+
+    # 检查是否已生成发票
+    has_invoice = len(ref.invoice_items) > 0 if ref.invoice_items else False
+
+    # 检查关联的EO是否已付款（如果已付款，cost不能修改）
+    eo_paid = False
+    if ref.eos and ref.eos.status != 'void':
+        if ref.eos.pay_amount or ref.eos.status == 'paid':
+            eo_paid = True
 
     # 获取供应商数据
     suppliers = Supplier.query.all()
@@ -1497,7 +1525,9 @@ def edit_flight_ref(ref_id):
                           ref_id=ref.id,
                          ref=ref,
                           suppliers=suppliers,
-                          supplier_types=supplier_types)
+                          supplier_types=supplier_types,
+                          has_invoice=has_invoice,
+                          eo_paid=eo_paid)
 
 @project_ref.route('/flight/detail/<int:ref_id>', methods=['GET'])
 def flight_ref_detail(ref_id):
@@ -1672,6 +1702,12 @@ def edit_visa_ref(ref_id):
     if ref.invoice_items:
         has_invoice = len(ref.invoice_items) > 0
 
+    # 检查关联的EO是否已付款（如果已付款，cost不能修改）
+    eo_paid = False
+    if ref.eos and ref.eos.status != 'void':
+        if ref.eos.pay_amount or ref.eos.status == 'paid':
+            eo_paid = True
+
     # 获取预选的签证类型列表
     visa_types = []
     # 检查 country 或 visa_country 键
@@ -1695,7 +1731,8 @@ def edit_visa_ref(ref_id):
                          visa_types=visa_types,
                          members=members,
                          is_create=False,
-                         has_invoice=has_invoice)
+                         has_invoice=has_invoice,
+                         eo_paid=eo_paid)
 
 @project_ref.route('/tour/detail/<int:ref_id>', methods=['GET'])
 def tour_ref_detail(ref_id):
@@ -1997,6 +2034,12 @@ def edit_attraction_ref(ref_id):
     if ref.invoice_items:
         has_invoice = len(ref.invoice_items) > 0
 
+    # 检查 EO 是否已付款
+    eo_paid = False
+    if ref.eos and ref.eos.status != 'void':
+        if ref.eos.pay_amount or ref.eos.status == 'paid':
+            eo_paid = True
+
     return render_template('business/projects/project_ref/create_attraction_ref.html',
                          ref=ref,
                          header=header,
@@ -2006,7 +2049,8 @@ def edit_attraction_ref(ref_id):
                          extra_info=extra_info,
                          members=members,
                          is_create=False,
-                         has_invoice=has_invoice)
+                         has_invoice=has_invoice,
+                         eo_paid=eo_paid)
 
 
 @project_ref.route('/attraction/detail/<int:ref_id>', methods=['GET'])
@@ -2301,6 +2345,12 @@ def edit_other_ref(ref_id):
             except (json.JSONDecodeError, TypeError):
                 pass
 
+    # 检查 EO 是否已付款
+    eo_paid = False
+    if ref.eos and ref.eos.status != 'void':
+        if ref.eos.pay_amount or ref.eos.status == 'paid':
+            eo_paid = True
+
     return render_template(
         'business/projects/project_ref/create_other_ref.html',
         ref=ref,
@@ -2311,7 +2361,8 @@ def edit_other_ref(ref_id):
         is_create=False,
         extra_info=extra_info,
         members=members,
-        has_invoice=has_invoice
+        has_invoice=has_invoice,
+        eo_paid=eo_paid
     )
 
 @project_ref.route('/insurance/edit/<int:ref_id>', methods=['GET', 'POST'])
@@ -2391,6 +2442,12 @@ def edit_insurance_ref(ref_id):
     # 检查是否已生成发票
     has_invoice = InvoiceItem.query.filter_by(ref_id=ref.id).first() is not None
 
+    # 检查 EO 是否已付款
+    eo_paid = False
+    if ref.eos and ref.eos.status != 'void':
+        if ref.eos.pay_amount or ref.eos.status == 'paid':
+            eo_paid = True
+
     # 解析保险专属信息
     extra_info = {}
     if ref and ref.extra_info:
@@ -2407,6 +2464,7 @@ def edit_insurance_ref(ref_id):
                          extra_info=extra_info,
                          members=members,
                          has_invoice=has_invoice,
+                         eo_paid=eo_paid,
                          is_create=False)
 
 @project_ref.route('/tour/edit/<int:ref_id>', methods=['GET', 'POST'])
@@ -2508,6 +2566,12 @@ def edit_tour_ref(ref_id):
     if ref.invoice_items:
         has_invoice = len(ref.invoice_items) > 0
 
+    # 检查 EO 是否已付款
+    eo_paid = False
+    if ref.eos and ref.eos.status != 'void':
+        if ref.eos.pay_amount or ref.eos.status == 'paid':
+            eo_paid = True
+
     return render_template('business/projects/project_ref/create_tour_ref.html',
                          header=header,
                          header_id=ref.header_id,
@@ -2517,7 +2581,8 @@ def edit_tour_ref(ref_id):
                          members=members,
                          extra_info=extra_info,
                          is_create=False,
-                         has_invoice=has_invoice)
+                         has_invoice=has_invoice,
+                         eo_paid=eo_paid)
 
 @project_ref.route('/api/get_visa_types/<int:country_id>', methods=['GET'])
 def get_visa_types_by_country(country_id):
@@ -2958,10 +3023,23 @@ def edit_ref(ref_id):
     if passengers:
         passenger_names = [p.name for p in passengers]
         form.passenger_names.data = ', '.join(passenger_names)
-    
-    return render_template('business/projects/project_ref/create_ref.html', 
-                         ref=ref, 
+
+    # 检查是否有发票
+    has_invoice = False
+    if ref.invoice_items:
+        has_invoice = len(ref.invoice_items) > 0
+
+    # 检查 EO 是否已付款
+    eo_paid = False
+    if ref.eos and ref.eos.status != 'void':
+        if ref.eos.pay_amount or ref.eos.status == 'paid':
+            eo_paid = True
+
+    return render_template('business/projects/project_ref/create_ref.html',
+                         ref=ref,
                          header=header,
                          suppliers=suppliers,
                          form=form,
-                         is_create=False)
+                         is_create=False,
+                         has_invoice=has_invoice,
+                         eo_paid=eo_paid)

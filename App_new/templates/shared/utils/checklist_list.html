@@ -7,100 +7,50 @@
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/staff_common.css') }}">
 <style>
-    .checklist-card {
-        border: 1px solid #e0e0e0;
-        border-radius: 8px;
-        padding: 20px;
-        margin-bottom: 20px;
-        background: white;
-        transition: all 0.3s;
-    }
-    .checklist-card:hover {
-        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-    }
-    .checklist-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 15px;
-    }
-    .checklist-title {
-        font-size: 1.25rem;
-        font-weight: 600;
-        color: #1f2937;
-        margin: 0;
-    }
-    .checklist-meta {
-        display: flex;
-        gap: 15px;
-        flex-wrap: wrap;
-        margin-bottom: 10px;
-    }
-    .meta-item {
-        display: flex;
-        align-items: center;
-        gap: 5px;
-        font-size: 0.875rem;
-        color: #6b7280;
-    }
-    .checklist-items {
-        margin: 15px 0;
-        padding: 10px;
-        background: #f9fafb;
-        border-radius: 4px;
-    }
-    .checklist-item-preview {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        padding: 5px 0;
-        font-size: 0.875rem;
-    }
-    .checklist-actions {
-        display: flex;
-        gap: 10px;
-        flex-wrap: wrap;
-    }
-    .recurring-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 5px;
-        padding: 4px 12px;
-        background: #e0f2fe;
-        color: #0369a1;
-        border-radius: 12px;
-        font-size: 0.75rem;
-        font-weight: 500;
-    }
-    .inactive-badge {
-        background: #fee2e2;
-        color: #991b1b;
-    }
+    .checklist-row { background: #fff; border-left: 3px solid #3b82f6; margin-bottom: 8px; padding: 10px 12px; border-radius: 0 4px 4px 0; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+    .checklist-row:hover { background: #f8fafc; box-shadow: 0 2px 4px rgba(0,0,0,0.08); }
+    .checklist-row.inactive { opacity: 0.6; border-left-color: #9ca3af; }
+    .checklist-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+    .checklist-name { font-weight: 600; font-size: 0.9rem; color: #1f2937; cursor: pointer; }
+    .checklist-name:hover { color: #3b82f6; }
+    .checklist-meta { display: flex; align-items: center; gap: 6px; margin-left: 8px; }
+    .category-badge { background: #f1f5f9; color: #475569; padding: 2px 8px; border-radius: 3px; font-size: 0.7rem; }
+    .recurring-badge { display: inline-flex; align-items: center; gap: 3px; padding: 2px 8px; background: #dbeafe; color: #1d4ed8; border-radius: 3px; font-size: 0.7rem; }
+    .recurring-badge.inactive { background: #fef2f2; color: #b91c1c; }
+    .task-items { margin-left: 2px; padding-left: 10px; border-left: 1px dashed #e2e8f0; }
+    .task-row { display: flex; align-items: center; gap: 6px; padding: 3px 0; font-size: 0.8rem; color: #374151; }
+    .task-row:before { content: "›"; color: #94a3b8; font-weight: bold; }
+    .task-label { color: #9ca3af; font-size: 0.7rem; margin-left: 8px; }
+    .task-label:first-of-type { margin-left: 0; }
+    .task-title { font-weight: 500; }
+    .task-title.priority-high { color: #dc2626; }
+    .task-title.priority-low { color: #9ca3af; font-weight: normal; }
+    .task-assignee { color: #2563eb; font-size: 0.8rem; }
+    .task-due { color: #64748b; font-size: 0.75rem; }
+    .btn-icon { padding: 3px 6px; font-size: 0.7rem; }
+    .action-btns .btn { margin-right: 3px; }
+    .time-info { font-size: 0.65rem; color: #94a3b8; margin-left: 8px; }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="visa-container-lg">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1 class="visa-page-title">任务清单管理</h1>
+<div class="container" style="max-width: 900px;">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h1 class="visa-page-title mb-0">任务清单管理</h1>
         <div>
-            <a href="{{ url_for('utils_blue.render_todo_list') }}" class="visa-btn visa-btn-secondary me-2">
-                <i class="fas fa-list"></i> 返回待办事项
+            <a href="{{ url_for('utils_blue.render_todo_list') }}" class="btn btn-outline-secondary btn-sm me-2">
+                <i class="fas fa-list"></i> 返回待办
             </a>
-            <button class="visa-btn visa-btn-primary" onclick="openCreateModal()">
-                <i class="fas fa-plus"></i> 创建新清单
+            <button class="btn btn-primary btn-sm" onclick="openCreateModal()">
+                <i class="fas fa-plus"></i> 新建清单
             </button>
         </div>
     </div>
 
     <div class="visa-card">
-        <div class="visa-card-header">
-            <h3 class="visa-card-title">我的任务清单</h3>
-        </div>
-        <div class="visa-card-body" id="checklistsContainer">
+        <div class="visa-card-body p-2" id="checklistsContainer" style="background:#f8fafc;">
             <div class="text-center py-4">
-                <i class="fas fa-spinner fa-spin me-2"></i>
-                加载中...
+                <i class="fas fa-spinner fa-spin me-2"></i>加载中...
             </div>
         </div>
     </div>
@@ -108,130 +58,97 @@
 
 <!-- 创建/编辑清单模态框 -->
 <div class="modal fade" id="checklistModal" tabindex="-1">
-    <div class="modal-dialog modal-xl">
+    <div class="modal-dialog" style="max-width: 900px;">
         <div class="modal-content">
-            <div class="modal-header">
+            <div class="modal-header py-2">
                 <h5 class="modal-title" id="modalTitle">创建任务清单</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body">
+            <div class="modal-body py-3">
                 <form id="checklistForm">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" id="checklistId" name="id">
-                    
-                    <div class="row">
-                        <div class="col-md-8">
-                            <div class="visa-form-group">
-                                <label for="checklistName" class="visa-form-label">清单名称 <span class="text-danger">*</span></label>
-                                <input type="text" class="visa-form-control" id="checklistName" name="name" required 
-                                       placeholder="例如：每周账单核对">
+
+                    <!-- 基本信息行 -->
+                    <div class="row g-2 mb-2">
+                        <div class="col-6">
+                            <input type="text" class="form-control form-control-sm" id="checklistName" name="name" required placeholder="清单名称 *">
+                        </div>
+                        <div class="col-3">
+                            <select class="form-select form-select-sm" id="checklistCategory" name="category">
+                                <option value="公司日常">公司日常</option>
+                                <option value="个人事务">个人事务</option>
+                                <option value="产品报价">产品报价</option>
+                                <option value="项目提醒">项目提醒</option>
+                            </select>
+                        </div>
+                        <div class="col-3">
+                            <div class="form-check form-check-inline mt-1">
+                                <input type="checkbox" class="form-check-input" id="isRecurring" name="is_recurring" onchange="toggleRecurringSettings()">
+                                <label class="form-check-label small" for="isRecurring">启用重复</label>
                             </div>
                         </div>
-                        <div class="col-md-4">
-                            <div class="visa-form-group">
-                                <label for="checklistCategory" class="visa-form-label">分类</label>
-                                <select class="visa-form-select" id="checklistCategory" name="category">
-                                    <option value="公司日常">公司日常</option>
-                                    <option value="个人事务">个人事务</option>
-                                    <option value="产品报价">产品报价</option>
-                                    <option value="项目提醒">项目提醒</option>
+                    </div>
+
+                    <!-- 描述 -->
+                    <div class="mb-2">
+                        <textarea class="form-control form-control-sm" id="checklistDescription" name="description" rows="1" placeholder="清单描述（可选）"></textarea>
+                    </div>
+
+                    <!-- 重复设置 -->
+                    <div id="recurringSettings" class="border rounded p-2 mb-2 bg-light" style="display: none;">
+                        <div class="row g-2 align-items-center">
+                            <div class="col-auto">
+                                <select class="form-select form-select-sm" id="recurrenceType" name="recurrence_type" onchange="updateRecurrenceOptions()" style="width:100px;">
+                                    <option value="daily">每天</option>
+                                    <option value="weekly" selected>每周</option>
+                                    <option value="monthly">每月</option>
                                 </select>
                             </div>
-                        </div>
-                    </div>
-
-                    <div class="visa-form-group">
-                        <label for="checklistDescription" class="visa-form-label">描述</label>
-                        <textarea class="visa-form-control" id="checklistDescription" name="description" rows="2" 
-                                  placeholder="清单用途说明..."></textarea>
-                    </div>
-
-                    <div class="visa-form-group">
-                        <div class="form-check">
-                            <input type="checkbox" class="form-check-input" id="isRecurring" name="is_recurring" 
-                                   onchange="toggleRecurringSettings()">
-                            <label class="form-check-label" for="isRecurring">
-                                <strong>启用重复任务</strong> - 系统会定期自动生成待办事项
-                            </label>
-                        </div>
-                    </div>
-
-                    <div id="recurringSettings" style="display: none;">
-                        <div class="alert alert-info">
-                            <i class="fas fa-info-circle"></i> 
-                            设置重复规则后，系统会按照设定的时间自动生成待办事项
-                        </div>
-                        
-                        <div class="row">
-                            <div class="col-md-4">
-                                <div class="visa-form-group">
-                                    <label for="recurrenceType" class="visa-form-label">重复类型</label>
-                                    <select class="visa-form-select" id="recurrenceType" name="recurrence_type" 
-                                            onchange="updateRecurrenceOptions()">
-                                        <option value="weekly">每周</option>
-                                        <option value="daily">每天</option>
-                                        <option value="monthly">每月</option>
-                                    </select>
+                            <div class="col" id="recurrenceDaysGroup">
+                                <div class="d-flex gap-1 flex-wrap">
+                                    <label class="btn btn-outline-secondary btn-sm py-0 px-1"><input type="checkbox" class="d-none recurrence-day" value="1">一</label>
+                                    <label class="btn btn-outline-secondary btn-sm py-0 px-1"><input type="checkbox" class="d-none recurrence-day" value="2">二</label>
+                                    <label class="btn btn-outline-secondary btn-sm py-0 px-1"><input type="checkbox" class="d-none recurrence-day" value="3">三</label>
+                                    <label class="btn btn-outline-secondary btn-sm py-0 px-1"><input type="checkbox" class="d-none recurrence-day" value="4">四</label>
+                                    <label class="btn btn-outline-secondary btn-sm py-0 px-1"><input type="checkbox" class="d-none recurrence-day" value="5">五</label>
+                                    <label class="btn btn-outline-secondary btn-sm py-0 px-1"><input type="checkbox" class="d-none recurrence-day" value="6">六</label>
+                                    <label class="btn btn-outline-secondary btn-sm py-0 px-1"><input type="checkbox" class="d-none recurrence-day" value="0">日</label>
                                 </div>
                             </div>
-                            <div class="col-md-4" id="recurrenceDaysGroup">
-                                <div class="visa-form-group">
-                                    <label class="visa-form-label">重复的星期几</label>
-                                    <div class="d-flex gap-2 flex-wrap">
-                                        <label class="form-check-label">
-                                            <input type="checkbox" class="form-check-input recurrence-day" value="1"> 周一
-                                        </label>
-                                        <label class="form-check-label">
-                                            <input type="checkbox" class="form-check-input recurrence-day" value="2"> 周二
-                                        </label>
-                                        <label class="form-check-label">
-                                            <input type="checkbox" class="form-check-input recurrence-day" value="3"> 周三
-                                        </label>
-                                        <label class="form-check-label">
-                                            <input type="checkbox" class="form-check-input recurrence-day" value="4"> 周四
-                                        </label>
-                                        <label class="form-check-label">
-                                            <input type="checkbox" class="form-check-input recurrence-day" value="5"> 周五
-                                        </label>
-                                        <label class="form-check-label">
-                                            <input type="checkbox" class="form-check-input recurrence-day" value="6"> 周六
-                                        </label>
-                                        <label class="form-check-label">
-                                            <input type="checkbox" class="form-check-input recurrence-day" value="0"> 周日
-                                        </label>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="visa-form-group">
-                                    <label for="recurrenceTime" class="visa-form-label">生成时间</label>
-                                    <input type="time" class="visa-form-control" id="recurrenceTime" name="recurrence_time" value="09:00">
-                                </div>
+                            <div class="col-auto">
+                                <input type="time" class="form-control form-control-sm" id="recurrenceTime" name="recurrence_time" value="09:00" style="width:100px;">
                             </div>
                         </div>
                     </div>
 
-                    <hr>
-
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h6 class="mb-0">清单任务项</h6>
-                        <button type="button" class="visa-btn visa-btn-sm visa-btn-success" onclick="addItem()">
-                            <i class="fas fa-plus"></i> 添加任务
+                    <!-- 任务项标题 -->
+                    <div class="d-flex justify-content-between align-items-center border-bottom pb-1 mb-2">
+                        <span class="fw-bold small">任务项</span>
+                        <button type="button" class="btn btn-success btn-sm py-0 px-2" onclick="addItem()">
+                            <i class="fas fa-plus"></i> 添加
                         </button>
                     </div>
 
+                    <!-- 任务项表头 -->
+                    <div class="row g-2 mb-1 text-muted small" id="itemsHeader" style="display:none;">
+                        <div class="col-5">标题</div>
+                        <div class="col-3">负责人</div>
+                        <div class="col-2 text-center">优先级</div>
+                        <div class="col-2 text-center">截止天数</div>
+                    </div>
+
                     <div id="itemsContainer">
-                        <div class="alert alert-info">
-                            <i class="fas fa-info-circle"></i> 
-                            请添加至少一个任务项
+                        <div class="text-center text-muted py-3 small">
+                            <i class="fas fa-info-circle me-1"></i>点击上方"添加"按钮添加任务项
                         </div>
                     </div>
                 </form>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="visa-btn visa-btn-secondary" data-bs-dismiss="modal">取消</button>
-                <button type="button" class="visa-btn visa-btn-primary" id="saveChecklist">
-                    <i class="fas fa-save me-2"></i>保存
+            <div class="modal-footer py-2">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary btn-sm" id="saveChecklist">
+                    <i class="fas fa-save me-1"></i>保存
                 </button>
             </div>
         </div>
@@ -242,31 +159,61 @@
 {% block extra_js %}
 <script>
 let itemCounter = 0;
+let staffList = [];
 
 document.addEventListener('DOMContentLoaded', function() {
+    loadStaffList();
     loadChecklists();
 
     // 保存清单
     document.getElementById('saveChecklist').addEventListener('click', saveChecklist);
+
+    // 星期按钮点击切换
+    document.querySelectorAll('.recurrence-day').forEach(cb => {
+        cb.closest('label').addEventListener('click', function(e) {
+            e.preventDefault();
+            const checkbox = this.querySelector('input');
+            checkbox.checked = !checkbox.checked;
+            if (checkbox.checked) {
+                this.classList.remove('btn-outline-secondary');
+                this.classList.add('btn-primary');
+            } else {
+                this.classList.remove('btn-primary');
+                this.classList.add('btn-outline-secondary');
+            }
+        });
+    });
 });
+
+// 加载员工列表
+function loadStaffList() {
+    fetch('/utils/todos/staff-list')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                staffList = data.staff || [];
+            }
+        })
+        .catch(error => console.error('加载员工列表失败:', error));
+}
 
 function loadChecklists() {
     fetch('/utils/checklists/list')
         .then(response => response.json())
         .then(data => {
             const container = document.getElementById('checklistsContainer');
-            
+
             if (!data.success || !data.checklists || data.checklists.length === 0) {
                 container.innerHTML = `
-                    <div class="text-center py-5">
-                        <i class="fas fa-clipboard-list" style="font-size: 3rem; color: #d1d5db;"></i>
-                        <p class="text-muted mt-3">还没有任务清单，点击上方按钮创建第一个清单</p>
+                    <div class="text-center py-4">
+                        <i class="fas fa-clipboard-list text-muted" style="font-size: 2rem;"></i>
+                        <p class="text-muted mt-2 mb-0">暂无任务清单</p>
                     </div>
                 `;
                 return;
             }
 
-            container.innerHTML = data.checklists.map(checklist => renderChecklistCard(checklist)).join('');
+            container.innerHTML = data.checklists.map(checklist => renderChecklistRow(checklist)).join('');
         })
         .catch(error => {
             console.error('Error:', error);
@@ -274,66 +221,43 @@ function loadChecklists() {
         });
 }
 
-function renderChecklistCard(checklist) {
+function renderChecklistRow(checklist) {
     const recurringText = checklist.is_recurring ? getRecurringText(checklist) : '';
     const items = checklist.items || [];
-    
+    const escapedName = checklist.name.replace(/'/g, "\\'");
+
+    // 生成任务项（每个任务一行）
+    const taskRows = items.length > 0
+        ? items.map(item => {
+            const priorityClass = item.priority === 1 ? 'priority-high' : (item.priority === 3 ? 'priority-low' : '');
+            return `<div class="task-row">
+                <span class="task-label">标题</span><span class="task-title ${priorityClass}">${item.title}</span>
+                ${item.assignee_name ? `<span class="task-label">负责人</span><span class="task-assignee">${item.assignee_name}</span>` : ''}
+                ${item.due_days_offset ? `<span class="task-label">截止</span><span class="task-due">${item.due_days_offset}天后</span>` : ''}
+            </div>`;
+        }).join('')
+        : '<div class="text-muted" style="font-size:0.75rem;padding:2px 0;">暂无任务项</div>';
+
     return `
-        <div class="checklist-card ${!checklist.is_active ? 'opacity-50' : ''}">
+        <div class="checklist-row ${!checklist.is_active ? 'inactive' : ''}">
             <div class="checklist-header">
-                <div>
-                    <h3 class="checklist-title">${checklist.name}</h3>
+                <div class="d-flex align-items-center">
+                    <span class="checklist-name" onclick="editChecklist(${checklist.id})">${checklist.name}</span>
                     <div class="checklist-meta">
-                        <span class="meta-item">
-                            <i class="fas fa-tag"></i>
-                            ${checklist.category || '未分类'}
-                        </span>
-                        <span class="meta-item">
-                            <i class="fas fa-tasks"></i>
-                            ${items.length} 个任务
-                        </span>
-                        ${checklist.is_recurring ? `
-                            <span class="recurring-badge ${!checklist.is_active ? 'inactive-badge' : ''}">
-                                <i class="fas fa-sync-alt"></i>
-                                ${recurringText}
-                            </span>
-                        ` : ''}
-                        ${!checklist.is_active ? '<span class="visa-badge visa-badge-secondary">已停用</span>' : ''}
+                        <span class="category-badge">${checklist.category || '未分类'}</span>
+                        ${checklist.is_recurring ? `<span class="recurring-badge ${!checklist.is_active ? 'inactive' : ''}"><i class="fas fa-sync-alt"></i> ${recurringText}</span>` : ''}
+                        ${!checklist.is_active ? '<span class="badge bg-secondary" style="font-size:0.6rem;">停用</span>' : ''}
+                        ${checklist.last_generated_at ? `<span class="time-info"><i class="fas fa-clock"></i> ${formatDate(checklist.last_generated_at)}</span>` : ''}
                     </div>
                 </div>
-                <div class="checklist-actions">
-                    <button class="visa-btn visa-btn-sm visa-btn-success" onclick="generateTodos(${checklist.id}, '${checklist.name}')">
-                        <i class="fas fa-magic"></i> 生成待办事项
-                    </button>
-                    <button class="visa-btn visa-btn-sm visa-btn-info" onclick="editChecklist(${checklist.id})">
-                        <i class="fas fa-edit"></i> 编辑
-                    </button>
-                    <button class="visa-btn visa-btn-sm ${checklist.is_active ? 'visa-btn-warning' : 'visa-btn-success'}" 
-                            onclick="toggleActive(${checklist.id})">
-                        <i class="fas fa-${checklist.is_active ? 'pause' : 'play'}"></i> 
-                        ${checklist.is_active ? '停用' : '启用'}
-                    </button>
-                    <button class="visa-btn visa-btn-sm visa-btn-danger" onclick="deleteChecklist(${checklist.id}, '${checklist.name}')">
-                        <i class="fas fa-trash"></i> 删除
-                    </button>
+                <div class="action-btns">
+                    <button class="btn btn-success btn-icon" onclick="generateTodos(${checklist.id}, '${escapedName}')" title="生成待办"><i class="fas fa-magic"></i></button>
+                    <button class="btn btn-outline-secondary btn-icon" onclick="editChecklist(${checklist.id})" title="编辑"><i class="fas fa-edit"></i></button>
+                    <button class="btn ${checklist.is_active ? 'btn-outline-warning' : 'btn-outline-success'} btn-icon" onclick="toggleActive(${checklist.id})" title="${checklist.is_active ? '停用' : '启用'}"><i class="fas fa-${checklist.is_active ? 'pause' : 'play'}"></i></button>
+                    <button class="btn btn-outline-danger btn-icon" onclick="deleteChecklist(${checklist.id}, '${escapedName}')" title="删除"><i class="fas fa-trash"></i></button>
                 </div>
             </div>
-            ${checklist.description ? `<p class="text-muted mb-2">${checklist.description}</p>` : ''}
-            <div class="checklist-items">
-                <strong>任务列表：</strong>
-                ${items.length > 0 ? items.map((item, index) => `
-                    <div class="checklist-item-preview">
-                        <span class="text-muted">${index + 1}.</span>
-                        <span>${item.title}</span>
-                        <span class="visa-badge ${getPriorityClass(item.priority)}">${getPriorityText(item.priority)}</span>
-                    </div>
-                `).join('') : '<span class="text-muted">暂无任务</span>'}
-            </div>
-            ${checklist.last_generated_at ? `
-                <div class="text-muted" style="font-size: 0.75rem;">
-                    <i class="fas fa-clock"></i> 最后生成: ${formatDate(checklist.last_generated_at)}
-                </div>
-            ` : ''}
+            <div class="task-items">${taskRows}</div>
         </div>
     `;
 }
@@ -355,49 +279,61 @@ function openCreateModal() {
     document.getElementById('modalTitle').textContent = '创建任务清单';
     document.getElementById('checklistId').value = '';
     document.getElementById('checklistForm').reset();
+    document.getElementById('itemsHeader').style.display = 'none';
     document.getElementById('itemsContainer').innerHTML = `
-        <div class="alert alert-info">
-            <i class="fas fa-info-circle"></i> 
-            请添加至少一个任务项
+        <div class="text-center text-muted py-3 small">
+            <i class="fas fa-info-circle me-1"></i>点击上方"添加"按钮添加任务项
         </div>
     `;
     document.getElementById('recurringSettings').style.display = 'none';
+    // 重置星期按钮状态
+    document.querySelectorAll('.recurrence-day').forEach(cb => {
+        cb.checked = false;
+        cb.closest('label').classList.remove('active', 'btn-primary');
+        cb.closest('label').classList.add('btn-outline-secondary');
+    });
     itemCounter = 0;
     new bootstrap.Modal(document.getElementById('checklistModal')).show();
 }
 
-function addItem() {
+function addItem(prefill = {}) {
     itemCounter++;
     const container = document.getElementById('itemsContainer');
-    const alert = container.querySelector('.alert');
-    if (alert) alert.remove();
-    
+    const emptyMsg = container.querySelector('.text-center');
+    if (emptyMsg) emptyMsg.remove();
+
+    // 显示表头
+    document.getElementById('itemsHeader').style.display = 'flex';
+
+    // 生成员工选项
+    const staffOptions = staffList.map(s =>
+        `<option value="${s.id}" ${prefill.assigned_to == s.id ? 'selected' : ''}>${s.display_name}</option>`
+    ).join('');
+
     const itemHtml = `
-        <div class="card mb-2 item-card" data-item-id="${itemCounter}">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-start mb-2">
-                    <h6 class="mb-0">任务 #${itemCounter}</h6>
-                    <button type="button" class="btn btn-sm btn-danger" onclick="removeItem(${itemCounter})">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-                <div class="row">
-                    <div class="col-md-8">
-                        <div class="visa-form-group mb-2">
-                            <input type="text" class="visa-form-control item-title" placeholder="任务标题" required>
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="visa-form-group mb-2">
-                            <select class="visa-form-select item-priority">
-                                <option value="1">高优先级</option>
-                                <option value="2" selected>中优先级</option>
-                                <option value="3">低优先级</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-                <textarea class="visa-form-control item-description" placeholder="任务描述（可选）" rows="2"></textarea>
+        <div class="row g-2 mb-1 item-card align-items-center" data-item-id="${itemCounter}">
+            <div class="col-5">
+                <input type="text" class="form-control form-control-sm item-title" placeholder="任务标题" required value="${prefill.title || ''}">
+            </div>
+            <div class="col-3">
+                <select class="form-select form-select-sm item-assigned-to">
+                    <option value="">未指定</option>
+                    ${staffOptions}
+                </select>
+            </div>
+            <div class="col-2">
+                <select class="form-select form-select-sm item-priority">
+                    <option value="1" ${prefill.priority === 1 ? 'selected' : ''}>高</option>
+                    <option value="2" ${prefill.priority === 2 || !prefill.priority ? 'selected' : ''}>中</option>
+                    <option value="3" ${prefill.priority === 3 ? 'selected' : ''}>低</option>
+                </select>
+            </div>
+            <div class="col-2 d-flex align-items-center">
+                <input type="number" class="form-control form-control-sm item-due-days" min="0" value="${prefill.due_days_offset || 0}" style="width:55px;">
+                <span class="ms-1 small text-muted">天</span>
+                <button type="button" class="btn btn-link btn-sm text-danger p-0 ms-2" onclick="removeItem(${itemCounter})" title="删除">
+                    <i class="fas fa-times"></i>
+                </button>
             </div>
         </div>
     `;
@@ -407,14 +343,14 @@ function addItem() {
 function removeItem(itemId) {
     const item = document.querySelector(`[data-item-id="${itemId}"]`);
     if (item) item.remove();
-    
-    // 如果没有任务项了，显示提示
+
+    // 如果没有任务项了，隐藏表头并显示提示
     const container = document.getElementById('itemsContainer');
     if (!container.querySelector('.item-card')) {
+        document.getElementById('itemsHeader').style.display = 'none';
         container.innerHTML = `
-            <div class="alert alert-info">
-                <i class="fas fa-info-circle"></i> 
-                请添加至少一个任务项
+            <div class="text-center text-muted py-3 small">
+                <i class="fas fa-info-circle me-1"></i>点击上方"添加"按钮添加任务项
             </div>
         `;
     }
@@ -466,10 +402,14 @@ function saveChecklist() {
     document.querySelectorAll('.item-card').forEach(card => {
         const title = card.querySelector('.item-title').value.trim();
         if (title) {
+            const assignedTo = card.querySelector('.item-assigned-to')?.value;
+            const dueDays = card.querySelector('.item-due-days')?.value;
             items.push({
                 title: title,
-                description: card.querySelector('.item-description').value.trim(),
-                priority: parseInt(card.querySelector('.item-priority').value)
+                description: '',
+                priority: parseInt(card.querySelector('.item-priority').value),
+                assigned_to: assignedTo ? parseInt(assignedTo) : null,
+                due_days_offset: dueDays ? parseInt(dueDays) : 0
             });
         }
     });
@@ -522,57 +462,45 @@ function editChecklist(id) {
                 
                 toggleRecurringSettings();
                 
+                // 重置所有星期按钮
+                document.querySelectorAll('.recurrence-day').forEach(cb => {
+                    cb.checked = false;
+                    cb.closest('label').classList.remove('btn-primary');
+                    cb.closest('label').classList.add('btn-outline-secondary');
+                });
+
                 if (checklist.is_recurring) {
                     document.getElementById('recurrenceType').value = checklist.recurrence_type || 'weekly';
                     document.getElementById('recurrenceTime').value = checklist.recurrence_time || '09:00';
-                    
+
                     updateRecurrenceOptions();
-                    
+
                     if (checklist.recurrence_type === 'weekly' && checklist.recurrence_days) {
                         const days = checklist.recurrence_days.split(',');
                         document.querySelectorAll('.recurrence-day').forEach(cb => {
-                            cb.checked = days.includes(cb.value);
+                            if (days.includes(cb.value)) {
+                                cb.checked = true;
+                                cb.closest('label').classList.remove('btn-outline-secondary');
+                                cb.closest('label').classList.add('btn-primary');
+                            }
                         });
                     }
                 }
-                
+
                 // 加载任务项
                 const itemsContainer = document.getElementById('itemsContainer');
                 itemsContainer.innerHTML = '';
+                document.getElementById('itemsHeader').style.display = 'none';
                 itemCounter = 0;
-                
-                (checklist.items || []).forEach((item, index) => {
-                    itemCounter = index + 1;
-                    const itemHtml = `
-                        <div class="card mb-2 item-card" data-item-id="${itemCounter}">
-                            <div class="card-body">
-                                <div class="d-flex justify-content-between align-items-start mb-2">
-                                    <h6 class="mb-0">任务 #${itemCounter}</h6>
-                                    <button type="button" class="btn btn-sm btn-danger" onclick="removeItem(${itemCounter})">
-                                        <i class="fas fa-times"></i>
-                                    </button>
-                                </div>
-                                <div class="row">
-                                    <div class="col-md-8">
-                                        <div class="visa-form-group mb-2">
-                                            <input type="text" class="visa-form-control item-title" placeholder="任务标题" required value="${item.title}">
-                                        </div>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <div class="visa-form-group mb-2">
-                                            <select class="visa-form-select item-priority">
-                                                <option value="1" ${item.priority === 1 ? 'selected' : ''}>高优先级</option>
-                                                <option value="2" ${item.priority === 2 ? 'selected' : ''}>中优先级</option>
-                                                <option value="3" ${item.priority === 3 ? 'selected' : ''}>低优先级</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                </div>
-                                <textarea class="visa-form-control item-description" placeholder="任务描述（可选）" rows="2">${item.description || ''}</textarea>
-                            </div>
-                        </div>
-                    `;
-                    itemsContainer.insertAdjacentHTML('beforeend', itemHtml);
+
+                (checklist.items || []).forEach((item) => {
+                    addItem({
+                        title: item.title,
+                        description: item.description,
+                        priority: item.priority,
+                        assigned_to: item.assigned_to,
+                        due_days_offset: item.due_days_offset
+                    });
                 });
                 
                 new bootstrap.Modal(document.getElementById('checklistModal')).show();

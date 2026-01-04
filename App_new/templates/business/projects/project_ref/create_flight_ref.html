@@ -119,6 +119,8 @@
 
         <!-- Passengers -->
         <div class="form-section">
+            {% if has_invoice %}<div class="alert alert-warning py-1 mb-2" style="font-size: 12px;"><i class="fas fa-lock me-1"></i>Invoice generated. Selling prices locked.</div>{% endif %}
+            {% if eo_paid %}<div class="alert alert-info py-1 mb-2" style="font-size: 12px;"><i class="fas fa-lock me-1"></i>EO paid. Cost prices locked.</div>{% endif %}
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 2px solid #2B6CB0;">
                 <div class="section-title" style="margin-bottom: 0; padding-bottom: 0; border-bottom: none;"><i class="fas fa-users me-2"></i>Passengers</div>
                 <div style="display: flex; gap: 8px;">
@@ -238,15 +240,37 @@ window.segmentsData = [
 ];
 // 状态和支付状态字段已从表单中移除
 window.isEditMode = {{ 'true' if ref is defined and ref else 'false' }};
+window.hasInvoice = {{ 'true' if has_invoice else 'false' }};
+window.eoPaid = {{ 'true' if eo_paid else 'false' }};
 console.log('segmentsData:', window.segmentsData);
 console.log('passengersData:', window.passengersData);
 console.log('isEditMode:', window.isEditMode);
+console.log('hasInvoice:', window.hasInvoice);
+console.log('eoPaid:', window.eoPaid);
 </script>
 
 <script>
 // 获取CSRF Token函数
 function getCsrfToken() {
     return document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+}
+
+// 应用价格锁定逻辑
+function applyPriceLock() {
+    // 锁定 Selling Price（如果有发票）
+    if (window.hasInvoice) {
+        document.querySelectorAll('.selling-price-input').forEach(function(input) {
+            input.readOnly = true;
+            input.style.backgroundColor = '#e9ecef';
+        });
+    }
+    // 锁定 Cost Price（如果 EO 已付款）
+    if (window.eoPaid) {
+        document.querySelectorAll('.cost-price-input').forEach(function(input) {
+            input.readOnly = true;
+            input.style.backgroundColor = '#e9ecef';
+        });
+    }
 }
 
 // 等待所有必要的脚本加载完成
@@ -261,6 +285,9 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function initializePage() {
+        // 应用价格锁定逻辑
+        applyPriceLock();
+
         // Select2配置对象
         window.select2Config = {
             placeholder: '请输入机场代码、城市名或机场名',
@@ -443,14 +470,19 @@ function loadExistingData() {
     }
     
     console.log('数据加载完成');
-    
+
     // 加载数据后更新描述
     updateFlightDescription();
-    
+
     // 加载乘客数据后重新初始化leader_name
     setTimeout(function() {
         initializeLeaderNameForEdit();
     }, 100);
+
+    // 乘客加载完成后应用价格锁定
+    setTimeout(function() {
+        applyPriceLock();
+    }, 200);
 }
 
 // 添加带数据的乘客
@@ -472,13 +504,13 @@ function addPassengerWithData(data) {
             <div class="passenger-field-inline col-price">
                 <div class="input-with-currency-sm">
                     <span class="currency-label-sm">SGD</span>
-                    <input type="number" step="0.01" class="order-input selling-price-input" name="selling_price[]" value="${data.selling_price}" required oninput="updatePriceSummary()">
+                    <input type="number" step="0.01" class="order-input selling-price-input" name="selling_price[]" value="${data.selling_price}" required oninput="updatePriceSummary()" ${window.hasInvoice ? 'readonly' : ''}>
                 </div>
             </div>
             <div class="passenger-field-inline col-price">
                 <div class="input-with-currency-sm">
                     <span class="currency-label-sm">SGD</span>
-                    <input type="number" step="0.01" class="order-input cost-price-input" name="cost_price[]" value="${data.cost_price || 0}" oninput="updatePriceSummary()">
+                    <input type="number" step="0.01" class="order-input cost-price-input" name="cost_price[]" value="${data.cost_price || 0}" oninput="updatePriceSummary()" ${window.eoPaid ? 'readonly' : ''}>
                 </div>
             </div>
             <div class="passenger-field-inline col-ticket">
@@ -504,6 +536,9 @@ function addPassengerWithData(data) {
 
     // 更新价格汇总
     updatePriceSummary();
+
+    // 应用价格锁定
+    applyPriceLock();
 }
 
 // 添加带数据的航段
@@ -757,13 +792,13 @@ function addPassenger() {
             <div class="passenger-field-inline col-price">
                 <div class="input-with-currency-sm">
                     <span class="currency-label-sm">SGD</span>
-                    <input type="number" step="0.01" class="order-input selling-price-input" name="selling_price[]" value="0" required oninput="updatePriceSummary()">
+                    <input type="number" step="0.01" class="order-input selling-price-input" name="selling_price[]" value="0" required oninput="updatePriceSummary()" ${window.hasInvoice ? 'readonly' : ''}>
                 </div>
             </div>
             <div class="passenger-field-inline col-price">
                 <div class="input-with-currency-sm">
                     <span class="currency-label-sm">SGD</span>
-                    <input type="number" step="0.01" class="order-input cost-price-input" name="cost_price[]" value="0" oninput="updatePriceSummary()">
+                    <input type="number" step="0.01" class="order-input cost-price-input" name="cost_price[]" value="0" oninput="updatePriceSummary()" ${window.eoPaid ? 'readonly' : ''}>
                 </div>
             </div>
             <div class="passenger-field-inline col-ticket">
@@ -783,6 +818,8 @@ function addPassenger() {
     $('#passengersContainer').append(template);
     updatePriceSummary();
     updatePassengerNumbers();
+    // 应用价格锁定
+    applyPriceLock();
 }
 
 // 更新乘客编号
@@ -858,6 +895,8 @@ function copyLastPassenger() {
     newPassenger.find('.cost-price-input').val(lastCostPrice);
 
     updatePriceSummary();
+    // 应用价格锁定
+    applyPriceLock();
     newPassenger.find('.passenger-name-input').focus();
 }
 

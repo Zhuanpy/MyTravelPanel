@@ -703,7 +703,42 @@ def create_project_links(project_id):
             
             # 准备签证相关的额外信息（与签证REF页面结构兼容）
             country_name = types_info.country.country_name_CN if types_info and types_info.country else '未知'
-            visa_name = f"{country_name} {project.visa_type}"
+            country_name_en = types_info.country.country_name_EN if types_info and types_info.country else ''
+            country_code = types_info.country.country_code if types_info and types_info.country else ''
+
+            # 将国家转换为 create_visa_ref.html 期望的代码格式
+            country_code_map = {
+                'CN': 'CHINA', 'CHN': 'CHINA', 'CHINA': 'CHINA',
+                'IN': 'INDIA', 'IND': 'INDIA', 'INDIA': 'INDIA',
+                'VN': 'VIETNAM', 'VNM': 'VIETNAM', 'VIETNAM': 'VIETNAM',
+                'TH': 'THAILAND', 'THA': 'THAILAND', 'THAILAND': 'THAILAND',
+                'JP': 'JAPAN', 'JPN': 'JAPAN', 'JAPAN': 'JAPAN',
+                'KR': 'KOREA', 'KOR': 'KOREA', 'KOREA': 'KOREA',
+                'AU': 'AUSTRALIA', 'AUS': 'AUSTRALIA', 'AUSTRALIA': 'AUSTRALIA',
+                'US': 'USA', 'USA': 'USA', 'UNITED STATES': 'USA',
+                'GB': 'UK', 'GBR': 'UK', 'UK': 'UK', 'UNITED KINGDOM': 'UK',
+                'MY': 'MALAYSIA', 'MYS': 'MALAYSIA', 'MALAYSIA': 'MALAYSIA',
+                'ID': 'INDONESIA', 'IDN': 'INDONESIA', 'INDONESIA': 'INDONESIA',
+                'PH': 'PHILIPPINES', 'PHL': 'PHILIPPINES', 'PHILIPPINES': 'PHILIPPINES',
+            }
+            # 优先使用 country_code，其次使用英文名
+            country_for_ref = country_code_map.get(country_code.upper(),
+                             country_code_map.get(country_name_en.upper(), 'OTHER')) if country_code or country_name_en else 'OTHER'
+
+            # 将签证类型转换为 create_visa_ref.html 期望的代码格式
+            visa_type_map = {
+                '旅游签证': 'TOURIST', '旅游': 'TOURIST', 'TOURIST': 'TOURIST',
+                '商务签证': 'BUSINESS', '商务': 'BUSINESS', 'BUSINESS': 'BUSINESS',
+                '工作签证': 'WORK', '工作': 'WORK', 'WORK': 'WORK',
+                '学生签证': 'STUDENT', '留学签证': 'STUDENT', '学生': 'STUDENT', 'STUDENT': 'STUDENT',
+                '过境签证': 'TRANSIT', '过境': 'TRANSIT', 'TRANSIT': 'TRANSIT',
+                '多次入境': 'MULTIPLE', '多次签证': 'MULTIPLE', 'MULTIPLE': 'MULTIPLE',
+            }
+            visa_type_for_ref = visa_type_map.get(project.visa_type, 'TOURIST') if project.visa_type else 'TOURIST'
+
+            # 生成中文和英文版的签证名称
+            visa_name = f"{country_name} {project.visa_type}"  # 中文版保留兼容
+            visa_name_en = f"{country_for_ref} {visa_type_for_ref} VISA"  # 英文版用于 description
             
             # 解析申请费用，提取数字部分
             selling_price = 0
@@ -733,10 +768,11 @@ def create_project_links(project_id):
                 member_id = leader_member.id if leader_member else None
             
             visa_extra_info = {
-                # 新版签证REF页面字段
+                # 新版签证REF页面字段（使用转换后的英文代码）
                 'visa_name': visa_name,
-                'country': country_name,
-                'visa_type': project.visa_type,
+                'country': country_for_ref,  # 使用英文代码: CHINA, INDIA 等
+                'visa_type': visa_type_for_ref,  # 使用英文代码: TOURIST, BUSINESS 等
+                'processing_type': 'NORMAL',  # 默认普通处理
                 'pax_names': pax_names_list,
                 'leader_id': member_id,
                 'departure_date': '',
@@ -771,9 +807,9 @@ def create_project_links(project_id):
             ref = ProjectRef(
                 header_id=header.id if header else project.header_id,
                 ref_number=ref_number,
-                description=visa_name,  # 使用统一的visa_name格式
+                description=visa_name_en,  # 使用英文格式: CHINA TOURIST VISA
                 ref_type_id=visa_business_type.id,
-                detailed_description=visa_name,
+                detailed_description=visa_name_en,  # 使用英文格式
                 selling_price=selling_price,  # 使用申请费用作为售价
                 cost_price=0,
                 currency='SGD',

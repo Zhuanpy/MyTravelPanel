@@ -89,7 +89,9 @@ def create_checklist():
                 title=item_data.get('title'),
                 description=item_data.get('description'),
                 priority=item_data.get('priority', 2),
-                order_index=index
+                order_index=index,
+                assigned_to=item_data.get('assigned_to'),
+                due_days_offset=item_data.get('due_days_offset', 0)
             )
             db.session.add(item)
         
@@ -149,7 +151,9 @@ def update_checklist():
                     title=item_data.get('title'),
                     description=item_data.get('description'),
                     priority=item_data.get('priority', 2),
-                    order_index=index
+                    order_index=index,
+                    assigned_to=item_data.get('assigned_to'),
+                    due_days_offset=item_data.get('due_days_offset', 0)
                 )
                 db.session.add(item)
         
@@ -207,48 +211,75 @@ def generate_todos():
     try:
         data = request.get_json()
         checklist_id = data.get('checklist_id')
-        due_date_str = data.get('due_date')  # 可选的截止日期
-        
+        due_date_str = data.get('due_date')  # 可选的基准截止日期
+
         checklist = TodoChecklist.query.get_or_404(checklist_id)
-        
+
         # 检查权限
         if checklist.user_id != current_user.id:
             return jsonify({
                 'success': False,
                 'message': '无权使用该清单'
             }), 403
-        
-        # 解析截止日期
-        due_date = None
+
+        # 解析基准截止日期，如果没有指定则使用当前时间
+        base_date = datetime.now()
         if due_date_str:
             try:
-                due_date = datetime.fromisoformat(due_date_str.replace('Z', '+00:00'))
+                base_date = datetime.fromisoformat(due_date_str.replace('Z', '+00:00'))
             except:
                 pass
-        
+
         # 生成待办事项
         generated_count = 0
+        assigned_users = set()
+
         for item in checklist.items.order_by(TodoChecklistItem.order_index).all():
+            # 计算截止日期：基准日期 + 偏移天数
+            item_due_date = None
+            if item.due_days_offset:
+                item_due_date = base_date + timedelta(days=item.due_days_offset)
+            elif checklist.default_due_days:
+                item_due_date = base_date + timedelta(days=checklist.default_due_days)
+
+            # 确定分配给谁
+            assigned_to = item.assigned_to
+            assigned_by = current_user.id if assigned_to else None
+            assigned_at = datetime.utcnow() if assigned_to else None
+
+            if assigned_to:
+                assigned_users.add(item.assignee.username if item.assignee else str(assigned_to))
+
             todo = Todo(
                 title=item.title,
                 description=item.description,
                 priority=item.priority,
                 category=checklist.category,
-                due_date=due_date,
+                due_date=item_due_date,
                 user_id=current_user.id,
-                is_completed=False
+                is_completed=False,
+                assigned_to=assigned_to,
+                assigned_by=assigned_by,
+                assigned_at=assigned_at,
+                source_type='checklist',
+                source_id=checklist.id
             )
             db.session.add(todo)
             generated_count += 1
-        
+
         # 更新最后生成时间
         checklist.last_generated_at = datetime.utcnow()
-        
+
         db.session.commit()
-        
+
+        # 构建返回消息
+        message = f'成功生成 {generated_count} 个待办事项'
+        if assigned_users:
+            message += f'，已分配给: {", ".join(assigned_users)}'
+
         return jsonify({
             'success': True,
-            'message': f'成功生成 {generated_count} 个待办事项',
+            'message': message,
             'count': generated_count
         })
     except Exception as e:

@@ -330,6 +330,16 @@
             <h5 class="section-title">
                 <i class="fas fa-dollar-sign me-2"></i>价格与供应商信息
             </h5>
+            {% if has_invoice %}
+            <div class="alert alert-warning py-2 mb-3" style="font-size: 13px;">
+                <i class="fas fa-lock me-1"></i>Invoice generated. Selling prices locked.
+            </div>
+            {% endif %}
+            {% if eo_paid %}
+            <div class="alert alert-info py-2 mb-3" style="font-size: 13px;">
+                <i class="fas fa-lock me-1"></i>EO paid. Cost prices locked.
+            </div>
+            {% endif %}
             <div class="row">
                 <div class="col-md-4">
                     <div class="mb-3">
@@ -501,7 +511,7 @@
 document.addEventListener('DOMContentLoaded', function() {
     const descriptionField = document.getElementById('ref_description');
     const detailedDescriptionField = document.getElementById('ref_detailed_description');
-    
+
     if (descriptionField && detailedDescriptionField) {
         // 描述字段改变时，自动同步到详细描述
         descriptionField.addEventListener('input', function() {
@@ -510,6 +520,23 @@ document.addEventListener('DOMContentLoaded', function() {
         // 页面加载时同步
         detailedDescriptionField.value = descriptionField.value;
     }
+
+    // 价格锁定逻辑
+    {% if has_invoice %}
+    const sellingPriceField = document.getElementById('selling_price');
+    if (sellingPriceField) {
+        sellingPriceField.readOnly = true;
+        sellingPriceField.style.backgroundColor = '#e9ecef';
+    }
+    {% endif %}
+
+    {% if eo_paid %}
+    const costPriceField = document.getElementById('cost_price');
+    if (costPriceField) {
+        costPriceField.readOnly = true;
+        costPriceField.style.backgroundColor = '#e9ecef';
+    }
+    {% endif %}
 });
 </script>
 {% endblock %} 

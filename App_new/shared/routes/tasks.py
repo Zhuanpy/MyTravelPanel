@@ -91,9 +91,18 @@ def list_todos():
         assigned_by_me = request.args.get('assigned_by_me', '')
         source_type = request.args.get('source_type', '')
         created_by_me = request.args.get('created_by_me', '')
-        
-        # 我的任务筛选（显示分配给当前用户的任务）
-        if assigned_to_me == 'true':
+        my_tasks = request.args.get('my_tasks', '')
+
+        # 我的任务筛选（显示分配给我的 + 我创建的未分配任务）
+        if my_tasks == 'true':
+            from sqlalchemy import or_
+            query = query.filter(
+                or_(
+                    Todo.assigned_to == current_user.id,  # 分配给我的
+                    (Todo.user_id == current_user.id) & (Todo.assigned_to.is_(None))  # 我创建的且未分配的
+                )
+            )
+        elif assigned_to_me == 'true':
             query = query.filter(Todo.assigned_to == current_user.id)
         elif assigned_to:
             # 指定用户的任务
@@ -279,21 +288,40 @@ def update_todo():
         is_completed = data.get('is_completed', False)
         completed_by = None
         completed_at = None
-        
-        # 如果任务状态从未完成变为已完成，记录完成者
+        is_on_time = None
+        delay_days = 0
+
+        # 如果任务状态从未完成变为已完成，记录完成者并计算准时性
         if is_completed and not todo_old.is_completed:
             # 任务被标记为完成，记录完成者
             # 优先使用被分配者，如果没有分配则使用当前用户
             completed_by = assigned_to if assigned_to else current_user.id
             completed_at = datetime.utcnow()
+
+            # 计算准时性
+            if due_date:
+                if completed_at <= due_date:
+                    is_on_time = True
+                    delay_days = (completed_at - due_date).days  # 负数表示提前
+                else:
+                    is_on_time = False
+                    delay_days = (completed_at - due_date).days
+            else:
+                # 没有截止日期，默认为准时
+                is_on_time = True
+                delay_days = 0
         elif not is_completed and todo_old.is_completed:
-            # 任务从已完成变为未完成，清除完成记录
+            # 任务从已完成变为未完成，清除完成记录和准时性
             completed_by = None
             completed_at = None
+            is_on_time = None
+            delay_days = 0
         elif is_completed and todo_old.is_completed:
-            # 保持已完成状态，保留原有完成记录
+            # 保持已完成状态，保留原有完成记录和准时性
             completed_by = todo_old.completed_by
             completed_at = todo_old.completed_at
+            is_on_time = todo_old.is_on_time if hasattr(todo_old, 'is_on_time') else None
+            delay_days = todo_old.delay_days if hasattr(todo_old, 'delay_days') else 0
         
         update_payload = {
             'title': data.get('title'),
@@ -312,7 +340,9 @@ def update_todo():
             'assigned_by': assigned_by,
             'assigned_at': assigned_at,
             'completed_by': completed_by,
-            'completed_at': completed_at
+            'completed_at': completed_at,
+            'is_on_time': is_on_time,
+            'delay_days': delay_days
         }
 
         if reset_email_status:
@@ -521,11 +551,11 @@ def assign_todo():
         data = request.get_json()
         todo_id = data.get('todo_id')
         assigned_to_id = data.get('assigned_to')
-        
-        if not todo_id or not assigned_to_id:
+
+        if not todo_id:
             return jsonify({
                 'success': False,
-                'message': '缺少必要参数'
+                'message': '缺少任务ID'
             }), 400
         
         # 检查权限：只有2级员工或管理员可以分配任务
@@ -549,6 +579,19 @@ def assign_todo():
                 'message': '任务不存在'
             }), 404
         
+        # 如果 assigned_to_id 为空或 None，则取消分配
+        if not assigned_to_id:
+            todo.assigned_to = None
+            todo.assigned_by = None
+            todo.assigned_at = None
+            db.session.commit()
+
+            return jsonify({
+                'success': True,
+                'message': '任务分配已取消',
+                'todo': todo.to_dict()
+            })
+
         # 验证被分配用户是否存在
         from App_new.auth.models.auth import AuthUser
         assignee = AuthUser.query.get(assigned_to_id)
@@ -557,13 +600,13 @@ def assign_todo():
                 'success': False,
                 'message': '被分配用户不存在'
             }), 404
-        
+
         # 更新任务分配信息
         todo.assigned_to = assigned_to_id
         todo.assigned_by = current_user.id
         todo.assigned_at = datetime.utcnow()
         db.session.commit()
-        
+
         return jsonify({
             'success': True,
             'message': f'任务已分配给 {assignee.username}',
@@ -587,19 +630,47 @@ def assign_todo():
 def todo_statistics():
     """获取任务统计信息"""
     try:
-        from App_new.auth.models.auth import AuthUser
-        from sqlalchemy import func
-        
+        from App_new.auth.models.auth import AuthUser, Role
+        from sqlalchemy import func, or_, and_
+
+        # 获取日期范围参数
+        start_date_str = request.args.get('start_date')
+        end_date_str = request.args.get('end_date')
+
+        start_date = None
+        end_date = None
+        if start_date_str:
+            try:
+                start_date = datetime.strptime(start_date_str, '%Y-%m-%d')
+            except:
+                pass
+        if end_date_str:
+            try:
+                end_date = datetime.strptime(end_date_str, '%Y-%m-%d')
+                # 结束日期包含当天
+                end_date = end_date.replace(hour=23, minute=59, second=59)
+            except:
+                pass
+
+        # 构建基础查询（应用日期过滤）
+        def apply_date_filter(query):
+            if start_date:
+                query = query.filter(Todo.created_at >= start_date)
+            if end_date:
+                query = query.filter(Todo.created_at <= end_date)
+            return query
+
         # 基础统计
-        total_todos = Todo.query.count()
-        pending_todos = Todo.query.filter_by(is_completed=False).count()
-        completed_todos = Todo.query.filter_by(is_completed=True).count()
-        
+        base_query = apply_date_filter(Todo.query)
+        total_todos = base_query.count()
+        pending_todos = apply_date_filter(Todo.query.filter_by(is_completed=False)).count()
+        completed_todos = apply_date_filter(Todo.query.filter_by(is_completed=True)).count()
+
         # 已逾期任务
-        overdue_todos = Todo.query.filter(
+        overdue_todos = apply_date_filter(Todo.query.filter(
             Todo.due_date < datetime.utcnow(),
             Todo.is_completed == False
-        ).count()
+        )).count()
         
         # 根据员工等级过滤统计
         base_query = Todo.query
@@ -614,59 +685,96 @@ def todo_statistics():
                     (Todo.assigned_to == current_user.id) | (Todo.user_id == current_user.id)
                 )
         
-        # 按员工统计任务量（只统计待处理任务）
-        staff_stats = db.session.query(
-            AuthUser.username,
-            func.count(Todo.id).label('task_count')
-        ).join(
-            Todo, AuthUser.id == Todo.assigned_to
-        ).filter(
-            Todo.is_completed == False
-        )
+        # 按员工统计任务量（统计待处理任务：分配给该员工的 + 该员工创建但未分配的）
+        # 获取所有员工
+        staff_role = Role.query.filter_by(name='staff').first()
+        admin_role = Role.query.filter_by(name='admin').first()
+        role_ids = []
+        if staff_role:
+            role_ids.append(staff_role.id)
+        if admin_role:
+            role_ids.append(admin_role.id)
+
+        all_staff = AuthUser.query.filter(AuthUser.role_id.in_(role_ids)).all() if role_ids else []
+
+        staff_task_counts = {}
+        for staff in all_staff:
+            # 统计分配给该员工的任务 + 该员工创建但未分配的任务
+            staff_query = Todo.query.filter(
+                Todo.is_completed == False,
+                or_(
+                    Todo.assigned_to == staff.id,
+                    and_(Todo.user_id == staff.id, Todo.assigned_to.is_(None))
+                )
+            )
+            staff_query = apply_date_filter(staff_query)
+            count = staff_query.count()
+            if count > 0:
+                display_name = staff.profile.get_full_name() if staff.profile else staff.username
+                display_name = display_name or staff.username
+                staff_task_counts[display_name] = count
+
+        # 应用权限过滤（1级员工只能看到自己的统计）
+        if current_user.role and current_user.role.name == 'staff':
+            staff_level = 1
+            if current_user.profile:
+                staff_level = current_user.profile.staff_level or 1
+
+            if staff_level == 1:
+                my_display_name = current_user.profile.get_full_name() if current_user.profile else current_user.username
+                my_display_name = my_display_name or current_user.username
+                staff_task_counts = {k: v for k, v in staff_task_counts.items() if k == my_display_name}
         
+        # 按分类统计
+        category_query = Todo.query.filter(Todo.is_completed == False)
+        if start_date:
+            category_query = category_query.filter(Todo.created_at >= start_date)
+        if end_date:
+            category_query = category_query.filter(Todo.created_at <= end_date)
+
         # 应用权限过滤
         if current_user.role and current_user.role.name == 'staff':
             staff_level = 1
             if current_user.profile:
                 staff_level = current_user.profile.staff_level or 1
-            
+
             if staff_level == 1:
-                # 1级员工只能看到自己的统计
-                staff_stats = staff_stats.filter(Todo.assigned_to == current_user.id)
-        
-        staff_stats = staff_stats.group_by(
-            AuthUser.id, AuthUser.username
-        ).all()
-        
-        staff_task_counts = {username: count for username, count in staff_stats}
-        
-        # 按分类统计
+                category_query = category_query.filter(
+                    (Todo.assigned_to == current_user.id) | (Todo.user_id == current_user.id)
+                )
+
         category_stats = db.session.query(
             Todo.category,
             func.count(Todo.id).label('count')
-        ).filter(
-            Todo.is_completed == False
-        )
-        
-        # 应用权限过滤
-        if current_user.role and current_user.role.name == 'staff':
-            staff_level = 1
-            if current_user.profile:
-                staff_level = current_user.profile.staff_level or 1
-            
-            if staff_level == 1:
-                category_stats = category_stats.filter(
-                    (Todo.assigned_to == current_user.id) | (Todo.user_id == current_user.id)
-                )
-        
-        category_stats = category_stats.group_by(Todo.category).all()
+        ).filter(Todo.id.in_([t.id for t in category_query.all()])).group_by(Todo.category).all()
         category_counts = {category or '未分类': count for category, count in category_stats}
-        
+
         # 我的任务统计
-        my_tasks = Todo.query.filter_by(assigned_to=current_user.id, is_completed=False).count()
-        my_completed = Todo.query.filter_by(assigned_to=current_user.id, is_completed=True).count()
-        my_created = Todo.query.filter_by(user_id=current_user.id, is_completed=False).count()
-        
+        my_tasks_query = Todo.query.filter_by(assigned_to=current_user.id, is_completed=False)
+        my_completed_query = Todo.query.filter_by(assigned_to=current_user.id, is_completed=True)
+        my_created_query = Todo.query.filter_by(user_id=current_user.id, is_completed=False)
+        my_tasks = apply_date_filter(my_tasks_query).count()
+        my_completed = apply_date_filter(my_completed_query).count()
+        my_created = apply_date_filter(my_created_query).count()
+
+        # 计算准时完成率
+        on_time_rate = 0
+        try:
+            # 查询已完成且有 is_on_time 字段的任务
+            timeliness_query = Todo.query.filter(
+                Todo.is_completed == True,
+                Todo.is_on_time.isnot(None)
+            )
+            timeliness_query = apply_date_filter(timeliness_query)
+            completed_with_timeliness = timeliness_query.all()
+
+            if completed_with_timeliness:
+                on_time_count = sum(1 for t in completed_with_timeliness if t.is_on_time)
+                on_time_rate = round(on_time_count / len(completed_with_timeliness) * 100)
+        except Exception as e:
+            current_app.logger.error(f'计算准时率失败: {str(e)}')
+            on_time_rate = 0
+
         return jsonify({
             'success': True,
             'statistics': {
@@ -678,7 +786,8 @@ def todo_statistics():
                 'my_completed': my_completed,
                 'my_created': my_created,
                 'staff_task_counts': staff_task_counts,
-                'category_counts': category_counts
+                'category_counts': category_counts,
+                'on_time_rate': on_time_rate
             }
         })
         
