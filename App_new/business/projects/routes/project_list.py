@@ -295,11 +295,44 @@ def list_projects():
                     db.func.sum(ProjectRef.cost_price).label('total_cost')
                 ).filter(ProjectRef.header_id.in_(project_ids)).group_by(ProjectRef.header_id).all()
                 
-                # 批量查询收款数据
-                receipts_data = db.session.query(
+                # 批量查询收款数据 - 需要区分普通收款和按公司收款
+                # 1. 普通收款（ref_id不为空 或 extra_info中有distribution）
+                regular_receipts = db.session.query(
                     ProjectReceipt.header_id,
                     db.func.sum(ProjectReceipt.amount).label('total_received')
-                ).filter(ProjectReceipt.header_id.in_(project_ids)).group_by(ProjectReceipt.header_id).all()
+                ).filter(
+                    ProjectReceipt.header_id.in_(project_ids),
+                    ProjectReceipt.status == 'confirmed',
+                    db.or_(
+                        ProjectReceipt.ref_id.isnot(None),
+                        ProjectReceipt.extra_info.like('%"distribution"%')
+                    )
+                ).group_by(ProjectReceipt.header_id).all()
+
+                # 2. 按公司收款 - 从分配表获取每个项目的实际分配金额
+                from App_new.business.projects.models.receipt import ReceiptInvoiceAllocation
+                from App_new.business.projects.models.invoice import ProjectInvoice
+                invoice_allocated = db.session.query(
+                    ProjectInvoice.header_id,
+                    db.func.sum(ReceiptInvoiceAllocation.allocated_amount).label('total_allocated')
+                ).join(
+                    ReceiptInvoiceAllocation, ReceiptInvoiceAllocation.invoice_id == ProjectInvoice.id
+                ).join(
+                    ProjectReceipt, ReceiptInvoiceAllocation.receipt_id == ProjectReceipt.id
+                ).filter(
+                    ProjectInvoice.header_id.in_(project_ids),
+                    ProjectReceipt.status == 'confirmed'
+                ).group_by(ProjectInvoice.header_id).all()
+
+                # 合并两种收款方式的数据
+                receipts_data = {}
+                for r in regular_receipts:
+                    receipts_data[r.header_id] = float(r.total_received or 0)
+                for a in invoice_allocated:
+                    if a.header_id in receipts_data:
+                        receipts_data[a.header_id] += float(a.total_allocated or 0)
+                    else:
+                        receipts_data[a.header_id] = float(a.total_allocated or 0)
                 
                 # 检查项目是否有EO或receipt
                 from App_new.business.projects.models.eo import ProjectEO
@@ -320,18 +353,17 @@ def list_projects():
                 # 构建统计字典
                 for project_id in project_ids:
                     ref_info = next((r for r in refs_data if r.header_id == project_id), None)
-                    receipt_info = next((r for r in receipts_data if r.header_id == project_id), None)
-                    
+
                     # 检查是否有EO
                     has_eo = any(eo.header_id == project_id for eo in eo_check)
                     # 检查是否有receipt
                     has_receipt = any(rcpt.header_id == project_id for rcpt in receipt_check)
-                    
+
                     # 安全地获取数值，避免字段访问错误
                     total_selling = 0
                     total_cost = 0
                     total_received = 0
-                    
+
                     if ref_info:
                         try:
                             total_selling = float(ref_info.total_selling or 0)
@@ -340,14 +372,10 @@ def list_projects():
                             print(f"获取项目 {project_id} 价格信息时出错: {e}")
                             total_selling = 0
                             total_cost = 0
-                    
-                    if receipt_info:
-                        try:
-                            total_received = float(receipt_info.total_received or 0)
-                        except (AttributeError, TypeError, ValueError) as e:
-                            print(f"获取项目 {project_id} 收款信息时出错: {e}")
-                            total_received = 0
-                    
+
+                    # 从字典获取收款金额
+                    total_received = receipts_data.get(project_id, 0)
+
                     project_stats[project_id] = {
                         'total_selling_price': total_selling,
                         'total_cost_price': total_cost,
@@ -486,15 +514,46 @@ def list_projects():
                         db.func.sum(ProjectRef.cost_price).label('total_cost')
                     ).filter(ProjectRef.header_id.in_(project_ids)).group_by(ProjectRef.header_id).all()
                     
-                    # 批量查询收款数据
-                    receipts_data = db.session.query(
+                    # 批量查询收款数据 - 需要区分普通收款和按公司收款
+                    # 1. 普通收款
+                    regular_receipts = db.session.query(
                         ProjectReceipt.header_id,
                         db.func.sum(ProjectReceipt.amount).label('total_received')
-                    ).filter(ProjectReceipt.header_id.in_(project_ids)).group_by(ProjectReceipt.header_id).all()
-                    
+                    ).filter(
+                        ProjectReceipt.header_id.in_(project_ids),
+                        ProjectReceipt.status == 'confirmed',
+                        db.or_(
+                            ProjectReceipt.ref_id.isnot(None),
+                            ProjectReceipt.extra_info.like('%"distribution"%')
+                        )
+                    ).group_by(ProjectReceipt.header_id).all()
+
+                    # 2. 按公司收款 - 从分配表获取
+                    invoice_allocated = db.session.query(
+                        ProjectInvoice.header_id,
+                        db.func.sum(ReceiptInvoiceAllocation.allocated_amount).label('total_allocated')
+                    ).join(
+                        ReceiptInvoiceAllocation, ReceiptInvoiceAllocation.invoice_id == ProjectInvoice.id
+                    ).join(
+                        ProjectReceipt, ReceiptInvoiceAllocation.receipt_id == ProjectReceipt.id
+                    ).filter(
+                        ProjectInvoice.header_id.in_(project_ids),
+                        ProjectReceipt.status == 'confirmed'
+                    ).group_by(ProjectInvoice.header_id).all()
+
+                    # 合并数据
+                    receipts_data = {}
+                    for r in regular_receipts:
+                        receipts_data[r.header_id] = float(r.total_received or 0)
+                    for a in invoice_allocated:
+                        if a.header_id in receipts_data:
+                            receipts_data[a.header_id] += float(a.total_allocated or 0)
+                        else:
+                            receipts_data[a.header_id] = float(a.total_allocated or 0)
+
                     # 检查项目是否有EO或receipt
                     from App_new.business.projects.models.eo import ProjectEO
-                    
+
                     # 检查EO
                     eo_check = db.session.query(
                         ProjectEO.ref_id,
@@ -502,27 +561,25 @@ def list_projects():
                     ).join(ProjectRef, ProjectEO.ref_id == ProjectRef.id).filter(
                         ProjectRef.header_id.in_(project_ids)
                     ).distinct().all()
-                    
+
                     # 检查receipt
                     receipt_check = db.session.query(
                         ProjectReceipt.header_id
                     ).filter(ProjectReceipt.header_id.in_(project_ids)).distinct().all()
-                    
+
                     # 更新统计字典
                     for project_id in project_ids:
                         ref_info = next((r for r in refs_data if r.header_id == project_id), None)
-                        receipt_info = next((r for r in receipts_data if r.header_id == project_id), None)
-                        
+
                         # 检查是否有EO
                         has_eo = any(eo.header_id == project_id for eo in eo_check)
                         # 检查是否有receipt
                         has_receipt = any(rcpt.header_id == project_id for rcpt in receipt_check)
-                        
+
                         # 安全地获取数值
                         total_selling = 0
                         total_cost = 0
-                        total_received = 0
-                        
+
                         if ref_info:
                             try:
                                 total_selling = float(ref_info.total_selling or 0)
@@ -531,14 +588,10 @@ def list_projects():
                                 print(f"获取筛选后项目 {project_id} 价格信息时出错: {e}")
                                 total_selling = 0
                                 total_cost = 0
-                        
-                        if receipt_info:
-                            try:
-                                total_received = float(receipt_info.total_received or 0)
-                            except (AttributeError, TypeError, ValueError) as e:
-                                print(f"获取筛选后项目 {project_id} 收款信息时出错: {e}")
-                                total_received = 0
-                        
+
+                        # 从字典获取收款金额
+                        total_received = receipts_data.get(project_id, 0)
+
                         # 更新现有的统计数据
                         if project_id in project_stats:
                             project_stats[project_id].update({
@@ -830,19 +883,53 @@ def export_excel():
                 db.func.sum(ProjectRef.cost_price).label('total_cost')
             ).filter(ProjectRef.header_id.in_(project_ids)).group_by(ProjectRef.header_id).all()
             
-            receipts_data = db.session.query(
+            # 批量查询收款数据 - 区分普通收款和按公司收款
+            from App_new.business.projects.models.receipt import ReceiptInvoiceAllocation
+            from App_new.business.projects.models.invoice import ProjectInvoice
+
+            # 1. 普通收款
+            regular_receipts = db.session.query(
                 ProjectReceipt.header_id,
                 db.func.sum(ProjectReceipt.amount).label('total_received')
-            ).filter(ProjectReceipt.header_id.in_(project_ids)).group_by(ProjectReceipt.header_id).all()
-            
+            ).filter(
+                ProjectReceipt.header_id.in_(project_ids),
+                ProjectReceipt.status == 'confirmed',
+                db.or_(
+                    ProjectReceipt.ref_id.isnot(None),
+                    ProjectReceipt.extra_info.like('%"distribution"%')
+                )
+            ).group_by(ProjectReceipt.header_id).all()
+
+            # 2. 按公司收款 - 从分配表获取
+            invoice_allocated = db.session.query(
+                ProjectInvoice.header_id,
+                db.func.sum(ReceiptInvoiceAllocation.allocated_amount).label('total_allocated')
+            ).join(
+                ReceiptInvoiceAllocation, ReceiptInvoiceAllocation.invoice_id == ProjectInvoice.id
+            ).join(
+                ProjectReceipt, ReceiptInvoiceAllocation.receipt_id == ProjectReceipt.id
+            ).filter(
+                ProjectInvoice.header_id.in_(project_ids),
+                ProjectReceipt.status == 'confirmed'
+            ).group_by(ProjectInvoice.header_id).all()
+
+            # 合并数据
+            receipts_data = {}
+            for r in regular_receipts:
+                receipts_data[r.header_id] = float(r.total_received or 0)
+            for a in invoice_allocated:
+                if a.header_id in receipts_data:
+                    receipts_data[a.header_id] += float(a.total_allocated or 0)
+                else:
+                    receipts_data[a.header_id] = float(a.total_allocated or 0)
+
             for project_id in project_ids:
                 ref_info = next((r for r in refs_data if r.header_id == project_id), None)
-                receipt_info = next((r for r in receipts_data if r.header_id == project_id), None)
-                
+
                 total_selling = float(ref_info.total_selling or 0) if ref_info else 0
                 total_cost = float(ref_info.total_cost or 0) if ref_info else 0
-                total_received = float(receipt_info.total_received or 0) if receipt_info else 0
-                
+                total_received = receipts_data.get(project_id, 0)
+
                 project_stats[project_id] = {
                     'total_selling_price': total_selling,
                     'total_cost_price': total_cost,

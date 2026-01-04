@@ -1,405 +1,277 @@
 {% extends "shared/staff_base.html" %}
 
-{% block title %}{{ 'Edit Hotel REF' if ref else 'Create Hotel REF' }} - MyTravelPanel{% endblock %}
-
-{% block page_title %}{{ 'Edit Hotel REF' if ref else 'Create Hotel REF' }}{% endblock %}
+{% block title %}{% if ref and not is_create %}Edit Hotel REF{% else %}New Hotel REF{% endif %}{% endblock %}
+{% block page_title %}{% if ref and not is_create %}Edit Hotel REF{% else %}Create Hotel REF{% endif %}{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/flight_order_common.css') }}?v=5.3&t=20260103">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/flight_order_common.css') }}">
 <style>
-    .nights-badge {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        padding: 4px 12px;
-        border-radius: 20px;
-        font-size: 0.85rem;
-        font-weight: 600;
-    }
-    .pax-table {
-        font-size: 0.85rem;
-    }
-    .pax-table th, .pax-table td {
-        padding: 6px 10px;
-        vertical-align: middle;
-    }
-    .pax-table .form-check-input {
-        margin: 0;
-    }
-    .leader-btn {
-        padding: 2px 8px;
-        font-size: 0.75rem;
-    }
-    .meal-plan-select {
-        min-width: 100px;
-    }
+    .summary-bar { background: linear-gradient(135deg, #2B6CB0 0%, #4299E1 100%); color: white; padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; }
+    .summary-item { text-align: center; padding: 0 12px; border-right: 1px solid rgba(255,255,255,0.3); }
+    .summary-item:last-child { border-right: none; }
+    .summary-label { font-size: 11px; opacity: 0.9; margin-bottom: 2px; }
+    .summary-value { font-size: 16px; font-weight: bold; }
+    .form-section { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+    .section-title { font-size: 13px; font-weight: 600; color: #2D3748; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 2px solid #2B6CB0; }
+    .pax-table { font-size: 12px; }
+    .pax-table th { background: #BEE3F8; font-weight: 600; padding: 6px 8px; }
+    .pax-table td { padding: 4px 8px; }
+    .type-badge { display: inline-block; padding: 1px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; }
+    .type-adt { background: #E6FFFA; color: #234E52; }
+    .type-chd { background: #FEF3C7; color: #92400E; }
+    .type-inf { background: #FED7E2; color: #97266D; }
+    .nights-badge { background: linear-gradient(135deg, #2B6CB0 0%, #4299E1 100%); color: white; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+    .profit-positive { color: #38A169; font-weight: 600; }
+    .profit-negative { color: #E53E3E; font-weight: 600; }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="order-container">
-    <form id="hotelForm" method="POST" action="{{ url_for('business_projects.project_ref.submit_hotel_ref') }}">
+<div class="container mt-3" style="max-width: 900px;">
+    <form method="post" id="hotelRefForm" action="{{ url_for('business_projects.project_ref.submit_hotel_ref') }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="header_id" value="{{ header_id }}">
-        {% if ref %}
-        <input type="hidden" name="ref_id" value="{{ ref.id }}">
-        {% endif %}
-        <input type="hidden" name="description" id="auto_description" value="{{ ref.description if ref else '' }}">
-        <input type="hidden" name="detailed_description" id="auto_detailed_description" value="{{ ref.detailed_description if ref else '' }}">
-        <input type="hidden" name="extra_info" id="extra_info">
-        <input type="hidden" name="status" value="{{ ref.status if ref and ref.status else 'processing' }}">
-        <input type="hidden" name="payment_status" value="{{ ref.payment_status if ref and ref.payment_status else 'unpaid' }}">
-        <input type="hidden" name="selling_price" id="total_selling_price" value="0">
-        <input type="hidden" name="cost_price" id="total_cost_price" value="0">
-        <input type="hidden" name="leader_id" id="leader_id" value="{{ extra_info.leader_id if extra_info and extra_info.leader_id else '' }}">
+        <input type="hidden" name="extra_info" id="extra_info_json">
+        {% if ref %}<input type="hidden" name="ref_id" value="{{ ref.id }}">{% endif %}
 
-        <!-- Price Summary Bar -->
-        <div class="order-card price-summary-card">
-            <div class="price-summary">
-                <div class="price-item">
-                    <span class="price-label">Total Selling</span>
-                    <span class="price-value" id="displayTotalSelling">SGD 0.00</span>
-                </div>
-                <div class="price-item">
-                    <span class="price-label">Total Cost</span>
-                    <span class="price-value" id="displayTotalCost">SGD 0.00</span>
-                </div>
-                <div class="price-item profit-item">
-                    <span class="price-label">Profit</span>
-                    <span class="price-value profit-value" id="displayProfit">SGD 0.00</span>
-                </div>
-                <div class="price-item passenger-count-item">
-                    <span class="price-label">Nights</span>
-                    <span class="price-value" id="displayNights">0</span>
+        <!-- Summary Bar -->
+        <div class="summary-bar">
+            <div class="d-flex justify-content-between align-items-center">
+                <span style="font-size: 14px; font-weight: 600;"><i class="fas fa-hotel me-1"></i>{{ ref.ref_number if ref else 'New' }}</span>
+                <div class="d-flex">
+                    <div class="summary-item"><div class="summary-label">Selling</div><div class="summary-value" id="summary_selling">$0.00</div></div>
+                    <div class="summary-item"><div class="summary-label">Cost</div><div class="summary-value" id="summary_cost">$0.00</div></div>
+                    <div class="summary-item"><div class="summary-label">Profit</div><div class="summary-value" id="summary_profit">$0.00</div></div>
+                    <div class="summary-item"><div class="summary-label">Nights</div><div class="summary-value" id="summary_nights">0</div></div>
                 </div>
             </div>
         </div>
 
-        <!-- Supplier & Remarks Row -->
-        <div style="display: flex; gap: 20px; align-items: stretch;">
-            <div style="flex: 1; min-width: 0;">
-                <div class="order-card" style="height: 100%; display: flex; flex-direction: column;">
-                    <h2 class="order-section-title">Supplier</h2>
-                    <div style="display: flex; gap: 15px; flex: 1; align-items: flex-end;">
-                        <div style="flex: 1;">
-                            <label class="order-label">Type</label>
-                            <select class="order-input" id="supplier_type" onchange="filterSuppliers()">
-                                <option value="">All Types</option>
-                                {% for type in supplier_types %}
-                                <option value="{{ type }}">{{ type | replace('_', ' ') | title }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <div style="flex: 2;">
-                            <label class="order-label">Supplier Name</label>
-                            <select class="order-input" name="supplier_id" id="supplier_name">
-                                <option value="">Select Supplier</option>
-                                {% for supplier in suppliers %}
-                                <option value="{{ supplier.supplier_id }}" data-type="{{ supplier.supplier_type_code or '' }}"
-                                    {% if ref and ref.supplier_id == supplier.supplier_id %}selected{% endif %}>
-                                    {{ supplier.name }}
-                                </option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                    </div>
+        <!-- Hotel Info & Status -->
+        <div class="form-section">
+            <div class="section-title"><i class="fas fa-hotel me-2"></i>Hotel Information & Status</div>
+            <div class="row g-2">
+                <div class="col-4">
+                    <label class="form-label small mb-1">Hotel Name <span class="text-danger">*</span></label>
+                    <input type="text" name="hotel_name" id="hotel_name" class="form-control form-control-sm" placeholder="e.g. Marina Bay Sands" required value="{{ extra_info.hotel_name if extra_info and extra_info.hotel_name else '' }}" onchange="updateDescription()">
                 </div>
-            </div>
-            <div style="flex: 1; min-width: 0;">
-                <div class="order-card" style="height: 100%; display: flex; flex-direction: column;">
-                    <h2 class="order-section-title">Remarks</h2>
-                    <div style="flex: 1; display: flex; flex-direction: column;">
-                        <textarea class="order-input" name="remarks" rows="2" placeholder="Special requests, notes..." style="width: 100%; box-sizing: border-box; flex: 1; min-height: 38px;">{{ ref.remarks if ref and ref.remarks else '' }}</textarea>
-                    </div>
+                <div class="col-2">
+                    <label class="form-label small mb-1">Room Type</label>
+                    <input type="text" name="room_type" id="room_type" class="form-control form-control-sm" placeholder="Deluxe" value="{{ extra_info.room_type if extra_info and extra_info.room_type else '' }}" onchange="updateDescription()">
                 </div>
-            </div>
-        </div>
-
-        <!-- Hotel Information -->
-        <div class="order-card">
-            <h2 class="order-section-title">Hotel Information</h2>
-            <div style="display: flex; gap: 15px; flex-wrap: wrap; align-items: flex-end;">
-                <div style="flex: 2; min-width: 200px;">
-                    <label class="order-label required">Hotel Name</label>
-                    <input type="text" class="order-input" name="hotel_name" id="hotel_name" required
-                           value="{{ extra_info.hotel_name if extra_info and extra_info.hotel_name else '' }}"
-                           placeholder="e.g. Marina Bay Sands">
+                <div class="col-2">
+                    <label class="form-label small mb-1">Rooms</label>
+                    <input type="number" name="room_count" id="room_count" class="form-control form-control-sm" min="1" value="{{ extra_info.room_count if extra_info and extra_info.room_count else 1 }}" onchange="calculateTotals()">
                 </div>
-                <div style="flex: 1; min-width: 120px;">
-                    <label class="order-label">Room Type</label>
-                    <input type="text" class="order-input" name="room_type" id="room_type"
-                           value="{{ extra_info.room_type if extra_info and extra_info.room_type else '' }}"
-                           placeholder="e.g. Deluxe Room">
+                <div class="col-2">
+                    <label class="form-label small mb-1">Meal Plan</label>
+                    <select name="meal_plan" id="meal_plan" class="form-select form-select-sm">
+                        <option value="RO" {% if extra_info and extra_info.meal_plan == 'RO' %}selected{% endif %}>RO</option>
+                        <option value="BB" {% if extra_info and extra_info.meal_plan == 'BB' %}selected{% endif %}>BB</option>
+                        <option value="HB" {% if extra_info and extra_info.meal_plan == 'HB' %}selected{% endif %}>HB</option>
+                        <option value="FB" {% if extra_info and extra_info.meal_plan == 'FB' %}selected{% endif %}>FB</option>
+                        <option value="AI" {% if extra_info and extra_info.meal_plan == 'AI' %}selected{% endif %}>AI</option>
+                    </select>
                 </div>
-                <div style="flex: 1; min-width: 100px;">
-                    <label class="order-label">Rooms</label>
-                    <input type="number" class="order-input" name="room_count" id="room_count" min="1" value="{{ extra_info.room_count if extra_info and extra_info.room_count else 1 }}" onchange="calculateTotals()">
-                </div>
-                <div style="flex: 1; min-width: 120px;">
-                    <label class="order-label">Meal Plan</label>
-                    <select class="order-input meal-plan-select" name="meal_plan" id="meal_plan">
-                        <option value="RO" {% if extra_info and extra_info.meal_plan == 'RO' %}selected{% endif %}>RO (Room Only)</option>
-                        <option value="BB" {% if extra_info and extra_info.meal_plan == 'BB' %}selected{% endif %}>BB (Bed & Breakfast)</option>
-                        <option value="HB" {% if extra_info and extra_info.meal_plan == 'HB' %}selected{% endif %}>HB (Half Board)</option>
-                        <option value="FB" {% if extra_info and extra_info.meal_plan == 'FB' %}selected{% endif %}>FB (Full Board)</option>
-                        <option value="AI" {% if extra_info and extra_info.meal_plan == 'AI' %}selected{% endif %}>AI (All Inclusive)</option>
+                <div class="col-2">
+                    <label class="form-label small mb-1">Status</label>
+                    <select name="status" id="status" class="form-select form-select-sm">
+                        <option value="processing" {% if ref and ref.status == 'processing' %}selected{% elif not ref %}selected{% endif %}>Processing</option>
+                        <option value="draft" {% if ref and ref.status == 'draft' %}selected{% endif %}>Draft</option>
+                        <option value="completed" {% if ref and ref.status == 'completed' %}selected{% endif %}>Completed</option>
+                        <option value="cancelled" {% if ref and ref.status == 'cancelled' %}selected{% endif %}>Cancelled</option>
                     </select>
                 </div>
             </div>
-            <div style="display: flex; gap: 15px; margin-top: 12px; flex-wrap: wrap; align-items: flex-end;">
-                <div style="flex: 1; min-width: 140px;">
-                    <label class="order-label required">Check-in Date</label>
-                    <input type="date" class="order-input" name="checkin_date" id="checkin_date" required
-                           value="{{ extra_info.checkin_date if extra_info and extra_info.checkin_date else '' }}"
-                           onchange="calculateNights()">
+            <input type="hidden" name="description" id="description" value="{{ ref.description if ref else '' }}">
+            <input type="hidden" name="detailed_description" id="detailed_description">
+        </div>
+
+        <!-- Supplier & Dates -->
+        <div class="form-section">
+            <div class="section-title"><i class="fas fa-truck me-2"></i>Supplier & Stay Dates</div>
+            <div class="row g-2">
+                <div class="col-2">
+                    <label class="form-label small mb-1">Supplier Type</label>
+                    <select id="supplier_type_filter" class="form-select form-select-sm" onchange="filterSuppliers()">
+                        <option value="">All</option>
+                        {% for type in supplier_types %}<option value="{{ type }}">{{ type | replace('_', ' ') | title }}</option>{% endfor %}
+                    </select>
                 </div>
-                <div style="flex: 1; min-width: 140px;">
-                    <label class="order-label required">Check-out Date</label>
-                    <input type="date" class="order-input" name="checkout_date" id="checkout_date" required
-                           value="{{ extra_info.checkout_date if extra_info and extra_info.checkout_date else '' }}"
-                           onchange="calculateNights()">
+                <div class="col-3">
+                    <label class="form-label small mb-1">Supplier Name</label>
+                    <select name="supplier_id" id="supplier_id" class="form-select form-select-sm">
+                        <option value="">-- Select --</option>
+                        {% for supplier in suppliers %}
+                        <option value="{{ supplier.supplier_id }}" data-type="{{ supplier.supplier_type_code or '' }}" {% if ref and ref.supplier_id == supplier.supplier_id %}selected{% endif %}>{{ supplier.name }}</option>
+                        {% endfor %}
+                    </select>
                 </div>
-                <div style="flex: 1; min-width: 100px;">
-                    <label class="order-label">Nights</label>
-                    <div style="display: flex; align-items: center; height: 32px;">
-                        <span class="nights-badge" id="nightsDisplay">0 Nights</span>
+                <div class="col-2">
+                    <label class="form-label small mb-1">Check-in <span class="text-danger">*</span></label>
+                    <input type="date" name="checkin_date" id="checkin_date" class="form-control form-control-sm" required value="{{ extra_info.checkin_date if extra_info and extra_info.checkin_date else '' }}" onchange="calculateNights()">
+                </div>
+                <div class="col-2">
+                    <label class="form-label small mb-1">Check-out <span class="text-danger">*</span></label>
+                    <input type="date" name="checkout_date" id="checkout_date" class="form-control form-control-sm" required value="{{ extra_info.checkout_date if extra_info and extra_info.checkout_date else '' }}" onchange="calculateNights()">
+                </div>
+                <div class="col-1">
+                    <label class="form-label small mb-1">Nights</label>
+                    <div class="d-flex align-items-center" style="height: 31px;">
+                        <span class="nights-badge" id="nights_display">0</span>
                         <input type="hidden" name="nights" id="nights" value="0">
                     </div>
                 </div>
-                <div style="flex: 1; min-width: 150px;">
-                    <label class="order-label">Confirmation No.</label>
-                    <input type="text" class="order-input" name="confirmation_number" id="confirmation_number"
-                           value="{{ extra_info.confirmation_number if extra_info and extra_info.confirmation_number else '' }}"
-                           placeholder="Hotel Conf. No.">
+                <div class="col-2">
+                    <label class="form-label small mb-1">Conf. No.</label>
+                    <input type="text" name="confirmation_number" id="confirmation_number" class="form-control form-control-sm" placeholder="HTL123" value="{{ extra_info.confirmation_number if extra_info and extra_info.confirmation_number else '' }}">
                 </div>
             </div>
         </div>
 
-        <!-- Pricing -->
-        <div class="order-card">
-            <h2 class="order-section-title">Pricing (Per Room Per Night)</h2>
-            {% if has_invoice %}
-            <div style="background: #fff3cd; border: 1px solid #ffc107; border-radius: 6px; padding: 10px 15px; margin-bottom: 15px; font-size: 0.85rem;">
-                <i class="fas fa-lock"></i> Invoice generated. Selling price is locked.
-            </div>
-            {% endif %}
-            <div style="display: flex; gap: 20px; flex-wrap: wrap; align-items: flex-end;">
-                <div style="flex: 1; min-width: 150px;">
-                    <label class="order-label required">Selling Price / Night</label>
-                    <div class="input-with-currency-sm">
-                        <span class="currency-label-sm">SGD</span>
-                        <input type="number" step="0.01" class="order-input selling-input" name="selling_per_night" id="selling_per_night"
-                               value="{{ extra_info.selling_per_night if extra_info and extra_info.selling_per_night else '0.00' }}"
-                               oninput="calculateTotals()" {% if has_invoice %}disabled{% endif %}>
-                    </div>
-                </div>
-                <div style="flex: 1; min-width: 150px;">
-                    <label class="order-label">Cost Price / Night</label>
-                    <div class="input-with-currency-sm">
-                        <span class="currency-label-sm">SGD</span>
-                        <input type="number" step="0.01" class="order-input cost-input" name="cost_per_night" id="cost_per_night"
-                               value="{{ extra_info.cost_per_night if extra_info and extra_info.cost_per_night else '0.00' }}"
-                               oninput="calculateTotals()">
-                    </div>
-                </div>
-                <div style="flex: 1; min-width: 120px;">
-                    <label class="order-label">Profit / Night</label>
-                    <div style="display: flex; align-items: center; height: 32px;">
-                        <span id="profitPerNight" style="font-weight: 600; color: #48BB78;">SGD 0.00</span>
-                    </div>
-                </div>
-                <div style="flex: 1; min-width: 120px;">
-                    <label class="order-label">Profit Margin</label>
-                    <div style="display: flex; align-items: center; height: 32px;">
-                        <span id="profitMargin" style="font-weight: 600; color: #667eea;">0%</span>
-                    </div>
-                </div>
-            </div>
-            <div style="margin-top: 15px; padding: 12px; background: #f8fafc; border-radius: 6px;">
-                <div style="display: flex; justify-content: space-between; flex-wrap: wrap; gap: 15px;">
-                    <div>
-                        <span style="color: #718096; font-size: 0.85rem;">Calculation:</span>
-                        <span id="calculationBreakdown" style="font-size: 0.85rem; margin-left: 10px;">-</span>
-                    </div>
-                    <div style="display: flex; gap: 20px;">
-                        <div>
-                            <span style="color: #718096; font-size: 0.85rem;">Total Selling:</span>
-                            <span id="totalSellingDisplay" style="font-weight: 600; margin-left: 5px;">SGD 0.00</span>
-                        </div>
-                        <div>
-                            <span style="color: #718096; font-size: 0.85rem;">Total Cost:</span>
-                            <span id="totalCostDisplay" style="font-weight: 600; margin-left: 5px;">SGD 0.00</span>
-                        </div>
-                        <div>
-                            <span style="color: #718096; font-size: 0.85rem;">Total Profit:</span>
-                            <span id="totalProfitDisplay" style="font-weight: 600; color: #48BB78; margin-left: 5px;">SGD 0.00</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Guest Selection -->
-        <div class="order-card">
-            <h2 class="order-section-title">Guest Selection</h2>
+        <!-- Pax Selection -->
+        <div class="form-section">
+            <div class="section-title"><i class="fas fa-users me-2"></i>Guest Selection</div>
             {% if members and members|length > 0 %}
             {% set selected_pax = extra_info.pax_names if extra_info and extra_info.pax_names else [] %}
-            {% set leader_id = extra_info.leader_id if extra_info and extra_info.leader_id else null %}
-            <div style="overflow-x: auto;">
-                <table class="pax-table" style="width: 100%; border-collapse: collapse;">
-                    <thead>
-                        <tr style="background: #f8fafc; border-bottom: 2px solid #e2e8f0;">
-                            <th style="width: 40px; text-align: center;">
-                                <input type="checkbox" id="selectAllPax" title="Select All">
-                            </th>
-                            <th style="width: 40px;">#</th>
-                            <th>Guest Name</th>
-                            <th style="width: 80px; text-align: center;">Leader</th>
+            {% set leader_id = extra_info.leader_id if extra_info and extra_info.leader_id else '' %}
+            <input type="hidden" name="leader_id" id="leader_id" value="{{ leader_id }}">
+            <div style="max-height: 200px; overflow-y: auto;">
+                <table class="table table-sm table-hover pax-table mb-0">
+                    <thead style="position: sticky; top: 0;">
+                        <tr>
+                            <th style="width: 30px;"><input type="checkbox" id="selectAllPax" title="Select All"></th>
+                            <th>Name</th>
+                            <th style="width: 50px;">Type</th>
+                            <th style="width: 50px;">Leader</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for member in members %}
-                        <tr style="border-bottom: 1px solid #e2e8f0; {% if member.id == leader_id or member.id|string == leader_id|string %}background: #e6fffa;{% endif %}"
-                            id="row_{{ member.id }}">
-                            <td style="text-align: center;">
-                                <input type="checkbox" name="pax_names" value="{{ member.id }}" class="pax-checkbox"
-                                       {% if member.id in selected_pax or member.id|string in selected_pax %}checked{% endif %}>
-                            </td>
-                            <td>{{ loop.index }}</td>
-                            <td>{{ member.member_name }}{% if member.member_name_en %} ({{ member.member_name_en }}){% endif %}</td>
-                            <td style="text-align: center;">
-                                <button type="button" class="order-btn {% if member.id == leader_id or member.id|string == leader_id|string %}order-btn-primary{% else %}order-btn-outline{% endif %} leader-btn set-leader-btn"
-                                        data-member-id="{{ member.id }}">
-                                    <i class="fas fa-star"></i>
-                                </button>
-                            </td>
+                        <tr class="{% if member.id|string == leader_id|string %}table-warning{% endif %}">
+                            <td><input type="checkbox" name="pax_names" value="{{ member.id }}" {% if member.id in selected_pax or member.id|string in selected_pax %}checked{% endif %} onchange="updateDescription()"></td>
+                            <td>{{ member.title }} {{ member.member_name }}</td>
+                            <td>{% if member.member_type == 'child' %}<span class="type-badge type-chd">CHD</span>{% elif member.member_type == 'infant' %}<span class="type-badge type-inf">INF</span>{% else %}<span class="type-badge type-adt">ADT</span>{% endif %}</td>
+                            <td class="text-center"><button type="button" class="btn btn-sm py-0 px-1 {% if member.id|string == leader_id|string %}btn-warning{% else %}btn-outline-secondary{% endif %} set-leader-btn" data-member-id="{{ member.id }}" title="Set as Leader"><i class="fas fa-star" style="font-size: 10px;"></i></button></td>
                         </tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
-            <div style="margin-top: 10px; font-size: 0.8rem; color: #718096;">
-                <i class="fas fa-info-circle"></i> Select guests and click <i class="fas fa-star"></i> to set as leader
-            </div>
             {% else %}
-            <div style="padding: 20px; text-align: center; color: #718096;">
-                <i class="fas fa-users" style="font-size: 2rem; margin-bottom: 10px;"></i>
-                <p>No project members found. Please add members in project details first.</p>
-                <input type="text" name="pax_name" class="order-input" style="max-width: 300px; margin: 10px auto;"
-                       value="{{ extra_info.pax_name if extra_info and extra_info.pax_name else '' }}"
-                       placeholder="Or enter guest name manually">
-            </div>
+            <div class="alert alert-info py-2 mb-0" style="font-size: 12px;"><i class="fas fa-info-circle me-2"></i>No members in project.</div>
             {% endif %}
         </div>
 
-        <!-- Submit Buttons -->
-        <div class="text-center" style="margin-top: 20px;">
-            <button type="submit" class="order-btn order-btn-primary order-btn-lg">
-                <i class="fas fa-save"></i> Submit
-            </button>
-            <a href="{{ url_for('business_projects.detail.project_detail', project_id=header_id) }}" class="order-btn order-btn-secondary order-btn-lg">
-                <i class="fas fa-arrow-left"></i> Back to Project
-            </a>
-            {% if ref and ref.eos %}
-            <span class="order-btn" style="background: #3182ce; color: white; cursor: default;">
-                <i class="fas fa-check"></i> EO: {{ ref.eos.eo_number }}
-            </span>
-            {% elif ref %}
-            <button type="button" class="order-btn order-btn-primary order-btn-lg" onclick="quickCreateEO({{ ref.id }})">
-                <i class="fas fa-plus"></i> Generate EO
-            </button>
-            {% endif %}
+        <!-- Pricing -->
+        <div class="form-section">
+            <div class="section-title"><i class="fas fa-dollar-sign me-2"></i>Pricing (Per Room Per Night)</div>
+            {% if has_invoice %}<div class="alert alert-warning py-1 mb-2" style="font-size: 12px;"><i class="fas fa-lock me-1"></i>Invoice generated. Selling prices locked.</div>{% endif %}
+            <div class="row g-2 mb-2">
+                <div class="col-3">
+                    <label class="form-label small mb-1">Selling / Night</label>
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text py-0">$</span>
+                        <input type="number" name="selling_per_night" id="selling_per_night" class="form-control" min="0" step="0.01" value="{{ extra_info.selling_per_night if extra_info and extra_info.selling_per_night else '0.00' }}" onchange="calculateTotals()" {% if has_invoice %}readonly{% endif %}>
+                    </div>
+                </div>
+                <div class="col-3">
+                    <label class="form-label small mb-1">Cost / Night</label>
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text py-0">$</span>
+                        <input type="number" name="cost_per_night" id="cost_per_night" class="form-control" min="0" step="0.01" value="{{ extra_info.cost_per_night if extra_info and extra_info.cost_per_night else '0.00' }}" onchange="calculateTotals()">
+                    </div>
+                </div>
+                <div class="col-2">
+                    <label class="form-label small mb-1">Profit / Night</label>
+                    <div class="d-flex align-items-center" style="height: 31px;">
+                        <span id="profit_per_night" class="profit-positive">$0.00</span>
+                    </div>
+                </div>
+                <div class="col-4">
+                    <label class="form-label small mb-1">Calculation</label>
+                    <div class="d-flex align-items-center" style="height: 31px; font-size: 12px; color: #718096;">
+                        <span id="calculation_breakdown">-</span>
+                    </div>
+                </div>
+            </div>
+            <div class="row g-2">
+                <div class="col-3">
+                    <label class="form-label small mb-1">Total Selling</label>
+                    <div class="d-flex align-items-center" style="height: 31px; font-weight: 600;">
+                        <span id="total_selling_display">$0.00</span>
+                    </div>
+                </div>
+                <div class="col-3">
+                    <label class="form-label small mb-1">Total Cost</label>
+                    <div class="d-flex align-items-center" style="height: 31px; font-weight: 600;">
+                        <span id="total_cost_display">$0.00</span>
+                    </div>
+                </div>
+                <div class="col-3">
+                    <label class="form-label small mb-1">Total Profit</label>
+                    <div class="d-flex align-items-center" style="height: 31px; font-weight: 600;">
+                        <span id="total_profit_display" class="profit-positive">$0.00</span>
+                    </div>
+                </div>
+            </div>
+            <input type="hidden" name="selling_price" id="selling_price" value="{{ ref.selling_price if ref else '0.00' }}">
+            <input type="hidden" name="cost_price" id="cost_price" value="{{ ref.cost_price if ref else '0.00' }}">
+        </div>
+
+        <!-- Remarks -->
+        <div class="form-section">
+            <div class="section-title"><i class="fas fa-sticky-note me-2"></i>Remarks</div>
+            <textarea name="remarks" id="remarks" class="form-control form-control-sm" rows="2" placeholder="Enter remarks...">{{ ref.remarks if ref else '' }}</textarea>
+        </div>
+
+        <!-- Actions -->
+        <div class="form-section">
+            <div class="section-title"><i class="fas fa-cogs me-2"></i>Actions</div>
+            <div class="d-flex justify-content-center gap-3">
+                <button type="submit" class="btn btn-success btn-sm" style="width: 120px;"><i class="fas fa-save me-1"></i>{% if ref %}Update{% else %}Save{% endif %}</button>
+                <a href="{{ url_for('business_projects.detail.project_detail', project_id=header_id) }}" class="btn btn-secondary btn-sm" style="width: 120px;"><i class="fas fa-arrow-left me-1"></i>Back</a>
+                {% if ref and ref.eos %}<span class="btn btn-outline-info btn-sm" style="width: 120px; cursor: default;"><i class="fas fa-check me-1"></i>{{ ref.eos.eo_number }}</span>
+                {% elif ref %}<button type="button" class="btn btn-primary btn-sm" style="width: 120px;" onclick="quickCreateEO({{ ref.id }})"><i class="fas fa-plus me-1"></i>Create EO</button>{% endif %}
+            </div>
         </div>
     </form>
 </div>
-{% endblock %}
 
-{% block extra_js %}
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Initialize calculations
-    calculateNights();
-    calculateTotals();
-    updateDescription();
-
-    // Select All functionality
-    const selectAllCheckbox = document.getElementById('selectAllPax');
-    if (selectAllCheckbox) {
-        selectAllCheckbox.addEventListener('change', function() {
-            document.querySelectorAll('.pax-checkbox').forEach(cb => cb.checked = this.checked);
-        });
-    }
-
-    // Leader selection
-    document.querySelectorAll('.set-leader-btn').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const memberId = this.dataset.memberId;
-            const leaderInput = document.getElementById('leader_id');
-
-            // Reset all buttons and rows
-            document.querySelectorAll('.set-leader-btn').forEach(b => {
-                b.classList.remove('order-btn-primary');
-                b.classList.add('order-btn-outline');
-            });
-            document.querySelectorAll('tbody tr').forEach(row => {
-                row.style.background = '';
-            });
-
-            // Set current as leader
-            this.classList.remove('order-btn-outline');
-            this.classList.add('order-btn-primary');
-            document.getElementById('row_' + memberId).style.background = '#e6fffa';
-            if (leaderInput) leaderInput.value = memberId;
-
-            // Auto-check the checkbox
-            const row = this.closest('tr');
-            const checkbox = row.querySelector('.pax-checkbox');
-            if (checkbox) checkbox.checked = true;
-        });
+function filterSuppliers() {
+    const filterValue = document.getElementById('supplier_type_filter').value.toLowerCase();
+    const supplierSelect = document.getElementById('supplier_id');
+    supplierSelect.querySelectorAll('option').forEach(option => {
+        if (!option.value) { option.style.display = ''; return; }
+        option.style.display = (!filterValue || (option.dataset.type || '').toLowerCase() === filterValue) ? '' : 'none';
     });
+    if (supplierSelect.options[supplierSelect.selectedIndex]?.style.display === 'none') supplierSelect.value = '';
+}
 
-    // Auto-update description on field changes
-    ['hotel_name', 'room_type', 'meal_plan', 'confirmation_number', 'checkin_date', 'checkout_date'].forEach(fieldId => {
-        const field = document.getElementById(fieldId);
-        if (field) {
-            field.addEventListener('input', updateDescription);
-            field.addEventListener('change', updateDescription);
-        }
-    });
-});
-
-// Calculate nights between check-in and check-out
 function calculateNights() {
     const checkinDate = document.getElementById('checkin_date').value;
     const checkoutDate = document.getElementById('checkout_date').value;
-
     if (checkinDate && checkoutDate) {
-        const checkin = new Date(checkinDate);
-        const checkout = new Date(checkoutDate);
-        const diffTime = checkout - checkin;
-        const nights = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
+        const nights = Math.ceil((new Date(checkoutDate) - new Date(checkinDate)) / (1000 * 60 * 60 * 24));
         if (nights > 0) {
             document.getElementById('nights').value = nights;
-            document.getElementById('nightsDisplay').textContent = nights + ' Night' + (nights > 1 ? 's' : '');
-            document.getElementById('displayNights').textContent = nights;
+            document.getElementById('nights_display').textContent = nights;
+            document.getElementById('summary_nights').textContent = nights;
         } else {
             document.getElementById('nights').value = 0;
-            document.getElementById('nightsDisplay').textContent = 'Invalid';
-            document.getElementById('displayNights').textContent = '0';
+            document.getElementById('nights_display').textContent = '0';
+            document.getElementById('summary_nights').textContent = '0';
         }
     } else {
         document.getElementById('nights').value = 0;
-        document.getElementById('nightsDisplay').textContent = '0 Nights';
-        document.getElementById('displayNights').textContent = '0';
+        document.getElementById('nights_display').textContent = '0';
+        document.getElementById('summary_nights').textContent = '0';
     }
-
     calculateTotals();
     updateDescription();
 }
 
-// Calculate total prices
 function calculateTotals() {
     const nights = parseInt(document.getElementById('nights').value) || 0;
     const rooms = parseInt(document.getElementById('room_count').value) || 1;
@@ -410,176 +282,103 @@ function calculateTotals() {
     const totalCost = nights * rooms * costPerNight;
     const totalProfit = totalSelling - totalCost;
     const profitPerNight = sellingPerNight - costPerNight;
-    const profitMargin = sellingPerNight > 0 ? ((profitPerNight / sellingPerNight) * 100).toFixed(1) : 0;
 
-    // Update hidden fields
-    document.getElementById('total_selling_price').value = totalSelling.toFixed(2);
-    document.getElementById('total_cost_price').value = totalCost.toFixed(2);
+    document.getElementById('profit_per_night').textContent = '$' + profitPerNight.toFixed(2);
+    document.getElementById('profit_per_night').className = profitPerNight >= 0 ? 'profit-positive' : 'profit-negative';
+    document.getElementById('calculation_breakdown').textContent = nights + ' night' + (nights !== 1 ? 's' : '') + ' x ' + rooms + ' room' + (rooms !== 1 ? 's' : '') + ' x $' + sellingPerNight.toFixed(2);
+    document.getElementById('total_selling_display').textContent = '$' + totalSelling.toFixed(2);
+    document.getElementById('total_cost_display').textContent = '$' + totalCost.toFixed(2);
+    document.getElementById('total_profit_display').textContent = '$' + totalProfit.toFixed(2);
+    document.getElementById('total_profit_display').className = totalProfit >= 0 ? 'profit-positive' : 'profit-negative';
 
-    // Update displays
-    document.getElementById('displayTotalSelling').textContent = 'SGD ' + totalSelling.toFixed(2);
-    document.getElementById('displayTotalCost').textContent = 'SGD ' + totalCost.toFixed(2);
-    document.getElementById('displayProfit').textContent = 'SGD ' + totalProfit.toFixed(2);
-    document.getElementById('totalSellingDisplay').textContent = 'SGD ' + totalSelling.toFixed(2);
-    document.getElementById('totalCostDisplay').textContent = 'SGD ' + totalCost.toFixed(2);
-    document.getElementById('totalProfitDisplay').textContent = 'SGD ' + totalProfit.toFixed(2);
-    document.getElementById('profitPerNight').textContent = 'SGD ' + profitPerNight.toFixed(2);
-    document.getElementById('profitMargin').textContent = profitMargin + '%';
-
-    // Calculation breakdown
-    document.getElementById('calculationBreakdown').textContent =
-        `${nights} night${nights !== 1 ? 's' : ''} x ${rooms} room${rooms !== 1 ? 's' : ''} x SGD ${sellingPerNight.toFixed(2)}`;
-
-    // Profit color
-    const profitColor = totalProfit > 0 ? '#48BB78' : (totalProfit < 0 ? '#E53E3E' : '#718096');
-    document.getElementById('displayProfit').style.color = profitColor;
-    document.getElementById('totalProfitDisplay').style.color = profitColor;
-    document.getElementById('profitPerNight').style.color = profitColor;
+    document.getElementById('summary_selling').textContent = '$' + totalSelling.toFixed(2);
+    document.getElementById('summary_cost').textContent = '$' + totalCost.toFixed(2);
+    document.getElementById('summary_profit').textContent = '$' + totalProfit.toFixed(2);
+    document.getElementById('selling_price').value = totalSelling.toFixed(2);
+    document.getElementById('cost_price').value = totalCost.toFixed(2);
+    updateDescription();
 }
 
-// Update description
+function formatDate(dateStr) {
+    if (!dateStr) return '';
+    const d = new Date(dateStr);
+    return d.getDate().toString().padStart(2, '0') + ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'][d.getMonth()];
+}
+
 function updateDescription() {
     const hotelName = document.getElementById('hotel_name').value.trim();
+    const checkinDate = document.getElementById('checkin_date').value;
+    const checkoutDate = document.getElementById('checkout_date').value;
+
+    let description = hotelName || 'HOTEL BOOKING';
+    if (checkinDate && checkoutDate) description += ' | ' + formatDate(checkinDate) + '-' + formatDate(checkoutDate);
+    document.getElementById('description').value = description;
+
+    let detailed = hotelName || 'HOTEL BOOKING';
     const roomType = document.getElementById('room_type').value.trim();
     const mealPlan = document.getElementById('meal_plan').value;
-    const confirmationNo = document.getElementById('confirmation_number').value.trim();
-    const checkinDate = document.getElementById('checkin_date').value;
-    const checkoutDate = document.getElementById('checkout_date').value;
+    if (roomType || mealPlan) detailed += '\n' + (roomType ? roomType : '') + (roomType && mealPlan ? ' | ' : '') + (mealPlan ? mealPlan : '');
     const nights = document.getElementById('nights').value;
+    if (checkinDate && checkoutDate) detailed += '\n' + formatDate(checkinDate) + ' - ' + formatDate(checkoutDate) + ' (' + nights + ' Night' + (nights > 1 ? 's' : '') + ')';
 
-    let description = hotelName || 'Hotel Booking';
-    let detailedDescription = hotelName || 'Hotel Booking';
-
-    if (checkinDate && checkoutDate) {
-        const checkin = new Date(checkinDate);
-        const checkout = new Date(checkoutDate);
-        const formatDate = (d) => d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }).toUpperCase();
-        description = `${hotelName} | ${formatDate(checkin)}-${formatDate(checkout)}`;
-
-        // Build room info line: "Room Type | Meal Plan" or just one if other is empty
-        let roomInfo = '';
-        if (roomType && mealPlan) {
-            roomInfo = `${roomType} | ${mealPlan}\n`;
-        } else if (roomType) {
-            roomInfo = `${roomType}\n`;
-        } else if (mealPlan) {
-            roomInfo = `${mealPlan}\n`;
-        }
-
-        // Build date line with optional confirmation number
-        let dateLine = `${formatDate(checkin)} - ${formatDate(checkout)} (${nights} Night${nights > 1 ? 's' : ''})`;
-        if (confirmationNo) {
-            dateLine += `\nConf: ${confirmationNo}`;
-        }
-
-        detailedDescription = `${hotelName}\n${roomInfo}${dateLine}`;
-    }
-
-    document.getElementById('auto_description').value = description;
-    document.getElementById('auto_detailed_description').value = detailedDescription;
+    const selectedPax = document.querySelectorAll('input[name="pax_names"]:checked');
+    if (selectedPax.length > 0) detailed += '\n' + selectedPax.length + ' Guest' + (selectedPax.length > 1 ? 's' : '');
+    document.getElementById('detailed_description').value = detailed.trim();
 }
 
-// Supplier filter
-function filterSuppliers() {
-    const typeFilter = document.getElementById('supplier_type').value;
-    const supplierSelect = document.getElementById('supplier_name');
-    const options = supplierSelect.querySelectorAll('option');
-    const currentValue = supplierSelect.value;
-
-    options.forEach(option => {
-        if (option.value === '') {
-            option.style.display = '';
-        } else {
-            if (!typeFilter || option.dataset.type === typeFilter) {
-                option.style.display = '';
-            } else {
-                option.style.display = 'none';
-            }
-        }
-    });
-
-    if (currentValue) {
-        const currentOption = Array.from(options).find(o => o.value === currentValue);
-        if (currentOption && currentOption.style.display === 'none') {
-            supplierSelect.value = '';
-        }
-    }
-}
-
-// Form submission
-document.getElementById('hotelForm').addEventListener('submit', function(e) {
-    e.preventDefault();
-
-    // Validate dates
-    const checkinDate = document.getElementById('checkin_date').value;
-    const checkoutDate = document.getElementById('checkout_date').value;
-    const nights = parseInt(document.getElementById('nights').value);
-
-    if (!checkinDate || !checkoutDate) {
-        alert('Please select check-in and check-out dates');
-        return;
-    }
-
-    if (nights <= 0) {
-        alert('Check-out date must be after check-in date');
-        return;
-    }
-
-    // Collect selected pax
-    const paxCheckboxes = document.querySelectorAll('.pax-checkbox:checked');
-    const paxNames = Array.from(paxCheckboxes).map(cb => parseInt(cb.value));
-
-    // Build extra_info
-    const extraInfo = {
+function buildExtraInfo() {
+    const paxNames = [];
+    document.querySelectorAll('input[name="pax_names"]:checked').forEach(cb => paxNames.push(parseInt(cb.value)));
+    return {
         hotel_name: document.getElementById('hotel_name').value,
         room_type: document.getElementById('room_type').value,
         room_count: parseInt(document.getElementById('room_count').value) || 1,
         meal_plan: document.getElementById('meal_plan').value,
-        checkin_date: checkinDate,
-        checkout_date: checkoutDate,
-        nights: nights,
+        checkin_date: document.getElementById('checkin_date').value,
+        checkout_date: document.getElementById('checkout_date').value,
+        nights: parseInt(document.getElementById('nights').value) || 0,
         confirmation_number: document.getElementById('confirmation_number').value,
         selling_per_night: parseFloat(document.getElementById('selling_per_night').value) || 0,
         cost_per_night: parseFloat(document.getElementById('cost_per_night').value) || 0,
         pax_names: paxNames,
-        leader_id: document.getElementById('leader_id').value ? parseInt(document.getElementById('leader_id').value) : null,
-        pax_name: document.querySelector('input[name="pax_name"]') ? document.querySelector('input[name="pax_name"]').value : '',
-        departure_date: checkinDate
+        leader_id: document.getElementById('leader_id').value,
+        departure_date: document.getElementById('checkin_date').value
     };
+}
 
-    document.getElementById('extra_info').value = JSON.stringify(extraInfo);
+document.addEventListener('DOMContentLoaded', function() {
+    calculateNights();
+    const selectAllCheckbox = document.getElementById('selectAllPax');
+    if (selectAllCheckbox) selectAllCheckbox.addEventListener('change', function() { document.querySelectorAll('input[name="pax_names"]').forEach(cb => cb.checked = this.checked); updateDescription(); });
 
-    // Disable submit button
-    const submitBtn = this.querySelector('button[type="submit"]');
-    submitBtn.textContent = 'Submitting...';
-    submitBtn.disabled = true;
+    document.querySelectorAll('.set-leader-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const memberId = this.dataset.memberId;
+            document.getElementById('leader_id').value = memberId;
+            document.querySelectorAll('.set-leader-btn').forEach(b => { b.classList.remove('btn-warning'); b.classList.add('btn-outline-secondary'); });
+            document.querySelectorAll('.pax-table tbody tr').forEach(row => row.classList.remove('table-warning'));
+            this.classList.remove('btn-outline-secondary'); this.classList.add('btn-warning');
+            this.closest('tr').classList.add('table-warning');
+            const checkbox = this.closest('tr').querySelector('input[name="pax_names"]');
+            if (checkbox) checkbox.checked = true;
+            updateDescription();
+        });
+    });
 
-    this.submit();
+    document.getElementById('hotelRefForm').addEventListener('submit', function(e) { calculateTotals(); document.getElementById('extra_info_json').value = JSON.stringify(buildExtraInfo()); });
+
+    {% if ref and ref.supplier_id %}
+    const supplierOption = document.querySelector('#supplier_id option[value="{{ ref.supplier_id }}"]');
+    if (supplierOption && supplierOption.dataset.type) { document.getElementById('supplier_type_filter').value = supplierOption.dataset.type; filterSuppliers(); }
+    {% endif %}
 });
 
-// Quick create EO
 function quickCreateEO(refId) {
-    if (confirm('Generate EO for this REF?')) {
-        fetch(`/projects/eo/quick_create/${refId}`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
-            }
-        })
+    if (confirm('Generate EO for this Hotel REF?')) {
+        fetch(`/projects/eo/quick_create/${refId}`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value } })
         .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                alert(data.message);
-                location.reload();
-            } else {
-                alert('Failed: ' + data.message);
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Failed to generate EO');
-        });
+        .then(data => { if (data.success) { alert(data.message); location.reload(); } else { alert('Failed: ' + data.message); } })
+        .catch(error => { console.error('Error:', error); alert('Failed to generate EO'); });
     }
 }
 </script>

@@ -1,0 +1,753 @@
+{% extends 'staff_base.html' %}
+{% block title %}按公司收款{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/project_detail.css') }}">
+<style>
+  .page-container {
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+  .back-link {
+    margin-bottom: 16px;
+  }
+  .page-header {
+    margin-bottom: 20px;
+  }
+  .page-header h4 {
+    margin: 0;
+    font-weight: 600;
+  }
+
+  /* 搜索区域 */
+  .search-card {
+    background: #fff;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+  .search-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    align-items: flex-end;
+  }
+  .search-item {
+    flex: 1;
+    min-width: 200px;
+  }
+  .search-item.company-select {
+    flex: 2;
+    min-width: 300px;
+  }
+  .search-item label {
+    display: block;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: #495057;
+    margin-bottom: 6px;
+  }
+  .search-buttons {
+    display: flex;
+    gap: 10px;
+  }
+  .search-buttons .btn {
+    padding: 8px 20px;
+  }
+
+  /* 发票表格 */
+  .invoice-card {
+    background: #fff;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .invoice-card-header {
+    background: #f8f9fa;
+    padding: 12px 16px;
+    border-bottom: 1px solid #dee2e6;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .invoice-card-header h6 {
+    margin: 0;
+    font-weight: 600;
+  }
+  .invoice-table {
+    width: 100%;
+    margin: 0;
+    font-size: 0.9rem;
+  }
+  .invoice-table thead th {
+    background: #f8f9fa;
+    padding: 10px 14px;
+    font-weight: 600;
+    color: #495057;
+    border-bottom: 2px solid #dee2e6;
+    white-space: nowrap;
+  }
+  .invoice-table tbody tr {
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .invoice-table tbody tr:hover {
+    background: #f8f9fa;
+  }
+  .invoice-table tbody tr.selected {
+    background: #e7f1ff;
+  }
+  .invoice-table td {
+    padding: 10px 14px;
+    vertical-align: middle;
+    border-bottom: 1px solid #eee;
+  }
+  .invoice-table .form-check-input {
+    width: 18px;
+    height: 18px;
+    margin: 0;
+  }
+  .overdue-badge {
+    background: #dc3545;
+    color: white;
+    font-size: 0.7rem;
+    padding: 2px 5px;
+    border-radius: 3px;
+    margin-left: 4px;
+  }
+
+  /* 底部操作栏 */
+  .action-bar {
+    background: #fff;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin-top: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+  .action-bar .summary {
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+  .action-bar .summary-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .action-bar .summary-label {
+    color: #6c757d;
+  }
+  .action-bar .summary-value {
+    font-weight: 600;
+    font-size: 1.1rem;
+  }
+  .action-bar .summary-value.danger {
+    color: #dc3545;
+  }
+
+  /* 空状态 */
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: #6c757d;
+    background: #fff;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+  }
+  .empty-state i {
+    font-size: 3rem;
+    margin-bottom: 16px;
+    opacity: 0.4;
+  }
+
+  /* 弹窗样式优化 */
+  .modal-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 0;
+  }
+  .modal-header .btn-close {
+    filter: brightness(0) invert(1);
+  }
+  .modal-body {
+    padding: 20px;
+  }
+  .form-section {
+    margin-bottom: 20px;
+  }
+  .form-section-title {
+    font-weight: 600;
+    color: #495057;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #eee;
+  }
+  .preview-table {
+    width: 100%;
+    font-size: 0.85rem;
+    margin-bottom: 0;
+  }
+  .preview-table th {
+    background: #f8f9fa;
+    padding: 8px 10px;
+    font-weight: 600;
+    color: #6c757d;
+  }
+  .preview-table td {
+    padding: 8px 10px;
+    border-bottom: 1px solid #eee;
+  }
+  .modal-footer {
+    border-top: 1px solid #dee2e6;
+    padding: 16px 20px;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid page-container">
+  <div class="back-link">
+    <a href="{{ url_for('business_projects.project_receipt.receipt_list') }}" class="text-decoration-none">
+      <i class="fas fa-arrow-left me-1"></i> 返回收款列表
+    </a>
+  </div>
+
+  <div class="page-header">
+    <h4><i class="fas fa-hand-holding-usd me-2"></i>按公司收款</h4>
+  </div>
+
+  <!-- 搜索区域 -->
+  <div class="search-card">
+    <form method="GET" id="searchForm">
+      <div class="search-row">
+        <div class="search-item company-select">
+          <label>Company <span class="text-danger">*</span></label>
+          <select class="form-select" name="company_id" id="companySelect" required>
+            <option value="">-- 选择公司 --</option>
+            {% for company in companies %}
+            <option value="{{ company.id }}" {% if selected_company_id == company.id %}selected{% endif %}>
+              {{ company.company_name }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="search-item">
+          <label>From (Invoice Date)</label>
+          <input type="date" class="form-control" name="date_from" value="{{ date_from }}">
+        </div>
+        <div class="search-item">
+          <label>To</label>
+          <input type="date" class="form-control" name="date_to" value="{{ date_to }}">
+        </div>
+        <div class="search-buttons">
+          <button type="submit" class="btn btn-primary">
+            <i class="fas fa-search me-1"></i> 搜索
+          </button>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  {% if selected_company %}
+  <!-- 发票列表 -->
+  <div class="invoice-card">
+    <div class="invoice-card-header">
+      <h6>
+        <i class="fas fa-building me-2"></i>
+        {{ selected_company.company_name }}
+      </h6>
+      <span>
+        共 <strong>{{ unpaid_invoices|length }}</strong> 张未付发票，
+        总未付: <strong class="text-danger">SGD {{ '%.2f'|format(total_unpaid) }}</strong>
+      </span>
+    </div>
+
+    {% if unpaid_invoices %}
+    <div class="table-responsive">
+      <table class="invoice-table">
+        <thead>
+          <tr>
+            <th style="width: 50px;">
+              <input class="form-check-input" type="checkbox" id="selectAll" title="全选">
+            </th>
+            <th>发票号</th>
+            <th>项目</th>
+            <th class="text-end">发票金额</th>
+            <th class="text-end">已付金额</th>
+            <th class="text-end">未付金额</th>
+            <th>状态</th>
+            <th>发票日期</th>
+            <th>到期日期</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for inv in unpaid_invoices %}
+          <tr data-invoice-id="{{ inv.id }}" data-unpaid="{{ inv.unpaid_amount }}">
+            <td>
+              <input class="form-check-input invoice-checkbox"
+                     type="checkbox"
+                     name="selected_invoices"
+                     value="{{ inv.id }}"
+                     id="inv_{{ inv.id }}">
+            </td>
+            <td>
+              <strong>{{ inv.invoice_number }}</strong>
+              {% if inv.is_overdue %}<span class="overdue-badge">逾期</span>{% endif %}
+            </td>
+            <td>
+              <a href="{{ url_for('business_projects.detail.project_detail', project_id=inv.header_id) }}"
+                 target="_blank" class="text-decoration-none">
+                {{ inv.header.hid if inv.header else '-' }}
+              </a>
+            </td>
+            <td class="text-end fw-bold">{{ inv.currency }} {{ '%.2f'|format(inv.amount) }}</td>
+            <td class="text-end text-success">{{ '%.2f'|format(inv.paid_amount or 0) }}</td>
+            <td class="text-end text-danger fw-bold">{{ '%.2f'|format(inv.unpaid_amount) }}</td>
+            <td>
+              <span class="badge {% if inv.status == 'partial_paid' %}bg-warning text-dark{% elif inv.status == 'overdue' %}bg-danger{% else %}bg-info{% endif %}">
+                {{ inv.status_display }}
+              </span>
+            </td>
+            <td class="text-muted">{{ inv.invoice_date.strftime('%Y-%m-%d') if inv.invoice_date else '-' }}</td>
+            <td class="text-muted">{{ inv.due_date.strftime('%Y-%m-%d') if inv.due_date else '-' }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- 底部操作栏 -->
+    <div class="action-bar">
+      <div class="summary">
+        <div class="summary-item">
+          <span class="summary-label">已选:</span>
+          <span class="summary-value" id="selectedCount">0</span>
+          <span class="summary-label">张</span>
+        </div>
+        <div class="summary-item">
+          <span class="summary-label">选中未付总额:</span>
+          <span class="summary-value danger" id="selectedUnpaid">SGD 0.00</span>
+        </div>
+      </div>
+      <button type="button" class="btn btn-success btn-lg" id="btnOpenReceipt" disabled>
+        <i class="fas fa-money-bill-wave me-2"></i>创建收款
+      </button>
+    </div>
+    {% else %}
+    <div style="padding: 50px; text-align: center; color: #6c757d;">
+      <i class="fas fa-check-circle text-success" style="font-size: 2.5rem;"></i>
+      <h5 class="mt-3">没有未付发票</h5>
+      <p class="mb-0">该公司在选定日期范围内没有未付发票</p>
+    </div>
+    {% endif %}
+  </div>
+
+  {% elif not selected_company_id %}
+  <!-- 初始状态 -->
+  <div class="empty-state">
+    <i class="fas fa-search d-block"></i>
+    <h5>请选择公司</h5>
+    <p class="mb-0">选择公司并点击搜索，查看该公司的未付发票</p>
+  </div>
+  {% endif %}
+</div>
+
+<!-- 收款弹窗 -->
+<div class="modal fade" id="receiptModal" tabindex="-1" data-bs-backdrop="static">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">
+          <i class="fas fa-money-bill-wave me-2"></i>创建收款
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="POST" id="receiptForm">
+        {{ form.hidden_tag() }}
+        <input type="hidden" name="selected_invoices" id="hiddenSelectedInvoices">
+
+        <div class="modal-body">
+          <!-- 选中的发票预览 -->
+          <div class="form-section">
+            <div class="form-section-title d-flex justify-content-between align-items-center">
+              <span><i class="fas fa-file-invoice me-2"></i>选中的发票</span>
+              <div class="btn-group btn-group-sm">
+                <button type="button" class="btn btn-outline-secondary" id="btnAutoAllocate" title="自动分配">
+                  <i class="fas fa-magic me-1"></i>自动分配
+                </button>
+                <button type="button" class="btn btn-outline-secondary" id="btnClearAllocate" title="清空">
+                  <i class="fas fa-eraser me-1"></i>清空
+                </button>
+              </div>
+            </div>
+            <table class="preview-table" id="selectedInvoicesTable">
+              <thead>
+                <tr>
+                  <th>发票号</th>
+                  <th class="text-end" style="width: 120px;">未付金额</th>
+                  <th class="text-end" style="width: 150px;">分配金额</th>
+                </tr>
+              </thead>
+              <tbody id="selectedInvoicesBody">
+              </tbody>
+              <tfoot>
+                <tr style="background: #f8f9fa; font-weight: 600;">
+                  <td>合计</td>
+                  <td class="text-end text-danger" id="modalTotalUnpaid">0.00</td>
+                  <td class="text-end text-success" id="modalTotalAllocated">0.00</td>
+                </tr>
+              </tfoot>
+            </table>
+            <div class="mt-2 small text-muted">
+              <i class="fas fa-info-circle me-1"></i>可手动修改每张发票的分配金额，或点击"自动分配"按收款金额自动计算
+            </div>
+          </div>
+
+          <!-- 收款信息 -->
+          <div class="form-section">
+            <div class="form-section-title">
+              <i class="fas fa-credit-card me-2"></i>收款信息
+            </div>
+            <div class="row">
+              <div class="col-md-4 mb-3">
+                <label class="form-label">收款单号</label>
+                <input type="text" class="form-control" value="{{ receipt_number }}" readonly>
+              </div>
+              <div class="col-md-4 mb-3">
+                <label class="form-label">收款金额 <span class="text-danger">*</span></label>
+                <input type="number" step="0.01" class="form-control" name="amount" id="receiptAmount"
+                       placeholder="0.00" required>
+              </div>
+              <div class="col-md-4 mb-3">
+                <label class="form-label">货币</label>
+                <select class="form-select" name="currency">
+                  <option value="SGD" selected>SGD</option>
+                  <option value="USD">USD</option>
+                  <option value="CNY">CNY</option>
+                </select>
+              </div>
+            </div>
+            <div class="row">
+              <div class="col-md-4 mb-3">
+                <label class="form-label">分配方式</label>
+                <select class="form-select" name="distribution_method" id="distributionMethod">
+                  <option value="sequential">顺序分配（按日期从早到晚）</option>
+                  <option value="proportional">按比例分配</option>
+                </select>
+              </div>
+              <div class="col-md-4 mb-3">
+                <label class="form-label">付款方式</label>
+                <select class="form-select" name="payment_method">
+                  <option value="bank_transfer">银行转账</option>
+                  <option value="cash">现金</option>
+                  <option value="cheque">支票</option>
+                  <option value="credit_card">信用卡</option>
+                </select>
+              </div>
+              <div class="col-md-4 mb-3">
+                <label class="form-label">收款日期 <span class="text-danger">*</span></label>
+                <input type="date" class="form-control" name="payment_date" value="{{ today }}" required>
+              </div>
+            </div>
+            <div class="row">
+              <div class="col-md-4 mb-3">
+                <label class="form-label">银行名称 <span class="text-danger">*</span></label>
+                <input type="text" class="form-control" name="bank_name" placeholder="银行名称" required>
+              </div>
+              <div class="col-md-4 mb-3">
+                <label class="form-label">账号</label>
+                <input type="text" class="form-control" name="account_number" placeholder="账号">
+              </div>
+              <div class="col-md-4 mb-3">
+                <label class="form-label">交易流水号</label>
+                <input type="text" class="form-control" name="transaction_id" placeholder="流水号">
+              </div>
+            </div>
+            <div class="row">
+              <div class="col-12 mb-0">
+                <label class="form-label">备注</label>
+                <textarea class="form-control" name="remarks" rows="2" placeholder="备注信息"></textarea>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+          <button type="submit" class="btn btn-success" id="btnSubmit">
+            <i class="fas fa-check me-1"></i> 确认收款
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const checkboxes = document.querySelectorAll('.invoice-checkbox');
+  const selectAll = document.getElementById('selectAll');
+  const btnOpenReceipt = document.getElementById('btnOpenReceipt');
+  const tableRows = document.querySelectorAll('.invoice-table tbody tr');
+
+  if (!checkboxes.length) return;
+
+  // 收集选中的发票数据
+  function getSelectedInvoices() {
+    const selected = [];
+    document.querySelectorAll('.invoice-checkbox:checked').forEach(cb => {
+      const row = cb.closest('tr');
+      selected.push({
+        id: parseInt(cb.value),
+        number: row.cells[1].textContent.trim().replace('逾期', '').trim(),
+        unpaid: parseFloat(row.dataset.unpaid) || 0
+      });
+    });
+    return selected;
+  }
+
+  // 更新底部汇总
+  function updateSummary() {
+    const selected = getSelectedInvoices();
+    const count = selected.length;
+    const totalUnpaid = selected.reduce((sum, inv) => sum + inv.unpaid, 0);
+
+    document.getElementById('selectedCount').textContent = count;
+    document.getElementById('selectedUnpaid').textContent = 'SGD ' + totalUnpaid.toFixed(2);
+
+    btnOpenReceipt.disabled = count === 0;
+
+    if (selectAll) {
+      selectAll.checked = count === checkboxes.length && count > 0;
+      selectAll.indeterminate = count > 0 && count < checkboxes.length;
+    }
+  }
+
+  // 点击行选择
+  tableRows.forEach(row => {
+    row.addEventListener('click', function(e) {
+      if (e.target.type !== 'checkbox' && e.target.tagName !== 'A') {
+        const cb = this.querySelector('.invoice-checkbox');
+        cb.checked = !cb.checked;
+        this.classList.toggle('selected', cb.checked);
+        updateSummary();
+      }
+    });
+  });
+
+  // 复选框变化
+  checkboxes.forEach(cb => {
+    cb.addEventListener('change', function() {
+      this.closest('tr').classList.toggle('selected', this.checked);
+      updateSummary();
+    });
+  });
+
+  // 全选
+  if (selectAll) {
+    selectAll.addEventListener('change', function() {
+      checkboxes.forEach(cb => {
+        cb.checked = this.checked;
+        cb.closest('tr').classList.toggle('selected', this.checked);
+      });
+      updateSummary();
+    });
+  }
+
+  // 打开收款弹窗
+  const receiptModal = new bootstrap.Modal(document.getElementById('receiptModal'));
+  const receiptAmount = document.getElementById('receiptAmount');
+  const distributionMethod = document.getElementById('distributionMethod');
+  const selectedInvoicesBody = document.getElementById('selectedInvoicesBody');
+  const hiddenSelectedInvoices = document.getElementById('hiddenSelectedInvoices');
+  const btnAutoAllocate = document.getElementById('btnAutoAllocate');
+  const btnClearAllocate = document.getElementById('btnClearAllocate');
+
+  // 更新分配合计
+  function updateAllocationTotal() {
+    let total = 0;
+    document.querySelectorAll('.allocation-input').forEach(input => {
+      total += parseFloat(input.value) || 0;
+    });
+    document.getElementById('modalTotalAllocated').textContent = total.toFixed(2);
+
+    // 同步更新收款金额
+    receiptAmount.value = total.toFixed(2);
+  }
+
+  // 验证单个分配金额
+  function validateAllocationInput(input) {
+    const row = input.closest('tr');
+    const maxUnpaid = parseFloat(row.dataset.unpaid) || 0;
+    let value = parseFloat(input.value) || 0;
+
+    if (value < 0) value = 0;
+    if (value > maxUnpaid) value = maxUnpaid;
+
+    input.value = value.toFixed(2);
+    updateAllocationTotal();
+  }
+
+  btnOpenReceipt.addEventListener('click', function() {
+    const selected = getSelectedInvoices();
+    if (!selected.length) return;
+
+    // 填充选中发票列表（分配金额改为输入框）
+    selectedInvoicesBody.innerHTML = '';
+    let totalUnpaid = 0;
+    const invoiceIds = [];
+
+    selected.forEach(inv => {
+      totalUnpaid += inv.unpaid;
+      invoiceIds.push(inv.id);
+      selectedInvoicesBody.innerHTML += `
+        <tr data-invoice-id="${inv.id}" data-unpaid="${inv.unpaid}">
+          <td>${inv.number}</td>
+          <td class="text-end text-danger">${inv.unpaid.toFixed(2)}</td>
+          <td class="text-end">
+            <input type="number" step="0.01" min="0" max="${inv.unpaid}"
+                   class="form-control form-control-sm text-end allocation-input"
+                   value="${inv.unpaid.toFixed(2)}"
+                   style="width: 120px; display: inline-block;">
+          </td>
+        </tr>
+      `;
+    });
+
+    document.getElementById('modalTotalUnpaid').textContent = totalUnpaid.toFixed(2);
+
+    // 绑定输入事件
+    document.querySelectorAll('.allocation-input').forEach(input => {
+      input.addEventListener('change', function() {
+        validateAllocationInput(this);
+      });
+      input.addEventListener('blur', function() {
+        validateAllocationInput(this);
+      });
+    });
+
+    // 设置隐藏字段
+    hiddenSelectedInvoices.value = invoiceIds.join(',');
+
+    // 默认填充金额为总未付
+    updateAllocationTotal();
+
+    receiptModal.show();
+  });
+
+  // 自动分配按钮
+  btnAutoAllocate.addEventListener('click', function() {
+    const amount = parseFloat(receiptAmount.value) || 0;
+    const method = distributionMethod.value;
+    const invoiceIds = hiddenSelectedInvoices.value.split(',').map(Number);
+
+    if (amount <= 0) {
+      alert('请先输入收款金额');
+      return;
+    }
+
+    btnAutoAllocate.disabled = true;
+    btnAutoAllocate.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+    fetch("{{ url_for('business_projects.project_receipt.preview_allocation') }}", {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ invoice_ids: invoiceIds, amount: amount, distribution_method: method })
+    })
+    .then(r => r.json())
+    .then(data => {
+      btnAutoAllocate.disabled = false;
+      btnAutoAllocate.innerHTML = '<i class="fas fa-magic me-1"></i>自动分配';
+
+      if (data.success) {
+        document.querySelectorAll('#selectedInvoicesBody tr').forEach(row => {
+          const invId = row.dataset.invoiceId;
+          const alloc = data.allocation_details[invId];
+          const input = row.querySelector('.allocation-input');
+          if (alloc && input) {
+            input.value = alloc.allocated_amount.toFixed(2);
+          }
+        });
+        updateAllocationTotal();
+      } else {
+        alert(data.message || '分配失败');
+      }
+    })
+    .catch(() => {
+      btnAutoAllocate.disabled = false;
+      btnAutoAllocate.innerHTML = '<i class="fas fa-magic me-1"></i>自动分配';
+      alert('网络错误');
+    });
+  });
+
+  // 清空分配按钮
+  btnClearAllocate.addEventListener('click', function() {
+    document.querySelectorAll('.allocation-input').forEach(input => {
+      input.value = '0.00';
+    });
+    updateAllocationTotal();
+  });
+
+  // 收款金额变化时提示可用自动分配
+  receiptAmount.addEventListener('change', function() {
+    // 金额变化后可点击自动分配重新计算
+  });
+
+  // 表单提交前处理
+  document.getElementById('receiptForm').addEventListener('submit', function(e) {
+    const invoiceIds = hiddenSelectedInvoices.value.split(',').filter(id => id);
+    if (!invoiceIds.length) {
+      e.preventDefault();
+      alert('请选择发票');
+      return;
+    }
+
+    // 收集分配金额
+    const allocations = [];
+    let hasAllocation = false;
+    document.querySelectorAll('#selectedInvoicesBody tr').forEach(row => {
+      const invId = row.dataset.invoiceId;
+      const input = row.querySelector('.allocation-input');
+      const amount = parseFloat(input?.value) || 0;
+      if (amount > 0) {
+        hasAllocation = true;
+        allocations.push({ id: invId, amount: amount });
+      }
+    });
+
+    if (!hasAllocation) {
+      e.preventDefault();
+      alert('请至少为一张发票分配金额');
+      return;
+    }
+
+    // 创建隐藏字段传递发票ID和分配金额
+    hiddenSelectedInvoices.remove();
+    allocations.forEach(alloc => {
+      const idInput = document.createElement('input');
+      idInput.type = 'hidden';
+      idInput.name = 'selected_invoices';
+      idInput.value = alloc.id;
+      this.appendChild(idInput);
+
+      const amountInput = document.createElement('input');
+      amountInput.type = 'hidden';
+      amountInput.name = 'allocation_amounts';
+      amountInput.value = alloc.amount;
+      this.appendChild(amountInput);
+    });
+  });
+
+  updateSummary();
+});
+</script>
+{% endblock %}

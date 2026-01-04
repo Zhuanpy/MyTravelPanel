@@ -69,7 +69,15 @@
                                     如果选择分配到REF，收款金额不能超过此金额
                                 </div>
                             </div>
-                            <div class="col-md-6 mb-3">
+                            <div class="col-md-3 mb-3">
+                                <label class="form-label">{{ form.invoice_id.label }}</label>
+                                {{ form.invoice_id(class="form-select") }}
+                                <div class="form-text">
+                                    <i class="fas fa-info-circle text-info"></i>
+                                    选择后将自动更新发票的已付金额
+                                </div>
+                            </div>
+                            <div class="col-md-3 mb-3">
                                 <!-- 占位符，保持布局平衡 -->
                             </div>
                         </div>

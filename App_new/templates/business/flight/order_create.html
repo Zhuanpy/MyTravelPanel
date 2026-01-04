@@ -1,8 +1,8 @@
 {% extends "shared/staff_base.html" %}
 
-{% block title %}创建机票订单 - MyTravelPanel{% endblock %}
+{% block title %}Create Flight Order{% endblock %}
 
-{% block page_title %}创建机票订单{% endblock %}
+{% block page_title %}Create Flight Order{% endblock %}
 
 {% block extra_css %}
 <!-- 添加 Font Awesome -->
@@ -12,139 +12,119 @@
 <!-- 添加 Select2 样式 -->
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 <!-- 添加公共机票订单样式 -->
-<link rel="stylesheet" href="{{ url_for('static', filename='css/flight_order_common.css') }}?v=5.3&t=20260103">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/flight_order_common.css') }}?v=5.9&t=20260104">
 
 <style>
-    /* 页面特定样式可以在这里添加 */
+    /* 覆盖容器样式 */
+    .order-container { max-width: 980px !important; background: transparent !important; }
+    /* Summary Bar 样式 */
+    .summary-bar { background: linear-gradient(135deg, #2B6CB0 0%, #4299E1 100%); color: white; padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; }
+    .summary-item { text-align: center; padding: 0 16px; border-right: 1px solid rgba(255,255,255,0.3); }
+    .summary-item:last-child { border-right: none; }
+    .summary-label { font-size: 11px; opacity: 0.9; margin-bottom: 2px; }
+    .summary-value { font-size: 16px; font-weight: bold; }
+    /* Form Section 样式 */
+    .form-section { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+    .section-title { font-size: 13px; font-weight: 600; color: #2D3748; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 2px solid #2B6CB0; }
+    /* 隐藏旧的 order-card 标题样式 */
+    .order-section-title { display: none; }
+    /* 调整航段和乘客卡片背景 */
+    .flight-segment, .passenger-card-inline { background-color: #f8fafc; }
+    /* 航段表格样式 */
+    .flight-segment table { min-width: auto !important; border-spacing: 6px 0 !important; }
+    .flight-segment { padding: 10px 12px !important; overflow-x: visible !important; }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="order-container">
-
     <form id="orderForm" method="POST" action="{{ url_for('flights_booking.submit_order') }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="project_header_id" value="{{ header_id }}">
         <input type="hidden" name="project_ref_id" value="{{ ref_id or '' }}">
 
-        <!-- 价格汇总栏 -->
-        <div class="order-card price-summary-card">
-            <div class="price-summary">
-                <div class="price-item">
-                    <span class="price-label">总售价</span>
-                    <span class="price-value" id="totalSellingPrice">SGD 0.00</span>
-                </div>
-                <div class="price-item">
-                    <span class="price-label">总成本</span>
-                    <span class="price-value" id="totalCostPrice">SGD 0.00</span>
-                </div>
-                <div class="price-item profit-item">
-                    <span class="price-label">预计利润</span>
-                    <span class="price-value profit-value" id="totalProfit">SGD 0.00</span>
-                </div>
-                <div class="price-item passenger-count-item">
-                    <span class="price-label">乘客数量</span>
-                    <span class="price-value" id="passengerCount">0 人</span>
+        <!-- 航段解析 - 隐藏 -->
+        <div style="display: none;">
+            <textarea id="flightParser"></textarea>
+        </div>
+
+        <!-- Summary Bar -->
+        <div class="summary-bar">
+            <div class="d-flex justify-content-between align-items-center">
+                <span style="font-size: 14px; font-weight: 600;"><i class="fas fa-plane me-2"></i>New Flight Order</span>
+                <div class="d-flex">
+                    <div class="summary-item"><div class="summary-label">Selling</div><div class="summary-value" id="totalSellingPrice">$0.00</div></div>
+                    <div class="summary-item"><div class="summary-label">Cost</div><div class="summary-value" id="totalCostPrice">$0.00</div></div>
+                    <div class="summary-item"><div class="summary-label">Profit</div><div class="summary-value" id="totalProfit">$0.00</div></div>
+                    <div class="summary-item"><div class="summary-label">Pax</div><div class="summary-value" id="passengerCount">0</div></div>
                 </div>
             </div>
         </div>
 
-        <!-- 航段解析器 - 隐藏，只通过模态框访问 -->
-        <div class="order-card" style="display: none;">
-            <h2 class="order-section-title">航段解析</h2>
-            <div class="order-form-group">
-                <label class="order-label">粘贴航段信息</label>
-                <textarea class="order-input" id="flightParser" rows="5" placeholder="请粘贴航段信息，例如：&#10;CX 714 O 30JUN SINHKG HS1 0150 0550 O E MO 1"></textarea>
-                <div class="mt-3">
-                    <button type="button" class="order-btn order-btn-primary" onclick="parseFlightSegments()">
-                        <i class="fas fa-magic"></i> 解析航段
-                    </button>
-                    <button type="button" class="order-btn order-btn-secondary" onclick="clearParser()">
-                        <i class="fas fa-eraser"></i> 清空
-                    </button>
+        <!-- Supplier -->
+        <div class="form-section">
+            <div class="section-title"><i class="fas fa-truck me-2"></i>Supplier</div>
+            <div class="row g-2">
+                <div class="col-3">
+                    <label class="form-label small mb-1">Supplier Type</label>
+                    <select class="form-select form-select-sm" id="supplier_type" onchange="filterSuppliers()">
+                        <option value="">All Types</option>
+                        {% for type in supplier_types %}
+                        <option value="{{ type.code }}">{{ type.code | replace('_', ' ') | title }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-9">
+                    <label class="form-label small mb-1">Supplier Name</label>
+                    <select class="form-select form-select-sm" name="supplier_id" id="supplier_name" required>
+                        <option value="">-- Select --</option>
+                        {% for supplier in suppliers %}
+                        <option value="{{ supplier.supplier_id }}" data-type="{{ supplier.supplier_type_code or '' }}">{{ supplier.name }}</option>
+                        {% endfor %}
+                    </select>
                 </div>
             </div>
         </div>
 
-        <!-- 信息布局容器：供应商+备注 -->
-        <div style="display: flex; gap: 20px; align-items: stretch;">
-            <!-- 左侧：供应商信息 -->
-            <div style="flex: 1; min-width: 0;">
-                <div class="order-card" style="height: 100%; display: flex; flex-direction: column;">
-                    <h2 class="order-section-title">供应商信息</h2>
-                    <div style="display: flex; gap: 15px; flex: 1; align-items: flex-end;">
-                        <div style="flex: 1;">
-                            <label class="order-label">供应商类型</label>
-                            <select class="order-input" id="supplier_type" onchange="filterSuppliers()" style="width: 100%;">
-                                <option value="">All Types</option>
-                                {% for type in supplier_types %}
-                                <option value="{{ type.code }}">{{ type.code | replace('_', ' ') | title }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <div style="flex: 2;">
-                            <label class="order-label">供应商名称</label>
-                            <select class="order-input" name="supplier_id" id="supplier_name" required style="width: 100%;">
-                                <option value="">请选择供应商</option>
-                                {% for supplier in suppliers %}
-                                <option value="{{ supplier.supplier_id }}" data-type="{{ supplier.supplier_type_code or '' }}">{{ supplier.name }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 右侧：备注信息 -->
-            <div style="flex: 1; min-width: 0;">
-                <div class="order-card" style="height: 100%; display: flex; flex-direction: column;">
-                    <h2 class="order-section-title">备注信息</h2>
-                    <div style="flex: 1; display: flex; flex-direction: column;">
-                        <textarea class="order-input" name="remarks" rows="2" placeholder="请输入备注信息" style="width: 100%; box-sizing: border-box; flex: 1; min-height: 38px;"></textarea>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- 航段信息 -->
-        <div class="order-card">
-            <h2 class="order-section-title">航段信息</h2>
+        <!-- Flight Segments -->
+        <div class="form-section">
+            <div class="section-title"><i class="fas fa-route me-2"></i>Flight Segments</div>
             <div id="flightSegmentsContainer">
                 <!-- 初始航段信息 -->
             </div>
             <div style="display: flex; gap: 10px; margin-top: 10px;">
-                <button type="button" class="order-btn order-btn-primary" onclick="addFlightSegment(null, true)">
-                    <i class="fas fa-plus"></i> 添加航段
+                <button type="button" class="btn btn-info btn-sm" onclick="addFlightSegment(null, true)">
+                    <i class="fas fa-plus me-1"></i>Add Segment
                 </button>
-                <button type="button" class="order-btn order-btn-secondary" onclick="openFlightParserModal()">
-                    <i class="fas fa-magic"></i> 航段解析
+                <button type="button" class="btn btn-outline-purple btn-sm" style="border-color: #805AD5; color: #805AD5;" onclick="openFlightParserModal()">
+                    <i class="fas fa-magic me-1"></i>Parse Segments
                 </button>
             </div>
         </div>
 
-        <!-- 乘客信息 -->
-        <div class="order-card">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding-bottom: 6px; border-bottom: 1px solid #f0f0f0;">
-                <h2 class="order-section-title" style="margin-bottom: 0; padding-bottom: 0; border-bottom: none;">乘客信息</h2>
+        <!-- Passengers -->
+        <div class="form-section">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 2px solid #2B6CB0;">
+                <div class="section-title" style="margin-bottom: 0; padding-bottom: 0; border-bottom: none;"><i class="fas fa-users me-2"></i>Passengers</div>
                 <div style="display: flex; gap: 8px;">
-                    <button type="button" class="order-btn order-btn-outline" onclick="copyLastPassenger()" title="复制最后一位乘客的价格信息">
-                        <i class="fas fa-copy"></i> 复制价格
+                    <button type="button" class="btn btn-outline-warning btn-sm" onclick="copyLastPassenger()" title="Copy last passenger price">
+                        <i class="fas fa-copy me-1"></i>Copy Price
                     </button>
-                    <button type="button" class="order-btn order-btn-primary" onclick="addPassenger()">
-                        <i class="fas fa-plus"></i> 添加乘客
+                    <button type="button" class="btn btn-primary btn-sm" onclick="addPassenger()">
+                        <i class="fas fa-plus me-1"></i>Add Passenger
                     </button>
                 </div>
             </div>
             <!-- 表头 -->
             <div class="passenger-header-row">
                 <span class="col-num"></span>
-                <span class="col-name">姓名</span>
-                <span class="col-type">类型</span>
-                <span class="col-price">售价</span>
-                <span class="col-price">成本</span>
-                <span class="col-ticket">票号</span>
+                <span class="col-name">Name</span>
+                <span class="col-type">Type</span>
+                <span class="col-price">Selling</span>
+                <span class="col-price">Cost</span>
+                <span class="col-ticket">Ticket No.</span>
                 <span class="col-pnr">PNR</span>
-                <span class="col-profit">利润</span>
+                <span class="col-profit">Profit</span>
                 <span class="col-action"></span>
             </div>
             <div id="passengersContainer">
@@ -152,40 +132,45 @@
             </div>
         </div>
 
-        <!-- 提交按钮 -->
-        <div class="text-center" style="margin-top: 20px;">
-            <button type="submit" class="order-btn order-btn-primary order-btn-lg">
-                <i class="fas fa-save"></i> 提交订单
-            </button>
-            <a href="{{ url_for('flights_booking.order_list') }}" class="order-btn order-btn-secondary order-btn-lg">
-                <i class="fas fa-arrow-left"></i> 返回列表
-            </a>
+        <!-- Remarks -->
+        <div class="form-section">
+            <div class="section-title"><i class="fas fa-sticky-note me-2"></i>Remarks</div>
+            <textarea name="remarks" class="form-control form-control-sm" rows="2" placeholder="Enter remarks..."></textarea>
+        </div>
+
+        <!-- Actions -->
+        <div class="form-section">
+            <div class="section-title"><i class="fas fa-cogs me-2"></i>Actions</div>
+            <div class="d-flex justify-content-center gap-3">
+                <button type="submit" class="btn btn-success btn-sm" style="width: 120px;"><i class="fas fa-save me-1"></i>Save</button>
+                <a href="{{ url_for('flights_booking.order_list') }}" class="btn btn-outline-secondary btn-sm" style="width: 120px;"><i class="fas fa-arrow-left me-1"></i>Back</a>
+            </div>
         </div>
     </form>
 
-    <!-- 航段解析模态框 -->
+    <!-- Flight Parser Modal -->
     <div id="flightParserModal" class="modal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.4);">
         <div class="modal-content" style="background-color: #fefefe; margin: 5% auto; padding: 20px; border: 1px solid #888; width: 80%; max-width: 800px; border-radius: 8px;">
             <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <h3 style="margin: 0; color: #2d3748;">航段解析</h3>
+                <h3 style="margin: 0; color: #2d3748;">Parse Flight Segments</h3>
                 <span class="close" onclick="closeFlightParserModal()" style="color: #aaa; font-size: 28px; font-weight: bold; cursor: pointer;">&times;</span>
             </div>
             <div class="modal-body">
                 <div style="margin-bottom: 15px;">
-                    <label class="order-label">粘贴航段信息</label>
-                    <textarea class="order-input" id="modalFlightParser" rows="8" placeholder="请粘贴航段信息，例如：&#10;CX 714 O 30JUN SINHKG HS1 0150 0550 O E MO 1" style="width: 100%; box-sizing: border-box; margin-bottom: 10px;"></textarea>
+                    <label class="form-label small mb-1">Paste Segment Info</label>
+                    <textarea class="form-control" id="modalFlightParser" rows="8" placeholder="Paste segment info, e.g.:&#10;CX 714 O 30JUN SINHKG HS1 0150 0550 O E MO 1" style="width: 100%; box-sizing: border-box; margin-bottom: 10px;"></textarea>
                 </div>
-                <div style="display: flex; gap: 10px; margin-bottom: 20px;">
-                    <button type="button" class="order-btn order-btn-primary" onclick="parseFlightSegmentsFromModal()">
-                        <i class="fas fa-magic"></i> 解析航段
-                    </button>
-                    <button type="button" class="order-btn order-btn-secondary" onclick="clearModalParser()">
-                        <i class="fas fa-eraser"></i> 清空
+                <div style="display: flex; gap: 10px;">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="clearModalParser()">
+                        <i class="fas fa-eraser me-1"></i>Clear
                     </button>
                 </div>
             </div>
-            <div class="modal-footer" style="text-align: right; margin-top: 20px;">
-                <button type="button" class="order-btn order-btn-secondary" onclick="closeFlightParserModal()">关闭</button>
+            <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; padding-top: 15px; border-top: 1px solid #e2e8f0;">
+                <button type="button" class="btn btn-secondary btn-sm" onclick="closeFlightParserModal()">Cancel</button>
+                <button type="button" class="btn btn-primary btn-sm" onclick="parseFlightSegmentsFromModal()">
+                    <i class="fas fa-check me-1"></i>Parse & Apply
+                </button>
             </div>
         </div>
     </div>
@@ -202,7 +187,6 @@
 <script>
 // 等待所有必要的脚本加载完成
 document.addEventListener('DOMContentLoaded', function() {
-    // 确保jQuery和Select2都已加载
     function waitForDependencies() {
         if (typeof jQuery !== 'undefined' && typeof jQuery.fn.select2 !== 'undefined') {
             initializePage();
@@ -214,43 +198,28 @@ document.addEventListener('DOMContentLoaded', function() {
     function initializePage() {
         // Select2配置对象
         window.select2Config = {
-            placeholder: '请输入机场代码、城市名或机场名',
+            placeholder: 'Enter airport code',
             minimumInputLength: 2,
             language: {
-                inputTooShort: function() {
-                    return '请至少输入2个字符';
-                },
-                noResults: function() {
-                    return '未找到匹配的机场';
-                },
-                searching: function() {
-                    return '搜索中...';
-                }
+                inputTooShort: function() { return 'Enter at least 2 characters'; },
+                noResults: function() { return 'No airports found'; },
+                searching: function() { return 'Searching...'; }
             },
             ajax: {
                 url: '{{ url_for("flights_booking.search_airports") }}',
                 dataType: 'json',
                 delay: 250,
-                data: function(params) {
-                    return {
-                        q: params.term
-                    };
-                },
-                processResults: function(data) {
-                    return {
-                        results: data
-                    };
-                },
+                data: function(params) { return { q: params.term }; },
+                processResults: function(data) { return { results: data }; },
                 cache: true
             }
         };
 
-        // 初始化页面 - 添加一个乘客和一个默认航段
+        // 初始化页面
         addPassenger();
-        addFlightSegment(null, true);  // 添加一个默认航段
+        addFlightSegment(null, true);
     }
 
-    // 开始等待依赖项加载
     waitForDependencies();
 });
 
@@ -259,17 +228,12 @@ function filterSuppliers() {
     const typeFilter = document.getElementById('supplier_type').value;
     const supplierSelect = document.getElementById('supplier_name');
     const options = supplierSelect.querySelectorAll('option');
-    
-    // 保存当前选中的值
     const currentValue = supplierSelect.value;
-    
-    // 首先隐藏除默认选项外的所有选项
+
     options.forEach(option => {
         if (option.value === '') {
-            // 保留默认"请选择供应商"选项
             option.style.display = '';
         } else {
-            // 根据类型筛选显示其他选项
             if (!typeFilter || option.dataset.type === typeFilter) {
                 option.style.display = '';
             } else {
@@ -277,8 +241,7 @@ function filterSuppliers() {
             }
         }
     });
-    
-    // 如果当前选中的选项被隐藏了，则重置为默认选项
+
     if (currentValue) {
         const currentOption = Array.from(options).find(o => o.value === currentValue);
         if (currentOption && currentOption.style.display === 'none') {
@@ -288,7 +251,7 @@ function filterSuppliers() {
 }
 
 function initializeSelect2(element) {
-    if (!$(element).data('select2')) {  // 检查是否已经初始化
+    if (!$(element).data('select2')) {
         const config = Object.assign({}, window.select2Config, {
             placeholder: $(element).data('placeholder') || window.select2Config.placeholder
         });
@@ -297,10 +260,7 @@ function initializeSelect2(element) {
 }
 
 function addFlightSegment(data = null, isManualAdd = false) {
-    // 如果没有数据且不是手动添加，则返回
-    if (!data && !isManualAdd) {
-        return;
-    }
+    if (!data && !isManualAdd) return;
 
     const template = `
         <div class="flight-segment">
@@ -309,55 +269,40 @@ function addFlightSegment(data = null, isManualAdd = false) {
             </button>
             <table>
                 <tr>
-                    <!-- 航班号 -->
                     <td class="flight-number-col">
-                        <label class="order-label required">航班号</label>
-                        <input type="text" class="order-input" name="flight_number[]" value="${data ? data.flightNumber : ''}" placeholder="如:CA123" required>
+                        <label class="order-label required">Flight</label>
+                        <input type="text" class="order-input" name="flight_number[]" value="${data ? data.flightNumber : ''}" placeholder="CA123" required>
                     </td>
-                    
-                    <!-- 舱位 -->
                     <td class="cabin-code-col">
-                        <label class="order-label required">舱位</label>
-                        <input type="text" class="order-input" name="cabin_code[]" value="${data ? data.cabinCode : ''}" placeholder="如:Y" required>
+                        <label class="order-label required">Cabin</label>
+                        <input type="text" class="order-input" name="cabin_code[]" value="${data ? data.cabinCode : ''}" placeholder="Y" required>
                     </td>
-                    
-                    <!-- 出发机场 -->
                     <td class="airport-col">
-                        <label class="order-label required">出发机场</label>
-                        <select class="order-select airport-select" name="departure_airport[]" required data-placeholder="输入机场代码">
+                        <label class="order-label required">From</label>
+                        <select class="order-select airport-select" name="departure_airport[]" required data-placeholder="Airport">
                             ${data ? `<option value="${data.departureAirport}" selected>${data.departureAirport}</option>` : '<option></option>'}
                         </select>
                     </td>
-                    
-                    <!-- 到达机场 -->
                     <td class="airport-col">
-                        <label class="order-label required">到达机场</label>
-                        <select class="order-select airport-select" name="arrival_airport[]" required data-placeholder="输入机场代码">
+                        <label class="order-label required">To</label>
+                        <select class="order-select airport-select" name="arrival_airport[]" required data-placeholder="Airport">
                             ${data ? `<option value="${data.arrivalAirport}" selected>${data.arrivalAirport}</option>` : '<option></option>'}
                         </select>
                     </td>
-                    
-                    <!-- 出发日期 -->
                     <td class="date-col">
-                        <label class="order-label required">出发日期</label>
+                        <label class="order-label required">Dep Date</label>
                         <input type="date" class="order-input" name="departure_date[]" value="${data ? data.departureDate : ''}" required>
                     </td>
-                    
-                    <!-- 出发时间 -->
                     <td class="time-col">
-                        <label class="order-label">出发时间</label>
+                        <label class="order-label">Dep Time</label>
                         <input type="time" class="order-input" name="departure_time[]" value="${data ? data.departureTime : ''}">
                     </td>
-                    
-                    <!-- 到达日期 -->
                     <td class="date-col">
-                        <label class="order-label required">到达日期</label>
+                        <label class="order-label required">Arr Date</label>
                         <input type="date" class="order-input" name="arrival_date[]" value="${data ? data.arrivalDate : ''}" required>
                     </td>
-                    
-                    <!-- 到达时间 -->
                     <td class="time-col">
-                        <label class="order-label">到达时间</label>
+                        <label class="order-label">Arr Time</label>
                         <input type="time" class="order-input" name="arrival_time[]" value="${data ? data.arrivalTime : ''}">
                     </td>
                 </tr>
@@ -367,8 +312,6 @@ function addFlightSegment(data = null, isManualAdd = false) {
 
     const $newSegment = $(template);
     $('#flightSegmentsContainer').append($newSegment);
-    
-    // 初始化新添加的Select2
     $newSegment.find('.airport-select').each(function() {
         initializeSelect2(this);
     });
@@ -380,13 +323,13 @@ function addPassenger() {
         <div class="passenger-card passenger-card-inline">
             <span class="passenger-number-inline col-num">${passengerIndex}</span>
             <div class="passenger-field-inline col-name">
-                <input type="text" class="order-input passenger-name-input" name="passenger_name[]" required placeholder="姓名">
+                <input type="text" class="order-input passenger-name-input" name="passenger_name[]" required placeholder="Name">
             </div>
             <div class="passenger-field-inline col-type">
                 <select class="order-select passenger-type-select" name="passenger_type[]" required onchange="updatePriceSummary()">
-                    <option value="adult">成人</option>
-                    <option value="child">儿童</option>
-                    <option value="infant">婴儿</option>
+                    <option value="adult">ADT</option>
+                    <option value="child">CHD</option>
+                    <option value="infant">INF</option>
                 </select>
             </div>
             <div class="passenger-field-inline col-price">
@@ -402,7 +345,7 @@ function addPassenger() {
                 </div>
             </div>
             <div class="passenger-field-inline col-ticket">
-                <input type="text" class="order-input" name="ticket_number[]" placeholder="票号">
+                <input type="text" class="order-input" name="ticket_number[]" placeholder="Ticket No.">
             </div>
             <div class="passenger-field-inline col-pnr">
                 <input type="text" class="order-input" name="pnr[]" placeholder="PNR" maxlength="6">
@@ -420,14 +363,12 @@ function addPassenger() {
     updatePassengerNumbers();
 }
 
-// 更新乘客编号
 function updatePassengerNumbers() {
     $('.passenger-card').each(function(index) {
         $(this).find('.passenger-number-inline').text(index + 1);
     });
 }
 
-// 实时更新价格汇总
 function updatePriceSummary() {
     let totalSelling = 0;
     let totalCost = 0;
@@ -442,12 +383,10 @@ function updatePriceSummary() {
         totalCost += costPrice;
         passengerCount++;
 
-        // 更新单人利润显示（内联样式）
         const profitDisplay = $(this).find('.profit-amount-inline');
         const sign = profit >= 0 ? '+' : '';
         profitDisplay.text(sign + profit.toFixed(2));
 
-        // 根据利润正负设置颜色
         if (profit > 0) {
             profitDisplay.css('color', '#48BB78');
         } else if (profit < 0) {
@@ -459,27 +398,24 @@ function updatePriceSummary() {
 
     const totalProfit = totalSelling - totalCost;
 
-    // 更新汇总栏
-    $('#totalSellingPrice').text('SGD ' + totalSelling.toFixed(2));
-    $('#totalCostPrice').text('SGD ' + totalCost.toFixed(2));
-    $('#totalProfit').text('SGD ' + totalProfit.toFixed(2));
-    $('#passengerCount').text(passengerCount + ' 人');
+    $('#totalSellingPrice').text('$' + totalSelling.toFixed(2));
+    $('#totalCostPrice').text('$' + totalCost.toFixed(2));
+    $('#totalProfit').text('$' + totalProfit.toFixed(2));
+    $('#passengerCount').text(passengerCount);
 
-    // 设置利润颜色
     if (totalProfit > 0) {
         $('#totalProfit').css('color', '#48BB78');
     } else if (totalProfit < 0) {
         $('#totalProfit').css('color', '#E53E3E');
     } else {
-        $('#totalProfit').css('color', '#718096');
+        $('#totalProfit').css('color', 'white');
     }
 }
 
-// 复制最后一位乘客的价格信息到新乘客
 function copyLastPassenger() {
     const passengers = $('.passenger-card');
     if (passengers.length === 0) {
-        alert('请先添加至少一位乘客');
+        alert('Please add at least one passenger first');
         return;
     }
 
@@ -488,21 +424,14 @@ function copyLastPassenger() {
     const lastSellingPrice = lastPassenger.find('.selling-price-input').val();
     const lastCostPrice = lastPassenger.find('.cost-price-input').val();
 
-    // 添加新乘客
     addPassenger();
 
-    // 获取刚添加的新乘客
     const newPassenger = $('.passenger-card').last();
-
-    // 复制价格信息
     newPassenger.find('.passenger-type-select').val(lastType);
     newPassenger.find('.selling-price-input').val(lastSellingPrice);
     newPassenger.find('.cost-price-input').val(lastCostPrice);
 
-    // 更新汇总
     updatePriceSummary();
-
-    // 聚焦到姓名输入框
     newPassenger.find('.passenger-name-input').focus();
 }
 
@@ -513,90 +442,65 @@ function removeElement(button) {
 
     if ($(`.${containerType}`).length > minElements) {
         container.remove();
-        // 如果删除的是乘客，更新汇总和编号
         if (containerType === 'passenger-card') {
             updatePriceSummary();
             updatePassengerNumbers();
         }
     } else {
-        alert('至少需要保留一个' + (containerType === 'passenger-card' ? '乘客' : '航段'));
+        alert('At least one ' + (containerType === 'passenger-card' ? 'passenger' : 'segment') + ' is required');
     }
 }
 
 // 表单提交前验证
 $('#orderForm').on('submit', function(e) {
     if ($('.passenger-card').length === 0) {
-        alert('请至少添加一个乘客');
+        alert('Please add at least one passenger');
         e.preventDefault();
         return false;
     }
-    
+
     if ($('.flight-segment').length === 0) {
-        alert('请至少添加一个航段');
+        alert('Please add at least one segment');
         e.preventDefault();
         return false;
     }
-    
-    // 合并日期和时间字段
+
     try {
         $('.flight-segment').each(function() {
             const segment = $(this);
-            
-            // 检查必填字段
             const depDate = segment.find('input[name="departure_date[]"]').val();
             const arrDate = segment.find('input[name="arrival_date[]"]').val();
-            
+
             if (!depDate || !arrDate) {
-                throw new Error('请填写所有必需的日期字段');
+                throw new Error('Please fill in all required date fields');
             }
-            
-            // 获取时间值，使用默认值00:00替代空值
+
             let depTime = segment.find('input[name="departure_time[]"]').val();
             let arrTime = segment.find('input[name="arrival_time[]"]').val();
-            
-            // 确保时间值不为空
+
             if (!depTime || depTime.trim() === '') depTime = '00:00';
             if (!arrTime || arrTime.trim() === '') arrTime = '00:00';
-            
+
             const cabinCode = segment.find('input[name="cabin_code[]"]').val();
-            
-            // 修改原时间字段的值为合并后的日期时间
             const depDateTime = `${depDate} ${depTime}`;
             const arrDateTime = `${arrDate} ${arrTime}`;
-            
-            // 移除旧的时间字段，创建新的隐藏字段
+
             segment.find('input[name="departure_time[]"]').prop('disabled', true);
             segment.find('input[name="arrival_time[]"]').prop('disabled', true);
-            
-            // 创建新的隐藏字段，确保名称不会冲突
-            $('<input>').attr({
-                type: 'hidden',
-                name: 'departure_time[]',
-                value: depDateTime
-            }).appendTo(segment);
-            
-            $('<input>').attr({
-                type: 'hidden',
-                name: 'arrival_time[]',
-                value: arrDateTime
-            }).appendTo(segment);
-            
-            // 禁用日期字段，这样不会被提交
+
+            $('<input>').attr({ type: 'hidden', name: 'departure_time[]', value: depDateTime }).appendTo(segment);
+            $('<input>').attr({ type: 'hidden', name: 'arrival_time[]', value: arrDateTime }).appendTo(segment);
+
             segment.find('input[name="departure_date[]"]').prop('disabled', true);
             segment.find('input[name="arrival_date[]"]').prop('disabled', true);
-            
-            // 添加cabin_class隐藏字段，值与cabin_code相同
-            $('<input>').attr({
-                type: 'hidden',
-                name: 'cabin_class[]',
-                value: cabinCode
-            }).appendTo(segment);
+
+            $('<input>').attr({ type: 'hidden', name: 'cabin_class[]', value: cabinCode }).appendTo(segment);
         });
-        
+
         return true;
     } catch (error) {
-        console.error('处理日期时间时出错:', error);
-        alert('提交表单时出错: ' + error.message);
+        console.error('Error processing date/time:', error);
+        alert('Error submitting form: ' + error.message);
         e.preventDefault();
         return false;
     }
@@ -606,70 +510,44 @@ $('#orderForm').on('submit', function(e) {
 function parseFlightSegments() {
     const text = document.getElementById('flightParser').value.trim();
     if (!text) {
-        alert('请先粘贴航段信息');
+        alert('Please paste segment info first');
         return;
     }
 
-    // 清空现有航段
     $('#flightSegmentsContainer').empty();
 
-    // 按行分割，处理不同的换行符和可能的特殊字符
     const lines = text.split(/[\n\r>]+/).filter(line => {
         const trimmed = line.trim();
-        return trimmed && !trimmed.startsWith('>'); // 过滤掉空行和以>开头的行
+        return trimmed && !trimmed.startsWith('>');
     });
 
-    console.log('解析的行数:', lines.length);
     let successCount = 0;
-    
-    // 解析每一行
+
     lines.forEach((line, index) => {
-        // 移除行号和多余空格
         const cleanLine = line.replace(/^\d+\.\s*/, '').trim();
         if (!cleanLine) return;
 
-        // 使用更宽松的正则表达式匹配航班信息
         const match = cleanLine.match(/(\w+)\s+(\d+)\s+(\w)\s+(\d{2}\w{3})\s+(\w{6})\s+\w+\s+(\d{4})\s+(#?\d{4})/);
-        
-        if (!match) {
-            console.log('行格式不匹配，跳过:', line);
-            return;
-        }
+
+        if (!match) return;
 
         try {
-            // 提取匹配的信息
             const [_, airline, flightNumber, cabinCode, date, route, departureTime, arrivalTime] = match;
             const departureAirport = route.substring(0, 3);
             const arrivalAirport = route.substring(3);
             const isNextDay = arrivalTime.startsWith('#');
             const cleanArrivalTime = arrivalTime.replace('#', '');
 
-            // 创建日期对象
             const year = new Date().getFullYear();
             const month = getMonthFromString(date.substring(2, 5));
             const day = parseInt(date.substring(0, 2));
 
-            console.log('解析日期信息:', {
-                original: date,
-                year: year,
-                month: month,
-                day: day
-            });
-
-            // 格式化出发和到达时间
             const departureDateTime = formatDateTime(year, month, day, departureTime);
             const arrivalDateTime = formatDateTime(year, month, day, cleanArrivalTime, isNextDay);
 
-            console.log('格式化后的时间:', {
-                departure: departureDateTime,
-                arrival: arrivalDateTime
-            });
-
-            // 创建航段数据对象
             const segmentData = {
                 flightNumber: `${airline}${flightNumber}`,
                 cabinCode: cabinCode,
-                cabinClass: cabinCode,
                 departureAirport: departureAirport,
                 arrivalAirport: arrivalAirport,
                 departureDate: departureDateTime.date,
@@ -678,80 +556,42 @@ function parseFlightSegments() {
                 arrivalTime: arrivalDateTime.time
             };
 
-            console.log('添加航段数据:', segmentData);
-
-            // 创建航段
             addFlightSegment(segmentData);
-            
             successCount++;
-            console.log('成功添加航段:', `${airline}${flightNumber}`, isNextDay ? '(跨日航班)' : '');
         } catch (error) {
-            console.error('解析行时出错:', error);
-            console.error('问题行:', line);
+            console.error('Error parsing line:', error);
         }
     });
 
     if (successCount === 0) {
-        alert('没有成功解析任何航段，请检查输入格式是否正确');
+        alert('No segments parsed. Please check the input format.');
     }
 }
 
-// 辅助函数：将月份字符串转换为数字
 function getMonthFromString(month) {
-    const months = {
-        'JAN': 1, 'FEB': 2, 'MAR': 3, 'APR': 4, 'MAY': 5, 'JUN': 6,
-        'JUL': 7, 'AUG': 8, 'SEP': 9, 'OCT': 10, 'NOV': 11, 'DEC': 12
-    };
+    const months = { 'JAN': 1, 'FEB': 2, 'MAR': 3, 'APR': 4, 'MAY': 5, 'JUN': 6, 'JUL': 7, 'AUG': 8, 'SEP': 9, 'OCT': 10, 'NOV': 11, 'DEC': 12 };
     return months[month.toUpperCase()];
 }
 
-// 辅助函数：格式化日期时间
 function formatDateTime(year, month, day, time, isNextDay = false) {
     const hours = parseInt(time.substring(0, 2));
     const minutes = parseInt(time.substring(2));
-    
-    // 使用 UTC 来避免时区问题
     const date = new Date(Date.UTC(year, month - 1, day));
-    
-    // 处理跨日情况
-    if (isNextDay) {
-        date.setUTCDate(date.getUTCDate() + 1);
-    }
+    if (isNextDay) date.setUTCDate(date.getUTCDate() + 1);
 
-    // 格式化日期和时间
-    const formattedDate = date.toISOString().split('T')[0];
-    const formattedTime = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
-
-    console.log('格式化日期时间:', {
-        input: { year, month, day, time, isNextDay },
-        output: { date: formattedDate, time: formattedTime },
-        utcDate: date.toISOString()
-    });
-    
     return {
-        date: formattedDate,
-        time: formattedTime
+        date: date.toISOString().split('T')[0],
+        time: `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`
     };
 }
 
-// 清空解析器
 function clearParser() {
     document.getElementById('flightParser').value = '';
 }
 
-// 更新添加航段按钮的点击事件处理
-$(document).ready(function() {
-    // 更新添加航段按钮的onclick属性
-    $('button[onclick="addFlightSegment()"]').attr('onclick', 'addFlightSegment(null, true)');
-});
-
-// 航段解析模态框相关函数
 function openFlightParserModal() {
     document.getElementById('flightParserModal').style.display = 'block';
-    // 聚焦到输入框
-    setTimeout(function() {
-        document.getElementById('modalFlightParser').focus();
-    }, 100);
+    setTimeout(function() { document.getElementById('modalFlightParser').focus(); }, 100);
 }
 
 function closeFlightParserModal() {
@@ -761,17 +601,11 @@ function closeFlightParserModal() {
 function parseFlightSegmentsFromModal() {
     const parserText = document.getElementById('modalFlightParser').value;
     if (!parserText.trim()) {
-        alert('请先粘贴航段信息');
+        alert('Please paste segment info first');
         return;
     }
-    
-    // 将模态框的文本设置到隐藏的解析器中
     document.getElementById('flightParser').value = parserText;
-    
-    // 调用原有的解析函数
     parseFlightSegments();
-    
-    // 关闭模态框
     closeFlightParserModal();
 }
 
@@ -779,12 +613,9 @@ function clearModalParser() {
     document.getElementById('modalFlightParser').value = '';
 }
 
-// 点击模态框外部关闭
 window.onclick = function(event) {
     const modal = document.getElementById('flightParserModal');
-    if (event.target === modal) {
-        closeFlightParserModal();
-    }
+    if (event.target === modal) closeFlightParserModal();
 }
 </script>
-{% endblock %} 
+{% endblock %}

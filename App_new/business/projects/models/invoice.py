@@ -128,11 +128,11 @@ class ProjectInvoice(db.Model):
         """状态显示文本"""
         status_map = {
             'draft': '草稿',
-            'sent': '已发送',
-            'paid': '已付款',
-            'partial_paid': '部分付款',
-            'overdue': '已逾期',
-            'cancelled': '已取消'
+            'sent': 'Unpaid',
+            'paid': 'Paid',
+            'partial_paid': 'Partial Paid',
+            'overdue': 'Overdue',
+            'cancelled': 'Cancelled'
         }
         return status_map.get(self.status, self.status)
 
@@ -212,6 +212,48 @@ class ProjectInvoice(db.Model):
     def get_header_unpaid_amount(cls, header_id):
         """获取项目的总未付金额"""
         return cls.get_header_total_invoiced(header_id) - cls.get_header_total_paid(header_id)
+
+    @classmethod
+    def get_company_unpaid_invoices(cls, company_id):
+        """
+        获取公司的所有未付/部分付款发票
+
+        Args:
+            company_id: 公司ID
+
+        Returns:
+            list: 未付发票列表
+        """
+        from .project import ProjectHeader
+
+        # 通过 ProjectHeader 查找该公司的所有项目
+        headers = ProjectHeader.query.filter_by(company_id=company_id).all()
+        header_ids = [h.id for h in headers]
+
+        if not header_ids:
+            return []
+
+        # 查找这些项目的未付发票
+        invoices = cls.query.filter(
+            cls.header_id.in_(header_ids),
+            cls.status.in_(['sent', 'partial_paid', 'overdue'])
+        ).order_by(cls.invoice_date.asc()).all()
+
+        return invoices
+
+    @property
+    def company_id_via_header(self):
+        """获取发票对应的公司ID（通过项目header）"""
+        if self.header and self.header.company_id:
+            return self.header.company_id
+        return None
+
+    @property
+    def company_name_via_header(self):
+        """获取发票对应的公司名称（通过项目header）"""
+        if self.header and self.header.company:
+            return self.header.company.company_name
+        return self.customer_company  # 回退到文本字段
 
 
 class InvoiceItem(db.Model):

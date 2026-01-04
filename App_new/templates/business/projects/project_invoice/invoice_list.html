@@ -1,385 +1,620 @@
 {% extends "shared/staff_base.html" %}
 
-{% block page_title %}发票列表{% endblock %}
+{% block title %}Invoice List{% endblock %}
+
+{% block page_title %}Invoice List{% endblock %}
 
 {% block extra_css %}
 <style>
-    .filter-input {
-        font-size: 12px;
-        padding: 2px 6px;
-        height: 28px;
+    .invoice-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 20px;
     }
-    .table th {
-        position: relative;
-        white-space: nowrap;
+
+    /* 统计卡片 */
+    .stats-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 16px;
+        margin-bottom: 24px;
     }
-    .table td {
-        white-space: nowrap;
-        font-size: 13px;
+
+    .stat-card {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
     }
-    .col-filter {
-        display: block;
+
+    .stat-card .stat-value {
+        font-size: 1.5rem;
+        font-weight: 700;
+        font-family: 'SF Mono', Monaco, monospace;
+    }
+
+    .stat-card .stat-label {
+        font-size: 0.875rem;
+        color: #64748b;
         margin-top: 4px;
     }
-    .export-btn-group .btn {
-        font-size: 13px;
+
+    .stat-card.total .stat-value { color: #2563eb; }
+    .stat-card.paid .stat-value { color: #16a34a; }
+    .stat-card.unpaid .stat-value { color: #dc2626; }
+    .stat-card.count .stat-value { color: #8b5cf6; }
+
+    /* 筛选区域 */
+    .filter-section {
+        background: white;
+        border-radius: 12px;
+        padding: 16px 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+
+    .filter-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        align-items: flex-end;
+    }
+
+    .filter-group {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .filter-group label {
+        font-size: 0.75rem;
+        color: #64748b;
+        font-weight: 500;
+    }
+
+    .filter-group input,
+    .filter-group select {
+        padding: 8px 12px;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        font-size: 0.875rem;
+        min-width: 140px;
+    }
+
+    .filter-group input:focus,
+    .filter-group select:focus {
+        outline: none;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+
+    .btn-search {
+        padding: 8px 20px;
+        background: #3b82f6;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-size: 0.875rem;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .btn-search:hover {
+        background: #2563eb;
+    }
+
+    .btn-reset {
+        padding: 8px 16px;
+        background: #f1f5f9;
+        color: #64748b;
+        border: none;
+        border-radius: 8px;
+        font-size: 0.875rem;
+        cursor: pointer;
+    }
+
+    .btn-reset:hover {
+        background: #e2e8f0;
+    }
+
+    /* 表格区域 */
+    .table-section {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        overflow: hidden;
+    }
+
+    .table-header {
+        padding: 16px 20px;
+        border-bottom: 1px solid #e2e8f0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .table-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: #1e293b;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .table-title .count {
+        background: #3b82f6;
+        color: white;
+        padding: 2px 10px;
+        border-radius: 12px;
+        font-size: 0.8rem;
+    }
+
+    .table-actions {
+        display: flex;
+        gap: 8px;
+    }
+
+    .btn-action {
+        padding: 6px 12px;
+        border: 1px solid #e2e8f0;
+        background: white;
+        border-radius: 6px;
+        font-size: 0.8rem;
+        color: #64748b;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .btn-action:hover {
+        background: #f8fafc;
+        border-color: #cbd5e1;
+    }
+
+    .invoice-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .invoice-table th {
+        background: #f8fafc;
+        padding: 12px 16px;
+        text-align: left;
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    .invoice-table td {
+        padding: 14px 16px;
+        border-bottom: 1px solid #f1f5f9;
+        font-size: 0.875rem;
+        color: #334155;
+    }
+
+    .invoice-table tbody tr:hover {
+        background: #f8fafc;
+    }
+
+    .invoice-table .invoice-number {
+        font-weight: 600;
+        color: #2563eb;
+    }
+
+    .invoice-table .invoice-number:hover {
+        text-decoration: underline;
+    }
+
+    .invoice-table .project-link {
+        color: #64748b;
+        font-size: 0.8rem;
+    }
+
+    .invoice-table .project-link:hover {
+        color: #3b82f6;
+    }
+
+    .invoice-table .amount {
+        font-family: 'SF Mono', Monaco, monospace;
+        font-weight: 500;
+        text-align: right;
+    }
+
+    .invoice-table .amount.paid {
+        color: #16a34a;
+    }
+
+    .invoice-table .amount.unpaid {
+        color: #dc2626;
+    }
+
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
         padding: 4px 10px;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 500;
     }
-    .summary-row {
-        background-color: #f8f9fa;
-        font-weight: bold;
+
+    .status-badge.draft {
+        background: #f1f5f9;
+        color: #64748b;
     }
-    .summary-row td {
-        border-top: 2px solid #dee2e6;
+
+    .status-badge.sent {
+        background: #dbeafe;
+        color: #2563eb;
     }
-    .text-profit {
-        color: #28a745;
+
+    .status-badge.paid {
+        background: #dcfce7;
+        color: #16a34a;
     }
-    .text-loss {
-        color: #dc3545;
+
+    .status-badge.partial_paid {
+        background: #fef3c7;
+        color: #d97706;
     }
-    .badge-type {
-        font-size: 11px;
+
+    .status-badge.overdue {
+        background: #fee2e2;
+        color: #dc2626;
+    }
+
+    .status-badge.cancelled {
+        background: #f1f5f9;
+        color: #94a3b8;
+    }
+
+    .customer-info {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    .customer-name {
+        font-weight: 500;
+        color: #1e293b;
+    }
+
+    .customer-company {
+        font-size: 0.8rem;
+        color: #94a3b8;
+    }
+
+    .date-cell {
+        white-space: nowrap;
+    }
+
+    .overdue-badge {
+        background: #fee2e2;
+        color: #dc2626;
+        font-size: 0.7rem;
         padding: 2px 6px;
+        border-radius: 4px;
+        margin-left: 6px;
+    }
+
+    .row-actions {
+        display: flex;
+        gap: 8px;
+        opacity: 0;
+        transition: opacity 0.2s;
+    }
+
+    .invoice-table tbody tr:hover .row-actions {
+        opacity: 1;
+    }
+
+    .row-actions a {
+        color: #64748b;
+        font-size: 0.875rem;
+    }
+
+    .row-actions a:hover {
+        color: #3b82f6;
+    }
+
+    /* 分页 */
+    .pagination-section {
+        padding: 16px 20px;
+        border-top: 1px solid #e2e8f0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .pagination-info {
+        font-size: 0.875rem;
+        color: #64748b;
+    }
+
+    .pagination-nav {
+        display: flex;
+        gap: 4px;
+    }
+
+    .pagination-nav a,
+    .pagination-nav span {
+        padding: 8px 12px;
+        border-radius: 6px;
+        font-size: 0.875rem;
+        text-decoration: none;
+    }
+
+    .pagination-nav a {
+        color: #64748b;
+        background: #f8fafc;
+    }
+
+    .pagination-nav a:hover {
+        background: #e2e8f0;
+    }
+
+    .pagination-nav a.active {
+        background: #3b82f6;
+        color: white;
+    }
+
+    .pagination-nav span.ellipsis {
+        color: #94a3b8;
+    }
+
+    /* 空状态 */
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        color: #94a3b8;
+    }
+
+    .empty-state i {
+        font-size: 3rem;
+        margin-bottom: 16px;
+    }
+
+    .empty-state p {
+        font-size: 1rem;
+        margin-bottom: 16px;
+    }
+
+    /* 快速筛选标签 */
+    .quick-filters {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 16px;
+    }
+
+    .quick-filter {
+        padding: 6px 14px;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        text-decoration: none;
+        border: 1px solid #e2e8f0;
+        color: #64748b;
+        background: white;
+    }
+
+    .quick-filter:hover {
+        border-color: #3b82f6;
+        color: #3b82f6;
+    }
+
+    .quick-filter.active {
+        background: #3b82f6;
+        color: white;
+        border-color: #3b82f6;
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid mt-4">
-    <div class="row">
-        <div class="col-12">
-            <!-- 页面头部 -->
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <div>
-                    <h2 class="mb-1">
-                        <i class="fas fa-file-invoice text-primary"></i>
-                        Invoice Listing Report
-                    </h2>
-                    <p class="text-muted mb-0">管理所有项目发票</p>
-                </div>
-            </div>
-
-            <!-- 筛选条件 -->
-            <div class="card shadow-sm mb-3">
-                <div class="card-body py-2">
-                    <form method="GET" action="" id="filterForm">
-                        <div class="row align-items-end g-2">
-                            <!-- From 日期 -->
-                            <div class="col-auto">
-                                <label class="form-label mb-1" style="font-size: 12px;">From</label>
-                                <input type="date" name="start_date" class="form-control form-control-sm" style="font-size: 12px; width: 130px;"
-                                       value="{{ current_filters.start_date or '' }}">
-                            </div>
-                            
-                            <!-- To 日期 -->
-                            <div class="col-auto">
-                                <label class="form-label mb-1" style="font-size: 12px;">To</label>
-                                <input type="date" name="end_date" class="form-control form-control-sm" style="font-size: 12px; width: 130px;"
-                                       value="{{ current_filters.end_date or '' }}">
-                            </div>
-                            
-                            <!-- 公司 -->
-                            <div class="col-auto">
-                                <label class="form-label mb-1" style="font-size: 12px;">Corporate</label>
-                                <select name="corporate" class="form-select form-select-sm" style="font-size: 12px; width: 140px;">
-                                    <option value="">Select...</option>
-                                    {% for company in companies|default([]) %}
-                                    <option value="{{ company.id }}" {% if current_filters.corporate == company.id|string %}selected{% endif %}>
-                                        {{ company.name }}
-                                    </option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                            
-                            <!-- Invoice No -->
-                            <div class="col-auto">
-                                <label class="form-label mb-1" style="font-size: 12px;">Invoice No</label>
-                                <input type="text" name="keyword" class="form-control form-control-sm" style="font-size: 12px; width: 160px;"
-                                       value="{{ current_filters.keyword or '' }}" placeholder="发票号/客户名">
-                            </div>
-                            
-                            <!-- 搜索按钮 -->
-                            <div class="col-auto">
-                                <button type="submit" class="btn btn-success btn-sm" style="font-size: 12px;">
-                                    <i class="fas fa-search"></i> Search
-                                </button>
-                            </div>
-                        </div>
-                        
-                        <!-- 隐藏字段保持其他筛选参数 -->
-                        <input type="hidden" name="status" value="{{ current_filters.status or '' }}">
-                        <input type="hidden" name="invoice_type" value="{{ current_filters.invoice_type or '' }}">
-                        <input type="hidden" name="currency" value="{{ current_filters.currency or '' }}">
-                    </form>
-                </div>
-            </div>
-
-            <!-- 导出按钮组 -->
-            <div class="mb-3 export-btn-group">
-                <button type="button" class="btn btn-outline-secondary" onclick="exportData('pdf')">
-                    <i class="fas fa-file-pdf"></i> Export to PDF
-                </button>
-                <button type="button" class="btn btn-outline-secondary" onclick="exportData('xls')">
-                    <i class="fas fa-file-excel"></i> Export to XLS
-                </button>
-                <button type="button" class="btn btn-outline-secondary" onclick="exportData('csv')">
-                    <i class="fas fa-file-csv"></i> Export to CSV
-                </button>
-            </div>
-
-            <!-- 发票列表 -->
-            <div class="card shadow-sm">
-                <div class="card-header bg-light d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">
-                        <i class="fas fa-list text-primary"></i> Invoice List
-                        <span class="badge bg-primary text-white ms-2">{{ pagination.total }}</span>
-                    </h5>
-                </div>
-                <div class="card-body p-0">
-                    {% if invoices %}
-                    <div class="table-responsive">
-                        <table class="table table-hover table-bordered mb-0" id="invoiceTable">
-                            <thead class="table-light">
-                                <tr>
-                                    <th style="min-width: 80px;">HID
-                                        <input type="text" class="form-control filter-input col-filter" data-column="0" placeholder="">
-                                    </th>
-                                    <th style="min-width: 100px;">Company
-                                        <input type="text" class="form-control filter-input col-filter" data-column="1" placeholder="">
-                                    </th>
-                                    <th style="min-width: 120px;">Invoice No
-                                        <input type="text" class="form-control filter-input col-filter" data-column="2" placeholder="">
-                                    </th>
-                                    <th style="min-width: 80px;">EO No
-                                        <input type="text" class="form-control filter-input col-filter" data-column="3" placeholder="">
-                                    </th>
-                                    <th style="min-width: 80px;">Ref
-                                        <input type="text" class="form-control filter-input col-filter" data-column="4" placeholder="">
-                                    </th>
-                                    <th style="min-width: 70px;">Bkg Type
-                                        <input type="text" class="form-control filter-input col-filter" data-column="5" placeholder="">
-                                    </th>
-                                    <th style="min-width: 90px;">Inv Date
-                                        <input type="text" class="form-control filter-input col-filter" data-column="6" placeholder="">
-                                    </th>
-                                    <th style="min-width: 100px;">Client
-                                        <input type="text" class="form-control filter-input col-filter" data-column="7" placeholder="">
-                                    </th>
-                                    <th style="min-width: 120px;">Description
-                                        <input type="text" class="form-control filter-input col-filter" data-column="8" placeholder="">
-                                    </th>
-                                    <th style="min-width: 50px;">Curr
-                                        <input type="text" class="form-control filter-input col-filter" data-column="9" placeholder="">
-                                    </th>
-                                    <th style="min-width: 90px;">Gross
-                                        <input type="text" class="form-control filter-input col-filter" data-column="10" placeholder="">
-                                    </th>
-                                    <th style="min-width: 80px;">Tax
-                                        <input type="text" class="form-control filter-input col-filter" data-column="11" placeholder="">
-                                    </th>
-                                    <th style="min-width: 80px;">Disc
-                                        <input type="text" class="form-control filter-input col-filter" data-column="12" placeholder="">
-                                    </th>
-                                    <th style="min-width: 90px;">Total
-                                        <input type="text" class="form-control filter-input col-filter" data-column="13" placeholder="">
-                                    </th>
-                                    <th style="min-width: 80px;">Cost
-                                        <input type="text" class="form-control filter-input col-filter" data-column="14" placeholder="">
-                                    </th>
-                                    <th style="min-width: 80px;">Cost Tax
-                                        <input type="text" class="form-control filter-input col-filter" data-column="15" placeholder="">
-                                    </th>
-                                    <th style="min-width: 90px;">Total Cost
-                                        <input type="text" class="form-control filter-input col-filter" data-column="16" placeholder="">
-                                    </th>
-                                    <th style="min-width: 80px;">PL
-                                        <input type="text" class="form-control filter-input col-filter" data-column="17" placeholder="">
-                                    </th>
-                                    <th style="min-width: 60px;">Marg%
-                                        <input type="text" class="form-control filter-input col-filter" data-column="18" placeholder="">
-                                    </th>
-                                    <th style="min-width: 80px;">Paid
-                                        <input type="text" class="form-control filter-input col-filter" data-column="19" placeholder="">
-                                    </th>
-                                    <th style="min-width: 80px;">Balance
-                                        <input type="text" class="form-control filter-input col-filter" data-column="20" placeholder="">
-                                    </th>
-                                    <th style="min-width: 80px;">Status
-                                        <input type="text" class="form-control filter-input col-filter" data-column="21" placeholder="">
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for invoice in invoices %}
-                                <tr class="data-row" data-invoice-id="{{ invoice.id }}">
-                                    <td>
-                                        <a href="{{ url_for('business_projects.detail.project_detail', project_id=invoice.header_id) }}" 
-                                           class="text-info text-decoration-none">
-                                            {{ invoice.header_hid or invoice.project_hid or '-' }}
-                                        </a>
-                                    </td>
-                                    <td>{{ invoice.customer_company or '-' }}</td>
-                                    <td>
-                                        <a href="{{ url_for('business_projects.project_invoice.invoice_detail', invoice_id=invoice.id) }}" 
-                                           class="text-primary text-decoration-none fw-bold">
-                                            {{ invoice.invoice_number }}
-                                        </a>
-                                    </td>
-                                    <td>{{ invoice.eo_number or '-' }}</td>
-                                    <td>{{ invoice.ref_number or '-' }}</td>
-                                    <td><span class="badge bg-info badge-type">{{ invoice.booking_type or '-' }}</span></td>
-                                    <td>{{ invoice.invoice_date.strftime('%d/%m/%Y') if invoice.invoice_date else '-' }}</td>
-                                    <td>{{ invoice.customer_name or '-' }}</td>
-                                    <td title="{{ invoice.description or '' }}">{{ (invoice.description or '-')[:20] }}{% if invoice.description and invoice.description|length > 20 %}...{% endif %}</td>
-                                    <td>{{ invoice.currency }}</td>
-                                    <td class="text-end">{{ "%.2f"|format(invoice.amount or 0) }}</td>
-                                    <td class="text-end">{{ "%.2f"|format(invoice.tax or 0) }}</td>
-                                    <td class="text-end">{{ "%.2f"|format(invoice.discount or 0) }}</td>
-                                    <td class="text-end fw-bold">{{ "%.2f"|format(invoice.total_gross or invoice.amount or 0) }}</td>
-                                    <td class="text-end">{{ "%.2f"|format(invoice.cost or 0) }}</td>
-                                    <td class="text-end">{{ "%.2f"|format(invoice.cost_tax or 0) }}</td>
-                                    <td class="text-end">{{ "%.2f"|format(invoice.total_cost or 0) }}</td>
-                                    <td class="text-end {% if (invoice.profit or 0) >= 0 %}text-profit{% else %}text-loss{% endif %}">
-                                        {{ "%.2f"|format(invoice.profit or 0) }}
-                                    </td>
-                                    <td class="text-end">{{ "%.2f"|format(invoice.margin or 0) }}%</td>
-                                    <td class="text-end text-success">{{ "%.2f"|format(invoice.paid_amount or 0) }}</td>
-                                    <td class="text-end {% if (invoice.balance or 0) > 0 %}text-danger{% endif %}">
-                                        {{ "%.2f"|format(invoice.balance or invoice.unpaid_amount or 0) }}
-                                    </td>
-                                    <td>
-                                        <span class="badge 
-                                            {% if invoice.status == 'paid' %}bg-success
-                                            {% elif invoice.status == 'partial_paid' %}bg-warning
-                                            {% elif invoice.status == 'overdue' %}bg-danger
-                                            {% elif invoice.status == 'sent' %}bg-info
-                                            {% elif invoice.status == 'cancelled' %}bg-secondary
-                                            {% else %}bg-light text-dark{% endif %}">
-                                            {{ invoice.status_display }}
-                                        </span>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                                
-                                <!-- 汇总行 -->
-                                <tr class="summary-row">
-                                    <td colspan="10" class="text-end"><strong>Total:</strong></td>
-                                    <td class="text-end">{{ "%.2f"|format(summary.total_gross or 0) }}</td>
-                                    <td class="text-end">{{ "%.2f"|format(summary.total_tax or 0) }}</td>
-                                    <td class="text-end">{{ "%.2f"|format(summary.total_discount or 0) }}</td>
-                                    <td class="text-end">{{ "%.2f"|format(summary.grand_total or 0) }}</td>
-                                    <td class="text-end">{{ "%.2f"|format(summary.total_cost or 0) }}</td>
-                                    <td class="text-end">{{ "%.2f"|format(summary.total_cost_tax or 0) }}</td>
-                                    <td class="text-end">{{ "%.2f"|format(summary.grand_total_cost or 0) }}</td>
-                                    <td class="text-end {% if (summary.total_profit or 0) >= 0 %}text-profit{% else %}text-loss{% endif %}">
-                                        {{ "%.2f"|format(summary.total_profit or 0) }}
-                                    </td>
-                                    <td class="text-end">{{ "%.2f"|format(summary.avg_margin or 0) }}%</td>
-                                    <td class="text-end">{{ "%.2f"|format(summary.total_paid or 0) }}</td>
-                                    <td class="text-end">{{ "%.2f"|format(summary.total_balance or 0) }}</td>
-                                    <td></td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                    
-                    <!-- 分页 -->
-                    {% if pagination.pages > 1 %}
-                    <nav aria-label="Page navigation" class="mt-4 p-3">
-                        <ul class="pagination justify-content-center mb-0">
-                            {% if pagination.has_prev %}
-                            <li class="page-item">
-                                <a class="page-link" href="?page={{ pagination.prev_num }}&start_date={{ current_filters.start_date }}&end_date={{ current_filters.end_date }}&status={{ current_filters.status }}&invoice_type={{ current_filters.invoice_type }}&keyword={{ current_filters.keyword }}">
-                                    <i class="fas fa-chevron-left"></i>
-                                </a>
-                            </li>
-                            {% endif %}
-                            
-                            {% for page_num in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
-                                {% if page_num %}
-                                    <li class="page-item {% if page_num == pagination.page %}active{% endif %}">
-                                        <a class="page-link" href="?page={{ page_num }}&start_date={{ current_filters.start_date }}&end_date={{ current_filters.end_date }}&status={{ current_filters.status }}&invoice_type={{ current_filters.invoice_type }}&keyword={{ current_filters.keyword }}">
-                                            {{ page_num }}
-                                        </a>
-                                    </li>
-                                {% else %}
-                                    <li class="page-item disabled">
-                                        <span class="page-link">...</span>
-                                    </li>
-                                {% endif %}
-                            {% endfor %}
-                            
-                            {% if pagination.has_next %}
-                            <li class="page-item">
-                                <a class="page-link" href="?page={{ pagination.next_num }}&start_date={{ current_filters.start_date }}&end_date={{ current_filters.end_date }}&status={{ current_filters.status }}&invoice_type={{ current_filters.invoice_type }}&keyword={{ current_filters.keyword }}">
-                                    <i class="fas fa-chevron-right"></i>
-                                </a>
-                            </li>
-                            {% endif %}
-                        </ul>
-                    </nav>
-                    {% endif %}
-                    
-                    {% else %}
-                    <div class="text-center py-5">
-                        <i class="fas fa-file-invoice fa-3x text-muted mb-3"></i>
-                        <p class="text-muted">暂无发票记录</p>
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
-
+<div class="invoice-container">
+    <!-- 统计卡片 -->
+    <div class="stats-row">
+        <div class="stat-card total">
+            <div class="stat-value">{{ "%.2f"|format(summary.grand_total or 0) }}</div>
+            <div class="stat-label">Total Amount (SGD)</div>
         </div>
+        <div class="stat-card paid">
+            <div class="stat-value">{{ "%.2f"|format(summary.total_paid or 0) }}</div>
+            <div class="stat-label">Total Paid</div>
+        </div>
+        <div class="stat-card unpaid">
+            <div class="stat-value">{{ "%.2f"|format(summary.total_balance or 0) }}</div>
+            <div class="stat-label">Total Unpaid</div>
+        </div>
+        <div class="stat-card count">
+            <div class="stat-value">{{ pagination.total }}</div>
+            <div class="stat-label">Total Invoices</div>
+        </div>
+    </div>
+
+    <!-- 快速筛选 -->
+    <div class="quick-filters">
+        <a href="{{ url_for('business_projects.project_invoice.invoice_list') }}"
+           class="quick-filter {% if not current_filters.status %}active{% endif %}">All</a>
+        <a href="{{ url_for('business_projects.project_invoice.invoice_list', status='sent') }}"
+           class="quick-filter {% if current_filters.status == 'sent' %}active{% endif %}">Unpaid</a>
+        <a href="{{ url_for('business_projects.project_invoice.invoice_list', status='partial_paid') }}"
+           class="quick-filter {% if current_filters.status == 'partial_paid' %}active{% endif %}">Partial Paid</a>
+        <a href="{{ url_for('business_projects.project_invoice.invoice_list', status='paid') }}"
+           class="quick-filter {% if current_filters.status == 'paid' %}active{% endif %}">Paid</a>
+    </div>
+
+    <!-- 筛选区域 -->
+    <div class="filter-section">
+        <form method="GET" action="" class="filter-row">
+            <div class="filter-group">
+                <label>From Date</label>
+                <input type="date" name="start_date" value="{{ current_filters.start_date or '' }}">
+            </div>
+            <div class="filter-group">
+                <label>To Date</label>
+                <input type="date" name="end_date" value="{{ current_filters.end_date or '' }}">
+            </div>
+            <div class="filter-group">
+                <label>Status</label>
+                <select name="status">
+                    {% for value, label in statuses %}
+                    <option value="{{ value }}" {% if current_filters.status == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>Search</label>
+                <input type="text" name="keyword" value="{{ current_filters.keyword or '' }}"
+                       placeholder="Invoice No / Customer">
+            </div>
+            <button type="submit" class="btn-search">
+                <i class="fas fa-search"></i> Search
+            </button>
+            <a href="{{ url_for('business_projects.project_invoice.invoice_list') }}" class="btn-reset">Reset</a>
+        </form>
+    </div>
+
+    <!-- 表格区域 -->
+    <div class="table-section">
+        <div class="table-header">
+            <div class="table-title">
+                <i class="fas fa-file-invoice"></i>
+                Invoice List
+                <span class="count">{{ pagination.total }}</span>
+            </div>
+            <div class="table-actions">
+                <button class="btn-action" onclick="exportData('excel')">
+                    <i class="fas fa-file-excel"></i> Export Excel
+                </button>
+                <button class="btn-action" onclick="exportData('pdf')">
+                    <i class="fas fa-file-pdf"></i> Export PDF
+                </button>
+            </div>
+        </div>
+
+        {% if invoices %}
+        <table class="invoice-table">
+            <thead>
+                <tr>
+                    <th>Invoice No</th>
+                    <th>Project</th>
+                    <th>Customer</th>
+                    <th>Date</th>
+                    <th style="text-align: right;">Amount</th>
+                    <th style="text-align: right;">Paid</th>
+                    <th style="text-align: right;">Balance</th>
+                    <th>Status</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for invoice in invoices %}
+                <tr>
+                    <td>
+                        <a href="{{ url_for('business_projects.project_invoice.invoice_detail', invoice_id=invoice.id) }}"
+                           class="invoice-number">
+                            {{ invoice.invoice_number }}
+                        </a>
+                    </td>
+                    <td>
+                        <a href="{{ url_for('business_projects.detail.project_detail', project_id=invoice.header_id) }}"
+                           class="project-link">
+                            {{ invoice.project_hid or '-' }}
+                        </a>
+                    </td>
+                    <td>
+                        <div class="customer-info">
+                            <span class="customer-name">{{ invoice.customer_name or '-' }}</span>
+                            {% if invoice.customer_company %}
+                            <span class="customer-company">{{ invoice.customer_company }}</span>
+                            {% endif %}
+                        </div>
+                    </td>
+                    <td class="date-cell">
+                        {{ invoice.invoice_date.strftime('%d %b %Y') if invoice.invoice_date else '-' }}
+                    </td>
+                    <td class="amount">{{ invoice.currency }} {{ "%.2f"|format(invoice.amount or 0) }}</td>
+                    <td class="amount paid">{{ "%.2f"|format(invoice.paid_amount or 0) }}</td>
+                    <td class="amount {% if invoice.unpaid_amount > 0 %}unpaid{% endif %}">
+                        {{ "%.2f"|format(invoice.unpaid_amount or 0) }}
+                    </td>
+                    <td>
+                        <span class="status-badge {{ invoice.status }}">
+                            {{ invoice.status_display }}
+                        </span>
+                    </td>
+                    <td>
+                        <div class="row-actions">
+                            <a href="{{ url_for('business_projects.project_invoice.invoice_detail', invoice_id=invoice.id) }}"
+                               title="View">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                            <a href="{{ url_for('business_projects.project_invoice.edit_invoice', invoice_id=invoice.id) }}"
+                               title="Edit">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <!-- 分页 -->
+        {% if pagination.pages > 1 %}
+        <div class="pagination-section">
+            <div class="pagination-info">
+                Showing {{ (pagination.page - 1) * pagination.per_page + 1 }} -
+                {{ [pagination.page * pagination.per_page, pagination.total] | min }} of {{ pagination.total }}
+            </div>
+            <div class="pagination-nav">
+                {% if pagination.has_prev %}
+                <a href="?page={{ pagination.prev_num }}&status={{ current_filters.status }}&keyword={{ current_filters.keyword }}&start_date={{ current_filters.start_date }}&end_date={{ current_filters.end_date }}">
+                    <i class="fas fa-chevron-left"></i>
+                </a>
+                {% endif %}
+
+                {% for page_num in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+                    {% if page_num %}
+                        <a href="?page={{ page_num }}&status={{ current_filters.status }}&keyword={{ current_filters.keyword }}&start_date={{ current_filters.start_date }}&end_date={{ current_filters.end_date }}"
+                           class="{% if page_num == pagination.page %}active{% endif %}">
+                            {{ page_num }}
+                        </a>
+                    {% else %}
+                        <span class="ellipsis">...</span>
+                    {% endif %}
+                {% endfor %}
+
+                {% if pagination.has_next %}
+                <a href="?page={{ pagination.next_num }}&status={{ current_filters.status }}&keyword={{ current_filters.keyword }}&start_date={{ current_filters.start_date }}&end_date={{ current_filters.end_date }}">
+                    <i class="fas fa-chevron-right"></i>
+                </a>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        {% else %}
+        <div class="empty-state">
+            <i class="fas fa-file-invoice"></i>
+            <p>No invoices found</p>
+            <a href="{{ url_for('business_projects.project_invoice.invoice_list') }}" class="btn-reset">Clear Filters</a>
+        </div>
+        {% endif %}
     </div>
 </div>
 
 <script>
-// 列筛选功能
-document.querySelectorAll('.col-filter').forEach(function(input) {
-    input.addEventListener('keyup', function() {
-        filterTable();
-    });
-});
-
-function filterTable() {
-    const table = document.getElementById('invoiceTable');
-    const rows = table.querySelectorAll('tbody tr.data-row');
-    const filters = document.querySelectorAll('.col-filter');
-    
-    rows.forEach(function(row) {
-        let show = true;
-        filters.forEach(function(filter) {
-            const colIndex = parseInt(filter.dataset.column);
-            const filterValue = filter.value.toLowerCase().trim();
-            if (filterValue) {
-                const cell = row.cells[colIndex];
-                const cellText = cell ? cell.textContent.toLowerCase().trim() : '';
-                if (!cellText.includes(filterValue)) {
-                    show = false;
-                }
-            }
-        });
-        row.style.display = show ? '' : 'none';
-    });
-}
-
-// 导出功能
 function exportData(format) {
     const params = new URLSearchParams(window.location.search);
     params.set('export', format);
     window.location.href = '{{ url_for("business_projects.project_invoice.export_invoices") }}?' + params.toString();
 }
-
-// 行点击展开详情（可选）
-document.querySelectorAll('.data-row').forEach(function(row) {
-    row.style.cursor = 'pointer';
-    row.addEventListener('dblclick', function() {
-        const invoiceId = this.dataset.invoiceId;
-        window.location.href = '{{ url_for("business_projects.project_invoice.invoice_detail", invoice_id=0) }}'.replace('0', invoiceId);
-    });
-});
 </script>
 {% endblock %}
-
-{% block title %}Invoice Listing Report{% endblock %}

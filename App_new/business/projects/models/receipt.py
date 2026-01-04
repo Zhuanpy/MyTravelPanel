@@ -14,6 +14,7 @@ class ProjectReceipt(db.Model):
     receipt_number = db.Column(db.String(30), unique=True, nullable=False, comment='收款单号')
     ref_id = db.Column(db.Integer, db.ForeignKey('project_refs.id'), nullable=True, comment='REF明细ID（可选）')
     header_id = db.Column(db.Integer, db.ForeignKey('project_headers.id'), nullable=False, comment='项目主表ID')
+    invoice_id = db.Column(db.Integer, db.ForeignKey('project_invoices.id'), nullable=True, comment='关联发票ID')
 
     # 收款信息
     amount = db.Column(db.Numeric(10, 2), nullable=False, comment='收款金额')
@@ -46,6 +47,7 @@ class ProjectReceipt(db.Model):
     # 关联关系
     ref = db.relationship('ProjectRef', backref='receipts')
     header = db.relationship('ProjectHeader', backref='receipts')
+    invoice = db.relationship('ProjectInvoice', backref='receipts')
 
     def __repr__(self):
         return f'<ProjectReceipt {self.receipt_number}: {self.amount} {self.currency}>'
@@ -57,6 +59,7 @@ class ProjectReceipt(db.Model):
             'receipt_number': self.receipt_number,
             'ref_id': self.ref_id,
             'header_id': self.header_id,
+            'invoice_id': self.invoice_id,
             'amount': float(self.amount) if self.amount else 0,
             'currency': self.currency,
             'payment_method': self.payment_method,
@@ -332,4 +335,208 @@ class ProjectReceipt(db.Model):
             'distribution': distribution,
             'remaining_amount': round(remaining_amount, 2),
             'total_unpaid': total_unpaid
+        }
+
+    @classmethod
+    def get_invoice_total_received(cls, invoice_id):
+        """获取发票的已收款总额"""
+        from sqlalchemy import func
+        result = db.session.query(func.sum(cls.amount)).filter(
+            cls.invoice_id == invoice_id,
+            cls.status == 'confirmed'
+        ).scalar()
+        return float(result) if result else 0
+
+    @classmethod
+    def update_invoice_paid_amount(cls, invoice_id):
+        """更新发票的已付金额（根据关联的收款记录计算）"""
+        if not invoice_id:
+            return
+
+        from .invoice import ProjectInvoice
+
+        invoice = ProjectInvoice.query.get(invoice_id)
+        if not invoice or invoice.status == 'cancelled':
+            return
+
+        # 计算该发票关联的所有确认收款总额
+        total_received = cls.get_invoice_total_received(invoice_id)
+
+        # 更新发票的 paid_amount
+        invoice.paid_amount = total_received
+
+        # 更新发票状态
+        amount = float(invoice.amount or 0)
+        if amount <= 0:
+            # 金额为0的发票直接标记为已付
+            invoice.status = 'paid'
+        elif total_received >= amount:
+            invoice.status = 'paid'
+        elif total_received > 0:
+            invoice.status = 'partial_paid'
+        else:
+            invoice.status = 'sent'  # 未付款
+
+    @classmethod
+    def get_invoice_allocated_amount(cls, invoice_id):
+        """获取发票通过分配表已分配的收款总额"""
+        from sqlalchemy import func
+        # 使用显式 join 条件，确保正确关联
+        result = db.session.query(func.sum(ReceiptInvoiceAllocation.allocated_amount)).filter(
+            ReceiptInvoiceAllocation.invoice_id == invoice_id
+        ).join(
+            cls, ReceiptInvoiceAllocation.receipt_id == cls.id
+        ).filter(
+            cls.status == 'confirmed'
+        ).scalar()
+        return float(result) if result else 0
+
+    @classmethod
+    def update_invoice_paid_amount_from_allocations(cls, invoice_id):
+        """根据分配表更新发票的已付金额"""
+        if not invoice_id:
+            return
+
+        from .invoice import ProjectInvoice
+
+        invoice = ProjectInvoice.query.get(invoice_id)
+        if not invoice or invoice.status == 'cancelled':
+            return
+
+        # 计算该发票的所有分配总额
+        total_allocated = cls.get_invoice_allocated_amount(invoice_id)
+
+        # 兼容旧的直接关联方式
+        direct_total = cls.get_invoice_total_received(invoice_id)
+
+        # 取较大值（兼容新旧方式）
+        total_received = max(total_allocated, direct_total)
+
+        # 更新发票的 paid_amount
+        invoice.paid_amount = total_received
+
+        # 更新发票状态
+        amount = float(invoice.amount or 0)
+        if amount <= 0:
+            # 金额为0的发票直接标记为已付
+            invoice.status = 'paid'
+        elif total_received >= amount:
+            invoice.status = 'paid'
+        elif total_received > 0:
+            invoice.status = 'partial_paid'
+        else:
+            invoice.status = 'sent'
+
+        # 确保更改被持久化
+        db.session.flush()
+
+    @classmethod
+    def distribute_to_invoices(cls, amount, invoice_ids, distribution_method='sequential'):
+        """
+        将收款金额分配到多张发票
+
+        Args:
+            amount: 收款总金额
+            invoice_ids: 发票ID列表
+            distribution_method: 分配方式 ('sequential'-顺序, 'proportional'-按比例)
+
+        Returns:
+            dict: 分配结果
+        """
+        from .invoice import ProjectInvoice
+
+        allocations = {}
+        remaining = float(amount)
+
+        # 获取各发票未付金额
+        invoices_unpaid = []
+        total_unpaid = 0
+        for inv_id in invoice_ids:
+            invoice = ProjectInvoice.query.get(inv_id)
+            if invoice and invoice.status not in ['cancelled', 'paid']:
+                unpaid = invoice.unpaid_amount
+                if unpaid > 0:
+                    invoices_unpaid.append({'invoice': invoice, 'unpaid': unpaid})
+                    total_unpaid += unpaid
+
+        if not invoices_unpaid:
+            return {'success': False, 'message': '没有可分配的未付发票', 'allocations': {}}
+
+        if remaining > total_unpaid + 0.01:
+            return {
+                'success': False,
+                'message': f'收款金额({remaining:.2f})超过选中发票未付总额({total_unpaid:.2f})',
+                'allocations': {}
+            }
+
+        if distribution_method == 'sequential':
+            # 顺序分配：按发票日期从早到晚依次付清
+            invoices_unpaid.sort(key=lambda x: x['invoice'].invoice_date or datetime.min)
+
+            for item in invoices_unpaid:
+                if remaining <= 0.01:
+                    break
+                allocated = min(item['unpaid'], remaining)
+                allocations[item['invoice'].id] = round(allocated, 2)
+                remaining -= allocated
+                remaining = round(remaining, 2)
+
+        elif distribution_method == 'proportional':
+            # 按比例分配
+            for i, item in enumerate(invoices_unpaid):
+                if remaining <= 0.01:
+                    break
+                if i == len(invoices_unpaid) - 1:
+                    allocated = remaining
+                else:
+                    allocated = min(item['unpaid'], remaining * (item['unpaid'] / total_unpaid))
+                allocations[item['invoice'].id] = round(allocated, 2)
+                remaining -= allocated
+                remaining = round(remaining, 2)
+
+        return {
+            'success': True,
+            'allocations': allocations,
+            'total_allocated': sum(allocations.values()),
+            'remaining': remaining
+        }
+
+
+class ReceiptInvoiceAllocation(db.Model):
+    """收款-发票分配表（多对多关联）"""
+    __tablename__ = 'receipt_invoice_allocations'
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    receipt_id = db.Column(db.Integer, db.ForeignKey('project_receipts.id', ondelete='CASCADE'),
+                          nullable=False, comment='收款记录ID')
+    invoice_id = db.Column(db.Integer, db.ForeignKey('project_invoices.id', ondelete='CASCADE'),
+                          nullable=False, comment='发票ID')
+
+    # 分配金额
+    allocated_amount = db.Column(db.Numeric(10, 2), nullable=False, comment='分配到该发票的金额')
+
+    # 时间信息
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    # 关联关系
+    receipt = db.relationship('ProjectReceipt', backref=db.backref('invoice_allocations',
+                              cascade='all, delete-orphan', lazy='dynamic'))
+    invoice = db.relationship('ProjectInvoice', backref=db.backref('receipt_allocations',
+                              cascade='all, delete-orphan', lazy='dynamic'))
+
+    # 唯一约束
+    __table_args__ = (
+        db.UniqueConstraint('receipt_id', 'invoice_id', name='uq_receipt_invoice'),
+    )
+
+    def __repr__(self):
+        return f'<ReceiptInvoiceAllocation R{self.receipt_id}->INV{self.invoice_id}: {self.allocated_amount}>'
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'receipt_id': self.receipt_id,
+            'invoice_id': self.invoice_id,
+            'allocated_amount': float(self.allocated_amount) if self.allocated_amount else 0,
+            'created_at': self.created_at.isoformat() if self.created_at else None
         }

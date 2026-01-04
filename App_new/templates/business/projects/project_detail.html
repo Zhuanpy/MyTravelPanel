@@ -185,7 +185,29 @@
     <!-- REF列表 -->
     <div class="ref-section">
         <div class="section-header tw:flex tw:flex-col md:tw:flex-row tw:items-start md:tw:items-center tw:justify-between tw:gap-2">
-            <h3 class="section-title tw:text-lg tw:font-semibold tw:w-full md:tw:w-auto">REF明细列表</h3>
+            <div class="tw:flex tw:items-center tw:gap-3 tw:w-full md:tw:w-auto">
+                <h3 class="section-title tw:text-lg tw:font-semibold tw:mb-0">REF明细列表</h3>
+                <!-- 提醒事件 -->
+                {% if header.reminder_event %}
+                <div class="reminder-inline d-flex align-items-center gap-2 px-2 py-1" style="background-color: #fffbeb; border: 1px solid #ffc107; border-radius: 6px; font-size: 0.8rem;">
+                    <span style="color: #856404;">
+                        <i class="fas fa-bell text-warning"></i>
+                        <span class="reminder-event">{{ header.reminder_event }}</span>
+                        <span class="text-muted ms-1">({{ header.reminder_date.strftime('%m-%d') if header.reminder_date else '-' }})</span>
+                    </span>
+                    <button type="button" class="btn btn-link btn-sm p-0 text-warning" data-action="edit-reminder" title="编辑">
+                        <i class="fas fa-edit" style="font-size: 0.7rem;"></i>
+                    </button>
+                    <button type="button" class="btn btn-link btn-sm p-0 text-danger" data-action="delete-reminder" title="删除">
+                        <i class="fas fa-times" style="font-size: 0.7rem;"></i>
+                    </button>
+                </div>
+                {% else %}
+                <button type="button" class="btn btn-outline-warning btn-sm" data-action="add-reminder">
+                    <i class="fas fa-bell"></i> 添加提醒
+                </button>
+                {% endif %}
+            </div>
             <div class="add-ref-buttons tw:flex tw:flex-wrap tw:gap-2 tw:w-full md:tw:w-auto tw:mt-1 md:tw:mt-0">
                 <button type="button" class="btn btn-primary btn-sm" onclick="openInvoiceModal()">
                     <i class="fas fa-file-invoice"></i> 生成发票
@@ -411,41 +433,6 @@
         {% endif %}
     </div>
 
-    <!-- 提醒事件区域 - 右下角悬浮 -->
-    <div class="reminder-float" style="position: fixed; bottom: 20px; right: 20px; z-index: 999; max-width: 320px;">
-        {% if header.reminder_event %}
-        <div class="card shadow" style="border-left: 4px solid #ffc107;">
-            <div class="card-body p-2" style="background-color: #fffbeb;">
-                <div class="d-flex align-items-start justify-content-between mb-1">
-                    <span style="font-size: 0.8rem; font-weight: 600; color: #856404;">
-                        <i class="fas fa-bell text-warning"></i> 提醒
-                    </span>
-                    <div>
-                        <button type="button" class="btn btn-link btn-sm p-0 text-warning" data-action="edit-reminder" title="编辑">
-                            <i class="fas fa-edit" style="font-size: 0.75rem;"></i>
-                        </button>
-                        <button type="button" class="btn btn-link btn-sm p-0 text-danger ms-1" data-action="delete-reminder" title="删除">
-                            <i class="fas fa-times" style="font-size: 0.75rem;"></i>
-                        </button>
-                    </div>
-                </div>
-                <div style="font-size: 0.8rem; color: #333; margin-bottom: 4px;" class="reminder-event">{{ header.reminder_event }}</div>
-                <div class="d-flex align-items-center justify-content-between" style="font-size: 0.75rem;">
-                    <span class="text-muted"><i class="fas fa-calendar"></i> {{ header.reminder_date.strftime('%Y-%m-%d') if header.reminder_date else '-' }}</span>
-                    {% if header.reminder_sent %}
-                        <span class="badge bg-success" style="font-size: 0.65rem;">已发送</span>
-                    {% else %}
-                        <span class="badge bg-warning" style="font-size: 0.65rem;">待发送</span>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-        {% else %}
-        <button type="button" class="btn btn-warning btn-sm shadow" data-action="add-reminder" style="border-radius: 20px;">
-            <i class="fas fa-bell"></i> 添加提醒
-        </button>
-        {% endif %}
-    </div>
 
 </div>
 

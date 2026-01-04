@@ -26,6 +26,7 @@
 - 迁移脚本放入 `scripts/` 目录
 - 注意事务管理（commit / rollback）
 - 脚本运行方式: `python scripts/xxx.py`
+- 脚本命名: `日期_脚本名称.py`
 
 ## 权限控制
 

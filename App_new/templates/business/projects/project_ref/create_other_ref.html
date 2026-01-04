@@ -9,45 +9,46 @@
     .summary-bar {
         background: linear-gradient(135deg, #38A169 0%, #48BB78 100%);
         color: white;
-        padding: 15px 20px;
+        padding: 12px 16px;
         border-radius: 8px;
-        margin-bottom: 20px;
+        margin-bottom: 16px;
     }
     .summary-item {
         text-align: center;
-        padding: 0 15px;
+        padding: 0 12px;
         border-right: 1px solid rgba(255,255,255,0.3);
     }
     .summary-item:last-child {
         border-right: none;
     }
     .summary-label {
-        font-size: 12px;
+        font-size: 11px;
         opacity: 0.9;
         margin-bottom: 2px;
     }
     .summary-value {
-        font-size: 20px;
+        font-size: 16px;
         font-weight: bold;
     }
     .form-section {
         background: #fff;
         border: 1px solid #e0e0e0;
         border-radius: 8px;
-        padding: 20px;
-        margin-bottom: 20px;
+        padding: 16px;
+        margin-bottom: 16px;
     }
     .section-title {
-        font-size: 14px;
+        font-size: 13px;
         font-weight: 600;
         color: #2D3748;
-        margin-bottom: 15px;
-        padding-bottom: 10px;
+        margin-bottom: 12px;
+        padding-bottom: 8px;
         border-bottom: 2px solid #4299E1;
     }
     .pricing-table th, .pricing-table td {
-        padding: 8px 12px;
+        padding: 6px 10px;
         vertical-align: middle;
+        font-size: 13px;
     }
     .pricing-table .profit-positive {
         color: #38A169;
@@ -58,17 +59,21 @@
         font-weight: 600;
     }
     .pax-table {
-        font-size: 13px;
+        font-size: 12px;
     }
     .pax-table th {
         background: #EBF8FF;
         font-weight: 600;
+        padding: 6px 8px;
+    }
+    .pax-table td {
+        padding: 4px 8px;
     }
     .type-badge {
         display: inline-block;
-        padding: 2px 8px;
+        padding: 1px 6px;
         border-radius: 4px;
-        font-size: 11px;
+        font-size: 10px;
         font-weight: 600;
     }
     .type-adt { background: #E6FFFA; color: #234E52; }
@@ -78,7 +83,7 @@
 {% endblock %}
 
 {% block content %}
-<div class="container mt-3" style="max-width: 1200px;">
+<div class="container mt-3" style="max-width: 900px;">
     <form method="post" id="otherRefForm" action="{% if ref and not is_create %}{{ url_for('business_projects.project_ref.edit_other_ref', ref_id=ref.id) }}{% else %}{{ url_for('business_projects.project_ref.create_other_ref', header_id=header_id) }}{% endif %}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="header_id" value="{% if header_id %}{{ header_id }}{% elif ref %}{{ ref.header_id }}{% elif header %}{{ header.id }}{% endif %}">
@@ -89,54 +94,44 @@
 
         <!-- Price Summary Bar -->
         <div class="summary-bar">
-            <div class="row align-items-center">
-                <div class="col-auto">
-                    <span style="font-size: 16px; font-weight: 600;">
-                        <i class="fas fa-plus-circle me-2"></i>Other REF: {{ ref.ref_number if ref else 'New' }}
-                    </span>
-                </div>
-                <div class="col">
-                    <div class="d-flex justify-content-end">
-                        <div class="summary-item">
-                            <div class="summary-label">Total Selling</div>
-                            <div class="summary-value" id="summary_selling">$0.00</div>
-                        </div>
-                        <div class="summary-item">
-                            <div class="summary-label">Total Cost</div>
-                            <div class="summary-value" id="summary_cost">$0.00</div>
-                        </div>
-                        <div class="summary-item">
-                            <div class="summary-label">Profit</div>
-                            <div class="summary-value" id="summary_profit">$0.00</div>
-                        </div>
-                        <div class="summary-item">
-                            <div class="summary-label">Pax</div>
-                            <div class="summary-value" id="summary_pax">0</div>
-                        </div>
+            <div class="d-flex justify-content-between align-items-center">
+                <span style="font-size: 14px; font-weight: 600;">
+                    <i class="fas fa-plus-circle me-1"></i>{{ ref.ref_number if ref else 'New' }}
+                </span>
+                <div class="d-flex">
+                    <div class="summary-item">
+                        <div class="summary-label">Selling</div>
+                        <div class="summary-value" id="summary_selling">$0.00</div>
+                    </div>
+                    <div class="summary-item">
+                        <div class="summary-label">Cost</div>
+                        <div class="summary-value" id="summary_cost">$0.00</div>
+                    </div>
+                    <div class="summary-item">
+                        <div class="summary-label">Profit</div>
+                        <div class="summary-value" id="summary_profit">$0.00</div>
+                    </div>
+                    <div class="summary-item">
+                        <div class="summary-label">Pax</div>
+                        <div class="summary-value" id="summary_pax">0</div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Booking Information -->
+        <!-- Description & Status -->
         <div class="form-section">
-            <div class="section-title"><i class="fas fa-info-circle me-2"></i>Booking Information</div>
-            <div class="row mb-3">
-                <div class="col-md-4">
-                    <label class="form-label">Description <span class="text-danger">*</span></label>
+            <div class="section-title"><i class="fas fa-info-circle me-2"></i>Description & Status</div>
+            <div class="row g-2">
+                <div class="col-8">
+                    <label class="form-label small mb-1">Description <span class="text-danger">*</span></label>
                     <input type="text" name="description" id="description" class="form-control form-control-sm"
                            placeholder="e.g. BOOKING FEES" required
                            value="{{ ref.description if ref else '' }}"
                            onchange="updateDescription()">
                 </div>
-                <div class="col-md-2">
-                    <label class="form-label">Service Date</label>
-                    <input type="date" name="service_date" id="service_date" class="form-control form-control-sm"
-                           value="{{ extra_info.service_date if extra_info and extra_info.service_date else (extra_info.departure_date if extra_info and extra_info.departure_date else '') }}"
-                           onchange="updateDescription()">
-                </div>
-                <div class="col-md-2">
-                    <label class="form-label">Status</label>
+                <div class="col-4">
+                    <label class="form-label small mb-1">Status</label>
                     <select name="status" id="status" class="form-select form-select-sm">
                         <option value="processing" {% if ref and ref.status == 'processing' %}selected{% elif not ref %}selected{% endif %}>Processing</option>
                         <option value="draft" {% if ref and ref.status == 'draft' %}selected{% endif %}>Draft</option>
@@ -144,8 +139,16 @@
                         <option value="cancelled" {% if ref and ref.status == 'cancelled' %}selected{% endif %}>Cancelled</option>
                     </select>
                 </div>
-                <div class="col-md-2">
-                    <label class="form-label">Supplier Type</label>
+            </div>
+            <input type="hidden" name="detailed_description_hidden" id="detailed_description">
+        </div>
+
+        <!-- Supplier & Service Date -->
+        <div class="form-section">
+            <div class="section-title"><i class="fas fa-truck me-2"></i>Supplier & Service Date</div>
+            <div class="row g-2">
+                <div class="col-3">
+                    <label class="form-label small mb-1">Supplier Type</label>
                     <select id="supplier_type_filter" class="form-select form-select-sm" onchange="filterSuppliers()">
                         <option value="">All Types</option>
                         {% for type in supplier_types %}
@@ -153,38 +156,96 @@
                         {% endfor %}
                     </select>
                 </div>
-                <div class="col-md-2">
-                    <label class="form-label">Supplier</label>
+                <div class="col-5">
+                    <label class="form-label small mb-1">Supplier Name</label>
                     <select name="supplier_id" id="supplier_id" class="form-select form-select-sm">
                         <option value="">-- Select --</option>
                         {% for supplier in suppliers %}
-                        <option value="{{ supplier.supplier_id }}" data-type="{{ supplier.supplier_type }}"
+                        <option value="{{ supplier.supplier_id }}" data-type="{{ supplier.supplier_type_code or '' }}"
                             {% if ref and ref.supplier_id == supplier.supplier_id %}selected{% endif %}>
                             {{ supplier.name }}
                         </option>
                         {% endfor %}
                     </select>
                 </div>
+                <div class="col-4">
+                    <label class="form-label small mb-1">Service Date</label>
+                    <input type="date" name="service_date" id="service_date" class="form-control form-control-sm"
+                           value="{{ extra_info.service_date if extra_info and extra_info.service_date else (extra_info.departure_date if extra_info and extra_info.departure_date else '') }}"
+                           onchange="updateDescription()">
+                </div>
             </div>
-            <input type="hidden" name="detailed_description_hidden" id="detailed_description">
+        </div>
+
+        <!-- Pax Selection -->
+        <div class="form-section">
+            <div class="section-title"><i class="fas fa-users me-2"></i>Pax Selection</div>
+            {% if members and members|length > 0 %}
+            {% set selected_pax = extra_info.pax_names if extra_info and extra_info.pax_names else [] %}
+            {% set leader_id = extra_info.leader_id if extra_info and extra_info.leader_id else '' %}
+            <input type="hidden" name="leader_id" id="leader_id" value="{{ leader_id }}">
+            <div style="max-height: 200px; overflow-y: auto;">
+                <table class="table table-sm table-hover pax-table mb-0">
+                    <thead style="position: sticky; top: 0;">
+                        <tr>
+                            <th style="width: 30px;"><input type="checkbox" id="selectAllPax" title="Select All"></th>
+                            <th>Name</th>
+                            <th style="width: 50px;">Type</th>
+                            <th style="width: 50px;">Leader</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for member in members %}
+                        <tr class="{% if member.id|string == leader_id|string %}table-warning{% endif %}">
+                            <td>
+                                <input type="checkbox" name="pax_names" value="{{ member.id }}"
+                                       {% if member.id in selected_pax or member.id|string in selected_pax %}checked{% endif %}
+                                       onchange="updateDescription()">
+                            </td>
+                            <td>{{ member.title }} {{ member.member_name }}</td>
+                            <td>
+                                {% if member.member_type == 'child' %}
+                                <span class="type-badge type-chd">CHD</span>
+                                {% elif member.member_type == 'infant' %}
+                                <span class="type-badge type-inf">INF</span>
+                                {% else %}
+                                <span class="type-badge type-adt">ADT</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                <button type="button" class="btn btn-sm py-0 px-1 {% if member.id|string == leader_id|string %}btn-warning{% else %}btn-outline-secondary{% endif %} set-leader-btn"
+                                        data-member-id="{{ member.id }}" title="Set as Leader">
+                                    <i class="fas fa-star" style="font-size: 10px;"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="alert alert-info py-2 mb-0" style="font-size: 12px;">
+                <i class="fas fa-info-circle me-2"></i>No members in project.
+            </div>
+            {% endif %}
         </div>
 
         <!-- Pricing Section -->
         <div class="form-section">
             <div class="section-title"><i class="fas fa-dollar-sign me-2"></i>Pricing</div>
             {% if has_invoice %}
-            <div class="alert alert-warning py-2 mb-3" style="font-size: 13px;">
-                <i class="fas fa-lock me-2"></i>Invoice generated. Selling prices are locked.
+            <div class="alert alert-warning py-1 mb-2" style="font-size: 12px;">
+                <i class="fas fa-lock me-1"></i>Invoice generated. Selling prices locked.
             </div>
             {% endif %}
             <table class="table table-bordered table-sm pricing-table mb-0">
                 <thead class="table-light">
                     <tr>
-                        <th style="width: 60px;">Type</th>
-                        <th style="width: 80px;">Qty</th>
-                        <th>Selling (SGD)</th>
-                        <th>Cost (SGD)</th>
-                        <th style="width: 120px;">Profit</th>
+                        <th style="width: 70px;">Type</th>
+                        <th style="width: 90px;">Qty</th>
+                        <th>Selling</th>
+                        <th>Cost</th>
+                        <th style="width: 80px;">Profit</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -197,7 +258,7 @@
                         </td>
                         <td>
                             <div class="input-group input-group-sm">
-                                <span class="input-group-text">$</span>
+                                <span class="input-group-text py-0">$</span>
                                 <input type="number" name="adult_selling" id="adult_selling" class="form-control"
                                        min="0" step="0.01" value="{{ extra_info.adult_selling if extra_info and extra_info.adult_selling else '0.00' }}"
                                        onchange="calculateTotals()" {% if has_invoice %}readonly{% endif %}>
@@ -205,7 +266,7 @@
                         </td>
                         <td>
                             <div class="input-group input-group-sm">
-                                <span class="input-group-text">$</span>
+                                <span class="input-group-text py-0">$</span>
                                 <input type="number" name="adult_cost" id="adult_cost" class="form-control"
                                        min="0" step="0.01" value="{{ extra_info.adult_cost if extra_info and extra_info.adult_cost else '0.00' }}"
                                        onchange="calculateTotals()">
@@ -222,7 +283,7 @@
                         </td>
                         <td>
                             <div class="input-group input-group-sm">
-                                <span class="input-group-text">$</span>
+                                <span class="input-group-text py-0">$</span>
                                 <input type="number" name="child_selling" id="child_selling" class="form-control"
                                        min="0" step="0.01" value="{{ extra_info.child_selling if extra_info and extra_info.child_selling else '0.00' }}"
                                        onchange="calculateTotals()" {% if has_invoice %}readonly{% endif %}>
@@ -230,7 +291,7 @@
                         </td>
                         <td>
                             <div class="input-group input-group-sm">
-                                <span class="input-group-text">$</span>
+                                <span class="input-group-text py-0">$</span>
                                 <input type="number" name="child_cost" id="child_cost" class="form-control"
                                        min="0" step="0.01" value="{{ extra_info.child_cost if extra_info and extra_info.child_cost else '0.00' }}"
                                        onchange="calculateTotals()">
@@ -247,7 +308,7 @@
                         </td>
                         <td>
                             <div class="input-group input-group-sm">
-                                <span class="input-group-text">$</span>
+                                <span class="input-group-text py-0">$</span>
                                 <input type="number" name="infant_selling" id="infant_selling" class="form-control"
                                        min="0" step="0.01" value="{{ extra_info.infant_selling if extra_info and extra_info.infant_selling else '0.00' }}"
                                        onchange="calculateTotals()" {% if has_invoice %}readonly{% endif %}>
@@ -255,7 +316,7 @@
                         </td>
                         <td>
                             <div class="input-group input-group-sm">
-                                <span class="input-group-text">$</span>
+                                <span class="input-group-text py-0">$</span>
                                 <input type="number" name="infant_cost" id="infant_cost" class="form-control"
                                        min="0" step="0.01" value="{{ extra_info.infant_cost if extra_info and extra_info.infant_cost else '0.00' }}"
                                        onchange="calculateTotals()">
@@ -269,87 +330,32 @@
             <input type="hidden" name="cost_price" id="cost_price" value="{{ ref.cost_price if ref else '0.00' }}">
         </div>
 
-        <!-- Pax Selection -->
+        <!-- Remarks -->
         <div class="form-section">
-            <div class="section-title"><i class="fas fa-users me-2"></i>Pax Selection</div>
-            {% if members and members|length > 0 %}
-            {% set selected_pax = extra_info.pax_names if extra_info and extra_info.pax_names else [] %}
-            {% set leader_id = extra_info.leader_id if extra_info and extra_info.leader_id else '' %}
-            <input type="hidden" name="leader_id" id="leader_id" value="{{ leader_id }}">
-            <table class="table table-sm table-hover pax-table mb-0">
-                <thead>
-                    <tr>
-                        <th style="width: 40px;"><input type="checkbox" id="selectAllPax" title="Select All"></th>
-                        <th>Name</th>
-                        <th style="width: 60px;">Type</th>
-                        <th style="width: 60px;">Leader</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for member in members %}
-                    <tr class="{% if member.id|string == leader_id|string %}table-warning{% endif %}">
-                        <td>
-                            <input type="checkbox" name="pax_names" value="{{ member.id }}"
-                                   {% if member.id in selected_pax or member.id|string in selected_pax %}checked{% endif %}
-                                   onchange="updateDescription()">
-                        </td>
-                        <td>{{ member.title }} {{ member.member_name }}</td>
-                        <td>
-                            {% if member.member_type == 'child' %}
-                            <span class="type-badge type-chd">CHD</span>
-                            {% elif member.member_type == 'infant' %}
-                            <span class="type-badge type-inf">INF</span>
-                            {% else %}
-                            <span class="type-badge type-adt">ADT</span>
-                            {% endif %}
-                        </td>
-                        <td class="text-center">
-                            <button type="button" class="btn btn-sm {% if member.id|string == leader_id|string %}btn-warning{% else %}btn-outline-secondary{% endif %} set-leader-btn"
-                                    data-member-id="{{ member.id }}" title="Set as Leader">
-                                <i class="fas fa-star"></i>
-                            </button>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-            {% else %}
-            <div class="alert alert-info py-2 mb-0">
-                <i class="fas fa-info-circle me-2"></i>No members in project. Please add members first.
-            </div>
-            {% endif %}
+            <div class="section-title"><i class="fas fa-sticky-note me-2"></i>Remarks</div>
+            <textarea name="remarks" id="remarks" class="form-control form-control-sm" rows="2"
+                      placeholder="Enter remarks...">{{ ref.remarks if ref else '' }}</textarea>
         </div>
 
-        <!-- Remarks & Actions Row -->
-        <div class="row">
-            <div class="col-lg-8">
-                <div class="form-section">
-                    <div class="section-title"><i class="fas fa-sticky-note me-2"></i>Remarks</div>
-                    <textarea name="remarks" id="remarks" class="form-control form-control-sm" rows="3"
-                              placeholder="Enter remarks...">{{ ref.remarks if ref else '' }}</textarea>
-                </div>
-            </div>
-            <div class="col-lg-4">
-                <div class="form-section">
-                    <div class="section-title"><i class="fas fa-cogs me-2"></i>Actions</div>
-                    <div class="d-flex gap-2">
-                        <button type="submit" class="btn btn-success flex-fill">
-                            <i class="fas fa-save me-1"></i>{% if ref and not is_create %}Update{% else %}Save{% endif %}
-                        </button>
-                        <a href="{{ url_for('business_projects.detail.project_detail', project_id=header_id if header_id else ref.header_id) }}" class="btn btn-secondary">
-                            <i class="fas fa-arrow-left me-1"></i>Back
-                        </a>
-                        {% if ref and ref.eos %}
-                        <span class="btn btn-outline-info" style="cursor: default;">
-                            <i class="fas fa-check me-1"></i>EO: {{ ref.eos.eo_number }}
-                        </span>
-                        {% elif ref and not is_create %}
-                        <button type="button" class="btn btn-primary" onclick="quickCreateEO({{ ref.id }})">
-                            <i class="fas fa-plus me-1"></i>EO
-                        </button>
-                        {% endif %}
-                    </div>
-                </div>
+        <!-- Actions -->
+        <div class="form-section">
+            <div class="section-title"><i class="fas fa-cogs me-2"></i>Actions</div>
+            <div class="d-flex justify-content-center gap-3">
+                <button type="submit" class="btn btn-success btn-sm" style="width: 120px;">
+                    <i class="fas fa-save me-1"></i>{% if ref and not is_create %}Update{% else %}Save{% endif %}
+                </button>
+                <a href="{{ url_for('business_projects.detail.project_detail', project_id=header_id if header_id else ref.header_id) }}" class="btn btn-secondary btn-sm" style="width: 120px;">
+                    <i class="fas fa-arrow-left me-1"></i>Back
+                </a>
+                {% if ref and ref.eos %}
+                <span class="btn btn-outline-info btn-sm" style="width: 120px; cursor: default;">
+                    <i class="fas fa-check me-1"></i>{{ ref.eos.eo_number }}
+                </span>
+                {% elif ref and not is_create %}
+                <button type="button" class="btn btn-primary btn-sm" style="width: 120px;" onclick="quickCreateEO({{ ref.id }})">
+                    <i class="fas fa-plus me-1"></i>Create EO
+                </button>
+                {% endif %}
             </div>
         </div>
     </form>

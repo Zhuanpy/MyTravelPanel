@@ -41,13 +41,13 @@
                         
                         <div class="row">
                             <!-- 收款单号 -->
-                            <div class="col-md-6 mb-3">
+                            <div class="col-md-4 mb-3">
                                 <label class="form-label">收款单号</label>
                                 <input type="text" class="form-control" value="{{ receipt.receipt_number }}" readonly>
                             </div>
-                            
+
                             <!-- 收款金额 -->
-                            <div class="col-md-6 mb-3">
+                            <div class="col-md-4 mb-3">
                                 <label class="form-label">{{ form.amount.label }} <span class="text-danger">*</span></label>
                                 {{ form.amount(class="form-control", placeholder="请输入收款金额") }}
                                 {% if form.amount.errors %}
@@ -57,6 +57,13 @@
                                         {% endfor %}
                                     </div>
                                 {% endif %}
+                            </div>
+
+                            <!-- 关联发票 -->
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">{{ form.invoice_id.label }}</label>
+                                {{ form.invoice_id(class="form-select") }}
+                                <small class="text-muted">选择后将自动更新发票的已付金额</small>
                             </div>
                         </div>
 

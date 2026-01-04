@@ -14,7 +14,16 @@
       "Bash(\".venv/Scripts/pip.exe\" install openpyxl)",
       "Bash(\".venv/Scripts/pip.exe\" install reportlab)",
       "Bash(\".venv/Scripts/python.exe\" add_session_version.py)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(\".venv/Scripts/python.exe\" -c \"from App_new.business.projects.routes import project_home; print\\(''导入成功:'', project_home.project_home.name\\)\")",
+      "Bash(\".venv/Scripts/python.exe\" -c \"\nimport ast\nwith open\\(''App_new/business/projects/routes/project_home.py'', ''r'', encoding=''utf-8''\\) as f:\n    code = f.read\\(\\)\n    ast.parse\\(code\\)\n    print\\(''语法检查通过''\\)\n\")",
+      "Bash(\".venv/Scripts/python.exe\" scripts/20260103_sync_invoice_paid_amount.py)",
+      "Bash(\".venv/Scripts/python.exe\" scripts/20260103_add_invoice_id_to_receipts.py)",
+      "Bash(\".venv/Scripts/python.exe\" -c:*)",
+      "Bash(\".venv/Scripts/python.exe\":*)",
+      "Bash(del scriptscheck_allocations.py)",
+      "Bash(\".venv/Scripts/python.exe\" scripts/check_h308.py)",
+      "Bash(cd:*)"
     ]
   }
 }

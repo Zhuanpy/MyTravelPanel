@@ -3,10 +3,29 @@ from flask_login import login_required, current_user
 from App_new.business.projects.models.project import ProjectHeader
 from App_new.business.projects.models.ref import ProjectRef
 from App_new.business.projects.models.receipt import ProjectReceipt
+from App_new.business.projects.models.invoice import ProjectInvoice
 from App_new.exts import csrf, db
 from App_new.business.projects.forms.receipt_forms import ProjectReceiptForm, ProjectLevelReceiptForm
 from App_new.utils.decorators import staff_only, admin_only
 import json
+
+
+def get_invoice_choices(header_id):
+    """获取项目的发票选择列表（用于表单下拉框）"""
+    invoices = ProjectInvoice.query.filter(
+        ProjectInvoice.header_id == header_id,
+        ProjectInvoice.status != 'cancelled'
+    ).order_by(ProjectInvoice.created_at.desc()).all()
+
+    choices = [(0, '-- 不关联发票 --')]
+    for inv in invoices:
+        unpaid = float(inv.amount or 0) - float(inv.paid_amount or 0)
+        status_text = inv.status_display
+        choices.append((
+            inv.id,
+            f"{inv.invoice_number} - {inv.currency} {float(inv.amount):.2f} ({status_text}, 未付: {unpaid:.2f})"
+        ))
+    return choices
 
 project_receipt = Blueprint('project_receipt', __name__)
 
@@ -15,17 +34,24 @@ def create_receipt(ref_id):
     """创建REF级别收款记录"""
     ref = ProjectRef.query.get_or_404(ref_id)
     form = ProjectReceiptForm()
-    
+
+    # 动态填充发票选择
+    form.invoice_id.choices = get_invoice_choices(ref.header_id)
+
     # 预填充收款单号
     receipt_number = ProjectReceipt.generate_receipt_number()
-    
+
     if form.validate_on_submit():
         try:
+            # 处理发票ID（0表示不关联）
+            invoice_id = form.invoice_id.data if form.invoice_id.data and form.invoice_id.data != 0 else None
+
             # 创建收款记录
             receipt = ProjectReceipt(
                 receipt_number=receipt_number,
                 ref_id=ref.id,
                 header_id=ref.header_id,
+                invoice_id=invoice_id,
                 amount=form.amount.data,
                 currency=form.currency.data,
                 payment_method=form.payment_method.data,
@@ -39,15 +65,15 @@ def create_receipt(ref_id):
                 remarks=form.remarks.data,
                 status='confirmed'  # 默认已确认
             )
-            
+
             db.session.add(receipt)
-            
+
             # 先提交收款记录，然后更新REF的付款状态
             db.session.flush()  # 刷新session，获取receipt.id
-            
+
             # 重新查询REF以获取最新的收款记录
             ref = ProjectRef.query.get(ref_id)
-            
+
             # 更新REF的付款状态
             # 使用辅助方法计算总收款金额（包括项目级别收款记录的分配）
             total_received = ProjectReceipt.get_ref_total_received(ref.id, ref.header_id)
@@ -57,19 +83,23 @@ def create_receipt(ref_id):
                 ref.payment_status = 'partial'
             else:
                 ref.payment_status = 'unpaid'
-            
+
+            # 更新关联发票的已付金额
+            if invoice_id:
+                ProjectReceipt.update_invoice_paid_amount(invoice_id)
+
             db.session.commit()
-            
+
             return redirect(url_for('business_projects.project_header.header_detail', header_id=ref.header_id))
-            
+
         except Exception as e:
             db.session.rollback()
             flash(f'创建失败：{str(e)}', 'error')
-    
+
     # 获取REF的未付款金额（使用辅助方法，包括项目级别分配）
     total_received = ProjectReceipt.get_ref_total_received(ref.id, ref.header_id)
     unpaid_amount = float(ref.selling_price or 0) - total_received
-    
+
     return render_template('business/projects/project_receipt/create_receipt.html',
                           form=form,
                           ref=ref,
@@ -88,10 +118,20 @@ def edit_receipt(receipt_id):
     """编辑收款记录"""
     receipt = ProjectReceipt.query.get_or_404(receipt_id)
     form = ProjectReceiptForm(obj=receipt)
-    
+
+    # 动态填充发票选择
+    form.invoice_id.choices = get_invoice_choices(receipt.header_id)
+
     if form.validate_on_submit():
         try:
+            # 记录旧的发票ID，用于更新
+            old_invoice_id = receipt.invoice_id
+
+            # 处理发票ID（0表示不关联）
+            new_invoice_id = form.invoice_id.data if form.invoice_id.data and form.invoice_id.data != 0 else None
+
             # 更新收款记录
+            receipt.invoice_id = new_invoice_id
             receipt.amount = form.amount.data
             receipt.currency = form.currency.data
             receipt.payment_method = form.payment_method.data
@@ -103,14 +143,14 @@ def edit_receipt(receipt_id):
             receipt.account_number = form.account_number.data
             receipt.transaction_id = form.transaction_id.data
             receipt.remarks = form.remarks.data
-            
+
             # 先提交收款记录更新
             db.session.flush()
-            
+
             # 重新查询REF以获取最新的收款记录
             if receipt.ref_id:
                 ref = ProjectRef.query.get(receipt.ref_id)
-                
+
                 # 更新REF的付款状态
                 # 使用辅助方法计算总收款金额（包括项目级别收款记录的分配）
                 total_received = ProjectReceipt.get_ref_total_received(ref.id, ref.header_id)
@@ -120,15 +160,21 @@ def edit_receipt(receipt_id):
                     ref.payment_status = 'partial'
                 else:
                     ref.payment_status = 'unpaid'
-            
+
+            # 更新旧发票和新发票的已付金额
+            if old_invoice_id:
+                ProjectReceipt.update_invoice_paid_amount(old_invoice_id)
+            if new_invoice_id and new_invoice_id != old_invoice_id:
+                ProjectReceipt.update_invoice_paid_amount(new_invoice_id)
+
             db.session.commit()
-            
+
             return redirect(url_for('business_projects.project_receipt.header_receipts', header_id=receipt.header_id))
-            
+
         except Exception as e:
             db.session.rollback()
             flash(f'更新失败：{str(e)}', 'error')
-    
+
     return render_template('business/projects/project_receipt/edit_receipt.html',
                          form=form,
                          receipt=receipt)
@@ -139,16 +185,17 @@ def delete_receipt(receipt_id):
     """删除收款记录"""
     receipt = ProjectReceipt.query.get_or_404(receipt_id)
     header_id = receipt.header_id
-    
+    invoice_id = receipt.invoice_id  # 保存发票ID用于更新
+
     try:
         # 先删除收款记录
         db.session.delete(receipt)
         db.session.flush()
-        
+
         # 重新查询REF以获取最新的收款记录
         if receipt.ref_id:
             ref = ProjectRef.query.get(receipt.ref_id)
-            
+
             # 更新REF的付款状态
             # 使用辅助方法计算总收款金额（包括项目级别收款记录的分配）
             total_received = ProjectReceipt.get_ref_total_received(ref.id, ref.header_id)
@@ -158,14 +205,18 @@ def delete_receipt(receipt_id):
                 ref.payment_status = 'partial'
             else:
                 ref.payment_status = 'unpaid'
-        
+
+        # 更新关联发票的已付金额
+        if invoice_id:
+            ProjectReceipt.update_invoice_paid_amount(invoice_id)
+
         db.session.commit()
         flash('收款记录删除成功！', 'success')
-        
+
     except Exception as e:
         db.session.rollback()
         flash(f'删除失败：{str(e)}', 'error')
-    
+
     return redirect(url_for('business_projects.project_receipt.header_receipts', header_id=header_id))
 
 @project_receipt.route('/<int:receipt_id>/status', methods=['POST'])
@@ -174,22 +225,22 @@ def update_receipt_status(receipt_id):
     """更新收款记录状态"""
     data = request.get_json()
     status = data.get('status')
-    
+
     if status not in ['pending', 'confirmed', 'cancelled']:
         return jsonify({'success': False, 'message': '无效的状态'})
-    
+
     receipt = ProjectReceipt.query.get_or_404(receipt_id)
-    
+
     try:
         receipt.status = status
-        
+
         # 先提交收款记录状态更新
         db.session.flush()
-        
+
         # 重新查询REF以获取最新的收款记录
         if receipt.ref_id:
             ref = ProjectRef.query.get(receipt.ref_id)
-            
+
             # 更新REF的付款状态
             # 使用辅助方法计算总收款金额（包括项目级别收款记录的分配）
             total_received = ProjectReceipt.get_ref_total_received(ref.id, ref.header_id)
@@ -199,14 +250,18 @@ def update_receipt_status(receipt_id):
                 ref.payment_status = 'partial'
             else:
                 ref.payment_status = 'unpaid'
-        
+
+        # 更新关联发票的已付金额（状态变更会影响已付金额计算）
+        if receipt.invoice_id:
+            ProjectReceipt.update_invoice_paid_amount(receipt.invoice_id)
+
         db.session.commit()
-        
+
         return jsonify({
             'success': True,
             'message': f'收款状态已更新为 {receipt.status_display}'
         })
-        
+
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'message': f'更新失败：{str(e)}'})
@@ -301,7 +356,10 @@ def create_header_receipt(header_id):
     """创建项目级别收款记录"""
     header = ProjectHeader.query.get_or_404(header_id)
     form = ProjectLevelReceiptForm()
-    
+
+    # 动态填充发票选择
+    form.invoice_id.choices = get_invoice_choices(header_id)
+
     # 动态生成REF选择选项
     unpaid_refs = []
     for ref in header.refs:
@@ -405,11 +463,15 @@ def create_header_receipt(header_id):
                                      receipt_number=receipt_number,
                                      unpaid_amount=unpaid_amount)
             
+            # 处理发票ID（0表示不关联）
+            invoice_id = form.invoice_id.data if form.invoice_id.data and form.invoice_id.data != 0 else None
+
             # 创建项目级别收款记录
             project_receipt = ProjectReceipt(
                 receipt_number=receipt_number,
                 ref_id=None,  # 项目级别收款记录，ref_id为None
                 header_id=header.id,
+                invoice_id=invoice_id,
                 amount=amount,
                 currency=form.currency.data,
                 payment_method=form.payment_method.data,
@@ -450,9 +512,13 @@ def create_header_receipt(header_id):
                         ref.payment_status = 'partial'
                     else:
                         ref.payment_status = 'unpaid'
-            
+
+            # 更新关联发票的已付金额
+            if invoice_id:
+                ProjectReceipt.update_invoice_paid_amount(invoice_id)
+
             db.session.commit()
-            
+
             return redirect(url_for('business_projects.project_receipt.header_receipts', header_id=header.id))
             
         except Exception as e:
@@ -476,16 +542,26 @@ def edit_header_receipt(header_id, receipt_id):
     """编辑项目级别收款记录"""
     header = ProjectHeader.query.get_or_404(header_id)
     receipt = ProjectReceipt.query.filter_by(
-        id=receipt_id, 
-        header_id=header_id, 
+        id=receipt_id,
+        header_id=header_id,
         ref_id=None
     ).first_or_404()
-    
+
     form = ProjectLevelReceiptForm(obj=receipt)
-    
+
+    # 动态填充发票选择
+    form.invoice_id.choices = get_invoice_choices(header_id)
+
     if form.validate_on_submit():
         try:
+            # 记录旧的发票ID
+            old_invoice_id = receipt.invoice_id
+
+            # 处理发票ID（0表示不关联）
+            new_invoice_id = form.invoice_id.data if form.invoice_id.data and form.invoice_id.data != 0 else None
+
             # 更新收款记录
+            receipt.invoice_id = new_invoice_id
             receipt.amount = form.amount.data
             receipt.currency = form.currency.data
             receipt.payment_method = form.payment_method.data
@@ -497,18 +573,24 @@ def edit_header_receipt(header_id, receipt_id):
             receipt.account_number = form.account_number.data
             receipt.transaction_id = form.transaction_id.data
             receipt.remarks = form.remarks.data
-            
+
+            # 更新旧发票和新发票的已付金额
+            if old_invoice_id:
+                ProjectReceipt.update_invoice_paid_amount(old_invoice_id)
+            if new_invoice_id and new_invoice_id != old_invoice_id:
+                ProjectReceipt.update_invoice_paid_amount(new_invoice_id)
+
             db.session.commit()
-            
+
             return redirect(url_for('business_projects.project_receipt.header_receipts', header_id=header.id))
-            
+
         except Exception as e:
             db.session.rollback()
             flash(f'更新失败：{str(e)}', 'error')
-    
+
     # 获取项目的未付款金额
     unpaid_amount = ProjectReceipt.get_project_unpaid_amount(header_id)
-    
+
     return render_template('business/projects/project_receipt/edit_header_receipt.html',
                          form=form,
                          header=header,
@@ -522,15 +604,18 @@ def edit_header_receipt(header_id, receipt_id):
 def delete_header_receipt(header_id, receipt_id):
     """删除项目级别收款记录"""
     receipt = ProjectReceipt.query.filter_by(
-        id=receipt_id, 
-        header_id=header_id, 
+        id=receipt_id,
+        header_id=header_id,
         ref_id=None
     ).first_or_404()
-    
+
+    invoice_id = receipt.invoice_id  # 保存发票ID用于更新
+
     try:
         # 删除项目级别收款记录
         db.session.delete(receipt)
-        
+        db.session.flush()
+
         # 更新各个REF的付款状态
         header = ProjectHeader.query.get(header_id)
         for ref in header.refs:
@@ -543,13 +628,17 @@ def delete_header_receipt(header_id, receipt_id):
                     ref.payment_status = 'partial'
                 else:
                     ref.payment_status = 'unpaid'
-        
+
+        # 更新关联发票的已付金额
+        if invoice_id:
+            ProjectReceipt.update_invoice_paid_amount(invoice_id)
+
         db.session.commit()
-        
+
     except Exception as e:
         db.session.rollback()
         flash(f'删除失败：{str(e)}', 'error')
-    
+
     return redirect(url_for('business_projects.project_receipt.header_receipts', header_id=header_id))
 
 
@@ -800,3 +889,378 @@ def get_header_unpaid_refs(header_id):
         'total_unpaid': total_unpaid,
         'unpaid_refs': unpaid_refs
     })
+
+
+# === 按公司收款流程 ===
+
+@project_receipt.route('/by-company', methods=['GET', 'POST'])
+@login_required
+@staff_only
+def receipt_by_company():
+    """按公司收款页面 - 搜索公司和发票，创建收款"""
+    from App_new.business.projects.models.project import CustomerCompany
+    from App_new.business.projects.forms.receipt_forms import CompanyReceiptForm
+    from App_new.business.projects.models.receipt import ReceiptInvoiceAllocation
+    from datetime import datetime
+
+    # 获取所有活跃公司（用于下拉选择）
+    companies = CustomerCompany.query.filter_by(status='active').order_by(
+        CustomerCompany.company_name
+    ).all()
+
+    form = CompanyReceiptForm()
+    # 设置空的 choices 避免验证错误
+    form.selected_invoices.choices = []
+    receipt_number = ProjectReceipt.generate_receipt_number()
+
+    # 搜索参数
+    selected_company_id = request.args.get('company_id', type=int)
+    date_from = request.args.get('date_from', '')
+    date_to = request.args.get('date_to', '')
+
+    # 搜索结果
+    unpaid_invoices = []
+    selected_company = None
+    total_unpaid = 0
+
+    if selected_company_id:
+        selected_company = CustomerCompany.query.get(selected_company_id)
+        if selected_company:
+            # 查询未付发票
+            query = ProjectInvoice.query.join(ProjectHeader).filter(
+                ProjectHeader.company_id == selected_company_id,
+                ProjectInvoice.status.in_(['sent', 'partial_paid', 'overdue'])
+            )
+
+            # 日期筛选
+            if date_from:
+                try:
+                    df = datetime.strptime(date_from, '%Y-%m-%d').date()
+                    query = query.filter(ProjectInvoice.invoice_date >= df)
+                except ValueError:
+                    pass
+            if date_to:
+                try:
+                    dt = datetime.strptime(date_to, '%Y-%m-%d').date()
+                    query = query.filter(ProjectInvoice.invoice_date <= dt)
+                except ValueError:
+                    pass
+
+            unpaid_invoices = query.order_by(ProjectInvoice.invoice_date.asc()).all()
+            total_unpaid = sum(inv.unpaid_amount for inv in unpaid_invoices)
+
+    # 处理表单提交
+    if request.method == 'POST':
+        try:
+            # 从 request.form 获取数据（绕过 SelectMultipleField 验证）
+            amount = float(request.form.get('amount', 0))
+            selected_invoice_ids = request.form.getlist('selected_invoices', type=int)
+            allocation_amounts = request.form.getlist('allocation_amounts', type=float)
+            distribution_method = request.form.get('distribution_method', 'sequential')
+
+            if not selected_invoice_ids:
+                flash('请选择至少一张发票', 'error')
+            else:
+                # 如果有手动分配金额，使用手动分配
+                if allocation_amounts and len(allocation_amounts) == len(selected_invoice_ids):
+                    # 手动分配模式
+                    allocations = {}
+                    for inv_id, alloc_amount in zip(selected_invoice_ids, allocation_amounts):
+                        if alloc_amount > 0:
+                            allocations[inv_id] = alloc_amount
+                    distribution_result = {
+                        'success': True,
+                        'allocations': allocations,
+                        'total_allocated': sum(allocations.values())
+                    }
+                    # 更新实际收款金额
+                    amount = distribution_result['total_allocated']
+                else:
+                    # 自动分配模式
+                    distribution_result = ProjectReceipt.distribute_to_invoices(
+                        amount, selected_invoice_ids, distribution_method
+                    )
+
+                if not distribution_result['success']:
+                    flash(distribution_result['message'], 'error')
+                else:
+                    # 获取第一张发票的header_id
+                    first_invoice = ProjectInvoice.query.get(selected_invoice_ids[0])
+
+                    # 从 request.form 获取表单数据
+                    from datetime import datetime
+                    payment_date_str = request.form.get('payment_date', '')
+                    payment_date = datetime.strptime(payment_date_str, '%Y-%m-%d').date() if payment_date_str else None
+
+                    # 创建收款记录
+                    receipt = ProjectReceipt(
+                        receipt_number=receipt_number,
+                        ref_id=None,
+                        header_id=first_invoice.header_id,
+                        invoice_id=None,
+                        amount=amount,
+                        currency=request.form.get('currency', 'SGD'),
+                        payment_method=request.form.get('payment_method', 'bank_transfer'),
+                        payment_date=payment_date,
+                        payer_name=request.form.get('payer_name', ''),
+                        payer_contact=request.form.get('payer_contact', ''),
+                        payer_company=selected_company.company_name if selected_company else '',
+                        bank_name=request.form.get('bank_name', ''),
+                        account_number=request.form.get('account_number', ''),
+                        transaction_id=request.form.get('transaction_id', ''),
+                        remarks=request.form.get('remarks', ''),
+                        status='confirmed'
+                    )
+
+                    # 存储分配信息
+                    allocation_info = {
+                        'allocation_type': 'company_invoices',
+                        'company_id': selected_company_id,
+                        'company_name': selected_company.company_name if selected_company else '',
+                        'distribution_method': distribution_method,
+                        'invoice_allocations': [
+                            {'invoice_id': inv_id, 'amount': alloc_amount}
+                            for inv_id, alloc_amount in distribution_result['allocations'].items()
+                        ]
+                    }
+                    receipt.extra_info = json.dumps(allocation_info)
+
+                    db.session.add(receipt)
+                    db.session.flush()
+
+                    # 创建分配记录
+                    for invoice_id, allocated_amount in distribution_result['allocations'].items():
+                        allocation = ReceiptInvoiceAllocation(
+                            receipt_id=receipt.id,
+                            invoice_id=invoice_id,
+                            allocated_amount=allocated_amount
+                        )
+                        db.session.add(allocation)
+
+                    db.session.flush()
+
+                    # 更新发票已付金额
+                    for invoice_id in distribution_result['allocations'].keys():
+                        ProjectReceipt.update_invoice_paid_amount_from_allocations(invoice_id)
+
+                    db.session.commit()
+
+                    # 跳转回按公司收款页面，保留公司ID
+                    return redirect(url_for('business_projects.project_receipt.receipt_by_company', company_id=selected_company_id))
+
+        except Exception as e:
+            db.session.rollback()
+            flash(f'创建失败：{str(e)}', 'error')
+
+    from datetime import date
+    return render_template('business/projects/project_receipt/receipt_by_company.html',
+                          companies=companies,
+                          form=form,
+                          receipt_number=receipt_number,
+                          selected_company_id=selected_company_id,
+                          selected_company=selected_company,
+                          date_from=date_from,
+                          date_to=date_to,
+                          unpaid_invoices=unpaid_invoices,
+                          total_unpaid=total_unpaid,
+                          today=date.today().strftime('%Y-%m-%d'))
+
+
+@project_receipt.route('/api/company/<int:company_id>/unpaid_invoices', methods=['GET'])
+@login_required
+@staff_only
+def get_company_unpaid_invoices(company_id):
+    """获取公司的未付发票列表 - API接口"""
+    from App_new.business.projects.models.project import CustomerCompany
+
+    company = CustomerCompany.query.get_or_404(company_id)
+    invoices = ProjectInvoice.get_company_unpaid_invoices(company_id)
+
+    invoice_list = []
+    total_unpaid = 0
+
+    for inv in invoices:
+        unpaid = inv.unpaid_amount
+        total_unpaid += unpaid
+        invoice_list.append({
+            'id': inv.id,
+            'invoice_number': inv.invoice_number,
+            'invoice_date': inv.invoice_date.strftime('%Y-%m-%d') if inv.invoice_date else '',
+            'due_date': inv.due_date.strftime('%Y-%m-%d') if inv.due_date else '',
+            'amount': float(inv.amount),
+            'paid_amount': float(inv.paid_amount or 0),
+            'unpaid_amount': unpaid,
+            'currency': inv.currency,
+            'status': inv.status,
+            'status_display': inv.status_display,
+            'is_overdue': inv.is_overdue,
+            'header_id': inv.header_id,
+            'project_hid': inv.header.hid if inv.header else '',
+            'project_desc': inv.header.desc if inv.header else ''
+        })
+
+    return jsonify({
+        'success': True,
+        'company_id': company_id,
+        'company_name': company.company_name,
+        'invoices': invoice_list,
+        'total_unpaid': total_unpaid,
+        'invoice_count': len(invoice_list)
+    })
+
+
+@project_receipt.route('/company/<int:company_id>/create', methods=['GET', 'POST'])
+@login_required
+@staff_only
+def create_company_receipt(company_id):
+    """按公司创建收款 - 选择发票并分配"""
+    from App_new.business.projects.models.project import CustomerCompany
+    from App_new.business.projects.forms.receipt_forms import CompanyReceiptForm
+    from App_new.business.projects.models.receipt import ReceiptInvoiceAllocation
+
+    company = CustomerCompany.query.get_or_404(company_id)
+    form = CompanyReceiptForm()
+
+    # 获取公司未付发票
+    unpaid_invoices = ProjectInvoice.get_company_unpaid_invoices(company_id)
+
+    # 动态生成发票选择选项
+    invoice_choices = [(inv.id, f"{inv.invoice_number} - {inv.currency} {float(inv.amount):.2f} (未付: {inv.unpaid_amount:.2f})")
+                       for inv in unpaid_invoices]
+    form.selected_invoices.choices = invoice_choices if invoice_choices else [(0, "暂无未付发票")]
+
+    receipt_number = ProjectReceipt.generate_receipt_number()
+
+    if form.validate_on_submit():
+        try:
+            amount = float(form.amount.data)
+            # 从请求中获取选中的发票ID
+            selected_invoice_ids = request.form.getlist('selected_invoices', type=int)
+            distribution_method = form.distribution_method.data
+
+            # 验证选择
+            if not selected_invoice_ids or (len(selected_invoice_ids) == 1 and selected_invoice_ids[0] == 0):
+                flash('请选择至少一张发票', 'error')
+                return render_template('business/projects/project_receipt/create_company_receipt.html',
+                                     form=form, company=company, receipt_number=receipt_number,
+                                     unpaid_invoices=unpaid_invoices,
+                                     total_unpaid=sum(inv.unpaid_amount for inv in unpaid_invoices))
+
+            # 计算分配
+            distribution_result = ProjectReceipt.distribute_to_invoices(
+                amount, selected_invoice_ids, distribution_method
+            )
+
+            if not distribution_result['success']:
+                flash(distribution_result['message'], 'error')
+                return render_template('business/projects/project_receipt/create_company_receipt.html',
+                                     form=form, company=company, receipt_number=receipt_number,
+                                     unpaid_invoices=unpaid_invoices,
+                                     total_unpaid=sum(inv.unpaid_amount for inv in unpaid_invoices))
+
+            # 创建收款记录（使用第一张发票的header_id）
+            first_invoice = ProjectInvoice.query.get(selected_invoice_ids[0])
+
+            receipt = ProjectReceipt(
+                receipt_number=receipt_number,
+                ref_id=None,
+                header_id=first_invoice.header_id,
+                invoice_id=None,  # 不使用直接关联，改用分配表
+                amount=amount,
+                currency=form.currency.data,
+                payment_method=form.payment_method.data,
+                payment_date=form.payment_date.data,
+                payer_name=form.payer_name.data or company.contact_person,
+                payer_contact=form.payer_contact.data,
+                payer_company=company.company_name,
+                bank_name=form.bank_name.data,
+                account_number=form.account_number.data,
+                transaction_id=form.transaction_id.data,
+                remarks=form.remarks.data,
+                status='confirmed'
+            )
+
+            # 存储分配信息到 extra_info
+            allocation_info = {
+                'allocation_type': 'company_invoices',
+                'company_id': company_id,
+                'company_name': company.company_name,
+                'distribution_method': distribution_method,
+                'invoice_allocations': [
+                    {'invoice_id': inv_id, 'amount': alloc_amount}
+                    for inv_id, alloc_amount in distribution_result['allocations'].items()
+                ]
+            }
+            receipt.extra_info = json.dumps(allocation_info)
+
+            db.session.add(receipt)
+            db.session.flush()
+
+            # 创建分配记录
+            for invoice_id, allocated_amount in distribution_result['allocations'].items():
+                allocation = ReceiptInvoiceAllocation(
+                    receipt_id=receipt.id,
+                    invoice_id=invoice_id,
+                    allocated_amount=allocated_amount
+                )
+                db.session.add(allocation)
+
+            db.session.flush()
+
+            # 更新各发票的已付金额和状态
+            for invoice_id in distribution_result['allocations'].keys():
+                ProjectReceipt.update_invoice_paid_amount_from_allocations(invoice_id)
+
+            db.session.commit()
+
+            # 跳转回按公司收款页面
+            return redirect(url_for('business_projects.project_receipt.receipt_by_company', company_id=company_id))
+
+        except Exception as e:
+            db.session.rollback()
+            flash(f'创建失败：{str(e)}', 'error')
+
+    # 计算总未付金额
+    total_unpaid = sum(inv.unpaid_amount for inv in unpaid_invoices)
+
+    return render_template('business/projects/project_receipt/create_company_receipt.html',
+                          form=form,
+                          company=company,
+                          receipt_number=receipt_number,
+                          unpaid_invoices=unpaid_invoices,
+                          total_unpaid=total_unpaid)
+
+
+@project_receipt.route('/api/preview-allocation', methods=['POST'])
+@login_required
+@staff_only
+@csrf.exempt
+def preview_allocation():
+    """预览收款分配结果 - API接口"""
+    data = request.get_json()
+    amount = float(data.get('amount', 0))
+    invoice_ids = data.get('invoice_ids', [])
+    distribution_method = data.get('distribution_method', 'sequential')
+
+    if not invoice_ids or amount <= 0:
+        return jsonify({'success': False, 'message': '请输入金额并选择发票'})
+
+    result = ProjectReceipt.distribute_to_invoices(amount, invoice_ids, distribution_method)
+
+    if result['success']:
+        # 添加发票详情（按invoice_id索引）
+        allocation_details = {}
+        for inv_id, alloc_amount in result['allocations'].items():
+            invoice = ProjectInvoice.query.get(inv_id)
+            if invoice:
+                allocation_details[inv_id] = {
+                    'invoice_id': inv_id,
+                    'invoice_number': invoice.invoice_number,
+                    'invoice_amount': float(invoice.amount),
+                    'unpaid_amount': invoice.unpaid_amount,
+                    'allocated_amount': alloc_amount,
+                    'unpaid_after': invoice.unpaid_amount - alloc_amount
+                }
+        result['allocation_details'] = allocation_details
+
+    return jsonify(result)

@@ -837,6 +837,16 @@ def cancel_invoice(invoice_id):
         }), 500
 
 
+@project_invoice.route('/export', methods=['GET'])
+@login_required
+@staff_only
+def export_invoices():
+    """导出发票列表"""
+    # TODO: 实现导出功能
+    flash('导出功能开发中', 'info')
+    return redirect(url_for('business_projects.project_invoice.invoice_list'))
+
+
 @project_invoice.route('/list', methods=['GET'])
 @login_required
 @staff_only
@@ -976,13 +986,11 @@ def invoice_list():
         
         # 状态选项
         statuses = [
-            ('', '全部'),
-            ('draft', '草稿'),
-            ('sent', '已发送'),
-            ('paid', '已付款'),
-            ('partial_paid', '部分付款'),
-            ('overdue', '已逾期'),
-            ('cancelled', '已取消')
+            ('', 'All'),
+            ('sent', 'Unpaid'),
+            ('partial_paid', 'Partial Paid'),
+            ('paid', 'Paid'),
+            ('cancelled', 'Cancelled')
         ]
         
         # 发票类型选项
@@ -993,12 +1001,28 @@ def invoice_list():
             ('deposit', '定金发票'),
             ('final', '尾款发票')
         ]
-        
+
+        # 计算汇总数据
+        summary = {
+            'total_gross': sum(item['amount'] for item in items),
+            'total_tax': 0,
+            'total_discount': 0,
+            'grand_total': sum(item['amount'] for item in items),
+            'total_cost': 0,
+            'total_cost_tax': 0,
+            'grand_total_cost': 0,
+            'total_profit': 0,
+            'avg_margin': 0,
+            'total_paid': sum(item['paid_amount'] for item in items),
+            'total_balance': sum(item['unpaid_amount'] for item in items)
+        }
+
         return render_template('business/projects/project_invoice/invoice_list.html',
                              invoices=items,
                              pagination=pagination,
                              statuses=statuses,
                              invoice_types=invoice_types,
+                             summary=summary,
                              current_filters={
                                  'status': status,
                                  'invoice_type': invoice_type,

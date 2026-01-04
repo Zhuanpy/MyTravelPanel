@@ -1,0 +1,553 @@
+{% extends "shared/staff_base.html" %}
+
+{% block title %}项目管理 - 首页{% endblock %}
+
+{% block page_title %}项目管理{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/staff_common.css') }}">
+<style>
+    .home-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+
+    /* 统计卡片 */
+    .stats-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 16px;
+        margin-bottom: 24px;
+    }
+
+    .stat-card {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+
+    .stat-card .stat-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.25rem;
+        margin-bottom: 12px;
+    }
+
+    .stat-card .stat-value {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: #1e293b;
+        margin-bottom: 4px;
+    }
+
+    .stat-card .stat-label {
+        font-size: 0.875rem;
+        color: #64748b;
+    }
+
+    .stat-card.primary .stat-icon { background: #dbeafe; color: #2563eb; }
+    .stat-card.success .stat-icon { background: #dcfce7; color: #16a34a; }
+    .stat-card.warning .stat-icon { background: #fef3c7; color: #d97706; }
+    .stat-card.danger .stat-icon { background: #fee2e2; color: #dc2626; }
+    .stat-card.info .stat-icon { background: #e0f2fe; color: #0284c7; }
+    .stat-card.secondary .stat-icon { background: #f1f5f9; color: #64748b; }
+
+    /* 预警卡片 */
+    .warning-card {
+        background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 24px;
+        border-left: 4px solid #d97706;
+    }
+
+    .warning-card.danger {
+        background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+        border-left-color: #dc2626;
+    }
+
+    .warning-card h4 {
+        margin: 0 0 12px 0;
+        color: #92400e;
+        font-size: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .warning-card.danger h4 {
+        color: #991b1b;
+    }
+
+    .warning-items {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16px;
+    }
+
+    .warning-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.9rem;
+        color: #78350f;
+    }
+
+    .warning-card.danger .warning-item {
+        color: #7f1d1d;
+    }
+
+    .warning-item .badge {
+        background: rgba(0,0,0,0.1);
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-weight: 600;
+    }
+
+    /* 功能模块卡片 */
+    .modules-section {
+        margin-bottom: 24px;
+    }
+
+    .section-title {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #1e293b;
+        margin-bottom: 16px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .modules-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 16px;
+    }
+
+    .module-card {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        text-align: center;
+        text-decoration: none;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        transition: all 0.2s;
+        border: 2px solid transparent;
+    }
+
+    .module-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+        text-decoration: none;
+    }
+
+    .module-card.primary:hover { border-color: #3b82f6; }
+    .module-card.success:hover { border-color: #22c55e; }
+    .module-card.info:hover { border-color: #06b6d4; }
+    .module-card.warning:hover { border-color: #f59e0b; }
+    .module-card.secondary:hover { border-color: #64748b; }
+    .module-card.dark:hover { border-color: #1e293b; }
+
+    .module-card .module-icon {
+        width: 56px;
+        height: 56px;
+        border-radius: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        margin: 0 auto 12px;
+    }
+
+    .module-card.primary .module-icon { background: #dbeafe; color: #2563eb; }
+    .module-card.success .module-icon { background: #dcfce7; color: #16a34a; }
+    .module-card.info .module-icon { background: #e0f2fe; color: #0284c7; }
+    .module-card.warning .module-icon { background: #fef3c7; color: #d97706; }
+    .module-card.secondary .module-icon { background: #f1f5f9; color: #64748b; }
+    .module-card.dark .module-icon { background: #e2e8f0; color: #1e293b; }
+
+    .module-card .module-name {
+        font-weight: 600;
+        color: #1e293b;
+        margin-bottom: 4px;
+    }
+
+    .module-card .module-desc {
+        font-size: 0.8rem;
+        color: #64748b;
+    }
+
+    /* 最近项目表格 */
+    .recent-section {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        margin-bottom: 24px;
+    }
+
+    .recent-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+    }
+
+    .recent-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .recent-table th,
+    .recent-table td {
+        padding: 12px;
+        text-align: left;
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    .recent-table th {
+        font-weight: 600;
+        color: #64748b;
+        font-size: 0.8rem;
+        text-transform: uppercase;
+    }
+
+    .recent-table tr:hover {
+        background: #f8fafc;
+    }
+
+    .recent-table .project-link {
+        color: #2563eb;
+        font-weight: 500;
+        text-decoration: none;
+    }
+
+    .recent-table .project-link:hover {
+        text-decoration: underline;
+    }
+
+    .status-badge {
+        display: inline-block;
+        padding: 4px 10px;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 500;
+    }
+
+    .status-badge.draft { background: #f1f5f9; color: #64748b; }
+    .status-badge.active { background: #dcfce7; color: #16a34a; }
+    .status-badge.completed { background: #dbeafe; color: #2563eb; }
+    .status-badge.cancelled { background: #fee2e2; color: #dc2626; }
+
+    .amount-cell {
+        font-family: 'SF Mono', Monaco, monospace;
+        font-weight: 500;
+    }
+
+    .amount-cell.positive { color: #16a34a; }
+    .amount-cell.negative { color: #dc2626; }
+
+    /* 提醒列表 */
+    .reminders-section {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+
+    .reminder-item {
+        display: flex;
+        align-items: center;
+        padding: 12px 0;
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    .reminder-item:last-child {
+        border-bottom: none;
+    }
+
+    .reminder-date {
+        min-width: 80px;
+        font-weight: 600;
+        color: #d97706;
+        font-size: 0.875rem;
+    }
+
+    .reminder-date.today {
+        color: #dc2626;
+    }
+
+    .reminder-content {
+        flex: 1;
+    }
+
+    .reminder-project {
+        font-weight: 500;
+        color: #2563eb;
+        text-decoration: none;
+    }
+
+    .reminder-project:hover {
+        text-decoration: underline;
+    }
+
+    .reminder-event {
+        font-size: 0.875rem;
+        color: #64748b;
+        margin-top: 2px;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 40px 20px;
+        color: #94a3b8;
+    }
+
+    .empty-state i {
+        font-size: 3rem;
+        margin-bottom: 12px;
+    }
+
+    /* 财务概览 */
+    .finance-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 16px;
+        margin-bottom: 24px;
+    }
+
+    .finance-card {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+
+    .finance-card .finance-label {
+        font-size: 0.875rem;
+        color: #64748b;
+        margin-bottom: 8px;
+    }
+
+    .finance-card .finance-value {
+        font-size: 1.5rem;
+        font-weight: 700;
+        font-family: 'SF Mono', Monaco, monospace;
+    }
+
+    .finance-card .finance-sub {
+        font-size: 0.8rem;
+        color: #94a3b8;
+        margin-top: 4px;
+    }
+
+    .finance-card.revenue .finance-value { color: #2563eb; }
+    .finance-card.profit .finance-value { color: #16a34a; }
+    .finance-card.received .finance-value { color: #0284c7; }
+    .finance-card.balance .finance-value { color: #dc2626; }
+
+    /* 两列布局 */
+    .two-columns {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 24px;
+    }
+
+    @media (max-width: 1024px) {
+        .two-columns {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .view-all-btn {
+        font-size: 0.875rem;
+        color: #2563eb;
+        text-decoration: none;
+    }
+
+    .view-all-btn:hover {
+        text-decoration: underline;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="home-container">
+    {% if error %}
+    <div class="alert alert-warning mb-4">
+        <i class="fas fa-exclamation-triangle"></i> 加载统计数据时出错: {{ error }}
+    </div>
+    {% endif %}
+
+    <!-- 功能模块 -->
+    <div class="modules-section">
+        <h3 class="section-title"><i class="fas fa-th-large"></i> 功能模块</h3>
+        <div class="modules-grid">
+            {% for module in modules %}
+            <a href="{{ url_for(module.url) }}" class="module-card {{ module.color }}">
+                <div class="module-icon"><i class="{{ module.icon }}"></i></div>
+                <div class="module-name">{{ module.name }}</div>
+                <div class="module-desc">{{ module.desc }}</div>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- 财务概览 -->
+    <div class="finance-row">
+        <div class="finance-card revenue">
+            <div class="finance-label">总销售额</div>
+            <div class="finance-value">{{ "%.2f"|format(total_stats.get('total_revenue', 0)) }}</div>
+            <div class="finance-sub">SGD</div>
+        </div>
+        <div class="finance-card profit">
+            <div class="finance-label">总利润</div>
+            <div class="finance-value">{{ "%.2f"|format(total_stats.get('total_profit', 0)) }}</div>
+            <div class="finance-sub">利润率 {{ "%.1f"|format(total_stats.get('profit_margin', 0)) }}%</div>
+        </div>
+        <div class="finance-card received">
+            <div class="finance-label">已收款</div>
+            <div class="finance-value">{{ "%.2f"|format(total_stats.get('total_received', 0)) }}</div>
+            <div class="finance-sub">回款率 {{ "%.1f"|format(total_stats.get('payment_ratio', 0)) }}%</div>
+        </div>
+        <div class="finance-card balance">
+            <div class="finance-label">未收款</div>
+            <div class="finance-value">{{ "%.2f"|format(total_stats.get('total_balance', 0)) }}</div>
+            <div class="finance-sub">待回收</div>
+        </div>
+    </div>
+
+    <!-- 预警信息 -->
+    {% if warning_stats.get('total_warnings', 0) > 0 %}
+    <div class="warning-card {% if warning_stats.get('overdue_receivables', 0) > 0 %}danger{% endif %}">
+        <h4>
+            <i class="fas fa-bell"></i> 预警提醒
+        </h4>
+        <div class="warning-items">
+            {% if warning_stats.get('overdue_projects', 0) > 0 %}
+            <div class="warning-item">
+                <i class="fas fa-clock"></i>
+                超期未完成项目
+                <span class="badge">{{ warning_stats.overdue_projects }}</span>
+            </div>
+            {% endif %}
+            {% if warning_stats.get('overdue_receivables', 0) > 0 %}
+            <div class="warning-item">
+                <i class="fas fa-exclamation-circle"></i>
+                逾期应收款
+                <span class="badge">{{ warning_stats.overdue_receivables }} 个项目</span>
+                <span class="badge">{{ "%.2f"|format(warning_stats.get('overdue_amount', 0)) }} SGD</span>
+            </div>
+            {% endif %}
+            {% if warning_stats.get('low_profit_projects', 0) > 0 %}
+            <div class="warning-item">
+                <i class="fas fa-chart-line"></i>
+                低利润项目
+                <span class="badge">{{ warning_stats.low_profit_projects }}</span>
+            </div>
+            {% endif %}
+            {% if warning_stats.get('draft_projects', 0) > 0 %}
+            <div class="warning-item">
+                <i class="fas fa-file-alt"></i>
+                待处理草稿
+                <span class="badge">{{ warning_stats.draft_projects }}</span>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- 两列布局：最近项目 + 提醒 -->
+    <div class="two-columns">
+        <!-- 最近项目 -->
+        <div class="recent-section">
+            <div class="recent-header">
+                <h3 class="section-title" style="margin-bottom: 0;"><i class="fas fa-clock"></i> 最近项目</h3>
+                <a href="{{ url_for('business_projects.list.list_projects') }}" class="view-all-btn">
+                    查看全部 <i class="fas fa-arrow-right"></i>
+                </a>
+            </div>
+            {% if recent_projects %}
+            <table class="recent-table">
+                <thead>
+                    <tr>
+                        <th>项目编号</th>
+                        <th>客户</th>
+                        <th>销售额</th>
+                        <th>状态</th>
+                        <th>创建时间</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for project in recent_projects %}
+                    <tr>
+                        <td>
+                            <a href="{{ url_for('business_projects.detail.project_detail', project_id=project.id) }}" class="project-link">
+                                {{ project.hid }}
+                            </a>
+                        </td>
+                        <td>{{ project.company.company_name if project.company else '-' }}</td>
+                        <td class="amount-cell">
+                            {{ "%.2f"|format(project.total_selling_amount) }}
+                        </td>
+                        <td>
+                            <span class="status-badge {{ project.status }}">
+                                {% if project.status == 'draft' %}草稿
+                                {% elif project.status == 'active' %}进行中
+                                {% elif project.status == 'completed' %}已完成
+                                {% else %}已取消{% endif %}
+                            </span>
+                        </td>
+                        <td>{{ project.created_at.strftime('%Y-%m-%d') if project.created_at else '-' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="empty-state">
+                <i class="fas fa-folder-open"></i>
+                <p>暂无项目</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- 即将到来的提醒 -->
+        <div class="reminders-section">
+            <h3 class="section-title"><i class="fas fa-bell"></i> 即将到来的提醒</h3>
+            {% if upcoming_reminders %}
+                {% for project in upcoming_reminders %}
+                <div class="reminder-item">
+                    <div class="reminder-date {% if project.reminder_date == today %}today{% endif %}">
+                        {{ project.reminder_date.strftime('%m/%d') if project.reminder_date else '' }}
+                    </div>
+                    <div class="reminder-content">
+                        <a href="{{ url_for('business_projects.detail.project_detail', project_id=project.id) }}" class="reminder-project">
+                            {{ project.hid }}
+                        </a>
+                        <div class="reminder-event">{{ project.reminder_event or '无备注' }}</div>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+            <div class="empty-state">
+                <i class="fas fa-calendar-check"></i>
+                <p>暂无提醒</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

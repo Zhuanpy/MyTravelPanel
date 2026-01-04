@@ -229,10 +229,10 @@
 }
 
 .flight-segment table {
-    width: 100%;
-    min-width: 1200px;
+    width: auto;
+    min-width: auto;
     border-collapse: separate;
-    border-spacing: 8px 0;
+    border-spacing: 6px 0;
 }
 
 .flight-segment table td {
@@ -256,23 +256,23 @@
 }
 
 .flight-segment .flight-number-col {
-    width: 110px;
-}
-
-.flight-segment .cabin-code-col {
     width: 80px;
 }
 
+.flight-segment .cabin-code-col {
+    width: 45px;
+}
+
 .flight-segment .airport-col {
-    width: 170px;
+    width: 65px;
 }
 
 .flight-segment .date-col {
-    width: 150px;
+    width: 130px;
 }
 
 .flight-segment .time-col {
-    width: 120px;
+    width: 115px;
 }
 
 .flight-segment .select2-container {
@@ -310,20 +310,24 @@ textarea.order-input {
 }
 
 /* 新增：调整时间和日期输入框宽度 */
-input[type="time"].order-input,
 input[type="date"].order-input {
-    width: 140px;
+    width: 130px;
+}
+input[type="time"].order-input {
+    width: 115px;
 }
 
 /* 新增：调整航班号和舱位代码输入框宽度 */
-input[name="flight_number[]"].order-input,
+input[name="flight_number[]"].order-input {
+    width: 80px;
+}
 input[name="cabin_code[]"].order-input {
-    width: 120px;
+    width: 45px;
 }
 
 /* 新增：调整机场选择框宽度 */
 .airport-select {
-    width: 120px !important;
+    width: 65px !important;
 }
 
 /* 新增：调整数字输入框宽度 */

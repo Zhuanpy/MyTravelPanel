@@ -152,21 +152,31 @@ class FlightValidator(BaseValidator):
 
 class SupplierValidator(BaseValidator):
     """供应商数据验证器"""
-    
-    VALID_SUPPLIER_TYPES = ['visa', 'flight', 'hotel', 'transport', 'local_operator', 'other']
-    
+
+    @classmethod
+    def get_valid_supplier_types(cls):
+        """从 business_types 表获取有效的供应商类型代码列表"""
+        try:
+            from App_new.shared.models.business_types import BusinessType
+            business_types = BusinessType.query.filter_by(is_active=True).all()
+            return [bt.code for bt in business_types]
+        except Exception:
+            # 如果数据库查询失败，返回空列表
+            return []
+
     @classmethod
     def validate_supplier_data(cls, data: Dict[str, Any]) -> None:
         """验证供应商数据"""
         # 验证必填字段
         cls.validate_required(data.get('name'), 'name')
         cls.validate_required(data.get('supplier_type'), 'supplier_type')
-        
+
         # 验证供应商类型
         supplier_type = data.get('supplier_type')
-        if supplier_type not in cls.VALID_SUPPLIER_TYPES:
+        valid_types = cls.get_valid_supplier_types()
+        if valid_types and supplier_type not in valid_types:
             raise ValidationError(
-                f"Invalid supplier type. Must be one of: {', '.join(cls.VALID_SUPPLIER_TYPES)}",
+                f"Invalid supplier type. Must be one of: {', '.join(valid_types)}",
                 field='supplier_type'
             )
         

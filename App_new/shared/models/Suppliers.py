@@ -79,6 +79,13 @@ class Supplier(db.Model):
         business_types = BusinessType.query.filter_by(is_active=True).order_by(BusinessType.sort_order).all()
         return [(bt.id, bt.name) for bt in business_types]
 
+    @classmethod
+    def get_supplier_types(cls):
+        """从 business_types 表获取供应商类型代码列表"""
+        from .business_types import BusinessType
+        business_types = BusinessType.query.filter_by(is_active=True).order_by(BusinessType.sort_order).all()
+        return [bt.code for bt in business_types]
+
     @property
     def supplier_type_display(self):
         """获取供应商类型的显示名称"""

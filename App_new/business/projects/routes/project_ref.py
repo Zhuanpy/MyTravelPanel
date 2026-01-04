@@ -189,9 +189,10 @@ def create_flight_ref(header_id):
 
     # 获取供应商数据
     suppliers = Supplier.query.all()
-    supplier_types = ['visa', 'flight', 'hotel', 'transport', 'local_operator', 'other']
-    
-    return render_template('business/projects/project_ref/create_flight_ref.html', 
+    # 动态获取供应商类型（从 BusinessType 表）
+    supplier_types = [bt.code for bt in BusinessType.query.filter_by(is_active=True).order_by(BusinessType.sort_order).all()]
+
+    return render_template('business/projects/project_ref/create_flight_ref.html',
                         header_id=header_id,
                         suppliers=suppliers,
                         supplier_types=supplier_types)
@@ -464,7 +465,7 @@ def create_hotel_ref(header_id):
             return redirect(url_for('business_projects.detail.project_detail', project_id=header_id))
 
         suppliers = Supplier.query.all()
-        supplier_types = ['visa', 'flight', 'hotel', 'transport', 'local_operator', 'other']
+        supplier_types = [bt.code for bt in BusinessType.query.filter_by(is_active=True).order_by(BusinessType.sort_order).all()]
         
         # 获取项目人员列表
         from App_new.business.projects.models.project_member import ProjectMember
@@ -655,7 +656,7 @@ def edit_hotel_ref(ref_id):
     
     # GET请求 - 显示编辑页面
     suppliers = Supplier.query.all()
-    supplier_types = ['visa', 'flight', 'hotel', 'transport', 'local_operator', 'other']
+    supplier_types = [bt.code for bt in BusinessType.query.filter_by(is_active=True).order_by(BusinessType.sort_order).all()]
     
     # 获取项目人员列表
     from App_new.business.projects.models.project_member import ProjectMember
@@ -726,7 +727,7 @@ def create_visa_ref(header_id):
             # 获取供应商数据（按名称排序）
         from sqlalchemy import func
         suppliers = Supplier.query.order_by(func.lower(Supplier.name)).all()
-        supplier_types = ['visa', 'flight', 'hotel', 'transport', 'local_operator', 'tour', 'other']
+        supplier_types = [bt.code for bt in BusinessType.query.filter_by(is_active=True).order_by(BusinessType.sort_order).all()]
 
         countries = VisaCountries.query.order_by(VisaCountries.country_name_CN).all()
 
@@ -956,7 +957,7 @@ def create_tour_ref(header_id):
         # GET请求 - 显示创建页面
         from sqlalchemy import func
         suppliers = Supplier.query.order_by(func.lower(Supplier.name)).all()
-        supplier_types = ['visa', 'flight', 'hotel', 'transport', 'local_operator', 'tour', 'other']
+        supplier_types = [bt.code for bt in BusinessType.query.filter_by(is_active=True).order_by(BusinessType.sort_order).all()]
 
         # 获取项目成员
         from App_new.business.projects.models.project_member import ProjectMember
@@ -1107,7 +1108,7 @@ def create_insurance_ref(header_id):
 
         # 获取供应商数据
         suppliers = Supplier.query.all()
-        supplier_types = ['visa', 'flight', 'hotel', 'transport', 'local_operator', 'tour', 'other']
+        supplier_types = [bt.code for bt in BusinessType.query.filter_by(is_active=True).order_by(BusinessType.sort_order).all()]
 
         # 获取项目成员
         from App_new.business.projects.models.project_member import ProjectMember
@@ -1239,7 +1240,7 @@ def create_transport_ref(header_id):
         # 获取供应商数据（按名称排序）
         from sqlalchemy import func
         suppliers = Supplier.query.order_by(func.lower(Supplier.name)).all()
-        supplier_types = ['visa', 'flight', 'hotel', 'transport', 'local_operator', 'tour', 'other']
+        supplier_types = [bt.code for bt in BusinessType.query.filter_by(is_active=True).order_by(BusinessType.sort_order).all()]
 
         # 获取项目人员列表
         from App_new.business.projects.models.project_member import ProjectMember
@@ -1444,7 +1445,7 @@ def edit_transport_ref(ref_id):
     # 获取供应商数据（按名称排序）
     from sqlalchemy import func
     suppliers = Supplier.query.order_by(func.lower(Supplier.name)).all()
-    supplier_types = ['visa', 'flight', 'hotel', 'transport', 'local_operator', 'tour', 'other']
+    supplier_types = [bt.code for bt in BusinessType.query.filter_by(is_active=True).order_by(BusinessType.sort_order).all()]
 
     # 解析交通专属信息
     extra_info = {}
@@ -1482,18 +1483,19 @@ def edit_transport_ref(ref_id):
 def edit_flight_ref(ref_id):
     """编辑机票REF页面"""
     from sqlalchemy.orm import joinedload
-    
+
     # 直接查询REF，不需要预加载
     ref = ProjectRef.query.get_or_404(ref_id)
-    
+
     # 获取供应商数据
     suppliers = Supplier.query.all()
-    supplier_types = ['visa', 'flight', 'hotel', 'transport', 'local_operator', 'other']
-    
-    return render_template('business/projects/project_ref/create_flight_ref.html', 
+    # 动态获取供应商类型（从 BusinessType 表）
+    supplier_types = [bt.code for bt in BusinessType.query.filter_by(is_active=True).order_by(BusinessType.sort_order).all()]
+
+    return render_template('business/projects/project_ref/create_flight_ref.html',
                           header_id=ref.header_id,
                           ref_id=ref.id,
-                         ref=ref, 
+                         ref=ref,
                           suppliers=suppliers,
                           supplier_types=supplier_types)
 
@@ -1645,7 +1647,7 @@ def edit_visa_ref(ref_id):
     # 获取供应商数据（按名称排序）
     from sqlalchemy import func
     suppliers = Supplier.query.order_by(func.lower(Supplier.name)).all()
-    supplier_types = ['visa', 'flight', 'hotel', 'transport', 'local_operator', 'tour', 'other']
+    supplier_types = [bt.code for bt in BusinessType.query.filter_by(is_active=True).order_by(BusinessType.sort_order).all()]
 
     # 获取所有国家数据
     countries = VisaCountries.query.order_by(VisaCountries.country_name_CN).all()
@@ -1771,7 +1773,7 @@ def create_attraction_ref(header_id):
 
         # 获取供应商数据
         suppliers = Supplier.query.all()
-        supplier_types = ['visa', 'flight', 'hotel', 'transport', 'local_operator', 'tour', 'other']
+        supplier_types = [bt.code for bt in BusinessType.query.filter_by(is_active=True).order_by(BusinessType.sort_order).all()]
 
         # 获取项目人员列表
         from App_new.business.projects.models.project_member import ProjectMember
@@ -1973,7 +1975,7 @@ def edit_attraction_ref(ref_id):
 
     # 获取供应商数据
     suppliers = Supplier.query.all()
-    supplier_types = ['visa', 'flight', 'hotel', 'transport', 'local_operator', 'tour', 'other']
+    supplier_types = [bt.code for bt in BusinessType.query.filter_by(is_active=True).order_by(BusinessType.sort_order).all()]
 
     # 解析景点专属信息
     extra_info = {}
@@ -2182,7 +2184,7 @@ def create_other_ref(header_id):
 
         # GET请求 - 显示创建页面
         suppliers = Supplier.query.all()
-        supplier_types = ['visa', 'flight', 'hotel', 'transport', 'local_operator', 'tour', 'other']
+        supplier_types = [bt.code for bt in BusinessType.query.filter_by(is_active=True).order_by(BusinessType.sort_order).all()]
 
         # 获取项目人员列表
         from App_new.business.projects.models.project_member import ProjectMember
@@ -2270,7 +2272,7 @@ def edit_other_ref(ref_id):
 
     # 获取供应商数据与项目头信息
     suppliers = Supplier.query.all()
-    supplier_types = ['visa', 'flight', 'hotel', 'transport', 'local_operator', 'tour', 'other']
+    supplier_types = [bt.code for bt in BusinessType.query.filter_by(is_active=True).order_by(BusinessType.sort_order).all()]
     header = ProjectHeader.query.get(ref.header_id)
 
     # 获取项目人员列表
@@ -2381,7 +2383,7 @@ def edit_insurance_ref(ref_id):
 
     # 获取供应商数据
     suppliers = Supplier.query.all()
-    supplier_types = ['visa', 'flight', 'hotel', 'transport', 'local_operator', 'tour', 'other']
+    supplier_types = [bt.code for bt in BusinessType.query.filter_by(is_active=True).order_by(BusinessType.sort_order).all()]
 
     # 获取项目成员
     members = ProjectMember.query.filter_by(header_id=ref.header_id).order_by(ProjectMember.id).all()
@@ -2486,7 +2488,7 @@ def edit_tour_ref(ref_id):
     from sqlalchemy import func
     header = ProjectHeader.query.get(ref.header_id)
     suppliers = Supplier.query.order_by(func.lower(Supplier.name)).all()
-    supplier_types = ['visa', 'flight', 'hotel', 'transport', 'local_operator', 'tour', 'other']
+    supplier_types = [bt.code for bt in BusinessType.query.filter_by(is_active=True).order_by(BusinessType.sort_order).all()]
 
     # 获取项目成员
     from App_new.business.projects.models.project_member import ProjectMember
