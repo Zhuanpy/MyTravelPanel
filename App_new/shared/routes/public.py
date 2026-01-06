@@ -4,13 +4,20 @@
 包括guest（未登录用户）、staff、admin等所有角色
 """
 
-from flask import Blueprint, render_template, request, jsonify, current_app
+from flask import Blueprint, render_template, request, jsonify, current_app, redirect, url_for
 from App_new.business.visa.models.Visamodels import VisaTypes, VisaCountries
 from App_new.business.tour.models.Packagemodels import CompanyInfo, Product, TourProduct, ProductCity, HomeBanner
 from App_new.exts import cache, db
 from sqlalchemy import or_, and_
 from datetime import date, datetime
 import json
+
+
+def is_mobile_device():
+    """检测是否为移动设备"""
+    user_agent = request.headers.get('User-Agent', '').lower()
+    mobile_keywords = ['mobile', 'android', 'iphone', 'ipad', 'ipod', 'blackberry', 'windows phone']
+    return any(keyword in user_agent for keyword in mobile_keywords)
 
 # 地区到国家的映射
 REGION_COUNTRIES = {
@@ -46,6 +53,10 @@ def inject_company_info():
 @public.route('/')
 def index():
     """公开首页 - 所有用户都可以访问"""
+    # 手机端自动跳转到手机版首页
+    if is_mobile_device():
+        return redirect(url_for('mobile.public_home'))
+
     # 从数据库获取公司信息
     company_info = CompanyInfo.query.first()
     
