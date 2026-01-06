@@ -1,7 +1,7 @@
 {% extends "shared/staff_base.html" %}
 
-{% block title %}{% if ref and not is_create %}Edit Transport REF{% else %}New Transport REF{% endif %}{% endblock %}
-{% block page_title %}{% if ref and not is_create %}Edit Transport REF{% else %}Create Transport REF{% endif %}{% endblock %}
+{% block title %}{% if ref and not is_create %}编辑交通REF{% else %}新建交通REF{% endif %}{% endblock %}
+{% block page_title %}{% if ref and not is_create %}编辑交通REF{% else %}创建交通REF{% endif %}{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/flight_order_common.css') }}">
@@ -43,50 +43,50 @@
         <!-- Summary Bar -->
         <div class="summary-bar">
             <div class="d-flex justify-content-between align-items-center">
-                <span style="font-size: 14px; font-weight: 600;"><i class="fas fa-shuttle-van me-1"></i>{{ ref.ref_number if ref else 'New' }}</span>
+                <span style="font-size: 14px; font-weight: 600;"><i class="fas fa-shuttle-van me-1"></i>{{ ref.ref_number if ref else '新建' }}</span>
                 <div class="d-flex">
-                    <div class="summary-item"><div class="summary-label">Selling</div><div class="summary-value" id="summary_selling">$0.00</div></div>
-                    <div class="summary-item"><div class="summary-label">Cost</div><div class="summary-value" id="summary_cost">$0.00</div></div>
-                    <div class="summary-item"><div class="summary-label">Profit</div><div class="summary-value" id="summary_profit">$0.00</div></div>
-                    <div class="summary-item"><div class="summary-label">Pax</div><div class="summary-value" id="summary_pax">0</div></div>
+                    <div class="summary-item"><div class="summary-label">售价</div><div class="summary-value" id="summary_selling">$0.00</div></div>
+                    <div class="summary-item"><div class="summary-label">成本</div><div class="summary-value" id="summary_cost">$0.00</div></div>
+                    <div class="summary-item"><div class="summary-label">利润</div><div class="summary-value" id="summary_profit">$0.00</div></div>
+                    <div class="summary-item"><div class="summary-label">人数</div><div class="summary-value" id="summary_pax">0</div></div>
                 </div>
             </div>
         </div>
 
         <!-- Transport Type & Route & Status -->
         <div class="form-section">
-            <div class="section-title"><i class="fas fa-route me-2"></i>Transport & Status</div>
+            <div class="section-title"><i class="fas fa-route me-2"></i>交通与状态</div>
             <div class="row g-2">
                 <div class="col-3">
-                    <label class="form-label small mb-1">Type <span class="text-danger">*</span></label>
+                    <label class="form-label small mb-1">类型 <span class="text-danger">*</span></label>
                     <select name="transport_type" id="transport_type" class="form-select form-select-sm" required onchange="updateDescription()">
-                        <option value="">-- Select --</option>
-                        <option value="AIRPORT_TRANSFER" {% if extra_info and extra_info.get('transport_type') == 'AIRPORT_TRANSFER' %}selected{% endif %}>Airport Transfer</option>
-                        <option value="PRIVATE_CAR" {% if extra_info and extra_info.get('transport_type') == 'PRIVATE_CAR' %}selected{% endif %}>Private Car</option>
-                        <option value="COACH" {% if extra_info and extra_info.get('transport_type') == 'COACH' %}selected{% endif %}>Coach</option>
-                        <option value="TRAIN" {% if extra_info and extra_info.get('transport_type') == 'TRAIN' %}selected{% endif %}>Train</option>
-                        <option value="FERRY" {% if extra_info and extra_info.get('transport_type') == 'FERRY' %}selected{% endif %}>Ferry</option>
-                        <option value="TAXI" {% if extra_info and extra_info.get('transport_type') == 'TAXI' %}selected{% endif %}>Taxi</option>
-                        <option value="RENTAL_CAR" {% if extra_info and extra_info.get('transport_type') == 'RENTAL_CAR' %}selected{% endif %}>Car Rental</option>
-                        <option value="LIMOUSINE" {% if extra_info and extra_info.get('transport_type') == 'LIMOUSINE' %}selected{% endif %}>Limousine</option>
-                        <option value="OTHER" {% if extra_info and extra_info.get('transport_type') == 'OTHER' %}selected{% endif %}>Other</option>
+                        <option value="">-- 请选择 --</option>
+                        <option value="AIRPORT_TRANSFER" {% if extra_info and extra_info.get('transport_type') == 'AIRPORT_TRANSFER' %}selected{% endif %}>机场接送</option>
+                        <option value="PRIVATE_CAR" {% if extra_info and extra_info.get('transport_type') == 'PRIVATE_CAR' %}selected{% endif %}>专车</option>
+                        <option value="COACH" {% if extra_info and extra_info.get('transport_type') == 'COACH' %}selected{% endif %}>大巴</option>
+                        <option value="TRAIN" {% if extra_info and extra_info.get('transport_type') == 'TRAIN' %}selected{% endif %}>火车</option>
+                        <option value="FERRY" {% if extra_info and extra_info.get('transport_type') == 'FERRY' %}selected{% endif %}>渡轮</option>
+                        <option value="TAXI" {% if extra_info and extra_info.get('transport_type') == 'TAXI' %}selected{% endif %}>出租车</option>
+                        <option value="RENTAL_CAR" {% if extra_info and extra_info.get('transport_type') == 'RENTAL_CAR' %}selected{% endif %}>租车</option>
+                        <option value="LIMOUSINE" {% if extra_info and extra_info.get('transport_type') == 'LIMOUSINE' %}selected{% endif %}>豪华车</option>
+                        <option value="OTHER" {% if extra_info and extra_info.get('transport_type') == 'OTHER' %}selected{% endif %}>其他</option>
                     </select>
                 </div>
                 <div class="col-3">
-                    <label class="form-label small mb-1">From <span class="text-danger">*</span></label>
+                    <label class="form-label small mb-1">出发地 <span class="text-danger">*</span></label>
                     <input type="text" name="start_point" id="start_point" class="form-control form-control-sm" placeholder="e.g. Changi Airport T3" required value="{{ extra_info.start_point if extra_info and extra_info.start_point else '' }}" onchange="updateDescription()">
                 </div>
                 <div class="col-3">
-                    <label class="form-label small mb-1">To <span class="text-danger">*</span></label>
+                    <label class="form-label small mb-1">目的地 <span class="text-danger">*</span></label>
                     <input type="text" name="end_point" id="end_point" class="form-control form-control-sm" placeholder="e.g. Marina Bay Sands" required value="{{ extra_info.end_point if extra_info and extra_info.end_point else '' }}" onchange="updateDescription()">
                 </div>
                 <div class="col-3">
-                    <label class="form-label small mb-1">Status</label>
+                    <label class="form-label small mb-1">状态</label>
                     <select name="status" id="status" class="form-select form-select-sm">
-                        <option value="processing" {% if ref and ref.status == 'processing' %}selected{% elif not ref %}selected{% endif %}>Processing</option>
-                        <option value="draft" {% if ref and ref.status == 'draft' %}selected{% endif %}>Draft</option>
-                        <option value="completed" {% if ref and ref.status == 'completed' %}selected{% endif %}>Completed</option>
-                        <option value="cancelled" {% if ref and ref.status == 'cancelled' %}selected{% endif %}>Cancelled</option>
+                        <option value="processing" {% if ref and ref.status == 'processing' %}selected{% elif not ref %}selected{% endif %}>处理中</option>
+                        <option value="draft" {% if ref and ref.status == 'draft' %}selected{% endif %}>草稿</option>
+                        <option value="completed" {% if ref and ref.status == 'completed' %}selected{% endif %}>已完成</option>
+                        <option value="cancelled" {% if ref and ref.status == 'cancelled' %}selected{% endif %}>已取消</option>
                     </select>
                 </div>
             </div>
@@ -96,34 +96,34 @@
 
         <!-- Supplier & Date/Time -->
         <div class="form-section">
-            <div class="section-title"><i class="fas fa-truck me-2"></i>Supplier & Schedule</div>
+            <div class="section-title"><i class="fas fa-truck me-2"></i>供应商与行程</div>
             <div class="row g-2">
                 <div class="col-2">
-                    <label class="form-label small mb-1">Supplier Type</label>
+                    <label class="form-label small mb-1">供应商类型</label>
                     <select id="supplier_type_filter" class="form-select form-select-sm" onchange="filterSuppliers()">
-                        <option value="">All</option>
+                        <option value="">全部</option>
                         {% for type in supplier_types %}<option value="{{ type }}">{{ type | replace('_', ' ') | title }}</option>{% endfor %}
                     </select>
                 </div>
                 <div class="col-4">
-                    <label class="form-label small mb-1">Supplier Name</label>
+                    <label class="form-label small mb-1">供应商名称</label>
                     <select name="supplier_id" id="supplier_id" class="form-select form-select-sm">
-                        <option value="">-- Select --</option>
+                        <option value="">-- 请选择 --</option>
                         {% for supplier in suppliers %}
                         <option value="{{ supplier.supplier_id }}" data-type="{{ supplier.supplier_type_code or '' }}" {% if ref and ref.supplier_id == supplier.supplier_id %}selected{% endif %}>{{ supplier.name }}</option>
                         {% endfor %}
                     </select>
                 </div>
                 <div class="col-2">
-                    <label class="form-label small mb-1">Date</label>
+                    <label class="form-label small mb-1">日期</label>
                     <input type="date" name="departure_date" id="departure_date" class="form-control form-control-sm" value="{{ extra_info.departure_date if extra_info and extra_info.departure_date else '' }}" onchange="updateDescription()">
                 </div>
                 <div class="col-2">
-                    <label class="form-label small mb-1">Time</label>
+                    <label class="form-label small mb-1">时间</label>
                     <input type="time" name="departure_time" id="departure_time" class="form-control form-control-sm" value="{{ extra_info.departure_time if extra_info and extra_info.departure_time else '' }}" onchange="updateDescription()">
                 </div>
                 <div class="col-2">
-                    <label class="form-label small mb-1">Confirmation No.</label>
+                    <label class="form-label small mb-1">确认号</label>
                     <input type="text" name="confirmation_number" id="confirmation_number" class="form-control form-control-sm" placeholder="TRF123" value="{{ extra_info.confirmation_number if extra_info and extra_info.confirmation_number else '' }}" onchange="updateDescription()">
                 </div>
             </div>
@@ -131,7 +131,7 @@
 
         <!-- Pax Selection -->
         <div class="form-section">
-            <div class="section-title"><i class="fas fa-users me-2"></i>Passenger Selection</div>
+            <div class="section-title"><i class="fas fa-users me-2"></i>乘客选择</div>
             {% if members and members|length > 0 %}
             {% set selected_pax = extra_info.pax_names if extra_info and extra_info.pax_names else [] %}
             {% set leader_id = extra_info.leader_id if extra_info and extra_info.leader_id else '' %}
@@ -140,10 +140,10 @@
                 <table class="table table-sm table-hover pax-table mb-0">
                     <thead style="position: sticky; top: 0;">
                         <tr>
-                            <th style="width: 30px;"><input type="checkbox" id="selectAllPax" title="Select All"></th>
-                            <th>Name</th>
-                            <th style="width: 50px;">Type</th>
-                            <th style="width: 50px;">Leader</th>
+                            <th style="width: 30px;"><input type="checkbox" id="selectAllPax" title="全选"></th>
+                            <th>姓名</th>
+                            <th style="width: 50px;">类型</th>
+                            <th style="width: 50px;">领队</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -151,44 +151,44 @@
                         <tr class="{% if member.id|string == leader_id|string %}table-warning{% endif %}">
                             <td><input type="checkbox" name="pax_names" value="{{ member.id }}" {% if member.id in selected_pax or member.id|string in selected_pax %}checked{% endif %} onchange="updateDescription()"></td>
                             <td>{{ member.title }} {{ member.member_name }}</td>
-                            <td>{% if member.member_type == 'child' %}<span class="type-badge type-chd">CHD</span>{% elif member.member_type == 'infant' %}<span class="type-badge type-inf">INF</span>{% else %}<span class="type-badge type-adt">ADT</span>{% endif %}</td>
-                            <td class="text-center"><button type="button" class="btn btn-sm py-0 px-1 {% if member.id|string == leader_id|string %}btn-warning{% else %}btn-outline-secondary{% endif %} set-leader-btn" data-member-id="{{ member.id }}" title="Set as Leader"><i class="fas fa-star" style="font-size: 10px;"></i></button></td>
+                            <td>{% if member.member_type == 'child' %}<span class="type-badge type-chd">儿童</span>{% elif member.member_type == 'infant' %}<span class="type-badge type-inf">婴儿</span>{% else %}<span class="type-badge type-adt">成人</span>{% endif %}</td>
+                            <td class="text-center"><button type="button" class="btn btn-sm py-0 px-1 {% if member.id|string == leader_id|string %}btn-warning{% else %}btn-outline-secondary{% endif %} set-leader-btn" data-member-id="{{ member.id }}" title="设为领队"><i class="fas fa-star" style="font-size: 10px;"></i></button></td>
                         </tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
             {% else %}
-            <div class="alert alert-info py-2 mb-0" style="font-size: 12px;"><i class="fas fa-info-circle me-2"></i>No passengers in project.</div>
+            <div class="alert alert-info py-2 mb-0" style="font-size: 12px;"><i class="fas fa-info-circle me-2"></i>项目中没有乘客。</div>
             {% endif %}
         </div>
 
         <!-- Pricing -->
         <div class="form-section">
-            <div class="section-title"><i class="fas fa-dollar-sign me-2"></i>Pricing</div>
-            {% if has_invoice %}<div class="alert alert-warning py-1 mb-2" style="font-size: 12px;"><i class="fas fa-lock me-1"></i>Invoice generated. Selling prices locked.</div>{% endif %}
-            {% if eo_paid %}<div class="alert alert-info py-1 mb-2" style="font-size: 12px;"><i class="fas fa-lock me-1"></i>EO paid. Cost prices locked.</div>{% endif %}
+            <div class="section-title"><i class="fas fa-dollar-sign me-2"></i>价格</div>
+            {% if has_invoice %}<div class="alert alert-warning py-1 mb-2" style="font-size: 12px;"><i class="fas fa-lock me-1"></i>已生成发票，售价已锁定。</div>{% endif %}
+            {% if eo_paid %}<div class="alert alert-info py-1 mb-2" style="font-size: 12px;"><i class="fas fa-lock me-1"></i>EO已付款，成本价已锁定。</div>{% endif %}
             <table class="table table-bordered table-sm pricing-table mb-0">
                 <thead class="table-light">
-                    <tr><th style="width: 70px;">Type</th><th style="width: 90px;">Qty</th><th>Selling</th><th>Cost</th><th style="width: 100px;">Profit</th></tr>
+                    <tr><th style="width: 70px;">类型</th><th style="width: 90px;">数量</th><th>售价</th><th>成本</th><th style="width: 100px;">利润</th></tr>
                 </thead>
                 <tbody>
                     <tr>
-                        <td><strong>ADT</strong></td>
+                        <td><strong>成人</strong></td>
                         <td><input type="number" name="adult_qty" id="adult_qty" class="form-control form-control-sm" min="0" value="{{ extra_info.adult_qty if extra_info and extra_info.adult_qty else 1 }}" onchange="calculateTotals()" {% if has_invoice %}readonly{% endif %}></td>
                         <td><div class="input-group input-group-sm"><span class="input-group-text py-0">$</span><input type="number" name="adult_selling" id="adult_selling" class="form-control" min="0" step="0.01" value="{{ extra_info.adult_selling if extra_info and extra_info.adult_selling else '0.00' }}" onchange="calculateTotals()" {% if has_invoice %}readonly{% endif %}></div></td>
                         <td><div class="input-group input-group-sm"><span class="input-group-text py-0">$</span><input type="number" name="adult_cost" id="adult_cost" class="form-control" min="0" step="0.01" value="{{ extra_info.adult_cost if extra_info and extra_info.adult_cost else '0.00' }}" onchange="calculateTotals()" {% if eo_paid %}readonly{% endif %}></div></td>
                         <td class="text-end"><span id="adult_profit" class="profit-positive">$0.00</span></td>
                     </tr>
                     <tr>
-                        <td><strong>CHD</strong></td>
+                        <td><strong>儿童</strong></td>
                         <td><input type="number" name="child_qty" id="child_qty" class="form-control form-control-sm" min="0" value="{{ extra_info.child_qty if extra_info and extra_info.child_qty else 0 }}" onchange="calculateTotals()" {% if has_invoice %}readonly{% endif %}></td>
                         <td><div class="input-group input-group-sm"><span class="input-group-text py-0">$</span><input type="number" name="child_selling" id="child_selling" class="form-control" min="0" step="0.01" value="{{ extra_info.child_selling if extra_info and extra_info.child_selling else '0.00' }}" onchange="calculateTotals()" {% if has_invoice %}readonly{% endif %}></div></td>
                         <td><div class="input-group input-group-sm"><span class="input-group-text py-0">$</span><input type="number" name="child_cost" id="child_cost" class="form-control" min="0" step="0.01" value="{{ extra_info.child_cost if extra_info and extra_info.child_cost else '0.00' }}" onchange="calculateTotals()" {% if eo_paid %}readonly{% endif %}></div></td>
                         <td class="text-end"><span id="child_profit" class="profit-positive">$0.00</span></td>
                     </tr>
                     <tr>
-                        <td><strong>INF</strong></td>
+                        <td><strong>婴儿</strong></td>
                         <td><input type="number" name="infant_qty" id="infant_qty" class="form-control form-control-sm" min="0" value="{{ extra_info.infant_qty if extra_info and extra_info.infant_qty else 0 }}" onchange="calculateTotals()" {% if has_invoice %}readonly{% endif %}></td>
                         <td><div class="input-group input-group-sm"><span class="input-group-text py-0">$</span><input type="number" name="infant_selling" id="infant_selling" class="form-control" min="0" step="0.01" value="{{ extra_info.infant_selling if extra_info and extra_info.infant_selling else '0.00' }}" onchange="calculateTotals()" {% if has_invoice %}readonly{% endif %}></div></td>
                         <td><div class="input-group input-group-sm"><span class="input-group-text py-0">$</span><input type="number" name="infant_cost" id="infant_cost" class="form-control" min="0" step="0.01" value="{{ extra_info.infant_cost if extra_info and extra_info.infant_cost else '0.00' }}" onchange="calculateTotals()" {% if eo_paid %}readonly{% endif %}></div></td>
@@ -202,18 +202,18 @@
 
         <!-- Remarks -->
         <div class="form-section">
-            <div class="section-title"><i class="fas fa-sticky-note me-2"></i>Remarks</div>
-            <textarea name="remarks" id="remarks" class="form-control form-control-sm" rows="2" placeholder="Enter remarks...">{{ ref.remarks if ref else '' }}</textarea>
+            <div class="section-title"><i class="fas fa-sticky-note me-2"></i>备注</div>
+            <textarea name="remarks" id="remarks" class="form-control form-control-sm" rows="2" placeholder="输入备注...">{{ ref.remarks if ref else '' }}</textarea>
         </div>
 
         <!-- Actions -->
         <div class="form-section">
-            <div class="section-title"><i class="fas fa-cogs me-2"></i>Actions</div>
+            <div class="section-title"><i class="fas fa-cogs me-2"></i>操作</div>
             <div class="d-flex justify-content-center gap-3">
-                <button type="submit" class="btn btn-success btn-sm" style="width: 120px;"><i class="fas fa-save me-1"></i>{% if ref and not is_create %}Update{% else %}Save{% endif %}</button>
-                <a href="{{ url_for('business_projects.detail.project_detail', project_id=header_id) }}" class="btn btn-secondary btn-sm" style="width: 120px;"><i class="fas fa-arrow-left me-1"></i>Back</a>
+                <button type="submit" class="btn btn-success btn-sm" style="width: 120px;"><i class="fas fa-save me-1"></i>{% if ref and not is_create %}更新{% else %}保存{% endif %}</button>
+                <a href="{{ url_for('business_projects.detail.project_detail', project_id=header_id) }}" class="btn btn-secondary btn-sm" style="width: 120px;"><i class="fas fa-arrow-left me-1"></i>返回</a>
                 {% if ref and ref.eos %}<span class="btn btn-outline-info btn-sm" style="width: 120px; cursor: default;"><i class="fas fa-check me-1"></i>{{ ref.eos.eo_number }}</span>
-                {% elif ref and not is_create %}<button type="button" class="btn btn-primary btn-sm" style="width: 120px;" onclick="quickCreateEO({{ ref.id }})"><i class="fas fa-plus me-1"></i>Create EO</button>{% endif %}
+                {% elif ref and not is_create %}<button type="button" class="btn btn-primary btn-sm" style="width: 120px;" onclick="quickCreateEO({{ ref.id }})"><i class="fas fa-plus me-1"></i>创建EO</button>{% endif %}
             </div>
         </div>
     </form>
@@ -356,11 +356,11 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function quickCreateEO(refId) {
-    if (confirm('Generate EO for this Transport REF?')) {
+    if (confirm('确定要为此交通REF生成EO吗？')) {
         fetch(`/projects/eo/quick_create/${refId}`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content') } })
         .then(response => response.json())
-        .then(data => { if (data.success) { alert(data.message); location.reload(); } else { alert('Failed: ' + data.message); } })
-        .catch(error => { console.error('Error:', error); alert('Failed to generate EO'); });
+        .then(data => { if (data.success) { alert(data.message); location.reload(); } else { alert('失败: ' + data.message); } })
+        .catch(error => { console.error('Error:', error); alert('生成EO失败'); });
     }
 }
 </script>

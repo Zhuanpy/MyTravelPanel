@@ -2,7 +2,7 @@
 
 {% block title %}{{ '编辑机票REF' if ref is defined and ref else '创建机票REF' }}{% endblock %}
 
-{% block page_title %}Create Flight Ref{% endblock %}
+{% block page_title %}创建机票REF{% endblock %}
 
 {% block extra_css %}
 <!-- 添加 Font Awesome -->
@@ -57,45 +57,45 @@
         <!-- Summary Bar -->
         <div class="summary-bar">
             <div class="d-flex justify-content-between align-items-center">
-                <span style="font-size: 14px; font-weight: 600;"><i class="fas fa-plane me-2"></i>{{ ref.ref_number if ref else 'New Flight REF' }}</span>
+                <span style="font-size: 14px; font-weight: 600;"><i class="fas fa-plane me-2"></i>{{ ref.ref_number if ref else '新建机票REF' }}</span>
                 <div class="d-flex">
-                    <div class="summary-item"><div class="summary-label">Selling</div><div class="summary-value" id="totalSellingPrice">$0.00</div></div>
-                    <div class="summary-item"><div class="summary-label">Cost</div><div class="summary-value" id="totalCostPrice">$0.00</div></div>
-                    <div class="summary-item"><div class="summary-label">Profit</div><div class="summary-value" id="totalProfit">$0.00</div></div>
-                    <div class="summary-item"><div class="summary-label">Pax</div><div class="summary-value" id="passengerCount">0</div></div>
+                    <div class="summary-item"><div class="summary-label">售价</div><div class="summary-value" id="totalSellingPrice">$0.00</div></div>
+                    <div class="summary-item"><div class="summary-label">成本</div><div class="summary-value" id="totalCostPrice">$0.00</div></div>
+                    <div class="summary-item"><div class="summary-label">利润</div><div class="summary-value" id="totalProfit">$0.00</div></div>
+                    <div class="summary-item"><div class="summary-label">人数</div><div class="summary-value" id="passengerCount">0</div></div>
                 </div>
             </div>
         </div>
 
         <!-- Supplier & Status -->
         <div class="form-section">
-            <div class="section-title"><i class="fas fa-truck me-2"></i>Supplier & Status</div>
+            <div class="section-title"><i class="fas fa-truck me-2"></i>供应商与状态</div>
             <div class="row g-2">
                 <div class="col-2">
-                    <label class="form-label small mb-1">Supplier Type</label>
+                    <label class="form-label small mb-1">供应商类型</label>
                     <select class="form-select form-select-sm" id="supplier_type" onchange="filterSuppliers()">
-                        <option value="">All Types</option>
+                        <option value="">全部类型</option>
                         {% for type in supplier_types %}
                         <option value="{{ type }}">{{ type | replace('_', ' ') | title }}</option>
                         {% endfor %}
                     </select>
                 </div>
                 <div class="col-7">
-                    <label class="form-label small mb-1">Supplier Name</label>
+                    <label class="form-label small mb-1">供应商名称</label>
                     <select class="form-select form-select-sm" name="supplier_id" id="supplier_name" required>
-                        <option value="">-- Select --</option>
+                        <option value="">-- 请选择 --</option>
                         {% for supplier in suppliers %}
                         <option value="{{ supplier.supplier_id }}" data-type="{{ supplier.supplier_type_code or '' }}" {% if ref is defined and ref and ref.supplier_id == supplier.supplier_id %}selected{% endif %}>{{ supplier.name }}</option>
                         {% endfor %}
                     </select>
                 </div>
                 <div class="col-3">
-                    <label class="form-label small mb-1">Status</label>
+                    <label class="form-label small mb-1">状态</label>
                     <select class="form-select form-select-sm" name="status">
-                        <option value="draft" {% if ref is defined and ref and ref.status == 'draft' %}selected{% endif %}>Draft</option>
-                        <option value="processing" {% if ref is defined and ref and ref.status == 'processing' %}selected{% endif %}>Processing</option>
-                        <option value="completed" {% if ref is defined and ref and ref.status == 'completed' %}selected{% endif %}>Completed</option>
-                        <option value="cancelled" {% if ref is defined and ref and ref.status == 'cancelled' %}selected{% endif %}>Cancelled</option>
+                        <option value="draft" {% if ref is defined and ref and ref.status == 'draft' %}selected{% endif %}>草稿</option>
+                        <option value="processing" {% if ref is defined and ref and ref.status == 'processing' %}selected{% endif %}>处理中</option>
+                        <option value="completed" {% if ref is defined and ref and ref.status == 'completed' %}selected{% endif %}>已完成</option>
+                        <option value="cancelled" {% if ref is defined and ref and ref.status == 'cancelled' %}selected{% endif %}>已取消</option>
                     </select>
                 </div>
             </div>
@@ -103,45 +103,45 @@
 
         <!-- Flight Segments -->
         <div class="form-section">
-            <div class="section-title"><i class="fas fa-route me-2"></i>Flight Segments</div>
+            <div class="section-title"><i class="fas fa-route me-2"></i>航段信息</div>
             <div id="flightSegmentsContainer">
                 <!-- 初始航段信息 -->
             </div>
             <div style="display: flex; gap: 10px; margin-top: 10px;">
                 <button type="button" class="btn btn-info btn-sm" onclick="addFlightSegment(null, true)">
-                    <i class="fas fa-plus me-1"></i>Add Segment
+                    <i class="fas fa-plus me-1"></i>添加航段
                 </button>
                 <button type="button" class="btn btn-outline-purple btn-sm" style="border-color: #805AD5; color: #805AD5;" onclick="openFlightParserModal()">
-                    <i class="fas fa-magic me-1"></i>Parse Segments
+                    <i class="fas fa-magic me-1"></i>解析航段
                 </button>
             </div>
         </div>
 
         <!-- Passengers -->
         <div class="form-section">
-            {% if has_invoice %}<div class="alert alert-warning py-1 mb-2" style="font-size: 12px;"><i class="fas fa-lock me-1"></i>Invoice generated. Selling prices locked.</div>{% endif %}
-            {% if eo_paid %}<div class="alert alert-info py-1 mb-2" style="font-size: 12px;"><i class="fas fa-lock me-1"></i>EO paid. Cost prices locked.</div>{% endif %}
+            {% if has_invoice %}<div class="alert alert-warning py-1 mb-2" style="font-size: 12px;"><i class="fas fa-lock me-1"></i>已生成发票，售价已锁定。</div>{% endif %}
+            {% if eo_paid %}<div class="alert alert-info py-1 mb-2" style="font-size: 12px;"><i class="fas fa-lock me-1"></i>EO已付款，成本价已锁定。</div>{% endif %}
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 2px solid #2B6CB0;">
-                <div class="section-title" style="margin-bottom: 0; padding-bottom: 0; border-bottom: none;"><i class="fas fa-users me-2"></i>Passengers</div>
+                <div class="section-title" style="margin-bottom: 0; padding-bottom: 0; border-bottom: none;"><i class="fas fa-users me-2"></i>乘客信息</div>
                 <div style="display: flex; gap: 8px;">
-                    <button type="button" class="btn btn-outline-warning btn-sm" onclick="copyLastPassenger()" title="Copy last passenger price">
-                        <i class="fas fa-copy me-1"></i>Copy Price
+                    <button type="button" class="btn btn-outline-warning btn-sm" onclick="copyLastPassenger()" title="复制上一乘客价格">
+                        <i class="fas fa-copy me-1"></i>复制价格
                     </button>
                     <button type="button" class="btn btn-primary btn-sm" onclick="addPassenger()">
-                        <i class="fas fa-plus me-1"></i>Add Passenger
+                        <i class="fas fa-plus me-1"></i>添加乘客
                     </button>
                 </div>
             </div>
             <!-- 表头 -->
             <div class="passenger-header-row">
                 <span class="col-num"></span>
-                <span class="col-name">Name</span>
-                <span class="col-type">Type</span>
-                <span class="col-price">Selling</span>
-                <span class="col-price">Cost</span>
-                <span class="col-ticket">Ticket No.</span>
+                <span class="col-name">姓名</span>
+                <span class="col-type">类型</span>
+                <span class="col-price">售价</span>
+                <span class="col-price">成本</span>
+                <span class="col-ticket">票号</span>
                 <span class="col-pnr">PNR</span>
-                <span class="col-profit">Profit</span>
+                <span class="col-profit">利润</span>
                 <span class="col-action"></span>
             </div>
             <div id="passengersContainer">
@@ -151,18 +151,18 @@
 
         <!-- Remarks -->
         <div class="form-section">
-            <div class="section-title"><i class="fas fa-sticky-note me-2"></i>Remarks</div>
-            <textarea name="remarks" class="form-control form-control-sm" rows="2" placeholder="Enter remarks...">{{ ref.remarks if ref is defined and ref else '' }}</textarea>
+            <div class="section-title"><i class="fas fa-sticky-note me-2"></i>备注</div>
+            <textarea name="remarks" class="form-control form-control-sm" rows="2" placeholder="输入备注...">{{ ref.remarks if ref is defined and ref else '' }}</textarea>
         </div>
 
         <!-- Actions -->
         <div class="form-section">
-            <div class="section-title"><i class="fas fa-cogs me-2"></i>Actions</div>
+            <div class="section-title"><i class="fas fa-cogs me-2"></i>操作</div>
             <div class="d-flex justify-content-center gap-3">
-                <button type="submit" class="btn btn-success btn-sm" style="width: 120px;"><i class="fas fa-save me-1"></i>{% if ref %}Update{% else %}Save{% endif %}</button>
-                <a href="{{ url_for('business_projects.detail.project_detail', project_id=header_id) }}" class="btn btn-outline-secondary btn-sm" style="width: 120px;"><i class="fas fa-arrow-left me-1"></i>Back</a>
+                <button type="submit" class="btn btn-success btn-sm" style="width: 120px;"><i class="fas fa-save me-1"></i>{% if ref %}更新{% else %}保存{% endif %}</button>
+                <a href="{{ url_for('business_projects.detail.project_detail', project_id=header_id) }}" class="btn btn-outline-secondary btn-sm" style="width: 120px;"><i class="fas fa-arrow-left me-1"></i>返回</a>
                 {% if ref is defined and ref and ref.eos %}<span class="btn btn-outline-success btn-sm" style="width: 120px; cursor: default;"><i class="fas fa-check me-1"></i>{{ ref.eos.eo_number }}</span>
-                {% elif ref is defined and ref %}<button type="button" class="btn btn-warning btn-sm" style="width: 120px;" onclick="quickCreateEO({{ ref.id }})"><i class="fas fa-plus me-1"></i>Create EO</button>{% endif %}
+                {% elif ref is defined and ref %}<button type="button" class="btn btn-warning btn-sm" style="width: 120px;" onclick="quickCreateEO({{ ref.id }})"><i class="fas fa-plus me-1"></i>创建EO</button>{% endif %}
             </div>
         </div>
     </form>
@@ -171,29 +171,29 @@
     <div id="flightParserModal" class="modal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.4);">
         <div class="modal-content" style="background-color: #fefefe; margin: 5% auto; padding: 20px; border: 1px solid #888; width: 80%; max-width: 800px; border-radius: 8px;">
             <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <h3 style="margin: 0; color: #2d3748;">Parse Flight Segments</h3>
+                <h3 style="margin: 0; color: #2d3748;">解析航段信息</h3>
                 <span class="close" onclick="closeFlightParserModal()" style="color: #aaa; font-size: 28px; font-weight: bold; cursor: pointer;">&times;</span>
             </div>
             <div class="modal-body">
                 <div style="margin-bottom: 15px;">
-                    <label class="form-label small mb-1">Paste Segment Info</label>
-                    <textarea class="form-control" id="modalFlightParser" rows="8" placeholder="Paste segment info, e.g.:&#10;CX 714 O 30JUN SINHKG HS1 0150 0550 O E MO 1" style="width: 100%; box-sizing: border-box; margin-bottom: 10px;"></textarea>
+                    <label class="form-label small mb-1">粘贴航段信息</label>
+                    <textarea class="form-control" id="modalFlightParser" rows="8" placeholder="粘贴航段信息，例如：&#10;CX 714 O 30JUN SINHKG HS1 0150 0550 O E MO 1" style="width: 100%; box-sizing: border-box; margin-bottom: 10px;"></textarea>
                 </div>
                 <div style="display: flex; gap: 10px;">
                     <button type="button" class="btn btn-outline-secondary btn-sm" onclick="clearModalParser()">
-                        <i class="fas fa-eraser me-1"></i>Clear
+                        <i class="fas fa-eraser me-1"></i>清空
                     </button>
                     {% if ref is defined and ref and ref.flight_segments %}
                     <button type="button" class="btn btn-outline-secondary btn-sm" onclick="loadExistingSegmentsToModalParser()">
-                        <i class="fas fa-download me-1"></i>Load Existing
+                        <i class="fas fa-download me-1"></i>加载现有
                     </button>
                     {% endif %}
                 </div>
             </div>
             <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; padding-top: 15px; border-top: 1px solid #e2e8f0;">
-                <button type="button" class="btn btn-secondary btn-sm" onclick="closeFlightParserModal()">Cancel</button>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="closeFlightParserModal()">取消</button>
                 <button type="button" class="btn btn-primary btn-sm" onclick="parseFlightSegmentsFromModal()">
-                    <i class="fas fa-check me-1"></i>Parse & Apply
+                    <i class="fas fa-check me-1"></i>解析并应用
                 </button>
             </div>
         </div>
@@ -496,9 +496,9 @@ function addPassengerWithData(data) {
             </div>
             <div class="passenger-field-inline col-type">
                 <select class="order-select passenger-type-select" name="passenger_type[]" required onchange="updatePriceSummary()">
-                    <option value="adult" ${data.passenger_type === 'adult' ? 'selected' : ''}>ADT</option>
-                    <option value="child" ${data.passenger_type === 'child' ? 'selected' : ''}>CHD</option>
-                    <option value="infant" ${data.passenger_type === 'infant' ? 'selected' : ''}>INF</option>
+                    <option value="adult" ${data.passenger_type === 'adult' ? 'selected' : ''}>成人</option>
+                    <option value="child" ${data.passenger_type === 'child' ? 'selected' : ''}>儿童</option>
+                    <option value="infant" ${data.passenger_type === 'infant' ? 'selected' : ''}>婴儿</option>
                 </select>
             </div>
             <div class="passenger-field-inline col-price">
@@ -552,53 +552,53 @@ function addFlightSegmentWithData(data) {
                 <tr>
                     <!-- Flight No -->
                     <td class="flight-number-col">
-                        <label class="order-label required">Flight</label>
+                        <label class="order-label required">航班号</label>
                         <input type="text" class="order-input" name="flight_number[]" value="${data.flight_number}" placeholder="CA123" required>
                     </td>
 
                     <!-- Cabin -->
                     <td class="cabin-code-col">
-                        <label class="order-label required">Cabin</label>
+                        <label class="order-label required">舱位</label>
                         <input type="text" class="order-input" name="cabin_code[]" value="${data.cabin_code}" placeholder="Y" required>
                     </td>
 
                     <!-- Departure -->
                     <td class="airport-col">
-                        <label class="order-label required">From</label>
-                        <select class="order-select airport-select" name="departure_airport[]" required data-placeholder="Airport">
+                        <label class="order-label required">出发</label>
+                        <select class="order-select airport-select" name="departure_airport[]" required data-placeholder="机场">
                             <option value="${data.departure_airport}" selected>${data.departure_airport}</option>
                         </select>
                     </td>
 
                     <!-- Arrival -->
                     <td class="airport-col">
-                        <label class="order-label required">To</label>
-                        <select class="order-select airport-select" name="arrival_airport[]" required data-placeholder="Airport">
+                        <label class="order-label required">到达</label>
+                        <select class="order-select airport-select" name="arrival_airport[]" required data-placeholder="机场">
                             <option value="${data.arrival_airport}" selected>${data.arrival_airport}</option>
                         </select>
                     </td>
 
                     <!-- Dep Date -->
                     <td class="date-col">
-                        <label class="order-label required">Dep Date</label>
+                        <label class="order-label required">出发日期</label>
                         <input type="date" class="order-input" name="departure_date[]" value="${data.departure_date}" required>
                     </td>
 
                     <!-- Dep Time -->
                     <td class="time-col">
-                        <label class="order-label">Dep Time</label>
+                        <label class="order-label">出发时间</label>
                         <input type="time" class="order-input" name="departure_time[]" value="${data.departure_time}">
                     </td>
 
                     <!-- Arr Date -->
                     <td class="date-col">
-                        <label class="order-label required">Arr Date</label>
+                        <label class="order-label required">到达日期</label>
                         <input type="date" class="order-input" name="arrival_date[]" value="${data.arrival_date}" required>
                     </td>
 
                     <!-- Arr Time -->
                     <td class="time-col">
-                        <label class="order-label">Arr Time</label>
+                        <label class="order-label">到达时间</label>
                         <input type="time" class="order-input" name="arrival_time[]" value="${data.arrival_time}">
                     </td>
                 </tr>
@@ -706,53 +706,53 @@ function addFlightSegment(data = null, isDefault = false) {
                 <tr>
                     <!-- Flight No -->
                     <td class="flight-number-col">
-                        <label class="order-label required">Flight</label>
+                        <label class="order-label required">航班号</label>
                         <input type="text" class="order-input" name="flight_number[]" value="${data ? data.flightNumber : ''}" placeholder="CA123" required>
                     </td>
 
                     <!-- Cabin -->
                     <td class="cabin-code-col">
-                        <label class="order-label required">Cabin</label>
+                        <label class="order-label required">舱位</label>
                         <input type="text" class="order-input" name="cabin_code[]" value="${data ? data.cabinCode : ''}" placeholder="Y" required>
                     </td>
 
                     <!-- Departure -->
                     <td class="airport-col">
-                        <label class="order-label required">From</label>
-                        <select class="order-select airport-select" name="departure_airport[]" required data-placeholder="Airport">
+                        <label class="order-label required">出发</label>
+                        <select class="order-select airport-select" name="departure_airport[]" required data-placeholder="机场">
                             ${data ? `<option value="${data.departureAirport}" selected>${data.departureAirport}</option>` : '<option></option>'}
                         </select>
                     </td>
 
                     <!-- Arrival -->
                     <td class="airport-col">
-                        <label class="order-label required">To</label>
-                        <select class="order-select airport-select" name="arrival_airport[]" required data-placeholder="Airport">
+                        <label class="order-label required">到达</label>
+                        <select class="order-select airport-select" name="arrival_airport[]" required data-placeholder="机场">
                             ${data ? `<option value="${data.arrivalAirport}" selected>${data.arrivalAirport}</option>` : '<option></option>'}
                         </select>
                     </td>
 
                     <!-- Dep Date -->
                     <td class="date-col">
-                        <label class="order-label required">Dep Date</label>
+                        <label class="order-label required">出发日期</label>
                         <input type="date" class="order-input" name="departure_date[]" value="${data ? data.departureDate : ''}" required>
                     </td>
 
                     <!-- Dep Time -->
                     <td class="time-col">
-                        <label class="order-label">Dep Time</label>
+                        <label class="order-label">出发时间</label>
                         <input type="time" class="order-input" name="departure_time[]" value="${data ? data.departureTime : ''}">
                     </td>
 
                     <!-- Arr Date -->
                     <td class="date-col">
-                        <label class="order-label required">Arr Date</label>
+                        <label class="order-label required">到达日期</label>
                         <input type="date" class="order-input" name="arrival_date[]" value="${data ? data.arrivalDate : ''}" required>
                     </td>
 
                     <!-- Arr Time -->
                     <td class="time-col">
-                        <label class="order-label">Arr Time</label>
+                        <label class="order-label">到达时间</label>
                         <input type="time" class="order-input" name="arrival_time[]" value="${data ? data.arrivalTime : ''}">
                     </td>
                 </tr>
@@ -784,9 +784,9 @@ function addPassenger() {
             </div>
             <div class="passenger-field-inline col-type">
                 <select class="order-select passenger-type-select" name="passenger_type[]" required onchange="updatePriceSummary()">
-                    <option value="adult">ADT</option>
-                    <option value="child">CHD</option>
-                    <option value="infant">INF</option>
+                    <option value="adult">成人</option>
+                    <option value="child">儿童</option>
+                    <option value="infant">婴儿</option>
                 </select>
             </div>
             <div class="passenger-field-inline col-price">
@@ -878,7 +878,7 @@ function updatePriceSummary() {
 function copyLastPassenger() {
     const passengers = $('.passenger-card');
     if (passengers.length === 0) {
-        alert('Please add at least one passenger first');
+        alert('请先添加至少一位乘客');
         return;
     }
 
@@ -917,20 +917,20 @@ function removeElement(button) {
             updatePassengerNumbers();
         }
     } else {
-        alert('At least one ' + (containerType === 'passenger-card' ? 'passenger' : 'segment') + ' is required');
+        alert('至少需要保留一个' + (containerType === 'passenger-card' ? '乘客' : '航段'));
     }
 }
 
 // 表单提交前验证
 $('#orderForm').on('submit', function(e) {
     if ($('.passenger-card').length === 0) {
-        alert('Please add at least one passenger');
+        alert('请添加至少一位乘客');
         e.preventDefault();
         return false;
     }
 
     if ($('.flight-segment').length === 0) {
-        alert('Please add at least one segment');
+        alert('请添加至少一个航段');
         e.preventDefault();
         return false;
     }
@@ -1208,7 +1208,7 @@ function clearParser() {
 function loadExistingSegmentsToParser() {
     const segments = window.segmentsData || [];
     if (segments.length === 0) {
-        alert('没有现有的航段数据可加载');
+        alert('没有可加载的航段数据');
         return;
     }
     
@@ -1378,7 +1378,7 @@ function closeFlightParserModal() {
 function parseFlightSegmentsFromModal() {
     const parserText = document.getElementById('modalFlightParser').value;
     if (!parserText.trim()) {
-        alert('Please paste segment info first');
+        alert('请先粘贴航段信息');
         return;
     }
     
@@ -1457,7 +1457,7 @@ window.onclick = function(event) {
 <script>
 // Quick Create EO
 function quickCreateEO(refId) {
-    if (confirm('Generate EO for this Flight REF?')) {
+    if (confirm('确定要为此机票REF生成EO吗？')) {
         fetch(`{{ url_for('business_projects.project_eo.quick_create_eo', ref_id=0) }}`.replace('/0', '/' + refId), {
             method: 'POST',
             headers: {
@@ -1471,12 +1471,12 @@ function quickCreateEO(refId) {
                 alert(data.message);
                 location.reload();
             } else {
-                alert('Failed: ' + data.message);
+                alert('失败: ' + data.message);
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            alert('Failed to generate EO');
+            alert('生成EO失败');
         });
     }
 }
