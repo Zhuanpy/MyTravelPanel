@@ -498,3 +498,80 @@ def flight_order_create():
     return render_template('mobile/flight_order_create.html',
                          suppliers=suppliers,
                          supplier_types=supplier_types)
+
+
+# ==================== 公开页面（无需登录） ====================
+
+@mobile_bp.route('/home')
+def public_home():
+    """手机端公开首页 - 无需登录"""
+    from App_new.business.visa.models.Visamodels import VisaTypes, VisaCountries
+    from App_new.business.tour.models.Packagemodels import CompanyInfo, Product, ProductCity, HomeBanner
+    from sqlalchemy import or_
+    from datetime import date
+
+    # 获取公司信息
+    company_info = CompanyInfo.query.first()
+
+    # 获取精选旅游产品（最多6个）
+    tour_packages_raw = Product.query.filter(
+        or_(
+            Product.product_status == 'active',
+            Product.product_status.is_(None),
+            Product.product_status == ''
+        )
+    ).order_by(Product.is_featured.desc(), Product.created_at.desc()).limit(6).all()
+
+    # 转换为模板需要的格式
+    tour_packages = []
+    for product in tour_packages_raw:
+        price_display = f"SGD {product.base_price:,.0f}" if product.base_price else "价格面议"
+        duration_display = f"{product.duration_days}天{product.duration_days-1 if product.duration_days else 0}夜" if product.duration_days else ""
+        destination_display = product.city_name or product.destination_city or ""
+        if product.country and product.country != '未知':
+            destination_display = f"{product.country} · {destination_display}"
+
+        tour_packages.append({
+            'id': product.id,
+            'name': product.product_name,
+            'destination': destination_display,
+            'duration': duration_display,
+            'price': price_display,
+            'image': product.cover_image,
+            'is_featured': product.is_featured,
+            'product_type': product.product_type
+        })
+
+    # 获取签证国家
+    visa_countries_raw = db.session.query(
+        VisaCountries.country_name_CN,
+        VisaCountries.flag_file,
+        func.count(VisaTypes.id).label('visa_count')
+    ).join(VisaTypes, VisaTypes.country_id == VisaCountries.id).filter(
+        VisaTypes.is_active == True
+    ).group_by(VisaCountries.id).order_by(desc('visa_count')).limit(8).all()
+
+    visa_countries = [{
+        'name': vc[0],
+        'flag': vc[1],
+        'visa_count': vc[2]
+    } for vc in visa_countries_raw]
+
+    # 获取首页轮播图
+    banners = HomeBanner.get_active_banners()
+
+    # 统计数据
+    stats = {
+        'packages': len(tour_packages_raw),
+        'visa_countries': len(visa_countries),
+        'destinations': db.session.query(ProductCity.country_name).filter(
+            ProductCity.country_name.isnot(None)
+        ).distinct().count()
+    }
+
+    return render_template('mobile/public_home.html',
+                         company=company_info,
+                         tour_packages=tour_packages,
+                         visa_countries=visa_countries,
+                         banners=banners,
+                         stats=stats)
