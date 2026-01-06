@@ -1,0 +1,90 @@
+{% extends "mobile/mobile_base.html" %}
+
+{% block title %}{{ title }} - MyTravel{% endblock %}
+
+{% block header_left %}
+<a href="javascript:history.back()" style="color: white; font-size: 20px; margin-right: 12px;">
+    <i class="fas fa-arrow-left"></i>
+</a>
+<span>{{ title }}</span>
+{% endblock %}
+
+{% block content %}
+<div class="mobile-card">
+    <div class="desktop-notice">
+        <div class="notice-icon">
+            <i class="fas fa-desktop"></i>
+        </div>
+        <h3 class="notice-title">{{ title }}</h3>
+        <p class="notice-message">{{ message }}</p>
+        <a href="{{ desktop_url }}" class="mobile-btn mobile-btn-primary mobile-btn-block">
+            <i class="fas fa-external-link-alt" style="margin-right: 8px;"></i>
+            在桌面版打开
+        </a>
+    </div>
+</div>
+
+<div class="tips-section">
+    <div class="tip-title">温馨提示</div>
+    <ul class="tip-list">
+        <li>该功能在电脑上操作更加方便</li>
+        <li>您可以在电脑浏览器中打开相同链接</li>
+        <li>移动端会继续优化更多功能</li>
+    </ul>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .desktop-notice {
+        text-align: center;
+        padding: 24px 16px;
+    }
+
+    .notice-icon {
+        width: 80px;
+        height: 80px;
+        margin: 0 auto 20px;
+        border-radius: 50%;
+        background: #dbeafe;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 36px;
+        color: #2563eb;
+    }
+
+    .notice-title {
+        font-size: 20px;
+        font-weight: 600;
+        color: #333;
+        margin: 0 0 12px 0;
+    }
+
+    .notice-message {
+        font-size: 15px;
+        color: #666;
+        line-height: 1.6;
+        margin: 0 0 24px 0;
+    }
+
+    .tips-section {
+        padding: 16px;
+    }
+
+    .tip-title {
+        font-size: 14px;
+        font-weight: 500;
+        color: #666;
+        margin-bottom: 12px;
+    }
+
+    .tip-list {
+        margin: 0;
+        padding: 0 0 0 20px;
+        color: #999;
+        font-size: 13px;
+        line-height: 2;
+    }
+</style>
+{% endblock %}

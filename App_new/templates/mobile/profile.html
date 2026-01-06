@@ -1,0 +1,157 @@
+{% extends "mobile/mobile_base.html" %}
+
+{% block title %}个人中心 - MyTravel{% endblock %}
+{% block header_title %}个人中心{% endblock %}
+
+{% block content %}
+<!-- 用户信息 -->
+<div class="mobile-card">
+    <div class="profile-header">
+        <div class="avatar">
+            <i class="fas fa-user"></i>
+        </div>
+        <div class="profile-info">
+            <div class="profile-name">{{ current_user.username }}</div>
+            <div class="profile-role">
+                {% if current_user.is_admin %}管理员{% else %}员工{% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 功能菜单 -->
+<div class="mobile-card" style="padding: 0;">
+    <a href="{{ url_for('mobile.todos') }}" class="menu-item">
+        <div class="menu-icon" style="background: #dbeafe;">
+            <i class="fas fa-check-circle" style="color: #2563eb;"></i>
+        </div>
+        <span class="menu-title">我的待办</span>
+        <i class="fas fa-chevron-right menu-arrow"></i>
+    </a>
+    <a href="{{ url_for('mobile.projects') }}" class="menu-item">
+        <div class="menu-icon" style="background: #dcfce7;">
+            <i class="fas fa-folder" style="color: #16a34a;"></i>
+        </div>
+        <span class="menu-title">项目列表</span>
+        <i class="fas fa-chevron-right menu-arrow"></i>
+    </a>
+    <a href="{{ url_for('mobile.notifications') }}" class="menu-item">
+        <div class="menu-icon" style="background: #fef3c7;">
+            <i class="fas fa-bell" style="color: #d97706;"></i>
+        </div>
+        <span class="menu-title">消息通知</span>
+        <i class="fas fa-chevron-right menu-arrow"></i>
+    </a>
+</div>
+
+<!-- 系统菜单 -->
+<div class="mobile-card" style="padding: 0;">
+    <a href="{{ url_for('staff.dashboard') }}?desktop=true" class="menu-item">
+        <div class="menu-icon" style="background: #f3e8ff;">
+            <i class="fas fa-desktop" style="color: #9333ea;"></i>
+        </div>
+        <span class="menu-title">切换到桌面版</span>
+        <i class="fas fa-chevron-right menu-arrow"></i>
+    </a>
+    <a href="{{ url_for('mobile.logout') }}" class="menu-item" style="color: #dc2626;">
+        <div class="menu-icon" style="background: #fee2e2;">
+            <i class="fas fa-sign-out-alt" style="color: #dc2626;"></i>
+        </div>
+        <span class="menu-title">退出登录</span>
+        <i class="fas fa-chevron-right menu-arrow"></i>
+    </a>
+</div>
+
+<!-- 版本信息 -->
+<div class="version-info">
+    <p>MyTravel Mobile v1.0</p>
+    <p>&copy; 2024 MyTravel. All rights reserved.</p>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .profile-header {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+    }
+
+    .avatar {
+        width: 64px;
+        height: 64px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #198754, #146c43);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 28px;
+    }
+
+    .profile-info {
+        flex: 1;
+    }
+
+    .profile-name {
+        font-size: 20px;
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 4px;
+    }
+
+    .profile-role {
+        font-size: 14px;
+        color: #666;
+    }
+
+    .menu-item {
+        display: flex;
+        align-items: center;
+        padding: 16px;
+        text-decoration: none;
+        color: #333;
+        border-bottom: 1px solid #f0f0f0;
+    }
+
+    .menu-item:last-child {
+        border-bottom: none;
+    }
+
+    .menu-item:active {
+        background-color: #f5f5f5;
+    }
+
+    .menu-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 14px;
+        font-size: 18px;
+    }
+
+    .menu-title {
+        flex: 1;
+        font-size: 15px;
+    }
+
+    .menu-arrow {
+        color: #ccc;
+        font-size: 14px;
+    }
+
+    .version-info {
+        text-align: center;
+        padding: 24px;
+        color: #999;
+        font-size: 12px;
+    }
+
+    .version-info p {
+        margin: 4px 0;
+    }
+</style>
+{% endblock %}

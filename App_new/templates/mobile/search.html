@@ -1,0 +1,147 @@
+{% extends "mobile/mobile_base.html" %}
+
+{% block title %}搜索 - MyTravel{% endblock %}
+{% block header_title %}搜索{% endblock %}
+
+{% block content %}
+<!-- 搜索框 -->
+<form action="{{ url_for('mobile.search') }}" method="get">
+    <div class="mobile-search">
+        <i class="fas fa-search"></i>
+        <input type="text" name="q" placeholder="搜索项目、待办..." value="{{ q }}" autofocus>
+        {% if q %}
+        <a href="{{ url_for('mobile.search') }}" class="clear-btn">
+            <i class="fas fa-times"></i>
+        </a>
+        {% endif %}
+    </div>
+</form>
+
+{% if q %}
+<!-- 搜索结果 -->
+
+<!-- 项目结果 -->
+{% if results.projects|length > 0 %}
+<div class="mobile-card">
+    <div class="mobile-card-title">
+        <i class="fas fa-folder"></i>
+        项目 ({{ results.projects|length }})
+    </div>
+    {% for project in results.projects %}
+    <a href="{{ url_for('mobile.project_detail', project_id=project.id) }}" class="mobile-list-item">
+        <div class="icon" style="background: #dcfce7;">
+            <i class="fas fa-folder" style="color: #16a34a;"></i>
+        </div>
+        <div class="content">
+            <div class="title">{{ project.hid }}</div>
+            <div class="subtitle">{{ project.desc or '无描述' }}</div>
+        </div>
+        <i class="fas fa-chevron-right arrow"></i>
+    </a>
+    {% endfor %}
+</div>
+{% endif %}
+
+<!-- 待办结果 -->
+{% if results.todos|length > 0 %}
+<div class="mobile-card">
+    <div class="mobile-card-title">
+        <i class="fas fa-check-circle"></i>
+        待办 ({{ results.todos|length }})
+    </div>
+    {% for todo in results.todos %}
+    <a href="{{ url_for('mobile.todo_detail', todo_id=todo.id) }}" class="mobile-list-item">
+        <div class="icon" style="background: {% if todo.priority == 1 %}#fee2e2{% elif todo.priority == 2 %}#fef3c7{% else %}#dbeafe{% endif %};">
+            <i class="fas fa-{% if todo.priority == 1 %}exclamation{% elif todo.priority == 2 %}clock{% else %}tasks{% endif %}"
+               style="color: {% if todo.priority == 1 %}#dc2626{% elif todo.priority == 2 %}#d97706{% else %}#2563eb{% endif %};"></i>
+        </div>
+        <div class="content">
+            <div class="title">{{ todo.title }}</div>
+            <div class="subtitle">
+                {% if todo.due_date %}截止: {{ todo.due_date.strftime('%m-%d %H:%M') }}{% else %}无截止日期{% endif %}
+            </div>
+        </div>
+        <i class="fas fa-chevron-right arrow"></i>
+    </a>
+    {% endfor %}
+</div>
+{% endif %}
+
+<!-- 无结果 -->
+{% if results.projects|length == 0 and results.todos|length == 0 %}
+<div class="mobile-card">
+    <div class="mobile-empty">
+        <i class="fas fa-search"></i>
+        <p>未找到 "{{ q }}" 相关结果</p>
+    </div>
+</div>
+{% endif %}
+
+{% else %}
+<!-- 搜索提示 -->
+<div class="search-hints">
+    <div class="hint-title">搜索建议</div>
+    <div class="hint-items">
+        <div class="hint-item">
+            <i class="fas fa-folder"></i>
+            <span>输入项目编号搜索项目</span>
+        </div>
+        <div class="hint-item">
+            <i class="fas fa-check-circle"></i>
+            <span>输入关键词搜索待办事项</span>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .mobile-search {
+        position: relative;
+    }
+
+    .clear-btn {
+        position: absolute;
+        right: 14px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #999;
+        text-decoration: none;
+    }
+
+    .search-hints {
+        padding: 24px;
+        text-align: center;
+    }
+
+    .hint-title {
+        font-size: 16px;
+        font-weight: 500;
+        color: #333;
+        margin-bottom: 16px;
+    }
+
+    .hint-items {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .hint-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 16px;
+        background: white;
+        border-radius: 8px;
+        font-size: 14px;
+        color: #666;
+    }
+
+    .hint-item i {
+        font-size: 20px;
+        color: #198754;
+    }
+</style>
+{% endblock %}

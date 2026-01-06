@@ -1,0 +1,276 @@
+{% extends "mobile/mobile_base.html" %}
+
+{% block title %}行程转换 - MyTravel{% endblock %}
+
+{% block header_left %}
+<a href="{{ url_for('mobile.flight_tools') }}" style="color: white; font-size: 20px; margin-right: 12px;">
+    <i class="fas fa-arrow-left"></i>
+</a>
+<span>行程转换</span>
+{% endblock %}
+
+{% block content %}
+<form id="conversionForm" method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <!-- 输入行程 -->
+    <div class="section-label">输入行程</div>
+    <textarea id="input_text" name="input_text" class="main-textarea"
+              placeholder="粘贴航班行程数据...">{{ request.form.get('input_text', '') }}</textarea>
+
+    <!-- 选项行 -->
+    <div class="options-bar">
+        <select id="luggage" name="luggage" class="option-select">
+            <option value="">行李</option>
+            <option value="0kg">0kg</option>
+            <option value="20kg">20kg</option>
+            <option value="23kg">23kg</option>
+            <option value="25kg">25kg</option>
+            <option value="30kg">30kg</option>
+            <option value="40kg">40kg</option>
+            <option value="46kg(23kg*2)">46kg*2</option>
+        </select>
+        <input type="text" id="price" name="price" class="option-input" placeholder="价格"
+               value="{{ request.form.get('price', '') }}">
+        <div class="lang-toggle">
+            <label class="lang-btn">
+                <input type="radio" name="language" value="chinese"
+                       {% if not request.form.get('language') or request.form.get('language') == 'chinese' %}checked{% endif %}>
+                <span>中</span>
+            </label>
+            <label class="lang-btn">
+                <input type="radio" name="language" value="english"
+                       {% if request.form.get('language') == 'english' %}checked{% endif %}>
+                <span>EN</span>
+            </label>
+        </div>
+    </div>
+
+    <!-- 转换按钮 -->
+    <button type="submit" class="convert-btn">
+        <i class="fas fa-sync-alt"></i> 转换
+    </button>
+
+    <!-- 输出结果 -->
+    <div class="output-header">
+        <span class="section-label" style="margin: 0;">转换结果</span>
+        <button type="button" class="copy-btn" onclick="copyOutput()">
+            <i class="fas fa-copy"></i> 复制
+        </button>
+    </div>
+    <textarea id="output_text" class="main-textarea output" readonly
+              placeholder="转换结果...">{{ output_text }}</textarea>
+</form>
+
+<!-- Toast 提示 -->
+<div id="toast" class="toast"></div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .section-label {
+        font-size: 13px;
+        font-weight: 600;
+        color: #666;
+        margin-bottom: 8px;
+    }
+
+    .main-textarea {
+        width: 100%;
+        min-height: 140px;
+        border: 1px solid #ddd;
+        border-radius: 10px;
+        padding: 12px;
+        font-size: 14px;
+        font-family: -apple-system, 'Consolas', monospace;
+        resize: none;
+        box-sizing: border-box;
+        background: white;
+    }
+
+    .main-textarea:focus {
+        outline: none;
+        border-color: #198754;
+    }
+
+    .main-textarea.output {
+        background: #f8f9fa;
+        min-height: 160px;
+    }
+
+    .options-bar {
+        display: flex;
+        gap: 8px;
+        margin: 12px 0;
+        align-items: center;
+    }
+
+    .option-select,
+    .option-input,
+    .lang-toggle {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .option-select,
+    .option-input {
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        font-size: 14px;
+        background: white;
+    }
+
+    .lang-toggle {
+        display: flex;
+        background: #f0f0f0;
+        border-radius: 8px;
+        overflow: hidden;
+    }
+
+    .lang-btn {
+        padding: 10px 14px;
+        font-size: 13px;
+        font-weight: 500;
+        color: #666;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .lang-btn input {
+        display: none;
+    }
+
+    .lang-btn:has(input:checked) {
+        background: #198754;
+        color: white;
+    }
+
+    .convert-btn {
+        width: 100%;
+        padding: 14px;
+        margin: 8px 0 16px;
+        background: #198754;
+        color: white;
+        border: none;
+        border-radius: 10px;
+        font-size: 16px;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+    }
+
+    .convert-btn:active {
+        background: #146c43;
+    }
+
+    .output-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 8px;
+    }
+
+    .copy-btn {
+        padding: 6px 12px;
+        background: #198754;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        font-size: 12px;
+    }
+
+    .copy-btn:active {
+        background: #146c43;
+    }
+
+    .toast {
+        position: fixed;
+        bottom: 100px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0, 0, 0, 0.85);
+        color: white;
+        padding: 10px 20px;
+        border-radius: 20px;
+        font-size: 14px;
+        opacity: 0;
+        transition: opacity 0.3s;
+        z-index: 1000;
+    }
+
+    .toast.show {
+        opacity: 1;
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+    // 表单提交处理
+    document.getElementById('conversionForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        const formData = new FormData(this);
+        const submitBtn = this.querySelector('.convert-btn');
+        const outputArea = document.getElementById('output_text');
+
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 处理中...';
+
+        fetch(this.action || window.location.href, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                showToast(data.error);
+            } else if (data.output_text) {
+                outputArea.value = data.output_text;
+                showToast('转换成功');
+            }
+        })
+        .catch(error => {
+            showToast('转换失败：' + error.message);
+        })
+        .finally(() => {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fas fa-sync-alt"></i> 开始转换';
+        });
+    });
+
+    // 复制输出
+    function copyOutput() {
+        const output = document.getElementById('output_text');
+        if (!output.value) {
+            showToast('没有可复制的内容');
+            return;
+        }
+
+        if (navigator.clipboard) {
+            navigator.clipboard.writeText(output.value)
+                .then(() => showToast('已复制到剪贴板'))
+                .catch(() => fallbackCopy(output));
+        } else {
+            fallbackCopy(output);
+        }
+    }
+
+    function fallbackCopy(textarea) {
+        textarea.select();
+        document.execCommand('copy');
+        showToast('已复制到剪贴板');
+    }
+
+    function showToast(message) {
+        const toast = document.getElementById('toast');
+        toast.textContent = message;
+        toast.classList.add('show');
+        setTimeout(() => toast.classList.remove('show'), 2000);
+    }
+{% endblock %}

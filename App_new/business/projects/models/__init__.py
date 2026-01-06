@@ -6,16 +6,15 @@ from .project_member import ProjectMember
 from .ref import ProjectRef
 from .receipt import ProjectReceipt
 from .invoice import ProjectInvoice
-from .eo import EO, EOLine
+from .eo import ProjectEO
 
 __all__ = [
     'CustomerCompany',
-    'Customer', 
+    'Customer',
     'ProjectHeader',
     'ProjectMember',
     'ProjectRef',
     'ProjectReceipt',
     'ProjectInvoice',
-    'EO',
-    'EOLine'
+    'ProjectEO'
 ]

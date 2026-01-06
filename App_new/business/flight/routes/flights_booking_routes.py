@@ -495,8 +495,13 @@ def submit_order():
         db.session.commit()
         print("事务提交成功!")  # 调试日志
 
-        # 跳转到项目详细页面
-        return redirect(url_for('business_projects.detail.project_detail', project_id=project_header.id))
+        # 跳转到项目详细页面（根据来源判断跳转目标）
+        if request.form.get('from_mobile') == '1':
+            # 手机端访问，跳转到手机端项目详情页
+            return redirect(url_for('mobile.project_detail', project_id=project_header.id))
+        else:
+            # PC端访问，跳转到PC端项目详情页
+            return redirect(url_for('business_projects.detail.project_detail', project_id=project_header.id))
 
     except Exception as e:
         db.session.rollback()

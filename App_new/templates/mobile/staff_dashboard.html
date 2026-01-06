@@ -1,0 +1,271 @@
+{% extends "mobile/mobile_base.html" %}
+
+{% block title %}员工工作台 - MyTravel{% endblock %}
+{% block header_title %}员工工作台{% endblock %}
+
+{% block content %}
+<!-- 统计概览 -->
+<div class="mobile-card stats-card">
+    <div class="stats-row">
+        <div class="stat-item">
+            <span class="stat-value">{{ stats.total_projects or 0 }}</span>
+            <span class="stat-label">总项目</span>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat-item">
+            <span class="stat-value text-primary">{{ stats.active_projects or 0 }}</span>
+            <span class="stat-label">活跃</span>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat-item">
+            <span class="stat-value text-warning">{{ stats.pending_quotes or 0 }}</span>
+            <span class="stat-label">待处理</span>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat-item">
+            <span class="stat-value text-success">{{ stats.completed_this_month or 0 }}</span>
+            <span class="stat-label">本月</span>
+        </div>
+    </div>
+</div>
+
+<!-- 待办事项 -->
+<div class="mobile-card">
+    <div class="mobile-card-title">
+        <i class="fas fa-tasks"></i>
+        待办事项
+        {% if todos|length > 0 %}
+        <span class="mobile-badge mobile-badge-warning" style="margin-left: auto;">{{ todos|length }}</span>
+        {% endif %}
+    </div>
+
+    {% if todos|length > 0 %}
+        {% for todo in todos[:5] %}
+        <a href="{{ url_for('mobile.todo_detail', todo_id=todo.id) }}" class="mobile-list-item">
+            <div class="icon" style="background: {% if todo.priority == 1 %}#fee2e2{% elif todo.priority == 2 %}#fef3c7{% else %}#dbeafe{% endif %};">
+                <i class="fas fa-{% if todo.priority == 1 %}exclamation{% elif todo.priority == 2 %}clock{% else %}tasks{% endif %}"
+                   style="color: {% if todo.priority == 1 %}#dc2626{% elif todo.priority == 2 %}#d97706{% else %}#2563eb{% endif %};"></i>
+            </div>
+            <div class="content">
+                <div class="title">{{ todo.title }}</div>
+                <div class="subtitle">
+                    {% if todo.due_date %}
+                    截止: {{ todo.due_date.strftime('%m-%d %H:%M') }}
+                    {% else %}
+                    无截止日期
+                    {% endif %}
+                </div>
+            </div>
+            <i class="fas fa-chevron-right arrow"></i>
+        </a>
+        {% endfor %}
+
+        {% if todos|length > 5 %}
+        <a href="{{ url_for('mobile.todos') }}" class="mobile-btn mobile-btn-block" style="margin-top: 12px; background: #f5f5f5; color: #666;">
+            查看全部 {{ todos|length }} 项
+        </a>
+        {% endif %}
+    {% else %}
+        <div class="mobile-empty" style="padding: 24px;">
+            <i class="fas fa-check-circle"></i>
+            <p>暂无待办事项</p>
+        </div>
+    {% endif %}
+</div>
+
+<!-- 最近项目 -->
+<div class="mobile-card">
+    <div class="mobile-card-title">
+        <i class="fas fa-folder-open"></i>
+        最近项目
+    </div>
+
+    {% if recent_projects|length > 0 %}
+        {% for project in recent_projects %}
+        <a href="{{ url_for('mobile.project_detail', project_id=project.id) }}" class="mobile-list-item project-item">
+            <div class="icon" style="background: {% if project.status == 'active' %}#dcfce7{% elif project.status == 'completed' %}#dbeafe{% elif project.status == 'draft' %}#fef3c7{% else %}#f3f4f6{% endif %};">
+                <i class="fas fa-{% if project.status == 'active' %}play{% elif project.status == 'completed' %}check{% elif project.status == 'draft' %}edit{% else %}folder{% endif %}"
+                   style="color: {% if project.status == 'active' %}#16a34a{% elif project.status == 'completed' %}#2563eb{% elif project.status == 'draft' %}#d97706{% else %}#6b7280{% endif %};"></i>
+            </div>
+            <div class="content">
+                <div class="title">{{ project.hid }} - {{ project.name }}</div>
+                <div class="subtitle">
+                    {{ project.client }} | {{ project.type }}
+                </div>
+                <div class="project-finance">
+                    <span class="selling">${{ "%.0f"|format(project.total_selling) }}</span>
+                    <span class="profit {% if project.total_profit >= 0 %}positive{% else %}negative{% endif %}">
+                        {% if project.total_profit >= 0 %}+{% endif %}${{ "%.0f"|format(project.total_profit) }}
+                    </span>
+                </div>
+            </div>
+            <i class="fas fa-chevron-right arrow"></i>
+        </a>
+        {% endfor %}
+
+        <a href="{{ url_for('mobile.projects') }}" class="mobile-btn mobile-btn-block" style="margin-top: 12px; background: #f5f5f5; color: #666;">
+            查看更多项目
+        </a>
+    {% else %}
+        <div class="mobile-empty" style="padding: 24px;">
+            <i class="fas fa-folder-open"></i>
+            <p>暂无项目</p>
+        </div>
+    {% endif %}
+</div>
+
+<!-- 快速操作 -->
+<div class="mobile-card">
+    <div class="mobile-card-title">
+        <i class="fas fa-bolt"></i>
+        快速操作
+    </div>
+    <div class="quick-actions-grid">
+        <a href="{{ url_for('mobile.flight_tools') }}" class="quick-action-item">
+            <div class="quick-action-icon" style="background: #dbeafe;">
+                <i class="fas fa-plane" style="color: #2563eb;"></i>
+            </div>
+            <span>机票工具</span>
+        </a>
+        <a href="{{ url_for('mobile.create_todo') }}" class="quick-action-item">
+            <div class="quick-action-icon" style="background: #dcfce7;">
+                <i class="fas fa-check" style="color: #16a34a;"></i>
+            </div>
+            <span>新建待办</span>
+        </a>
+        <a href="{{ url_for('mobile.projects') }}" class="quick-action-item">
+            <div class="quick-action-icon" style="background: #fef3c7;">
+                <i class="fas fa-folder" style="color: #d97706;"></i>
+            </div>
+            <span>项目列表</span>
+        </a>
+        <a href="{{ url_for('mobile.search') }}" class="quick-action-item">
+            <div class="quick-action-icon" style="background: #f3e8ff;">
+                <i class="fas fa-search" style="color: #9333ea;"></i>
+            </div>
+            <span>搜索</span>
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block bottom_nav %}
+<a href="{{ url_for('mobile.staff_dashboard') }}" class="nav-item active">
+    <i class="fas fa-tachometer-alt"></i>
+    <span>工作台</span>
+</a>
+<a href="{{ url_for('mobile.projects') }}" class="nav-item">
+    <i class="fas fa-folder"></i>
+    <span>项目</span>
+</a>
+<a href="{{ url_for('mobile.todos') }}" class="nav-item">
+    <i class="fas fa-check-circle"></i>
+    <span>待办</span>
+</a>
+<a href="{{ url_for('mobile.profile') }}" class="nav-item">
+    <i class="fas fa-user"></i>
+    <span>我的</span>
+</a>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .stats-card {
+        padding: 12px 8px;
+    }
+
+    .stats-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-around;
+    }
+
+    .stat-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        flex: 1;
+        padding: 4px 2px;
+    }
+
+    .stat-value {
+        font-size: 18px;
+        font-weight: 700;
+        color: #333;
+        line-height: 1.2;
+    }
+
+    .stat-value.text-primary { color: #2563eb; }
+    .stat-value.text-warning { color: #d97706; }
+    .stat-value.text-success { color: #16a34a; }
+
+    .stat-label {
+        font-size: 10px;
+        color: #888;
+        margin-top: 2px;
+    }
+
+    .stat-divider {
+        width: 1px;
+        height: 28px;
+        background: #e5e5e5;
+    }
+
+    .project-item .project-finance {
+        margin-top: 4px;
+        font-size: 12px;
+    }
+
+    .project-finance .selling {
+        color: #333;
+        font-weight: 500;
+    }
+
+    .project-finance .profit {
+        margin-left: 8px;
+        font-weight: 500;
+    }
+
+    .project-finance .profit.positive {
+        color: #16a34a;
+    }
+
+    .project-finance .profit.negative {
+        color: #dc2626;
+    }
+
+    .quick-actions-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 12px;
+    }
+
+    .quick-action-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-decoration: none;
+        color: #333;
+        padding: 8px;
+    }
+
+    .quick-action-item:active {
+        opacity: 0.7;
+    }
+
+    .quick-action-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 20px;
+        margin-bottom: 6px;
+    }
+
+    .quick-action-item span {
+        font-size: 12px;
+    }
+</style>
+{% endblock %}

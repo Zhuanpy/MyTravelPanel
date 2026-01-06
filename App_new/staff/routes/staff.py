@@ -8,6 +8,7 @@ from flask import Blueprint, render_template, request, flash, redirect, url_for,
 from flask_login import login_required, current_user
 from datetime import datetime, timedelta
 from ...utils.decorators import staff_only
+from ...utils.device_detector import mobile_redirect
 from werkzeug.utils import secure_filename
 import json
 import os
@@ -132,6 +133,7 @@ def change_password():
 
 # ==================== 仪表板 ====================
 @staff.route('/dashboard')
+@mobile_redirect('mobile.staff_dashboard')
 @login_required
 @staff_only
 def dashboard():

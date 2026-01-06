@@ -28,7 +28,16 @@
       "Bash(dir \"E:\\\\MyProject\\\\MyTravelWork\\\\MyTravelPanel\\\\*.py\")",
       "Bash(\".venv/Scripts/python.exe\" scripts/20260104_enhance_checklist.py)",
       "Bash(\".venv/Scripts/python.exe\" -c \"\nfrom App_new.shared.routes.tasks import todo_statistics\nprint\\(''Import OK''\\)\n\")",
-      "Bash(\".venv/Scripts/python.exe\" scripts/20260104_fix_visa_ref_cost.py)"
+      "Bash(\".venv/Scripts/python.exe\" scripts/20260104_fix_visa_ref_cost.py)",
+      "Bash(\".venv/Scripts/python.exe\" -c \"from App_new.mobile import mobile_bp; print\\(''Mobile blueprint imported successfully:'', mobile_bp.name, mobile_bp.url_prefix\\)\")",
+      "Bash(\".venv/Scripts/python.exe\" -c \"from App_new.mobile.routes import staff_dashboard; print\\(''Mobile staff_dashboard route imported successfully''\\)\")",
+      "Bash(\".venv/Scripts/python.exe\" -c \"from App_new.staff.routes.staff import dashboard; print\\(''Staff dashboard route imported successfully''\\)\")",
+      "Bash(\".venv/Scripts/python.exe\" -c \"from App_new.mobile.routes import staff_dashboard; print\\(''Import OK''\\)\")",
+      "Bash(\".venv/Scripts/python.exe\" -c \"\nfrom App_new import create_app\napp = create_app\\(\\)\nwith app.app_context\\(\\):\n    from App_new.mobile.routes import index\n    print\\(''Route OK''\\)\n\")",
+      "Bash(\".venv/Scripts/python.exe\" -c \"from App_new.mobile.routes import flight_tools, flight_conversion, athina_code; print\\(''All flight routes imported OK''\\)\")",
+      "Bash(\".venv/Scripts/python.exe\" -c \"from App_new.mobile.routes import flight_order_create; print\\(''Mobile flight order create route imported successfully''\\)\")",
+      "Bash(git checkout:*)",
+      "WebFetch(domain:www.joyesc.com)"
     ]
   }
 }

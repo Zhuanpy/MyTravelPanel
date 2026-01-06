@@ -1,0 +1,164 @@
+{% extends "mobile/mobile_base.html" %}
+
+{% block title %}新建待办 - MyTravel{% endblock %}
+
+{% block header_left %}
+<a href="{{ url_for('mobile.todos') }}" style="color: white; font-size: 20px; margin-right: 12px;">
+    <i class="fas fa-arrow-left"></i>
+</a>
+<span>新建待办</span>
+{% endblock %}
+
+{% block content %}
+<form action="{{ url_for('mobile.create_todo') }}" method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <div class="mobile-card">
+        <div class="form-group">
+            <label class="form-label">标题 <span class="required">*</span></label>
+            <input type="text" name="title" class="form-input" placeholder="请输入待办标题" required>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">描述</label>
+            <textarea name="description" class="form-textarea" placeholder="请输入详细描述（可选）" rows="4"></textarea>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">优先级</label>
+            <div class="priority-options">
+                <label class="priority-option">
+                    <input type="radio" name="priority" value="low" checked>
+                    <span class="priority-btn low">低</span>
+                </label>
+                <label class="priority-option">
+                    <input type="radio" name="priority" value="medium">
+                    <span class="priority-btn medium">中</span>
+                </label>
+                <label class="priority-option">
+                    <input type="radio" name="priority" value="high">
+                    <span class="priority-btn high">高</span>
+                </label>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">截止时间</label>
+            <input type="datetime-local" name="due_date" class="form-input">
+        </div>
+    </div>
+
+    <div class="submit-section">
+        <button type="submit" class="mobile-btn mobile-btn-primary mobile-btn-block">
+            <i class="fas fa-plus" style="margin-right: 8px;"></i>
+            创建待办
+        </button>
+    </div>
+</form>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .form-group {
+        margin-bottom: 20px;
+    }
+
+    .form-group:last-child {
+        margin-bottom: 0;
+    }
+
+    .form-label {
+        display: block;
+        font-size: 14px;
+        font-weight: 500;
+        color: #333;
+        margin-bottom: 8px;
+    }
+
+    .form-label .required {
+        color: #dc2626;
+    }
+
+    .form-input, .form-textarea {
+        width: 100%;
+        padding: 12px 14px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        font-size: 15px;
+        background: #f8fafc;
+        transition: border-color 0.2s, background 0.2s;
+    }
+
+    .form-input:focus, .form-textarea:focus {
+        outline: none;
+        border-color: #198754;
+        background: white;
+    }
+
+    .form-textarea {
+        resize: vertical;
+        min-height: 100px;
+    }
+
+    .priority-options {
+        display: flex;
+        gap: 12px;
+    }
+
+    .priority-option {
+        flex: 1;
+    }
+
+    .priority-option input {
+        display: none;
+    }
+
+    .priority-btn {
+        display: block;
+        padding: 12px;
+        text-align: center;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .priority-btn.low {
+        background: #f0f9ff;
+        color: #2563eb;
+        border: 2px solid transparent;
+    }
+
+    .priority-btn.medium {
+        background: #fffbeb;
+        color: #d97706;
+        border: 2px solid transparent;
+    }
+
+    .priority-btn.high {
+        background: #fef2f2;
+        color: #dc2626;
+        border: 2px solid transparent;
+    }
+
+    .priority-option input:checked + .priority-btn.low {
+        border-color: #2563eb;
+        background: #dbeafe;
+    }
+
+    .priority-option input:checked + .priority-btn.medium {
+        border-color: #d97706;
+        background: #fef3c7;
+    }
+
+    .priority-option input:checked + .priority-btn.high {
+        border-color: #dc2626;
+        background: #fee2e2;
+    }
+
+    .submit-section {
+        padding: 16px 0;
+    }
+</style>
+{% endblock %}

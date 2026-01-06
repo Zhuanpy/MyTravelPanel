@@ -38,6 +38,7 @@ def create_app():
         os.path.join(base_dir, 'templates', 'guest'),
         os.path.join(base_dir, 'templates', 'business'),
         os.path.join(base_dir, 'templates', 'finance'),
+        os.path.join(base_dir, 'templates', 'mobile'),
     ]
     app.jinja_loader = ChoiceLoader([
         FileSystemLoader(searchpath=template_dir) for template_dir in template_dirs
@@ -198,6 +199,10 @@ def create_app():
     from .finance.routes.ledger_routes import ledger_blue
     app.register_blueprint(ledger_blue, url_prefix='/ledger')
 
+    # 移动端模块
+    from .mobile import mobile_bp
+    app.register_blueprint(mobile_bp)
+
     # 注册自定义Jinja2过滤器
     @app.template_filter('fromjson')
     def fromjson_filter(value):
@@ -330,6 +335,17 @@ def create_app():
             return result + ' Only'
         except Exception:
             return str(amount)
+
+    # 注册设备检测上下文处理器
+    @app.context_processor
+    def inject_device_info():
+        """注入设备类型信息到模板"""
+        from .utils.device_detector import is_mobile, is_tablet, get_device_type
+        return dict(
+            is_mobile=is_mobile(),
+            is_tablet=is_tablet(),
+            device_type=get_device_type()
+        )
 
     # 注册应用级别的上下文处理器，让所有模板可以访问公司信息
     @app.context_processor

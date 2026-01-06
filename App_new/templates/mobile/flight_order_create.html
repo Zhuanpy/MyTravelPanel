@@ -1,0 +1,1008 @@
+{% extends "mobile/mobile_base.html" %}
+
+{% block title %}创建机票订单 - MyTravel{% endblock %}
+
+{% block header_left %}
+<a href="{{ url_for('mobile.flight_tools') }}" style="color: white; font-size: 20px; margin-right: 12px;">
+    <i class="fas fa-arrow-left"></i>
+</a>
+<span>创建机票订单</span>
+{% endblock %}
+
+{% block content %}
+<form id="orderForm" method="POST" action="{{ url_for('flights_booking.submit_order') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="from_mobile" value="1">
+
+    <!-- 供应商选择 -->
+    <div class="mobile-card">
+        <div class="mobile-card-title">
+            <i class="fas fa-truck"></i>
+            供应商
+        </div>
+        <div class="supplier-filter">
+            <select id="supplierType" class="mobile-select filter-select" onchange="filterSuppliers()">
+                <option value="">全部类型</option>
+                {% for type in supplier_types %}
+                <option value="{{ type.id }}">{{ type.code }}</option>
+                {% endfor %}
+            </select>
+            <select name="supplier_id" id="supplierSelect" class="mobile-select" required>
+                <option value="">-- 选择供应商 --</option>
+                {% for supplier in suppliers %}
+                <option value="{{ supplier.supplier_id }}" data-type="{{ supplier.supplier_type_id or '' }}">{{ supplier.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+
+    <!-- 航段信息 -->
+    <div class="mobile-card">
+        <div class="mobile-card-title">
+            <i class="fas fa-plane"></i>
+            <span style="flex: 1;">航段信息</span>
+            <button type="button" class="parse-btn" onclick="openParserModal()">
+                <i class="fas fa-magic"></i>
+            </button>
+            <button type="button" class="add-btn" onclick="addSegment()">
+                <i class="fas fa-plus"></i>
+            </button>
+        </div>
+        <div id="segmentsContainer">
+            <!-- 航段将动态添加 -->
+        </div>
+    </div>
+
+    <!-- 乘客信息 -->
+    <div class="mobile-card">
+        <div class="mobile-card-title">
+            <i class="fas fa-users"></i>
+            <span style="flex: 1;">乘客信息</span>
+            <button type="button" class="add-btn" onclick="addPassenger()">
+                <i class="fas fa-plus"></i>
+            </button>
+        </div>
+        <div id="passengersContainer">
+            <!-- 乘客将动态添加 -->
+        </div>
+    </div>
+
+    <!-- 价格汇总 -->
+    <div class="price-summary-bar">
+        <div class="price-item">
+            <div class="price-label">售价</div>
+            <div id="totalSelling" class="price-value">$0</div>
+        </div>
+        <div class="price-item">
+            <div class="price-label">成本</div>
+            <div id="totalCost" class="price-value">$0</div>
+        </div>
+        <div class="price-item">
+            <div class="price-label">利润</div>
+            <div id="totalProfit" class="price-value">$0</div>
+        </div>
+    </div>
+
+    <!-- 备注 -->
+    <div class="mobile-card">
+        <div class="mobile-card-title">
+            <i class="fas fa-sticky-note"></i>
+            备注
+        </div>
+        <textarea name="remarks" class="mobile-textarea" rows="3" placeholder="输入备注信息..."></textarea>
+    </div>
+
+    <!-- 提交按钮 -->
+    <button type="submit" class="submit-btn">
+        <i class="fas fa-save"></i> 保存订单
+    </button>
+
+    <!-- 返回按钮 -->
+    <a href="{{ url_for('mobile.flight_tools') }}" class="back-link">
+        <i class="fas fa-arrow-left"></i> 返回机票工具
+    </a>
+</form>
+
+<!-- 解析航段模态框 -->
+<div id="parserModal" class="parser-modal">
+    <div class="parser-modal-content">
+        <div class="parser-modal-header">
+            <span>解析航段</span>
+            <button type="button" class="parser-close-btn" onclick="closeParserModal()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="parser-modal-body">
+            <textarea id="parserInput" class="parser-textarea" rows="8" placeholder="粘贴航段信息，例如：
+CX 714 O 30JUN SINHKG HS1 0150 0550 O E MO 1"></textarea>
+        </div>
+        <div class="parser-modal-footer">
+            <button type="button" class="parser-btn-cancel" onclick="closeParserModal()">取消</button>
+            <button type="button" class="parser-btn-confirm" onclick="parseSegments()">
+                <i class="fas fa-check"></i> 解析
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Toast 提示 -->
+<div id="toast" class="toast"></div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .mobile-select {
+        width: 100%;
+        padding: 12px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        font-size: 15px;
+        background: white;
+        -webkit-appearance: none;
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 12px center;
+    }
+
+    .mobile-select:focus {
+        outline: none;
+        border-color: var(--primary-color);
+    }
+
+    .supplier-filter {
+        display: flex;
+        flex-direction: row;
+        gap: 8px;
+    }
+
+    .supplier-filter .filter-select {
+        flex: 0 0 100px;
+    }
+
+    .supplier-filter .mobile-select:last-child {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .parse-btn {
+        width: 32px !important;
+        height: 32px !important;
+        border: none !important;
+        background: #805AD5 !important;
+        color: white !important;
+        border-radius: 6px !important;
+        font-size: 14px !important;
+        cursor: pointer;
+        margin-right: 6px;
+        padding: 0 !important;
+    }
+
+    .parse-btn:active {
+        background: #6B46C1 !important;
+    }
+
+    .parse-btn i {
+        color: white !important;
+    }
+
+    /* 解析模态框 */
+    .parser-modal {
+        display: none;
+        position: fixed;
+        z-index: 2000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.5);
+    }
+
+    .parser-modal-content {
+        background: white;
+        margin: 10% auto;
+        width: 90%;
+        max-width: 500px;
+        border-radius: 12px;
+        overflow: hidden;
+    }
+
+    .parser-modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 14px 16px;
+        background: var(--primary-color);
+        color: white;
+        font-weight: 600;
+    }
+
+    .parser-modal-body {
+        padding: 16px;
+    }
+
+    .parser-textarea {
+        width: 100%;
+        padding: 12px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        font-size: 13px;
+        font-family: 'Consolas', monospace;
+        resize: none;
+        box-sizing: border-box;
+    }
+
+    .parser-textarea:focus {
+        outline: none;
+        border-color: var(--primary-color);
+    }
+
+    .parser-modal-footer {
+        display: flex;
+        gap: 10px;
+        padding: 12px 16px;
+        border-top: 1px solid #eee;
+        justify-content: flex-end;
+    }
+
+    .parser-btn-cancel {
+        padding: 10px 20px !important;
+        border: 1px solid #ddd !important;
+        background: white !important;
+        color: #333 !important;
+        border-radius: 8px !important;
+        font-size: 14px !important;
+        cursor: pointer;
+    }
+
+    .parser-btn-confirm {
+        padding: 10px 20px !important;
+        border: none !important;
+        background: var(--primary-color) !important;
+        color: white !important;
+        border-radius: 8px !important;
+        font-size: 14px !important;
+        cursor: pointer;
+    }
+
+    .parser-btn-confirm:active {
+        background: var(--primary-dark) !important;
+    }
+
+    .parser-btn-confirm i {
+        color: white !important;
+    }
+
+    .parser-close-btn {
+        background: none !important;
+        border: none !important;
+        color: white !important;
+        font-size: 18px !important;
+        cursor: pointer;
+        padding: 0 !important;
+    }
+
+    .parser-close-btn i {
+        color: white !important;
+    }
+
+    .mobile-textarea {
+        width: 100%;
+        padding: 12px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        font-size: 14px;
+        resize: none;
+        box-sizing: border-box;
+    }
+
+    .mobile-textarea:focus {
+        outline: none;
+        border-color: var(--primary-color);
+    }
+
+    .add-btn {
+        width: 32px !important;
+        height: 32px !important;
+        border: none !important;
+        background: var(--primary-color) !important;
+        color: white !important;
+        border-radius: 6px !important;
+        font-size: 14px !important;
+        cursor: pointer;
+        padding: 0 !important;
+    }
+
+    .add-btn:active {
+        background: var(--primary-dark) !important;
+    }
+
+    .add-btn i {
+        color: white !important;
+    }
+
+    /* 航段卡片 */
+    .segment-item {
+        background: #f8f9fa;
+        border: 1px solid #e9ecef;
+        border-radius: 8px;
+        padding: 12px;
+        padding-right: 36px;
+        margin-bottom: 10px;
+        position: relative;
+        overflow-x: auto;
+    }
+
+    .segment-item .remove-btn {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        width: 24px !important;
+        height: 24px !important;
+        border: none !important;
+        background: #fee2e2 !important;
+        color: #dc2626 !important;
+        border-radius: 4px !important;
+        font-size: 12px !important;
+        cursor: pointer;
+        z-index: 1;
+        padding: 0 !important;
+    }
+
+    .segment-item .remove-btn i {
+        color: #dc2626 !important;
+    }
+
+    .segment-row {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 8px;
+        min-width: max-content;
+    }
+
+    .segment-row:last-child {
+        margin-bottom: 0;
+    }
+
+    .segment-field {
+        flex-shrink: 0;
+    }
+
+    .segment-field label {
+        display: block;
+        font-size: 11px;
+        color: #666;
+        margin-bottom: 4px;
+    }
+
+    .segment-field input {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        font-size: 14px;
+        box-sizing: border-box;
+    }
+
+    .segment-field input:focus {
+        outline: none;
+        border-color: var(--primary-color);
+    }
+
+    /* 乘客卡片 */
+    .passenger-item {
+        background: #f8f9fa;
+        border: 1px solid #e9ecef;
+        border-radius: 8px;
+        padding: 12px;
+        padding-right: 36px;
+        margin-bottom: 10px;
+        position: relative;
+        overflow-x: auto;
+    }
+
+    .passenger-item .remove-btn {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        width: 24px !important;
+        height: 24px !important;
+        border: none !important;
+        background: #fee2e2 !important;
+        color: #dc2626 !important;
+        border-radius: 4px !important;
+        font-size: 12px !important;
+        cursor: pointer;
+        padding: 0 !important;
+        z-index: 1;
+    }
+
+    .passenger-item .remove-btn i {
+        color: #dc2626 !important;
+    }
+
+    .pax-row {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 8px;
+        min-width: max-content;
+    }
+
+    .pax-row:last-child {
+        margin-bottom: 0;
+    }
+
+    .pax-field {
+        flex-shrink: 0;
+    }
+
+    .pax-field label {
+        display: block;
+        font-size: 11px;
+        color: #666;
+        margin-bottom: 4px;
+    }
+
+    .pax-field input,
+    .pax-field select {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        font-size: 14px;
+        box-sizing: border-box;
+    }
+
+    .pax-field input:focus,
+    .pax-field select:focus {
+        outline: none;
+        border-color: var(--primary-color);
+    }
+
+    .pax-number {
+        width: 24px;
+        height: 24px;
+        background: var(--primary-color);
+        color: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        font-weight: 600;
+    }
+
+    /* 价格汇总条 */
+    .price-summary-bar {
+        display: flex;
+        background: linear-gradient(135deg, #2B6CB0 0%, #4299E1 100%);
+        color: white;
+        border-radius: 10px;
+        padding: 12px 8px;
+        margin-bottom: 16px;
+    }
+
+    .price-item {
+        flex: 1;
+        text-align: center;
+        border-right: 1px solid rgba(255,255,255,0.3);
+    }
+
+    .price-item:last-child {
+        border-right: none;
+    }
+
+    .price-label {
+        font-size: 11px;
+        opacity: 0.9;
+        margin-bottom: 4px;
+    }
+
+    .price-value {
+        font-size: 15px;
+        font-weight: 600;
+    }
+
+    /* 提交按钮 */
+    .submit-btn {
+        width: 100% !important;
+        padding: 14px !important;
+        background: var(--primary-color) !important;
+        color: white !important;
+        border: none !important;
+        border-radius: 10px !important;
+        font-size: 16px !important;
+        font-weight: 600;
+        cursor: pointer;
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        margin-bottom: 12px;
+    }
+
+    .submit-btn:active {
+        background: var(--primary-dark) !important;
+    }
+
+    .submit-btn:disabled {
+        background: #9ca3af !important;
+    }
+
+    .submit-btn i {
+        color: white !important;
+    }
+
+    .back-link {
+        display: block;
+        text-align: center;
+        padding: 12px;
+        color: #666;
+        text-decoration: none;
+        font-size: 14px;
+    }
+
+    .back-link:active {
+        color: #333;
+    }
+
+    /* Toast */
+    .toast {
+        position: fixed;
+        bottom: 100px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0, 0, 0, 0.85);
+        color: white;
+        padding: 10px 20px;
+        border-radius: 20px;
+        font-size: 14px;
+        opacity: 0;
+        transition: opacity 0.3s;
+        z-index: 1000;
+    }
+
+    .toast.show {
+        opacity: 1;
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+    let segmentIndex = 0;
+    let passengerIndex = 0;
+
+    // 页面加载时添加初始航段和乘客
+    document.addEventListener('DOMContentLoaded', function() {
+        addSegment();
+        addPassenger();
+
+        // 点击模态框外部关闭
+        document.getElementById('parserModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeParserModal();
+            }
+        });
+    });
+
+    // 供应商类型筛选
+    function filterSuppliers() {
+        const typeFilter = document.getElementById('supplierType').value;
+        const supplierSelect = document.getElementById('supplierSelect');
+        const options = supplierSelect.querySelectorAll('option');
+        const currentValue = supplierSelect.value;
+
+        options.forEach(option => {
+            if (option.value === '') {
+                option.style.display = '';
+            } else {
+                if (!typeFilter || option.dataset.type === typeFilter) {
+                    option.style.display = '';
+                } else {
+                    option.style.display = 'none';
+                }
+            }
+        });
+
+        // 如果当前选中的供应商被隐藏，重置选择
+        if (currentValue) {
+            const currentOption = Array.from(options).find(o => o.value === currentValue);
+            if (currentOption && currentOption.style.display === 'none') {
+                supplierSelect.value = '';
+            }
+        }
+    }
+
+    // 解析模态框
+    function openParserModal() {
+        document.getElementById('parserModal').style.display = 'block';
+        document.getElementById('parserInput').focus();
+    }
+
+    function closeParserModal() {
+        document.getElementById('parserModal').style.display = 'none';
+    }
+
+    // 解析航段
+    function parseSegments() {
+        const text = document.getElementById('parserInput').value.trim();
+        if (!text) {
+            showToast('请先粘贴航段信息');
+            return;
+        }
+
+        // 清空现有航段
+        document.getElementById('segmentsContainer').innerHTML = '';
+        segmentIndex = 0;
+
+        // 按行分割
+        const lines = text.split(/[\n\r>]+/).filter(line => {
+            const trimmed = line.trim();
+            return trimmed && !trimmed.startsWith('>');
+        });
+
+        let successCount = 0;
+
+        lines.forEach(line => {
+            const cleanLine = line.replace(/^\d+\.\s*/, '').trim();
+            if (!cleanLine) return;
+
+            // 匹配航班信息
+            const match = cleanLine.match(/(\w+)\s+(\d+)\s+(\w)\s+(\d{2}\w{3})\s+(\w{6})\s+\w+\s+(\d{4})\s+(#?\d{4})/);
+
+            if (!match) {
+                console.log('行格式不匹配:', line);
+                return;
+            }
+
+            try {
+                const [_, airline, flightNumber, cabinCode, date, route, departureTime, arrivalTime] = match;
+                const departureAirport = route.substring(0, 3);
+                const arrivalAirport = route.substring(3);
+                const isNextDay = arrivalTime.startsWith('#');
+                const cleanArrivalTime = arrivalTime.replace('#', '');
+
+                // 解析日期
+                const year = new Date().getFullYear();
+                const month = getMonthFromString(date.substring(2, 5));
+                const day = parseInt(date.substring(0, 2));
+
+                // 格式化日期时间
+                const depDateTime = formatDateTime(year, month, day, departureTime);
+                const arrDateTime = formatDateTime(year, month, day, cleanArrivalTime, isNextDay);
+
+                // 添加航段
+                addSegmentWithData({
+                    flightNumber: `${airline}${flightNumber}`,
+                    cabinCode: cabinCode,
+                    departureAirport: departureAirport,
+                    arrivalAirport: arrivalAirport,
+                    departureDate: depDateTime.date,
+                    departureTime: depDateTime.time,
+                    arrivalDate: arrDateTime.date,
+                    arrivalTime: arrDateTime.time
+                });
+
+                successCount++;
+            } catch (error) {
+                console.error('解析行时出错:', error);
+            }
+        });
+
+        if (successCount === 0) {
+            showToast('解析失败，请检查格式');
+            addSegment(); // 添加一个空航段
+        } else {
+            showToast(`成功解析 ${successCount} 个航段`);
+        }
+
+        closeParserModal();
+        document.getElementById('parserInput').value = '';
+    }
+
+    // 月份字符串转数字
+    function getMonthFromString(month) {
+        const months = {
+            'JAN': 1, 'FEB': 2, 'MAR': 3, 'APR': 4, 'MAY': 5, 'JUN': 6,
+            'JUL': 7, 'AUG': 8, 'SEP': 9, 'OCT': 10, 'NOV': 11, 'DEC': 12
+        };
+        return months[month.toUpperCase()];
+    }
+
+    // 格式化日期时间
+    function formatDateTime(year, month, day, time, isNextDay = false) {
+        const hours = parseInt(time.substring(0, 2));
+        const minutes = parseInt(time.substring(2));
+
+        const date = new Date(Date.UTC(year, month - 1, day));
+        if (isNextDay) {
+            date.setUTCDate(date.getUTCDate() + 1);
+        }
+
+        const formattedDate = date.toISOString().split('T')[0];
+        const formattedTime = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+
+        return { date: formattedDate, time: formattedTime };
+    }
+
+    // 添加带数据的航段
+    function addSegmentWithData(data) {
+        segmentIndex++;
+        const container = document.getElementById('segmentsContainer');
+        const html = `
+            <div class="segment-item" data-index="${segmentIndex}">
+                <button type="button" class="remove-btn" onclick="removeSegment(this)">
+                    <i class="fas fa-times"></i>
+                </button>
+                <!-- 隐藏字段：存储完整的日期时间（供后端使用） -->
+                <input type="hidden" name="departure_time[]" class="departure-datetime-hidden">
+                <input type="hidden" name="arrival_time[]" class="arrival-datetime-hidden">
+                <!-- 第一行：航班、舱位、出发、到达 -->
+                <div class="segment-row">
+                    <div class="segment-field" style="flex: 0 0 80px;">
+                        <label>航班号</label>
+                        <input type="text" name="flight_number[]" value="${data.flightNumber}" placeholder="CA123" required style="text-transform: uppercase;">
+                    </div>
+                    <div class="segment-field" style="flex: 0 0 50px;">
+                        <label>舱位</label>
+                        <input type="text" name="cabin_code[]" value="${data.cabinCode}" placeholder="Y" required maxlength="2" style="text-transform: uppercase;">
+                    </div>
+                    <div class="segment-field" style="flex: 0 0 70px;">
+                        <label>出发</label>
+                        <input type="text" name="departure_airport[]" value="${data.departureAirport}" placeholder="SIN" required maxlength="3" style="text-transform: uppercase;">
+                    </div>
+                    <div class="segment-field" style="flex: 0 0 70px;">
+                        <label>到达</label>
+                        <input type="text" name="arrival_airport[]" value="${data.arrivalAirport}" placeholder="PVG" required maxlength="3" style="text-transform: uppercase;">
+                    </div>
+                </div>
+                <!-- 第二行：日期时间 -->
+                <div class="segment-row" style="margin-top: 8px;">
+                    <div class="segment-field" style="flex: 0 0 110px;">
+                        <label>出发日期</label>
+                        <input type="date" name="departure_date[]" class="departure-date-input" value="${data.departureDate}" required>
+                    </div>
+                    <div class="segment-field" style="flex: 0 0 90px;">
+                        <label>出发时间</label>
+                        <input type="time" class="departure-time-input" value="${data.departureTime}">
+                    </div>
+                    <div class="segment-field" style="flex: 0 0 110px;">
+                        <label>到达日期</label>
+                        <input type="date" name="arrival_date[]" class="arrival-date-input" value="${data.arrivalDate}" required>
+                    </div>
+                    <div class="segment-field" style="flex: 0 0 90px;">
+                        <label>到达时间</label>
+                        <input type="time" class="arrival-time-input" value="${data.arrivalTime}">
+                    </div>
+                </div>
+            </div>
+        `;
+        container.insertAdjacentHTML('beforeend', html);
+    }
+
+    // 添加航段
+    function addSegment() {
+        segmentIndex++;
+        const container = document.getElementById('segmentsContainer');
+        const html = `
+            <div class="segment-item" data-index="${segmentIndex}">
+                <button type="button" class="remove-btn" onclick="removeSegment(this)">
+                    <i class="fas fa-times"></i>
+                </button>
+                <!-- 隐藏字段：存储完整的日期时间（供后端使用） -->
+                <input type="hidden" name="departure_time[]" class="departure-datetime-hidden">
+                <input type="hidden" name="arrival_time[]" class="arrival-datetime-hidden">
+                <!-- 第一行：航班、舱位、出发、到达 -->
+                <div class="segment-row">
+                    <div class="segment-field" style="flex: 0 0 80px;">
+                        <label>航班号</label>
+                        <input type="text" name="flight_number[]" placeholder="CA123" required style="text-transform: uppercase;">
+                    </div>
+                    <div class="segment-field" style="flex: 0 0 50px;">
+                        <label>舱位</label>
+                        <input type="text" name="cabin_code[]" placeholder="Y" required maxlength="2" style="text-transform: uppercase;">
+                    </div>
+                    <div class="segment-field" style="flex: 0 0 70px;">
+                        <label>出发</label>
+                        <input type="text" name="departure_airport[]" placeholder="SIN" required maxlength="3" style="text-transform: uppercase;">
+                    </div>
+                    <div class="segment-field" style="flex: 0 0 70px;">
+                        <label>到达</label>
+                        <input type="text" name="arrival_airport[]" placeholder="PVG" required maxlength="3" style="text-transform: uppercase;">
+                    </div>
+                </div>
+                <!-- 第二行：日期时间 -->
+                <div class="segment-row" style="margin-top: 8px;">
+                    <div class="segment-field" style="flex: 0 0 110px;">
+                        <label>出发日期</label>
+                        <input type="date" name="departure_date[]" class="departure-date-input" required>
+                    </div>
+                    <div class="segment-field" style="flex: 0 0 90px;">
+                        <label>出发时间</label>
+                        <input type="time" class="departure-time-input">
+                    </div>
+                    <div class="segment-field" style="flex: 0 0 110px;">
+                        <label>到达日期</label>
+                        <input type="date" name="arrival_date[]" class="arrival-date-input" required>
+                    </div>
+                    <div class="segment-field" style="flex: 0 0 90px;">
+                        <label>到达时间</label>
+                        <input type="time" class="arrival-time-input">
+                    </div>
+                </div>
+            </div>
+        `;
+        container.insertAdjacentHTML('beforeend', html);
+    }
+
+    // 移除航段
+    function removeSegment(btn) {
+        const container = document.getElementById('segmentsContainer');
+        if (container.children.length > 1) {
+            btn.closest('.segment-item').remove();
+        } else {
+            showToast('至少保留一个航段');
+        }
+    }
+
+    // 添加乘客
+    function addPassenger() {
+        passengerIndex++;
+        const container = document.getElementById('passengersContainer');
+        const html = `
+            <div class="passenger-item" data-index="${passengerIndex}">
+                <button type="button" class="remove-btn" onclick="removePassenger(this)">
+                    <i class="fas fa-times"></i>
+                </button>
+                <!-- 第一行：序号、姓名、类型、票号、PNR -->
+                <div class="pax-row">
+                    <div class="pax-field" style="flex: 0 0 30px;">
+                        <label>&nbsp;</label>
+                        <span class="pax-number">${passengerIndex}</span>
+                    </div>
+                    <div class="pax-field" style="flex: 0 0 120px;">
+                        <label>姓名</label>
+                        <input type="text" name="passenger_name[]" placeholder="ZHANG/SAN" required style="text-transform: uppercase;">
+                    </div>
+                    <div class="pax-field" style="flex: 0 0 70px;">
+                        <label>类型</label>
+                        <select name="passenger_type[]" required>
+                            <option value="adult">成人</option>
+                            <option value="child">儿童</option>
+                            <option value="infant">婴儿</option>
+                        </select>
+                    </div>
+                    <div class="pax-field" style="flex: 0 0 100px;">
+                        <label>票号</label>
+                        <input type="text" name="ticket_number[]" placeholder="票号">
+                    </div>
+                    <div class="pax-field" style="flex: 0 0 70px;">
+                        <label>PNR</label>
+                        <input type="text" name="pnr[]" placeholder="PNR" maxlength="6" style="text-transform: uppercase;">
+                    </div>
+                </div>
+                <!-- 第二行：售价、成本 -->
+                <div class="pax-row" style="margin-top: 8px; padding-left: 38px;">
+                    <div class="pax-field" style="flex: 0 0 100px;">
+                        <label>售价 (SGD)</label>
+                        <input type="number" step="0.01" name="selling_price[]" value="0" required class="selling-input" oninput="updatePrices()">
+                    </div>
+                    <div class="pax-field" style="flex: 0 0 100px;">
+                        <label>成本 (SGD)</label>
+                        <input type="number" step="0.01" name="cost_price[]" value="0" class="cost-input" oninput="updatePrices()">
+                    </div>
+                </div>
+            </div>
+        `;
+        container.insertAdjacentHTML('beforeend', html);
+    }
+
+    // 移除乘客
+    function removePassenger(btn) {
+        const container = document.getElementById('passengersContainer');
+        if (container.children.length > 1) {
+            btn.closest('.passenger-item').remove();
+            updatePassengerNumbers();
+            updatePrices();
+        } else {
+            showToast('至少保留一位乘客');
+        }
+    }
+
+    // 更新乘客序号
+    function updatePassengerNumbers() {
+        const items = document.querySelectorAll('.passenger-item');
+        items.forEach((item, index) => {
+            const num = index + 1;
+            item.querySelector('.pax-number').textContent = num;
+            item.querySelector('.pax-header span:last-child').textContent = `乘客 ${num}`;
+        });
+    }
+
+    // 更新价格汇总
+    function updatePrices() {
+        let totalSelling = 0;
+        let totalCost = 0;
+
+        document.querySelectorAll('.selling-input').forEach(input => {
+            totalSelling += parseFloat(input.value) || 0;
+        });
+
+        document.querySelectorAll('.cost-input').forEach(input => {
+            totalCost += parseFloat(input.value) || 0;
+        });
+
+        const profit = totalSelling - totalCost;
+
+        document.getElementById('totalSelling').textContent = `$${totalSelling.toFixed(2)}`;
+        document.getElementById('totalCost').textContent = `$${totalCost.toFixed(2)}`;
+        document.getElementById('totalProfit').textContent = `$${profit.toFixed(2)}`;
+    }
+
+    // 表单提交
+    document.getElementById('orderForm').addEventListener('submit', function(e) {
+        const segments = document.querySelectorAll('.segment-item');
+        const passengers = document.querySelectorAll('.passenger-item');
+
+        if (segments.length === 0) {
+            e.preventDefault();
+            showToast('请至少添加一个航段');
+            return;
+        }
+
+        if (passengers.length === 0) {
+            e.preventDefault();
+            showToast('请至少添加一位乘客');
+            return;
+        }
+
+        // 合并日期和时间字段到隐藏字段（后端期望格式: YYYY-MM-DD HH:MM）
+        segments.forEach(segment => {
+            const depDateInput = segment.querySelector('.departure-date-input');
+            const depTimeInput = segment.querySelector('.departure-time-input');
+            const arrDateInput = segment.querySelector('.arrival-date-input');
+            const arrTimeInput = segment.querySelector('.arrival-time-input');
+            const depHidden = segment.querySelector('.departure-datetime-hidden');
+            const arrHidden = segment.querySelector('.arrival-datetime-hidden');
+
+            // 合并出发日期时间到隐藏字段
+            if (depDateInput && depHidden) {
+                const timeValue = depTimeInput ? depTimeInput.value : '';
+                depHidden.value = `${depDateInput.value} ${timeValue || '00:00'}`;
+            }
+
+            // 合并到达日期时间到隐藏字段
+            if (arrDateInput && arrHidden) {
+                const timeValue = arrTimeInput ? arrTimeInput.value : '';
+                arrHidden.value = `${arrDateInput.value} ${timeValue || '00:00'}`;
+            }
+        });
+
+        // 转换字段为大写
+        document.querySelectorAll('input[name="flight_number[]"], input[name="cabin_code[]"], input[name="departure_airport[]"], input[name="arrival_airport[]"], input[name="passenger_name[]"], input[name="ticket_number[]"], input[name="pnr[]"]').forEach(input => {
+            input.value = input.value.toUpperCase();
+        });
+
+        const submitBtn = this.querySelector('.submit-btn');
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 提交中...';
+    });
+
+    // Toast 提示
+    function showToast(message) {
+        const toast = document.getElementById('toast');
+        toast.textContent = message;
+        toast.classList.add('show');
+        setTimeout(() => toast.classList.remove('show'), 2000);
+    }
+
+    // 输入自动大写
+    document.addEventListener('input', function(e) {
+        if (e.target.style.textTransform === 'uppercase') {
+            const start = e.target.selectionStart;
+            const end = e.target.selectionEnd;
+            e.target.value = e.target.value.toUpperCase();
+            e.target.setSelectionRange(start, end);
+        }
+    });
+{% endblock %}

@@ -1,0 +1,178 @@
+{% extends "mobile/mobile_base.html" %}
+
+{% block title %}{{ todo.title }} - MyTravel{% endblock %}
+
+{% block header_left %}
+<a href="{{ url_for('mobile.todos') }}" style="color: white; font-size: 20px; margin-right: 12px;">
+    <i class="fas fa-arrow-left"></i>
+</a>
+<span>待办详情</span>
+{% endblock %}
+
+{% block content %}
+<!-- 待办信息 -->
+<div class="mobile-card">
+    <div class="todo-header">
+        <span class="priority-badge priority-{{ todo.priority }}">
+            {% if todo.priority == 1 %}高优先级{% elif todo.priority == 2 %}中优先级{% else %}低优先级{% endif %}
+        </span>
+        <span class="status-badge status-{{ 'completed' if todo.is_completed else 'pending' }}">
+            {% if todo.is_completed %}已完成{% else %}待处理{% endif %}
+        </span>
+    </div>
+
+    <h2 class="todo-title">{{ todo.title }}</h2>
+
+    {% if todo.description %}
+    <div class="todo-description">
+        {{ todo.description }}
+    </div>
+    {% endif %}
+
+    <div class="todo-meta">
+        {% if todo.due_date %}
+        <div class="meta-item">
+            <i class="fas fa-calendar-alt"></i>
+            <span>截止时间: {{ todo.due_date.strftime('%Y-%m-%d %H:%M') }}</span>
+        </div>
+        {% endif %}
+
+        {% if todo.source_id %}
+        <div class="meta-item">
+            <i class="fas fa-folder"></i>
+            <span>来源: {{ todo.source_type or '-' }}</span>
+        </div>
+        {% endif %}
+
+        <div class="meta-item">
+            <i class="fas fa-clock"></i>
+            <span>创建时间: {{ todo.created_at.strftime('%Y-%m-%d %H:%M') if todo.created_at else '-' }}</span>
+        </div>
+
+        {% if todo.completed_at %}
+        <div class="meta-item">
+            <i class="fas fa-check-circle"></i>
+            <span>完成时间: {{ todo.completed_at.strftime('%Y-%m-%d %H:%M') }}</span>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- 操作按钮 -->
+{% if not todo.is_completed %}
+<div class="action-section">
+    <button class="mobile-btn mobile-btn-primary mobile-btn-block" onclick="completeTodo()">
+        <i class="fas fa-check" style="margin-right: 8px;"></i>
+        标记为完成
+    </button>
+</div>
+{% endif %}
+
+<!-- 关联项目 -->
+{% if todo.project %}
+<div class="mobile-card">
+    <div class="mobile-card-title">
+        <i class="fas fa-link"></i>
+        关联项目
+    </div>
+    <a href="{{ url_for('mobile.project_detail', project_id=todo.project.id) }}" class="mobile-list-item">
+        <div class="icon" style="background: #dcfce7;">
+            <i class="fas fa-folder" style="color: #16a34a;"></i>
+        </div>
+        <div class="content">
+            <div class="title">{{ todo.project.hid }}</div>
+            <div class="subtitle">{{ todo.project.desc or '无描述' }}</div>
+        </div>
+        <i class="fas fa-chevron-right arrow"></i>
+    </a>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .todo-header {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 12px;
+    }
+
+    .priority-badge, .status-badge {
+        padding: 4px 10px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: 500;
+    }
+
+    .priority-high { background: #fee2e2; color: #dc2626; }
+    .priority-medium { background: #fef3c7; color: #d97706; }
+    .priority-low { background: #dbeafe; color: #2563eb; }
+
+    .status-completed { background: #d4edda; color: #155724; }
+    .status-in_progress { background: #fff3cd; color: #856404; }
+    .status-pending { background: #d1ecf1; color: #0c5460; }
+
+    .todo-title {
+        font-size: 20px;
+        font-weight: 600;
+        color: #333;
+        margin: 0 0 16px 0;
+        line-height: 1.4;
+    }
+
+    .todo-description {
+        font-size: 15px;
+        color: #666;
+        line-height: 1.6;
+        padding: 16px;
+        background: #f8fafc;
+        border-radius: 8px;
+        margin-bottom: 16px;
+        white-space: pre-wrap;
+    }
+
+    .todo-meta {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .meta-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 14px;
+        color: #666;
+    }
+
+    .meta-item i {
+        width: 16px;
+        color: #999;
+    }
+
+    .action-section {
+        padding: 16px 0;
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    async function completeTodo() {
+        try {
+            const response = await mobileApi('/m/todo/{{ todo.id }}/complete', {
+                method: 'POST'
+            });
+
+            if (response.success) {
+                alert('已完成');
+                window.location.href = '{{ url_for("mobile.todos") }}';
+            } else {
+                alert(response.message || '操作失败');
+            }
+        } catch (error) {
+            alert('操作失败，请重试');
+        }
+    }
+</script>
+{% endblock %}

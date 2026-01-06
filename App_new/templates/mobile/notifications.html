@@ -1,0 +1,38 @@
+{% extends "mobile/mobile_base.html" %}
+
+{% block title %}消息通知 - MyTravel{% endblock %}
+{% block header_title %}消息通知{% endblock %}
+
+{% block content %}
+<!-- 暂无通知 -->
+<div class="mobile-card">
+    <div class="mobile-empty">
+        <i class="fas fa-bell"></i>
+        <p>暂无新通知</p>
+    </div>
+</div>
+
+<!-- 提示信息 -->
+<div class="notification-hint">
+    <i class="fas fa-info-circle"></i>
+    <span>系统通知功能即将上线</span>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .notification-hint {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 16px;
+        color: #666;
+        font-size: 14px;
+    }
+
+    .notification-hint i {
+        color: #198754;
+    }
+</style>
+{% endblock %}

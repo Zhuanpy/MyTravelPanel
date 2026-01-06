@@ -1,0 +1,356 @@
+{% extends "mobile/mobile_base.html" %}
+
+{% block title %}ATHINA代码 - MyTravel{% endblock %}
+
+{% block header_left %}
+<a href="{{ url_for('mobile.flight_tools') }}" style="color: white; font-size: 20px; margin-right: 12px;">
+    <i class="fas fa-arrow-left"></i>
+</a>
+<span>ATHINA代码</span>
+{% endblock %}
+
+{% block content %}
+<!-- 航班输入区域 -->
+<div class="mobile-card">
+    <div class="mobile-card-title" style="display: flex; align-items: center;">
+        <i class="fas fa-plane"></i>
+        <span style="flex: 1;">航班信息</span>
+        <button type="button" id="addFlightBtn" style="width: 36px; height: 36px; background-color: #198754 !important; color: white !important; border: none !important; border-radius: 8px; font-size: 16px; display: flex; align-items: center; justify-content: center;">
+            <i class="fas fa-plus" style="color: white !important;"></i>
+        </button>
+    </div>
+    <div class="input-labels" style="display: flex; gap: 8px; margin-bottom: 6px; font-size: 12px; color: #666;">
+        <span style="flex: 1;">日期</span>
+        <span style="flex: 1; margin-right: 44px;">航班号</span>
+    </div>
+    <div id="flightContainer">
+        <div class="flight-row" style="display: flex; gap: 8px; margin-bottom: 10px; align-items: center;">
+            <input type="text" class="flight-input flight-date" style="flex: 1 1 0; min-width: 0; width: 0;" placeholder="01JUN">
+            <input type="text" class="flight-input flight-number" style="flex: 1 1 0; min-width: 0; width: 0;" placeholder="TR898">
+            <button type="button" class="remove-btn" onclick="removeFlightRow(this)">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- 生成按钮 -->
+<button type="button" class="generate-btn" onclick="generateCode()">
+    <i class="fas fa-magic"></i> 生成代码
+</button>
+
+<!-- 输出区域 -->
+<div class="mobile-card">
+    <div class="mobile-card-title">
+        <i class="fas fa-code"></i>
+        预订代码
+        <button type="button" class="copy-btn" onclick="copyOutput()">
+            <i class="fas fa-copy"></i> 复制
+        </button>
+    </div>
+    <textarea id="output_text" class="output-textarea" readonly
+              placeholder="生成的代码将显示在这里..."></textarea>
+</div>
+
+<!-- 快速创建订单 -->
+<a href="{{ url_for('mobile.flight_order_create') }}" class="quick-order-btn">
+    <i class="fas fa-plus-circle"></i> 快速创建订单
+</a>
+
+<!-- Toast 提示 -->
+<div id="toast" class="toast"></div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .flight-input {
+        padding: 12px;
+        border: 1px solid #e5e5e5;
+        border-radius: 8px;
+        font-size: 15px;
+        text-transform: uppercase;
+        box-sizing: border-box;
+    }
+
+    .flight-input:focus {
+        outline: none;
+        border-color: #198754;
+    }
+
+    .remove-btn {
+        width: 36px;
+        height: 36px;
+        border: none;
+        background: #fee2e2;
+        color: #dc2626;
+        border-radius: 8px;
+        font-size: 14px;
+        cursor: pointer;
+        flex-shrink: 0;
+    }
+
+    .remove-btn:active {
+        background: #fecaca;
+    }
+
+    .input-labels {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 6px;
+        font-size: 12px;
+        color: #666;
+    }
+
+    .input-labels span:first-child {
+        flex: 1;
+    }
+
+    .input-labels span:last-child {
+        flex: 2;
+        margin-right: 44px;
+    }
+
+    .add-flight-btn {
+        margin-left: auto;
+        width: 32px;
+        height: 32px;
+        border: none;
+        background: #198754;
+        color: white;
+        border-radius: 6px;
+        font-size: 14px;
+        cursor: pointer;
+    }
+
+    .add-flight-btn:active {
+        background: #146c43;
+    }
+
+    .generate-btn {
+        width: 100%;
+        padding: 14px;
+        margin: 16px 0;
+        background: #198754;
+        color: white;
+        border: none;
+        border-radius: 12px;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+    }
+
+    .generate-btn:active {
+        background: #146c43;
+    }
+
+    .generate-btn:disabled {
+        background: #9ca3af;
+    }
+
+    .output-textarea {
+        width: 100%;
+        min-height: 180px;
+        border: 1px solid #e5e5e5;
+        border-radius: 8px;
+        padding: 12px;
+        font-size: 14px;
+        font-family: 'Consolas', 'Monaco', monospace;
+        resize: vertical;
+        box-sizing: border-box;
+        background: #f8f9fa;
+    }
+
+    .copy-btn {
+        margin-left: auto;
+        padding: 6px 12px;
+        background: #198754;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        font-size: 13px;
+        cursor: pointer;
+    }
+
+    .copy-btn:active {
+        background: #146c43;
+    }
+
+    .toast {
+        position: fixed;
+        bottom: 100px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0, 0, 0, 0.8);
+        color: white;
+        padding: 12px 24px;
+        border-radius: 8px;
+        font-size: 14px;
+        opacity: 0;
+        transition: opacity 0.3s;
+        z-index: 1000;
+    }
+
+    .toast.show {
+        opacity: 1;
+    }
+
+    .quick-order-btn {
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        width: 100%;
+        padding: 12px !important;
+        background: linear-gradient(135deg, #f59e0b, #d97706) !important;
+        color: white !important;
+        border: none !important;
+        border-radius: 10px !important;
+        font-size: 15px !important;
+        font-weight: 600;
+        text-decoration: none;
+        margin-top: 12px;
+    }
+
+    .quick-order-btn:active {
+        background: linear-gradient(135deg, #d97706, #b45309) !important;
+    }
+
+    .quick-order-btn i {
+        color: white !important;
+        font-size: 16px;
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+    // 页面加载完成后绑定事件
+    document.addEventListener('DOMContentLoaded', function() {
+        // 添加航班按钮
+        document.getElementById('addFlightBtn').addEventListener('click', function() {
+            addFlightRow();
+        });
+    });
+
+    // 自动大写输入
+    document.addEventListener('input', function(e) {
+        if (e.target.classList.contains('flight-input')) {
+            e.target.value = e.target.value.replace(/\s/g, '').toUpperCase();
+        }
+    });
+
+    // 添加航班行
+    function addFlightRow() {
+        const container = document.getElementById('flightContainer');
+        const row = document.createElement('div');
+        row.className = 'flight-row';
+        row.style.cssText = 'display: flex; gap: 8px; margin-bottom: 10px; align-items: center;';
+        row.innerHTML = `
+            <input type="text" class="flight-input flight-date" style="flex: 1 1 0; min-width: 0; width: 0;" placeholder="01JUN">
+            <input type="text" class="flight-input flight-number" style="flex: 1 1 0; min-width: 0; width: 0;" placeholder="TR898">
+            <button type="button" class="remove-btn" onclick="removeFlightRow(this)">
+                <i class="fas fa-times"></i>
+            </button>
+        `;
+        container.appendChild(row);
+    }
+
+    // 删除航班行
+    function removeFlightRow(btn) {
+        const container = document.getElementById('flightContainer');
+        if (container.children.length > 1) {
+            btn.closest('.flight-row').remove();
+        } else {
+            showToast('至少保留一组航班信息');
+        }
+    }
+
+    // 生成代码
+    function generateCode() {
+        const dates = document.querySelectorAll('.flight-date');
+        const numbers = document.querySelectorAll('.flight-number');
+        const data = [];
+
+        dates.forEach((date, i) => {
+            const number = numbers[i];
+            if (date.value && number.value) {
+                data.push({
+                    flightDate: date.value,
+                    flightNumber: number.value
+                });
+            }
+        });
+
+        if (data.length === 0) {
+            showToast('请输入航班信息');
+            return;
+        }
+
+        const btn = document.querySelector('.generate-btn');
+        const output = document.getElementById('output_text');
+
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 生成中...';
+        output.value = '处理中...';
+
+        fetch("{{ url_for('flights_athina.generate_booking_code') }}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token() }}'
+            },
+            body: JSON.stringify(data)
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.error) {
+                output.value = '错误: ' + result.error;
+                showToast('生成失败');
+            } else {
+                output.value = result.itinerary;
+                showToast('生成成功');
+            }
+        })
+        .catch(error => {
+            output.value = '错误: ' + error.message;
+            showToast('请求失败');
+        })
+        .finally(() => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-magic"></i> 生成代码';
+        });
+    }
+
+    // 复制输出
+    function copyOutput() {
+        const output = document.getElementById('output_text');
+        if (!output.value || output.value.startsWith('错误') || output.value === '处理中...') {
+            showToast('没有可复制的内容');
+            return;
+        }
+
+        if (navigator.clipboard) {
+            navigator.clipboard.writeText(output.value)
+                .then(() => showToast('已复制到剪贴板'))
+                .catch(() => {
+                    output.select();
+                    document.execCommand('copy');
+                    showToast('已复制到剪贴板');
+                });
+        } else {
+            output.select();
+            document.execCommand('copy');
+            showToast('已复制到剪贴板');
+        }
+    }
+
+    function showToast(message) {
+        const toast = document.getElementById('toast');
+        toast.textContent = message;
+        toast.classList.add('show');
+        setTimeout(() => toast.classList.remove('show'), 2000);
+    }
+{% endblock %}

@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="icon" href="{{ url_for('static', filename='logo.ico') }}" type="image/x-icon">
+    <title>{% block title %}MyTravel{% endblock %}</title>
+
+    <!-- Bootstrap 5 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+
+    <style>
+        :root {
+            --primary-color: #198754;
+            --primary-dark: #146c43;
+            --nav-height: 56px;
+            --bottom-nav-height: 60px;
+            --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            font-size: 16px;
+            background-color: #f5f5f5;
+        }
+
+        body {
+            padding-top: var(--nav-height);
+            padding-bottom: calc(var(--bottom-nav-height) + var(--safe-area-bottom));
+        }
+
+        /* 顶部导航栏 */
+        .mobile-header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: var(--nav-height);
+            background: var(--primary-color);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 16px;
+            z-index: 1000;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .mobile-header-title {
+            font-size: 18px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .mobile-header-title img {
+            height: 32px;
+            border-radius: 4px;
+        }
+
+        .mobile-header-actions {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .mobile-header-actions a {
+            color: white;
+            font-size: 20px;
+            text-decoration: none;
+        }
+
+        /* 主内容区域 */
+        .mobile-content {
+            min-height: calc(100vh - var(--nav-height) - var(--bottom-nav-height) - var(--safe-area-bottom));
+            padding: 16px;
+            padding-bottom: 24px;
+        }
+
+        /* 底部导航栏 */
+        .mobile-bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: calc(var(--bottom-nav-height) + var(--safe-area-bottom));
+            padding-bottom: var(--safe-area-bottom);
+            background: white;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+            z-index: 1000;
+        }
+
+        .nav-item {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 8px 0;
+            color: #666;
+            text-decoration: none;
+            font-size: 11px;
+            transition: color 0.2s;
+        }
+
+        .nav-item i {
+            font-size: 22px;
+            margin-bottom: 4px;
+        }
+
+        .nav-item.active {
+            color: var(--primary-color);
+        }
+
+        .nav-item:active {
+            background-color: rgba(0,0,0,0.05);
+        }
+
+        /* 卡片样式 */
+        .mobile-card {
+            background: white;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+
+        .mobile-card-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .mobile-card-title i {
+            color: var(--primary-color);
+        }
+
+        /* 列表项样式 */
+        .mobile-list-item {
+            display: flex;
+            align-items: center;
+            padding: 14px 0;
+            border-bottom: 1px solid #f0f0f0;
+            text-decoration: none;
+            color: inherit;
+        }
+
+        .mobile-list-item:last-child {
+            border-bottom: none;
+        }
+
+        .mobile-list-item:active {
+            background-color: #f5f5f5;
+        }
+
+        .mobile-list-item .icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 12px;
+            font-size: 18px;
+        }
+
+        .mobile-list-item .content {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .mobile-list-item .title {
+            font-size: 15px;
+            font-weight: 500;
+            color: #333;
+            margin-bottom: 2px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .mobile-list-item .subtitle {
+            font-size: 13px;
+            color: #999;
+        }
+
+        .mobile-list-item .arrow {
+            color: #ccc;
+            font-size: 14px;
+        }
+
+        /* 按钮样式 */
+        .mobile-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 500;
+            text-decoration: none;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .mobile-btn-primary {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .mobile-btn-primary:active {
+            background: var(--primary-dark);
+        }
+
+        .mobile-btn-block {
+            display: flex;
+            width: 100%;
+        }
+
+        /* 状态标签 */
+        .mobile-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .mobile-badge-success { background: #d4edda; color: #155724; }
+        .mobile-badge-warning { background: #fff3cd; color: #856404; }
+        .mobile-badge-danger { background: #f8d7da; color: #721c24; }
+        .mobile-badge-info { background: #d1ecf1; color: #0c5460; }
+
+        /* 搜索框 */
+        .mobile-search {
+            display: flex;
+            align-items: center;
+            background: white;
+            border-radius: 8px;
+            padding: 10px 14px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+
+        .mobile-search i {
+            color: #999;
+            margin-right: 10px;
+        }
+
+        .mobile-search input {
+            flex: 1;
+            border: none;
+            outline: none;
+            font-size: 15px;
+        }
+
+        /* 空状态 */
+        .mobile-empty {
+            text-align: center;
+            padding: 48px 24px;
+            color: #999;
+        }
+
+        .mobile-empty i {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+
+        .mobile-empty p {
+            margin: 0;
+            font-size: 15px;
+        }
+
+        /* 加载状态 */
+        .mobile-loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 32px;
+        }
+
+        .mobile-loading .spinner {
+            width: 32px;
+            height: 32px;
+            border: 3px solid #f0f0f0;
+            border-top-color: var(--primary-color);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* 下拉刷新提示 */
+        .pull-hint {
+            text-align: center;
+            padding: 12px;
+            color: #999;
+            font-size: 13px;
+        }
+
+        /* 切换到桌面版链接 */
+        .switch-to-desktop {
+            text-align: center;
+            padding: 16px;
+            font-size: 13px;
+            color: #666;
+        }
+
+        .switch-to-desktop a {
+            color: var(--primary-color);
+            text-decoration: none;
+        }
+
+        /* Flash 消息 */
+        .mobile-alert {
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            font-size: 14px;
+        }
+
+        .mobile-alert-success {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .mobile-alert-danger {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .mobile-alert-warning {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        {% block extra_css %}{% endblock %}
+    </style>
+</head>
+<body>
+    <!-- 顶部导航栏 -->
+    <header class="mobile-header">
+        <div class="mobile-header-title">
+            {% block header_left %}
+            <img src="{{ url_for('static', filename='JE/LOGO.jpg') }}" alt="Logo">
+            <span>{% block header_title %}MyTravel{% endblock %}</span>
+            {% endblock %}
+        </div>
+        <div class="mobile-header-actions">
+            {% block header_actions %}
+            <a href="{{ url_for('mobile.notifications') }}"><i class="fas fa-bell"></i></a>
+            <a href="{{ url_for('mobile.profile') }}"><i class="fas fa-user-circle"></i></a>
+            {% endblock %}
+        </div>
+    </header>
+
+    <!-- 主内容区域 -->
+    <main class="mobile-content">
+        <!-- Flash 消息 -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="mobile-alert mobile-alert-{{ 'danger' if category == 'error' else category }}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+
+        <!-- 切换到桌面版 -->
+        <div class="switch-to-desktop">
+            <a href="?desktop=true">切换到桌面版</a>
+        </div>
+    </main>
+
+    <!-- 底部导航栏 -->
+    <nav class="mobile-bottom-nav">
+        {% block bottom_nav %}
+        <a href="{{ url_for('mobile.index') }}" class="nav-item {% if request.endpoint == 'mobile.index' %}active{% endif %}">
+            <i class="fas fa-home"></i>
+            <span>首页</span>
+        </a>
+        <a href="{{ url_for('mobile.projects') }}" class="nav-item {% if request.endpoint == 'mobile.projects' %}active{% endif %}">
+            <i class="fas fa-folder"></i>
+            <span>项目</span>
+        </a>
+        <a href="{{ url_for('mobile.todos') }}" class="nav-item {% if request.endpoint == 'mobile.todos' %}active{% endif %}">
+            <i class="fas fa-check-circle"></i>
+            <span>待办</span>
+        </a>
+        <a href="{{ url_for('mobile.profile') }}" class="nav-item {% if request.endpoint == 'mobile.profile' %}active{% endif %}">
+            <i class="fas fa-user"></i>
+            <span>我的</span>
+        </a>
+        {% endblock %}
+    </nav>
+
+    <!-- JavaScript -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // 禁用双击缩放
+        document.addEventListener('dblclick', function(e) {
+            e.preventDefault();
+        }, { passive: false });
+
+        // CSRF Token
+        function getCsrfToken() {
+            return document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        }
+
+        // Fetch 封装
+        async function mobileApi(url, options = {}) {
+            const defaultOptions = {
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCsrfToken()
+                }
+            };
+            const response = await fetch(url, { ...defaultOptions, ...options });
+            return response.json();
+        }
+
+        {% block extra_js %}{% endblock %}
+    </script>
+</body>
+</html>
