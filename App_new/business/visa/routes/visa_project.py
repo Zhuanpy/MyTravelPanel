@@ -2424,6 +2424,64 @@ def download_project_file(file_id):
         return jsonify({'success': False, 'message': f'下载失败: {str(e)}'}), 500
 
 
+@visa_project.route('/api/files/bulk_download', methods=['POST'])
+@login_required
+@staff_only
+def bulk_download_files():
+    """批量下载项目文件（打包为ZIP）"""
+    import zipfile
+    import tempfile
+    from flask import send_file
+    from io import BytesIO
+
+    try:
+        data = request.get_json()
+        file_ids = data.get('file_ids', [])
+
+        if not file_ids:
+            return jsonify({'success': False, 'message': '请选择要下载的文件'}), 400
+
+        # 获取所有选中的文件
+        files = VisaProjectFile.query.filter(VisaProjectFile.id.in_(file_ids)).all()
+
+        if not files:
+            return jsonify({'success': False, 'message': '未找到选中的文件'}), 404
+
+        # 检查文件是否都存在
+        valid_files = []
+        for f in files:
+            if os.path.exists(f.file_path):
+                valid_files.append(f)
+
+        if not valid_files:
+            return jsonify({'success': False, 'message': '选中的文件都不存在'}), 404
+
+        # 创建ZIP文件
+        memory_file = BytesIO()
+        with zipfile.ZipFile(memory_file, 'w', zipfile.ZIP_DEFLATED) as zf:
+            for f in valid_files:
+                # 使用原始文件名作为ZIP内的文件名
+                zf.write(f.file_path, f.file_name)
+
+        memory_file.seek(0)
+
+        # 生成下载文件名
+        from datetime import datetime
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        download_name = f'visa_files_{timestamp}.zip'
+
+        return send_file(
+            memory_file,
+            mimetype='application/zip',
+            as_attachment=True,
+            download_name=download_name
+        )
+
+    except Exception as e:
+        current_app.logger.error(f"批量下载文件失败: {str(e)}")
+        return jsonify({'success': False, 'message': f'批量下载失败: {str(e)}'}), 500
+
+
 @visa_project.route('/copy_project/<int:project_id>', methods=['POST'])
 @login_required
 @staff_only
