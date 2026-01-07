@@ -90,8 +90,7 @@
                 <th>签证状态</th>
                 <th>预估日期</th>
                 <th>签证详细</th>
-                <th>编辑项目</th>
-                <th>打开项目</th>
+                <th>复制项目</th>
                 <th>删除项目</th>
             </tr>
         </thead>
@@ -127,19 +126,15 @@
                 </td>
                 <td>{{ project.estimated_date.strftime('%Y-%m-%d') if project.estimated_date else '' }}</td>
                 <td>
-                    <a href="{{ url_for('visa_project.visa_detail', project_id=project.id) }}" 
+                    <a href="{{ url_for('visa_project.visa_detail', project_id=project.id) }}"
                        class="visa-btn-link visa-btn-link-info">查看详情</a>
                 </td>
                 <td>
-                    <a href="{{ url_for('visa_project.edit_project', project_id=project.id) }}" 
-                       class="visa-btn-link visa-btn-link-primary">编辑</a>
+                    <a href="#" onclick="copyProject({{ project.id }})"
+                       class="visa-btn-link visa-btn-link-warning" title="复制此项目（不含HID和REF）">复制</a>
                 </td>
                 <td>
-                    <a href="#" onclick="openProjectFolder('{{ project.project_folder_name }}', '{{ project.visa_type }}')" 
-                       class="visa-btn-link visa-btn-link-success">打开</a>
-                </td>
-                <td>
-                    <a href="#" onclick="deleteProject({{ project.id }})" 
+                    <a href="#" onclick="deleteProject({{ project.id }})"
                        class="visa-btn-link visa-btn-link-danger">删除</a>
                 </td>
             </tr>
@@ -359,6 +354,34 @@
             console.error('Error:', error);
             alert('打开文件夹时发生错误');
         });
+    }
+
+    function copyProject(projectId) {
+        if (confirm('确定要复制这个项目吗？\n\n注意：复制的项目不会包含HID和REF信息，需要重新创建。')) {
+            fetch(`/visa/project/copy_project/${projectId}`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrfToken,
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast('success', data.message);
+                    // 延迟后刷新页面显示新项目
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1000);
+                } else {
+                    showToast('error', data.message || '复制失败');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showToast('error', '复制项目时发生错误');
+            });
+        }
     }
 </script>
 {% endblock %}

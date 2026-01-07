@@ -2407,16 +2407,70 @@ def download_project_file(file_id):
     from flask import send_file
     try:
         project_file = VisaProjectFile.query.get_or_404(file_id)
-        
+
         if not os.path.exists(project_file.file_path):
             return jsonify({'success': False, 'message': '文件不存在'}), 404
-        
+
         return send_file(
             project_file.file_path,
             as_attachment=True,
             download_name=project_file.file_name
         )
-        
+
     except Exception as e:
         current_app.logger.error(f"下载文件失败: {str(e)}")
         return jsonify({'success': False, 'message': f'下载失败: {str(e)}'}), 500
+
+
+@visa_project.route('/copy_project/<int:project_id>', methods=['POST'])
+@login_required
+@staff_only
+def copy_project(project_id):
+    """复制签证项目（不复制HID和REF，会创建新的）"""
+    try:
+        # 获取原项目
+        original_project = VisaProject.query.get_or_404(project_id)
+
+        # 生成新的项目文件夹名称
+        from datetime import datetime
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        new_folder_name = f"{original_project.visa_type}_COPY_{timestamp}_{original_project.applicant_name}"
+
+        # 创建新项目（复制基本信息，不复制HID和REF相关字段）
+        new_project = VisaProject(
+            name=new_folder_name,
+            visa_status='待递交'  # 新项目默认为待递交状态
+        )
+
+        # 复制基本字段
+        new_project.project_folder_name = new_folder_name
+        new_project.visa_type = original_project.visa_type
+        new_project.applicant_name = original_project.applicant_name
+        new_project.contact_name = original_project.contact_name
+        new_project.singapore_status = original_project.singapore_status
+        new_project.remarks = f"[复制自项目ID:{original_project.id}] {original_project.remarks or ''}"
+        new_project.estimated_date = None  # 预估日期不复制，需要重新设置
+
+        # 以下字段不复制，保持为空（会创建新的HID和REF）
+        # new_project.hid_or_serial = None
+        # new_project.header_id = None
+        # new_project.ref_id = None
+
+        db.session.add(new_project)
+        db.session.commit()
+
+        current_app.logger.info(f"成功复制项目 {original_project.id} -> {new_project.id}")
+
+        return jsonify({
+            'success': True,
+            'message': '项目复制成功',
+            'new_project_id': new_project.id
+        })
+
+    except Exception as e:
+        current_app.logger.error(f"复制项目失败: {str(e)}")
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'message': f'复制项目失败: {str(e)}'
+        }), 500
