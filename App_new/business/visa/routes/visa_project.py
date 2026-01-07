@@ -1230,10 +1230,17 @@ def open_folder():
             print(f"DEBUG: 尝试路径1: {folder_path}")
 
             if not folder_path.exists():
-                return jsonify({
-                    "success": False, 
-                    "message": f"找不到项目文件夹：{project_folder}"
-                }), 404
+                # 文件夹不存在时自动创建
+                try:
+                    # 优先在签证类型子文件夹中创建
+                    folder_path = base_folder / visa_type / project_folder
+                    folder_path.mkdir(parents=True, exist_ok=True)
+                    print(f"DEBUG: 自动创建文件夹: {folder_path}")
+                except Exception as e:
+                    return jsonify({
+                        "success": False,
+                        "message": f"创建文件夹失败：{str(e)}"
+                    }), 500
 
         elif folder_type == 'visa_type' and visa_type:
             # 修改为正确的签证类型资源文件夹路径

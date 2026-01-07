@@ -300,21 +300,17 @@
     .content-wrapper {
         flex-direction: column;
     }
-    
-    .popular-websites {
-        width: 100%;
-    }
-    
+
     .filter-group {
         min-width: 100%;
     }
-    
+
     .section-header {
         flex-direction: column;
         align-items: flex-start;
         gap: 1rem;
     }
-    
+
     .search-box {
         width: 100%;
         max-width: 100%;
@@ -340,24 +336,8 @@
         </div>
 
         <div class="content-wrapper">
-            <!-- 左侧热门网站区域 -->
-            <div class="popular-websites">
-                <h3>热门网站</h3>
-                <div class="popular-list" id="popularWebsites">
-                    <div class="loading-state">
-                        <div class="spinner-border text-primary" role="status">
-                            <span class="visually-hidden">加载中...</span>
-                        </div>
-                        <p>正在加载热门网站...</p>
-                    </div>
-                </div>
-                <div class="popular-stats">
-                    <small class="text-muted">显示访问量最高的25个网站</small>
-                </div>
-            </div>
-
-            <!-- 右侧主要内容区域 -->
-            <div class="main-content">
+            <!-- 主要内容区域 -->
+            <div class="main-content" style="flex: 1; width: 100%;">
             <!-- 账号列表部分 -->
             <div class="section-header">
                 <h2>账号列表</h2>

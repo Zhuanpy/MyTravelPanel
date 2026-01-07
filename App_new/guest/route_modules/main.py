@@ -9,12 +9,8 @@ from App_new.business.tour.models.Packagemodels import CompanyInfo
 # 创建主要页面蓝图
 main_bp = Blueprint('main', __name__)
 
-@main_bp.route('/')
-def index():
-    """访客首页"""
-    # 从数据库获取公司信息
-    company_info = CompanyInfo.query.first()
-    return render_template('guest/main/index.html', company=company_info)
+# 注意：首页路由 '/' 已移至 App_new/shared/routes/public.py
+# 该文件中的 public 蓝图提供更完整的首页功能（包含旅游产品、签证国家、轮播图等）
 
 @main_bp.route('/about')
 def about():
