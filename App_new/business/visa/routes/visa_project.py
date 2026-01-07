@@ -479,6 +479,8 @@ def generate_form_for_project(project_id):
 """ 签证详细 开始 """
 @visa_project.route('/visa_detail/<project_name>')
 @visa_project.route('/visa_detail/id/<int:project_id>')
+@login_required
+@staff_only
 def visa_detail(project_name=None, project_id=None):
     """签证详情页面路由"""
     try:

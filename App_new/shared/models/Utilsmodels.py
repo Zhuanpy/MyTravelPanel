@@ -44,6 +44,10 @@ class Todo(db.Model):
     is_on_time = db.Column(db.Boolean, nullable=True, comment='任务是否准时完成: TRUE=准时, FALSE=延迟, NULL=未完成')
     delay_days = db.Column(db.Integer, default=0, comment='延迟天数（负数表示提前完成）')
 
+    # 工时字段
+    estimated_hours = db.Column(db.Float, nullable=True, default=0, comment='预估工时（小时）')
+    actual_hours = db.Column(db.Float, nullable=True, default=0, comment='实际工时（小时）')
+
     # 关系
     assignee = db.relationship('AuthUser', foreign_keys=[assigned_to], backref='assigned_todos')
     assigner = db.relationship('AuthUser', foreign_keys=[assigned_by], backref='assigned_todos_by_me')
@@ -53,7 +57,7 @@ class Todo(db.Model):
                  recipient_email=None, send_email=False, email_reminder_sent=False, email_sent_at=None,
                  assigned_to=None, assigned_by=None, assigned_at=None, source_type=None, source_id=None,
                  reminder_days_before=0, auto_generated=False, completed_by=None, completed_at=None,
-                 is_on_time=None, delay_days=0):
+                 is_on_time=None, delay_days=0, estimated_hours=0, actual_hours=0):
         self.title = title
         self.description = description
         self.due_date = due_date
@@ -76,6 +80,8 @@ class Todo(db.Model):
         self.completed_at = completed_at
         self.is_on_time = is_on_time
         self.delay_days = delay_days
+        self.estimated_hours = estimated_hours
+        self.actual_hours = actual_hours
 
     def to_dict(self):
         """将模型转换为字典"""
@@ -107,7 +113,9 @@ class Todo(db.Model):
             'completed_at': self.completed_at.isoformat() if self.completed_at else None,
             'completer_name': self.completer.username if self.completer else None,
             'is_on_time': self.is_on_time,
-            'delay_days': self.delay_days
+            'delay_days': self.delay_days,
+            'estimated_hours': self.estimated_hours or 0,
+            'actual_hours': self.actual_hours or 0
         }
 
     @classmethod
@@ -115,7 +123,7 @@ class Todo(db.Model):
                recipient_email=None, send_email=False, email_reminder_sent=False, email_sent_at=None,
                assigned_to=None, assigned_by=None, assigned_at=None, source_type=None, source_id=None,
                reminder_days_before=0, auto_generated=False, completed_by=None, completed_at=None,
-               is_on_time=None, delay_days=0):
+               is_on_time=None, delay_days=0, estimated_hours=0, actual_hours=0):
         """创建新的待办事项"""
         todo = cls(
             title=title,
@@ -139,7 +147,9 @@ class Todo(db.Model):
             completed_by=completed_by,
             completed_at=completed_at,
             is_on_time=is_on_time,
-            delay_days=delay_days
+            delay_days=delay_days,
+            estimated_hours=estimated_hours,
+            actual_hours=actual_hours
         )
         db.session.add(todo)
         db.session.commit()

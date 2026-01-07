@@ -26,7 +26,7 @@ def guest_only(f):
                 elif current_user.role.name == 'admin':
                     return redirect(url_for('admin.dashboard'))
             # 默认重定向到首页
-            return redirect(url_for('guest.main.index'))
+            return redirect(url_for('public.index'))
         return f(*args, **kwargs)
     return decorated_function
 

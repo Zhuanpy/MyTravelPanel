@@ -335,6 +335,8 @@
                         <th width="100">分配给</th>
                         <th width="100">优先级</th>
                         <th width="130">截止日期</th>
+                        <th width="80">预估</th>
+                        <th width="80">实际</th>
                         <th width="100">状态</th>
                         <th width="100">完成者</th>
                         <th width="130">操作</th>
@@ -342,7 +344,7 @@
                 </thead>
                 <tbody id="teamTasksTbody">
                     <tr>
-                        <td colspan="9" class="text-center py-4 text-muted">
+                        <td colspan="11" class="text-center py-4 text-muted">
                             <i class="fas fa-spinner fa-spin me-2"></i>
                             加载中...
                         </td>
@@ -415,20 +417,64 @@
             </div>
         </div>
 
+        <!-- 工时统计 -->
+        <div class="row mb-4">
+            <div class="col-md-4 mb-3">
+                <div class="stat-card">
+                    <div class="stat-icon text-info"><i class="fas fa-hourglass-start"></i></div>
+                    <div class="stat-value" id="statEstimatedHours">0</div>
+                    <div class="stat-label">总预估工时</div>
+                </div>
+            </div>
+            <div class="col-md-4 mb-3">
+                <div class="stat-card">
+                    <div class="stat-icon text-primary"><i class="fas fa-hourglass-end"></i></div>
+                    <div class="stat-value" id="statActualHours">0</div>
+                    <div class="stat-label">总实际工时</div>
+                </div>
+            </div>
+            <div class="col-md-4 mb-3">
+                <div class="stat-card">
+                    <div class="stat-icon text-success"><i class="fas fa-percentage"></i></div>
+                    <div class="stat-value" id="statHoursEfficiency">--%</div>
+                    <div class="stat-label">工时效率</div>
+                </div>
+            </div>
+        </div>
+
         <!-- 员工工作量 -->
         <div class="row">
             <div class="col-md-6 mb-4">
                 <div class="visa-card">
-                    <h5 class="mb-3"><i class="fas fa-user-clock me-2"></i>员工工作量</h5>
+                    <h5 class="mb-3"><i class="fas fa-user-clock me-2"></i>员工待办任务</h5>
                     <table class="staff-workload-table">
                         <thead>
                             <tr>
                                 <th>员工</th>
                                 <th width="80">待办</th>
-                                <th width="150">工作量</th>
+                                <th width="150">任务量</th>
                             </tr>
                         </thead>
                         <tbody id="staffWorkloadTbody">
+                            <tr>
+                                <td colspan="3" class="text-center py-3 text-muted">加载中...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="col-md-6 mb-4">
+                <div class="visa-card">
+                    <h5 class="mb-3"><i class="fas fa-clock me-2"></i>员工工时统计</h5>
+                    <table class="staff-workload-table">
+                        <thead>
+                            <tr>
+                                <th>员工</th>
+                                <th width="100">实际工时</th>
+                                <th width="150">占比</th>
+                            </tr>
+                        </thead>
+                        <tbody id="staffHoursTbody">
                             <tr>
                                 <td colspan="3" class="text-center py-3 text-muted">加载中...</td>
                             </tr>
@@ -530,6 +576,21 @@
                         <select class="visa-form-select" id="todoAssignedTo" name="assigned_to">
                             <option value="">不分配（自己处理）</option>
                         </select>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="visa-form-group">
+                                <label for="todoEstimatedHours" class="visa-form-label">预估工时（小时）</label>
+                                <input type="number" class="visa-form-control" id="todoEstimatedHours" name="estimated_hours" min="0" step="0.5" placeholder="0">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="visa-form-group">
+                                <label for="todoActualHours" class="visa-form-label">实际工时（小时）</label>
+                                <input type="number" class="visa-form-control" id="todoActualHours" name="actual_hours" min="0" step="0.5" placeholder="0">
+                            </div>
+                        </div>
                     </div>
 
                     <div class="row">
@@ -842,7 +903,7 @@ function renderTeamTasks(todos) {
     if (!todos || todos.length === 0) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="9" class="text-center py-4 text-muted">
+                <td colspan="11" class="text-center py-4 text-muted">
                     <i class="fas fa-clipboard-list me-2"></i>暂无任务
                 </td>
             </tr>
@@ -861,6 +922,8 @@ function renderTeamTasks(todos) {
             <td>${todo.assignee_name ? `<span class="visa-badge visa-badge-info">${todo.assignee_name}</span>` : '<span class="text-muted">未分配</span>'}</td>
             <td><span class="visa-badge visa-badge-${todo.priority === 1 ? 'danger' : (todo.priority === 2 ? 'warning' : 'info')}">${getPriorityText(todo.priority)}</span></td>
             <td>${todo.due_date ? formatDate(todo.due_date) : ''}</td>
+            <td>${todo.estimated_hours ? todo.estimated_hours + 'h' : '-'}</td>
+            <td>${todo.actual_hours ? todo.actual_hours + 'h' : '-'}</td>
             <td><span class="visa-badge ${todo.is_completed ? 'visa-badge-success' : 'visa-badge-warning'}">${todo.is_completed ? '已完成' : '未完成'}</span></td>
             <td>${todo.completer_name ? `<span class="visa-badge visa-badge-success">${todo.completer_name}</span>` : '-'}</td>
             <td>
@@ -954,6 +1017,35 @@ function loadStatistics() {
                     document.getElementById('statDelayedRate').textContent = (100 - stats.on_time_rate) + '%';
                 }
 
+                // 工时统计
+                document.getElementById('statEstimatedHours').textContent = (stats.total_estimated_hours || 0) + 'h';
+                document.getElementById('statActualHours').textContent = (stats.total_actual_hours || 0) + 'h';
+                if (stats.total_estimated_hours > 0) {
+                    const efficiency = Math.round((stats.total_actual_hours / stats.total_estimated_hours) * 100);
+                    document.getElementById('statHoursEfficiency').textContent = efficiency + '%';
+                } else {
+                    document.getElementById('statHoursEfficiency').textContent = '--%';
+                }
+
+                // 员工工时统计
+                const hoursTbody = document.getElementById('staffHoursTbody');
+                if (stats.staff_hours && Object.keys(stats.staff_hours).length > 0) {
+                    const maxHours = Math.max(...Object.values(stats.staff_hours));
+                    hoursTbody.innerHTML = Object.entries(stats.staff_hours).map(([name, hours]) => `
+                        <tr>
+                            <td>${name}</td>
+                            <td>${hours}h</td>
+                            <td>
+                                <div class="progress-bar-wrapper">
+                                    <div class="progress-bar-fill" style="width: ${(hours / maxHours * 100)}%; background: #10b981;"></div>
+                                </div>
+                            </td>
+                        </tr>
+                    `).join('');
+                } else {
+                    hoursTbody.innerHTML = '<tr><td colspan="3" class="text-center py-3 text-muted">暂无数据</td></tr>';
+                }
+
                 // 员工工作量
                 const workloadTbody = document.getElementById('staffWorkloadTbody');
                 if (stats.staff_task_counts && Object.keys(stats.staff_task_counts).length > 0) {
@@ -1004,7 +1096,9 @@ function saveTodo() {
         priority: parseInt(formData.get('priority')),
         due_date: formData.get('due_date'),
         recipient_email: document.getElementById('todoRecipientEmail').value || null,
-        send_email: document.getElementById('todoSendEmail').checked
+        send_email: document.getElementById('todoSendEmail').checked,
+        estimated_hours: parseFloat(document.getElementById('todoEstimatedHours').value) || 0,
+        actual_hours: parseFloat(document.getElementById('todoActualHours').value) || 0
     };
 
     const assignedTo = document.getElementById('todoAssignedTo').value;
@@ -1084,6 +1178,8 @@ function editTodo(id) {
                 document.getElementById('todoRecipientEmail').value = todo.recipient_email || '';
                 document.getElementById('todoSendEmail').checked = todo.send_email;
                 document.getElementById('todoAssignedTo').value = todo.assigned_to || '';
+                document.getElementById('todoEstimatedHours').value = todo.estimated_hours || '';
+                document.getElementById('todoActualHours').value = todo.actual_hours || '';
 
                 if (todo.due_date) {
                     const date = new Date(todo.due_date);

@@ -198,7 +198,9 @@ def create_todo():
             source_type=data.get('source_type'),
             source_id=data.get('source_id'),
             reminder_days_before=int(data.get('reminder_days_before', 0)),
-            auto_generated=bool(data.get('auto_generated', False))
+            auto_generated=bool(data.get('auto_generated', False)),
+            estimated_hours=float(data.get('estimated_hours', 0) or 0),
+            actual_hours=float(data.get('actual_hours', 0) or 0)
         )
         
         return jsonify({
@@ -342,7 +344,9 @@ def update_todo():
             'completed_by': completed_by,
             'completed_at': completed_at,
             'is_on_time': is_on_time,
-            'delay_days': delay_days
+            'delay_days': delay_days,
+            'estimated_hours': float(data.get('estimated_hours', 0) or 0),
+            'actual_hours': float(data.get('actual_hours', 0) or 0)
         }
 
         if reset_email_status:
@@ -775,6 +779,46 @@ def todo_statistics():
             current_app.logger.error(f'计算准时率失败: {str(e)}')
             on_time_rate = 0
 
+        # 计算工时统计
+        total_estimated_hours = 0
+        total_actual_hours = 0
+        staff_hours = {}
+        try:
+            # 计算总预估工时和实际工时
+            hours_query = apply_date_filter(Todo.query)
+            all_todos_for_hours = hours_query.all()
+            total_estimated_hours = sum(t.estimated_hours or 0 for t in all_todos_for_hours)
+            total_actual_hours = sum(t.actual_hours or 0 for t in all_todos_for_hours)
+
+            # 按员工统计工时（已完成任务的实际工时）
+            for staff in all_staff:
+                staff_hours_query = Todo.query.filter(
+                    Todo.is_completed == True,
+                    or_(
+                        Todo.assigned_to == staff.id,
+                        and_(Todo.user_id == staff.id, Todo.assigned_to.is_(None))
+                    )
+                )
+                staff_hours_query = apply_date_filter(staff_hours_query)
+                staff_todos = staff_hours_query.all()
+                staff_actual = sum(t.actual_hours or 0 for t in staff_todos)
+                if staff_actual > 0:
+                    display_name = staff.profile.get_full_name() if staff.profile else staff.username
+                    display_name = display_name or staff.username
+                    staff_hours[display_name] = round(staff_actual, 1)
+
+            # 应用权限过滤（1级员工只能看到自己的工时统计）
+            if current_user.role and current_user.role.name == 'staff':
+                staff_level = 1
+                if current_user.profile:
+                    staff_level = current_user.profile.staff_level or 1
+                if staff_level == 1:
+                    my_display_name = current_user.profile.get_full_name() if current_user.profile else current_user.username
+                    my_display_name = my_display_name or current_user.username
+                    staff_hours = {k: v for k, v in staff_hours.items() if k == my_display_name}
+        except Exception as e:
+            current_app.logger.error(f'计算工时统计失败: {str(e)}')
+
         return jsonify({
             'success': True,
             'statistics': {
@@ -787,7 +831,10 @@ def todo_statistics():
                 'my_created': my_created,
                 'staff_task_counts': staff_task_counts,
                 'category_counts': category_counts,
-                'on_time_rate': on_time_rate
+                'on_time_rate': on_time_rate,
+                'total_estimated_hours': round(total_estimated_hours, 1),
+                'total_actual_hours': round(total_actual_hours, 1),
+                'staff_hours': staff_hours
             }
         })
         

@@ -161,7 +161,7 @@ def login():
                 else:
                     # 其他情况跳转到公开页面
                     flash('登录成功，但用户角色未知', 'warning')
-                    return redirect(url_for('guest.main.index'))
+                    return redirect(url_for('public.index'))
             else:
                 # 登录失败，记录失败次数
                 user.record_login_failure()
@@ -184,7 +184,7 @@ def logout():
     """用户登出"""
     logout_user()
     flash('您已成功登出', 'info')
-    return redirect(url_for('guest.main.index'))
+    return redirect(url_for('public.index'))
 
 @auth_profile.route('/profile')
 @login_required
