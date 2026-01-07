@@ -807,19 +807,21 @@ function renderAccountRow(account) {
     
     // 关联供应商
     const supplierCell = document.createElement('td');
+    supplierCell.className = 'supplier-cell';
     // 优先使用从服务器返回的 supplier_name
+    let supplierText = '无关联';
     if (account.supplier_name) {
-        supplierCell.textContent = account.supplier_name;
+        supplierText = account.supplier_name;
     } else if (account.supplier_id) {
         // 如果有 supplier_id 但没有 supplier_name，尝试从本地查找
         if (typeof getSupplierName === 'function') {
-            supplierCell.textContent = getSupplierName(account.supplier_id);
+            supplierText = getSupplierName(account.supplier_id);
         } else {
-            supplierCell.textContent = `ID:${account.supplier_id}`;
+            supplierText = `ID:${account.supplier_id}`;
         }
-    } else {
-        supplierCell.textContent = '无关联';
     }
+    supplierCell.textContent = supplierText;
+    supplierCell.title = supplierText; // 鼠标悬停显示完整内容
     row.appendChild(supplierCell);
     
     // 访问权限字段已隐藏，不再显示
@@ -827,7 +829,15 @@ function renderAccountRow(account) {
     // 用户名
     const usernameCell = document.createElement('td');
     usernameCell.className = 'username-cell';
-    usernameCell.textContent = account.username || '';
+    const usernameValue = account.username || '';
+    usernameCell.innerHTML = `
+        <div class="username-field">
+            <span class="username-text">${usernameValue}</span>
+            <button class="btn btn-sm btn-copy" onclick="copyUsername('${usernameValue}')" title="复制用户名">
+                <i class="fas fa-copy"></i>
+            </button>
+        </div>
+    `;
     row.appendChild(usernameCell);
     
     // 调试账号数据
@@ -1016,6 +1026,21 @@ async function copyListPassword(password) {
         const success = await window.copyToClipboard(password);
         if (success) {
             showAlert('密码已复制到剪贴板', true);
+        } else {
+            showAlert('复制失败', false);
+        }
+    } catch (err) {
+        console.error('复制失败:', err);
+        showAlert('复制失败', false);
+    }
+}
+
+// 复制用户名功能
+async function copyUsername(username) {
+    try {
+        const success = await window.copyToClipboard(username);
+        if (success) {
+            showAlert('用户名已复制到剪贴板', true);
         } else {
             showAlert('复制失败', false);
         }

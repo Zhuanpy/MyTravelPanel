@@ -3113,6 +3113,36 @@ textarea.visa-form-control,
     background: #218838;
 }
 
+/* 供应商字段专用样式 */
+.supplier-cell {
+    max-width: 150px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* 用户名字段专用样式 */
+.username-field {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.username-text {
+    font-family: monospace;
+    font-size: 0.875rem;
+    color: #333;
+}
+
+.username-field .btn-copy {
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.username-field:hover .btn-copy {
+    opacity: 1;
+}
+
 /* 热门网站侧边栏样式 */
 .popular-websites {
     width: 300px;
