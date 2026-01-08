@@ -1,0 +1,445 @@
+{% extends "mobile/mobile_base.html" %}
+{% set active_nav_tab = 'tools' %}
+
+{% block title %}账号管理 - MyTravel{% endblock %}
+{% block header_title %}账号管理{% endblock %}
+
+{% block content %}
+<!-- 搜索框 -->
+<div class="mobile-search">
+    <i class="fas fa-search"></i>
+    <input type="text" id="searchInput" placeholder="搜索平台、用户名..." oninput="filterAccounts()">
+</div>
+
+<!-- 筛选标签 -->
+<div class="filter-tabs">
+    <button class="filter-tab active" data-category="" onclick="setCategory(this, '')">全部</button>
+    {% for category in categories[:6] %}
+    <button class="filter-tab" data-category="{{ category }}" onclick="setCategory(this, '{{ category }}')">{{ category }}</button>
+    {% endfor %}
+</div>
+
+<!-- 账号列表 -->
+<div class="mobile-card" style="padding: 0;">
+    <div id="accountList">
+        {% if accounts %}
+            {% for account in accounts %}
+            <div class="account-item" data-platform="{{ account.platform|lower }}" data-username="{{ account.username|lower }}" data-category="{{ account.category|lower if account.category else '' }}">
+                <div class="account-main" onclick="toggleAccountDetail(this)">
+                    <div class="account-icon">
+                        <i class="fas fa-globe"></i>
+                    </div>
+                    <div class="account-info">
+                        <div class="account-platform">{{ account.platform }}</div>
+                        <div class="account-meta">
+                            <span class="account-category">{{ account.category or '未分类' }}</span>
+                            {% if account.owner %}
+                            <span class="account-owner">{{ account.owner }}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <i class="fas fa-chevron-down toggle-icon"></i>
+                </div>
+                <div class="account-detail" style="display: none;">
+                    <div class="detail-row">
+                        <span class="detail-label">用户名</span>
+                        <div class="detail-value-wrap">
+                            <span class="detail-value">{{ account.username }}</span>
+                            <button class="copy-btn" onclick="copyText('{{ account.username }}', this)">
+                                <i class="fas fa-copy"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">密码</span>
+                        <div class="detail-value-wrap">
+                            <span class="detail-value password-hidden" data-password="{{ account.password }}">••••••••</span>
+                            <button class="copy-btn" onclick="togglePassword(this)">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                            <button class="copy-btn" onclick="copyText('{{ account.password }}', this)">
+                                <i class="fas fa-copy"></i>
+                            </button>
+                        </div>
+                    </div>
+                    {% if account.website_url %}
+                    <div class="detail-row">
+                        <span class="detail-label">网址</span>
+                        <div class="detail-value-wrap">
+                            <a href="{{ account.website_url }}" target="_blank" class="detail-link">
+                                <i class="fas fa-external-link-alt"></i> 打开网站
+                            </a>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% if account.notes %}
+                    <div class="detail-row">
+                        <span class="detail-label">备注</span>
+                        <span class="detail-value notes">{{ account.notes }}</span>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="mobile-empty">
+                <i class="fas fa-key"></i>
+                <p>暂无账号数据</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- 添加账号按钮 -->
+<a href="{{ url_for('account_routes.account_page') }}" class="fab-btn">
+    <i class="fas fa-plus"></i>
+</a>
+
+<!-- Toast 提示 -->
+<div id="toast" class="toast"></div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .filter-tabs {
+        display: flex;
+        gap: 8px;
+        overflow-x: auto;
+        padding: 0 0 12px 0;
+        margin-bottom: 12px;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .filter-tabs::-webkit-scrollbar {
+        display: none;
+    }
+
+    .filter-tab {
+        flex-shrink: 0;
+        padding: 6px 14px;
+        border: 1px solid #e5e5e5;
+        border-radius: 16px;
+        background: white;
+        color: #666;
+        font-size: 13px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .filter-tab.active {
+        background: var(--primary-color);
+        border-color: var(--primary-color);
+        color: white;
+    }
+
+    .account-item {
+        border-bottom: 1px solid #f0f0f0;
+    }
+
+    .account-item:last-child {
+        border-bottom: none;
+    }
+
+    .account-main {
+        display: flex;
+        align-items: center;
+        padding: 14px 16px;
+        cursor: pointer;
+        transition: background 0.2s;
+    }
+
+    .account-main:active {
+        background: #f5f5f5;
+    }
+
+    .account-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        background: #e8f5e9;
+        color: var(--primary-color);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+        margin-right: 12px;
+        flex-shrink: 0;
+    }
+
+    .account-info {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .account-platform {
+        font-size: 15px;
+        font-weight: 500;
+        color: #333;
+        margin-bottom: 4px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .account-meta {
+        display: flex;
+        gap: 8px;
+        font-size: 12px;
+    }
+
+    .account-category {
+        color: #999;
+        background: #f5f5f5;
+        padding: 2px 8px;
+        border-radius: 10px;
+    }
+
+    .account-owner {
+        color: #666;
+    }
+
+    .toggle-icon {
+        color: #ccc;
+        font-size: 12px;
+        transition: transform 0.2s;
+    }
+
+    .account-item.expanded .toggle-icon {
+        transform: rotate(180deg);
+    }
+
+    .account-detail {
+        padding: 0 16px 16px 68px;
+        background: #fafafa;
+    }
+
+    .detail-row {
+        display: flex;
+        align-items: flex-start;
+        padding: 10px 0;
+        border-bottom: 1px dashed #e5e5e5;
+    }
+
+    .detail-row:last-child {
+        border-bottom: none;
+    }
+
+    .detail-label {
+        width: 60px;
+        font-size: 13px;
+        color: #999;
+        flex-shrink: 0;
+    }
+
+    .detail-value-wrap {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .detail-value {
+        font-size: 14px;
+        color: #333;
+        word-break: break-all;
+    }
+
+    .detail-value.notes {
+        color: #666;
+        font-size: 13px;
+    }
+
+    .detail-link {
+        color: var(--primary-color);
+        text-decoration: none;
+        font-size: 13px;
+    }
+
+    .copy-btn {
+        width: 28px;
+        height: 28px;
+        border: none;
+        background: #e8f5e9;
+        color: var(--primary-color);
+        border-radius: 6px;
+        font-size: 12px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .copy-btn:active {
+        background: #c8e6c9;
+    }
+
+    .copy-btn.copied {
+        background: var(--primary-color);
+        color: white;
+    }
+
+    .fab-btn {
+        position: fixed;
+        right: 20px;
+        bottom: 80px;
+        width: 56px;
+        height: 56px;
+        border-radius: 50%;
+        background: var(--primary-color);
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+        box-shadow: 0 4px 12px rgba(25, 135, 84, 0.4);
+        text-decoration: none;
+        z-index: 100;
+    }
+
+    .fab-btn:active {
+        transform: scale(0.95);
+    }
+
+    .toast {
+        position: fixed;
+        bottom: 150px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0, 0, 0, 0.8);
+        color: white;
+        padding: 10px 20px;
+        border-radius: 20px;
+        font-size: 14px;
+        opacity: 0;
+        transition: opacity 0.3s;
+        z-index: 1000;
+    }
+
+    .toast.show {
+        opacity: 1;
+    }
+
+    .password-hidden {
+        font-family: monospace;
+        letter-spacing: 2px;
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+    let currentCategory = '';
+
+    function setCategory(btn, category) {
+        currentCategory = category;
+        document.querySelectorAll('.filter-tab').forEach(tab => tab.classList.remove('active'));
+        btn.classList.add('active');
+        filterAccounts();
+    }
+
+    function filterAccounts() {
+        const searchText = document.getElementById('searchInput').value.toLowerCase();
+        const items = document.querySelectorAll('.account-item');
+
+        items.forEach(item => {
+            const platform = item.dataset.platform || '';
+            const username = item.dataset.username || '';
+            const category = item.dataset.category || '';
+
+            const matchSearch = !searchText ||
+                platform.includes(searchText) ||
+                username.includes(searchText);
+
+            const matchCategory = !currentCategory ||
+                category === currentCategory.toLowerCase();
+
+            item.style.display = (matchSearch && matchCategory) ? '' : 'none';
+        });
+    }
+
+    function toggleAccountDetail(element) {
+        const item = element.closest('.account-item');
+        const detail = item.querySelector('.account-detail');
+        const isExpanded = item.classList.contains('expanded');
+
+        // 关闭其他展开的项
+        document.querySelectorAll('.account-item.expanded').forEach(other => {
+            if (other !== item) {
+                other.classList.remove('expanded');
+                other.querySelector('.account-detail').style.display = 'none';
+            }
+        });
+
+        // 切换当前项
+        if (isExpanded) {
+            item.classList.remove('expanded');
+            detail.style.display = 'none';
+        } else {
+            item.classList.add('expanded');
+            detail.style.display = 'block';
+        }
+    }
+
+    function togglePassword(btn) {
+        const valueSpan = btn.parentElement.querySelector('.detail-value');
+        const password = valueSpan.dataset.password;
+        const icon = btn.querySelector('i');
+
+        if (valueSpan.textContent === '••••••••') {
+            valueSpan.textContent = password;
+            icon.className = 'fas fa-eye-slash';
+        } else {
+            valueSpan.textContent = '••••••••';
+            icon.className = 'fas fa-eye';
+        }
+    }
+
+    function copyText(text, btn) {
+        if (navigator.clipboard) {
+            navigator.clipboard.writeText(text).then(() => {
+                showCopySuccess(btn);
+            }).catch(() => {
+                fallbackCopy(text, btn);
+            });
+        } else {
+            fallbackCopy(text, btn);
+        }
+    }
+
+    function fallbackCopy(text, btn) {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.left = '-9999px';
+        document.body.appendChild(textarea);
+        textarea.select();
+        try {
+            document.execCommand('copy');
+            showCopySuccess(btn);
+        } catch (e) {
+            showToast('复制失败');
+        }
+        document.body.removeChild(textarea);
+    }
+
+    function showCopySuccess(btn) {
+        btn.classList.add('copied');
+        const icon = btn.querySelector('i');
+        const originalClass = icon.className;
+        icon.className = 'fas fa-check';
+
+        showToast('已复制');
+
+        setTimeout(() => {
+            btn.classList.remove('copied');
+            icon.className = originalClass;
+        }, 1500);
+    }
+
+    function showToast(message) {
+        const toast = document.getElementById('toast');
+        toast.textContent = message;
+        toast.classList.add('show');
+        setTimeout(() => toast.classList.remove('show'), 2000);
+    }
+{% endblock %}

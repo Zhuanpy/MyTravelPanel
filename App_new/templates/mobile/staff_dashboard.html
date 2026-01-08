@@ -122,6 +122,12 @@
         快速操作
     </div>
     <div class="quick-actions-grid">
+        <a href="{{ url_for('mobile.accounts') }}" class="quick-action-item">
+            <div class="quick-action-icon" style="background: #fee2e2;">
+                <i class="fas fa-key" style="color: #dc2626;"></i>
+            </div>
+            <span>账号管理</span>
+        </a>
         <a href="{{ url_for('mobile.flight_tools') }}" class="quick-action-item">
             <div class="quick-action-icon" style="background: #dbeafe;">
                 <i class="fas fa-plane" style="color: #2563eb;"></i>
@@ -139,12 +145,6 @@
                 <i class="fas fa-folder" style="color: #d97706;"></i>
             </div>
             <span>项目列表</span>
-        </a>
-        <a href="{{ url_for('mobile.search') }}" class="quick-action-item">
-            <div class="quick-action-icon" style="background: #f3e8ff;">
-                <i class="fas fa-search" style="color: #9333ea;"></i>
-            </div>
-            <span>搜索</span>
         </a>
     </div>
 </div>

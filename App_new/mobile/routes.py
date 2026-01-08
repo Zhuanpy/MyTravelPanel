@@ -500,6 +500,70 @@ def flight_order_create():
                          supplier_types=supplier_types)
 
 
+# ==================== 账号管理 ====================
+
+@mobile_bp.route('/accounts')
+@login_required
+def accounts():
+    """移动端账号管理"""
+    from App_new.shared.models.account import Account, ACCESS_LEVEL_PUBLIC, ACCESS_LEVEL_PRIVATE, ACCESS_LEVEL_LEVEL_1, ACCESS_LEVEL_LEVEL_2
+    from App_new.utils.decorators import staff_only
+    from sqlalchemy import or_
+
+    # 检查是否是员工
+    if not current_user.role or current_user.role.name not in ['admin', 'super_admin', 'staff']:
+        flash('您没有权限访问此页面', 'error')
+        return redirect(url_for('mobile.staff_dashboard'))
+
+    # 构建基础查询
+    query = Account.query
+
+    # 根据用户权限过滤账号
+    if current_user.role.name not in ['admin', 'super_admin']:
+        # 获取用户的员工等级
+        staff_level = 1
+        if current_user.profile:
+            staff_level = current_user.profile.staff_level or 1
+
+        # 构建权限过滤条件
+        access_conditions = [
+            Account.access_level == ACCESS_LEVEL_PUBLIC,
+            Account.access_level.is_(None),
+        ]
+
+        # 私有权限：仅创建者可见
+        access_conditions.append(
+            db.and_(
+                Account.access_level == ACCESS_LEVEL_PRIVATE,
+                or_(
+                    Account.created_by == current_user.id,
+                    Account.owner == current_user.username
+                )
+            )
+        )
+
+        # 根据员工等级添加可见权限
+        if staff_level >= 1:
+            access_conditions.append(Account.access_level == ACCESS_LEVEL_LEVEL_1)
+        if staff_level >= 2:
+            access_conditions.append(Account.access_level == ACCESS_LEVEL_LEVEL_2)
+
+        query = query.filter(or_(*access_conditions))
+
+    # 获取所有账号，按更新时间倒序
+    accounts = query.order_by(Account.updated_at.desc()).all()
+
+    # 获取所有类别
+    categories = db.session.query(Account.category).filter(
+        Account.category.isnot(None)
+    ).distinct().all()
+    categories = sorted([c[0] for c in categories if c[0]])
+
+    return render_template('mobile/accounts.html',
+                         accounts=accounts,
+                         categories=categories)
+
+
 # ==================== 公开页面（无需登录） ====================
 
 @mobile_bp.route('/home')
