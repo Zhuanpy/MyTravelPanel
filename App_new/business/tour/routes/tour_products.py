@@ -38,8 +38,15 @@ def allowed_doc_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_DOC_EXTENSIONS
 
 
-def save_uploaded_file(file, upload_folder='uploads/tour_products'):
-    """保存上传的文件，返回相对路径（相对于 App_new/static）"""
+def save_uploaded_file(file, upload_folder='uploads/tour_products', compress=True):
+    """
+    保存上传的文件，返回相对路径（相对于 App_new/static）
+
+    参数:
+        file: 上传的文件对象
+        upload_folder: 上传目录
+        compress: 是否压缩图片（默认True）
+    """
     if file and allowed_file(file.filename):
         filename = secure_filename(file.filename)
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
@@ -52,9 +59,100 @@ def save_uploaded_file(file, upload_folder='uploads/tour_products'):
         filepath = os.path.join(upload_path, filename)
         file.save(filepath)
 
+        # 压缩图片
+        if compress:
+            compress_result = compress_and_resize_image(filepath, max_size=1920, quality=85)
+            if compress_result and compress_result.get('new_path'):
+                # 如果压缩后文件名改变了（如PNG转JPG），更新文件名
+                new_filepath = compress_result.get('new_path')
+                filename = os.path.basename(new_filepath)
+
         # 返回存入数据库使用的相对路径
         return os.path.join(upload_folder, filename).replace('\\', '/')
     return None
+
+
+def compress_and_resize_image(file_path, max_size=1920, quality=85):
+    """
+    压缩和调整图片尺寸
+
+    参数:
+        file_path: 图片文件路径
+        max_size: 最大宽度或高度（像素），默认1920
+        quality: JPEG压缩质量（1-100），默认85
+
+    返回:
+        dict: {'width': 宽度, 'height': 高度, 'file_size': 文件大小, 'new_path': 新路径}
+    """
+    from PIL import Image
+    from flask import current_app
+
+    result = {'width': None, 'height': None, 'file_size': None, 'new_path': file_path}
+
+    try:
+        with Image.open(file_path) as img:
+            original_format = img.format
+            original_size = os.path.getsize(file_path)
+
+            # 处理 RGBA 模式（PNG透明图片）转换为 RGB
+            if img.mode in ('RGBA', 'LA', 'P'):
+                background = Image.new('RGB', img.size, (255, 255, 255))
+                if img.mode == 'P':
+                    img = img.convert('RGBA')
+                background.paste(img, mask=img.split()[-1] if img.mode == 'RGBA' else None)
+                img = background
+            elif img.mode != 'RGB':
+                img = img.convert('RGB')
+
+            # 获取原始尺寸
+            width, height = img.size
+
+            # 判断是否需要调整尺寸
+            needs_resize = width > max_size or height > max_size
+
+            if needs_resize:
+                if width > height:
+                    new_width = max_size
+                    new_height = int(height * (max_size / width))
+                else:
+                    new_height = max_size
+                    new_width = int(width * (max_size / height))
+
+                img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
+                width, height = new_width, new_height
+
+            # 保存压缩后的图片
+            name, ext = os.path.splitext(file_path)
+
+            if original_format == 'PNG' and original_size < 200 * 1024 and not needs_resize:
+                img.save(file_path, 'PNG', optimize=True)
+            else:
+                new_path = name + '.jpg'
+                img.save(new_path, 'JPEG', quality=quality, optimize=True)
+
+                if file_path.lower() != new_path.lower() and os.path.exists(file_path):
+                    os.remove(file_path)
+                file_path = new_path
+
+            result['width'] = width
+            result['height'] = height
+            result['file_size'] = os.path.getsize(file_path)
+            result['new_path'] = file_path
+
+            # 记录压缩效果
+            if original_size > 0:
+                compression_ratio = (1 - result['file_size'] / original_size) * 100
+                current_app.logger.info(
+                    f"图片压缩: {os.path.basename(file_path)}, "
+                    f"原始: {original_size/1024:.1f}KB, "
+                    f"压缩后: {result['file_size']/1024:.1f}KB, "
+                    f"压缩率: {compression_ratio:.1f}%"
+                )
+
+    except Exception as e:
+        current_app.logger.error(f"图片压缩失败: {e}")
+
+    return result
 
 
 def save_document_file(file, upload_folder='uploads/tour_documents'):
