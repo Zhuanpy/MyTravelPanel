@@ -150,25 +150,6 @@
 </div>
 {% endblock %}
 
-{% block bottom_nav %}
-<a href="{{ url_for('mobile.staff_dashboard') }}" class="nav-item active">
-    <i class="fas fa-tachometer-alt"></i>
-    <span>工作台</span>
-</a>
-<a href="{{ url_for('mobile.projects') }}" class="nav-item">
-    <i class="fas fa-folder"></i>
-    <span>项目</span>
-</a>
-<a href="{{ url_for('mobile.todos') }}" class="nav-item">
-    <i class="fas fa-check-circle"></i>
-    <span>待办</span>
-</a>
-<a href="{{ url_for('mobile.profile') }}" class="nav-item">
-    <i class="fas fa-user"></i>
-    <span>我的</span>
-</a>
-{% endblock %}
-
 {% block extra_css %}
 <style>
     .stats-card {
