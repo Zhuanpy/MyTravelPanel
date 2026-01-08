@@ -85,7 +85,7 @@ class AthinaImportService:
                 # 提取Booking Header ID并向下填充
                 df.iloc[:, 0] = df.iloc[:, 0].astype(str)
                 df.iloc[:, 0] = df.iloc[:, 0].str.extract(r'Booking Header:\s*(\d+)')[0]
-                df.iloc[:, 0] = df.iloc[:, 0].fillna(method='ffill')
+                df.iloc[:, 0] = df.iloc[:, 0].ffill()
                 print(f"Booking Header列填充完成")
             
             # 步骤1.5：修正第2列的公司名称
