@@ -24,6 +24,121 @@ def allowed_file(filename, allowed_extensions):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in allowed_extensions
 
+
+def compress_and_resize_image(file_path, max_size=1920, quality=85, generate_thumbnail=True, thumb_size=400):
+    """
+    压缩和调整图片尺寸
+
+    参数:
+        file_path: 图片文件路径
+        max_size: 最大宽度或高度（像素），默认1920
+        quality: JPEG压缩质量（1-100），默认85
+        generate_thumbnail: 是否生成缩略图，默认True
+        thumb_size: 缩略图尺寸，默认400
+
+    返回:
+        dict: {'width': 宽度, 'height': 高度, 'file_size': 文件大小, 'thumbnail_path': 缩略图路径}
+    """
+    from PIL import Image
+    import io
+
+    result = {'width': None, 'height': None, 'file_size': None, 'thumbnail_path': None}
+
+    try:
+        with Image.open(file_path) as img:
+            original_format = img.format
+            original_size = os.path.getsize(file_path)
+
+            # 处理 RGBA 模式（PNG透明图片）转换为 RGB
+            if img.mode in ('RGBA', 'LA', 'P'):
+                # 创建白色背景
+                background = Image.new('RGB', img.size, (255, 255, 255))
+                if img.mode == 'P':
+                    img = img.convert('RGBA')
+                background.paste(img, mask=img.split()[-1] if img.mode == 'RGBA' else None)
+                img = background
+            elif img.mode != 'RGB':
+                img = img.convert('RGB')
+
+            # 获取原始尺寸
+            width, height = img.size
+
+            # 判断是否需要调整尺寸
+            needs_resize = width > max_size or height > max_size
+
+            if needs_resize:
+                # 按比例缩放
+                if width > height:
+                    new_width = max_size
+                    new_height = int(height * (max_size / width))
+                else:
+                    new_height = max_size
+                    new_width = int(width * (max_size / height))
+
+                # 使用高质量缩放算法
+                img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
+                width, height = new_width, new_height
+
+            # 保存压缩后的图片（统一使用JPEG格式以获得更好的压缩效果）
+            # 如果原图是PNG且较小，保持PNG格式
+            name, ext = os.path.splitext(file_path)
+
+            if original_format == 'PNG' and original_size < 200 * 1024 and not needs_resize:
+                # 小于200KB的PNG保持原格式
+                img.save(file_path, 'PNG', optimize=True)
+            else:
+                # 转换为JPEG格式
+                new_path = name + '.jpg'
+                img.save(new_path, 'JPEG', quality=quality, optimize=True)
+
+                # 如果原文件不是jpg，删除原文件
+                if file_path.lower() != new_path.lower() and os.path.exists(file_path):
+                    os.remove(file_path)
+                file_path = new_path
+
+            result['width'] = width
+            result['height'] = height
+            result['file_size'] = os.path.getsize(file_path)
+            result['new_path'] = file_path
+
+            # 生成缩略图
+            if generate_thumbnail:
+                thumb_dir = os.path.join(os.path.dirname(file_path), 'thumbnails')
+                os.makedirs(thumb_dir, exist_ok=True)
+
+                thumb_filename = 'thumb_' + os.path.basename(file_path)
+                thumb_path = os.path.join(thumb_dir, thumb_filename)
+
+                # 生成缩略图
+                thumb_img = img.copy()
+                thumb_img.thumbnail((thumb_size, thumb_size), Image.Resampling.LANCZOS)
+                thumb_img.save(thumb_path, 'JPEG', quality=80, optimize=True)
+
+                result['thumbnail_path'] = thumb_path
+
+            # 记录压缩效果
+            if original_size > 0:
+                compression_ratio = (1 - result['file_size'] / original_size) * 100
+                current_app.logger.info(
+                    f"图片压缩完成: {os.path.basename(file_path)}, "
+                    f"原始大小: {original_size/1024:.1f}KB, "
+                    f"压缩后: {result['file_size']/1024:.1f}KB, "
+                    f"压缩率: {compression_ratio:.1f}%"
+                )
+
+    except Exception as e:
+        current_app.logger.error(f"图片压缩失败: {e}")
+        # 即使压缩失败，也尝试获取基本信息
+        try:
+            with Image.open(file_path) as img:
+                result['width'], result['height'] = img.size
+            result['file_size'] = os.path.getsize(file_path)
+            result['new_path'] = file_path
+        except:
+            pass
+
+    return result
+
 # ==================== 个人资料 ====================
 @staff.route('/profile')
 @login_required
@@ -1362,56 +1477,60 @@ def image_library():
 @login_required
 @staff_only
 def upload_image_library():
-    """上传图片到图片库"""
+    """上传图片到图片库（自动压缩）"""
     from ...business.tour.models.Packagemodels import ImageLibrary
     from ...exts import db
-    from PIL import Image
-    
+
     try:
         if 'image' not in request.files:
             return jsonify({'success': False, 'message': '请选择图片文件'}), 400
-        
+
         file = request.files['image']
         if file.filename == '':
             return jsonify({'success': False, 'message': '请选择图片文件'}), 400
-        
+
         if not allowed_file(file.filename, {'png', 'jpg', 'jpeg', 'gif', 'webp'}):
             return jsonify({'success': False, 'message': '不支持的图片格式'}), 400
-        
-        # 保存图片
+
+        # 保存原始图片
         filename = secure_filename(file.filename)
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         name, ext = os.path.splitext(filename)
         new_filename = f"library_{timestamp}{ext}"
-        
+
         upload_dir = os.path.join('App_new', 'static', 'uploads', 'image_library')
         os.makedirs(upload_dir, exist_ok=True)
-        
+
         file_path = os.path.join(upload_dir, new_filename)
         file.save(file_path)
-        
-        # 获取图片信息
-        width = height = None
-        try:
-            from PIL import Image
-            with Image.open(file_path) as img:
-                width, height = img.size
-        except ImportError:
-            current_app.logger.warning("PIL not available, skipping image size detection")
-        except Exception as e:
-            current_app.logger.warning(f"Error reading image dimensions: {e}")
-        
-        file_size = os.path.getsize(file_path)
-        
+
+        # 压缩和调整图片尺寸
+        compress_result = compress_and_resize_image(
+            file_path,
+            max_size=1920,  # 最大1920像素
+            quality=85,     # JPEG质量85%
+            generate_thumbnail=True,
+            thumb_size=400
+        )
+
+        # 获取压缩后的信息
+        width = compress_result.get('width')
+        height = compress_result.get('height')
+        file_size = compress_result.get('file_size')
+        final_path = compress_result.get('new_path', file_path)
+
+        # 更新文件名（可能已转换为jpg）
+        final_filename = os.path.basename(final_path)
+
         # 获取表单数据
         title = request.form.get('title', '').strip()
         tags = request.form.get('tags', '').strip()
         category = request.form.get('category', 'other').strip()
-        
+
         # 创建数据库记录
         image = ImageLibrary(
             title=title or None,
-            image_path=f"uploads/image_library/{new_filename}",
+            image_path=f"uploads/image_library/{final_filename}",
             tags=tags or None,
             category=category or 'other',
             file_size=file_size,
@@ -1571,69 +1690,81 @@ def update_image_library(image_id):
 @login_required
 @staff_only
 def batch_upload_image_library():
-    """批量上传图片到图片库"""
+    """批量上传图片到图片库（自动压缩）"""
     from ...business.tour.models.Packagemodels import ImageLibrary
     from ...exts import db
-    
+    import random
+    import string
+
     try:
         if 'images' not in request.files:
             return jsonify({'success': False, 'message': '请选择图片文件'}), 400
-        
+
         files = request.files.getlist('images')
         if not files or all(f.filename == '' for f in files):
             return jsonify({'success': False, 'message': '请选择至少一张图片'}), 400
-        
+
         # 获取批量设置的标签和分类
         default_tags = request.form.get('default_tags', '').strip()
         default_category = request.form.get('default_category', 'other').strip()
-        
+
         upload_dir = os.path.join('App_new', 'static', 'uploads', 'image_library')
         os.makedirs(upload_dir, exist_ok=True)
-        
+
         success_count = 0
         failed_files = []
-        
+        total_original_size = 0
+        total_compressed_size = 0
+
         for file in files:
             if not file.filename:
                 continue
-                
+
             try:
                 if not allowed_file(file.filename, {'png', 'jpg', 'jpeg', 'gif', 'webp'}):
                     failed_files.append(f"{file.filename} (格式不支持)")
                     continue
-                
-                # 保存图片
+
+                # 保存原始图片
                 filename = secure_filename(file.filename)
-                import random
-                import string
                 timestamp = datetime.now().strftime('%Y%m%d_%H%M%S_%f')
                 random_suffix = ''.join(random.choices(string.ascii_lowercase + string.digits, k=4))
                 name, ext = os.path.splitext(filename)
                 new_filename = f"library_{timestamp}_{random_suffix}{ext}"
-                
+
                 file_path = os.path.join(upload_dir, new_filename)
                 file.save(file_path)
-                
-                # 获取图片信息
-                width = height = None
-                try:
-                    from PIL import Image as PILImage
-                    with PILImage.open(file_path) as img:
-                        width, height = img.size
-                except ImportError:
-                    current_app.logger.warning("PIL not available, skipping image size detection")
-                except Exception as e:
-                    current_app.logger.warning(f"Error reading image dimensions: {e}")
-                
-                file_size = os.path.getsize(file_path)
-                
+
+                # 记录原始大小
+                original_size = os.path.getsize(file_path)
+                total_original_size += original_size
+
+                # 压缩和调整图片尺寸
+                compress_result = compress_and_resize_image(
+                    file_path,
+                    max_size=1920,
+                    quality=85,
+                    generate_thumbnail=True,
+                    thumb_size=400
+                )
+
+                # 获取压缩后的信息
+                width = compress_result.get('width')
+                height = compress_result.get('height')
+                file_size = compress_result.get('file_size', original_size)
+                final_path = compress_result.get('new_path', file_path)
+                total_compressed_size += file_size
+
+                # 更新文件名（可能已转换为jpg）
+                final_filename = os.path.basename(final_path)
+
                 # 使用文件名作为标题（去掉扩展名）
                 title = name
-                
+
                 # 创建数据库记录
                 image = ImageLibrary(
                     title=title,
-                    image_path=f"uploads/image_library/{new_filename}",
+                    image_path=f"uploads/image_library/{final_filename}",
                     tags=default_tags or None,
                     category=default_category or 'other',
                     file_size=file_size,
@@ -1642,29 +1773,40 @@ def batch_upload_image_library():
                     is_active=True,
                     created_by=current_user.username
                 )
-                
+
                 db.session.add(image)
                 success_count += 1
-                
+
             except Exception as e:
                 current_app.logger.error(f"Error uploading {file.filename}: {e}")
                 failed_files.append(f"{file.filename} ({str(e)})")
                 continue
         
         db.session.commit()
-        
+
+        # 构建返回消息（包含压缩统计）
         message = f'成功上传 {success_count} 张图片'
+        if total_original_size > 0 and total_compressed_size > 0:
+            saved_size = total_original_size - total_compressed_size
+            saved_percent = (saved_size / total_original_size) * 100
+            message += f'（已压缩，节省 {saved_size/1024/1024:.1f}MB，压缩率 {saved_percent:.0f}%）'
+
         if failed_files:
             message += f'，{len(failed_files)} 张失败：' + ', '.join(failed_files[:5])
             if len(failed_files) > 5:
                 message += f' 等共 {len(failed_files)} 张'
-        
+
         return jsonify({
             'success': True,
             'message': message,
             'success_count': success_count,
             'failed_count': len(failed_files),
-            'failed_files': failed_files
+            'failed_files': failed_files,
+            'compression_stats': {
+                'original_size': total_original_size,
+                'compressed_size': total_compressed_size,
+                'saved_size': total_original_size - total_compressed_size
+            }
         })
         
     except Exception as e:

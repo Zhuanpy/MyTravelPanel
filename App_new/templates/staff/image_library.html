@@ -127,11 +127,14 @@
                                data-usage="{{ image.usage_count }}"
                                onchange="updateBatchSelection()">
                     </div>
-                    <img src="{{ url_for('static', filename=image.image_path) }}" 
+                    {% set thumb_path = image.image_path.replace('uploads/image_library/', 'uploads/image_library/thumbnails/thumb_') %}
+                    <img src="{{ url_for('static', filename=thumb_path) }}"
+                         onerror="this.src='{{ url_for('static', filename=image.image_path) }}'"
                          alt="{{ image.title or '图片' }}"
                          class="absolute top-0 left-0 w-full h-full object-cover cursor-pointer"
                          onclick="handleImageClick({{ image.id }}, '{{ image.image_path }}', '{{ image.title or '' }}')"
-                         title="点击查看大图">
+                         title="点击查看大图"
+                         loading="lazy">
                     {% if image.usage_count > 0 %}
                     <div class="absolute top-2 right-2 bg-blue-500 text-white text-xs px-2 py-1 rounded-full">
                         使用 {{ image.usage_count }} 次
