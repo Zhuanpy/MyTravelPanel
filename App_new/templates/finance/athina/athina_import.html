@@ -540,25 +540,33 @@
             method: 'POST',
             body: formData
         })
-        .then(response => {
+        .then(async response => {
+            const data = await response.json();
+
             if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+                // 服务器返回错误状态码，但可能包含详细错误信息
+                console.error('服务器错误:', data);
+                if (data.error_details) {
+                    console.error('详细错误堆栈:\n', data.error_details);
+                }
+                throw new Error(data.message || `HTTP error! status: ${response.status}`);
             }
-            return response.json();
+
+            return data;
         })
         .then(data => {
             if (data.success) {
                 resultDisplay.className = 'result-display result-success';
-                resultDisplay.innerHTML = 
+                resultDisplay.innerHTML =
                     '<div><i class="fas fa-check-circle"></i> ' + data.message + '</div>' +
                     '<div style="margin-top: 10px; font-size: 14px;">' +
                     '导入的预订头部: <strong>' + data.imported_headers + '</strong><br>' +
                     '导入的明细记录: <strong>' + data.imported_details + '</strong>' +
                     '</div>';
-                
+
                 // 刷新统计数据
                 refreshStats();
-                
+
                 // 重置文件选择状态
                 setTimeout(() => {
                     resetFileSelection();
@@ -566,12 +574,15 @@
             } else {
                 resultDisplay.className = 'result-display result-error';
                 resultDisplay.innerHTML = '<i class="fas fa-exclamation-circle"></i> ' + data.message;
+                if (data.error_details) {
+                    console.error('详细错误堆栈:\n', data.error_details);
+                }
             }
         })
         .catch(error => {
             console.error('Error:', error);
             resultDisplay.className = 'result-display result-error';
-            resultDisplay.innerHTML = '<i class="fas fa-times-circle"></i> 导入失败: ' + error.message;
+            resultDisplay.innerHTML = '<i class="fas fa-times-circle"></i> 导入失败: ' + error.message + '<br><small>详细信息请查看浏览器控制台(F12)</small>';
         })
         .finally(() => {
             importBtn.disabled = false;
