@@ -655,28 +655,73 @@ function batchDeleteImages() {
 // 检测是否从产品表单打开（选择模式）
 const isSelectMode = !!window.opener;
 
+// 获取URL参数判断是否多选模式
+const urlParams = new URLSearchParams(window.location.search);
+const isMultiSelectMode = urlParams.get('multi') === 'true';
+const selectType = urlParams.get('type') || 'cover'; // 'cover' 或 'gallery'
+
+// 多选模式下存储已选择的图片
+let multiSelectedImages = [];
+
 // 页面加载时，如果是选择模式，显示选择按钮并添加提示
 document.addEventListener('DOMContentLoaded', function() {
     if (isSelectMode) {
         // 显示所有选择按钮
         document.querySelectorAll('.select-image-btn').forEach(btn => {
             btn.classList.remove('hidden');
+            // 多选模式下修改按钮文本
+            if (isMultiSelectMode) {
+                btn.innerHTML = '<i class="fas fa-plus mr-1"></i>添加到选择';
+            }
         });
-        
+
         // 添加选择模式提示条
         const header = document.querySelector('.max-w-7xl.mx-auto');
         if (header) {
             const alertDiv = document.createElement('div');
-            alertDiv.className = 'bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded-lg mb-4 flex items-center justify-between';
-            alertDiv.innerHTML = `
-                <div>
-                    <i class="fas fa-info-circle mr-2"></i>
-                    <strong>选择模式</strong> - 点击下方"选择此图片"按钮来选择图片
-                </div>
-                <button onclick="window.close()" class="text-green-700 hover:text-green-900 font-medium">
-                    <i class="fas fa-times mr-1"></i>取消
-                </button>
-            `;
+            alertDiv.id = 'selectModeAlert';
+
+            if (isMultiSelectMode) {
+                // 多选模式提示
+                alertDiv.className = 'bg-blue-100 border border-blue-400 text-blue-700 px-4 py-3 rounded-lg mb-4';
+                alertDiv.innerHTML = `
+                    <div class="flex items-center justify-between flex-wrap gap-3">
+                        <div>
+                            <i class="fas fa-images mr-2"></i>
+                            <strong>多选模式</strong> - 点击图片添加到选择列表，完成后点击"确认选择"
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <span id="multiSelectCount" class="font-bold">已选择 0 张</span>
+                            <button onclick="confirmMultiSelect()" id="confirmSelectBtn"
+                                    class="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                                <i class="fas fa-check mr-1"></i>确认选择
+                            </button>
+                            <button onclick="clearMultiSelect()"
+                                    class="px-3 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors">
+                                <i class="fas fa-undo mr-1"></i>清空
+                            </button>
+                            <button onclick="window.close()" class="px-3 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors">
+                                <i class="fas fa-times mr-1"></i>取消
+                            </button>
+                        </div>
+                    </div>
+                    <div id="multiSelectPreview" class="mt-3 hidden">
+                        <div class="flex flex-wrap gap-2" id="multiSelectPreviewGrid"></div>
+                    </div>
+                `;
+            } else {
+                // 单选模式提示
+                alertDiv.className = 'bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded-lg mb-4 flex items-center justify-between';
+                alertDiv.innerHTML = `
+                    <div>
+                        <i class="fas fa-info-circle mr-2"></i>
+                        <strong>选择模式</strong> - 点击下方"选择此图片"按钮来选择图片
+                    </div>
+                    <button onclick="window.close()" class="text-green-700 hover:text-green-900 font-medium">
+                        <i class="fas fa-times mr-1"></i>取消
+                    </button>
+                `;
+            }
             header.insertBefore(alertDiv, header.firstChild.nextSibling);
         }
     }
@@ -741,24 +786,141 @@ function showImagePreview(id, path, title, showSelectBtn = true) {
 function selectImage(id, path, title) {
     // 如果是通过 window.open 打开的，向父窗口发送消息
     if (window.opener) {
+        if (isMultiSelectMode) {
+            // 多选模式：添加到选择列表
+            addToMultiSelect(id, path, title);
+        } else {
+            // 单选模式：直接发送并关闭
+            try {
+                window.opener.postMessage({
+                    type: 'image_selected',
+                    image_id: id,
+                    image_path: path,
+                    image_title: title
+                }, '*');
+
+                // 显示成功提示
+                alert('图片已选择：' + (title || '无标题'));
+                window.close();
+            } catch (e) {
+                alert('选择失败，请重试');
+                console.error('postMessage error:', e);
+            }
+        }
+    } else {
+        // 如果不是从产品表单打开，提示用户
+        alert('请从产品编辑页面打开图片库来选择图片');
+    }
+}
+
+// 添加图片到多选列表
+function addToMultiSelect(id, path, title) {
+    // 检查是否已经选择
+    if (multiSelectedImages.find(img => img.id === id)) {
+        alert('该图片已在选择列表中');
+        return;
+    }
+
+    multiSelectedImages.push({ id, path, title });
+    updateMultiSelectUI();
+
+    // 高亮选中的图片卡片
+    const card = document.querySelector(`.image-card[data-image-id="${id}"]`);
+    if (card) {
+        card.style.boxShadow = '0 0 0 3px rgba(34, 197, 94, 0.5)';
+        card.style.transform = 'scale(0.98)';
+    }
+}
+
+// 从多选列表中移除图片
+function removeFromMultiSelect(id) {
+    multiSelectedImages = multiSelectedImages.filter(img => img.id !== id);
+    updateMultiSelectUI();
+
+    // 取消高亮
+    const card = document.querySelector(`.image-card[data-image-id="${id}"]`);
+    if (card) {
+        card.style.boxShadow = '';
+        card.style.transform = '';
+    }
+}
+
+// 更新多选UI
+function updateMultiSelectUI() {
+    const countEl = document.getElementById('multiSelectCount');
+    const confirmBtn = document.getElementById('confirmSelectBtn');
+    const previewContainer = document.getElementById('multiSelectPreview');
+    const previewGrid = document.getElementById('multiSelectPreviewGrid');
+
+    if (countEl) {
+        countEl.textContent = `已选择 ${multiSelectedImages.length} 张`;
+    }
+
+    if (confirmBtn) {
+        confirmBtn.disabled = multiSelectedImages.length === 0;
+    }
+
+    if (previewContainer && previewGrid) {
+        if (multiSelectedImages.length > 0) {
+            previewContainer.classList.remove('hidden');
+            previewGrid.innerHTML = multiSelectedImages.map(img => `
+                <div class="relative group">
+                    <img src="{{ url_for('static', filename='') }}${img.path}"
+                         alt="${img.title || '图片'}"
+                         class="w-16 h-16 object-cover rounded border-2 border-green-400">
+                    <button onclick="removeFromMultiSelect(${img.id})"
+                            class="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white rounded-full text-xs hover:bg-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                            title="移除">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            `).join('');
+        } else {
+            previewContainer.classList.add('hidden');
+        }
+    }
+}
+
+// 清空多选列表
+function clearMultiSelect() {
+    // 取消所有高亮
+    multiSelectedImages.forEach(img => {
+        const card = document.querySelector(`.image-card[data-image-id="${img.id}"]`);
+        if (card) {
+            card.style.boxShadow = '';
+            card.style.transform = '';
+        }
+    });
+
+    multiSelectedImages = [];
+    updateMultiSelectUI();
+}
+
+// 确认多选并发送到父窗口
+function confirmMultiSelect() {
+    if (multiSelectedImages.length === 0) {
+        alert('请至少选择一张图片');
+        return;
+    }
+
+    if (window.opener) {
         try {
             window.opener.postMessage({
-                type: 'image_selected',
-                image_id: id,
-                image_path: path,
-                image_title: title
+                type: 'images_multi_selected',
+                selectType: selectType,
+                images: multiSelectedImages.map(img => ({
+                    id: img.id,
+                    path: img.path,
+                    title: img.title
+                }))
             }, '*');
-            
-            // 显示成功提示
-            alert('图片已选择：' + (title || '无标题'));
+
+            alert(`已选择 ${multiSelectedImages.length} 张图片`);
             window.close();
         } catch (e) {
             alert('选择失败，请重试');
             console.error('postMessage error:', e);
         }
-    } else {
-        // 如果不是从产品表单打开，提示用户
-        alert('请从产品编辑页面打开图片库来选择图片');
     }
 }
 

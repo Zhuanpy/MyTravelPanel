@@ -1391,7 +1391,10 @@ let selectedGalleryImages = []; // 存储选中的图片库图片
 
 function openImageLibrary(type) {
     currentImageType = type;
-    const url = '{{ url_for("staff.image_library") }}';
+    // 产品图片库使用多选模式，封面图使用单选模式
+    const isMulti = (type === 'gallery');
+    const baseUrl = '{{ url_for("staff.image_library") }}';
+    const url = isMulti ? `${baseUrl}?multi=true&type=${type}` : `${baseUrl}?type=${type}`;
     const windowName = 'ImageLibrary';
     const windowFeatures = 'width=1200,height=800,scrollbars=yes,resizable=yes';
     window.open(url, windowName, windowFeatures);
@@ -1399,31 +1402,53 @@ function openImageLibrary(type) {
 
 // 监听来自图片库窗口的消息
 window.addEventListener('message', function(event) {
+    // 单选模式：选择单张图片
     if (event.data && event.data.type === 'image_selected') {
         const { image_id, image_path, image_title } = event.data;
-        
+
         if (currentImageType === 'cover') {
             // 设置封面图
             document.getElementById('selectedCoverImage').value = image_path;
             // 显示预览
             const previewDiv = document.getElementById('coverImagePreview') || createPreviewDiv('coverImagePreview');
             previewDiv.innerHTML = `
-                <img src="{{ url_for('static', filename='') }}${image_path}" 
+                <img src="{{ url_for('static', filename='') }}${image_path}"
                      style="max-width: 200px; max-height: 150px; border-radius: var(--visa-radius-sm); border: 1px solid var(--visa-border);">
-                <button type="button" onclick="clearCoverImage()" 
+                <button type="button" onclick="clearCoverImage()"
                         style="position: absolute; top: -8px; right: -8px; background: #dc2626; color: white; border: none; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; font-size: 12px;"
                         title="清除封面图">
                     <i class="fas fa-times"></i>
                 </button>
             `;
-            
+
             // 清除文件输入
             const fileInput = document.querySelector('input[name="cover_image"]');
             if (fileInput) fileInput.value = '';
         } else if (currentImageType === 'gallery') {
-            // 添加到图片库
+            // 添加到图片库（单张）
             if (!selectedGalleryImages.includes(image_path)) {
                 selectedGalleryImages.push(image_path);
+                document.getElementById('selectedGalleryImages').value = JSON.stringify(selectedGalleryImages);
+                updateGalleryPreview();
+            }
+        }
+    }
+
+    // 多选模式：批量选择图片
+    if (event.data && event.data.type === 'images_multi_selected') {
+        const { selectType, images } = event.data;
+
+        if (selectType === 'gallery' && images && images.length > 0) {
+            // 批量添加到产品图片库
+            let addedCount = 0;
+            images.forEach(img => {
+                if (!selectedGalleryImages.includes(img.path)) {
+                    selectedGalleryImages.push(img.path);
+                    addedCount++;
+                }
+            });
+
+            if (addedCount > 0) {
                 document.getElementById('selectedGalleryImages').value = JSON.stringify(selectedGalleryImages);
                 updateGalleryPreview();
             }

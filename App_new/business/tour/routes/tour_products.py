@@ -211,12 +211,12 @@ def add_product():
 
             # 处理封面图：优先使用上传的文件，其次使用图片库选择的
             cover_image_path = None
-            if 'cover_image' in request.files:
-                cover_file = request.files['cover_image']
-                if cover_file and cover_file.filename:
-                    cover_image_path = save_uploaded_file(cover_file)
-            elif 'selected_cover_image' in request.form and request.form.get('selected_cover_image'):
-                # 从图片库选择的封面图
+            cover_file = request.files.get('cover_image')
+            if cover_file and cover_file.filename:
+                cover_image_path = save_uploaded_file(cover_file)
+
+            # 如果没有上传新文件，检查是否从图片库选择
+            if not cover_image_path and request.form.get('selected_cover_image'):
                 cover_image_path = request.form.get('selected_cover_image')
 
             # 处理图片库：合并上传的和从图片库选择的
@@ -801,14 +801,16 @@ def edit_product(product_id):
             tags_json = json.dumps(tags_list, ensure_ascii=False)
 
             # 处理封面图：优先使用上传的文件，其次使用图片库选择的
-            if 'cover_image' in request.files:
-                cover_file = request.files['cover_image']
-                if cover_file and cover_file.filename:
-                    cover_image_path = save_uploaded_file(cover_file)
-                    if cover_image_path:
-                        product.cover_image = cover_image_path
-            elif 'selected_cover_image' in request.form and request.form.get('selected_cover_image'):
-                # 从图片库选择的封面图
+            cover_updated = False
+            cover_file = request.files.get('cover_image')
+            if cover_file and cover_file.filename:
+                cover_image_path = save_uploaded_file(cover_file)
+                if cover_image_path:
+                    product.cover_image = cover_image_path
+                    cover_updated = True
+
+            # 如果没有上传新文件，检查是否从图片库选择
+            if not cover_updated and request.form.get('selected_cover_image'):
                 product.cover_image = request.form.get('selected_cover_image')
 
             # 处理图片库：合并上传的和从图片库选择的
