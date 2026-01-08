@@ -1495,7 +1495,7 @@ function updateGalleryPreview() {
     
     // 也添加原有的图片库图片
     {% if product and product.gallery_images %}
-    {% set existing_images = product.gallery_images|from_json if product.gallery_images else [] %}
+    {% set existing_images = product.gallery_images|fromjson if product.gallery_images else [] %}
     {% for image in existing_images %}
     if (!selectedGalleryImages.includes('{{ image }}')) {
         const div = document.createElement('div');
