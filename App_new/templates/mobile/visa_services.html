@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#10b981">
+    <title>签证服务 - {{ company.company_name if company else '悦行假期' }}</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #f5f5f5;
+            color: #333;
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
+            padding-bottom: 70px;
+        }
+
+        /* 顶部导航 */
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 56px;
+            background: linear-gradient(135deg, #10b981, #059669);
+            display: flex;
+            align-items: center;
+            padding: 0 16px;
+            z-index: 100;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .header-back {
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 20px;
+            text-decoration: none;
+        }
+
+        .header-title {
+            flex: 1;
+            color: white;
+            font-size: 18px;
+            font-weight: 600;
+            text-align: center;
+        }
+
+        .header-placeholder {
+            width: 36px;
+        }
+
+        /* 主内容区 */
+        .main-content {
+            padding-top: 56px;
+        }
+
+        /* 搜索区域 */
+        .search-section {
+            background: white;
+            padding: 16px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+
+        .search-box {
+            display: flex;
+            gap: 10px;
+        }
+
+        .search-input {
+            flex: 1;
+            height: 44px;
+            padding: 0 16px;
+            border: 1px solid #e2e8f0;
+            border-radius: 22px;
+            font-size: 15px;
+            background: #f8fafc;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: #10b981;
+            background: white;
+        }
+
+        .search-btn {
+            width: 44px;
+            height: 44px;
+            border: none;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        /* 地区筛选 */
+        .region-tabs {
+            padding: 12px 16px;
+            overflow-x: auto;
+            white-space: nowrap;
+            -webkit-overflow-scrolling: touch;
+            background: white;
+            border-top: 1px solid #f1f5f9;
+        }
+
+        .region-tabs::-webkit-scrollbar {
+            display: none;
+        }
+
+        .region-tab {
+            display: inline-block;
+            padding: 8px 16px;
+            margin-right: 8px;
+            background: #f1f5f9;
+            border-radius: 20px;
+            font-size: 13px;
+            color: #64748b;
+            text-decoration: none;
+        }
+
+        .region-tab.active {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+        }
+
+        /* 统计信息 */
+        .stats-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            font-size: 13px;
+            color: #64748b;
+        }
+
+        .stats-count {
+            font-weight: 600;
+            color: #10b981;
+        }
+
+        /* 国家列表 */
+        .country-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            padding: 16px;
+        }
+
+        .country-card {
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            text-decoration: none;
+            color: inherit;
+        }
+
+        .country-flag {
+            height: 80px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            background-size: cover;
+            background-position: center;
+            position: relative;
+        }
+
+        .country-flag-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.2);
+        }
+
+        .country-body {
+            padding: 12px;
+        }
+
+        .country-name {
+            font-size: 15px;
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 2px;
+        }
+
+        .country-name-en {
+            font-size: 11px;
+            color: #94a3b8;
+            margin-bottom: 8px;
+        }
+
+        .country-services {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            margin-bottom: 8px;
+        }
+
+        .service-tag {
+            padding: 2px 8px;
+            background: #f0fdf4;
+            border-radius: 10px;
+            font-size: 10px;
+            color: #16a34a;
+        }
+
+        .country-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .visa-count {
+            font-size: 12px;
+            color: #64748b;
+        }
+
+        .country-arrow {
+            color: #94a3b8;
+            font-size: 12px;
+        }
+
+        /* 空状态 */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #94a3b8;
+        }
+
+        .empty-state i {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+
+        .empty-state p {
+            font-size: 15px;
+            margin-bottom: 20px;
+        }
+
+        .empty-state .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 24px;
+            background: #10b981;
+            color: white;
+            border-radius: 8px;
+            text-decoration: none;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+
+<!-- 顶部导航 -->
+<header class="header">
+    <a href="{{ url_for('mobile.public_home') }}" class="header-back">
+        <i class="fas fa-arrow-left"></i>
+    </a>
+    <h1 class="header-title">签证服务</h1>
+    <div class="header-placeholder"></div>
+</header>
+
+<main class="main-content">
+    <!-- 搜索区域 -->
+    <div class="search-section">
+        <form method="GET" action="{{ url_for('mobile.visa_services') }}" class="search-box">
+            <input type="text" name="search" class="search-input"
+                   value="{{ search_query }}" placeholder="搜索国家或签证类型...">
+            <button type="submit" class="search-btn">
+                <i class="fas fa-search"></i>
+            </button>
+        </form>
+
+        <!-- 地区筛选 -->
+        <div class="region-tabs">
+            <a href="{{ url_for('mobile.visa_services') }}"
+               class="region-tab {{ 'active' if not region_filter else '' }}">全部</a>
+            {% for region_key, region_name in region_options.items() %}
+            <a href="{{ url_for('mobile.visa_services', region=region_key) }}"
+               class="region-tab {{ 'active' if region_filter == region_key else '' }}">{{ region_name }}</a>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- 统计信息 -->
+    <div class="stats-bar">
+        <span>
+            {% if search_query or region_filter %}
+            搜索结果
+            {% if search_query %}"{{ search_query }}"{% endif %}
+            {% if region_filter %} - {{ region_options.get(region_filter, '') }}{% endif %}
+            {% else %}
+            全部国家
+            {% endif %}
+        </span>
+        <span>共 <span class="stats-count">{{ visa_services|length }}</span> 个国家</span>
+    </div>
+
+    <!-- 国家列表 -->
+    {% if visa_services %}
+    <div class="country-grid">
+        {% for service in visa_services %}
+        <a href="{{ url_for('mobile.visa_country', country_name=service.country) }}" class="country-card">
+            <div class="country-flag"
+                 {% if service.flag_file %}style="background-image: url('{{ url_for('static', filename='images/flags/' + service.flag_file) }}');"{% endif %}>
+                {% if service.flag_file %}
+                <div class="country-flag-overlay"></div>
+                {% endif %}
+            </div>
+            <div class="country-body">
+                <div class="country-name">{{ service.country }}</div>
+                <div class="country-name-en">{{ service.country_en }}</div>
+                {% if service.services %}
+                <div class="country-services">
+                    {% for visa_service in service.services[:2] %}
+                    <span class="service-tag">{{ visa_service }}</span>
+                    {% endfor %}
+                    {% if service.services|length > 2 %}
+                    <span class="service-tag">+{{ service.services|length - 2 }}</span>
+                    {% endif %}
+                </div>
+                {% endif %}
+                <div class="country-meta">
+                    <span class="visa-count">{{ service.visa_count }}种签证</span>
+                    <i class="fas fa-chevron-right country-arrow"></i>
+                </div>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <i class="fas fa-passport"></i>
+        {% if search_query or region_filter %}
+        <p>未找到匹配的签证服务</p>
+        <a href="{{ url_for('mobile.visa_services') }}" class="btn">
+            <i class="fas fa-refresh"></i> 查看全部
+        </a>
+        {% else %}
+        <p>暂无签证服务信息</p>
+        <a href="{{ url_for('mobile.contact') }}" class="btn">
+            <i class="fas fa-phone"></i> 咨询签证服务
+        </a>
+        {% endif %}
+    </div>
+    {% endif %}
+</main>
+
+<!-- 底部导航 -->
+{% set menu_type = 'public' %}
+{% set active_tab = 'visa' %}
+{% include 'mobile/components/bottom_nav.html' %}
+
+</body>
+</html>

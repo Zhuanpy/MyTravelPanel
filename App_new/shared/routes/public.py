@@ -140,6 +140,10 @@ def index():
 @public.route('/visa-services')
 def visa_services():
     """签证服务页面"""
+    # 手机端自动跳转到手机版
+    if is_mobile_device():
+        return redirect(url_for('mobile.visa_services', **request.args))
+
     try:
         # 获取筛选参数
         search_query = request.args.get('search', '').strip()
@@ -301,6 +305,10 @@ def visa_services():
 @public.route('/visa-services/<country_name>')
 def visa_services_by_country(country_name):
     """按国家查看签证服务"""
+    # 手机端自动跳转到手机版
+    if is_mobile_device():
+        return redirect(url_for('mobile.visa_country', country_name=country_name))
+
     try:
         # 获取国家信息（尝试中文和英文名称）
         country = VisaCountries.query.filter(
@@ -348,6 +356,10 @@ def visa_services_by_country(country_name):
 @public.route('/visa-detail/<visa_type_name>')
 def visa_detail(visa_type_name):
     """签证类型详情页面"""
+    # 手机端自动跳转到手机版
+    if is_mobile_device():
+        return redirect(url_for('mobile.visa_detail', visa_type_name=visa_type_name))
+
     try:
         # 获取签证类型信息（只允许访问激活的）
         visa_type = VisaTypes.query.filter_by(visa_type=visa_type_name, is_active=True).first()
@@ -403,6 +415,10 @@ def visa_detail(visa_type_name):
 @public.route('/tour-packages')
 def tour_packages():
     """旅游配套页面"""
+    # 手机端自动跳转到手机版
+    if is_mobile_device():
+        return redirect(url_for('mobile.tour_packages', **request.args))
+
     try:
         # 获取搜索参数
         destination = request.args.get('destination', '').strip()
@@ -648,6 +664,10 @@ def tour_packages():
 @public.route('/tour-package/<int:package_id>')
 def tour_package_detail(package_id):
     """旅游配套详情页面"""
+    # 手机端自动跳转到手机版
+    if is_mobile_device():
+        return redirect(url_for('mobile.tour_package_detail', package_id=package_id))
+
     try:
         # 从Product模型查询产品详情
         product = Product.query.filter_by(id=package_id, product_status='active').first_or_404()
@@ -757,6 +777,10 @@ def about():
 @public.route('/contact')
 def contact():
     """联系我们页面"""
+    # 移动设备跳转到手机版
+    if is_mobile_device():
+        return redirect(url_for('mobile.contact'))
+
     # 从数据库获取公司信息
     company_info = CompanyInfo.query.first()
     

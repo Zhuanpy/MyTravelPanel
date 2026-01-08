@@ -11,6 +11,14 @@ from App_new.utils.decorators import guest_only, member_only
 from App_new.exts import db
 import re
 
+
+def is_mobile_device():
+    """检测是否为移动设备"""
+    user_agent = request.headers.get('User-Agent', '').lower()
+    mobile_keywords = ['mobile', 'android', 'iphone', 'ipad', 'ipod', 'blackberry', 'windows phone']
+    return any(keyword in user_agent for keyword in mobile_keywords)
+
+
 # 创建用户认证蓝图（用户资料相关）
 auth_profile = Blueprint('auth_profile', __name__, url_prefix='/auth')
 
@@ -337,15 +345,26 @@ def api_check_email():
 @guest_only
 def member_login():
     """会员登录"""
+    # 手机端自动跳转到手机版
+    if is_mobile_device():
+        next_url = request.args.get('next', '')
+        if next_url:
+            return redirect(url_for('mobile.member_login', next=next_url))
+        return redirect(url_for('mobile.member_login'))
+
     if request.method == 'POST':
         return _handle_role_login('member', 'auth/member_login.html')
-    
+
     return render_template('auth/member_login.html', role_type='member')
 
 @auth_profile.route('/member/register', methods=['GET', 'POST'])
 @guest_only
 def member_register():
     """会员注册 - 第一步：发送验证码"""
+    # 手机端自动跳转到手机版
+    if is_mobile_device():
+        return redirect(url_for('mobile.member_register'))
+
     if request.method == 'POST':
         email = request.form.get('email', '').strip()
         
@@ -391,6 +410,10 @@ def member_register():
 @guest_only
 def member_register_verify():
     """会员注册 - 第二步：验证码确认和完成注册"""
+    # 手机端自动跳转到手机版
+    if is_mobile_device():
+        return redirect(url_for('mobile.member_register_verify'))
+
     # 检查是否有注册邮箱在session中
     if 'registration_email' not in session:
         flash('请先输入邮箱地址', 'error')

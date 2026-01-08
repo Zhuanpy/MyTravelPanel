@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#10b981">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>预订 - {{ product.name }} - {{ company.company_name if company else '悦行假期' }}</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #f5f5f5;
+            color: #333;
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
+            padding-bottom: 100px;
+        }
+
+        /* 顶部导航 */
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 56px;
+            background: linear-gradient(135deg, #10b981, #059669);
+            display: flex;
+            align-items: center;
+            padding: 0 16px;
+            z-index: 100;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .header-back {
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 20px;
+            text-decoration: none;
+        }
+
+        .header-title {
+            flex: 1;
+            color: white;
+            font-size: 18px;
+            font-weight: 600;
+            text-align: center;
+        }
+
+        .header-placeholder {
+            width: 36px;
+        }
+
+        /* 主内容区 */
+        .main-content {
+            padding-top: 56px;
+        }
+
+        /* 产品信息卡片 */
+        .product-card {
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
+            color: white;
+            padding: 20px;
+            margin: 16px;
+            border-radius: 16px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+
+        .product-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 12px;
+            font-size: 12px;
+            margin-bottom: 10px;
+        }
+
+        .product-name {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 12px;
+            line-height: 1.4;
+        }
+
+        .product-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            font-size: 13px;
+            opacity: 0.9;
+            margin-bottom: 12px;
+        }
+
+        .product-meta-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .product-price {
+            font-size: 24px;
+            font-weight: 700;
+        }
+
+        .product-price small {
+            font-size: 14px;
+            font-weight: 400;
+            opacity: 0.8;
+        }
+
+        /* 表单区域 */
+        .form-section {
+            background: white;
+            margin: 0 16px 16px;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        }
+
+        .form-section-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid #10b981;
+        }
+
+        .form-section-title i {
+            color: #10b981;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group:last-child {
+            margin-bottom: 0;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            color: #334155;
+            margin-bottom: 8px;
+        }
+
+        .form-label .required {
+            color: #ef4444;
+        }
+
+        .form-input {
+            width: 100%;
+            height: 48px;
+            padding: 0 14px;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            font-size: 16px;
+            color: #1e293b;
+            background: #f8fafc;
+            transition: all 0.2s;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: #10b981;
+            background: white;
+        }
+
+        .form-textarea {
+            height: auto;
+            min-height: 100px;
+            padding: 12px 14px;
+            resize: vertical;
+        }
+
+        /* 人数选择器 */
+        .pax-selector {
+            background: #f8fafc;
+            border-radius: 10px;
+            padding: 14px;
+            margin-bottom: 12px;
+        }
+
+        .pax-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .pax-info {
+            flex: 1;
+        }
+
+        .pax-type {
+            font-size: 15px;
+            font-weight: 600;
+            color: #1e293b;
+        }
+
+        .pax-price {
+            font-size: 13px;
+            color: #64748b;
+        }
+
+        .pax-counter {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .pax-btn {
+            width: 36px;
+            height: 36px;
+            border: 2px solid #e2e8f0;
+            background: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            color: #64748b;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .pax-btn:active {
+            background: #10b981;
+            border-color: #10b981;
+            color: white;
+        }
+
+        .pax-count {
+            width: 40px;
+            text-align: center;
+            font-size: 18px;
+            font-weight: 600;
+            color: #1e293b;
+        }
+
+        /* 提示信息 */
+        .info-box {
+            background: #fef3c7;
+            border: 1px solid #fcd34d;
+            border-radius: 10px;
+            padding: 12px;
+            margin-top: 12px;
+        }
+
+        .info-box p {
+            font-size: 13px;
+            color: #92400e;
+            margin: 0;
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+        }
+
+        .info-box i {
+            margin-top: 2px;
+        }
+
+        /* 底部预订栏 */
+        .booking-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            padding: 12px 16px;
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.1);
+            z-index: 100;
+            padding-bottom: calc(12px + env(safe-area-inset-bottom, 0));
+        }
+
+        .booking-bar-inner {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .booking-price-info {
+            flex: 1;
+        }
+
+        .booking-price-label {
+            font-size: 12px;
+            color: #64748b;
+        }
+
+        .booking-price-value {
+            font-size: 22px;
+            font-weight: 700;
+            color: #10b981;
+        }
+
+        .booking-btn {
+            padding: 14px 32px;
+            background: linear-gradient(135deg, #10b981, #059669);
+            border: none;
+            border-radius: 12px;
+            color: white;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+        }
+
+        .booking-btn:active {
+            transform: scale(0.98);
+        }
+
+        /* 价格明细弹窗 */
+        .price-detail {
+            display: none;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            border-radius: 20px 20px 0 0;
+            padding: 20px;
+            z-index: 200;
+            box-shadow: 0 -10px 40px rgba(0,0,0,0.2);
+            max-height: 60vh;
+            overflow-y: auto;
+        }
+
+        .price-detail.show {
+            display: block;
+        }
+
+        .price-detail-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .price-detail-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1e293b;
+        }
+
+        .price-detail-close {
+            width: 32px;
+            height: 32px;
+            border: none;
+            background: #f1f5f9;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+
+        .price-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .price-row:last-child {
+            border-bottom: none;
+        }
+
+        .price-row.total {
+            font-weight: 600;
+            font-size: 18px;
+            color: #10b981;
+            border-top: 2px solid #10b981;
+            margin-top: 12px;
+            padding-top: 16px;
+        }
+
+        .overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 150;
+        }
+
+        .overlay.show {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+
+<!-- 顶部导航 -->
+<header class="header">
+    <a href="{{ url_for('mobile.tour_package_detail', package_id=product.id) }}" class="header-back">
+        <i class="fas fa-arrow-left"></i>
+    </a>
+    <h1 class="header-title">预订确认</h1>
+    <div class="header-placeholder"></div>
+</header>
+
+<main class="main-content">
+    <!-- 产品信息卡片 -->
+    <div class="product-card">
+        <span class="product-badge">{{ product.code }}</span>
+        <h2 class="product-name">{{ product.name }}</h2>
+        <div class="product-meta">
+            <span class="product-meta-item">
+                <i class="fas fa-map-marker-alt"></i>
+                {{ product.destination }}
+            </span>
+            <span class="product-meta-item">
+                <i class="fas fa-calendar"></i>
+                {{ product.duration }}
+            </span>
+        </div>
+        <div class="product-price">
+            {{ product.price }}<small>/人起</small>
+        </div>
+    </div>
+
+    <form id="bookingForm" method="POST" action="{{ url_for('mobile.book_tour', product_id=product.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <!-- 出行日期 -->
+        <div class="form-section">
+            <h3 class="form-section-title">
+                <i class="fas fa-calendar-check"></i>
+                出行日期
+            </h3>
+            <div class="form-group">
+                <label class="form-label">选择出发日期 <span class="required">*</span></label>
+                <input type="date" class="form-input" id="travel_date" name="travel_date" required>
+            </div>
+        </div>
+
+        <!-- 出行人数 -->
+        <div class="form-section">
+            <h3 class="form-section-title">
+                <i class="fas fa-users"></i>
+                出行人数
+            </h3>
+
+            <div class="pax-selector">
+                <div class="pax-row">
+                    <div class="pax-info">
+                        <div class="pax-type">成人</div>
+                        <div class="pax-price">{{ product.currency }} {{ "%.0f"|format(product.base_price) }}/人</div>
+                    </div>
+                    <div class="pax-counter">
+                        <button type="button" class="pax-btn" onclick="adjustPax('adult', -1)">
+                            <i class="fas fa-minus"></i>
+                        </button>
+                        <span class="pax-count" id="adult_display">1</span>
+                        <input type="hidden" id="adult_count" name="adult_count" value="1">
+                        <button type="button" class="pax-btn" onclick="adjustPax('adult', 1)">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pax-selector">
+                <div class="pax-row">
+                    <div class="pax-info">
+                        <div class="pax-type">儿童 (2-12岁)</div>
+                        <div class="pax-price">{{ product.currency }} {{ "%.0f"|format(product.child_price or product.base_price * 0.7) }}/人</div>
+                    </div>
+                    <div class="pax-counter">
+                        <button type="button" class="pax-btn" onclick="adjustPax('child', -1)">
+                            <i class="fas fa-minus"></i>
+                        </button>
+                        <span class="pax-count" id="child_display">0</span>
+                        <input type="hidden" id="child_count" name="child_count" value="0">
+                        <button type="button" class="pax-btn" onclick="adjustPax('child', 1)">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pax-selector">
+                <div class="pax-row">
+                    <div class="pax-info">
+                        <div class="pax-type">婴儿 (0-2岁)</div>
+                        <div class="pax-price">{{ product.currency }} {{ "%.0f"|format(product.infant_price or 0) }}/人</div>
+                    </div>
+                    <div class="pax-counter">
+                        <button type="button" class="pax-btn" onclick="adjustPax('infant', -1)">
+                            <i class="fas fa-minus"></i>
+                        </button>
+                        <span class="pax-count" id="infant_display">0</span>
+                        <input type="hidden" id="infant_count" name="infant_count" value="0">
+                        <button type="button" class="pax-btn" onclick="adjustPax('infant', 1)">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            {% if product.min_pax and product.min_pax > 1 %}
+            <div class="info-box">
+                <p><i class="fas fa-info-circle"></i> 此产品最少需要 {{ product.min_pax }} 人成团</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- 联系人信息 -->
+        <div class="form-section">
+            <h3 class="form-section-title">
+                <i class="fas fa-user-circle"></i>
+                联系人信息
+            </h3>
+            <div class="form-group">
+                <label class="form-label">联系人姓名 <span class="required">*</span></label>
+                <input type="text" class="form-input" id="contact_name" name="contact_name"
+                       value="{{ current_user.username if current_user else '' }}" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label">联系电话 <span class="required">*</span></label>
+                <input type="tel" class="form-input" id="contact_phone" name="contact_phone"
+                       value="{{ user_profile.phone if user_profile else '' }}" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label">电子邮箱 <span class="required">*</span></label>
+                <input type="email" class="form-input" id="contact_email" name="contact_email"
+                       value="{{ current_user.email if current_user else '' }}" required>
+            </div>
+        </div>
+
+        <!-- 特殊要求 -->
+        <div class="form-section">
+            <h3 class="form-section-title">
+                <i class="fas fa-comment-alt"></i>
+                特殊要求
+            </h3>
+            <div class="form-group">
+                <label class="form-label">备注说明</label>
+                <textarea class="form-input form-textarea" id="special_requirements" name="special_requirements"
+                          placeholder="请填写您的特殊需求，如饮食要求、住宿偏好等..."></textarea>
+            </div>
+
+            <div class="info-box">
+                <p><i class="fas fa-shield-alt"></i> 提交预订后，我们将在24小时内联系您确认详情和最终价格</p>
+            </div>
+        </div>
+    </form>
+</main>
+
+<!-- 底部预订栏 -->
+<div class="booking-bar">
+    <div class="booking-bar-inner">
+        <div class="booking-price-info" onclick="showPriceDetail()">
+            <div class="booking-price-label">预估总价 <i class="fas fa-chevron-up"></i></div>
+            <div class="booking-price-value">{{ product.currency }} <span id="totalPrice">{{ "%.0f"|format(product.base_price) }}</span></div>
+        </div>
+        <button type="submit" form="bookingForm" class="booking-btn">
+            <i class="fas fa-paper-plane"></i>
+            提交预订
+        </button>
+    </div>
+</div>
+
+<!-- 价格明细弹窗 -->
+<div class="overlay" id="overlay" onclick="hidePriceDetail()"></div>
+<div class="price-detail" id="priceDetail">
+    <div class="price-detail-header">
+        <span class="price-detail-title">费用明细</span>
+        <button class="price-detail-close" onclick="hidePriceDetail()">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
+    <div class="price-row">
+        <span>成人 x <span id="detail_adult">1</span></span>
+        <span>{{ product.currency }} <span id="detail_adult_total">{{ "%.0f"|format(product.base_price) }}</span></span>
+    </div>
+    <div class="price-row" id="detail_child_row" style="display: none;">
+        <span>儿童 x <span id="detail_child">0</span></span>
+        <span>{{ product.currency }} <span id="detail_child_total">0</span></span>
+    </div>
+    <div class="price-row" id="detail_infant_row" style="display: none;">
+        <span>婴儿 x <span id="detail_infant">0</span></span>
+        <span>{{ product.currency }} <span id="detail_infant_total">0</span></span>
+    </div>
+    <div class="price-row total">
+        <span>预估总价</span>
+        <span>{{ product.currency }} <span id="detail_total">{{ "%.0f"|format(product.base_price) }}</span></span>
+    </div>
+</div>
+
+<script>
+// 价格数据
+const prices = {
+    adult: {{ product.base_price or 0 }},
+    child: {{ product.child_price or (product.base_price * 0.7) if product.base_price else 0 }},
+    infant: {{ product.infant_price or 0 }}
+};
+
+const currency = '{{ product.currency }}';
+const minPax = {{ product.min_pax or 1 }};
+const maxPax = {{ product.max_pax or 20 }};
+
+// 设置最小日期
+document.addEventListener('DOMContentLoaded', function() {
+    const today = new Date();
+    today.setDate(today.getDate() + 3);
+    const minDate = today.toISOString().split('T')[0];
+    document.getElementById('travel_date').setAttribute('min', minDate);
+});
+
+// 调整人数
+function adjustPax(type, delta) {
+    const input = document.getElementById(type + '_count');
+    const display = document.getElementById(type + '_display');
+    let value = parseInt(input.value) + delta;
+
+    const limits = { adult: {min: 1, max: maxPax}, child: {min: 0, max: 10}, infant: {min: 0, max: 5} };
+
+    if (value < limits[type].min) value = limits[type].min;
+    if (value > limits[type].max) value = limits[type].max;
+
+    input.value = value;
+    display.textContent = value;
+    updatePrice();
+}
+
+// 更新价格
+function updatePrice() {
+    const adult = parseInt(document.getElementById('adult_count').value) || 0;
+    const child = parseInt(document.getElementById('child_count').value) || 0;
+    const infant = parseInt(document.getElementById('infant_count').value) || 0;
+
+    const adultTotal = adult * prices.adult;
+    const childTotal = child * prices.child;
+    const infantTotal = infant * prices.infant;
+    const total = adultTotal + childTotal + infantTotal;
+
+    // 更新底部价格
+    document.getElementById('totalPrice').textContent = total.toLocaleString();
+
+    // 更新明细
+    document.getElementById('detail_adult').textContent = adult;
+    document.getElementById('detail_adult_total').textContent = adultTotal.toLocaleString();
+
+    document.getElementById('detail_child').textContent = child;
+    document.getElementById('detail_child_total').textContent = childTotal.toLocaleString();
+    document.getElementById('detail_child_row').style.display = child > 0 ? 'flex' : 'none';
+
+    document.getElementById('detail_infant').textContent = infant;
+    document.getElementById('detail_infant_total').textContent = infantTotal.toLocaleString();
+    document.getElementById('detail_infant_row').style.display = infant > 0 ? 'flex' : 'none';
+
+    document.getElementById('detail_total').textContent = total.toLocaleString();
+}
+
+// 显示/隐藏价格明细
+function showPriceDetail() {
+    document.getElementById('overlay').classList.add('show');
+    document.getElementById('priceDetail').classList.add('show');
+}
+
+function hidePriceDetail() {
+    document.getElementById('overlay').classList.remove('show');
+    document.getElementById('priceDetail').classList.remove('show');
+}
+
+// 表单验证
+document.getElementById('bookingForm').addEventListener('submit', function(e) {
+    const adult = parseInt(document.getElementById('adult_count').value) || 0;
+    const child = parseInt(document.getElementById('child_count').value) || 0;
+    const totalPax = adult + child;
+
+    if (totalPax < minPax) {
+        e.preventDefault();
+        alert('至少需要 ' + minPax + ' 人才能预订此产品');
+        return;
+    }
+
+    const travelDate = document.getElementById('travel_date').value;
+    if (!travelDate) {
+        e.preventDefault();
+        alert('请选择出发日期');
+        return;
+    }
+
+    const contactName = document.getElementById('contact_name').value.trim();
+    const contactPhone = document.getElementById('contact_phone').value.trim();
+    const contactEmail = document.getElementById('contact_email').value.trim();
+
+    if (!contactName || !contactPhone || !contactEmail) {
+        e.preventDefault();
+        alert('请填写完整的联系人信息');
+        return;
+    }
+});
+</script>
+
+<!-- 底部导航 -->
+{% set menu_type = 'member' %}
+{% set active_tab = 'tour' %}
+{% include 'mobile/components/bottom_nav.html' %}
+
+</body>
+</html>

@@ -19,12 +19,25 @@ from ..models.order import Order, OrderItem, OrderDocument, Payment, ServiceTemp
 orders_bp = Blueprint('orders', __name__, url_prefix='/member/orders')
 
 
+def is_mobile_device():
+    """检测是否为移动设备"""
+    user_agent = request.headers.get('User-Agent', '').lower()
+    mobile_keywords = ['mobile', 'android', 'iphone', 'ipad', 'ipod', 'blackberry', 'windows phone']
+    return any(keyword in user_agent for keyword in mobile_keywords)
+
+
 @orders_bp.route('/')
 @orders_bp.route('/list')
 @login_required
 @member_only
 def list():
     """订单列表"""
+    # 移动设备跳转到手机版
+    if is_mobile_device():
+        return redirect(url_for('mobile.orders_list',
+                                status=request.args.get('status', ''),
+                                page=request.args.get('page', 1, type=int)))
+
     try:
         page = request.args.get('page', 1, type=int)
         per_page = 10
@@ -264,6 +277,10 @@ def create_order():
 @member_only
 def order_detail(order_id):
     """订单详情"""
+    # 移动设备跳转到手机版
+    if is_mobile_device():
+        return redirect(url_for('mobile.order_detail', order_id=order_id))
+
     try:
         order = Order.query.filter_by(id=order_id, user_id=current_user.id).first()
         if not order:
@@ -466,6 +483,10 @@ def api_service_templates():
 @member_only
 def book_tour(product_id):
     """预订旅游产品"""
+    # 移动设备跳转到手机版（仅GET请求）
+    if is_mobile_device() and request.method == 'GET':
+        return redirect(url_for('mobile.book_tour', product_id=product_id))
+
     try:
         from App_new.business.tour.models.Packagemodels import Product
 

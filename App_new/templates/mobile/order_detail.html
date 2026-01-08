@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#10b981">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>订单详情 - {{ company.company_name if company else '悦行假期' }}</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #f5f5f5;
+            color: #333;
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
+            padding-bottom: 100px;
+        }
+
+        /* 顶部导航 */
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 56px;
+            background: linear-gradient(135deg, #10b981, #059669);
+            display: flex;
+            align-items: center;
+            padding: 0 16px;
+            z-index: 100;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .header-back {
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 20px;
+            text-decoration: none;
+        }
+
+        .header-title {
+            flex: 1;
+            color: white;
+            font-size: 18px;
+            font-weight: 600;
+            text-align: center;
+        }
+
+        .header-placeholder {
+            width: 36px;
+        }
+
+        /* 主内容区 */
+        .main-content {
+            padding-top: 56px;
+        }
+
+        /* 订单状态卡片 */
+        .status-card {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            padding: 24px 20px;
+            margin: 16px;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(16, 185, 129, 0.3);
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 500;
+            margin-bottom: 12px;
+        }
+
+        .order-number {
+            font-size: 14px;
+            opacity: 0.9;
+            margin-bottom: 8px;
+        }
+
+        .order-title {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 16px;
+        }
+
+        .order-amount {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+        }
+
+        .amount-value {
+            font-size: 28px;
+            font-weight: 700;
+        }
+
+        .amount-label {
+            font-size: 12px;
+            opacity: 0.8;
+        }
+
+        /* 信息区块 */
+        .info-section {
+            background: white;
+            margin: 16px;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 16px 16px 12px;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .section-header i {
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f0fdf4;
+            border-radius: 8px;
+            color: #10b981;
+            font-size: 14px;
+        }
+
+        .section-header h3 {
+            font-size: 15px;
+            font-weight: 600;
+            color: #1e293b;
+        }
+
+        .section-content {
+            padding: 12px 16px 16px;
+        }
+
+        /* 信息行 */
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            padding: 10px 0;
+            border-bottom: 1px solid #f8fafc;
+        }
+
+        .info-row:last-child {
+            border-bottom: none;
+        }
+
+        .info-label {
+            font-size: 14px;
+            color: #64748b;
+            flex-shrink: 0;
+        }
+
+        .info-value {
+            font-size: 14px;
+            color: #1e293b;
+            font-weight: 500;
+            text-align: right;
+            word-break: break-word;
+            max-width: 60%;
+        }
+
+        /* 订单项目 */
+        .order-item {
+            background: #f8fafc;
+            border-radius: 10px;
+            padding: 14px;
+            margin-bottom: 10px;
+        }
+
+        .order-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .item-name {
+            font-size: 15px;
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 6px;
+        }
+
+        .item-desc {
+            font-size: 13px;
+            color: #64748b;
+            margin-bottom: 10px;
+        }
+
+        .item-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 13px;
+        }
+
+        .item-qty {
+            color: #64748b;
+        }
+
+        .item-price {
+            font-weight: 600;
+            color: #10b981;
+        }
+
+        /* 时间线 */
+        .timeline {
+            padding-left: 24px;
+            position: relative;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 6px;
+            top: 8px;
+            bottom: 8px;
+            width: 2px;
+            background: #e2e8f0;
+        }
+
+        .timeline-item {
+            position: relative;
+            padding-bottom: 20px;
+        }
+
+        .timeline-item:last-child {
+            padding-bottom: 0;
+        }
+
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: -24px;
+            top: 4px;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: #10b981;
+            border: 3px solid white;
+            box-shadow: 0 0 0 2px #10b981;
+        }
+
+        .timeline-item.pending::before {
+            background: #94a3b8;
+            box-shadow: 0 0 0 2px #94a3b8;
+        }
+
+        .timeline-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 4px;
+        }
+
+        .timeline-desc {
+            font-size: 13px;
+            color: #64748b;
+            margin-bottom: 4px;
+        }
+
+        .timeline-time {
+            font-size: 12px;
+            color: #94a3b8;
+        }
+
+        /* 价格摘要 */
+        .price-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            font-size: 14px;
+        }
+
+        .price-row.total {
+            border-top: 2px solid #10b981;
+            margin-top: 8px;
+            padding-top: 12px;
+            font-weight: 700;
+            font-size: 16px;
+        }
+
+        .price-row.total .price-value {
+            color: #10b981;
+        }
+
+        .price-label {
+            color: #64748b;
+        }
+
+        .price-value {
+            color: #1e293b;
+            font-weight: 500;
+        }
+
+        /* 底部操作栏 */
+        .bottom-actions {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            padding: 12px 16px;
+            display: flex;
+            gap: 12px;
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.1);
+            z-index: 100;
+            padding-bottom: calc(12px + env(safe-area-inset-bottom, 0));
+        }
+
+        .action-btn {
+            flex: 1;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            border: none;
+            border-radius: 12px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+        }
+
+        .btn-secondary {
+            background: #f1f5f9;
+            color: #64748b;
+        }
+
+        .btn-danger {
+            background: #fef2f2;
+            color: #dc2626;
+        }
+
+        /* 文档列表 */
+        .document-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px;
+            background: #f8fafc;
+            border-radius: 10px;
+            margin-bottom: 8px;
+        }
+
+        .document-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .document-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex: 1;
+            min-width: 0;
+        }
+
+        .document-info i {
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #fee2e2;
+            border-radius: 8px;
+            color: #dc2626;
+            font-size: 16px;
+        }
+
+        .document-name {
+            font-size: 14px;
+            font-weight: 500;
+            color: #1e293b;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .document-size {
+            font-size: 12px;
+            color: #94a3b8;
+        }
+
+        .document-download {
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #10b981;
+            border-radius: 8px;
+            color: white;
+            text-decoration: none;
+            flex-shrink: 0;
+        }
+
+        /* 空状态 */
+        .empty-state {
+            text-align: center;
+            padding: 24px;
+            color: #94a3b8;
+        }
+
+        .empty-state i {
+            font-size: 32px;
+            margin-bottom: 8px;
+        }
+
+        /* 提示消息 */
+        .alert {
+            margin: 16px;
+            padding: 14px 16px;
+            border-radius: 12px;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .alert-success {
+            background: #f0fdf4;
+            color: #166534;
+            border: 1px solid #bbf7d0;
+        }
+
+        .alert-danger {
+            background: #fef2f2;
+            color: #991b1b;
+            border: 1px solid #fecaca;
+        }
+    </style>
+</head>
+<body>
+
+<!-- 顶部导航 -->
+<header class="header">
+    <a href="{{ url_for('mobile.orders_list') }}" class="header-back">
+        <i class="fas fa-arrow-left"></i>
+    </a>
+    <h1 class="header-title">订单详情</h1>
+    <div class="header-placeholder"></div>
+</header>
+
+<main class="main-content">
+    <!-- 显示消息 -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+            <div class="alert alert-{{ 'success' if category == 'success' else 'danger' }}">
+                <i class="fas fa-{{ 'check-circle' if category == 'success' else 'exclamation-circle' }}"></i>
+                {{ message }}
+            </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <!-- 订单状态卡片 -->
+    <div class="status-card">
+        <div class="status-badge">
+            {% if order.status == 'draft' %}
+            <i class="fas fa-edit"></i> 草稿
+            {% elif order.status == 'pending' %}
+            <i class="fas fa-clock"></i> 待处理
+            {% elif order.status == 'confirmed' %}
+            <i class="fas fa-check"></i> 已确认
+            {% elif order.status == 'in_progress' or order.status == 'processing' %}
+            <i class="fas fa-spinner fa-spin"></i> 处理中
+            {% elif order.status == 'completed' %}
+            <i class="fas fa-check-circle"></i> 已完成
+            {% elif order.status == 'cancelled' %}
+            <i class="fas fa-times-circle"></i> 已取消
+            {% else %}
+            <i class="fas fa-info-circle"></i> {{ order.status_display }}
+            {% endif %}
+        </div>
+        <div class="order-number">订单号: {{ order.order_number }}</div>
+        <div class="order-title">{{ order.service_name }}</div>
+        <div class="order-amount">
+            <div>
+                <div class="amount-label">订单金额</div>
+                <div class="amount-value">{{ order.currency }} {{ "%.2f"|format(order.total_amount) }}</div>
+            </div>
+            <div>
+                <span class="status-badge" style="margin-bottom: 0;">
+                    {% if order.service_type == 'tour' %}
+                    <i class="fas fa-suitcase-rolling"></i> 旅游配套
+                    {% elif order.service_type == 'visa' %}
+                    <i class="fas fa-passport"></i> 签证服务
+                    {% elif order.service_type == 'flight' %}
+                    <i class="fas fa-plane"></i> 机票预订
+                    {% elif order.service_type == 'hotel' %}
+                    <i class="fas fa-hotel"></i> 酒店预订
+                    {% else %}
+                    <i class="fas fa-concierge-bell"></i> {{ order.service_type }}
+                    {% endif %}
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- 订单项目 -->
+    {% if order.order_items %}
+    <div class="info-section">
+        <div class="section-header">
+            <i class="fas fa-list"></i>
+            <h3>订单项目</h3>
+        </div>
+        <div class="section-content">
+            {% for item in order.order_items %}
+            <div class="order-item">
+                <div class="item-name">{{ item.item_name }}</div>
+                {% if item.item_description %}
+                <div class="item-desc">{{ item.item_description }}</div>
+                {% endif %}
+                <div class="item-meta">
+                    <span class="item-qty">数量: {{ item.quantity }} × {{ order.currency }} {{ "%.2f"|format(item.unit_price) }}</span>
+                    <span class="item-price">{{ order.currency }} {{ "%.2f"|format(item.total_price) }}</span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- 订单描述 -->
+    {% if order.description %}
+    <div class="info-section">
+        <div class="section-header">
+            <i class="fas fa-file-alt"></i>
+            <h3>订单描述</h3>
+        </div>
+        <div class="section-content">
+            <div style="font-size: 14px; color: #64748b; white-space: pre-line;">{{ order.description }}</div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- 客户信息 -->
+    <div class="info-section">
+        <div class="section-header">
+            <i class="fas fa-user"></i>
+            <h3>客户信息</h3>
+        </div>
+        <div class="section-content">
+            <div class="info-row">
+                <span class="info-label">姓名</span>
+                <span class="info-value">{{ order.customer_name or '-' }}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">邮箱</span>
+                <span class="info-value">{{ order.customer_email or '-' }}</span>
+            </div>
+            {% if order.customer_phone %}
+            <div class="info-row">
+                <span class="info-label">联系电话</span>
+                <span class="info-value">{{ order.customer_phone }}</span>
+            </div>
+            {% endif %}
+            {% if order.customer_address %}
+            <div class="info-row">
+                <span class="info-label">地址</span>
+                <span class="info-value">{{ order.customer_address }}</span>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- 特殊要求 -->
+    {% if order.special_requirements or order.notes %}
+    <div class="info-section">
+        <div class="section-header">
+            <i class="fas fa-star"></i>
+            <h3>特殊要求</h3>
+        </div>
+        <div class="section-content">
+            {% if order.special_requirements %}
+            <div class="info-row">
+                <span class="info-label">特殊要求</span>
+                <span class="info-value">{{ order.special_requirements }}</span>
+            </div>
+            {% endif %}
+            {% if order.notes %}
+            <div class="info-row">
+                <span class="info-label">备注</span>
+                <span class="info-value">{{ order.notes }}</span>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- 价格摘要 -->
+    <div class="info-section">
+        <div class="section-header">
+            <i class="fas fa-calculator"></i>
+            <h3>价格摘要</h3>
+        </div>
+        <div class="section-content">
+            <div class="price-row">
+                <span class="price-label">基础价格</span>
+                <span class="price-value">{{ order.currency }} {{ "%.2f"|format(order.base_price) }}</span>
+            </div>
+            {% if order.additional_fees and order.additional_fees > 0 %}
+            <div class="price-row">
+                <span class="price-label">附加费用</span>
+                <span class="price-value">{{ order.currency }} {{ "%.2f"|format(order.additional_fees) }}</span>
+            </div>
+            {% endif %}
+            {% if order.discount_amount and order.discount_amount > 0 %}
+            <div class="price-row">
+                <span class="price-label">折扣</span>
+                <span class="price-value" style="color: #dc2626;">-{{ order.currency }} {{ "%.2f"|format(order.discount_amount) }}</span>
+            </div>
+            {% endif %}
+            <div class="price-row total">
+                <span class="price-label">总计</span>
+                <span class="price-value">{{ order.currency }} {{ "%.2f"|format(order.total_amount) }}</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- 订单状态时间线 -->
+    <div class="info-section">
+        <div class="section-header">
+            <i class="fas fa-history"></i>
+            <h3>订单状态</h3>
+        </div>
+        <div class="section-content">
+            <div class="timeline">
+                <div class="timeline-item">
+                    <div class="timeline-title">订单创建</div>
+                    <div class="timeline-desc">订单已成功创建</div>
+                    <div class="timeline-time">{{ order.created_at.strftime('%Y-%m-%d %H:%M') }}</div>
+                </div>
+
+                {% if order.status != 'draft' %}
+                <div class="timeline-item">
+                    <div class="timeline-title">订单提交</div>
+                    <div class="timeline-desc">订单已提交，等待处理</div>
+                    <div class="timeline-time">{{ order.updated_at.strftime('%Y-%m-%d %H:%M') }}</div>
+                </div>
+                {% endif %}
+
+                {% if order.status == 'confirmed' %}
+                <div class="timeline-item">
+                    <div class="timeline-title">订单确认</div>
+                    <div class="timeline-desc">订单已确认，开始处理</div>
+                    <div class="timeline-time">{{ order.confirmed_at.strftime('%Y-%m-%d %H:%M') if order.confirmed_at else '已确认' }}</div>
+                </div>
+                {% elif order.status == 'in_progress' or order.status == 'processing' %}
+                <div class="timeline-item">
+                    <div class="timeline-title">处理中</div>
+                    <div class="timeline-desc">订单正在处理中</div>
+                    <div class="timeline-time">{{ order.updated_at.strftime('%Y-%m-%d %H:%M') }}</div>
+                </div>
+                {% elif order.status == 'completed' %}
+                <div class="timeline-item">
+                    <div class="timeline-title">订单完成</div>
+                    <div class="timeline-desc">订单已成功完成</div>
+                    <div class="timeline-time">{{ order.completed_at.strftime('%Y-%m-%d %H:%M') if order.completed_at else '已完成' }}</div>
+                </div>
+                {% elif order.status == 'cancelled' %}
+                <div class="timeline-item">
+                    <div class="timeline-title">订单取消</div>
+                    <div class="timeline-desc">订单已取消</div>
+                    <div class="timeline-time">{{ order.cancelled_at.strftime('%Y-%m-%d %H:%M') if order.cancelled_at else '已取消' }}</div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- 相关文档 -->
+    {% if order.documents %}
+    <div class="info-section">
+        <div class="section-header">
+            <i class="fas fa-file-alt"></i>
+            <h3>相关文档</h3>
+        </div>
+        <div class="section-content">
+            {% for document in order.documents %}
+            <div class="document-item">
+                <div class="document-info">
+                    <i class="fas fa-file-pdf"></i>
+                    <div>
+                        <div class="document-name">{{ document.document_name }}</div>
+                        <div class="document-size">
+                            {{ (document.file_size / 1024 / 1024)|round(2) }} MB
+                            {% if document.is_verified %}
+                            <span style="color: #10b981; margin-left: 8px;">
+                                <i class="fas fa-check-circle"></i> 已验证
+                            </span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                <a href="{{ url_for('static', filename=document.file_path.replace('App_new/static/', '')) }}"
+                   class="document-download" target="_blank">
+                    <i class="fas fa-download"></i>
+                </a>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</main>
+
+<!-- 底部操作栏 -->
+<div class="bottom-actions">
+    {% if order.status == 'draft' %}
+    <button type="button" class="action-btn btn-primary" onclick="submitOrder()">
+        <i class="fas fa-paper-plane"></i>
+        提交订单
+    </button>
+    {% endif %}
+
+    {% if order.can_cancel() %}
+    <button type="button" class="action-btn btn-danger" onclick="cancelOrder()">
+        <i class="fas fa-times"></i>
+        取消订单
+    </button>
+    {% endif %}
+
+    <a href="{{ url_for('mobile.orders_list') }}" class="action-btn btn-secondary">
+        <i class="fas fa-list"></i>
+        订单列表
+    </a>
+</div>
+
+<script>
+function submitOrder() {
+    if (confirm('确定要提交订单吗？提交后订单将进入处理流程。')) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '{{ url_for("orders.submit_order", order_id=order.id) }}';
+
+        const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+        if (csrfMeta) {
+            const tokenInput = document.createElement('input');
+            tokenInput.type = 'hidden';
+            tokenInput.name = 'csrf_token';
+            tokenInput.value = csrfMeta.content;
+            form.appendChild(tokenInput);
+        }
+
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+
+function cancelOrder() {
+    if (confirm('确定要取消这个订单吗？取消后无法恢复。')) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '{{ url_for("orders.cancel_order", order_id=order.id) }}';
+
+        const csrfToken = document.querySelector('meta[name="csrf-token"]');
+        if (csrfToken) {
+            const tokenInput = document.createElement('input');
+            tokenInput.type = 'hidden';
+            tokenInput.name = 'csrf_token';
+            tokenInput.value = csrfToken.getAttribute('content');
+            form.appendChild(tokenInput);
+        }
+
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+</script>
+
+<!-- 底部导航 -->
+{% set menu_type = 'member' %}
+{% set active_tab = 'orders' %}
+{% include 'mobile/components/bottom_nav.html' %}
+
+</body>
+</html>

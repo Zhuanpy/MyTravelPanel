@@ -4,7 +4,7 @@
 提供针对手机优化的简化版界面
 """
 
-from flask import render_template, redirect, url_for, request, jsonify, flash
+from flask import render_template, redirect, url_for, request, jsonify, flash, current_app
 from flask_login import login_required, current_user
 from datetime import datetime, timedelta
 from sqlalchemy import func, desc
@@ -575,3 +575,1003 @@ def public_home():
                          visa_countries=visa_countries,
                          banners=banners,
                          stats=stats)
+
+
+# 地区到国家的映射
+REGION_COUNTRIES = {
+    'southeast_asia': ['新加坡', '马来西亚', '泰国', '印尼', '印度尼西亚', '越南', '菲律宾', '柬埔寨', '老挝', '缅甸', '文莱'],
+    'east_asia': ['日本', '韩国', '中国', '台湾', '香港', '澳门'],
+    'europe': ['法国', '意大利', '德国', '英国', '西班牙', '瑞士', '荷兰', '希腊', '葡萄牙', '奥地利', '捷克', '匈牙利'],
+    'america': ['美国', '加拿大', '墨西哥', '巴西', '阿根廷', '智利'],
+    'oceania': ['澳大利亚', '新西兰', '斐济'],
+    'middle_east': ['阿联酋', '土耳其', '埃及', '以色列', '约旦'],
+    'south_asia': ['印度', '斯里兰卡', '马尔代夫', '尼泊尔']
+}
+
+
+@mobile_bp.route('/tour-packages')
+def tour_packages():
+    """手机端旅游配套页面 - 无需登录"""
+    from App_new.business.tour.models.Packagemodels import CompanyInfo, Product, ProductCity
+    from sqlalchemy import or_
+    from datetime import date
+    import json
+
+    # 获取搜索参数
+    destination = request.args.get('destination', '').strip()
+    departure_date = request.args.get('departure_date', '')
+    return_date = request.args.get('return_date', '')
+    pax = request.args.get('pax', '')
+    region = request.args.get('region', '')
+    country = request.args.get('country', '').strip()
+    city = request.args.get('city', '').strip()
+    page = request.args.get('page', 1, type=int)
+    per_page = 10  # 手机端每页显示10个
+
+    # 获取公司信息
+    company_info = CompanyInfo.query.first()
+
+    # 构建查询
+    query = Product.query.filter(
+        or_(
+            Product.product_status == 'active',
+            Product.product_status.is_(None),
+            Product.product_status == ''
+        )
+    )
+
+    # 标记是否需要join ProductCity
+    need_join_city = False
+
+    # 地区筛选
+    if region and region in REGION_COUNTRIES:
+        countries_in_region = REGION_COUNTRIES[region]
+        region_conditions = []
+        for country_name in countries_in_region:
+            region_conditions.append(ProductCity.country_name.like(f'%{country_name}%'))
+            region_conditions.append(Product.city_name.like(f'%{country_name}%'))
+            region_conditions.append(Product.destination_city.like(f'%{country_name}%'))
+        query = query.outerjoin(ProductCity, Product.city_id == ProductCity.id).filter(
+            or_(*region_conditions)
+        ).distinct()
+        need_join_city = True
+
+    # 国家筛选
+    if country:
+        if not need_join_city:
+            query = query.outerjoin(ProductCity, Product.city_id == ProductCity.id)
+        query = query.filter(ProductCity.country_name == country).distinct()
+
+    # 城市筛选
+    if city:
+        query = query.filter(Product.city_name == city)
+
+    # 目的地筛选
+    if destination:
+        query = query.filter(
+            or_(
+                Product.city_name.like(f'%{destination}%'),
+                Product.destination_city.like(f'%{destination}%')
+            )
+        )
+
+    # 日期筛选
+    today = date.today()
+    if departure_date:
+        try:
+            from datetime import datetime
+            dep_date = datetime.strptime(departure_date, '%Y-%m-%d').date()
+            query = query.filter(
+                or_(
+                    Product.valid_from.is_(None),
+                    Product.valid_from <= dep_date
+                )
+            )
+        except:
+            pass
+
+    if return_date:
+        try:
+            from datetime import datetime
+            ret_date = datetime.strptime(return_date, '%Y-%m-%d').date()
+            query = query.filter(
+                or_(
+                    Product.valid_until.is_(None),
+                    Product.valid_until >= ret_date
+                )
+            )
+        except:
+            pass
+
+    # 人数筛选
+    if pax:
+        try:
+            if pax == '1':
+                min_pax = 1
+            elif pax == '2':
+                min_pax = 2
+            elif pax == '3-5':
+                min_pax = 3
+            elif pax == '6-10':
+                min_pax = 6
+            elif pax == '10+':
+                min_pax = 10
+            else:
+                min_pax = None
+
+            if min_pax:
+                query = query.filter(
+                    or_(
+                        Product.min_pax.is_(None),
+                        Product.min_pax <= min_pax
+                    )
+                )
+        except:
+            pass
+
+    # 排序
+    query = query.order_by(Product.is_featured.desc(), Product.created_at.desc())
+
+    # 分页
+    pagination = query.paginate(
+        page=page,
+        per_page=per_page,
+        error_out=False
+    )
+
+    products = pagination.items
+
+    # 转换为模板需要的格式
+    packages = []
+    for product in products:
+        # 解析亮点
+        highlights = []
+        if product.highlights:
+            try:
+                highlights = json.loads(product.highlights) if product.highlights.startswith('[') else product.highlights.split(',')
+            except:
+                highlights = [h.strip() for h in product.highlights.split(',') if h.strip()]
+
+        # 格式化价格
+        price_display = f"SGD {product.base_price:,.0f}" if product.base_price else "价格面议"
+        if product.currency and product.currency != 'SGD':
+            price_display = f"{product.currency} {product.base_price:,.0f}" if product.base_price else "价格面议"
+
+        # 格式化天数
+        duration_display = f"{product.duration_days}天{product.duration_days-1 if product.duration_days else 0}夜" if product.duration_days else "天数待定"
+
+        # 目的地显示
+        destination_display = product.city_name or product.destination_city or "目的地待定"
+        if product.country and product.country != '未知':
+            destination_display = f"{product.country} {destination_display}"
+
+        packages.append({
+            'id': product.id,
+            'code': product.product_code or f'P{product.id:04d}',
+            'name': product.product_name,
+            'destination': destination_display,
+            'duration': duration_display,
+            'price': price_display,
+            'image': product.cover_image if product.cover_image else None,
+            'highlights': highlights[:5] if highlights else ['精彩行程', '专业服务']
+        })
+
+    # 获取国家和城市列表
+    countries = db.session.query(ProductCity.country_name).filter(
+        ProductCity.country_name.isnot(None)
+    ).distinct().order_by(ProductCity.country_name).all()
+    countries = [c[0] for c in countries if c[0]]
+
+    # 根据选择的国家获取城市列表
+    cities = []
+    if country:
+        cities = db.session.query(ProductCity.city_name).filter(
+            ProductCity.country_name == country,
+            ProductCity.city_name.isnot(None)
+        ).distinct().order_by(ProductCity.city_name).all()
+        cities = [c[0] for c in cities if c[0]]
+    else:
+        cities = db.session.query(Product.city_name).filter(
+            Product.city_name.isnot(None)
+        ).distinct().order_by(Product.city_name).all()
+        cities = [c[0] for c in cities if c[0]]
+
+    return render_template('mobile/tour_packages.html',
+                         packages=packages,
+                         pagination=pagination,
+                         destination=destination,
+                         departure_date=departure_date,
+                         return_date=return_date,
+                         pax=pax,
+                         region=region,
+                         country=country,
+                         city=city,
+                         countries=countries,
+                         cities=cities,
+                         company=company_info)
+
+
+@mobile_bp.route('/tour-package/<int:package_id>')
+def tour_package_detail(package_id):
+    """手机端旅游配套详情 - 无需登录"""
+    from App_new.business.tour.models.Packagemodels import CompanyInfo, Product, ProductItinerary
+    from datetime import date
+    import json
+
+    # 获取公司信息
+    company_info = CompanyInfo.query.first()
+
+    # 查询产品详情
+    product = Product.query.filter_by(id=package_id).first_or_404()
+
+    # 检查产品是否有效
+    today = date.today()
+    if product.valid_until and product.valid_until < today:
+        flash('该旅游配套已过期', 'warning')
+        return redirect(url_for('mobile.tour_packages'))
+
+    # 解析包含服务
+    includes = []
+    if product.included_services:
+        try:
+            includes = json.loads(product.included_services) if product.included_services.startswith('[') else product.included_services.split(',')
+        except:
+            includes = [i.strip() for i in product.included_services.split(',') if i.strip()]
+
+    # 解析不包含服务
+    excludes = []
+    if product.excluded_services:
+        try:
+            excludes = json.loads(product.excluded_services) if product.excluded_services.startswith('[') else product.excluded_services.split(',')
+        except:
+            excludes = [e.strip() for e in product.excluded_services.split(',') if e.strip()]
+
+    # 解析注意事项
+    notes = []
+    if product.important_notes:
+        try:
+            notes = json.loads(product.important_notes) if product.important_notes.startswith('[') else product.important_notes.split('\n')
+        except:
+            notes = [n.strip() for n in product.important_notes.split('\n') if n.strip()]
+
+    # 解析亮点
+    highlights_list = []
+    if product.highlights:
+        try:
+            highlights_list = json.loads(product.highlights) if product.highlights.startswith('[') else product.highlights.split(',')
+        except:
+            highlights_list = [h.strip() for h in product.highlights.split(',') if h.strip()]
+
+    # 格式化价格
+    price_display = f"SGD {product.base_price:,.0f}" if product.base_price else "价格面议"
+    if product.currency and product.currency != 'SGD':
+        price_display = f"{product.currency} {product.base_price:,.0f}" if product.base_price else "价格面议"
+
+    # 格式化天数
+    duration_display = f"{product.duration_days}天{product.duration_days-1 if product.duration_days else 0}夜" if product.duration_days else "天数待定"
+
+    # 目的地显示
+    destination_display = product.city_name or product.destination_city or "目的地待定"
+    if product.country and product.country != '未知':
+        destination_display = f"{product.country} {destination_display}"
+
+    # 获取行程数据
+    itineraries = ProductItinerary.query.filter_by(product_id=package_id).order_by(ProductItinerary.day_number).all()
+    itinerary_list = []
+    for it in itineraries:
+        day_data = {
+            'day': it.day_number,
+            'title': it.day_title or f'第{it.day_number}天行程',
+            'content': it.content,
+            'activities': [it.content] if it.content else [],
+            'images': [img for img in [it.image1, it.image2, it.image3] if img]
+        }
+        itinerary_list.append(day_data)
+
+    # 准备产品详情数据
+    package_data = {
+        'id': product.id,
+        'code': product.product_code or f'PKG-{product.id:04d}',
+        'name': product.product_name,
+        'destination': destination_display,
+        'country': product.country,
+        'duration': duration_display,
+        'price': price_display,
+        'child_price': f"{product.currency or 'SGD'} {product.child_price:,.0f}" if product.child_price else None,
+        'image': product.cover_image,
+        'description': product.product_description or '暂无详细描述，请联系我们的旅游顾问获取更多信息。',
+        'highlights': highlights_list,
+        'includes': includes if includes else ['专业导游', '优质服务', '舒适住宿', '部分餐饮'],
+        'excludes': excludes if excludes else ['个人消费', '小费', '旅游保险', '签证费用'],
+        'notes': notes if notes else ['请确保护照有效期6个月以上', '建议购买旅游保险', '行程可能因天气调整'],
+        'itinerary': itinerary_list if itinerary_list else None,
+        'min_pax': product.min_pax,
+        'max_pax': product.max_pax,
+        'product_type': product.product_type,
+        'supplier': product.display_company_name
+    }
+
+    return render_template('mobile/tour_package_detail.html',
+                         package=package_data,
+                         company=company_info)
+
+
+@mobile_bp.route('/contact')
+def contact():
+    """手机端联系我们页面"""
+    from App_new.business.tour.models.Packagemodels import CompanyInfo
+
+    # 获取公司信息
+    company_info = CompanyInfo.query.first()
+
+    # 构建联系信息对象
+    if company_info:
+        contact_info = {
+            'address': company_info.address,
+            'phone': company_info.phone,
+            'email': company_info.email,
+            'wechat': 'MyTravelPanel',
+            'business_hours': '周一至周五: 9:00 AM - 6:00 PM'
+        }
+    else:
+        contact_info = {
+            'address': '新加坡市中心商业区',
+            'phone': '+65 1234 5678',
+            'email': 'info@joyesc.com',
+            'wechat': 'MyTravelPanel',
+            'business_hours': '周一至周五: 9:00 AM - 6:00 PM'
+        }
+
+    return render_template('mobile/contact.html',
+                         contact=contact_info,
+                         company=company_info)
+
+
+@mobile_bp.route('/visa-services')
+def visa_services():
+    """手机端签证服务列表"""
+    from App_new.business.tour.models.Packagemodels import CompanyInfo
+    from App_new.business.visa.models.Visamodels import VisaTypes, VisaCountries
+
+    # 获取公司信息
+    company_info = CompanyInfo.query.first()
+
+    # 获取筛选参数
+    region_filter = request.args.get('region', '')
+    search_query = request.args.get('search', '')
+
+    # 地区选项
+    region_options = {
+        'asia': '亚洲',
+        'europe': '欧洲',
+        'america': '美洲',
+        'oceania': '大洋洲',
+        'africa': '非洲'
+    }
+
+    # 地区与国家的映射
+    region_countries = {
+        'asia': ['中国', '日本', '韩国', '泰国', '新加坡', '马来西亚', '越南', '印度', '印度尼西亚', '菲律宾', '柬埔寨', '老挝', '缅甸', '尼泊尔', '斯里兰卡', '土耳其', '阿联酋', '沙特阿拉伯'],
+        'europe': ['英国', '法国', '德国', '意大利', '西班牙', '荷兰', '瑞士', '奥地利', '比利时', '瑞典', '挪威', '丹麦', '芬兰', '希腊', '葡萄牙', '爱尔兰', '波兰', '捷克', '匈牙利', '俄罗斯'],
+        'america': ['美国', '加拿大', '墨西哥', '巴西', '阿根廷', '智利', '秘鲁', '古巴'],
+        'oceania': ['澳大利亚', '新西兰', '斐济'],
+        'africa': ['南非', '埃及', '摩洛哥', '肯尼亚', '坦桑尼亚']
+    }
+
+    # 查询所有激活的签证类型
+    visa_types = VisaTypes.query.filter_by(is_active=True).all()
+
+    # 按国家分组
+    country_services = {}
+    for visa_type in visa_types:
+        if visa_type.country:
+            country_name = visa_type.country.country_name_CN
+            country_en = visa_type.country.country_name_EN or ''
+            flag_file = visa_type.country.flag_file
+
+            if country_name not in country_services:
+                country_services[country_name] = {
+                    'country': country_name,
+                    'country_en': country_en,
+                    'flag_file': flag_file,
+                    'services': [],
+                    'visa_count': 0
+                }
+
+            country_services[country_name]['services'].append(visa_type.visa_type)
+            country_services[country_name]['visa_count'] += 1
+
+    # 转换为列表
+    visa_services_list = list(country_services.values())
+
+    # 按地区筛选
+    if region_filter and region_filter in region_countries:
+        region_country_list = region_countries[region_filter]
+        visa_services_list = [s for s in visa_services_list if s['country'] in region_country_list]
+
+    # 搜索筛选
+    if search_query:
+        search_lower = search_query.lower()
+        visa_services_list = [
+            s for s in visa_services_list
+            if search_lower in s['country'].lower() or
+               search_lower in s['country_en'].lower() or
+               any(search_lower in service.lower() for service in s['services'])
+        ]
+
+    # 按国家名排序
+    visa_services_list.sort(key=lambda x: x['country'])
+
+    return render_template('mobile/visa_services.html',
+                         visa_services=visa_services_list,
+                         region_filter=region_filter,
+                         search_query=search_query,
+                         region_options=region_options,
+                         company=company_info)
+
+
+@mobile_bp.route('/visa-services/<country_name>')
+def visa_country(country_name):
+    """手机端按国家查看签证"""
+    from App_new.business.tour.models.Packagemodels import CompanyInfo
+    from App_new.business.visa.models.Visamodels import VisaTypes, VisaCountries
+
+    # 获取公司信息
+    company_info = CompanyInfo.query.first()
+
+    # 获取国家信息
+    country = VisaCountries.query.filter(
+        (VisaCountries.country_name_CN == country_name) |
+        (VisaCountries.country_name_EN == country_name)
+    ).first()
+
+    if not country:
+        flash('未找到该国家', 'error')
+        return redirect(url_for('mobile.visa_services'))
+
+    # 获取该国家的签证类型
+    visa_types = VisaTypes.query.filter_by(country_id=country.id, is_active=True).order_by(VisaTypes.visa_type).all()
+
+    visa_types_data = []
+    for visa_type in visa_types:
+        visa_types_data.append({
+            'id': visa_type.id,
+            'visa_type': visa_type.visa_type,
+            'fee': visa_type.fee,
+            'processing_time': visa_type.processing_time,
+            'validity': getattr(visa_type, 'validity', None)
+        })
+
+    country_info = {
+        'country': country.country_name_CN,
+        'country_en': country.country_name_EN,
+        'country_code': country.country_code,
+        'visa_types': visa_types_data
+    }
+
+    return render_template('mobile/visa_country.html',
+                         country_info=country_info,
+                         company=company_info)
+
+
+@mobile_bp.route('/visa-detail/<visa_type_name>')
+def visa_detail(visa_type_name):
+    """手机端签证详情"""
+    from App_new.business.tour.models.Packagemodels import CompanyInfo
+    from App_new.business.visa.models.Visamodels import VisaTypes
+    from urllib.parse import unquote
+
+    # 获取公司信息
+    company_info = CompanyInfo.query.first()
+
+    # URL解码
+    visa_type_name = unquote(visa_type_name)
+
+    # 获取签证类型信息
+    visa_type = VisaTypes.query.filter_by(visa_type=visa_type_name, is_active=True).first()
+
+    if not visa_type:
+        flash('未找到该签证类型', 'error')
+        return redirect(url_for('mobile.visa_services'))
+
+    return render_template('mobile/visa_detail.html',
+                         visa_type=visa_type,
+                         company=company_info)
+
+
+@mobile_bp.route('/login', methods=['GET', 'POST'])
+def member_login():
+    """手机端会员登录"""
+    from flask_login import login_user, current_user
+    from App_new.business.tour.models.Packagemodels import CompanyInfo
+    from App_new.auth.models.auth import AuthUser
+
+    # 已登录用户跳转
+    if current_user.is_authenticated:
+        next_url = request.args.get('next')
+        if next_url:
+            return redirect(next_url)
+        return redirect(url_for('mobile.public_home'))
+
+    # 获取公司信息
+    company_info = CompanyInfo.query.first()
+
+    if request.method == 'POST':
+        email = request.form.get('email', '').strip()
+        password = request.form.get('password', '')
+        remember = request.form.get('remember') == '1'
+
+        if not email or not password:
+            flash('请填写邮箱和密码', 'error')
+            return render_template('mobile/member_login.html', company=company_info)
+
+        # 查找用户
+        user = AuthUser.query.filter_by(email=email).first()
+
+        if user and user.check_password(password):
+            # 检查用户角色
+            if user.role and user.role.name not in ['member', 'admin']:
+                flash('该账号不是会员账号', 'error')
+                return render_template('mobile/member_login.html', company=company_info)
+
+            # 检查用户状态
+            if not user.is_active:
+                flash('该账号已被禁用，请联系管理员', 'error')
+                return render_template('mobile/member_login.html', company=company_info)
+
+            # 登录用户
+            login_user(user, remember=remember)
+
+            # 跳转到目标页面
+            next_url = request.args.get('next')
+            if next_url:
+                return redirect(next_url)
+            return redirect(url_for('mobile.public_home'))
+        else:
+            flash('邮箱或密码错误', 'error')
+
+    return render_template('mobile/member_login.html', company=company_info)
+
+
+@mobile_bp.route('/register', methods=['GET', 'POST'])
+def member_register():
+    """手机端会员注册 - 第一步：发送验证码"""
+    from flask import session
+    from App_new.business.tour.models.Packagemodels import CompanyInfo
+    from App_new.auth.models.auth import AuthUser
+    import re
+
+    # 已登录用户跳转
+    if current_user.is_authenticated:
+        return redirect(url_for('mobile.public_home'))
+
+    # 获取公司信息
+    company_info = CompanyInfo.query.first()
+
+    if request.method == 'POST':
+        email = request.form.get('email', '').strip()
+
+        # 基础验证
+        if not email:
+            flash('请输入邮箱地址', 'error')
+            return render_template('mobile/member_register.html', company=company_info)
+
+        # 邮箱格式验证
+        email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        if not re.match(email_pattern, email):
+            flash('请输入有效的邮箱地址', 'error')
+            return render_template('mobile/member_register.html', company=company_info)
+
+        # 检查邮箱是否已存在
+        existing_user = AuthUser.query.filter_by(email=email).first()
+        if existing_user:
+            flash('该邮箱已被注册', 'error')
+            return render_template('mobile/member_register.html', company=company_info)
+
+        # 生成并发送验证码
+        try:
+            from App_new.auth.models.auth import EmailVerificationCode
+            verification_code_obj, verification_code = EmailVerificationCode.generate_code(email)
+            db.session.add(verification_code_obj)
+            db.session.commit()
+
+            # 发送验证码邮件
+            from App_new.shared.routes.auth import send_verification_code_email
+            send_verification_code_email(email, verification_code)
+
+            # 将邮箱存储到session中
+            session['registration_email'] = email
+            flash('验证码已发送到您的邮箱，请查收', 'success')
+            return redirect(url_for('mobile.member_register_verify'))
+
+        except Exception as e:
+            current_app.logger.error(f'发送验证码失败: {str(e)}')
+            flash(f'发送验证码失败，请稍后重试', 'error')
+            return render_template('mobile/member_register.html', company=company_info)
+
+    return render_template('mobile/member_register.html', company=company_info)
+
+
+@mobile_bp.route('/register/verify', methods=['GET', 'POST'])
+def member_register_verify():
+    """手机端会员注册 - 第二步：验证码确认和完成注册"""
+    from flask import session
+    from App_new.business.tour.models.Packagemodels import CompanyInfo
+    from App_new.auth.models.auth import AuthUser, Role, UserProfile
+
+    # 已登录用户跳转
+    if current_user.is_authenticated:
+        return redirect(url_for('mobile.public_home'))
+
+    # 检查是否有注册邮箱在session中
+    if 'registration_email' not in session:
+        flash('请先输入邮箱地址', 'error')
+        return redirect(url_for('mobile.member_register'))
+
+    email = session['registration_email']
+
+    # 获取公司信息
+    company_info = CompanyInfo.query.first()
+
+    if request.method == 'POST':
+        verification_code = request.form.get('verification_code', '').strip()
+        password = request.form.get('password', '')
+        confirm_password = request.form.get('confirm_password', '')
+        first_name = request.form.get('first_name', '').strip()
+        last_name = request.form.get('last_name', '').strip()
+        phone = request.form.get('phone', '').strip()
+
+        # 基础验证
+        if not all([verification_code, password, confirm_password, first_name]):
+            flash('请填写所有必填字段', 'error')
+            return render_template('mobile/member_register_verify.html', email=email, company=company_info)
+
+        # 验证验证码
+        try:
+            from App_new.auth.models.auth import EmailVerificationCode
+            is_valid, message = EmailVerificationCode.verify_code(email, verification_code)
+            if not is_valid:
+                flash(f'验证码{message}，请重新输入', 'error')
+                return render_template('mobile/member_register_verify.html', email=email, company=company_info)
+        except Exception as e:
+            flash(f'验证码验证失败：{str(e)}', 'error')
+            return render_template('mobile/member_register_verify.html', email=email, company=company_info)
+
+        # 密码验证
+        if password != confirm_password:
+            flash('两次输入的密码不一致', 'error')
+            return render_template('mobile/member_register_verify.html', email=email, company=company_info)
+
+        if len(password) < 6:
+            flash('密码长度至少6位', 'error')
+            return render_template('mobile/member_register_verify.html', email=email, company=company_info)
+
+        # 创建用户账户
+        try:
+            # 获取会员角色
+            member_role = Role.query.filter_by(name='member').first()
+            if not member_role:
+                flash('系统错误：会员角色不存在', 'error')
+                return render_template('mobile/member_register_verify.html', email=email, company=company_info)
+
+            # 创建用户名
+            username = email.split('@')[0]
+            base_username = username
+            counter = 1
+            while AuthUser.query.filter_by(username=username).first():
+                username = f"{base_username}{counter}"
+                counter += 1
+
+            # 创建用户
+            new_user = AuthUser(
+                username=username,
+                email=email,
+                role_id=member_role.id,
+                is_verified=True,
+                is_active=True
+            )
+            new_user.set_password(password)
+
+            db.session.add(new_user)
+            db.session.commit()
+
+            # 创建用户资料
+            user_profile = UserProfile(
+                user_id=new_user.id,
+                first_name=first_name,
+                last_name=last_name,
+                phone=phone
+            )
+            db.session.add(user_profile)
+            db.session.commit()
+
+            # 清除session中的注册邮箱
+            session.pop('registration_email', None)
+
+            flash('注册成功！您的账户已激活，现在可以登录了。', 'success')
+            return redirect(url_for('mobile.member_login'))
+
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f'注册失败: {str(e)}')
+            flash(f'注册失败：{str(e)}', 'error')
+            return render_template('mobile/member_register_verify.html', email=email, company=company_info)
+
+    return render_template('mobile/member_register_verify.html', email=email, company=company_info)
+
+
+@mobile_bp.route('/register/resend-code', methods=['POST'])
+def resend_verification_code():
+    """手机端重新发送验证码"""
+    from flask import session
+
+    # 检查是否有注册邮箱在session中
+    if 'registration_email' not in session:
+        flash('请先输入邮箱地址', 'error')
+        return redirect(url_for('mobile.member_register'))
+
+    email = session['registration_email']
+
+    try:
+        from App_new.auth.models.auth import EmailVerificationCode
+        verification_code_obj, verification_code = EmailVerificationCode.generate_code(email)
+        db.session.add(verification_code_obj)
+        db.session.commit()
+
+        # 发送验证码邮件
+        from App_new.shared.routes.auth import send_verification_code_email
+        if send_verification_code_email(email, verification_code):
+            flash('验证码已重新发送，请查收邮箱', 'success')
+        else:
+            flash('验证码发送失败，请稍后重试', 'error')
+
+        return redirect(url_for('mobile.member_register_verify'))
+
+    except Exception as e:
+        current_app.logger.error(f'重新发送验证码失败: {str(e)}')
+        flash(f'重新发送验证码失败：{str(e)}', 'error')
+        return redirect(url_for('mobile.member_register_verify'))
+
+
+# ==================== 会员中心页面 ====================
+
+@mobile_bp.route('/member')
+@login_required
+def member_profile():
+    """手机端会员中心"""
+    from App_new.business.tour.models.Packagemodels import CompanyInfo
+    from App_new.member.models.order import Order
+
+    # 获取公司信息
+    company_info = CompanyInfo.query.first()
+
+    # 获取订单统计
+    order_stats = {
+        'total': Order.query.filter_by(user_id=current_user.id).count(),
+        'pending': Order.query.filter_by(user_id=current_user.id, status='pending').count(),
+        'confirmed': Order.query.filter_by(user_id=current_user.id, status='confirmed').count(),
+        'completed': Order.query.filter_by(user_id=current_user.id, status='completed').count()
+    }
+
+    return render_template('mobile/member_profile.html',
+                         order_stats=order_stats,
+                         company=company_info)
+
+
+@mobile_bp.route('/member/logout', methods=['POST'])
+@login_required
+def member_logout():
+    """手机端会员退出登录"""
+    from flask_login import logout_user
+    logout_user()
+    flash('已退出登录', 'success')
+    return redirect(url_for('mobile.public_home'))
+
+
+@mobile_bp.route('/orders')
+@login_required
+def orders_list():
+    """手机端订单列表"""
+    from App_new.business.tour.models.Packagemodels import CompanyInfo
+    from App_new.member.models.order import Order
+
+    # 获取公司信息
+    company_info = CompanyInfo.query.first()
+
+    # 获取筛选参数
+    status = request.args.get('status', '')
+    page = request.args.get('page', 1, type=int)
+    per_page = 10
+
+    # 查询当前用户的订单
+    query = Order.query.filter_by(user_id=current_user.id)
+
+    if status:
+        query = query.filter_by(status=status)
+
+    # 按创建时间倒序排列
+    query = query.order_by(Order.created_at.desc())
+
+    # 分页
+    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+    orders = pagination.items
+
+    return render_template('mobile/member_orders.html',
+                         orders=orders,
+                         pagination=pagination,
+                         current_status=status,
+                         company=company_info)
+
+
+@mobile_bp.route('/order/<int:order_id>')
+@login_required
+def order_detail(order_id):
+    """手机端订单详情"""
+    from App_new.business.tour.models.Packagemodels import CompanyInfo
+    from App_new.member.models.order import Order
+
+    # 获取公司信息
+    company_info = CompanyInfo.query.first()
+
+    # 查询订单
+    order = Order.query.filter_by(id=order_id, user_id=current_user.id).first_or_404()
+
+    return render_template('mobile/order_detail.html',
+                         order=order,
+                         company=company_info)
+
+
+@mobile_bp.route('/book-tour/<int:product_id>', methods=['GET', 'POST'])
+@login_required
+def book_tour(product_id):
+    """手机端旅游预订"""
+    from App_new.business.tour.models.Packagemodels import CompanyInfo, Product
+    from App_new.member.models.order import Order, OrderItem, OrderStatus
+    from datetime import date, datetime
+    import json
+
+    # 获取公司信息
+    company_info = CompanyInfo.query.first()
+
+    # 获取产品信息
+    product = Product.query.get_or_404(product_id)
+
+    # 检查产品是否可预订
+    today = date.today()
+    if product.product_status != 'active':
+        flash('该产品目前不可预订', 'error')
+        return redirect(url_for('mobile.tour_package_detail', package_id=product_id))
+
+    if product.valid_until and product.valid_until < today:
+        flash('该产品已过期', 'error')
+        return redirect(url_for('mobile.tour_package_detail', package_id=product_id))
+
+    if request.method == 'POST':
+        try:
+            # 获取表单数据
+            travel_date = request.form.get('travel_date')
+            adult_count = int(request.form.get('adult_count', 1))
+            child_count = int(request.form.get('child_count', 0))
+            infant_count = int(request.form.get('infant_count', 0))
+
+            # 联系人信息
+            contact_name = request.form.get('contact_name')
+            contact_email = request.form.get('contact_email')
+            contact_phone = request.form.get('contact_phone')
+            special_requirements = request.form.get('special_requirements', '')
+
+            # 验证数据
+            if not travel_date:
+                flash('请选择出发日期', 'error')
+                return redirect(url_for('mobile.book_tour', product_id=product_id))
+
+            if not contact_name or not contact_email or not contact_phone:
+                flash('请填写完整的联系人信息', 'error')
+                return redirect(url_for('mobile.book_tour', product_id=product_id))
+
+            # 计算价格
+            base_price = float(product.base_price or 0)
+            child_price = float(product.child_price or (base_price * 0.7))
+            infant_price = float(product.infant_price or 0)
+
+            adult_total = adult_count * base_price
+            child_total = child_count * child_price
+            infant_total = infant_count * infant_price
+            total_amount = adult_total + child_total + infant_total
+
+            # 生成订单号
+            import random
+            order_number = f"T{datetime.now().strftime('%Y%m%d%H%M%S')}{random.randint(1000, 9999)}"
+
+            # 构建订单描述
+            destination = product.city_name or product.destination_city or '未指定'
+            duration = f"{product.duration_days}天{product.duration_days-1 if product.duration_days else 0}夜" if product.duration_days else "待定"
+
+            description = f"""旅游产品: {product.product_name}
+产品编号: {product.product_code or f'PKG-{product.id:04d}'}
+目的地: {destination}
+行程: {duration}
+出发日期: {travel_date}
+人数: 成人{adult_count}人"""
+            if child_count > 0:
+                description += f", 儿童{child_count}人"
+            if infant_count > 0:
+                description += f", 婴儿{infant_count}人"
+
+            # 备注信息
+            notes = json.dumps({
+                'product_id': product_id,
+                'product_code': product.product_code,
+                'travel_date': travel_date,
+                'adult_count': adult_count,
+                'child_count': child_count,
+                'infant_count': infant_count,
+                'adult_price': base_price,
+                'child_price': child_price,
+                'infant_price': infant_price
+            }, ensure_ascii=False)
+
+            # 创建订单
+            order = Order(
+                order_number=order_number,
+                user_id=current_user.id,
+                service_type='tour',
+                service_name=product.product_name,
+                description=description,
+                status='pending',
+                currency=product.currency or 'SGD',
+                base_price=total_amount,
+                total_amount=total_amount,
+                customer_name=contact_name,
+                customer_email=contact_email,
+                customer_phone=contact_phone,
+                special_requirements=special_requirements,
+                notes=notes
+            )
+
+            db.session.add(order)
+            db.session.commit()
+
+            flash('预订提交成功！我们将尽快与您联系确认', 'success')
+            return redirect(url_for('mobile.orders_list'))
+
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f'预订失败: {str(e)}')
+            import traceback
+            current_app.logger.error(traceback.format_exc())
+            flash(f'预订失败: {str(e)}', 'error')
+            return redirect(url_for('mobile.book_tour', product_id=product_id))
+
+    # GET 请求：显示预订表单
+    # 准备产品数据
+    destination = product.city_name or product.destination_city or '未指定'
+    if product.country and product.country != '未知':
+        destination = f"{product.country} {destination}"
+
+    duration = f"{product.duration_days}天{product.duration_days-1 if product.duration_days else 0}夜" if product.duration_days else "待定"
+    price_display = f"{product.currency or 'SGD'} {product.base_price:,.0f}" if product.base_price else "价格面议"
+
+    product_data = {
+        'id': product.id,
+        'code': product.product_code or f'PKG-{product.id:04d}',
+        'name': product.product_name,
+        'destination': destination,
+        'duration': duration,
+        'price': price_display,
+        'currency': product.currency or 'SGD',
+        'base_price': product.base_price or 0,
+        'child_price': product.child_price,
+        'infant_price': product.infant_price or 0,
+        'min_pax': product.min_pax,
+        'max_pax': product.max_pax,
+        'image': product.cover_image
+    }
+
+    # 获取用户信息
+    user_profile = current_user.profile if hasattr(current_user, 'profile') else None
+
+    return render_template('mobile/book_tour.html',
+                         product=product_data,
+                         user_profile=user_profile,
+                         company=company_info)

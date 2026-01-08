@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#10b981">
+    <title>{{ package.name }} - {{ company.company_name if company else '悦行假期' }}</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #f5f5f5;
+            color: #333;
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+            padding-bottom: 80px;
+        }
+
+        /* 顶部导航 */
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 56px;
+            background: linear-gradient(135deg, #10b981, #059669);
+            display: flex;
+            align-items: center;
+            padding: 0 16px;
+            z-index: 100;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .header-back {
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 20px;
+            text-decoration: none;
+        }
+
+        .header-title {
+            flex: 1;
+            color: white;
+            font-size: 16px;
+            font-weight: 600;
+            text-align: center;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            padding: 0 10px;
+        }
+
+        .header-share {
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 18px;
+            text-decoration: none;
+        }
+
+        /* 主内容区 */
+        .main-content {
+            padding-top: 56px;
+        }
+
+        /* 封面图 */
+        .cover-image {
+            height: 220px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            background-size: cover;
+            background-position: center;
+            position: relative;
+        }
+
+        .cover-overlay {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 40px 16px 16px;
+            background: linear-gradient(to top, rgba(0,0,0,0.7), transparent);
+            color: white;
+        }
+
+        .cover-price {
+            font-size: 28px;
+            font-weight: 700;
+        }
+
+        .cover-price small {
+            font-size: 14px;
+            font-weight: 400;
+            opacity: 0.8;
+        }
+
+        .cover-meta {
+            display: flex;
+            gap: 16px;
+            font-size: 13px;
+            margin-top: 8px;
+            opacity: 0.9;
+        }
+
+        .cover-meta i {
+            margin-right: 4px;
+        }
+
+        /* 产品信息卡片 */
+        .info-card {
+            background: white;
+            margin: -20px 16px 16px;
+            border-radius: 12px;
+            padding: 16px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            position: relative;
+            z-index: 10;
+        }
+
+        .info-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: #1e293b;
+            line-height: 1.4;
+            margin-bottom: 12px;
+        }
+
+        .info-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .info-tag {
+            padding: 4px 10px;
+            background: #f0fdf4;
+            border-radius: 12px;
+            font-size: 12px;
+            color: #16a34a;
+        }
+
+        .info-tag.type {
+            background: #dbeafe;
+            color: #2563eb;
+        }
+
+        .info-destination {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #64748b;
+            font-size: 14px;
+        }
+
+        .info-destination i {
+            color: #10b981;
+        }
+
+        /* 内容区块 */
+        .section {
+            background: white;
+            margin: 0 16px 16px;
+            border-radius: 12px;
+            padding: 16px;
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 14px;
+        }
+
+        .section-icon {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, #10b981, #059669);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 14px;
+        }
+
+        .section-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #1e293b;
+        }
+
+        .section-content {
+            color: #475569;
+            font-size: 14px;
+        }
+
+        .section-content p {
+            margin-bottom: 12px;
+        }
+
+        .section-content p:last-child {
+            margin-bottom: 0;
+        }
+
+        /* 列表样式 */
+        .list-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 10px 0;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .list-item:last-child {
+            border-bottom: none;
+        }
+
+        .list-icon {
+            width: 20px;
+            height: 20px;
+            background: #f0fdf4;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+
+        .list-icon i {
+            font-size: 10px;
+            color: #16a34a;
+        }
+
+        .list-icon.exclude {
+            background: #fef2f2;
+        }
+
+        .list-icon.exclude i {
+            color: #dc2626;
+        }
+
+        .list-icon.note {
+            background: #fef3c7;
+        }
+
+        .list-icon.note i {
+            color: #d97706;
+        }
+
+        .list-text {
+            flex: 1;
+            font-size: 14px;
+            color: #475569;
+        }
+
+        /* 行程卡片 */
+        .itinerary-item {
+            margin-bottom: 16px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .itinerary-item:last-child {
+            margin-bottom: 0;
+            padding-bottom: 0;
+            border-bottom: none;
+        }
+
+        .itinerary-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 10px;
+        }
+
+        .itinerary-day {
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(135deg, #10b981, #059669);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 14px;
+            font-weight: 600;
+            flex-shrink: 0;
+        }
+
+        .itinerary-title {
+            flex: 1;
+            font-size: 15px;
+            font-weight: 600;
+            color: #1e293b;
+        }
+
+        .itinerary-content {
+            padding-left: 48px;
+            font-size: 14px;
+            color: #475569;
+        }
+
+        .itinerary-images {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+            padding-left: 48px;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .itinerary-images::-webkit-scrollbar {
+            display: none;
+        }
+
+        .itinerary-img {
+            width: 100px;
+            height: 70px;
+            border-radius: 8px;
+            object-fit: cover;
+            flex-shrink: 0;
+        }
+
+        /* 底部预订栏 */
+        .booking-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 70px;
+            background: white;
+            display: flex;
+            align-items: center;
+            padding: 0 16px;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+            z-index: 100;
+            padding-bottom: env(safe-area-inset-bottom, 0);
+        }
+
+        .booking-price {
+            flex: 1;
+        }
+
+        .booking-price-value {
+            font-size: 22px;
+            font-weight: 700;
+            color: #10b981;
+        }
+
+        .booking-price-unit {
+            font-size: 12px;
+            color: #94a3b8;
+        }
+
+        .booking-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .booking-btn {
+            height: 44px;
+            padding: 0 20px;
+            border-radius: 22px;
+            font-size: 14px;
+            font-weight: 600;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .booking-btn-secondary {
+            background: #f1f5f9;
+            color: #64748b;
+        }
+
+        .booking-btn-primary {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+        }
+
+        /* 供应商信息 */
+        .supplier-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px;
+            background: #f8fafc;
+            border-radius: 8px;
+            margin-top: 12px;
+        }
+
+        .supplier-icon {
+            width: 36px;
+            height: 36px;
+            background: #e2e8f0;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #64748b;
+        }
+
+        .supplier-text {
+            flex: 1;
+        }
+
+        .supplier-label {
+            font-size: 11px;
+            color: #94a3b8;
+        }
+
+        .supplier-name {
+            font-size: 14px;
+            color: #334155;
+            font-weight: 500;
+        }
+
+        /* 儿童价格 */
+        .child-price {
+            display: inline-block;
+            padding: 4px 10px;
+            background: #fef3c7;
+            border-radius: 6px;
+            font-size: 12px;
+            color: #92400e;
+            margin-top: 8px;
+        }
+
+        /* 人数限制 */
+        .pax-info {
+            display: flex;
+            gap: 16px;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid #f1f5f9;
+        }
+
+        .pax-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13px;
+            color: #64748b;
+        }
+
+        .pax-item i {
+            color: #10b981;
+        }
+    </style>
+</head>
+<body>
+
+<!-- 顶部导航 -->
+<header class="header">
+    <a href="{{ url_for('mobile.tour_packages') }}" class="header-back">
+        <i class="fas fa-arrow-left"></i>
+    </a>
+    <h1 class="header-title">{{ package.name }}</h1>
+    <a href="javascript:void(0)" class="header-share" onclick="sharePackage()">
+        <i class="fas fa-share-alt"></i>
+    </a>
+</header>
+
+<main class="main-content">
+    <!-- 封面图 -->
+    <div class="cover-image" {% if package.image %}style="background-image: url('/static/{{ package.image }}');"{% endif %}>
+        <div class="cover-overlay">
+            <div class="cover-price">{{ package.price }} <small>/人起</small></div>
+            <div class="cover-meta">
+                <span><i class="fas fa-calendar"></i> {{ package.duration }}</span>
+                <span><i class="fas fa-tag"></i> {{ package.code }}</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- 产品信息卡片 -->
+    <div class="info-card">
+        <h1 class="info-title">{{ package.name }}</h1>
+        <div class="info-tags">
+            {% if package.product_type %}
+            <span class="info-tag type">{{ package.product_type }}</span>
+            {% endif %}
+            {% for highlight in package.highlights[:4] %}
+            <span class="info-tag">{{ highlight }}</span>
+            {% endfor %}
+        </div>
+        <div class="info-destination">
+            <i class="fas fa-map-marker-alt"></i>
+            {{ package.destination }}
+        </div>
+
+        {% if package.child_price %}
+        <div class="child-price">
+            <i class="fas fa-child"></i> 儿童价: {{ package.child_price }}
+        </div>
+        {% endif %}
+
+        {% if package.min_pax or package.max_pax %}
+        <div class="pax-info">
+            {% if package.min_pax %}
+            <div class="pax-item">
+                <i class="fas fa-user-friends"></i>
+                最少 {{ package.min_pax }} 人成团
+            </div>
+            {% endif %}
+            {% if package.max_pax %}
+            <div class="pax-item">
+                <i class="fas fa-users"></i>
+                最多 {{ package.max_pax }} 人
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        {% if package.supplier %}
+        <div class="supplier-info">
+            <div class="supplier-icon">
+                <i class="fas fa-building"></i>
+            </div>
+            <div class="supplier-text">
+                <div class="supplier-label">供应商</div>
+                <div class="supplier-name">{{ package.supplier }}</div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- 产品描述 -->
+    {% if package.description %}
+    <div class="section">
+        <div class="section-header">
+            <div class="section-icon">
+                <i class="fas fa-info"></i>
+            </div>
+            <h2 class="section-title">产品介绍</h2>
+        </div>
+        <div class="section-content">
+            <p>{{ package.description }}</p>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- 行程安排 -->
+    {% if package.itinerary %}
+    <div class="section">
+        <div class="section-header">
+            <div class="section-icon">
+                <i class="fas fa-route"></i>
+            </div>
+            <h2 class="section-title">行程安排</h2>
+        </div>
+        <div class="section-content">
+            {% for day in package.itinerary %}
+            <div class="itinerary-item">
+                <div class="itinerary-header">
+                    <div class="itinerary-day">D{{ day.day }}</div>
+                    <div class="itinerary-title">{{ day.title }}</div>
+                </div>
+                {% if day.content %}
+                <div class="itinerary-content">{{ day.content }}</div>
+                {% endif %}
+                {% if day.images %}
+                <div class="itinerary-images">
+                    {% for img in day.images %}
+                    <img src="/static/{{ img }}" alt="Day {{ day.day }}" class="itinerary-img">
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- 费用包含 -->
+    {% if package.includes %}
+    <div class="section">
+        <div class="section-header">
+            <div class="section-icon">
+                <i class="fas fa-check"></i>
+            </div>
+            <h2 class="section-title">费用包含</h2>
+        </div>
+        <div class="section-content">
+            {% for item in package.includes %}
+            <div class="list-item">
+                <div class="list-icon">
+                    <i class="fas fa-check"></i>
+                </div>
+                <span class="list-text">{{ item }}</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- 费用不含 -->
+    {% if package.excludes %}
+    <div class="section">
+        <div class="section-header">
+            <div class="section-icon" style="background: linear-gradient(135deg, #ef4444, #dc2626);">
+                <i class="fas fa-times"></i>
+            </div>
+            <h2 class="section-title">费用不含</h2>
+        </div>
+        <div class="section-content">
+            {% for item in package.excludes %}
+            <div class="list-item">
+                <div class="list-icon exclude">
+                    <i class="fas fa-times"></i>
+                </div>
+                <span class="list-text">{{ item }}</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- 注意事项 -->
+    {% if package.notes %}
+    <div class="section">
+        <div class="section-header">
+            <div class="section-icon" style="background: linear-gradient(135deg, #f59e0b, #d97706);">
+                <i class="fas fa-exclamation"></i>
+            </div>
+            <h2 class="section-title">注意事项</h2>
+        </div>
+        <div class="section-content">
+            {% for item in package.notes %}
+            <div class="list-item">
+                <div class="list-icon note">
+                    <i class="fas fa-exclamation"></i>
+                </div>
+                <span class="list-text">{{ item }}</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</main>
+
+<!-- 底部预订栏 -->
+<div class="booking-bar">
+    <div class="booking-price">
+        <span class="booking-price-value">{{ package.price }}</span>
+        <span class="booking-price-unit"> /人起</span>
+    </div>
+    <div class="booking-actions">
+        <a href="https://wa.me/6596275316?text=您好，我想咨询旅游配套：{{ package.name }}（{{ package.code }}）" target="_blank" class="booking-btn booking-btn-secondary">
+            <i class="fab fa-whatsapp"></i>
+        </a>
+        {% if current_user.is_authenticated %}
+        <a href="{{ url_for('orders.book_tour', product_id=package.id) }}" class="booking-btn booking-btn-primary">
+            <i class="fas fa-shopping-cart"></i>
+            立即预订
+        </a>
+        {% else %}
+        <a href="{{ url_for('auth_profile.member_login', next=url_for('orders.book_tour', product_id=package.id)) }}" class="booking-btn booking-btn-primary">
+            <i class="fas fa-shopping-cart"></i>
+            立即预订
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+// 分享功能
+function sharePackage() {
+    if (navigator.share) {
+        navigator.share({
+            title: '{{ package.name }}',
+            text: '{{ package.destination }} {{ package.duration }} - {{ package.price }}/人起',
+            url: window.location.href
+        });
+    } else {
+        // 复制链接
+        const input = document.createElement('input');
+        input.value = window.location.href;
+        document.body.appendChild(input);
+        input.select();
+        document.execCommand('copy');
+        document.body.removeChild(input);
+        alert('链接已复制到剪贴板');
+    }
+}
+</script>
+
+<!-- 底部导航 -->
+{% set menu_type = 'public' %}
+{% set active_tab = 'tour' %}
+{% include 'mobile/components/bottom_nav.html' %}
+
+</body>
+</html>

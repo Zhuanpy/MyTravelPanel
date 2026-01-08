@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#10b981">
+    <title>会员注册 - {{ company.company_name if company else '悦行假期' }}</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* 顶部导航 */
+        .header {
+            padding: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .header-back {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 20px;
+            text-decoration: none;
+            background: rgba(255,255,255,0.2);
+            border-radius: 50%;
+        }
+
+        .header-title {
+            color: white;
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .header-placeholder {
+            width: 40px;
+        }
+
+        /* Logo区域 */
+        .logo-section {
+            text-align: center;
+            padding: 20px 0 30px;
+        }
+
+        .logo-icon {
+            width: 80px;
+            height: 80px;
+            background: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 16px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+        }
+
+        .logo-icon i {
+            font-size: 36px;
+            color: #10b981;
+        }
+
+        .logo-text {
+            color: white;
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 6px;
+        }
+
+        .logo-subtitle {
+            color: rgba(255,255,255,0.8);
+            font-size: 14px;
+        }
+
+        /* 注册卡片 */
+        .register-card {
+            flex: 1;
+            background: white;
+            border-radius: 24px 24px 0 0;
+            padding: 32px 24px;
+            box-shadow: 0 -10px 40px rgba(0,0,0,0.1);
+        }
+
+        .register-title {
+            font-size: 22px;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 8px;
+        }
+
+        .register-subtitle {
+            font-size: 14px;
+            color: #64748b;
+            margin-bottom: 24px;
+        }
+
+        /* 步骤指示器 */
+        .steps {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            margin-bottom: 28px;
+        }
+
+        .step {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .step-number {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .step-number.active {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+        }
+
+        .step-number.inactive {
+            background: #e2e8f0;
+            color: #94a3b8;
+        }
+
+        .step-label {
+            font-size: 13px;
+            color: #64748b;
+        }
+
+        .step-line {
+            width: 30px;
+            height: 2px;
+            background: #e2e8f0;
+        }
+
+        /* 表单样式 */
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 14px;
+            font-weight: 600;
+            color: #334155;
+            margin-bottom: 8px;
+        }
+
+        .form-label i {
+            margin-right: 6px;
+            color: #10b981;
+        }
+
+        .form-input {
+            width: 100%;
+            height: 50px;
+            padding: 0 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            font-size: 16px;
+            color: #1e293b;
+            background: #f8fafc;
+            transition: all 0.2s;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: #10b981;
+            background: white;
+            box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.1);
+        }
+
+        .form-input::placeholder {
+            color: #94a3b8;
+        }
+
+        .form-hint {
+            font-size: 12px;
+            color: #64748b;
+            margin-top: 8px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .form-hint i {
+            color: #10b981;
+        }
+
+        /* 复选框 */
+        .checkbox-group {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            margin-bottom: 24px;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            margin-top: 2px;
+            accent-color: #10b981;
+            flex-shrink: 0;
+        }
+
+        .checkbox-label {
+            font-size: 13px;
+            color: #64748b;
+            line-height: 1.5;
+        }
+
+        .checkbox-label a {
+            color: #10b981;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        /* 提交按钮 */
+        .btn-submit {
+            width: 100%;
+            height: 52px;
+            background: linear-gradient(135deg, #10b981, #059669);
+            border: none;
+            border-radius: 12px;
+            color: white;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+            transition: all 0.2s;
+        }
+
+        .btn-submit:active {
+            transform: scale(0.98);
+        }
+
+        .btn-submit:disabled {
+            background: #94a3b8;
+            box-shadow: none;
+            cursor: not-allowed;
+        }
+
+        /* 分隔线 */
+        .divider {
+            display: flex;
+            align-items: center;
+            margin: 28px 0;
+            color: #94a3b8;
+            font-size: 13px;
+        }
+
+        .divider::before,
+        .divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: #e2e8f0;
+        }
+
+        .divider span {
+            padding: 0 16px;
+        }
+
+        /* 登录链接 */
+        .login-section {
+            text-align: center;
+        }
+
+        .login-text {
+            font-size: 14px;
+            color: #64748b;
+            margin-bottom: 12px;
+        }
+
+        .btn-login {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 24px;
+            background: #f0fdf4;
+            border: 2px solid #10b981;
+            border-radius: 12px;
+            color: #10b981;
+            font-size: 14px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+
+        .btn-login:active {
+            background: #dcfce7;
+        }
+
+        /* 提示消息 */
+        .alert {
+            padding: 14px 16px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .alert-success {
+            background: #f0fdf4;
+            color: #166534;
+            border: 1px solid #bbf7d0;
+        }
+
+        .alert-danger {
+            background: #fef2f2;
+            color: #991b1b;
+            border: 1px solid #fecaca;
+        }
+
+        /* 返回首页 */
+        .back-home {
+            text-align: center;
+            margin-top: 24px;
+            padding-top: 20px;
+            border-top: 1px solid #f1f5f9;
+        }
+
+        .back-home a {
+            color: #64748b;
+            text-decoration: none;
+            font-size: 14px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        /* 安全提示 */
+        .security-note {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 12px;
+            color: #94a3b8;
+        }
+
+        .security-note i {
+            margin-right: 4px;
+        }
+    </style>
+</head>
+<body>
+
+<!-- 顶部导航 -->
+<header class="header">
+    <a href="{{ url_for('mobile.member_login') }}" class="header-back">
+        <i class="fas fa-arrow-left"></i>
+    </a>
+    <span class="header-title">会员注册</span>
+    <div class="header-placeholder"></div>
+</header>
+
+<!-- Logo区域 -->
+<section class="logo-section">
+    <div class="logo-icon">
+        <i class="fas fa-user-plus"></i>
+    </div>
+    <div class="logo-text">{{ company.company_name_cn if company else '悦行假期' }}</div>
+    <div class="logo-subtitle">注册成为会员，享受专属服务</div>
+</section>
+
+<!-- 注册卡片 -->
+<main class="register-card">
+    <!-- 步骤指示器 -->
+    <div class="steps">
+        <div class="step">
+            <div class="step-number active">1</div>
+            <span class="step-label">验证邮箱</span>
+        </div>
+        <div class="step-line"></div>
+        <div class="step">
+            <div class="step-number inactive">2</div>
+            <span class="step-label">完善信息</span>
+        </div>
+    </div>
+
+    <h1 class="register-title">验证邮箱</h1>
+    <p class="register-subtitle">请输入您的邮箱地址，我们将发送验证码</p>
+
+    <!-- 显示消息 -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+            <div class="alert alert-{{ 'success' if category == 'success' else 'danger' }}">
+                <i class="fas fa-{{ 'check-circle' if category == 'success' else 'exclamation-circle' }}"></i>
+                {{ message }}
+            </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <form method="POST" action="{{ url_for('mobile.member_register') }}" id="registerForm">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <div class="form-group">
+            <label class="form-label">
+                <i class="fas fa-envelope"></i>邮箱地址
+            </label>
+            <input type="email" name="email" class="form-input" placeholder="请输入您的邮箱地址" required autofocus>
+            <div class="form-hint">
+                <i class="fas fa-info-circle"></i>
+                我们将向此邮箱发送6位数字验证码
+            </div>
+        </div>
+
+        <div class="checkbox-group">
+            <input type="checkbox" id="terms" name="terms" required>
+            <label class="checkbox-label" for="terms">
+                我已阅读并同意 <a href="#">服务条款</a> 和 <a href="#">隐私政策</a>
+            </label>
+        </div>
+
+        <button type="submit" class="btn-submit" id="submitBtn">
+            <i class="fas fa-paper-plane"></i>
+            发送验证码
+        </button>
+    </form>
+
+    <div class="divider">
+        <span>已有账号？</span>
+    </div>
+
+    <div class="login-section">
+        <a href="{{ url_for('mobile.member_login') }}" class="btn-login">
+            <i class="fas fa-sign-in-alt"></i>
+            立即登录
+        </a>
+    </div>
+
+    <div class="back-home">
+        <a href="{{ url_for('mobile.public_home') }}">
+            <i class="fas fa-home"></i>
+            返回首页
+        </a>
+    </div>
+
+    <div class="security-note">
+        <i class="fas fa-shield-alt"></i>
+        您的信息将被安全加密保护
+    </div>
+</main>
+
+<script>
+// 表单提交时显示加载状态
+document.getElementById('registerForm').addEventListener('submit', function(e) {
+    const submitBtn = document.getElementById('submitBtn');
+    const email = document.querySelector('input[name="email"]').value.trim();
+    const terms = document.getElementById('terms').checked;
+
+    if (!email || !terms) {
+        return;
+    }
+
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 发送中...';
+});
+</script>
+
+</body>
+</html>

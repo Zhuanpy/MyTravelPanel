@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#10b981">
+    <title>联系我们 - {{ company.company_name if company else '悦行假期' }}</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #f5f5f5;
+            color: #333;
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
+            padding-bottom: 70px;
+        }
+
+        /* 顶部导航 */
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 56px;
+            background: linear-gradient(135deg, #10b981, #059669);
+            display: flex;
+            align-items: center;
+            padding: 0 16px;
+            z-index: 100;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .header-back {
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 20px;
+            text-decoration: none;
+        }
+
+        .header-title {
+            flex: 1;
+            color: white;
+            font-size: 18px;
+            font-weight: 600;
+            text-align: center;
+        }
+
+        .header-placeholder {
+            width: 36px;
+        }
+
+        /* 主内容区 */
+        .main-content {
+            padding-top: 56px;
+        }
+
+        /* 联系卡片区 */
+        .contact-hero {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            padding: 24px 16px;
+            text-align: center;
+        }
+
+        .contact-hero h1 {
+            font-size: 22px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .contact-hero p {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        /* 联系方式卡片 */
+        .contact-cards {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            padding: 16px;
+            margin-top: -20px;
+        }
+
+        .contact-card {
+            background: white;
+            border-radius: 12px;
+            padding: 16px;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+            text-decoration: none;
+            color: inherit;
+        }
+
+        .contact-card i {
+            width: 44px;
+            height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 12px;
+            font-size: 20px;
+            margin: 0 auto 10px;
+        }
+
+        .contact-card.phone i {
+            background: #dcfce7;
+            color: #16a34a;
+        }
+
+        .contact-card.email i {
+            background: #fef3c7;
+            color: #d97706;
+        }
+
+        .contact-card.whatsapp i {
+            background: #d1fae5;
+            color: #059669;
+        }
+
+        .contact-card.wechat i {
+            background: #dbeafe;
+            color: #2563eb;
+        }
+
+        .contact-card-title {
+            font-size: 13px;
+            color: #64748b;
+            margin-bottom: 4px;
+        }
+
+        .contact-card-value {
+            font-size: 14px;
+            font-weight: 600;
+            color: #1e293b;
+        }
+
+        /* 信息区块 */
+        .info-section {
+            background: white;
+            margin: 16px;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 16px 16px 12px;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .section-header i {
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f0fdf4;
+            border-radius: 8px;
+            color: #10b981;
+            font-size: 14px;
+        }
+
+        .section-header h3 {
+            font-size: 15px;
+            font-weight: 600;
+            color: #1e293b;
+        }
+
+        .section-content {
+            padding: 16px;
+        }
+
+        /* 信息行 */
+        .info-row {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 12px 0;
+            border-bottom: 1px solid #f8fafc;
+        }
+
+        .info-row:last-child {
+            border-bottom: none;
+        }
+
+        .info-row i {
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f1f5f9;
+            border-radius: 8px;
+            color: #10b981;
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+
+        .info-row-content {
+            flex: 1;
+        }
+
+        .info-row-label {
+            font-size: 12px;
+            color: #64748b;
+            margin-bottom: 2px;
+        }
+
+        .info-row-value {
+            font-size: 14px;
+            color: #1e293b;
+            font-weight: 500;
+        }
+
+        /* 留言表单 */
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            color: #334155;
+            margin-bottom: 8px;
+        }
+
+        .form-input, .form-select, .form-textarea {
+            width: 100%;
+            padding: 12px 14px;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            font-size: 15px;
+            color: #1e293b;
+            background: #f8fafc;
+            transition: all 0.2s;
+        }
+
+        .form-input:focus, .form-select:focus, .form-textarea:focus {
+            outline: none;
+            border-color: #10b981;
+            background: white;
+            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+        }
+
+        .form-textarea {
+            min-height: 120px;
+            resize: vertical;
+        }
+
+        .btn-submit {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #10b981, #059669);
+            border: none;
+            border-radius: 12px;
+            color: white;
+            font-size: 16px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            cursor: pointer;
+        }
+
+        .btn-submit:active {
+            transform: scale(0.98);
+        }
+
+        /* FAQ */
+        .faq-item {
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .faq-item:last-child {
+            border-bottom: none;
+        }
+
+        .faq-question {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 0;
+            font-size: 14px;
+            font-weight: 500;
+            color: #1e293b;
+            cursor: pointer;
+        }
+
+        .faq-question i {
+            color: #94a3b8;
+            transition: transform 0.2s;
+        }
+
+        .faq-item.active .faq-question i {
+            transform: rotate(180deg);
+        }
+
+        .faq-answer {
+            display: none;
+            padding-bottom: 14px;
+            font-size: 13px;
+            color: #64748b;
+            line-height: 1.6;
+        }
+
+        .faq-item.active .faq-answer {
+            display: block;
+        }
+
+        /* 快速联系按钮 */
+        .quick-contact {
+            display: flex;
+            gap: 12px;
+            padding: 16px;
+        }
+
+        .quick-btn {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 14px;
+            border-radius: 12px;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .quick-btn.phone {
+            background: #10b981;
+            color: white;
+        }
+
+        .quick-btn.whatsapp {
+            background: #25d366;
+            color: white;
+        }
+
+        .quick-btn.email {
+            background: #f1f5f9;
+            color: #64748b;
+        }
+    </style>
+</head>
+<body>
+
+<!-- 顶部导航 -->
+<header class="header">
+    <a href="{{ url_for('mobile.public_home') }}" class="header-back">
+        <i class="fas fa-arrow-left"></i>
+    </a>
+    <h1 class="header-title">联系我们</h1>
+    <div class="header-placeholder"></div>
+</header>
+
+<main class="main-content">
+    <!-- 头部区域 -->
+    <div class="contact-hero">
+        <h1>联系我们</h1>
+        <p>我们随时为您提供专业的旅游咨询服务</p>
+    </div>
+
+    <!-- 联系方式卡片 -->
+    <div class="contact-cards">
+        <a href="tel:{{ contact.phone }}" class="contact-card phone">
+            <i class="fas fa-phone"></i>
+            <div class="contact-card-title">电话</div>
+            <div class="contact-card-value">{{ contact.phone }}</div>
+        </a>
+        <a href="mailto:{{ contact.email }}" class="contact-card email">
+            <i class="fas fa-envelope"></i>
+            <div class="contact-card-title">邮箱</div>
+            <div class="contact-card-value">{{ contact.email }}</div>
+        </a>
+        <a href="https://wa.me/{{ contact.phone | replace('+', '') | replace(' ', '') }}" class="contact-card whatsapp">
+            <i class="fab fa-whatsapp"></i>
+            <div class="contact-card-title">WhatsApp</div>
+            <div class="contact-card-value">点击联系</div>
+        </a>
+        <div class="contact-card wechat">
+            <i class="fab fa-weixin"></i>
+            <div class="contact-card-title">微信</div>
+            <div class="contact-card-value">{{ contact.wechat }}</div>
+        </div>
+    </div>
+
+    <!-- 详细信息 -->
+    <div class="info-section">
+        <div class="section-header">
+            <i class="fas fa-info-circle"></i>
+            <h3>联系信息</h3>
+        </div>
+        <div class="section-content">
+            <div class="info-row">
+                <i class="fas fa-map-marker-alt"></i>
+                <div class="info-row-content">
+                    <div class="info-row-label">办公地址</div>
+                    <div class="info-row-value">{{ contact.address }}</div>
+                </div>
+            </div>
+            <div class="info-row">
+                <i class="fas fa-clock"></i>
+                <div class="info-row-content">
+                    <div class="info-row-label">营业时间</div>
+                    <div class="info-row-value">{{ contact.business_hours }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 留言表单 -->
+    <div class="info-section">
+        <div class="section-header">
+            <i class="fas fa-paper-plane"></i>
+            <h3>发送消息</h3>
+        </div>
+        <div class="section-content">
+            <form id="contactForm">
+                <div class="form-group">
+                    <label class="form-label">姓名 *</label>
+                    <input type="text" class="form-input" name="name" placeholder="请输入您的姓名" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">联系电话 *</label>
+                    <input type="tel" class="form-input" name="phone" placeholder="请输入您的电话" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">电子邮箱</label>
+                    <input type="email" class="form-input" name="email" placeholder="请输入您的邮箱">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">咨询服务</label>
+                    <select class="form-select" name="service">
+                        <option value="">请选择服务类型</option>
+                        <option value="visa">签证办理</option>
+                        <option value="tour">旅游配套</option>
+                        <option value="flight">机票预订</option>
+                        <option value="hotel">酒店预订</option>
+                        <option value="other">其他服务</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">留言内容 *</label>
+                    <textarea class="form-textarea" name="message" placeholder="请详细描述您的需求..." required></textarea>
+                </div>
+                <button type="submit" class="btn-submit">
+                    <i class="fas fa-paper-plane"></i>
+                    发送消息
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- 常见问题 -->
+    <div class="info-section">
+        <div class="section-header">
+            <i class="fas fa-question-circle"></i>
+            <h3>常见问题</h3>
+        </div>
+        <div class="section-content">
+            <div class="faq-item active">
+                <div class="faq-question" onclick="toggleFaq(this)">
+                    签证办理需要多长时间？
+                    <i class="fas fa-chevron-down"></i>
+                </div>
+                <div class="faq-answer">
+                    签证办理时间因国家和签证类型而异，一般在3-15个工作日。我们会根据您的具体情况提供准确的时间预估。
+                </div>
+            </div>
+            <div class="faq-item">
+                <div class="faq-question" onclick="toggleFaq(this)">
+                    旅游配套是否包含保险？
+                    <i class="fas fa-chevron-down"></i>
+                </div>
+                <div class="faq-answer">
+                    我们的旅游配套包含基础的旅行保险。如需更全面的保障，我们也可以为您推荐适合的保险产品。
+                </div>
+            </div>
+            <div class="faq-item">
+                <div class="faq-question" onclick="toggleFaq(this)">
+                    可以定制专属的旅行方案吗？
+                    <i class="fas fa-chevron-down"></i>
+                </div>
+                <div class="faq-answer">
+                    当然可以！我们的专业旅游顾问会根据您的需求、预算和时间安排，为您量身定制专属的旅行方案。
+                </div>
+            </div>
+            <div class="faq-item">
+                <div class="faq-question" onclick="toggleFaq(this)">
+                    如何保证签证申请的成功率？
+                    <i class="fas fa-chevron-down"></i>
+                </div>
+                <div class="faq-answer">
+                    我们拥有专业的签证团队，熟悉各国签证政策。在申请前会仔细审核您的材料，并提供专业指导，确保申请成功率。
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 快速联系按钮 -->
+    <div class="quick-contact">
+        <a href="tel:{{ contact.phone }}" class="quick-btn phone">
+            <i class="fas fa-phone"></i>
+            电话咨询
+        </a>
+        <a href="https://wa.me/{{ contact.phone | replace('+', '') | replace(' ', '') }}" class="quick-btn whatsapp">
+            <i class="fab fa-whatsapp"></i>
+            WhatsApp
+        </a>
+    </div>
+</main>
+
+<script>
+function toggleFaq(element) {
+    const item = element.parentElement;
+    item.classList.toggle('active');
+}
+
+document.getElementById('contactForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    alert('感谢您的留言！我们会尽快与您联系。');
+    this.reset();
+});
+</script>
+
+<!-- 底部导航 -->
+{% set menu_type = 'public' %}
+{% set active_tab = 'contact' %}
+{% include 'mobile/components/bottom_nav.html' %}
+
+</body>
+</html>

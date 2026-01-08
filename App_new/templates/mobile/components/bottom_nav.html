@@ -1,0 +1,172 @@
+{#
+底部导航菜单组件
+使用方法: {% include 'mobile/components/bottom_nav.html' %}
+
+参数说明（通过变量传递）:
+- menu_type: 菜单类型 'public'(默认) / 'member' / 'staff'
+- active_tab: 当前激活的标签 'home' / 'tour' / 'visa' / 'contact' / 'user' / 'orders' / 'dashboard' / 'projects' / 'todos' / 'tools'
+#}
+
+<style>
+/* 底部导航样式 */
+.bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 60px;
+    background: white;
+    border-top: 1px solid #e5e7eb;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    z-index: 1000;
+    padding-bottom: env(safe-area-inset-bottom);
+    box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
+}
+
+.bottom-nav-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    color: #6b7280;
+    font-size: 10px;
+    padding: 6px 0;
+    transition: all 0.2s;
+    position: relative;
+}
+
+.bottom-nav-item i {
+    font-size: 20px;
+    margin-bottom: 3px;
+    transition: all 0.2s;
+}
+
+.bottom-nav-item span {
+    font-weight: 500;
+}
+
+.bottom-nav-item.active {
+    color: #10b981;
+}
+
+.bottom-nav-item.active i {
+    transform: scale(1.1);
+}
+
+.bottom-nav-item:active {
+    opacity: 0.7;
+}
+
+/* 徽章样式 */
+.nav-badge {
+    position: absolute;
+    top: 2px;
+    right: 50%;
+    transform: translateX(12px);
+    background: #ef4444;
+    color: white;
+    font-size: 10px;
+    min-width: 16px;
+    height: 16px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    padding: 0 4px;
+}
+
+/* 为底部导航预留空间 */
+.has-bottom-nav {
+    padding-bottom: 70px;
+}
+</style>
+
+<nav class="bottom-nav">
+    {% if menu_type == 'staff' %}
+    {# 员工页面菜单 #}
+    <a href="{{ url_for('mobile.staff_dashboard') }}" class="bottom-nav-item {{ 'active' if active_tab == 'dashboard' else '' }}">
+        <i class="fas fa-home"></i>
+        <span>工作台</span>
+    </a>
+    <a href="{{ url_for('mobile.projects') }}" class="bottom-nav-item {{ 'active' if active_tab == 'projects' else '' }}">
+        <i class="fas fa-folder"></i>
+        <span>项目</span>
+    </a>
+    <a href="{{ url_for('mobile.todos') }}" class="bottom-nav-item {{ 'active' if active_tab == 'todos' else '' }}">
+        <i class="fas fa-tasks"></i>
+        <span>待办</span>
+        {% if pending_todo_count is defined and pending_todo_count > 0 %}
+        <span class="nav-badge">{{ pending_todo_count if pending_todo_count < 100 else '99+' }}</span>
+        {% endif %}
+    </a>
+    <a href="{{ url_for('mobile.flight_tools') }}" class="bottom-nav-item {{ 'active' if active_tab == 'tools' else '' }}">
+        <i class="fas fa-tools"></i>
+        <span>工具</span>
+    </a>
+    <a href="{{ url_for('mobile.profile') }}" class="bottom-nav-item {{ 'active' if active_tab == 'profile' else '' }}">
+        <i class="fas fa-user"></i>
+        <span>我的</span>
+    </a>
+
+    {% elif menu_type == 'member' %}
+    {# 会员页面菜单 #}
+    <a href="{{ url_for('mobile.public_home') }}" class="bottom-nav-item {{ 'active' if active_tab == 'home' else '' }}">
+        <i class="fas fa-home"></i>
+        <span>首页</span>
+    </a>
+    <a href="{{ url_for('mobile.tour_packages') }}" class="bottom-nav-item {{ 'active' if active_tab == 'tour' else '' }}">
+        <i class="fas fa-suitcase-rolling"></i>
+        <span>旅游</span>
+    </a>
+    <a href="{{ url_for('mobile.orders_list') }}" class="bottom-nav-item {{ 'active' if active_tab == 'orders' else '' }}">
+        <i class="fas fa-shopping-bag"></i>
+        <span>订单</span>
+        {% if pending_order_count is defined and pending_order_count > 0 %}
+        <span class="nav-badge">{{ pending_order_count if pending_order_count < 100 else '99+' }}</span>
+        {% endif %}
+    </a>
+    <a href="{{ url_for('mobile.contact') }}" class="bottom-nav-item {{ 'active' if active_tab == 'contact' else '' }}">
+        <i class="fas fa-headset"></i>
+        <span>联系</span>
+    </a>
+    <a href="{{ url_for('mobile.member_profile') }}" class="bottom-nav-item {{ 'active' if active_tab == 'user' else '' }}">
+        <i class="fas fa-user"></i>
+        <span>我的</span>
+    </a>
+
+    {% else %}
+    {# 公开页面菜单（默认） #}
+    <a href="{{ url_for('mobile.public_home') }}" class="bottom-nav-item {{ 'active' if active_tab == 'home' else '' }}">
+        <i class="fas fa-home"></i>
+        <span>首页</span>
+    </a>
+    <a href="{{ url_for('mobile.tour_packages') }}" class="bottom-nav-item {{ 'active' if active_tab == 'tour' else '' }}">
+        <i class="fas fa-suitcase-rolling"></i>
+        <span>旅游</span>
+    </a>
+    <a href="{{ url_for('mobile.visa_services') }}" class="bottom-nav-item {{ 'active' if active_tab == 'visa' else '' }}">
+        <i class="fas fa-passport"></i>
+        <span>签证</span>
+    </a>
+    <a href="{{ url_for('mobile.contact') }}" class="bottom-nav-item {{ 'active' if active_tab == 'contact' else '' }}">
+        <i class="fas fa-headset"></i>
+        <span>联系</span>
+    </a>
+    {% if current_user.is_authenticated %}
+    <a href="{{ url_for('mobile.member_profile') }}" class="bottom-nav-item {{ 'active' if active_tab == 'user' else '' }}">
+        <i class="fas fa-user"></i>
+        <span>我的</span>
+    </a>
+    {% else %}
+    <a href="{{ url_for('mobile.member_login') }}" class="bottom-nav-item {{ 'active' if active_tab == 'user' else '' }}">
+        <i class="fas fa-user"></i>
+        <span>登录</span>
+    </a>
+    {% endif %}
+    {% endif %}
+</nav>

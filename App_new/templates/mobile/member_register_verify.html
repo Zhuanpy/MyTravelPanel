@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#10b981">
+    <title>邮箱验证 - {{ company.company_name if company else '悦行假期' }}</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            min-height: 100vh;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* 顶部导航 */
+        .header {
+            padding: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .header-back {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 20px;
+            text-decoration: none;
+            background: rgba(255,255,255,0.2);
+            border-radius: 50%;
+        }
+
+        .header-title {
+            color: white;
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .header-placeholder {
+            width: 40px;
+        }
+
+        /* 步骤指示器 */
+        .steps-section {
+            padding: 16px 24px 24px;
+        }
+
+        .steps {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .step {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .step-number {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .step-number.completed {
+            background: white;
+            color: #10b981;
+        }
+
+        .step-number.active {
+            background: white;
+            color: #10b981;
+        }
+
+        .step-label {
+            font-size: 12px;
+            color: rgba(255,255,255,0.9);
+        }
+
+        .step-line {
+            width: 24px;
+            height: 2px;
+            background: rgba(255,255,255,0.5);
+        }
+
+        /* 注册卡片 */
+        .register-card {
+            background: white;
+            border-radius: 24px 24px 0 0;
+            padding: 28px 20px 32px;
+            min-height: calc(100vh - 150px);
+        }
+
+        .register-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 6px;
+            text-align: center;
+        }
+
+        .register-subtitle {
+            font-size: 13px;
+            color: #64748b;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        /* 邮箱信息卡片 */
+        .email-info {
+            background: #f0fdf4;
+            border: 1px solid #bbf7d0;
+            border-radius: 12px;
+            padding: 14px 16px;
+            margin-bottom: 20px;
+        }
+
+        .email-info-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 13px;
+            color: #166534;
+        }
+
+        .email-info-row:not(:last-child) {
+            margin-bottom: 8px;
+        }
+
+        .email-info-row i {
+            width: 18px;
+            text-align: center;
+        }
+
+        .email-info-row strong {
+            color: #10b981;
+        }
+
+        /* 表单样式 */
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: #334155;
+            margin-bottom: 6px;
+        }
+
+        .form-label i {
+            margin-right: 5px;
+            color: #10b981;
+        }
+
+        .form-input {
+            width: 100%;
+            height: 48px;
+            padding: 0 14px;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            font-size: 15px;
+            color: #1e293b;
+            background: #f8fafc;
+            transition: all 0.2s;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: #10b981;
+            background: white;
+            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+        }
+
+        .form-input::placeholder {
+            color: #94a3b8;
+        }
+
+        .form-input.code-input {
+            font-size: 24px;
+            text-align: center;
+            letter-spacing: 8px;
+            font-weight: 600;
+        }
+
+        .form-row {
+            display: flex;
+            gap: 12px;
+        }
+
+        .form-row .form-group {
+            flex: 1;
+        }
+
+        .form-hint {
+            font-size: 11px;
+            color: #64748b;
+            margin-top: 6px;
+        }
+
+        .form-hint i {
+            margin-right: 4px;
+            color: #10b981;
+        }
+
+        /* 提交按钮 */
+        .btn-submit {
+            width: 100%;
+            height: 50px;
+            background: linear-gradient(135deg, #10b981, #059669);
+            border: none;
+            border-radius: 12px;
+            color: white;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+            transition: all 0.2s;
+            margin-top: 20px;
+        }
+
+        .btn-submit:active {
+            transform: scale(0.98);
+        }
+
+        .btn-submit:disabled {
+            background: #94a3b8;
+            box-shadow: none;
+            cursor: not-allowed;
+        }
+
+        /* 重新发送按钮 */
+        .resend-section {
+            text-align: center;
+            margin-top: 16px;
+        }
+
+        .btn-resend {
+            background: none;
+            border: none;
+            color: #10b981;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-resend:disabled {
+            color: #94a3b8;
+            cursor: not-allowed;
+        }
+
+        /* 提示消息 */
+        .alert {
+            padding: 12px 14px;
+            border-radius: 10px;
+            margin-bottom: 16px;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .alert-success {
+            background: #f0fdf4;
+            color: #166534;
+            border: 1px solid #bbf7d0;
+        }
+
+        .alert-danger {
+            background: #fef2f2;
+            color: #991b1b;
+            border: 1px solid #fecaca;
+        }
+
+        /* 链接区域 */
+        .links-section {
+            text-align: center;
+            margin-top: 20px;
+            padding-top: 16px;
+            border-top: 1px solid #f1f5f9;
+        }
+
+        .links-section a {
+            color: #10b981;
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        /* 安全提示 */
+        .security-note {
+            text-align: center;
+            margin-top: 16px;
+            font-size: 11px;
+            color: #94a3b8;
+        }
+
+        .security-note i {
+            margin-right: 4px;
+        }
+
+        /* 密码强度 */
+        .password-strength {
+            margin-top: 6px;
+        }
+
+        .strength-bar {
+            height: 4px;
+            background: #e2e8f0;
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .strength-fill {
+            height: 100%;
+            width: 0;
+            transition: all 0.3s;
+        }
+
+        .strength-fill.weak {
+            width: 33%;
+            background: #ef4444;
+        }
+
+        .strength-fill.medium {
+            width: 66%;
+            background: #f59e0b;
+        }
+
+        .strength-fill.strong {
+            width: 100%;
+            background: #10b981;
+        }
+
+        .strength-text {
+            font-size: 11px;
+            margin-top: 4px;
+            color: #64748b;
+        }
+    </style>
+</head>
+<body>
+
+<!-- 顶部导航 -->
+<header class="header">
+    <a href="{{ url_for('mobile.member_register') }}" class="header-back">
+        <i class="fas fa-arrow-left"></i>
+    </a>
+    <span class="header-title">邮箱验证</span>
+    <div class="header-placeholder"></div>
+</header>
+
+<!-- 步骤指示器 -->
+<section class="steps-section">
+    <div class="steps">
+        <div class="step">
+            <div class="step-number completed">
+                <i class="fas fa-check" style="font-size: 12px;"></i>
+            </div>
+            <span class="step-label">验证邮箱</span>
+        </div>
+        <div class="step-line"></div>
+        <div class="step">
+            <div class="step-number active">2</div>
+            <span class="step-label">完善信息</span>
+        </div>
+    </div>
+</section>
+
+<!-- 注册卡片 -->
+<main class="register-card">
+    <h1 class="register-title">完成注册</h1>
+    <p class="register-subtitle">请输入验证码并填写您的信息</p>
+
+    <!-- 邮箱信息 -->
+    <div class="email-info">
+        <div class="email-info-row">
+            <i class="fas fa-envelope"></i>
+            <span>验证码已发送至：<strong>{{ email }}</strong></span>
+        </div>
+        <div class="email-info-row">
+            <i class="fas fa-clock"></i>
+            <span>验证码有效期为10分钟</span>
+        </div>
+    </div>
+
+    <!-- 显示消息 -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+            <div class="alert alert-{{ 'success' if category == 'success' else 'danger' }}">
+                <i class="fas fa-{{ 'check-circle' if category == 'success' else 'exclamation-circle' }}"></i>
+                {{ message }}
+            </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <form method="POST" action="{{ url_for('mobile.member_register_verify') }}" id="verifyForm">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <!-- 验证码 -->
+        <div class="form-group">
+            <label class="form-label">
+                <i class="fas fa-key"></i>验证码
+            </label>
+            <input type="text" name="verification_code" class="form-input code-input"
+                   placeholder="______" maxlength="6" required autofocus
+                   inputmode="numeric" pattern="[0-9]*">
+            <div class="form-hint">
+                <i class="fas fa-info-circle"></i>
+                请查收邮件（包括垃圾邮件文件夹）
+            </div>
+        </div>
+
+        <!-- 姓名 -->
+        <div class="form-row">
+            <div class="form-group">
+                <label class="form-label">
+                    <i class="fas fa-user"></i>姓氏 *
+                </label>
+                <input type="text" name="first_name" class="form-input" placeholder="请输入姓氏" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label">
+                    <i class="fas fa-user"></i>名字
+                </label>
+                <input type="text" name="last_name" class="form-input" placeholder="请输入名字">
+            </div>
+        </div>
+
+        <!-- 手机号码 -->
+        <div class="form-group">
+            <label class="form-label">
+                <i class="fas fa-phone"></i>手机号码
+            </label>
+            <input type="tel" name="phone" class="form-input" placeholder="请输入手机号码">
+        </div>
+
+        <!-- 密码 -->
+        <div class="form-group">
+            <label class="form-label">
+                <i class="fas fa-lock"></i>密码 *
+            </label>
+            <input type="password" name="password" id="password" class="form-input"
+                   placeholder="请输入密码（至少6位）" required minlength="6">
+            <div class="password-strength">
+                <div class="strength-bar">
+                    <div class="strength-fill" id="strengthFill"></div>
+                </div>
+                <div class="strength-text" id="strengthText"></div>
+            </div>
+        </div>
+
+        <!-- 确认密码 -->
+        <div class="form-group">
+            <label class="form-label">
+                <i class="fas fa-lock"></i>确认密码 *
+            </label>
+            <input type="password" name="confirm_password" id="confirmPassword" class="form-input"
+                   placeholder="请再次输入密码" required>
+        </div>
+
+        <button type="submit" class="btn-submit" id="submitBtn">
+            <i class="fas fa-user-plus"></i>
+            完成注册
+        </button>
+    </form>
+
+    <!-- 重新发送验证码 -->
+    <div class="resend-section">
+        <form id="resendForm" method="POST" action="{{ url_for('mobile.resend_verification_code') }}" style="display: inline;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="button" class="btn-resend" id="resendBtn" onclick="resendCode()">
+                <i class="fas fa-redo"></i>
+                重新发送验证码
+            </button>
+        </form>
+    </div>
+
+    <!-- 链接区域 -->
+    <div class="links-section">
+        <a href="{{ url_for('mobile.member_login') }}">
+            <i class="fas fa-arrow-left"></i>
+            返回登录
+        </a>
+    </div>
+
+    <div class="security-note">
+        <i class="fas fa-shield-alt"></i>
+        您的信息将被安全加密保护
+    </div>
+</main>
+
+<script>
+// 验证码输入只允许数字
+document.querySelector('input[name="verification_code"]').addEventListener('input', function(e) {
+    e.target.value = e.target.value.replace(/[^0-9]/g, '');
+});
+
+// 密码强度检测
+document.getElementById('password').addEventListener('input', function() {
+    const password = this.value;
+    const fill = document.getElementById('strengthFill');
+    const text = document.getElementById('strengthText');
+
+    let strength = 0;
+    if (password.length >= 6) strength++;
+    if (password.match(/[a-z]/)) strength++;
+    if (password.match(/[A-Z]/)) strength++;
+    if (password.match(/[0-9]/)) strength++;
+    if (password.match(/[^a-zA-Z0-9]/)) strength++;
+
+    fill.className = 'strength-fill';
+    if (password.length === 0) {
+        text.textContent = '';
+    } else if (strength <= 2) {
+        fill.classList.add('weak');
+        text.textContent = '密码强度：弱';
+    } else if (strength <= 3) {
+        fill.classList.add('medium');
+        text.textContent = '密码强度：中';
+    } else {
+        fill.classList.add('strong');
+        text.textContent = '密码强度：强';
+    }
+});
+
+// 确认密码验证
+document.getElementById('confirmPassword').addEventListener('input', function() {
+    const password = document.getElementById('password').value;
+    if (this.value && this.value !== password) {
+        this.style.borderColor = '#ef4444';
+    } else {
+        this.style.borderColor = '#e2e8f0';
+    }
+});
+
+// 表单提交验证
+document.getElementById('verifyForm').addEventListener('submit', function(e) {
+    const password = document.getElementById('password').value;
+    const confirmPassword = document.getElementById('confirmPassword').value;
+
+    if (password !== confirmPassword) {
+        e.preventDefault();
+        alert('两次输入的密码不一致');
+        return;
+    }
+
+    if (password.length < 6) {
+        e.preventDefault();
+        alert('密码长度至少6位');
+        return;
+    }
+
+    const submitBtn = document.getElementById('submitBtn');
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 注册中...';
+});
+
+// 重新发送验证码
+function resendCode() {
+    if (confirm('确定要重新发送验证码吗？')) {
+        document.getElementById('resendForm').submit();
+    }
+}
+</script>
+
+</body>
+</html>

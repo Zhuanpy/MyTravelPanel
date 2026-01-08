@@ -19,6 +19,7 @@
             color: #333;
             line-height: 1.5;
             -webkit-font-smoothing: antialiased;
+            padding-bottom: 70px;
         }
 
         /* Hero 区域 */
@@ -426,27 +427,35 @@
             border-top: 1px solid rgba(255,255,255,0.1);
         }
 
-        /* 员工入口浮动按钮 */
-        .staff-entry {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            width: 50px;
-            height: 50px;
-            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
-            border-radius: 50%;
+        /* 顶部用户栏 */
+        .top-bar {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
             display: flex;
+            justify-content: flex-end;
             align-items: center;
-            justify-content: center;
-            color: white;
-            font-size: 20px;
-            text-decoration: none;
-            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
-            z-index: 100;
+            padding: 12px 16px;
+            z-index: 10;
         }
 
-        .staff-entry:active {
-            transform: scale(0.95);
+        .user-btn {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 14px;
+            background: rgba(255,255,255,0.2);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            color: white;
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .user-btn i {
+            font-size: 14px;
         }
 
         /* 空状态 */
@@ -478,6 +487,22 @@
         {% endif %}
     </div>
     <div class="hero-overlay"></div>
+
+    <!-- 顶部用户栏 -->
+    <div class="top-bar">
+        {% if current_user.is_authenticated %}
+        <a href="{{ url_for('mobile.orders_list') }}" class="user-btn">
+            <i class="fas fa-shopping-bag"></i>
+            我的订单
+        </a>
+        {% else %}
+        <a href="{{ url_for('mobile.member_login') }}" class="user-btn">
+            <i class="fas fa-user"></i>
+            登录
+        </a>
+        {% endif %}
+    </div>
+
     <div class="hero-content">
         <div class="hero-brand">
             {% if company and company.logo_path %}
@@ -495,21 +520,21 @@
 
 <!-- 统计卡片 -->
 <div class="stats-cards">
-    <a href="{{ url_for('public.tour_packages') }}" class="stat-card">
+    <a href="{{ url_for('mobile.tour_packages') }}" class="stat-card">
         <div class="stat-icon packages">
             <i class="fas fa-suitcase-rolling"></i>
         </div>
         <div class="stat-num">{{ stats.packages }}+</div>
         <div class="stat-label">精选配套</div>
     </a>
-    <a href="{{ url_for('public.tour_packages') }}" class="stat-card">
+    <a href="{{ url_for('mobile.tour_packages') }}" class="stat-card">
         <div class="stat-icon destinations">
             <i class="fas fa-globe-asia"></i>
         </div>
         <div class="stat-num">{{ stats.destinations }}+</div>
         <div class="stat-label">热门目的地</div>
     </a>
-    <a href="{{ url_for('public.visa_services') }}" class="stat-card">
+    <a href="{{ url_for('mobile.visa_services') }}" class="stat-card">
         <div class="stat-icon visa">
             <i class="fas fa-passport"></i>
         </div>
@@ -522,13 +547,13 @@
 <section class="section">
     <div class="section-header">
         <h2 class="section-title">精选旅游产品</h2>
-        <a href="{{ url_for('public.tour_packages') }}" class="section-more">查看全部 <i class="fas fa-chevron-right"></i></a>
+        <a href="{{ url_for('mobile.tour_packages') }}" class="section-more">查看全部 <i class="fas fa-chevron-right"></i></a>
     </div>
 
     {% if tour_packages %}
     <div class="product-scroll">
         {% for package in tour_packages %}
-        <a href="{{ url_for('public.tour_package_detail', package_id=package.id) }}" class="product-card">
+        <a href="{{ url_for('mobile.tour_package_detail', package_id=package.id) }}" class="product-card">
             <div class="product-image" {% if package.image %}style="background-image: url('/static/{{ package.image }}');"{% endif %}>
                 {% if package.product_type %}
                 <span class="product-badge">{{ package.product_type }}</span>
@@ -564,13 +589,13 @@
 <section class="section" style="background: white;">
     <div class="section-header">
         <h2 class="section-title">签证服务</h2>
-        <a href="{{ url_for('public.visa_services') }}" class="section-more">查看全部 <i class="fas fa-chevron-right"></i></a>
+        <a href="{{ url_for('mobile.visa_services') }}" class="section-more">查看全部 <i class="fas fa-chevron-right"></i></a>
     </div>
 
     {% if visa_countries %}
     <div class="visa-grid">
         {% for country in visa_countries %}
-        <a href="{{ url_for('public.visa_services_by_country', country_name=country.name) }}" class="visa-card">
+        <a href="{{ url_for('mobile.visa_country', country_name=country.name) }}" class="visa-card">
             {% if country.flag %}
             <img src="/static/images/flags/{{ country.flag }}" alt="{{ country.name }}" class="visa-flag" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
             <div class="visa-flag-placeholder" style="display:none;"><i class="fas fa-flag"></i></div>
@@ -592,7 +617,7 @@
 
 <!-- 联系我们 -->
 <section class="contact-section">
-    <a href="{{ url_for('public.contact') }}" class="contact-btn">
+    <a href="{{ url_for('mobile.contact') }}" class="contact-btn">
         <i class="fas fa-headset"></i>
         在线咨询
     </a>
@@ -602,9 +627,14 @@
 <footer class="footer">
     <div class="footer-logo">{{ company.company_name if company else '悦行假期' }}</div>
     <div class="footer-links">
-        <a href="{{ url_for('public.tour_packages') }}">旅游配套</a>
-        <a href="{{ url_for('public.visa_services') }}">签证服务</a>
-        <a href="{{ url_for('public.contact') }}">联系我们</a>
+        <a href="{{ url_for('mobile.tour_packages') }}">旅游配套</a>
+        <a href="{{ url_for('mobile.visa_services') }}">签证服务</a>
+        <a href="{{ url_for('mobile.contact') }}">联系我们</a>
+        {% if current_user.is_authenticated %}
+        <a href="{{ url_for('mobile.orders_list') }}">我的订单</a>
+        {% else %}
+        <a href="{{ url_for('mobile.member_login') }}">会员登录</a>
+        {% endif %}
     </div>
     {% if company %}
     <div class="footer-contact">
@@ -616,13 +646,15 @@
     {% endif %}
     <div class="footer-copyright">
         &copy; 2026 {{ company.company_name if company else '悦行假期' }}. All rights reserved.
+        <br>
+        <a href="{{ url_for('admin_auth.login') }}" style="color: rgba(255,255,255,0.4); text-decoration: none;">员工入口</a>
     </div>
 </footer>
 
-<!-- 员工入口浮动按钮 -->
-<a href="{{ url_for('admin_auth.login') }}" class="staff-entry" title="员工登录">
-    <i class="fas fa-user-tie"></i>
-</a>
+<!-- 底部导航 -->
+{% set menu_type = 'public' %}
+{% set active_tab = 'home' %}
+{% include 'mobile/components/bottom_nav.html' %}
 
 <script>
 // 背景图片轮播
