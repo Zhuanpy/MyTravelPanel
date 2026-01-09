@@ -815,15 +815,15 @@
                 `;
                 container.appendChild(inputGroup);
                 
-                // 为新添加的输入框添加实时输入处理
+                // 为新添加的输入框添加实时输入处理：去除特殊字符
                 const newInputs = inputGroup.querySelectorAll('.flightDate, .flightNumber');
                 newInputs.forEach(input => {
                     input.addEventListener('input', function() {
-                        this.value = this.value.replace(/\s/g, '').toUpperCase();
+                        this.value = this.value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
                     });
                 });
             });
-            
+
             // 显示提示
             showToast('已加载历史记录');
         }
@@ -1179,8 +1179,8 @@
     // 预订代码生成相关功能
     // 保存输入框的值到 LocalStorage
     function saveInput(input) {
-        // 去除空格并转换为大写
-        input.value = input.value.replace(/\s/g, '').toUpperCase();
+        // 去除特殊字符，只保留字母和数字，并转换为大写
+        input.value = input.value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
         
         const key = input.className.split(' ')[0]; // 使用第一个类名作为键
         let history = JSON.parse(localStorage.getItem(key)) || [];
@@ -1235,9 +1235,9 @@
                 input.value = JSON.parse(savedValue).pop();
             }
             
-            // 添加实时输入处理：去除空格并转换为大写
+            // 添加实时输入处理：去除特殊字符，只保留字母和数字
             input.addEventListener('input', function() {
-                this.value = this.value.replace(/\s/g, '').toUpperCase();
+                this.value = this.value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
             });
         });
     });
@@ -1269,11 +1269,11 @@
          `;
         container.appendChild(inputGroup);
         
-        // 为新添加的输入框添加实时输入处理
+        // 为新添加的输入框添加实时输入处理：去除特殊字符
         const newInputs = inputGroup.querySelectorAll('.flightDate, .flightNumber');
         newInputs.forEach(input => {
             input.addEventListener('input', function() {
-                this.value = this.value.replace(/\s/g, '').toUpperCase();
+                this.value = this.value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
             });
         });
     }
