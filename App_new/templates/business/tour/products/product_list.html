@@ -185,11 +185,18 @@
     {% if products %}
     <div style="display: flex; flex-direction: column; gap: 2rem;">
         {% for supplier_name, supplier_products in products|groupby('supplier_display_name') %}
-        <div class="visa-card" style="border-left: 4px solid #3b82f6; box-shadow: 0 4px 12px rgba(0,0,0,0.08);">
+        <div class="visa-card supplier-group" data-supplier="{{ supplier_name or '未设置供应商' }}" style="border-left: 4px solid #3b82f6; box-shadow: 0 4px 12px rgba(0,0,0,0.08);">
             <!-- 供应商头部 -->
             <div class="visa-card-header" style="background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%); border-bottom: 1px solid #cbd5e1;">
                 <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
                     <div style="display: flex; align-items: center; gap: 1rem;">
+                        <!-- 全选复选框 -->
+                        <label class="bulk-checkbox-wrapper" style="display: flex; align-items: center; cursor: pointer;">
+                            <input type="checkbox" class="supplier-select-all"
+                                   data-supplier="{{ supplier_name or '未设置供应商' }}"
+                                   onchange="toggleSupplierProducts(this)"
+                                   style="width: 1.25rem; height: 1.25rem; cursor: pointer; accent-color: #3b82f6;">
+                        </label>
                         <div style="width: 2.5rem; height: 2.5rem; border-radius: 0.5rem; background: #dbeafe; display: flex; align-items: center; justify-content: center;">
                             <i class="fas fa-building" style="color: #3b82f6; font-size: 1.25rem;"></i>
                         </div>
@@ -198,20 +205,28 @@
                             <p style="margin: 0; font-size: 0.875rem; color: #64748b;">{{ supplier_products|list|length }} 个产品</p>
                         </div>
                     </div>
-                    {% if supplier_products|first|attr('supplier_id') %}
-                    <div style="display: flex; gap: 0.5rem;">
-                        <a href="{{ url_for('supplier.view_supplier', supplier_id=supplier_products|first|attr('supplier_id')) }}" 
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <!-- 批量删除按钮（选中产品后显示） -->
+                        <button type="button"
+                                class="visa-btn visa-btn-danger visa-btn-sm supplier-bulk-delete"
+                                data-supplier="{{ supplier_name or '未设置供应商' }}"
+                                onclick="bulkDeleteSupplierProducts('{{ supplier_name or '未设置供应商' }}')"
+                                style="display: none;">
+                            <i class="fas fa-trash-alt"></i> 删除选中 (<span class="selected-count">0</span>)
+                        </button>
+                        {% if supplier_products|first|attr('supplier_id') %}
+                        <a href="{{ url_for('supplier.view_supplier', supplier_id=supplier_products|first|attr('supplier_id')) }}"
                            class="visa-btn visa-btn-primary visa-btn-sm">
                             <i class="fas fa-info-circle"></i> 详情
                         </a>
-                        <button type="button" 
+                        <button type="button"
                                 class="visa-btn visa-btn-info visa-btn-sm"
                                 onclick="openSupplierFolder({{ supplier_products|first|attr('supplier_id') }})"
                                 title="打开供应商文件夹">
                             <i class="fas fa-folder-open"></i> 文件夹
                         </button>
+                        {% endif %}
                     </div>
-                    {% endif %}
                 </div>
             </div>
             
@@ -219,8 +234,23 @@
             <div class="visa-card-body">
                 <div style="display: flex; flex-direction: column; gap: 1rem;">
                     {% for product in supplier_products %}
-                    <div class="visa-card visa-card-simple" style="background: rgba(255, 255, 255, 0.8); border: 1px solid rgba(0,0,0,0.06); transition: all 0.3s ease;" onmouseover="this.style.transform='translateY(-3px)'; this.style.boxShadow='0 8px 20px rgba(0,0,0,0.1)';" onmouseout="this.style.transform=''; this.style.boxShadow='';">
+                    <div class="visa-card visa-card-simple product-card"
+                         data-product-id="{{ product.id }}"
+                         data-product-name="{{ product.product_name }}"
+                         data-supplier="{{ supplier_name or '未设置供应商' }}"
+                         style="background: rgba(255, 255, 255, 0.8); border: 1px solid rgba(0,0,0,0.06); transition: all 0.3s ease;"
+                         onmouseover="this.style.transform='translateY(-3px)'; this.style.boxShadow='0 8px 20px rgba(0,0,0,0.1)';"
+                         onmouseout="this.style.transform=''; this.style.boxShadow='';">
                         <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem;">
+                            <!-- 产品选择复选框 -->
+                            <label class="product-checkbox-wrapper" style="display: flex; align-items: flex-start; padding-top: 0.5rem; cursor: pointer;">
+                                <input type="checkbox" class="product-checkbox"
+                                       data-product-id="{{ product.id }}"
+                                       data-product-name="{{ product.product_name }}"
+                                       data-supplier="{{ supplier_name or '未设置供应商' }}"
+                                       onchange="updateSelectionState()"
+                                       style="width: 1.25rem; height: 1.25rem; cursor: pointer; accent-color: #3b82f6; flex-shrink: 0;">
+                            </label>
                             <!-- 产品封面图 -->
                             {% if product.cover_image %}
                             <div style="width: 120px; height: 120px; flex-shrink: 0; border-radius: 0.5rem; overflow: hidden; background: #f3f4f6;">
@@ -236,9 +266,14 @@
                             
                             <!-- 产品信息 -->
                             <div style="flex: 1;">
-                                <h3 style="margin: 0 0 0.75rem 0; font-size: 1.125rem; font-weight: 600; color: #1e293b;">
-                                    <i class="fas fa-map-marked-alt" style="color: #10b981;"></i> {{ product.product_name }}
-                                </h3>
+                                <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem;">
+                                    <h3 style="margin: 0; font-size: 1.125rem; font-weight: 600; color: #1e293b;">
+                                        <i class="fas fa-map-marked-alt" style="color: #10b981;"></i> {{ product.product_name }}
+                                    </h3>
+                                    {% if product.product_code %}
+                                    <code style="padding: 0.2rem 0.5rem; background: #e0f2fe; color: #0369a1; border-radius: 4px; font-size: 0.75rem; font-weight: 600;">{{ product.product_code }}</code>
+                                    {% endif %}
+                                </div>
                                 <div style="display: flex; flex-wrap: wrap; gap: 1.5rem; font-size: 0.875rem; color: #64748b; margin-bottom: 0.75rem;">
                                     {% if product.country and product.country != 'None' %}
                                     <span><i class="fas fa-globe" style="color: #3b82f6;"></i> {{ product.country }}</span>
@@ -420,6 +455,148 @@
 
 {% block extra_js %}
 <script>
+// ========================================
+// 批量删除功能
+// ========================================
+
+// 切换供应商下所有产品的选择状态
+function toggleSupplierProducts(checkbox) {
+    const supplierName = checkbox.dataset.supplier;
+    const isChecked = checkbox.checked;
+
+    // 找到该供应商下的所有产品复选框
+    const productCheckboxes = document.querySelectorAll(`.product-checkbox[data-supplier="${supplierName}"]`);
+    productCheckboxes.forEach(cb => {
+        cb.checked = isChecked;
+    });
+
+    updateSelectionState();
+}
+
+// 更新选择状态
+function updateSelectionState() {
+    // 更新各供应商的选择状态和删除按钮
+    const supplierCheckboxes = document.querySelectorAll('.supplier-select-all');
+
+    supplierCheckboxes.forEach(supplierCb => {
+        const supplierName = supplierCb.dataset.supplier;
+        const productCheckboxes = document.querySelectorAll(`.product-checkbox[data-supplier="${supplierName}"]`);
+        const checkedCheckboxes = document.querySelectorAll(`.product-checkbox[data-supplier="${supplierName}"]:checked`);
+        const checkedCount = checkedCheckboxes.length;
+
+        // 更新全选复选框状态
+        if (checkedCount === 0) {
+            supplierCb.checked = false;
+            supplierCb.indeterminate = false;
+        } else if (checkedCount === productCheckboxes.length) {
+            supplierCb.checked = true;
+            supplierCb.indeterminate = false;
+        } else {
+            supplierCb.checked = false;
+            supplierCb.indeterminate = true;
+        }
+
+        // 更新该供应商的删除按钮
+        const deleteBtn = document.querySelector(`.supplier-bulk-delete[data-supplier="${supplierName}"]`);
+        if (deleteBtn) {
+            if (checkedCount > 0) {
+                deleteBtn.style.display = 'inline-flex';
+                deleteBtn.querySelector('.selected-count').textContent = checkedCount;
+            } else {
+                deleteBtn.style.display = 'none';
+            }
+        }
+    });
+}
+
+// 批量删除指定供应商的选中产品
+function bulkDeleteSupplierProducts(supplierName) {
+    const selectedCheckboxes = document.querySelectorAll(`.product-checkbox[data-supplier="${supplierName}"]:checked`);
+    const count = selectedCheckboxes.length;
+
+    if (count === 0) {
+        alert('请先选择要删除的产品');
+        return;
+    }
+
+    // 获取选中的产品信息
+    const productIds = [];
+    const productNames = [];
+    selectedCheckboxes.forEach(cb => {
+        productIds.push(parseInt(cb.dataset.productId));
+        productNames.push(cb.dataset.productName);
+    });
+
+    // 第一次确认
+    let confirmMsg = `确定要删除【${supplierName}】的 ${count} 个产品吗？\n\n`;
+    if (count <= 5) {
+        confirmMsg += productNames.map((name, i) => `${i + 1}. ${name}`).join('\n');
+    } else {
+        confirmMsg += productNames.slice(0, 5).map((name, i) => `${i + 1}. ${name}`).join('\n');
+        confirmMsg += `\n... 还有 ${count - 5} 个产品`;
+    }
+    confirmMsg += '\n\n此操作将同时删除所有关联的行程和价格数据，且无法恢复！';
+
+    if (!confirm(confirmMsg)) {
+        return;
+    }
+
+    // 第二次确认
+    if (!confirm(`再次确认：您确定要永久删除这 ${count} 个产品吗？`)) {
+        return;
+    }
+
+    // 执行删除
+    executeBulkDelete(productIds);
+}
+
+// 执行批量删除
+function executeBulkDelete(productIds) {
+    // 显示加载提示
+    const loadingDiv = document.createElement('div');
+    loadingDiv.id = 'bulkDeleteLoading';
+    loadingDiv.innerHTML = `
+        <div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 9999;">
+            <div style="background: white; padding: 2rem; border-radius: 8px; text-align: center;">
+                <i class="fas fa-spinner fa-spin" style="font-size: 3rem; color: #ef4444; margin-bottom: 1rem;"></i>
+                <h3>正在删除产品...</h3>
+                <p style="color: #64748b;">请稍候，不要关闭页面</p>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(loadingDiv);
+
+    // 发送删除请求
+    fetch('/tour/products/bulk-delete', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+        },
+        body: JSON.stringify({ product_ids: productIds })
+    })
+    .then(response => response.json())
+    .then(data => {
+        document.getElementById('bulkDeleteLoading').remove();
+
+        if (data.success) {
+            alert(data.message);
+            location.reload();
+        } else {
+            alert('删除失败：' + data.message);
+        }
+    })
+    .catch(error => {
+        document.getElementById('bulkDeleteLoading').remove();
+        console.error('Error:', error);
+        alert('删除时发生错误');
+    });
+}
+
+// ========================================
+// 原有功能
+// ========================================
+
 // 切换产品状态
 function toggleProductStatus(selectElement) {
     const productId = selectElement.dataset.productId;

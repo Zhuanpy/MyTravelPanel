@@ -1,0 +1,446 @@
+{% extends "shared/staff_base.html" %}
+
+{% block title %}新增{{ category_name }}产品{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- 面包屑导航 -->
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('products.index') }}">产品中心</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('products.create') }}">新增产品</a></li>
+            <li class="breadcrumb-item active">{{ category_name }}</li>
+        </ol>
+    </nav>
+
+    <!-- 页面标题 -->
+    <div class="mb-4">
+        <h4 class="mb-1">新增{{ category_name }}产品</h4>
+        <p class="text-muted mb-0">填写产品信息，创建新的{{ category_name }}产品</p>
+    </div>
+
+    <form method="post" action="{{ url_for('products.create_by_category', category=category) }}">
+        <div class="row">
+            <!-- 左侧：主要信息 -->
+            <div class="col-lg-8">
+                <!-- 基本信息 -->
+                <div class="card mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <h6 class="mb-0"><i class="fas fa-info-circle me-2"></i>基本信息</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <div class="alert alert-info mb-3">
+                                    <i class="fas fa-tag me-2"></i>
+                                    产品类别：<strong>{{ category_name }}</strong>
+                                    <input type="hidden" name="product_category" value="{{ category }}">
+                                </div>
+                            </div>
+
+                            {% if sub_categories %}
+                            <div class="col-md-6">
+                                <label class="form-label">产品子类</label>
+                                <select name="product_sub_category" class="form-select">
+                                    <option value="">请选择子类</option>
+                                    {% for code, name in sub_categories %}
+                                    <option value="{{ code }}">{{ name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            {% endif %}
+
+                            <div class="col-md-{% if sub_categories %}6{% else %}12{% endif %}">
+                                <label class="form-label">产品名称 <span class="text-danger">*</span></label>
+                                <input type="text" name="product_name" class="form-control" required
+                                       placeholder="请输入产品名称">
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label">产品简称</label>
+                                <input type="text" name="product_short_name" class="form-control"
+                                       placeholder="可选，用于简短展示">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 地理信息 -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h6 class="mb-0"><i class="fas fa-map-marker-alt me-2"></i>地理信息</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">国家</label>
+                                <input type="text" name="country" class="form-control"
+                                       placeholder="如：新加坡、马来西亚">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">城市</label>
+                                <input type="text" name="city" class="form-control"
+                                       placeholder="如：吉隆坡、槟城">
+                            </div>
+
+                            {% if category in ['tour', 'cruise'] %}
+                            <div class="col-md-6">
+                                <label class="form-label">出发城市</label>
+                                <input type="text" name="departure_city" class="form-control"
+                                       placeholder="出发地">
+                            </div>
+                            {% endif %}
+
+                            <div class="col-md-6">
+                                <label class="form-label">目的地</label>
+                                <input type="text" name="destination" class="form-control"
+                                       placeholder="目的地描述">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 类别特定字段 -->
+                {% if category == 'ticket' %}
+                <!-- 门票特定字段 -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h6 class="mb-0"><i class="fas fa-ticket-alt me-2"></i>门票信息</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">景点/场馆名称</label>
+                                <input type="text" name="venue_name" class="form-control"
+                                       placeholder="景点或场馆名称">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">票种</label>
+                                <select name="ticket_type" class="form-select">
+                                    <option value="">请选择</option>
+                                    <option value="adult">成人票</option>
+                                    <option value="child">儿童票</option>
+                                    <option value="family">家庭票</option>
+                                    <option value="group">团体票</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">开放时间</label>
+                                <input type="text" name="opening_hours" class="form-control"
+                                       placeholder="如：09:00-18:00">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">有效期</label>
+                                <input type="text" name="validity_period" class="form-control"
+                                       placeholder="如：购买后30天内有效">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {% elif category == 'car' %}
+                <!-- 用车特定字段 -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h6 class="mb-0"><i class="fas fa-car me-2"></i>用车信息</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">车型</label>
+                                <select name="car_type" class="form-select">
+                                    <option value="">请选择</option>
+                                    <option value="sedan">轿车 (1-4人)</option>
+                                    <option value="suv">SUV (1-6人)</option>
+                                    <option value="mpv">商务车 (1-7人)</option>
+                                    <option value="van">面包车 (1-12人)</option>
+                                    <option value="bus">巴士 (13人以上)</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">最大乘客数</label>
+                                <input type="number" name="max_passengers" class="form-control"
+                                       placeholder="最大乘客人数">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">行李容量</label>
+                                <input type="number" name="luggage_capacity" class="form-control"
+                                       placeholder="可容纳行李数量">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">服务时长</label>
+                                <input type="text" name="service_duration" class="form-control"
+                                       placeholder="如：单程/8小时/全天">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {% elif category == 'cruise' %}
+                <!-- 邮轮特定字段 -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h6 class="mb-0"><i class="fas fa-ship me-2"></i>邮轮信息</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">邮轮公司</label>
+                                <input type="text" name="cruise_company" class="form-control"
+                                       placeholder="如：Royal Caribbean">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">船名</label>
+                                <input type="text" name="ship_name" class="form-control"
+                                       placeholder="邮轮名称">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">航线</label>
+                                <input type="text" name="cruise_route" class="form-control"
+                                       placeholder="如：新加坡-槟城-普吉岛">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">航程天数</label>
+                                <input type="number" name="cruise_days" class="form-control"
+                                       placeholder="航行天数">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">舱房类型</label>
+                                <select name="cabin_type" class="form-select">
+                                    <option value="">请选择</option>
+                                    <option value="inside">内舱房</option>
+                                    <option value="oceanview">海景房</option>
+                                    <option value="balcony">阳台房</option>
+                                    <option value="suite">套房</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {% elif category == 'hotel' %}
+                <!-- 酒店特定字段 -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h6 class="mb-0"><i class="fas fa-hotel me-2"></i>酒店信息</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">酒店星级</label>
+                                <select name="star_rating" class="form-select">
+                                    <option value="">请选择</option>
+                                    <option value="2">二星级</option>
+                                    <option value="3">三星级</option>
+                                    <option value="4">四星级</option>
+                                    <option value="5">五星级</option>
+                                    <option value="luxury">奢华酒店</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">房型</label>
+                                <input type="text" name="room_type" class="form-control"
+                                       placeholder="如：标准双床房">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">床型</label>
+                                <select name="bed_type" class="form-select">
+                                    <option value="">请选择</option>
+                                    <option value="single">单人床</option>
+                                    <option value="double">双人床</option>
+                                    <option value="twin">双床</option>
+                                    <option value="king">大床</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">早餐</label>
+                                <select name="breakfast" class="form-select">
+                                    <option value="none">不含早餐</option>
+                                    <option value="single">单早</option>
+                                    <option value="double">双早</option>
+                                </select>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label">酒店设施</label>
+                                <div class="row">
+                                    <div class="col-md-3">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="amenities" value="wifi">
+                                            <label class="form-check-label">免费WiFi</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="amenities" value="pool">
+                                            <label class="form-check-label">游泳池</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="amenities" value="gym">
+                                            <label class="form-check-label">健身房</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="amenities" value="parking">
+                                            <label class="form-check-label">停车场</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {% elif category == 'insurance' %}
+                <!-- 保险特定字段 -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h6 class="mb-0"><i class="fas fa-shield-alt me-2"></i>保险信息</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">保险公司</label>
+                                <input type="text" name="insurance_company" class="form-control"
+                                       placeholder="保险公司名称">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">保险类型</label>
+                                <select name="insurance_type" class="form-select">
+                                    <option value="">请选择</option>
+                                    <option value="travel">旅游保险</option>
+                                    <option value="accident">意外险</option>
+                                    <option value="medical">医疗险</option>
+                                    <option value="cancel">取消险</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">保障天数</label>
+                                <input type="number" name="coverage_days" class="form-control"
+                                       placeholder="保障天数">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">最高保额</label>
+                                <input type="text" name="max_coverage" class="form-control"
+                                       placeholder="如：$100,000">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">适用地区</label>
+                                <select name="coverage_region" class="form-select">
+                                    <option value="">请选择</option>
+                                    <option value="asia">亚洲</option>
+                                    <option value="worldwide">全球</option>
+                                    <option value="domestic">国内</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">年龄限制</label>
+                                <input type="text" name="age_limit" class="form-control"
+                                       placeholder="如：0-70岁">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- 描述信息 -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h6 class="mb-0"><i class="fas fa-file-alt me-2"></i>描述信息</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label">简短描述</label>
+                            <textarea name="short_description" class="form-control" rows="2"
+                                      placeholder="用于列表展示的简短描述"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">产品亮点</label>
+                            <textarea name="highlights" class="form-control" rows="3"
+                                      placeholder="产品的主要特色和亮点"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">产品描述</label>
+                            <textarea name="description" class="form-control" rows="5"
+                                      placeholder="详细的产品介绍"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">费用包含</label>
+                            <textarea name="includes" class="form-control" rows="3"
+                                      placeholder="价格中包含的服务和项目"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">费用不含</label>
+                            <textarea name="excludes" class="form-control" rows="3"
+                                      placeholder="需要额外支付的费用"></textarea>
+                        </div>
+                        <div class="mb-0">
+                            <label class="form-label">重要提示</label>
+                            <textarea name="important_notes" class="form-control" rows="3"
+                                      placeholder="预订前需要注意的重要事项"></textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 右侧：价格和其他 -->
+            <div class="col-lg-4">
+                <!-- 价格信息 -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h6 class="mb-0"><i class="fas fa-dollar-sign me-2"></i>价格信息</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label">基础价格</label>
+                            <div class="input-group">
+                                <select name="currency" class="form-select" style="max-width: 80px;">
+                                    <option value="SGD" selected>SGD</option>
+                                    <option value="USD">USD</option>
+                                    <option value="CNY">CNY</option>
+                                    <option value="MYR">MYR</option>
+                                </select>
+                                <input type="number" name="base_price" class="form-control"
+                                       step="0.01" min="0" placeholder="0.00">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 有效期 -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h6 class="mb-0"><i class="fas fa-calendar me-2"></i>有效期</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label">开始日期</label>
+                            <input type="date" name="valid_from" class="form-control">
+                        </div>
+                        <div class="mb-0">
+                            <label class="form-label">结束日期</label>
+                            <input type="date" name="valid_until" class="form-control">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 操作按钮 -->
+                <div class="card">
+                    <div class="card-body">
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-save me-1"></i> 创建产品
+                            </button>
+                            <a href="{{ url_for('products.create') }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left me-1"></i> 返回选择类别
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}

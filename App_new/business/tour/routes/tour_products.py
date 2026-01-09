@@ -401,10 +401,9 @@ def add_product():
             valid_until = request.form.get('valid_until', '').strip()
             valid_until_val = datetime.strptime(valid_until, '%Y-%m-%d').date() if valid_until else None
 
-            # 自动生成 product_code（如果未提供）
-            product_code = request.form.get('product_code', '').strip()
-            if not product_code:
-                product_code = Product.generate_product_code()
+            # 自动生成 product_code（使用统一编号规则）
+            from App_new.shared.models.business_types import generate_product_code
+            product_code = generate_product_code('tour')
 
             product = Product(
                 product_name=request.form['product_name'],
@@ -443,6 +442,12 @@ def add_product():
             )
 
             db.session.add(product)
+            db.session.flush()  # 获取product.id
+
+            # 同步到统一产品表
+            from App_new.business.products.sync_helper import sync_tour_product_to_unified
+            sync_tour_product_to_unified(product, created_by=current_user.username)
+
             db.session.commit()
 
             flash('产品创建成功！', 'success')
@@ -1032,6 +1037,10 @@ def edit_product(product_id):
             product.valid_until = datetime.strptime(valid_until, '%Y-%m-%d').date() if valid_until else None
             product.updated_at = datetime.utcnow()
 
+            # 同步到统一产品表
+            from App_new.business.products.sync_helper import sync_tour_product_to_unified
+            sync_tour_product_to_unified(product, created_by=current_user.username)
+
             db.session.commit()
 
             flash('产品更新成功！', 'success')
@@ -1080,14 +1089,19 @@ def toggle_status(product_id):
         product = Product.query.get_or_404(product_id)
         data = request.get_json()
         new_status = data.get('status')
-        
+
         if new_status not in ['active', 'draft', 'inactive']:
             return jsonify({'success': False, 'message': '无效的状态值'}), 400
-        
+
         product.product_status = new_status
         product.updated_at = datetime.utcnow()
+
+        # 同步状态到统一产品表
+        from App_new.business.products.sync_helper import sync_tour_product_to_unified
+        sync_tour_product_to_unified(product, created_by=current_user.username)
+
         db.session.commit()
-        
+
         return jsonify({'success': True, 'message': '状态更新成功', 'status': new_status})
     except Exception as e:
         db.session.rollback()
@@ -1102,18 +1116,81 @@ def delete_product(product_id):
     """删除产品及其关联数据"""
     try:
         product = Product.query.get_or_404(product_id)
-        
+
         # 删除关联的行程
         ProductItinerary.query.filter_by(product_id=product_id).delete()
-        
+
         # 删除关联的价格变体
         ProductPriceVariant.query.filter_by(product_id=product_id).delete()
-        
+
+        # 删除统一产品表中的对应记录
+        from App_new.business.products.sync_helper import delete_unified_product_by_tour
+        delete_unified_product_by_tour(product_id)
+
         # 删除产品
         db.session.delete(product)
         db.session.commit()
-        
+
         return jsonify({'success': True, 'message': '产品已删除'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@tour_products_bp.route('/bulk-delete', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def bulk_delete_products():
+    """批量删除产品"""
+    try:
+        data = request.get_json()
+        product_ids = data.get('product_ids', [])
+
+        if not product_ids:
+            return jsonify({'success': False, 'message': '请选择要删除的产品'}), 400
+
+        deleted_count = 0
+        errors = []
+
+        for product_id in product_ids:
+            try:
+                product = Product.query.get(product_id)
+                if not product:
+                    errors.append(f'产品ID {product_id} 不存在')
+                    continue
+
+                # 删除关联的行程
+                ProductItinerary.query.filter_by(product_id=product_id).delete()
+
+                # 删除关联的价格变体
+                ProductPriceVariant.query.filter_by(product_id=product_id).delete()
+
+                # 删除统一产品表中的对应记录
+                from App_new.business.products.sync_helper import delete_unified_product_by_tour
+                delete_unified_product_by_tour(product_id)
+
+                # 删除产品
+                db.session.delete(product)
+                deleted_count += 1
+
+            except Exception as e:
+                errors.append(f'产品ID {product_id} 删除失败: {str(e)}')
+
+        if deleted_count > 0:
+            db.session.commit()
+
+        message = f'成功删除 {deleted_count} 个产品'
+        if errors:
+            message += f'，{len(errors)} 个失败'
+
+        return jsonify({
+            'success': True,
+            'message': message,
+            'deleted_count': deleted_count,
+            'errors': errors
+        })
+
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'message': str(e)}), 500
@@ -1414,9 +1491,10 @@ def import_excel():
                         db.session.flush()
                     city_id = city.id
 
-                # 处理 product_code，如果为空则自动生成
+                # 处理 product_code，如果为空则自动生成（使用统一编号规则）
+                from App_new.shared.models.business_types import generate_product_code as gen_code
                 product_code_raw = str(row['产品编号']).strip() if pd.notna(row.get('产品编号')) else ''
-                product_code = product_code_raw if product_code_raw else Product.generate_product_code()
+                product_code = product_code_raw if product_code_raw else gen_code('tour')
 
                 product_data = {
                     'supplier_id': supplier.supplier_id if supplier else None,

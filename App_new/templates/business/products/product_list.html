@@ -1,0 +1,249 @@
+{% extends "shared/staff_base.html" %}
+
+{% block title %}统一产品管理{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- 页面标题 -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h4 class="mb-1">统一产品管理</h4>
+            <p class="text-muted mb-0">管理所有产品类型：旅游、签证、门票、用车、邮轮、酒店、机票、保险</p>
+        </div>
+        <a href="{{ url_for('products.create') }}" class="btn btn-primary">
+            <i class="fas fa-plus me-1"></i> 新增产品
+        </a>
+    </div>
+
+    <!-- 分类统计卡片 -->
+    <div class="row mb-4">
+        {% for cat_code, cat_info in category_counts.items() %}
+        <div class="col-md-3 col-sm-6 mb-3">
+            <div class="card h-100 {% if current_category == cat_code %}border-primary{% endif %}">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-1">{{ cat_info.name }}</h6>
+                            <h3 class="mb-0">{{ cat_info.count }}</h3>
+                        </div>
+                        <a href="{{ url_for('products.index', category=cat_code) }}"
+                           class="btn btn-sm {% if current_category == cat_code %}btn-primary{% else %}btn-outline-secondary{% endif %}">
+                            查看
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- 筛选和搜索 -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" action="{{ url_for('products.index') }}" class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">产品分类</label>
+                    <select name="category" class="form-select">
+                        <option value="">全部分类</option>
+                        {% for code, name in categories %}
+                        <option value="{{ code }}" {% if current_category == code %}selected{% endif %}>{{ name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">状态</label>
+                    <select name="status" class="form-select">
+                        <option value="">全部状态</option>
+                        <option value="active" {% if current_status == 'active' %}selected{% endif %}>上架</option>
+                        <option value="draft" {% if current_status == 'draft' %}selected{% endif %}>草稿</option>
+                        <option value="inactive" {% if current_status == 'inactive' %}selected{% endif %}>下架</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">搜索</label>
+                    <input type="text" name="keyword" class="form-control"
+                           placeholder="产品名称/编号/国家" value="{{ keyword }}">
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary me-2">
+                        <i class="fas fa-search me-1"></i> 搜索
+                    </button>
+                    <a href="{{ url_for('products.index') }}" class="btn btn-outline-secondary">重置</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 产品列表 -->
+    <div class="card">
+        <div class="card-header">
+            <span class="fw-bold">产品列表</span>
+            <span class="text-muted">（共 {{ pagination.total }} 个产品）</span>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th width="120">产品编号</th>
+                            <th>产品名称</th>
+                            <th width="100">分类</th>
+                            <th width="100">国家/城市</th>
+                            <th width="100">价格</th>
+                            <th width="80">状态</th>
+                            <th width="120">创建时间</th>
+                            <th width="120">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for product in products %}
+                        <tr>
+                            <td>
+                                <code>{{ product.product_code }}</code>
+                            </td>
+                            <td>
+                                <a href="{{ url_for('products.detail', product_id=product.id) }}" class="text-decoration-none">
+                                    {{ product.product_name }}
+                                </a>
+                                {% if product.is_hot %}
+                                <span class="badge bg-danger ms-1">热卖</span>
+                                {% endif %}
+                                {% if product.is_featured %}
+                                <span class="badge bg-warning ms-1">推荐</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="badge bg-info">{{ product.category_label }}</span>
+                            </td>
+                            <td>
+                                {{ product.country or '-' }}
+                                {% if product.city %}
+                                <br><small class="text-muted">{{ product.city }}</small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if product.base_price %}
+                                <strong>{{ product.currency }} {{ "%.2f"|format(product.base_price) }}</strong>
+                                {% else %}
+                                <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if product.product_status == 'active' %}
+                                <span class="badge bg-success">上架</span>
+                                {% elif product.product_status == 'draft' %}
+                                <span class="badge bg-secondary">草稿</span>
+                                {% else %}
+                                <span class="badge bg-warning">下架</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <small>{{ product.created_at.strftime('%Y-%m-%d') if product.created_at else '-' }}</small>
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    <a href="{{ url_for('products.detail', product_id=product.id) }}"
+                                       class="btn btn-outline-primary" title="查看">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    <a href="{{ url_for('products.edit', product_id=product.id) }}"
+                                       class="btn btn-outline-secondary" title="编辑">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <button type="button" class="btn btn-outline-danger" title="删除"
+                                            onclick="confirmDelete({{ product.id }}, '{{ product.product_name }}')">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="8" class="text-center py-5 text-muted">
+                                <i class="fas fa-box-open fa-3x mb-3"></i>
+                                <p class="mb-0">暂无产品数据</p>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 分页 -->
+        {% if pagination.pages > 1 %}
+        <div class="card-footer">
+            <nav aria-label="Page navigation">
+                <ul class="pagination mb-0 justify-content-center">
+                    {% if pagination.has_prev %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('products.index', page=pagination.prev_num, category=current_category, status=current_status, keyword=keyword) }}">
+                            上一页
+                        </a>
+                    </li>
+                    {% endif %}
+
+                    {% for page_num in pagination.iter_pages(left_edge=2, right_edge=2, left_current=2, right_current=2) %}
+                        {% if page_num %}
+                            {% if page_num == pagination.page %}
+                            <li class="page-item active">
+                                <span class="page-link">{{ page_num }}</span>
+                            </li>
+                            {% else %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('products.index', page=page_num, category=current_category, status=current_status, keyword=keyword) }}">
+                                    {{ page_num }}
+                                </a>
+                            </li>
+                            {% endif %}
+                        {% else %}
+                            <li class="page-item disabled"><span class="page-link">...</span></li>
+                        {% endif %}
+                    {% endfor %}
+
+                    {% if pagination.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('products.index', page=pagination.next_num, category=current_category, status=current_status, keyword=keyword) }}">
+                            下一页
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- 删除确认模态框 -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">确认删除</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>确定要删除产品 <strong id="deleteProductName"></strong> 吗？</p>
+                <p class="text-danger mb-0">此操作不可恢复！</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <form id="deleteForm" method="post" style="display: inline;">
+                    <button type="submit" class="btn btn-danger">确认删除</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function confirmDelete(productId, productName) {
+    document.getElementById('deleteProductName').textContent = productName;
+    document.getElementById('deleteForm').action = '/staff/products/delete/' + productId;
+    new bootstrap.Modal(document.getElementById('deleteModal')).show();
+}
+</script>
+{% endblock %}

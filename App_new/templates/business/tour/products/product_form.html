@@ -167,8 +167,13 @@
                     </div>
                     <div class="visa-form-group">
                         <label class="visa-form-label">产品编号</label>
-                        <input type="text" name="product_code" value="{{ product.product_code if product else '' }}" 
-                               class="visa-form-control" placeholder="如：SG-CITY-001（可选）">
+                        {% if product and product.product_code %}
+                        <input type="text" name="product_code" value="{{ product.product_code }}"
+                               class="visa-form-control" readonly style="background-color: #e9ecef;">
+                        {% else %}
+                        <input type="text" class="visa-form-control" value="自动生成 (TOU-YYMM-XXX)"
+                               disabled style="background-color: #e9ecef; color: #6c757d;">
+                        {% endif %}
                     </div>
                     <div class="visa-form-group">
                         <label class="visa-form-label">产品名称 <span style="color: red;">*</span></label>

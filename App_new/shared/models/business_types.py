@@ -10,10 +10,12 @@ from sqlalchemy.dialects.mysql import TEXT
 class BusinessType(db.Model):
     """业务类型主表"""
     __tablename__ = 'business_types'
-    
+
     id = db.Column(db.Integer, primary_key=True)
     code = db.Column(db.String(50), unique=True, nullable=False, comment='业务类型代码')
     name = db.Column(db.String(100), nullable=False, comment='业务类型名称')
+    name_en = db.Column(db.String(100), comment='英文名称')
+    product_code_prefix = db.Column(db.String(5), comment='产品编号前缀（3位英文大写）')
     description = db.Column(db.Text, comment='描述')
     is_active = db.Column(db.Boolean, default=True, comment='是否启用')
     sort_order = db.Column(db.Integer, default=0, comment='排序')
@@ -28,12 +30,43 @@ class BusinessType(db.Model):
             'id': self.id,
             'code': self.code,
             'name': self.name,
+            'name_en': self.name_en,
+            'product_code_prefix': self.product_code_prefix,
             'description': self.description,
             'is_active': self.is_active,
             'sort_order': self.sort_order,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
+
+    @classmethod
+    def get_product_code_prefix(cls, code):
+        """获取业务类型的产品编号前缀"""
+        bt = cls.query.filter_by(code=code, is_active=True).first()
+        if bt and bt.product_code_prefix:
+            return bt.product_code_prefix
+        # 返回默认前缀映射
+        default_prefixes = {
+            'tour': 'TOU',
+            'tour_package': 'TOU',
+            'land_tour': 'TOU',
+            'visa': 'VIS',
+            'ticket': 'TKT',
+            'attraction': 'TKT',
+            'car': 'CAR',
+            'transfer': 'CAR',
+            'cruise': 'CRU',
+            'ferry': 'CRU',
+            'hotel': 'HTL',
+            'flight': 'FLT',
+            'insurance': 'INS',
+            'rail_coach': 'TRN',
+            'transport': 'TRP',
+            'voucher': 'VOU',
+            'service_fee': 'SVC',
+            'other': 'OTH',
+        }
+        return default_prefixes.get(code, 'PRD')
     
     @classmethod
     def init_default_types(cls):
@@ -41,24 +74,24 @@ class BusinessType(db.Model):
         from ...exts import db
         
         default_types = [
-            {'code': 'flight', 'name': '机票', 'description': '航空机票服务', 'sort_order': 1},
-            {'code': 'hotel', 'name': '酒店', 'description': '酒店预订服务', 'sort_order': 2},
-            {'code': 'visa', 'name': '签证', 'description': '签证申请服务', 'sort_order': 3},
-            {'code': 'tour', 'name': '旅游团', 'description': '旅游团服务', 'sort_order': 4},
-            {'code': 'insurance', 'name': '保险', 'description': '旅游保险服务', 'sort_order': 5},
-            {'code': 'transport', 'name': '交通', 'description': '交通服务', 'sort_order': 6},
-            {'code': 'attraction', 'name': '景点/活动', 'description': '景点门票和活动', 'sort_order': 7},
-            {'code': 'car', 'name': '租车', 'description': '汽车租赁服务', 'sort_order': 8},
-            {'code': 'cruise', 'name': '邮轮', 'description': '邮轮旅游服务', 'sort_order': 9},
-            {'code': 'ferry', 'name': '渡轮', 'description': '渡轮服务', 'sort_order': 10},
-            {'code': 'land_tour', 'name': '地接', 'description': '地接服务', 'sort_order': 11},
-            {'code': 'rail_coach', 'name': '火车/大巴', 'description': '铁路和公路交通', 'sort_order': 12},
-            {'code': 'service_fee', 'name': '服务费', 'description': '各种服务费用', 'sort_order': 13},
-            {'code': 'ticket', 'name': '门票', 'description': '各种门票服务', 'sort_order': 14},
-            {'code': 'transfer', 'name': '接送', 'description': '接送服务', 'sort_order': 15},
-            {'code': 'tour_package', 'name': '旅游套餐', 'description': '旅游套餐服务', 'sort_order': 16},
-            {'code': 'voucher', 'name': '代金券', 'description': '代金券服务', 'sort_order': 17},
-            {'code': 'other', 'name': '其他', 'description': '其他服务', 'sort_order': 18}
+            {'code': 'flight', 'name': '机票', 'name_en': 'Flight', 'product_code_prefix': 'FLT', 'description': '航空机票服务', 'sort_order': 1},
+            {'code': 'hotel', 'name': '酒店', 'name_en': 'Hotel', 'product_code_prefix': 'HTL', 'description': '酒店预订服务', 'sort_order': 2},
+            {'code': 'visa', 'name': '签证', 'name_en': 'Visa', 'product_code_prefix': 'VIS', 'description': '签证申请服务', 'sort_order': 3},
+            {'code': 'tour', 'name': '旅游团', 'name_en': 'Tour', 'product_code_prefix': 'TOU', 'description': '旅游团服务', 'sort_order': 4},
+            {'code': 'insurance', 'name': '保险', 'name_en': 'Insurance', 'product_code_prefix': 'INS', 'description': '旅游保险服务', 'sort_order': 5},
+            {'code': 'transport', 'name': '交通', 'name_en': 'Transport', 'product_code_prefix': 'TRP', 'description': '交通服务', 'sort_order': 6},
+            {'code': 'attraction', 'name': '景点/活动', 'name_en': 'Attraction', 'product_code_prefix': 'ATR', 'description': '景点门票和活动', 'sort_order': 7},
+            {'code': 'car', 'name': '租车', 'name_en': 'Car Rental', 'product_code_prefix': 'CAR', 'description': '汽车租赁服务', 'sort_order': 8},
+            {'code': 'cruise', 'name': '邮轮', 'name_en': 'Cruise', 'product_code_prefix': 'CRU', 'description': '邮轮旅游服务', 'sort_order': 9},
+            {'code': 'ferry', 'name': '渡轮', 'name_en': 'Ferry', 'product_code_prefix': 'FRY', 'description': '渡轮服务', 'sort_order': 10},
+            {'code': 'land_tour', 'name': '地接', 'name_en': 'Land Tour', 'product_code_prefix': 'LND', 'description': '地接服务', 'sort_order': 11},
+            {'code': 'rail_coach', 'name': '火车/大巴', 'name_en': 'Rail/Coach', 'product_code_prefix': 'TRN', 'description': '铁路和公路交通', 'sort_order': 12},
+            {'code': 'service_fee', 'name': '服务费', 'name_en': 'Service Fee', 'product_code_prefix': 'SVC', 'description': '各种服务费用', 'sort_order': 13},
+            {'code': 'ticket', 'name': '门票', 'name_en': 'Ticket', 'product_code_prefix': 'TKT', 'description': '各种门票服务', 'sort_order': 14},
+            {'code': 'transfer', 'name': '接送', 'name_en': 'Transfer', 'product_code_prefix': 'TRF', 'description': '接送服务', 'sort_order': 15},
+            {'code': 'tour_package', 'name': '旅游套餐', 'name_en': 'Tour Package', 'product_code_prefix': 'PKG', 'description': '旅游套餐服务', 'sort_order': 16},
+            {'code': 'voucher', 'name': '代金券', 'name_en': 'Voucher', 'product_code_prefix': 'VOU', 'description': '代金券服务', 'sort_order': 17},
+            {'code': 'other', 'name': '其他', 'name_en': 'Other', 'product_code_prefix': 'OTH', 'description': '其他服务', 'sort_order': 18}
         ]
 
         for type_info in default_types:
@@ -205,3 +238,53 @@ def get_required_business_types(business_type_id):
 def get_excluded_business_types(business_type_id):
     """获取互斥的业务类型"""
     return get_compatible_business_types(business_type_id, 'excluded')
+
+
+def generate_product_code(business_type_code, table_model=None):
+    """
+    统一产品编号生成函数
+
+    格式: {PREFIX}-{YYMM}-{SEQ}
+    例如: TOU-2601-001
+
+    Args:
+        business_type_code: 业务类型代码 (如 'tour', 'visa')
+        table_model: 可选，用于查询序号的模型类
+
+    Returns:
+        str: 生成的产品编号
+    """
+    from datetime import datetime
+
+    # 获取前缀
+    prefix = BusinessType.get_product_code_prefix(business_type_code)
+
+    # 年月
+    year_month = datetime.now().strftime('%y%m')
+
+    # 构建模式
+    pattern = f'{prefix}-{year_month}-%'
+
+    # 查找当月最大序号
+    if table_model:
+        # 使用指定的模型查询
+        max_record = table_model.query.filter(
+            table_model.product_code.like(pattern)
+        ).order_by(table_model.product_code.desc()).first()
+    else:
+        # 默认使用统一产品表
+        from App_new.business.products.models import ProductsUnified
+        max_record = ProductsUnified.query.filter(
+            ProductsUnified.product_code.like(pattern)
+        ).order_by(ProductsUnified.product_code.desc()).first()
+
+    if max_record and max_record.product_code:
+        try:
+            last_seq = int(max_record.product_code.split('-')[-1])
+            new_seq = last_seq + 1
+        except ValueError:
+            new_seq = 1
+    else:
+        new_seq = 1
+
+    return f'{prefix}-{year_month}-{new_seq:03d}'

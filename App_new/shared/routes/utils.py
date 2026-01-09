@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, jsonify, flash
+from flask import Blueprint, render_template, request, redirect, url_for, jsonify, flash, send_file
 from flask_login import login_required, current_user
 from App_new.utils.VisaForm import MyPdfFile
 from App_new.utils.WordToPdf import WordToPDFConverter
@@ -6,6 +6,7 @@ from App_new.utils.decorators import staff_only
 import subprocess
 import os
 import traceback
+from io import BytesIO
 from flask import current_app
 from App_new.exts import csrf
 
@@ -358,3 +359,72 @@ def open_Athina():
 def files_home():
     """文件处理首页路由"""
     return render_template('shared/utils/文件处理首页.html')
+
+
+@utils_process.route('/image/print/<path:image_path>')
+def serve_print_image(image_path):
+    """
+    为打印提供优化后的小尺寸图片
+    - 最大宽度 400px（A4 打印足够）
+    - JPEG 质量 70%
+    - 显著减少加载时间
+    """
+    try:
+        from PIL import Image
+
+        # 构建完整的图片路径
+        static_folder = current_app.static_folder
+        full_path = os.path.join(static_folder, image_path)
+
+        if not os.path.exists(full_path):
+            return 'Image not found', 404
+
+        # 检查缓存目录
+        cache_dir = os.path.join(static_folder, 'cache', 'print_images')
+        os.makedirs(cache_dir, exist_ok=True)
+
+        # 生成缓存文件名（基于原文件路径的哈希）
+        import hashlib
+        cache_key = hashlib.md5(image_path.encode()).hexdigest()
+        cache_path = os.path.join(cache_dir, f'{cache_key}.jpg')
+
+        # 检查缓存是否存在且有效（原文件未修改）
+        if os.path.exists(cache_path):
+            original_mtime = os.path.getmtime(full_path)
+            cache_mtime = os.path.getmtime(cache_path)
+            if cache_mtime > original_mtime:
+                # 缓存有效，直接返回
+                return send_file(cache_path, mimetype='image/jpeg')
+
+        # 处理图片
+        with Image.open(full_path) as img:
+            # 转换为 RGB（处理 PNG 透明通道）
+            if img.mode in ('RGBA', 'LA', 'P'):
+                background = Image.new('RGB', img.size, (255, 255, 255))
+                if img.mode == 'P':
+                    img = img.convert('RGBA')
+                if img.mode == 'RGBA':
+                    background.paste(img, mask=img.split()[-1])
+                else:
+                    background.paste(img)
+                img = background
+            elif img.mode != 'RGB':
+                img = img.convert('RGB')
+
+            # 调整尺寸（最大宽度 400px，适合 A4 打印）
+            max_width = 400
+            if img.width > max_width:
+                ratio = max_width / img.width
+                new_height = int(img.height * ratio)
+                img = img.resize((max_width, new_height), Image.Resampling.LANCZOS)
+
+            # 保存到缓存
+            img.save(cache_path, 'JPEG', quality=70, optimize=True)
+
+        # 返回处理后的图片
+        return send_file(cache_path, mimetype='image/jpeg')
+
+    except Exception as e:
+        current_app.logger.error(f'图片处理失败: {str(e)}')
+        # 失败时返回原图
+        return redirect(url_for('static', filename=image_path))

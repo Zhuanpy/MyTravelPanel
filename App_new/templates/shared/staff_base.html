@@ -185,7 +185,12 @@
                                 <i class="fas fa-home me-2"></i>配套首页
                             </a></li>
                             <li><hr class="dropdown-divider"></li>
-                            <li><h6 class="dropdown-header">产品管理</h6></li>
+                            <li><h6 class="dropdown-header">统一产品</h6></li>
+                            <li><a class="dropdown-item" href="{{ url_for('products.index') }}">
+                                <i class="fas fa-cubes me-2"></i>产品中心
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><h6 class="dropdown-header">旅游产品</h6></li>
                             <li><a class="dropdown-item" href="{{ url_for('tour_products.add_product') }}">
                                 <i class="fas fa-plus me-2"></i>添加产品
                             </a></li>
@@ -401,21 +406,28 @@
                             </h6>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link {% if request.endpoint == 'package_routes.package_home' %}active{% endif %}" 
+                            <a class="nav-link {% if request.endpoint == 'package_routes.package_home' %}active{% endif %}"
                                href="{{ url_for('package_routes.package_home') }}">
                                 <i class="fas fa-home me-2"></i>
                                 配套首页
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link {% if request.endpoint == 'tour_products.add_product' %}active{% endif %}" 
+                            <a class="nav-link {% if request.endpoint.startswith('products.') %}active{% endif %}"
+                               href="{{ url_for('products.index') }}">
+                                <i class="fas fa-cubes me-2"></i>
+                                产品中心
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint == 'tour_products.add_product' %}active{% endif %}"
                                href="{{ url_for('tour_products.add_product') }}">
                                 <i class="fas fa-plus me-2"></i>
                                 添加产品
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link {% if request.endpoint == 'tour_products.product_list' %}active{% endif %}" 
+                            <a class="nav-link {% if request.endpoint == 'tour_products.product_list' %}active{% endif %}"
                                href="{{ url_for('tour_products.product_list') }}">
                                 <i class="fas fa-list me-2"></i>
                                 产品库

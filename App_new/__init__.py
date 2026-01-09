@@ -154,6 +154,10 @@ def create_app():
     app.register_blueprint(package_blue, url_prefix='/package')
     app.register_blueprint(product_details, url_prefix='/tour/product_details')
 
+    # 统一产品管理模块
+    from .business.products import products_bp
+    app.register_blueprint(products_bp)  # 已包含 url_prefix='/staff/products'
+
     # 工具与共享
     from .shared.routes.tasks import utils_blue
     from .shared.routes.utils import utils_process

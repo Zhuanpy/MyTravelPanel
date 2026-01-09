@@ -1,0 +1,197 @@
+{% extends "shared/staff_base.html" %}
+
+{% block title %}新增产品 - 选择类别{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- 面包屑导航 -->
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('products.index') }}">产品中心</a></li>
+            <li class="breadcrumb-item active">新增产品</li>
+        </ol>
+    </nav>
+
+    <!-- 页面标题 -->
+    <div class="mb-4">
+        <h4 class="mb-1">新增产品</h4>
+        <p class="text-muted mb-0">请选择要创建的产品类别，不同类别有不同的字段配置</p>
+    </div>
+
+    <!-- 产品类别选择 -->
+    <div class="row">
+        <!-- 旅游线路 -->
+        <div class="col-lg-3 col-md-4 col-sm-6 mb-4">
+            <div class="card h-100 hover-shadow">
+                <div class="card-body text-center py-4">
+                    <div class="mb-3">
+                        <i class="fas fa-route fa-3x text-primary"></i>
+                    </div>
+                    <h5 class="card-title">旅游线路</h5>
+                    <p class="card-text text-muted small">跟团游、自由行、定制游、当地游</p>
+                    <p class="text-muted small mb-3">
+                        <span class="badge bg-light text-dark">{{ category_counts.get('tour', {}).get('count', 0) }} 个产品</span>
+                    </p>
+                    <a href="{{ url_for('tour_products.add_product') }}" class="btn btn-primary">
+                        <i class="fas fa-plus me-1"></i> 添加旅游产品
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- 签证 -->
+        <div class="col-lg-3 col-md-4 col-sm-6 mb-4">
+            <div class="card h-100 hover-shadow">
+                <div class="card-body text-center py-4">
+                    <div class="mb-3">
+                        <i class="fas fa-passport fa-3x text-success"></i>
+                    </div>
+                    <h5 class="card-title">签证服务</h5>
+                    <p class="card-text text-muted small">旅游签证、商务签证、学生签证</p>
+                    <p class="text-muted small mb-3">
+                        <span class="badge bg-light text-dark">{{ category_counts.get('visa', {}).get('count', 0) }} 个产品</span>
+                    </p>
+                    <a href="{{ url_for('visa_basic.visa_type_list') }}" class="btn btn-success">
+                        <i class="fas fa-plus me-1"></i> 管理签证类型
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- 门票/玩乐 -->
+        <div class="col-lg-3 col-md-4 col-sm-6 mb-4">
+            <div class="card h-100 hover-shadow">
+                <div class="card-body text-center py-4">
+                    <div class="mb-3">
+                        <i class="fas fa-ticket-alt fa-3x text-warning"></i>
+                    </div>
+                    <h5 class="card-title">门票/玩乐</h5>
+                    <p class="card-text text-muted small">景区门票、演出门票、活动体验</p>
+                    <p class="text-muted small mb-3">
+                        <span class="badge bg-light text-dark">{{ category_counts.get('ticket', {}).get('count', 0) }} 个产品</span>
+                    </p>
+                    <a href="{{ url_for('products.create_by_category', category='ticket') }}" class="btn btn-warning">
+                        <i class="fas fa-plus me-1"></i> 添加门票产品
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- 用车 -->
+        <div class="col-lg-3 col-md-4 col-sm-6 mb-4">
+            <div class="card h-100 hover-shadow">
+                <div class="card-body text-center py-4">
+                    <div class="mb-3">
+                        <i class="fas fa-car fa-3x text-info"></i>
+                    </div>
+                    <h5 class="card-title">用车服务</h5>
+                    <p class="card-text text-muted small">接机、送机、包车、点对点接送</p>
+                    <p class="text-muted small mb-3">
+                        <span class="badge bg-light text-dark">{{ category_counts.get('car', {}).get('count', 0) }} 个产品</span>
+                    </p>
+                    <a href="{{ url_for('products.create_by_category', category='car') }}" class="btn btn-info">
+                        <i class="fas fa-plus me-1"></i> 添加用车产品
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- 邮轮 -->
+        <div class="col-lg-3 col-md-4 col-sm-6 mb-4">
+            <div class="card h-100 hover-shadow">
+                <div class="card-body text-center py-4">
+                    <div class="mb-3">
+                        <i class="fas fa-ship fa-3x text-secondary"></i>
+                    </div>
+                    <h5 class="card-title">邮轮</h5>
+                    <p class="card-text text-muted small">邮轮航线、舱房预订</p>
+                    <p class="text-muted small mb-3">
+                        <span class="badge bg-light text-dark">{{ category_counts.get('cruise', {}).get('count', 0) }} 个产品</span>
+                    </p>
+                    <a href="{{ url_for('products.create_by_category', category='cruise') }}" class="btn btn-secondary">
+                        <i class="fas fa-plus me-1"></i> 添加邮轮产品
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- 酒店 -->
+        <div class="col-lg-3 col-md-4 col-sm-6 mb-4">
+            <div class="card h-100 hover-shadow">
+                <div class="card-body text-center py-4">
+                    <div class="mb-3">
+                        <i class="fas fa-hotel fa-3x text-danger"></i>
+                    </div>
+                    <h5 class="card-title">酒店</h5>
+                    <p class="card-text text-muted small">酒店、度假村、公寓</p>
+                    <p class="text-muted small mb-3">
+                        <span class="badge bg-light text-dark">{{ category_counts.get('hotel', {}).get('count', 0) }} 个产品</span>
+                    </p>
+                    <a href="{{ url_for('products.create_by_category', category='hotel') }}" class="btn btn-danger">
+                        <i class="fas fa-plus me-1"></i> 添加酒店产品
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- 机票 -->
+        <div class="col-lg-3 col-md-4 col-sm-6 mb-4">
+            <div class="card h-100 hover-shadow">
+                <div class="card-body text-center py-4">
+                    <div class="mb-3">
+                        <i class="fas fa-plane fa-3x text-purple" style="color: #6f42c1;"></i>
+                    </div>
+                    <h5 class="card-title">机票</h5>
+                    <p class="card-text text-muted small">机票产品管理</p>
+                    <p class="text-muted small mb-3">
+                        <span class="badge bg-light text-dark">{{ category_counts.get('flight', {}).get('count', 0) }} 个产品</span>
+                    </p>
+                    <a href="{{ url_for('flight_home.flight_home_page') }}" class="btn" style="background-color: #6f42c1; color: white;">
+                        <i class="fas fa-external-link-alt me-1"></i> 机票管理
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- 保险 -->
+        <div class="col-lg-3 col-md-4 col-sm-6 mb-4">
+            <div class="card h-100 hover-shadow">
+                <div class="card-body text-center py-4">
+                    <div class="mb-3">
+                        <i class="fas fa-shield-alt fa-3x text-dark"></i>
+                    </div>
+                    <h5 class="card-title">保险</h5>
+                    <p class="card-text text-muted small">旅游保险、意外险</p>
+                    <p class="text-muted small mb-3">
+                        <span class="badge bg-light text-dark">{{ category_counts.get('insurance', {}).get('count', 0) }} 个产品</span>
+                    </p>
+                    <a href="{{ url_for('products.create_by_category', category='insurance') }}" class="btn btn-dark">
+                        <i class="fas fa-plus me-1"></i> 添加保险产品
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 快捷入口提示 -->
+    <div class="alert alert-info mt-4">
+        <i class="fas fa-info-circle me-2"></i>
+        <strong>提示：</strong>您也可以从各业务模块的首页直接添加产品：
+        <ul class="mb-0 mt-2">
+            <li>旅游产品：<a href="{{ url_for('package_routes.package_home') }}">配套首页</a> → 添加产品</li>
+            <li>签证产品：<a href="{{ url_for('visa_basic.visa_type_list') }}">签证管理</a> → 类型管理</li>
+            <li>机票产品：<a href="{{ url_for('flight_home.flight_home_page') }}">机票首页</a></li>
+        </ul>
+    </div>
+</div>
+
+<style>
+.hover-shadow {
+    transition: all 0.3s ease;
+}
+.hover-shadow:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+}
+</style>
+{% endblock %}
