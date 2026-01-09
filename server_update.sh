@@ -12,32 +12,67 @@ echo "=========================================="
 # 项目目录
 PROJECT_DIR="/var/www/MyTravelPanel"
 BRANCH="wip/backup-20250825-235609"
+MIGRATION_LOG="$PROJECT_DIR/.migration_history"
 
 # 进入项目目录
 echo ""
-echo "[1/5] 进入项目目录..."
+echo "[1/6] 进入项目目录..."
 cd $PROJECT_DIR
 echo "当前目录: $(pwd)"
 
 # 拉取最新代码
 echo ""
-echo "[2/5] 拉取最新代码..."
+echo "[2/6] 拉取最新代码..."
 git fetch origin
 git pull origin $BRANCH
 
 # 激活虚拟环境
 echo ""
-echo "[3/5] 激活虚拟环境..."
+echo "[3/6] 激活虚拟环境..."
 source venv/bin/activate
 
 # 安装依赖
 echo ""
-echo "[4/5] 安装/更新依赖..."
+echo "[4/6] 安装/更新依赖..."
 pip install -r requirements.txt -q
+
+# 运行数据库迁移脚本
+echo ""
+echo "[5/6] 检查数据库迁移脚本..."
+
+# 创建迁移记录文件（如果不存在）
+touch $MIGRATION_LOG
+
+# 查找所有以日期开头的迁移脚本（格式：YYYYMMDD_*.py）
+MIGRATION_COUNT=0
+for script in scripts/[0-9]*_*.py; do
+    if [ -f "$script" ]; then
+        script_name=$(basename "$script")
+
+        # 检查是否已执行过
+        if grep -q "^$script_name$" "$MIGRATION_LOG" 2>/dev/null; then
+            echo ">>> 跳过 $script_name (已执行)"
+        else
+            echo ">>> 运行 $script_name ..."
+            python "$script" --execute
+
+            # 记录已执行的脚本
+            echo "$script_name" >> "$MIGRATION_LOG"
+            MIGRATION_COUNT=$((MIGRATION_COUNT + 1))
+            echo ">>> $script_name 执行完成"
+        fi
+    fi
+done
+
+if [ $MIGRATION_COUNT -eq 0 ]; then
+    echo ">>> 没有新的迁移脚本需要执行"
+else
+    echo ">>> 共执行 $MIGRATION_COUNT 个迁移脚本"
+fi
 
 # 重启服务
 echo ""
-echo "[5/5] 重启服务..."
+echo "[6/6] 重启服务..."
 
 echo ">>> 停止旧的 gunicorn 进程..."
 pkill -f gunicorn || true
