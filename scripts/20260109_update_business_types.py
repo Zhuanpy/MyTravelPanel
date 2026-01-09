@@ -112,4 +112,26 @@ def update_business_types():
 
 
 if __name__ == '__main__':
-    update_business_types()
+    import argparse
+
+    parser = argparse.ArgumentParser(description='更新业务类型产品编号前缀')
+    parser.add_argument('--execute', action='store_true', help='执行更新')
+    parser.add_argument('--info', action='store_true', help='仅显示当前配置')
+
+    args = parser.parse_args()
+
+    if args.info:
+        # 仅显示当前配置
+        app = create_app()
+        with app.app_context():
+            from App_new.shared.models.business_types import BusinessType
+            print("当前产品编号前缀配置:")
+            print(f"{'代码':<15} {'中文名':<12} {'英文名':<15} {'前缀':<5}")
+            print("-" * 50)
+            all_types = BusinessType.query.order_by(BusinessType.sort_order).all()
+            for bt in all_types:
+                print(f"{bt.code:<15} {bt.name:<12} {bt.name_en or '-':<15} {bt.product_code_prefix or '-':<5}")
+    elif args.execute:
+        update_business_types()
+    else:
+        print("使用 --execute 执行更新，或 --info 查看当前配置")

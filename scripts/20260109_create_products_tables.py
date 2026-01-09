@@ -144,14 +144,15 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='统一产品系统数据库管理')
     parser.add_argument('--info', action='store_true', help='显示表结构信息')
     parser.add_argument('--create', action='store_true', help='创建数据库表')
+    parser.add_argument('--execute', action='store_true', help='执行创建（与 --create 相同）')
     parser.add_argument('--yes', '-y', action='store_true', help='自动确认（跳过确认提示）')
 
     args = parser.parse_args()
 
     if args.info:
         show_table_info()
-    elif args.create:
+    elif args.create or args.execute:
         create_tables()
     else:
-        # 默认创建表
-        create_tables()
+        # 默认显示信息
+        show_table_info()
