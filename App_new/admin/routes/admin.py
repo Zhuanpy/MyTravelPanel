@@ -233,16 +233,18 @@ def staff_levels():
         total_count = len(staff_users)
         level_1_count = sum(1 for user in staff_users if user.profile and (user.profile.staff_level or 1) == 1)
         level_2_count = sum(1 for user in staff_users if user.profile and (user.profile.staff_level or 1) == 2)
-        
+        level_3_count = sum(1 for user in staff_users if user.profile and (user.profile.staff_level or 1) == 3)
+
         return render_template('admin/staff_levels.html',
                              staff_users=staff_users,
                              total_count=total_count,
                              level_1_count=level_1_count,
-                             level_2_count=level_2_count)
+                             level_2_count=level_2_count,
+                             level_3_count=level_3_count)
     except Exception as e:
         flash(f'加载员工等级管理页面失败：{str(e)}', 'error')
         return render_template('admin/staff_levels.html',
-                             staff_users=[], total_count=0, level_1_count=0, level_2_count=0)
+                             staff_users=[], total_count=0, level_1_count=0, level_2_count=0, level_3_count=0)
 
 @admin.route('/update-staff-level', methods=['POST'])
 @login_required

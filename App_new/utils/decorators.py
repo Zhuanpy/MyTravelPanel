@@ -85,7 +85,10 @@ def staff_level_required(min_level=1):
     """
     员工等级权限装饰器
     要求员工具有指定等级或更高等级才能访问
-    min_level: 最低要求的员工等级 (1-普通员工, 2-高级员工)
+    min_level: 最低要求的员工等级
+        1-初级员工(只能看自己的订单)
+        2-普通员工(可看部门/团队订单)
+        3-高级员工(可看所有订单)
     """
     def decorator(f):
         @wraps(f)
@@ -114,8 +117,13 @@ def staff_level_required(min_level=1):
 
 
 def staff_level_2_only(f):
-    """仅限2级员工（高级员工）访问的装饰器"""
+    """仅限2级及以上员工（普通员工+高级员工）访问的装饰器"""
     return staff_level_required(2)(f)
+
+
+def staff_level_3_only(f):
+    """仅限3级员工（高级员工）访问的装饰器"""
+    return staff_level_required(3)(f)
 
 
 def permission_required(permission):
