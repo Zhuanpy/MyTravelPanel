@@ -27,6 +27,22 @@
 
 {% block content %}
 
+{% if header.is_settled %}
+<!-- 已结算提示条 -->
+<div class="alert alert-warning d-flex align-items-center mb-3" role="alert" style="background: linear-gradient(135deg, #fff3cd 0%, #ffe69c 100%); border: none; border-radius: 8px;">
+    <i class="fas fa-lock me-2" style="font-size: 1.2rem;"></i>
+    <div>
+        <strong>该项目已结算，无法进行编辑操作。</strong>
+        {% if header.payment_voucher %}
+        <a href="{{ url_for('business_projects.settlement.voucher_detail', voucher_id=header.payment_voucher.id) }}" class="alert-link ms-2">
+            查看凭证 {{ header.payment_voucher.voucher_no }}
+        </a>
+        {% endif %}
+        <span class="ms-2 text-muted">如需修改，请先取消结算。</span>
+    </div>
+</div>
+{% endif %}
+
 <div class="container-fluid tw-px-2" style="max-width: 1600px;">
          <!-- 项目详情布局 -->
      <div class="project-detail-layout">
@@ -72,9 +88,11 @@
                     <h3 class="section-title" style="font-size: 1rem; margin: 0;">
                         <i class="fas fa-info-circle text-primary"></i> 项目信息
                     </h3>
+                    {% if not header.is_settled %}
                     <a href="{{ url_for('business_projects.project_header.edit_header', header_id=header.id) }}" class="btn btn-outline-primary btn-sm py-0 px-2" style="font-size: 0.75rem;">
                         <i class="fas fa-edit"></i> 编辑
                     </a>
+                    {% endif %}
                  </div>
                  <div class="project-info-container" style="flex: 1; overflow-y: auto;">
                      <!-- 基本信息 - 紧凑列表 -->
@@ -95,6 +113,23 @@
                              <span style="color: #6c757d; min-width: 40px; font-weight: 500;">更新</span>
                              <span style="color: #333;">{{ header.updated_at.strftime('%Y-%m-%d') if header.updated_at else '-' }}</span>
                          </div>
+                         <div style="display: flex; align-items: center; padding: 6px 10px; background: #f8f9fa; border-radius: 4px;">
+                             <span style="color: #6c757d; min-width: 60px; font-weight: 500;">结算</span>
+                             <span style="flex: 1;">
+                                 {% if header.is_settled %}
+                                     <span style="background: #d4edda; color: #155724; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem;">已结算</span>
+                                     {% if header.payment_voucher %}
+                                     <a href="{{ url_for('business_projects.settlement.voucher_detail', voucher_id=header.payment_voucher.id) }}" style="color: #1976D2; margin-left: 8px; font-size: 0.75rem;">{{ header.payment_voucher.voucher_no }}</a>
+                                     {% endif %}
+                                 {% else %}
+                                     <span style="background: #fff3cd; color: #856404; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem;">未结算</span>
+                                 {% endif %}
+                             </span>
+                             {% if header.settled_at %}
+                             <span style="color: #6c757d; min-width: 40px; font-weight: 500;">日期</span>
+                             <span style="color: #333;">{{ header.settled_at.strftime('%Y-%m-%d') }}</span>
+                             {% endif %}
+                         </div>
                      </div>
                      
                  </div>
@@ -108,17 +143,21 @@
                       <h3 class="section-title" style="font-size: 1rem; margin: 0; white-space: nowrap;">
                           <i class="fas fa-users text-primary"></i> 人员名单
                       </h3>
+                      {% if not header.is_settled %}
                       <button type="button" class="btn btn-success btn-sm py-0 px-2" data-action="add-member" style="font-size: 0.75rem;">
                           <i class="fas fa-plus"></i>
                       </button>
+                      {% endif %}
                   </div>
                   <div style="max-height: 280px; overflow-y: auto;">
                       <table class="table table-sm table-hover mb-0" id="members-table" style="font-size: 0.8rem;">
                           <thead style="position: sticky; top: 0; background: white;">
                               <tr>
                                   <th style="padding: 4px 6px;">姓名</th>
+                                  {% if not header.is_settled %}
                                   <th style="padding: 4px 6px; width: 30px; text-align: center;" title="设为Leader"><i class="fas fa-user text-muted"></i></th>
                                   <th style="padding: 4px 6px; width: 30px; text-align: center;" title="删除"><i class="fas fa-trash text-muted"></i></th>
+                                  {% endif %}
                               </tr>
                           </thead>
                           <tbody id="members-tbody">
@@ -138,9 +177,11 @@
            <div class="info-card remarks-info-card tw:bg-white tw:rounded-lg tw:shadow tw:p-3">
                   <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
                      <h3 class="section-title" style="font-size: 1rem; margin: 0;">备注信息</h3>
+                      {% if not header.is_settled %}
                       <button type="button" class="btn btn-outline-primary btn-sm py-0 px-2" onclick="showNewRemarksInput()" id="add-remarks-btn" style="font-size: 0.75rem;">
                           <i class="fas fa-plus"></i>
                       </button>
+                      {% endif %}
                   </div>
                   
                   <!-- 显示已有备注 -->
@@ -188,29 +229,34 @@
                         <span class="reminder-event">{{ header.reminder_event }}</span>
                         <span class="text-muted ms-1">({{ header.reminder_date.strftime('%m-%d') if header.reminder_date else '-' }})</span>
                     </span>
+                    {% if not header.is_settled %}
                     <button type="button" class="btn btn-link btn-sm p-0 text-warning" data-action="edit-reminder" title="编辑">
                         <i class="fas fa-edit" style="font-size: 0.7rem;"></i>
                     </button>
                     <button type="button" class="btn btn-link btn-sm p-0 text-danger" data-action="delete-reminder" title="删除">
                         <i class="fas fa-times" style="font-size: 0.7rem;"></i>
                     </button>
+                    {% endif %}
                 </div>
-                {% else %}
+                {% elif not header.is_settled %}
                 <button type="button" class="btn btn-outline-warning btn-sm" data-action="add-reminder">
                     <i class="fas fa-bell"></i> 添加提醒
                 </button>
                 {% endif %}
             </div>
             <div class="add-ref-buttons tw:flex tw:flex-wrap tw:gap-2 tw:w-full md:tw:w-auto tw:mt-1 md:tw:mt-0">
+                {% if not header.is_settled %}
                 <button type="button" class="btn btn-primary btn-sm" onclick="openInvoiceModal()">
                     <i class="fas fa-file-invoice"></i> 生成发票
                 </button>
+                {% endif %}
                 <a href="{{ url_for('business_projects.project_invoice.header_invoices', header_id=header.id) }}" class="btn btn-outline-primary btn-sm">
                     <i class="fas fa-list"></i> 发票列表
                 </a>
                 <a href="{{ url_for('business_projects.project_receipt.header_receipts', header_id=header.id) }}" class="btn btn-info btn-sm">
                     <i class="fas fa-money-bill-wave"></i> 收款管理
                 </a>
+                {% if not header.is_settled %}
                 <a href="{{ url_for('business_projects.project_receipt.create_header_receipt', header_id=header.id) }}" class="btn btn-warning btn-sm">
                     <i class="fas fa-plus-circle"></i> 新增收款
                 </a>
@@ -238,6 +284,7 @@
                 <a href="{{ url_for('business_projects.project_ref.create_other_ref', header_id=header.id) }}" class="btn btn-success btn-sm">
                     <i class="fas fa-plus"></i> 其他
                 </a>
+                {% endif %}
             </div>
         </div>
         
@@ -263,11 +310,14 @@
                 {% for ref in header.refs %}
                     <tr>
                         <td class="tw-max-w-[140px]" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                            {% if ref.ref_type and ref.ref_type.name == '机票' %}
+                            {% if header.is_settled %}
+                                {# 已结算状态：只显示REF编号文本，不可点击编辑 #}
+                                <strong style="color: #6c757d;">{{ ref.ref_number }}</strong>
+                            {% elif ref.ref_type and ref.ref_type.name == '机票' %}
                                 <a href="{{ url_for('business_projects.project_ref.edit_flight_ref', ref_id=ref.id) }}" class="ref-number-link" title="点击编辑机票REF">
                                     <strong>{{ ref.ref_number }}</strong>
                                 </a>
-                                                         {% elif ref.ref_type and ref.ref_type.name == '其他' %}
+                            {% elif ref.ref_type and ref.ref_type.name == '其他' %}
                                 <a href="{{ url_for('business_projects.project_ref.edit_other_ref', ref_id=ref.id) }}" class="ref-number-link" title="点击编辑其他REF">
                                     <strong>{{ ref.ref_number }}</strong>
                                 </a>
@@ -324,13 +374,15 @@
                                    title="点击查看EO详情">
                                     <span class="badge bg-info">{{ ref.eos.eo_number }}</span>
                                 </a>
-                            {% else %}
-                                <button type="button" class="btn btn-sm btn-outline-success" 
-                                        data-action="quick-create-eo" 
+                            {% elif not header.is_settled %}
+                                <button type="button" class="btn btn-sm btn-outline-success"
+                                        data-action="quick-create-eo"
                                         data-ref-id="{{ ref.id }}"
                                         title="快速生成EO编号">
                                     <i class="fas fa-plus"></i>
                                 </button>
+                            {% else %}
+                                <span class="text-muted">-</span>
                             {% endif %}
                         </td>
                         <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
@@ -383,8 +435,8 @@
                                     </a>
                                 {% endif %}
                                 
-                                <!-- 如果已生成EO或有收款记录（包括项目级别分配），则隐藏删除按钮 -->
-                                {% if ref.can_delete %}
+                                <!-- 如果已生成EO或有收款记录（包括项目级别分配）或已结算，则隐藏删除按钮 -->
+                                {% if ref.can_delete and not header.is_settled %}
                                     <a href="{{ url_for('business_projects.project_ref.delete_ref', ref_id=ref.id) }}" class="btn btn-sm btn-danger" title="删除REF">
                                         <i class="fas fa-trash"></i>
                                     </a>
@@ -455,6 +507,16 @@ window.listUrl = '{{ url_for("business_projects.list.list_projects") }}';
 window.headerId = {{ header.id }};
 window.headerReminderEvent = '{{ header.reminder_event or "" }}';
 window.headerReminderDate = '{{ header.reminder_date.strftime("%Y-%m-%d") if header.reminder_date else "" }}';
+window.isSettled = {{ 'true' if header.is_settled else 'false' }};
+
+// 检查项目是否已结算，阻止编辑操作
+function checkSettledStatus() {
+    if (window.isSettled) {
+        alert('该项目已结算，无法进行编辑操作。如需修改，请先取消结算。');
+        return false;
+    }
+    return true;
+}
 
 // 清理备注显示
 document.addEventListener('DOMContentLoaded', function() {
@@ -535,15 +597,19 @@ function renderMembers(members) {
         return 0;
     });
     
+    // 根据结算状态决定是否显示操作列
+    const showActions = !window.isSettled;
+
     tbody.innerHTML = sortedMembers.map(m => `
-        <tr data-member-id="${m.id}" style="cursor: pointer;${m.is_leader ? ' background-color: #d4edda;' : ''}" onclick="editMember(${m.id})">
+        <tr data-member-id="${m.id}" style="cursor: ${showActions ? 'pointer' : 'default'};${m.is_leader ? ' background-color: #d4edda;' : ''}" ${showActions ? `onclick="editMember(${m.id})"` : ''}>
             <td style="padding: 4px 6px;">
                 <span title="${m.title ? m.title + ' ' : ''}${m.member_name}${m.member_role ? ' (' + m.member_role + ')' : ''}">
                     ${m.title ? '<small class="text-muted">' + m.title + '</small> ' : ''}${m.member_name || '-'}${m.is_leader ? ' <span class="badge bg-success" style="font-size: 0.6rem;">*</span>' : ''}
                 </span>
             </td>
+            ${showActions ? `
             <td style="padding: 4px 6px; text-align: center;">
-                <button type="button" class="btn btn-sm ${m.is_leader ? 'btn-primary' : 'btn-outline-secondary'} py-0 px-1" 
+                <button type="button" class="btn btn-sm ${m.is_leader ? 'btn-primary' : 'btn-outline-secondary'} py-0 px-1"
                         onclick="event.stopPropagation(); setLeader(${m.id})" title="设为Leader" style="font-size: 0.7rem;">
                     <i class="fas fa-user"></i>
                 </button>
@@ -553,12 +619,17 @@ function renderMembers(members) {
                     <i class="fas fa-trash"></i>
                 </button>`}
             </td>
+            ` : ''}
         </tr>
     `).join('');
 }
 
 // 设置Leader
 function setLeader(memberId) {
+    if (window.isSettled) {
+        alert('该项目已结算，无法进行编辑操作。如需修改，请先取消结算。');
+        return;
+    }
     fetch(`/projects/${window.headerId}/members/${memberId}/set-leader`, {
         method: 'POST',
         headers: {
@@ -581,9 +652,13 @@ function setLeader(memberId) {
 }
 
 function openMemberModal(member = null) {
+    if (window.isSettled) {
+        alert('该项目已结算，无法进行编辑操作。如需修改，请先取消结算。');
+        return;
+    }
     const modal = document.getElementById('memberModal');
     const title = document.getElementById('memberModalTitle');
-    
+
     if (member) {
         title.textContent = '编辑人员';
         document.getElementById('memberId').value = member.id;
@@ -610,9 +685,13 @@ function closeMemberModal() {
 }
 
 function saveMember() {
+    if (window.isSettled) {
+        alert('该项目已结算，无法进行编辑操作。如需修改，请先取消结算。');
+        return;
+    }
     const memberId = document.getElementById('memberId').value;
     const memberName = document.getElementById('memberName').value.trim();
-    
+
     if (!memberName) {
         alert('请输入人员姓名');
         return;
@@ -659,6 +738,10 @@ function saveMember() {
 }
 
 function editMember(memberId) {
+    if (window.isSettled) {
+        alert('该项目已结算，无法进行编辑操作。如需修改，请先取消结算。');
+        return;
+    }
     fetch(`/projects/${window.headerId}/members`)
         .then(response => response.json())
         .then(data => {
@@ -673,6 +756,10 @@ function editMember(memberId) {
 }
 
 function deleteMember(memberId, memberName) {
+    if (window.isSettled) {
+        alert('该项目已结算，无法进行编辑操作。如需修改，请先取消结算。');
+        return;
+    }
     if (!confirm(`确定要删除人员 "${memberName}" 吗？`)) {
         return;
     }

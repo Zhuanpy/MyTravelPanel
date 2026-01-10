@@ -149,9 +149,23 @@ class ProjectDetailManager {
     }
 
     /**
+     * 检查结算状态，如果已结算则阻止编辑
+     */
+    checkSettledStatus() {
+        if (window.isSettled) {
+            this.showMessage('该项目已结算，无法进行编辑操作。如需修改，请先取消结算。', 'error');
+            return false;
+        }
+        return true;
+    }
+
+    /**
      * 切换内联编辑状态
      */
     toggleInlineEdit(displayElement, inputElementId) {
+        // 检查结算状态
+        if (!this.checkSettledStatus()) return;
+
         const inputElement = document.getElementById(inputElementId);
         if (!inputElement) return;
 
@@ -262,9 +276,12 @@ class ProjectDetailManager {
      * 显示新增备注输入框
      */
     showNewRemarksInput() {
+        // 检查结算状态
+        if (!this.checkSettledStatus()) return;
+
         const section = document.getElementById('new-remarks-section');
         const input = document.getElementById('new-remarks-input');
-        
+
         if (section && input) {
             section.style.display = 'block';
             setTimeout(() => section.classList.add('show'), 10);
@@ -405,6 +422,9 @@ class ProjectDetailManager {
      * 编辑REF状态
      */
     editRefStatus(refId) {
+        // 检查结算状态
+        if (!this.checkSettledStatus()) return;
+
         const statusSpan = document.getElementById(`ref-status-${refId}`);
         const statusSelect = document.getElementById(`ref-status-select-${refId}`);
         
@@ -495,6 +515,9 @@ class ProjectDetailManager {
      * 添加提醒
      */
     addReminder() {
+        // 检查结算状态
+        if (!this.checkSettledStatus()) return;
+
         document.getElementById('reminderEvent').value = '';
         document.getElementById('reminderDate').value = '';
         document.getElementById('reminderModalTitle').textContent = '添加提醒';
@@ -506,9 +529,12 @@ class ProjectDetailManager {
      * 编辑提醒
      */
     editReminder() {
+        // 检查结算状态
+        if (!this.checkSettledStatus()) return;
+
         const event = window.headerReminderEvent || '';
         const date = window.headerReminderDate || '';
-        
+
         document.getElementById('reminderEvent').value = event;
         document.getElementById('reminderDate').value = date;
         document.getElementById('reminderModalTitle').textContent = '编辑提醒';
@@ -520,6 +546,9 @@ class ProjectDetailManager {
      * 删除提醒
      */
     async deleteReminder() {
+        // 检查结算状态
+        if (!this.checkSettledStatus()) return;
+
         if (!confirm('确定要删除这个提醒吗？')) return;
 
         try {
@@ -627,6 +656,9 @@ class ProjectDetailManager {
      * 快速创建EO
      */
     async quickCreateEO(refId) {
+        // 检查结算状态
+        if (!this.checkSettledStatus()) return;
+
         // 找到对应的按钮
         const button = document.querySelector(`[data-action="quick-create-eo"][data-ref-id="${refId}"]`);
         if (!button) return;
