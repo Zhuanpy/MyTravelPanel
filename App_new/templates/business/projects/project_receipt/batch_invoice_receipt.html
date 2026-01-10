@@ -1,0 +1,656 @@
+{% extends "shared/staff_base.html" %}
+
+{% block title %}批量发票收款{% endblock %}
+
+{% block page_title %}批量发票收款{% endblock %}
+
+{% block extra_css %}
+<style>
+    .batch-receipt-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+
+    .section-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        margin-bottom: 20px;
+        overflow: hidden;
+    }
+
+    .section-header {
+        padding: 16px 20px;
+        border-bottom: 1px solid #e2e8f0;
+        background: #f8fafc;
+    }
+
+    .section-header h5 {
+        margin: 0;
+        font-size: 1rem;
+        font-weight: 600;
+        color: #1e293b;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .section-body {
+        padding: 20px;
+    }
+
+    /* 发票列表样式 */
+    .invoice-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .invoice-table th {
+        background: #f8fafc;
+        padding: 12px 16px;
+        text-align: left;
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: #64748b;
+        text-transform: uppercase;
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    .invoice-table td {
+        padding: 12px 16px;
+        border-bottom: 1px solid #f1f5f9;
+        font-size: 0.875rem;
+        color: #334155;
+    }
+
+    .invoice-table tbody tr:hover {
+        background: #f8fafc;
+    }
+
+    .invoice-number {
+        font-weight: 600;
+        color: #2563eb;
+    }
+
+    .amount {
+        font-family: 'SF Mono', Monaco, monospace;
+        font-weight: 500;
+        text-align: right;
+    }
+
+    .amount.unpaid {
+        color: #dc2626;
+    }
+
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 4px 10px;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 500;
+    }
+
+    .status-badge.unpaid {
+        background: #fee2e2;
+        color: #dc2626;
+    }
+
+    .status-badge.partial_paid {
+        background: #fef3c7;
+        color: #d97706;
+    }
+
+    /* 汇总信息 */
+    .summary-row {
+        display: flex;
+        justify-content: flex-end;
+        padding: 16px 20px;
+        background: #f8fafc;
+        border-top: 2px solid #e2e8f0;
+        gap: 32px;
+    }
+
+    .summary-item {
+        text-align: right;
+    }
+
+    .summary-label {
+        font-size: 0.85rem;
+        color: #64748b;
+    }
+
+    .summary-value {
+        font-size: 1.25rem;
+        font-weight: 700;
+        font-family: 'SF Mono', Monaco, monospace;
+        color: #dc2626;
+    }
+
+    /* 表单样式 */
+    .form-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 16px;
+        margin-bottom: 16px;
+    }
+
+    .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .form-group label {
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: #334155;
+    }
+
+    .form-group label .required {
+        color: #dc2626;
+    }
+
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+        padding: 10px 12px;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        font-size: 0.875rem;
+        transition: all 0.2s;
+    }
+
+    .form-group input:focus,
+    .form-group select:focus,
+    .form-group textarea:focus {
+        outline: none;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+
+    .form-group input:read-only {
+        background: #f8fafc;
+        color: #64748b;
+    }
+
+    /* 分配方式说明 */
+    .distribution-info {
+        background: #eff6ff;
+        border: 1px solid #bfdbfe;
+        border-radius: 8px;
+        padding: 12px 16px;
+        margin-bottom: 16px;
+    }
+
+    .distribution-info i {
+        color: #3b82f6;
+        margin-right: 8px;
+    }
+
+    .distribution-info p {
+        margin: 0;
+        font-size: 0.875rem;
+        color: #1e40af;
+    }
+
+    /* 多货币警告 */
+    .currency-warning {
+        background: #fef3c7;
+        border: 1px solid #fcd34d;
+        border-radius: 8px;
+        padding: 12px 16px;
+        margin-bottom: 16px;
+    }
+
+    .currency-warning i {
+        color: #d97706;
+        margin-right: 8px;
+    }
+
+    .currency-warning p {
+        margin: 0;
+        font-size: 0.875rem;
+        color: #92400e;
+    }
+
+    /* 按钮样式 */
+    .btn-container {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 24px;
+        padding-top: 20px;
+        border-top: 1px solid #e2e8f0;
+    }
+
+    .btn {
+        padding: 12px 24px;
+        border-radius: 8px;
+        font-size: 0.9rem;
+        font-weight: 500;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        text-decoration: none;
+        border: none;
+        transition: all 0.2s;
+    }
+
+    .btn-secondary {
+        background: #f1f5f9;
+        color: #64748b;
+    }
+
+    .btn-secondary:hover {
+        background: #e2e8f0;
+    }
+
+    .btn-primary {
+        background: #16a34a;
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: #15803d;
+    }
+
+    .btn-primary:disabled {
+        background: #9ca3af;
+        cursor: not-allowed;
+    }
+
+    /* 成功提示 */
+    .success-modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0,0,0,0.5);
+        z-index: 1000;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .success-modal.show {
+        display: flex;
+    }
+
+    .success-content {
+        background: white;
+        border-radius: 16px;
+        padding: 32px;
+        max-width: 500px;
+        text-align: center;
+    }
+
+    .success-icon {
+        width: 64px;
+        height: 64px;
+        background: #dcfce7;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 16px;
+    }
+
+    .success-icon i {
+        font-size: 32px;
+        color: #16a34a;
+    }
+
+    .success-content h4 {
+        margin: 0 0 8px 0;
+        font-size: 1.25rem;
+        color: #1e293b;
+    }
+
+    .success-content p {
+        margin: 0 0 24px 0;
+        color: #64748b;
+    }
+
+    /* 预览分配 */
+    .allocation-preview {
+        margin-top: 16px;
+        padding: 16px;
+        background: #f8fafc;
+        border-radius: 8px;
+        display: none;
+    }
+
+    .allocation-preview.show {
+        display: block;
+    }
+
+    .allocation-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 8px 0;
+        border-bottom: 1px dashed #e2e8f0;
+    }
+
+    .allocation-item:last-child {
+        border-bottom: none;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="batch-receipt-container">
+    <!-- 发票列表 -->
+    <div class="section-card">
+        <div class="section-header">
+            <h5><i class="fas fa-file-invoice"></i> 选中的发票 ({{ invoices|length }} 张)</h5>
+        </div>
+        <table class="invoice-table">
+            <thead>
+                <tr>
+                    <th>发票号</th>
+                    <th>项目</th>
+                    <th>客户</th>
+                    <th>发票日期</th>
+                    <th style="text-align: right;">发票金额</th>
+                    <th style="text-align: right;">已付金额</th>
+                    <th style="text-align: right;">待收金额</th>
+                    <th>状态</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for inv in invoices %}
+                <tr data-invoice-id="{{ inv.id }}">
+                    <td><span class="invoice-number">{{ inv.invoice_number }}</span></td>
+                    <td>{{ inv.project_hid }}</td>
+                    <td>{{ inv.customer_name or inv.customer_company or '-' }}</td>
+                    <td>{{ inv.invoice_date.strftime('%Y-%m-%d') if inv.invoice_date else '-' }}</td>
+                    <td class="amount">{{ inv.currency }} {{ "%.2f"|format(inv.amount) }}</td>
+                    <td class="amount">{{ "%.2f"|format(inv.paid_amount) }}</td>
+                    <td class="amount unpaid">{{ "%.2f"|format(inv.unpaid_amount) }}</td>
+                    <td><span class="status-badge {{ inv.payment_status }}">{{ inv.payment_status_display }}</span></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <div class="summary-row">
+            <div class="summary-item">
+                <div class="summary-label">待收款总额</div>
+                <div class="summary-value">{{ default_currency }} {{ "%.2f"|format(total_unpaid) }}</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 收款信息表单 -->
+    <div class="section-card">
+        <div class="section-header">
+            <h5><i class="fas fa-money-bill-wave"></i> 收款信息</h5>
+        </div>
+        <div class="section-body">
+            {% if multi_currency %}
+            <div class="currency-warning">
+                <i class="fas fa-exclamation-triangle"></i>
+                <p>选中的发票包含多种货币，请确保收款金额与货币类型匹配。</p>
+            </div>
+            {% endif %}
+
+            <div class="distribution-info">
+                <i class="fas fa-info-circle"></i>
+                <p>系统将按发票日期顺序依次分配收款金额，优先付清较早的发票。</p>
+            </div>
+
+            <form id="batchReceiptForm">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>收款单号</label>
+                        <input type="text" value="{{ receipt_number }}" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label>收款金额 <span class="required">*</span></label>
+                        <input type="number" id="amount" name="amount" step="0.01" min="0.01"
+                               value="{{ '%.2f'|format(total_unpaid) }}" required>
+                    </div>
+                    <div class="form-group">
+                        <label>货币类型 <span class="required">*</span></label>
+                        <select id="currency" name="currency">
+                            <option value="SGD" {% if default_currency == 'SGD' %}selected{% endif %}>SGD - 新加坡元</option>
+                            <option value="USD" {% if default_currency == 'USD' %}selected{% endif %}>USD - 美元</option>
+                            <option value="CNY" {% if default_currency == 'CNY' %}selected{% endif %}>CNY - 人民币</option>
+                            <option value="EUR" {% if default_currency == 'EUR' %}selected{% endif %}>EUR - 欧元</option>
+                            <option value="JPY" {% if default_currency == 'JPY' %}selected{% endif %}>JPY - 日元</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>分配方式</label>
+                        <select id="distribution_method" name="distribution_method">
+                            <option value="sequential">顺序分配（按发票日期）</option>
+                            <option value="proportional">按比例分配</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>付款方式 <span class="required">*</span></label>
+                        <select id="payment_method" name="payment_method">
+                            <option value="bank_transfer">银行转账</option>
+                            <option value="cash">现金</option>
+                            <option value="credit_card">信用卡</option>
+                            <option value="cheque">支票</option>
+                            <option value="other">其他</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>收款日期 <span class="required">*</span></label>
+                        <input type="date" id="payment_date" name="payment_date" value="{{ today }}" required>
+                    </div>
+                    <div class="form-group">
+                        <label>银行名称 <span class="required">*</span></label>
+                        <input type="text" id="bank_name" name="bank_name" placeholder="请输入银行名称" required>
+                    </div>
+                    <div class="form-group">
+                        <label>交易流水号</label>
+                        <input type="text" id="transaction_id" name="transaction_id" placeholder="银行交易流水号">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>付款人姓名</label>
+                        <input type="text" id="payer_name" name="payer_name" placeholder="付款人姓名">
+                    </div>
+                    <div class="form-group">
+                        <label>付款人公司</label>
+                        <input type="text" id="payer_company" name="payer_company" placeholder="付款人公司">
+                    </div>
+                    <div class="form-group">
+                        <label>付款人联系方式</label>
+                        <input type="text" id="payer_contact" name="payer_contact" placeholder="电话/邮箱">
+                    </div>
+                    <div class="form-group">
+                        <label>账号</label>
+                        <input type="text" id="account_number" name="account_number" placeholder="银行账号">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group" style="grid-column: 1 / -1;">
+                        <label>备注</label>
+                        <textarea id="remarks" name="remarks" rows="3" placeholder="收款备注..."></textarea>
+                    </div>
+                </div>
+
+                <!-- 分配预览 -->
+                <div class="allocation-preview" id="allocationPreview">
+                    <h6 style="margin: 0 0 12px 0; color: #334155;">分配预览</h6>
+                    <div id="allocationList"></div>
+                </div>
+            </form>
+
+            <div class="btn-container">
+                <a href="{{ url_for('business_projects.project_invoice.invoice_list') }}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> 返回发票列表
+                </a>
+                <button type="button" class="btn btn-primary" id="submitBtn" onclick="submitBatchReceipt()">
+                    <i class="fas fa-check"></i> 确认收款
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 成功提示模态框 -->
+<div class="success-modal" id="successModal">
+    <div class="success-content">
+        <div class="success-icon">
+            <i class="fas fa-check"></i>
+        </div>
+        <h4>收款成功</h4>
+        <p id="successMessage">已成功创建收款记录</p>
+        <a href="{{ url_for('business_projects.project_invoice.invoice_list') }}" class="btn btn-primary">
+            返回发票列表
+        </a>
+    </div>
+</div>
+
+<script>
+const invoiceIds = {{ invoices | map(attribute='id') | list | tojson }};
+const totalUnpaid = {{ total_unpaid }};
+
+// 金额变化时预览分配
+document.getElementById('amount').addEventListener('input', previewAllocation);
+document.getElementById('distribution_method').addEventListener('change', previewAllocation);
+
+function previewAllocation() {
+    const amount = parseFloat(document.getElementById('amount').value) || 0;
+    const method = document.getElementById('distribution_method').value;
+
+    if (amount <= 0) {
+        document.getElementById('allocationPreview').classList.remove('show');
+        return;
+    }
+
+    fetch('{{ url_for("business_projects.project_receipt.preview_allocation") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
+        },
+        body: JSON.stringify({
+            amount: amount,
+            invoice_ids: invoiceIds,
+            distribution_method: method
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success && data.allocation_details) {
+            let html = '';
+            for (const [invId, detail] of Object.entries(data.allocation_details)) {
+                html += `
+                    <div class="allocation-item">
+                        <span>${detail.invoice_number}</span>
+                        <span style="font-family: monospace; font-weight: 500;">
+                            ${detail.allocated_amount.toFixed(2)}
+                            <span style="color: #64748b; font-size: 0.85em;">
+                                (剩余: ${detail.unpaid_after.toFixed(2)})
+                            </span>
+                        </span>
+                    </div>
+                `;
+            }
+
+            if (data.remaining > 0) {
+                html += `
+                    <div class="allocation-item" style="color: #d97706;">
+                        <span>多余金额</span>
+                        <span style="font-family: monospace; font-weight: 500;">${data.remaining.toFixed(2)}</span>
+                    </div>
+                `;
+            }
+
+            document.getElementById('allocationList').innerHTML = html;
+            document.getElementById('allocationPreview').classList.add('show');
+        }
+    })
+    .catch(error => {
+        console.error('预览分配失败:', error);
+    });
+}
+
+function submitBatchReceipt() {
+    const submitBtn = document.getElementById('submitBtn');
+    const amount = parseFloat(document.getElementById('amount').value) || 0;
+    const bankName = document.getElementById('bank_name').value.trim();
+    const paymentDate = document.getElementById('payment_date').value;
+
+    // 验证
+    if (amount <= 0) {
+        alert('请输入有效的收款金额');
+        return;
+    }
+
+    if (!bankName) {
+        alert('请填写银行名称');
+        return;
+    }
+
+    if (!paymentDate) {
+        alert('请选择收款日期');
+        return;
+    }
+
+    // 禁用按钮
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 处理中...';
+
+    const data = {
+        invoice_ids: invoiceIds,
+        amount: amount,
+        currency: document.getElementById('currency').value,
+        payment_method: document.getElementById('payment_method').value,
+        payment_date: paymentDate,
+        payer_name: document.getElementById('payer_name').value,
+        payer_contact: document.getElementById('payer_contact').value,
+        payer_company: document.getElementById('payer_company').value,
+        bank_name: bankName,
+        account_number: document.getElementById('account_number').value,
+        transaction_id: document.getElementById('transaction_id').value,
+        remarks: document.getElementById('remarks').value,
+        distribution_method: document.getElementById('distribution_method').value
+    };
+
+    fetch('{{ url_for("business_projects.project_receipt.batch_invoice_receipt_submit") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            document.getElementById('successMessage').textContent = result.message;
+            document.getElementById('successModal').classList.add('show');
+        } else {
+            alert(result.message || '收款失败');
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fas fa-check"></i> 确认收款';
+        }
+    })
+    .catch(error => {
+        console.error('提交失败:', error);
+        alert('收款失败，请重试');
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i class="fas fa-check"></i> 确认收款';
+    });
+}
+
+// 初始化预览
+previewAllocation();
+</script>
+{% endblock %}

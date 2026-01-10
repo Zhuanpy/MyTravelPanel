@@ -55,6 +55,7 @@
     .badge-receipt { background-color: #28a745; }
     .badge-eo { background-color: #dc3545; }
     .badge-manual { background-color: #6c757d; }
+    .badge-operating_expense { background-color: #fd7e14; }
 </style>
 {% endblock %}
 
@@ -77,6 +78,7 @@
                 <option value="receipt" {% if current_source_type == 'receipt' %}selected{% endif %}>Receipt 收款</option>
                 <option value="eo" {% if current_source_type == 'eo' %}selected{% endif %}>EO 付款</option>
                 <option value="manual" {% if current_source_type == 'manual' %}selected{% endif %}>Manual 手工</option>
+                <option value="operating_expense" {% if current_source_type == 'operating_expense' %}selected{% endif %}>Op. Expense 运营费用</option>
             </select>
         </div>
         <div>
@@ -128,7 +130,7 @@
                     <td>{{ entry.entry_date.strftime('%Y-%m-%d') if entry.entry_date else '-' }}</td>
                     <td>
                         <span class="badge badge-{{ entry.source_type }}">
-                            {{ entry.source_type|capitalize }}
+                            {% if entry.source_type == 'operating_expense' %}Op. Expense{% else %}{{ entry.source_type|capitalize }}{% endif %}
                         </span>
                     </td>
                     <td>{{ entry.source_number or '-' }}</td>

@@ -86,6 +86,16 @@
                     </div>
                     <div class="col-md-2 filter-col">
                         <div class="mb-3">
+                            <label for="has_eo" class="form-label">EO状态</label>
+                            <select class="form-select" id="has_eo" name="has_eo">
+                                <option value="">全部</option>
+                                <option value="yes" {% if request.args.get('has_eo') == 'yes' %}selected{% endif %}>有EO</option>
+                                <option value="no" {% if request.args.get('has_eo') == 'no' %}selected{% endif %}>无EO</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-2 filter-col">
+                        <div class="mb-3">
                             <label for="supplier" class="form-label">供应商</label>
                             <select class="form-select" id="supplier" name="supplier">
                                 <option value="">全部供应商</option>
@@ -154,9 +164,10 @@
                     <thead class="table-dark">
                         <tr>
                             <th>REF编号</th>
+                            <th>HID</th>
+                            <th>EO</th>
                             <th>名称</th>
                             <th>业务类型</th>
-                            <th>项目</th>
                             <th>供应商</th>
                             <th>出行人</th>
                             <th>状态</th>
@@ -170,7 +181,22 @@
                         {% for ref in refs %}
                         <tr data-ref-id="{{ ref.id }}" data-business-type="{{ ref.business_type_name }}">
                             <td>
-                                <span class="badge bg-secondary">{{ ref.ref_number }}</span>
+                                <a href="{{ url_for('business_projects.project_ref.ref_detail', ref_id=ref.id) }}"
+                                   class="badge bg-secondary text-decoration-none">{{ ref.ref_number }}</a>
+                            </td>
+                            <td>
+                                <a href="{{ url_for('business_projects.detail.project_detail', project_id=ref.header_id) }}"
+                                   class="badge bg-primary text-decoration-none">
+                                    {{ ref.header_id }}
+                                </a>
+                            </td>
+                            <td>
+                                {% if ref.eo %}
+                                <a href="{{ url_for('business_projects.project_eo.eo_detail', eo_id=ref.eo.id) }}"
+                                   class="badge bg-info text-decoration-none">{{ ref.eo.eo_number }}</a>
+                                {% else %}
+                                <span class="text-muted">-</span>
+                                {% endif %}
                             </td>
                             <td>
                                 <strong>{{ ref.description }}</strong>
@@ -184,23 +210,17 @@
                                 </span>
                             </td>
                             <td>
-                                <a href="{{ url_for('business_projects.detail.project_detail', project_id=ref.header_id) }}" 
-                                   class="text-primary">
-                                    {{ ref.project_name or '项目' + ref.header_id|string }}
-                                </a>
-                            </td>
-                            <td>
                                 {% if ref.supplier_name %}
                                 <span class="text-info">{{ ref.supplier_name }}</span>
                                 {% else %}
-                                <span class="text-muted">未指定</span>
+                                <span class="text-muted">-</span>
                                 {% endif %}
                             </td>
                             <td>
-                                {% if ref.header and ref.header.leader_name %}
-                                <span class="text-primary">{{ ref.header.leader_name }}</span>
+                                {% if ref.leader_name %}
+                                <span class="text-primary">{{ ref.leader_name }}</span>
                                 {% else %}
-                                <span class="text-muted">未指定</span>
+                                <span class="text-muted">-</span>
                                 {% endif %}
                             </td>
                             <td>
@@ -291,17 +311,17 @@
                 <ul class="pagination justify-content-center">
                     {% if pagination.has_prev %}
                     <li class="page-item">
-                        <a class="page-link" href="{{ url_for('business_projects.project_ref.ref_list', page=pagination.prev_num, business_type=request.args.get('business_type', ''), status=request.args.get('status', ''), supplier=request.args.get('supplier', ''), leader_name=request.args.get('leader_name', ''), date_range=request.args.get('date_range', ''), keyword=request.args.get('keyword', ''), sort_by=request.args.get('sort_by', 'created_at'), sort_order=request.args.get('sort_order', 'desc')) }}">
+                        <a class="page-link" href="{{ url_for('business_projects.project_ref.ref_list', page=pagination.prev_num, business_type=request.args.get('business_type', ''), status=request.args.get('status', ''), has_eo=request.args.get('has_eo', ''), supplier=request.args.get('supplier', ''), leader_name=request.args.get('leader_name', ''), date_range=request.args.get('date_range', ''), keyword=request.args.get('keyword', ''), sort_by=request.args.get('sort_by', 'created_at'), sort_order=request.args.get('sort_order', 'desc')) }}">
                             <i class="fas fa-chevron-left"></i> 上一页
                         </a>
                     </li>
                     {% endif %}
-                    
+
                     {% for page_num in pagination.iter_pages() %}
                         {% if page_num %}
                             {% if page_num != pagination.page %}
                             <li class="page-item">
-                                <a class="page-link" href="{{ url_for('business_projects.project_ref.ref_list', page=page_num, business_type=request.args.get('business_type', ''), status=request.args.get('status', ''), supplier=request.args.get('supplier', ''), leader_name=request.args.get('leader_name', ''), date_range=request.args.get('date_range', ''), keyword=request.args.get('keyword', ''), sort_by=request.args.get('sort_by', 'created_at'), sort_order=request.args.get('sort_order', 'desc')) }}">
+                                <a class="page-link" href="{{ url_for('business_projects.project_ref.ref_list', page=page_num, business_type=request.args.get('business_type', ''), status=request.args.get('status', ''), has_eo=request.args.get('has_eo', ''), supplier=request.args.get('supplier', ''), leader_name=request.args.get('leader_name', ''), date_range=request.args.get('date_range', ''), keyword=request.args.get('keyword', ''), sort_by=request.args.get('sort_by', 'created_at'), sort_order=request.args.get('sort_order', 'desc')) }}">
                                     {{ page_num }}
                                 </a>
                             </li>
@@ -316,10 +336,10 @@
                         </li>
                         {% endif %}
                     {% endfor %}
-                    
+
                     {% if pagination.has_next %}
                     <li class="page-item">
-                        <a class="page-link" href="{{ url_for('business_projects.project_ref.ref_list', page=pagination.next_num, business_type=request.args.get('business_type', ''), status=request.args.get('status', ''), supplier=request.args.get('supplier', ''), leader_name=request.args.get('leader_name', ''), date_range=request.args.get('date_range', ''), keyword=request.args.get('keyword', ''), sort_by=request.args.get('sort_by', 'created_at'), sort_order=request.args.get('sort_order', 'desc')) }}">
+                        <a class="page-link" href="{{ url_for('business_projects.project_ref.ref_list', page=pagination.next_num, business_type=request.args.get('business_type', ''), status=request.args.get('status', ''), has_eo=request.args.get('has_eo', ''), supplier=request.args.get('supplier', ''), leader_name=request.args.get('leader_name', ''), date_range=request.args.get('date_range', ''), keyword=request.args.get('keyword', ''), sort_by=request.args.get('sort_by', 'created_at'), sort_order=request.args.get('sort_order', 'desc')) }}">
                             下一页 <i class="fas fa-chevron-right"></i>
                         </a>
                     </li>
@@ -362,12 +382,12 @@ $(document).ready(function() {
 function exportToExcel() {
     // 获取表格数据
     var rows = $('#refTable tbody tr:visible');
-    var csv = 'REF编号,名称,业务类型,项目,供应商,出行人,状态,售价,成本,创建时间\n';
-    
+    var csv = 'REF编号,HID,EO,名称,业务类型,供应商,出行人,状态,售价,成本,创建时间\n';
+
     rows.each(function() {
         var rowData = [];
         // 获取每行的文本内容（排除操作列）
-        $(this).find('td').slice(0, 10).each(function() {
+        $(this).find('td').slice(0, 11).each(function() {
             var cellData = $(this).text().trim();
             // 清理HTML标签和多余空格
             cellData = cellData.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ');

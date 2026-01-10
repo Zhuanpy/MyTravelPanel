@@ -216,6 +216,11 @@
                         <small class="text-muted">付款编号已自动生成，可手动修改或点击刷新按钮重新生成</small>
                     </div>
                     <div class="mb-3">
+                        <label class="form-label">付款凭证号 (Payment Voucher)</label>
+                        <input type="text" class="form-control" id="payment_voucher_no" name="payment_voucher_no" placeholder="银行转账凭证号...">
+                        <small class="text-muted">银行转账凭证号或支票号码</small>
+                    </div>
+                    <div class="mb-3">
                         <label class="form-label">付款日期 <span class="text-danger">*</span></label>
                         <input type="date" class="form-control" id="paid_date" name="paid_date" value="{{ today }}" required>
                     </div>
@@ -328,17 +333,18 @@ function submitBatchPayment() {
         alert('请选择要付款的EO');
         return;
     }
-    
+
     const payment_no = document.getElementById('payment_no').value;
+    const payment_voucher_no = document.getElementById('payment_voucher_no').value;
     const paid_date = document.getElementById('paid_date').value;
     const pay_amount = document.getElementById('pay_amount').value;
     const remarks = document.getElementById('remarks').value;
-    
+
     if (!payment_no || !paid_date || !pay_amount) {
         alert('请填写完整的付款信息');
         return;
     }
-    
+
     if (confirm(`确认为 ${selectedEOs.length} 个EO付款，总金额 SGD ${parseFloat(pay_amount).toFixed(2)}？`)) {
         fetch('{{ url_for("business_projects.project_eo.batch_pay_submit") }}', {
             method: 'POST',
@@ -346,6 +352,7 @@ function submitBatchPayment() {
             body: JSON.stringify({
                 eo_ids: selectedEOs,
                 payment_no: payment_no,
+                payment_voucher_no: payment_voucher_no,
                 paid_date: paid_date,
                 pay_amount: parseFloat(pay_amount),
                 remarks: remarks

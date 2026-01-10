@@ -85,6 +85,7 @@
     .badge-receipt { background-color: #28a745; }
     .badge-eo { background-color: #dc3545; }
     .badge-manual { background-color: #6c757d; }
+    .badge-operating_expense { background-color: #fd7e14; }
 
     .entry-type-badge {
         font-size: 0.8em;
@@ -137,6 +138,7 @@
                     <option value="receipt" {% if current_source_type == 'receipt' %}selected{% endif %}>Receipt 收款</option>
                     <option value="eo" {% if current_source_type == 'eo' %}selected{% endif %}>EO Payment 付款</option>
                     <option value="manual" {% if current_source_type == 'manual' %}selected{% endif %}>Manual 手工</option>
+                    <option value="operating_expense" {% if current_source_type == 'operating_expense' %}selected{% endif %}>Operating Expense 运营费用</option>
                 </select>
             </div>
             <div class="col-md-4">
@@ -192,6 +194,7 @@
                             {% elif entry.source_type == 'receipt' %}Receipt
                             {% elif entry.source_type == 'eo' %}EO Payment
                             {% elif entry.source_type == 'manual' %}Manual
+                            {% elif entry.source_type == 'operating_expense' %}Op. Expense
                             {% else %}{{ entry.source_type }}
                             {% endif %}
                         </span>

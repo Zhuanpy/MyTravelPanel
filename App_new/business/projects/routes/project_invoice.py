@@ -901,9 +901,10 @@ def export_invoices():
 def invoice_list():
     """发票列表 - 支持筛选、搜索和分页"""
     try:
-        from sqlalchemy import and_, or_, desc, asc
+        from sqlalchemy import and_, or_, desc, asc, func
         from datetime import timedelta, date
-        
+        from App_new.business.projects.models.project import CustomerCompany
+
         # 获取筛选参数
         page = request.args.get('page', 1, type=int)
         per_page = request.args.get('per_page', 25, type=int)
@@ -911,6 +912,7 @@ def invoice_list():
         payment_status = request.args.get('payment_status', '').strip()
         invoice_type = request.args.get('invoice_type', '').strip()
         currency = request.args.get('currency', '').strip()
+        company_id = request.args.get('company_id', None, type=int)
         date_range = request.args.get('date_range', '').strip()
         start_date = request.args.get('start_date', '').strip()
         end_date = request.args.get('end_date', '').strip()
@@ -919,20 +921,27 @@ def invoice_list():
         keyword = request.args.get('keyword', '').strip()
         sort_by = request.args.get('sort_by', 'invoice_date').strip()
         sort_order = request.args.get('sort_order', 'desc').strip()
-        
+
         # 构建查询
         query = db.session.query(
             ProjectInvoice,
             ProjectHeader.hid.label('project_hid'),
-            ProjectHeader.desc.label('project_name')
+            ProjectHeader.desc.label('project_name'),
+            CustomerCompany.company_name.label('company_name')
         ).join(
             ProjectHeader, ProjectInvoice.header_id == ProjectHeader.id, isouter=True
+        ).join(
+            CustomerCompany, ProjectHeader.company_id == CustomerCompany.id, isouter=True
         )
-        
+
         filters = []
 
         if status:
             filters.append(ProjectInvoice.status == status)
+
+        # 公司筛选
+        if company_id:
+            filters.append(ProjectHeader.company_id == company_id)
         if payment_status:
             filters.append(ProjectInvoice.payment_status == payment_status)
         if invoice_type:
@@ -1012,12 +1021,13 @@ def invoice_list():
         
         # 组织数据
         items = []
-        for inv, project_hid, project_name in pagination.items:
+        for inv, project_hid, project_name, comp_name in pagination.items:
             items.append({
                 'id': inv.id,
                 'invoice_number': inv.invoice_number,
                 'project_hid': project_hid,
                 'project_name': project_name,
+                'company_name': comp_name,
                 'header_id': inv.header_id,
                 'invoice_date': inv.invoice_date,
                 'due_date': inv.due_date,
@@ -1076,18 +1086,23 @@ def invoice_list():
             'total_balance': sum(item['unpaid_amount'] for item in items)
         }
 
+        # 获取公司列表（按名称排序）
+        companies = CustomerCompany.query.order_by(func.lower(CustomerCompany.company_name)).all()
+
         return render_template('business/projects/project_invoice/invoice_list.html',
                              invoices=items,
                              pagination=pagination,
                              statuses=statuses,
                              payment_statuses=payment_statuses,
                              invoice_types=invoice_types,
+                             companies=companies,
                              summary=summary,
                              current_filters={
                                  'status': status,
                                  'payment_status': payment_status,
                                  'invoice_type': invoice_type,
                                  'currency': currency,
+                                 'company_id': company_id,
                                  'date_range': date_range,
                                  'start_date': start_date,
                                  'end_date': end_date,

@@ -15,7 +15,7 @@ class OperatingExpense(db.Model):
 
     # 费用信息
     expense_date = db.Column(db.Date, nullable=False, comment='费用日期')
-    expense_account_id = db.Column(db.Integer, db.ForeignKey('chart_of_accounts.id'), nullable=False, comment='费用科目ID')
+    expense_account_id = db.Column(db.Integer, db.ForeignKey('project_chart_of_accounts.id'), nullable=False, comment='费用科目ID')
 
     # 金额信息
     amount = db.Column(db.Numeric(12, 2), nullable=False, comment='金额')
@@ -24,7 +24,7 @@ class OperatingExpense(db.Model):
     # 付款信息
     payment_method = db.Column(db.Enum('cash', 'bank_transfer', 'cheque', 'credit_card', 'other'),
                                default='bank_transfer', nullable=False, comment='付款方式')
-    bank_account_id = db.Column(db.Integer, db.ForeignKey('chart_of_accounts.id'), nullable=True, comment='付款银行科目ID')
+    bank_account_id = db.Column(db.Integer, db.ForeignKey('project_chart_of_accounts.id'), nullable=True, comment='付款银行科目ID')
     payment_reference = db.Column(db.String(100), nullable=True, comment='付款参考号')
 
     # 收款方信息
@@ -43,7 +43,7 @@ class OperatingExpense(db.Model):
                        default='draft', nullable=False, comment='状态')
 
     # 日记账关联
-    journal_entry_id = db.Column(db.Integer, db.ForeignKey('journal_entries.id'), nullable=True, comment='日记账分录ID')
+    journal_entry_id = db.Column(db.Integer, db.ForeignKey('project_journal_entries.id'), nullable=True, comment='日记账分录ID')
 
     # 时间信息
     created_at = db.Column(db.DateTime, default=datetime.utcnow)

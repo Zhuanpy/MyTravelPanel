@@ -209,49 +209,86 @@ def list_projects():
         if project_type:
             base_query = base_query.filter(ProjectHeader.type == project_type)
         
-        # 添加付款状态筛选 - 在数据库层面基于总销售与总收款聚合
+        # 添加付款状态筛选 - 基于发票数据判断
         if payment_status:
-            # 按 header 统计总销售金额
+            from App_new.business.projects.models.invoice import ProjectInvoice
+
+            # 按 header 统计发票金额和已付金额
+            invoice_sum_subq = db.session.query(
+                ProjectInvoice.header_id.label('hid'),
+                db.func.coalesce(db.func.sum(ProjectInvoice.amount), 0).label('invoice_total'),
+                db.func.coalesce(db.func.sum(ProjectInvoice.paid_amount), 0).label('invoice_paid')
+            ).filter(
+                ProjectInvoice.status != 'cancelled'
+            ).group_by(ProjectInvoice.header_id).subquery()
+
+            # 按 header 统计总销售金额（用于没有发票的项目）
             refs_sum_subq = db.session.query(
                 ProjectRef.header_id.label('hid'),
                 db.func.coalesce(db.func.sum(ProjectRef.selling_price), 0).label('total_selling')
             ).group_by(ProjectRef.header_id).subquery()
 
-            # 按 header 统计总收款金额
+            # 按 header 统计总收款金额（用于没有发票的项目）
             receipts_sum_subq = db.session.query(
                 ProjectReceipt.header_id.label('hid'),
                 db.func.coalesce(db.func.sum(ProjectReceipt.amount), 0).label('total_received')
+            ).filter(
+                ProjectReceipt.status == 'confirmed'
             ).group_by(ProjectReceipt.header_id).subquery()
 
-            # 合并两者，得到每个 header 的余额（total_selling - total_received）
-            totals_subq = db.session.query(
-                refs_sum_subq.c.hid.label('header_id'),
-                refs_sum_subq.c.total_selling.label('total_selling'),
-                db.func.coalesce(receipts_sum_subq.c.total_received, 0).label('total_received')
-            ).outerjoin(
-                receipts_sum_subq,
-                receipts_sum_subq.c.hid == refs_sum_subq.c.hid
-            ).subquery()
-
             if payment_status == 'unpaid':
-                # 余额 > 0 且 有销售金额的项目
-                condition = db.and_(
-                    totals_subq.c.total_selling > 0,
-                    (totals_subq.c.total_selling - totals_subq.c.total_received) > 0
+                # 未付款项目：
+                # 1. 有发票且发票未付清 (invoice_total > invoice_paid)
+                # 2. 或无发票但有REF销售且未收款 (total_selling > total_received)
+                has_unpaid_invoice = db.session.query(invoice_sum_subq.c.hid).filter(
+                    invoice_sum_subq.c.invoice_total > invoice_sum_subq.c.invoice_paid
                 )
-            elif payment_status == 'paid':
-                # 余额 <= 0 且 有销售金额的项目
-                condition = db.and_(
-                    totals_subq.c.total_selling > 0,
-                    (totals_subq.c.total_selling - totals_subq.c.total_received) <= 0
-                )
-            else:
-                condition = None
 
-            if condition is not None:
+                # 无发票但有未收款的项目
+                no_invoice_unpaid = db.session.query(refs_sum_subq.c.hid).filter(
+                    refs_sum_subq.c.total_selling > 0,
+                    ~refs_sum_subq.c.hid.in_(db.session.query(invoice_sum_subq.c.hid))
+                ).outerjoin(
+                    receipts_sum_subq,
+                    receipts_sum_subq.c.hid == refs_sum_subq.c.hid
+                ).filter(
+                    db.or_(
+                        receipts_sum_subq.c.total_received.is_(None),
+                        refs_sum_subq.c.total_selling > db.func.coalesce(receipts_sum_subq.c.total_received, 0)
+                    )
+                )
+
                 base_query = base_query.filter(
-                    ProjectHeader.id.in_(
-                        db.session.query(totals_subq.c.header_id).filter(condition)
+                    db.or_(
+                        ProjectHeader.id.in_(has_unpaid_invoice),
+                        ProjectHeader.id.in_(no_invoice_unpaid)
+                    )
+                )
+
+            elif payment_status == 'paid':
+                # 已付款项目：
+                # 1. 有发票且发票已付清 (invoice_total <= invoice_paid)
+                # 2. 或无发票但有REF销售且已收款 (total_selling <= total_received)
+                has_paid_invoice = db.session.query(invoice_sum_subq.c.hid).filter(
+                    invoice_sum_subq.c.invoice_total > 0,
+                    invoice_sum_subq.c.invoice_total <= invoice_sum_subq.c.invoice_paid
+                )
+
+                # 无发票但已收款的项目
+                no_invoice_paid = db.session.query(refs_sum_subq.c.hid).filter(
+                    refs_sum_subq.c.total_selling > 0,
+                    ~refs_sum_subq.c.hid.in_(db.session.query(invoice_sum_subq.c.hid))
+                ).outerjoin(
+                    receipts_sum_subq,
+                    receipts_sum_subq.c.hid == refs_sum_subq.c.hid
+                ).filter(
+                    refs_sum_subq.c.total_selling <= db.func.coalesce(receipts_sum_subq.c.total_received, 0)
+                )
+
+                base_query = base_query.filter(
+                    db.or_(
+                        ProjectHeader.id.in_(has_paid_invoice),
+                        ProjectHeader.id.in_(no_invoice_paid)
                     )
                 )
         
@@ -811,47 +848,83 @@ def export_excel():
         if project_type:
             base_query = base_query.filter(ProjectHeader.type == project_type)
         
-        # 付款状态筛选
+        # 付款状态筛选 - 基于发票数据判断
         if payment_status:
+            from App_new.business.projects.models.invoice import ProjectInvoice
+
+            # 按 header 统计发票金额和已付金额
+            invoice_sum_subq = db.session.query(
+                ProjectInvoice.header_id.label('hid'),
+                db.func.coalesce(db.func.sum(ProjectInvoice.amount), 0).label('invoice_total'),
+                db.func.coalesce(db.func.sum(ProjectInvoice.paid_amount), 0).label('invoice_paid')
+            ).filter(
+                ProjectInvoice.status != 'cancelled'
+            ).group_by(ProjectInvoice.header_id).subquery()
+
+            # 按 header 统计总销售金额（用于没有发票的项目）
             refs_sum_subq = db.session.query(
                 ProjectRef.header_id.label('hid'),
                 db.func.coalesce(db.func.sum(ProjectRef.selling_price), 0).label('total_selling')
             ).group_by(ProjectRef.header_id).subquery()
-            
+
+            # 按 header 统计总收款金额（用于没有发票的项目）
             receipts_sum_subq = db.session.query(
                 ProjectReceipt.header_id.label('hid'),
                 db.func.coalesce(db.func.sum(ProjectReceipt.amount), 0).label('total_received')
+            ).filter(
+                ProjectReceipt.status == 'confirmed'
             ).group_by(ProjectReceipt.header_id).subquery()
-            
-            totals_subq = db.session.query(
-                refs_sum_subq.c.hid.label('header_id'),
-                refs_sum_subq.c.total_selling.label('total_selling'),
-                db.func.coalesce(receipts_sum_subq.c.total_received, 0).label('total_received')
-            ).outerjoin(
-                receipts_sum_subq,
-                receipts_sum_subq.c.hid == refs_sum_subq.c.hid
-            ).subquery()
-            
+
             if payment_status == 'unpaid':
-                condition = db.and_(
-                    totals_subq.c.total_selling > 0,
-                    (totals_subq.c.total_selling - totals_subq.c.total_received) > 0
+                # 未付款项目
+                has_unpaid_invoice = db.session.query(invoice_sum_subq.c.hid).filter(
+                    invoice_sum_subq.c.invoice_total > invoice_sum_subq.c.invoice_paid
                 )
-            elif payment_status == 'paid':
-                condition = db.and_(
-                    totals_subq.c.total_selling > 0,
-                    (totals_subq.c.total_selling - totals_subq.c.total_received) <= 0
-                )
-            else:
-                condition = None
-            
-            if condition is not None:
-                base_query = base_query.filter(
-                    ProjectHeader.id.in_(
-                        db.session.query(totals_subq.c.header_id).filter(condition)
+
+                no_invoice_unpaid = db.session.query(refs_sum_subq.c.hid).filter(
+                    refs_sum_subq.c.total_selling > 0,
+                    ~refs_sum_subq.c.hid.in_(db.session.query(invoice_sum_subq.c.hid))
+                ).outerjoin(
+                    receipts_sum_subq,
+                    receipts_sum_subq.c.hid == refs_sum_subq.c.hid
+                ).filter(
+                    db.or_(
+                        receipts_sum_subq.c.total_received.is_(None),
+                        refs_sum_subq.c.total_selling > db.func.coalesce(receipts_sum_subq.c.total_received, 0)
                     )
                 )
-        
+
+                base_query = base_query.filter(
+                    db.or_(
+                        ProjectHeader.id.in_(has_unpaid_invoice),
+                        ProjectHeader.id.in_(no_invoice_unpaid)
+                    )
+                )
+
+            elif payment_status == 'paid':
+                # 已付款项目
+                has_paid_invoice = db.session.query(invoice_sum_subq.c.hid).filter(
+                    invoice_sum_subq.c.invoice_total > 0,
+                    invoice_sum_subq.c.invoice_total <= invoice_sum_subq.c.invoice_paid
+                )
+
+                no_invoice_paid = db.session.query(refs_sum_subq.c.hid).filter(
+                    refs_sum_subq.c.total_selling > 0,
+                    ~refs_sum_subq.c.hid.in_(db.session.query(invoice_sum_subq.c.hid))
+                ).outerjoin(
+                    receipts_sum_subq,
+                    receipts_sum_subq.c.hid == refs_sum_subq.c.hid
+                ).filter(
+                    refs_sum_subq.c.total_selling <= db.func.coalesce(receipts_sum_subq.c.total_received, 0)
+                )
+
+                base_query = base_query.filter(
+                    db.or_(
+                        ProjectHeader.id.in_(has_paid_invoice),
+                        ProjectHeader.id.in_(no_invoice_paid)
+                    )
+                )
+
         if date_from:
             base_query = base_query.filter(ProjectHeader.created_at >= date_from)
         if date_to:

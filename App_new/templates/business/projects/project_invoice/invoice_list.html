@@ -382,6 +382,118 @@
         margin-bottom: 16px;
     }
 
+    /* 批量选择样式 */
+    .batch-checkbox {
+        width: 18px;
+        height: 18px;
+        cursor: pointer;
+    }
+
+    .batch-panel {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%);
+        color: white;
+        padding: 16px 24px;
+        display: none;
+        z-index: 1000;
+        box-shadow: 0 -4px 20px rgba(0,0,0,0.15);
+    }
+
+    .batch-panel.show {
+        display: block;
+        animation: slideUp 0.3s ease;
+    }
+
+    @keyframes slideUp {
+        from { transform: translateY(100%); }
+        to { transform: translateY(0); }
+    }
+
+    .batch-panel-content {
+        max-width: 1400px;
+        margin: 0 auto;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 24px;
+    }
+
+    .batch-info {
+        display: flex;
+        align-items: center;
+        gap: 24px;
+    }
+
+    .batch-count {
+        font-size: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .batch-count .count-number {
+        background: rgba(255,255,255,0.2);
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-weight: 600;
+    }
+
+    .batch-amount {
+        font-size: 1.1rem;
+        font-family: 'SF Mono', Monaco, monospace;
+    }
+
+    .batch-amount .label {
+        font-size: 0.85rem;
+        opacity: 0.8;
+        margin-right: 8px;
+    }
+
+    .batch-actions {
+        display: flex;
+        gap: 12px;
+    }
+
+    .btn-batch {
+        padding: 10px 24px;
+        border-radius: 8px;
+        font-size: 0.9rem;
+        font-weight: 500;
+        cursor: pointer;
+        border: none;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.2s;
+    }
+
+    .btn-batch-pay {
+        background: #16a34a;
+        color: white;
+    }
+
+    .btn-batch-pay:hover {
+        background: #15803d;
+    }
+
+    .btn-batch-cancel {
+        background: rgba(255,255,255,0.15);
+        color: white;
+    }
+
+    .btn-batch-cancel:hover {
+        background: rgba(255,255,255,0.25);
+    }
+
+    .select-all-wrapper {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
     /* 快速筛选标签 */
     .quick-filters {
         display: flex;
@@ -474,6 +586,15 @@
                 </select>
             </div>
             <div class="filter-group">
+                <label>Company</label>
+                <select name="company_id">
+                    <option value="">All Companies</option>
+                    {% for company in companies %}
+                    <option value="{{ company.id }}" {% if current_filters.company_id == company.id %}selected{% endif %}>{{ company.company_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="filter-group">
                 <label>Search</label>
                 <input type="text" name="keyword" value="{{ current_filters.keyword or '' }}"
                        placeholder="Invoice No / Customer">
@@ -507,8 +628,14 @@
         <table class="invoice-table">
             <thead>
                 <tr>
+                    <th style="width: 40px;">
+                        <div class="select-all-wrapper">
+                            <input type="checkbox" id="selectAll" class="batch-checkbox" title="Select All">
+                        </div>
+                    </th>
                     <th>Invoice No</th>
                     <th>Project</th>
+                    <th>Company</th>
                     <th>Customer</th>
                     <th>Date</th>
                     <th style="text-align: right;">Amount</th>
@@ -520,7 +647,20 @@
             </thead>
             <tbody>
                 {% for invoice in invoices %}
-                <tr>
+                <tr data-invoice-id="{{ invoice.id }}"
+                    data-amount="{{ invoice.amount }}"
+                    data-unpaid="{{ invoice.unpaid_amount }}"
+                    data-currency="{{ invoice.currency }}"
+                    data-payment-status="{{ invoice.payment_status }}">
+                    <td>
+                        {% if invoice.payment_status != 'paid' %}
+                        <input type="checkbox" class="batch-checkbox invoice-checkbox"
+                               data-id="{{ invoice.id }}"
+                               data-amount="{{ invoice.amount }}"
+                               data-unpaid="{{ invoice.unpaid_amount }}"
+                               data-currency="{{ invoice.currency }}">
+                        {% endif %}
+                    </td>
                     <td>
                         <a href="{{ url_for('business_projects.project_invoice.invoice_detail', invoice_id=invoice.id) }}"
                            class="invoice-number">
@@ -532,6 +672,9 @@
                            class="project-link">
                             {{ invoice.project_hid or '-' }}
                         </a>
+                    </td>
+                    <td>
+                        <span class="company-name" style="font-size: 0.85rem; color: #64748b;">{{ invoice.company_name or '-' }}</span>
                     </td>
                     <td>
                         <div class="customer-info">
@@ -580,14 +723,14 @@
             </div>
             <div class="pagination-nav">
                 {% if pagination.has_prev %}
-                <a href="?page={{ pagination.prev_num }}&status={{ current_filters.status }}&payment_status={{ current_filters.payment_status }}&keyword={{ current_filters.keyword }}&start_date={{ current_filters.start_date }}&end_date={{ current_filters.end_date }}">
+                <a href="?page={{ pagination.prev_num }}&status={{ current_filters.status }}&payment_status={{ current_filters.payment_status }}&keyword={{ current_filters.keyword }}&start_date={{ current_filters.start_date }}&end_date={{ current_filters.end_date }}&company_id={{ current_filters.company_id or '' }}">
                     <i class="fas fa-chevron-left"></i>
                 </a>
                 {% endif %}
 
                 {% for page_num in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
                     {% if page_num %}
-                        <a href="?page={{ page_num }}&status={{ current_filters.status }}&payment_status={{ current_filters.payment_status }}&keyword={{ current_filters.keyword }}&start_date={{ current_filters.start_date }}&end_date={{ current_filters.end_date }}"
+                        <a href="?page={{ page_num }}&status={{ current_filters.status }}&payment_status={{ current_filters.payment_status }}&keyword={{ current_filters.keyword }}&start_date={{ current_filters.start_date }}&end_date={{ current_filters.end_date }}&company_id={{ current_filters.company_id or '' }}"
                            class="{% if page_num == pagination.page %}active{% endif %}">
                             {{ page_num }}
                         </a>
@@ -597,7 +740,7 @@
                 {% endfor %}
 
                 {% if pagination.has_next %}
-                <a href="?page={{ pagination.next_num }}&status={{ current_filters.status }}&payment_status={{ current_filters.payment_status }}&keyword={{ current_filters.keyword }}&start_date={{ current_filters.start_date }}&end_date={{ current_filters.end_date }}">
+                <a href="?page={{ pagination.next_num }}&status={{ current_filters.status }}&payment_status={{ current_filters.payment_status }}&keyword={{ current_filters.keyword }}&start_date={{ current_filters.start_date }}&end_date={{ current_filters.end_date }}&company_id={{ current_filters.company_id or '' }}">
                     <i class="fas fa-chevron-right"></i>
                 </a>
                 {% endif %}
@@ -615,11 +758,118 @@
     </div>
 </div>
 
+<!-- 批量收款面板 -->
+<div class="batch-panel" id="batchPanel">
+    <div class="batch-panel-content">
+        <div class="batch-info">
+            <div class="batch-count">
+                <i class="fas fa-check-square"></i>
+                已选择 <span class="count-number" id="selectedCount">0</span> 张发票
+            </div>
+            <div class="batch-amount">
+                <span class="label">待收款总额:</span>
+                <span id="selectedAmount">0.00</span>
+            </div>
+        </div>
+        <div class="batch-actions">
+            <button class="btn-batch btn-batch-cancel" onclick="clearSelection()">
+                <i class="fas fa-times"></i> 取消选择
+            </button>
+            <button class="btn-batch btn-batch-pay" onclick="goToBatchReceipt()">
+                <i class="fas fa-money-bill-wave"></i> 批量收款
+            </button>
+        </div>
+    </div>
+</div>
+
 <script>
 function exportData(format) {
     const params = new URLSearchParams(window.location.search);
     params.set('export', format);
     window.location.href = '{{ url_for("business_projects.project_invoice.export_invoices") }}?' + params.toString();
+}
+
+// 批量选择功能
+document.addEventListener('DOMContentLoaded', function() {
+    const selectAllCheckbox = document.getElementById('selectAll');
+    const invoiceCheckboxes = document.querySelectorAll('.invoice-checkbox');
+    const batchPanel = document.getElementById('batchPanel');
+    const selectedCountEl = document.getElementById('selectedCount');
+    const selectedAmountEl = document.getElementById('selectedAmount');
+
+    // 全选功能
+    if (selectAllCheckbox) {
+        selectAllCheckbox.addEventListener('change', function() {
+            invoiceCheckboxes.forEach(cb => {
+                cb.checked = this.checked;
+            });
+            updateBatchPanel();
+        });
+    }
+
+    // 单个选择
+    invoiceCheckboxes.forEach(cb => {
+        cb.addEventListener('change', function() {
+            updateSelectAll();
+            updateBatchPanel();
+        });
+    });
+
+    function updateSelectAll() {
+        if (!selectAllCheckbox) return;
+        const total = invoiceCheckboxes.length;
+        const checked = document.querySelectorAll('.invoice-checkbox:checked').length;
+        selectAllCheckbox.checked = total > 0 && checked === total;
+        selectAllCheckbox.indeterminate = checked > 0 && checked < total;
+    }
+
+    function updateBatchPanel() {
+        const checkedBoxes = document.querySelectorAll('.invoice-checkbox:checked');
+        const count = checkedBoxes.length;
+
+        if (count > 0) {
+            let totalUnpaid = 0;
+            let currencies = new Set();
+
+            checkedBoxes.forEach(cb => {
+                totalUnpaid += parseFloat(cb.dataset.unpaid) || 0;
+                currencies.add(cb.dataset.currency);
+            });
+
+            selectedCountEl.textContent = count;
+
+            // 如果只有一种货币，显示货币符号
+            if (currencies.size === 1) {
+                selectedAmountEl.textContent = currencies.values().next().value + ' ' + totalUnpaid.toFixed(2);
+            } else {
+                selectedAmountEl.textContent = totalUnpaid.toFixed(2) + ' (多种货币)';
+            }
+
+            batchPanel.classList.add('show');
+        } else {
+            batchPanel.classList.remove('show');
+        }
+    }
+});
+
+function clearSelection() {
+    document.querySelectorAll('.invoice-checkbox').forEach(cb => cb.checked = false);
+    document.getElementById('selectAll').checked = false;
+    document.getElementById('batchPanel').classList.remove('show');
+}
+
+function goToBatchReceipt() {
+    const checkedBoxes = document.querySelectorAll('.invoice-checkbox:checked');
+    if (checkedBoxes.length === 0) {
+        alert('请至少选择一张发票');
+        return;
+    }
+
+    const invoiceIds = Array.from(checkedBoxes).map(cb => cb.dataset.id);
+
+    // 跳转到批量收款页面
+    const url = '{{ url_for("business_projects.project_receipt.batch_invoice_receipt") }}?invoice_ids=' + invoiceIds.join(',');
+    window.location.href = url;
 }
 </script>
 {% endblock %}

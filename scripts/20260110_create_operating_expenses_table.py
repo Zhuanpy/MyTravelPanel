@@ -73,9 +73,9 @@ def create_table():
         created_by VARCHAR(50) NULL COMMENT '创建人',
 
         -- 外键
-        FOREIGN KEY (expense_account_id) REFERENCES chart_of_accounts(id),
-        FOREIGN KEY (bank_account_id) REFERENCES chart_of_accounts(id),
-        FOREIGN KEY (journal_entry_id) REFERENCES journal_entries(id),
+        FOREIGN KEY (expense_account_id) REFERENCES project_chart_of_accounts(id),
+        FOREIGN KEY (bank_account_id) REFERENCES project_chart_of_accounts(id),
+        FOREIGN KEY (journal_entry_id) REFERENCES project_journal_entries(id),
 
         INDEX idx_expense_date (expense_date),
         INDEX idx_status (status),

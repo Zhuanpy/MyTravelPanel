@@ -221,7 +221,10 @@ function saveExpense() {
 
     fetch(url, {
         method: 'POST',
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        },
         body: JSON.stringify(data)
     })
     .then(response => response.json())
@@ -250,7 +253,10 @@ function saveAndConfirm() {
     // 先保存
     fetch('{{ url_for("ledger_routes.operating_expense_add") }}', {
         method: 'POST',
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        },
         body: JSON.stringify(data)
     })
     .then(response => response.json())
@@ -259,7 +265,10 @@ function saveAndConfirm() {
             // 再确认
             return fetch(`/ledger/operating-expenses/${result.expense_id}/confirm`, {
                 method: 'POST',
-                headers: {'Content-Type': 'application/json'}
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token() }}'
+                }
             }).then(r => r.json()).then(confirmResult => {
                 if (confirmResult.success) {
                     alert('费用单已保存并确认！');

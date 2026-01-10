@@ -616,6 +616,7 @@ def batch_pay_submit():
         data = request.get_json()
         eo_ids = data.get('eo_ids', [])
         payment_no = data.get('payment_no')
+        payment_voucher_no = data.get('payment_voucher_no', '')
         paid_date_str = data.get('paid_date')
         total_pay_amount = data.get('pay_amount')
         remarks = data.get('remarks', '')
@@ -654,8 +655,10 @@ def batch_pay_submit():
             
             # 更新付款信息
             eo.payment_no = payment_no
+            eo.payment_voucher_no = payment_voucher_no
             eo.paid_date = paid_date
             eo.pay_amount = round(eo_pay_amount, 2)
+            eo.payment_remarks = remarks
             eo.status = 'paid'
             success_count += 1
 

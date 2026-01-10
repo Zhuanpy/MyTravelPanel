@@ -18,8 +18,8 @@ class JournalEntry(db.Model):
     # 分录日期
     entry_date = db.Column(db.Date, nullable=False, comment='分录日期')
 
-    # 来源类型: invoice(发票), receipt(收款), eo(EO付款), manual(手工录入)
-    source_type = db.Column(db.Enum('invoice', 'receipt', 'eo', 'manual'),
+    # 来源类型: invoice(发票), receipt(收款), eo(EO付款), manual(手工录入), operating_expense(运营费用)
+    source_type = db.Column(db.Enum('invoice', 'receipt', 'eo', 'manual', 'operating_expense'),
                             nullable=False, comment='来源类型')
 
     # 来源单据ID
@@ -105,7 +105,8 @@ class JournalEntry(db.Model):
             'invoice': 'Invoice (发票)',
             'receipt': 'Receipt (收款)',
             'eo': 'EO (付款)',
-            'manual': 'Manual (手工)'
+            'manual': 'Manual (手工)',
+            'operating_expense': 'Operating Expense (运营费用)'
         }
         return type_map.get(self.source_type, self.source_type)
 

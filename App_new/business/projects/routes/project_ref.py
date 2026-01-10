@@ -2633,6 +2633,7 @@ def ref_list():
         keyword = request.args.get('keyword', '')
         sort_by = request.args.get('sort_by', 'created_at')
         sort_order = request.args.get('sort_order', 'desc')
+        has_eo = request.args.get('has_eo', '')
         
         # 构建查询
         query = db.session.query(
@@ -2708,7 +2709,19 @@ def ref_list():
                 ProjectHeader.desc.ilike(f'%{keyword}%')
             )
             filters.append(keyword_filter)
-        
+
+        # EO筛选条件
+        if has_eo:
+            from App_new.business.projects.models.eo import ProjectEO
+            # 构建子查询：查找有EO的REF ID
+            eo_subq = db.session.query(ProjectEO.ref_id).subquery()
+            if has_eo == 'yes':
+                # 有EO的REF
+                filters.append(ProjectRef.id.in_(db.session.query(ProjectEO.ref_id)))
+            elif has_eo == 'no':
+                # 没有EO的REF
+                filters.append(~ProjectRef.id.in_(db.session.query(ProjectEO.ref_id)))
+
         # 应用筛选条件
         if filters:
             query = query.filter(and_(*filters))
@@ -2811,6 +2824,16 @@ def ref_list():
         # 处理REF数据，添加显示属性
         refs = []
         for ref, business_type_name, supplier_name, project_name in pagination.items:
+            # 获取关联的EO信息
+            eo_info = None
+            if ref.eos:
+                eo = ref.eos
+                eo_info = {
+                    'id': eo.id,
+                    'eo_number': eo.eo_number,
+                    'status': eo.status
+                }
+
             ref_dict = {
                 'id': ref.id,
                 'ref_number': str(ref.ref_number) if ref.ref_number else '',
@@ -2827,7 +2850,8 @@ def ref_list():
                 'status_color': get_status_color(ref.status),
                 'selling_price': float(ref.selling_price) if ref.selling_price is not None else 0,
                 'cost_price': float(ref.cost_price) if ref.cost_price is not None else 0,
-                'created_at': ref.created_at
+                'created_at': ref.created_at,
+                'eo': eo_info
             }
             refs.append(ref_dict)
         

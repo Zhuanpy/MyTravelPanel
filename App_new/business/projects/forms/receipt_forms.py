@@ -72,12 +72,7 @@ class ProjectReceiptForm(FlaskForm):
     submit = SubmitField('保存收款记录')
 
 class ProjectLevelReceiptForm(FlaskForm):
-    """项目级别收款表单"""
-
-    # 关联发票（可选）
-    invoice_id = SelectField('关联发票', coerce=int, validators=[
-        Optional()
-    ])
+    """项目级别收款表单 - 按发票分配"""
 
     # 收款信息
     amount = DecimalField('收款金额', validators=[
@@ -107,12 +102,12 @@ class ProjectLevelReceiptForm(FlaskForm):
     
     # 分配方式
     distribution_method = SelectField('分配方式', choices=[
-        ('sequential', '顺序分配（从上到下依次结算）'),
-        ('manual', '手动指定分配')
+        ('sequential', '顺序分配（按发票顺序依次结算）'),
+        ('manual', '手动指定发票')
     ], default='sequential', validators=[DataRequired(message='请选择分配方式')])
-    
-    # 手动分配REF选择（动态生成）
-    selected_refs = SelectMultipleField('选择要分配的REF', coerce=int, validators=[
+
+    # 手动分配发票选择（动态生成）
+    selected_invoices = SelectMultipleField('选择要分配的发票', coerce=int, validators=[
         Optional()
     ])
     

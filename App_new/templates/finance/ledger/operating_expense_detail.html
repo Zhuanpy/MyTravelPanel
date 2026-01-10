@@ -240,7 +240,10 @@ function confirmExpense() {
     if (confirm('确认此费用单？确认后将生成日记账分录。\nConfirm this expense? A journal entry will be created.')) {
         fetch('{{ url_for("ledger_routes.operating_expense_confirm", expense_id=expense.id) }}', {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'}
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token() }}'
+            }
         })
         .then(response => response.json())
         .then(data => {
@@ -258,7 +261,10 @@ function cancelExpense() {
     if (confirm('确定要取消此费用单吗？\nAre you sure you want to cancel this expense?')) {
         fetch('{{ url_for("ledger_routes.operating_expense_cancel", expense_id=expense.id) }}', {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'}
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token() }}'
+            }
         })
         .then(response => response.json())
         .then(data => {

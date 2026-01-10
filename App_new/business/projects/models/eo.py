@@ -23,6 +23,7 @@ class ProjectEO(db.Model):
     
     # 付款信息（付给供应商）
     payment_no = db.Column(db.String(50), nullable=True, comment='付款编号')
+    payment_voucher_no = db.Column(db.String(50), nullable=True, comment='付款凭证号')
     paid_date = db.Column(db.Date, nullable=True, comment='付款日期')
     pay_amount = db.Column(db.Numeric(10, 2), nullable=True, comment='付款金额')
     payment_remarks = db.Column(db.Text, nullable=True, comment='付款备注')
@@ -58,6 +59,7 @@ class ProjectEO(db.Model):
             'discount': float(self.discount) if self.discount else 0,
             'tax': float(self.tax) if self.tax else 0,
             'payment_no': self.payment_no,
+            'payment_voucher_no': self.payment_voucher_no,
             'paid_date': self.paid_date.isoformat() if self.paid_date else None,
             'pay_amount': float(self.pay_amount) if self.pay_amount else None,
             'payment_remarks': self.payment_remarks,

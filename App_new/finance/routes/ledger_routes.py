@@ -1572,9 +1572,11 @@ def operating_expense_add():
             return jsonify({'success': False, 'message': str(e)})
 
     # GET 请求 - 显示表单
-    # 获取费用科目
-    expense_accounts = ChartOfAccount.query.filter_by(
-        account_type='expense', is_active=True
+    # 获取运营费用科目 (6xxx) - 不包括项目成本科目 (5xxx)
+    expense_accounts = ChartOfAccount.query.filter(
+        ChartOfAccount.account_type == 'expense',
+        ChartOfAccount.is_active == True,
+        ChartOfAccount.code.like('6%')  # 只显示运营费用类 (6xxx)
     ).order_by(ChartOfAccount.code).all()
 
     # 获取银行/现金科目
@@ -1640,9 +1642,11 @@ def operating_expense_edit(expense_id):
             logger.error(f"更新运营费用失败: {e}")
             return jsonify({'success': False, 'message': str(e)})
 
-    # GET 请求
-    expense_accounts = ChartOfAccount.query.filter_by(
-        account_type='expense', is_active=True
+    # GET 请求 - 获取运营费用科目 (6xxx)
+    expense_accounts = ChartOfAccount.query.filter(
+        ChartOfAccount.account_type == 'expense',
+        ChartOfAccount.is_active == True,
+        ChartOfAccount.code.like('6%')  # 只显示运营费用类 (6xxx)
     ).order_by(ChartOfAccount.code).all()
 
     bank_accounts = ChartOfAccount.query.filter(
@@ -1674,7 +1678,7 @@ def operating_expense_confirm(expense_id):
 
     try:
         # 生成日记账分录
-        entry_number = JournalEntry.generate_entry_number()
+        entry_number = JournalEntry._generate_entry_number()
 
         journal_entry = JournalEntry(
             entry_number=entry_number,
@@ -1754,4 +1758,184 @@ def operating_expense_cancel(expense_id):
         return jsonify({'success': True, 'message': '费用单已取消'})
     except Exception as e:
         db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)})
+
+
+# ==================== 发票付款状态同步 ====================
+
+@ledger_blue.route('/sync-invoice-payment-status', methods=['GET', 'POST'])
+@login_required
+@staff_only
+@csrf.exempt
+def sync_invoice_payment_status():
+    """
+    同步发票付款状态
+    GET: 预览需要更新的发票
+    POST: 执行更新
+    """
+    import json
+    from App_new.business.projects.models.invoice import ProjectInvoice
+    from App_new.business.projects.models.receipt import ProjectReceipt, ReceiptInvoiceAllocation
+
+    def get_ref_total_received(ref_id, header_id):
+        """获取REF的实际已收款总额"""
+        ref_receipts = ProjectReceipt.query.filter_by(ref_id=ref_id, status='confirmed').all()
+        total_received = sum(float(r.amount) for r in ref_receipts)
+
+        project_receipts = ProjectReceipt.query.filter_by(header_id=header_id, ref_id=None, status='confirmed').all()
+        for project_receipt in project_receipts:
+            if project_receipt.extra_info:
+                try:
+                    distribution_info = json.loads(project_receipt.extra_info)
+                    if 'distribution' in distribution_info:
+                        for dist in distribution_info['distribution']:
+                            if dist.get('ref_id') == ref_id:
+                                total_received += dist.get('amount', 0)
+                except (json.JSONDecodeError, KeyError, TypeError):
+                    pass
+        return total_received
+
+    def get_invoice_received_from_refs(invoice):
+        """根据发票关联的REF计算已收款金额"""
+        if not invoice.ref_ids:
+            return 0
+        try:
+            ref_id_list = json.loads(invoice.ref_ids)
+        except (json.JSONDecodeError, TypeError):
+            return 0
+        if not ref_id_list:
+            return 0
+
+        total_received = 0
+        for ref_id in ref_id_list:
+            # 确保 ref_id 是整数类型
+            ref_id_int = int(ref_id) if ref_id else None
+            if ref_id_int:
+                ref_received = get_ref_total_received(ref_id_int, invoice.header_id)
+                total_received += ref_received
+        return total_received
+
+    def get_invoice_direct_receipts(invoice_id):
+        """获取直接关联到发票的收款总额"""
+        result = db.session.query(func.sum(ProjectReceipt.amount)).filter(
+            ProjectReceipt.invoice_id == invoice_id,
+            ProjectReceipt.status == 'confirmed'
+        ).scalar()
+        return float(result) if result else 0
+
+    def get_invoice_allocated_receipts(invoice_id):
+        """获取通过分配表关联到发票的收款总额"""
+        result = db.session.query(func.sum(ReceiptInvoiceAllocation.allocated_amount)).filter(
+            ReceiptInvoiceAllocation.invoice_id == invoice_id
+        ).join(
+            ProjectReceipt, ReceiptInvoiceAllocation.receipt_id == ProjectReceipt.id
+        ).filter(
+            ProjectReceipt.status == 'confirmed'
+        ).scalar()
+        return float(result) if result else 0
+
+    def calculate_invoice_paid_amount(invoice):
+        """计算发票的实际已付金额"""
+        direct_amount = get_invoice_direct_receipts(invoice.id)
+        allocated_amount = get_invoice_allocated_receipts(invoice.id)
+        ref_amount = get_invoice_received_from_refs(invoice)
+
+        if direct_amount > 0 or allocated_amount > 0:
+            return max(direct_amount, allocated_amount)
+        else:
+            return ref_amount
+
+    def determine_payment_status(amount, paid_amount):
+        """根据金额确定付款状态"""
+        if amount <= 0:
+            return 'paid'
+        if paid_amount >= amount:
+            return 'paid'
+        elif paid_amount > 0:
+            return 'partial_paid'
+        else:
+            return 'unpaid'
+
+    try:
+        # 获取所有未取消的发票
+        invoices = ProjectInvoice.query.filter(
+            ProjectInvoice.status != 'cancelled'
+        ).order_by(ProjectInvoice.id).all()
+
+        need_update = []
+        for invoice in invoices:
+            calculated_paid = calculate_invoice_paid_amount(invoice)
+            calculated_status = determine_payment_status(
+                float(invoice.amount or 0),
+                calculated_paid
+            )
+
+            current_paid = float(invoice.paid_amount or 0)
+            current_status = invoice.payment_status
+
+            need_paid_update = abs(calculated_paid - current_paid) > 0.01
+            need_status_update = calculated_status != current_status
+
+            if need_paid_update or need_status_update:
+                need_update.append({
+                    'id': invoice.id,
+                    'invoice_number': invoice.invoice_number,
+                    'header_id': invoice.header_id,
+                    'amount': float(invoice.amount or 0),
+                    'current_paid': current_paid,
+                    'calculated_paid': calculated_paid,
+                    'current_status': current_status,
+                    'calculated_status': calculated_status
+                })
+
+        if request.method == 'POST':
+            # 执行更新
+            updated_count = 0
+            for item in need_update:
+                invoice = ProjectInvoice.query.get(item['id'])
+                if invoice:
+                    invoice.paid_amount = item['calculated_paid']
+                    invoice.payment_status = item['calculated_status']
+                    updated_count += 1
+
+            db.session.commit()
+
+            return jsonify({
+                'success': True,
+                'message': f'成功更新 {updated_count} 张发票',
+                'updated_count': updated_count
+            })
+        else:
+            # GET: 预览模式
+            # 统计信息
+            status_stats = db.session.query(
+                ProjectInvoice.payment_status,
+                func.count(ProjectInvoice.id),
+                func.sum(ProjectInvoice.amount),
+                func.sum(ProjectInvoice.paid_amount)
+            ).filter(
+                ProjectInvoice.status != 'cancelled'
+            ).group_by(ProjectInvoice.payment_status).all()
+
+            stats = []
+            for status, count, amount, paid in status_stats:
+                stats.append({
+                    'status': status,
+                    'count': count,
+                    'amount': float(amount or 0),
+                    'paid': float(paid or 0)
+                })
+
+            return jsonify({
+                'success': True,
+                'total_invoices': len(invoices),
+                'need_update_count': len(need_update),
+                'need_update': need_update,
+                'current_stats': stats
+            })
+
+    except Exception as e:
+        db.session.rollback()
+        import traceback
+        traceback.print_exc()
         return jsonify({'success': False, 'message': str(e)})
