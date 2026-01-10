@@ -12,33 +12,61 @@
 4. 更新发票的 paid_amount 和 payment_status
 
 使用方法:
-    py scripts/20260110_fix_receipt_invoice_link.py           # 预览模式
-    py scripts/20260110_fix_receipt_invoice_link.py --execute  # 执行模式
+    python scripts/20260110_fix_receipt_invoice_link.py           # 预览模式
+    python scripts/20260110_fix_receipt_invoice_link.py --execute  # 执行模式
 """
 
 import sys
+import os
 import json
+import re
 
-# 数据库配置
-DB_CONFIG = {
-    'host': 'localhost',
-    'port': 3306,
-    'user': 'root',
-    'password': '***REMOVED***',
-    'database': 'travelindustry',
-    'charset': 'utf8mb4'
-}
+# 添加项目根目录到路径
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+
+def get_db_config():
+    """从 Flask 配置中获取数据库配置"""
+    try:
+        from App_new.config import Config
+        # 解析 SQLALCHEMY_DATABASE_URI
+        uri = Config.SQLALCHEMY_DATABASE_URI
+        # mysql+pymysql://user:password@host:port/database
+        pattern = r'mysql\+pymysql://([^:]+):([^@]+)@([^:]+):(\d+)/([^\?]+)'
+        match = re.match(pattern, uri)
+        if match:
+            return {
+                'host': match.group(3),
+                'port': int(match.group(4)),
+                'user': match.group(1),
+                'password': match.group(2),
+                'database': match.group(5),
+                'charset': 'utf8mb4'
+            }
+    except Exception as e:
+        print(f"警告: 无法从 Flask 配置读取数据库信息: {e}")
+
+    # 默认配置（本地开发环境）
+    return {
+        'host': 'localhost',
+        'port': 3306,
+        'user': 'root',
+        'password': '***REMOVED***',
+        'database': 'travelindustry',
+        'charset': 'utf8mb4'
+    }
 
 
 def get_connection():
     """获取数据库连接"""
+    db_config = get_db_config()
     try:
         import pymysql
-        return pymysql.connect(**DB_CONFIG)
+        return pymysql.connect(**db_config)
     except ImportError:
         try:
             import mysql.connector
-            config = DB_CONFIG.copy()
+            config = db_config.copy()
             config['db'] = config.pop('database')
             return mysql.connector.connect(**config)
         except ImportError:
