@@ -10,7 +10,7 @@ from flask import Blueprint
 projects_bp = Blueprint('business_projects', __name__, url_prefix='/projects')
 
 # 导入路由
-from .routes import project_list, project_detail, project_create, project_edit, project_header, project_ref, project_eo, project_receipt, project_invoice, project_members, project_home
+from .routes import project_list, project_detail, project_create, project_edit, project_header, project_ref, project_eo, project_receipt, project_invoice, project_members, project_home, project_settlement
 
 # 注册路由
 projects_bp.register_blueprint(project_home.project_home)  # 首页，无前缀
@@ -24,5 +24,6 @@ projects_bp.register_blueprint(project_eo.project_eo, url_prefix='/eo')
 projects_bp.register_blueprint(project_receipt.project_receipt, url_prefix='/receipt')
 projects_bp.register_blueprint(project_invoice.project_invoice, url_prefix='/invoice')
 projects_bp.register_blueprint(project_members.project_members_bp)
+projects_bp.register_blueprint(project_settlement.bp, url_prefix='/settlement')
 
 __all__ = ['projects_bp']

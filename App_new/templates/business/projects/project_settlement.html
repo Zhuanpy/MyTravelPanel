@@ -1,0 +1,961 @@
+{% extends "staff_base.html" %}
+
+{% block title %}项目结算 - MyTravelPanel{% endblock %}
+
+{% block page_title %}项目结算{% endblock %}
+
+{% block extra_css %}
+<style>
+    .data-container {
+        max-width: 98%;
+        width: 100%;
+        margin: 20px auto;
+        padding: 20px;
+        background-color: #ffffff;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+    }
+
+    .data-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 30px;
+        padding-bottom: 20px;
+        border-bottom: 2px solid #e9ecef;
+    }
+
+    .data-header h1 {
+        color: #2E7D32;
+        font-size: 28px;
+        margin: 0;
+        display: flex;
+        align-items: center;
+    }
+
+    .data-header h1 i {
+        margin-right: 10px;
+    }
+
+    .stats-panel {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 25px;
+        border-radius: 8px;
+        margin-bottom: 25px;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 20px;
+    }
+
+    .stat-item {
+        text-align: center;
+    }
+
+    .stat-label {
+        font-size: 14px;
+        opacity: 0.9;
+        margin-bottom: 8px;
+    }
+
+    .stat-value {
+        font-size: 26px;
+        font-weight: bold;
+    }
+
+    .filter-panel {
+        background-color: #f8f9fa;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        border: 1px solid #e9ecef;
+    }
+
+    .filter-panel-title {
+        font-size: 16px;
+        font-weight: 600;
+        color: #2E7D32;
+        margin-bottom: 15px;
+        display: flex;
+        align-items: center;
+    }
+
+    .filter-form {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 15px;
+        align-items: end;
+    }
+
+    .filter-group {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .filter-label {
+        font-size: 13px;
+        font-weight: 500;
+        color: #495057;
+        margin-bottom: 5px;
+    }
+
+    .filter-input, .filter-select {
+        padding: 8px 12px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 14px;
+        width: 100%;
+        background-color: white;
+    }
+
+    .filter-buttons {
+        display: flex;
+        flex-direction: row;
+        gap: 10px;
+        align-items: end;
+        justify-content: flex-start;
+    }
+
+    .filter-btn {
+        background-color: #4CAF50;
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+    }
+
+    .filter-reset-btn {
+        background-color: #6c757d;
+    }
+
+    .action-buttons {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+    }
+
+    .action-btn {
+        background-color: #2196F3;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .action-btn:hover {
+        opacity: 0.9;
+        color: white;
+    }
+
+    .action-btn.success {
+        background-color: #28a745;
+    }
+
+    .action-btn.warning {
+        background-color: #ffc107;
+        color: #212529;
+    }
+
+    .table-wrapper {
+        overflow-x: auto;
+        margin-top: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .data-table {
+        width: 100%;
+        min-width: 1900px;
+        border-collapse: collapse;
+        background-color: white;
+    }
+
+    .data-table th {
+        background-color: #2E7D32;
+        color: white;
+        padding: 12px 8px;
+        text-align: center;
+        font-weight: 600;
+        position: sticky;
+        top: 0;
+        font-size: 13px;
+    }
+
+    .data-table td {
+        padding: 10px 8px;
+        border-bottom: 1px solid #e9ecef;
+        font-size: 13px;
+        text-align: center;
+    }
+
+    .data-table tr:hover {
+        background-color: #f8f9fa;
+    }
+
+    .data-table input[type="checkbox"] {
+        width: 18px;
+        height: 18px;
+        cursor: pointer;
+    }
+
+    .amount {
+        text-align: center;
+        font-weight: 500;
+    }
+
+    .amount.positive {
+        color: #28a745;
+    }
+
+    .amount.negative {
+        color: #dc3545;
+    }
+
+    .text-center {
+        text-align: center;
+    }
+
+    .summary-row {
+        background-color: #e3f2fd !important;
+        font-weight: 600;
+        border-top: 2px solid #1976D2;
+    }
+
+    .summary-row td {
+        background-color: #e3f2fd !important;
+        font-weight: 600;
+    }
+
+    .badge {
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 12px;
+        font-weight: 500;
+    }
+
+    .badge-success {
+        background-color: #d4edda;
+        color: #155724;
+    }
+
+    .badge-warning {
+        background-color: #fff3cd;
+        color: #856404;
+    }
+
+    .badge-secondary {
+        background-color: #e2e3e5;
+        color: #383d41;
+    }
+
+    .pagination {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 10px;
+        margin-top: 30px;
+        padding: 20px;
+    }
+
+    .pagination a, .pagination span {
+        padding: 8px 12px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        text-decoration: none;
+        color: #2E7D32;
+    }
+
+    .pagination .current {
+        background-color: #2E7D32;
+        color: white;
+        border-color: #2E7D32;
+    }
+
+    .pagination .disabled {
+        color: #6c757d;
+        cursor: not-allowed;
+    }
+
+    .no-data {
+        text-align: center;
+        padding: 50px;
+        color: #666;
+    }
+
+    .hid-link {
+        color: #1976D2;
+        text-decoration: none;
+        font-weight: 500;
+    }
+
+    .hid-link:hover {
+        text-decoration: underline;
+    }
+
+    .company-cell {
+        max-width: 150px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="data-container">
+    <div class="data-header">
+        <h1><i class="fas fa-calculator"></i> 项目结算</h1>
+        <form class="search-form d-flex gap-2" method="GET" id="searchForm">
+            <!-- 保留筛选参数 -->
+            <input type="hidden" name="staff_name" value="{{ filters.staff_name or '' }}">
+            <input type="hidden" name="settlement_status" value="{{ filters.settlement_status or '' }}">
+            <input type="hidden" name="date_from" value="{{ filters.date_from or '' }}">
+            <input type="hidden" name="date_to" value="{{ filters.date_to or '' }}">
+            <input type="hidden" name="profit_status" value="{{ filters.profit_status or '' }}">
+            <input type="text" name="search" class="form-control" style="width: 250px;" placeholder="搜索HID、公司名称..." value="{{ filters.search or '' }}">
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-search"></i> 搜索
+            </button>
+        </form>
+    </div>
+
+    <!-- 统计面板 -->
+    <div class="stats-panel">
+        <div class="stat-item">
+            <div class="stat-label">可结算项目数</div>
+            <div class="stat-value">{{ stats.can_settle_count }}</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-label">已结算项目数</div>
+            <div class="stat-value">{{ stats.settled_count }}</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-label">未结算项目数</div>
+            <div class="stat-value">{{ stats.unsettled_count }}</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-label">当前页总利润</div>
+            <div class="stat-value">S${{ "%.2f"|format(stats.page_total_profit) }}</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-label">当前页总销售</div>
+            <div class="stat-value">S${{ "%.2f"|format(stats.page_total_selling) }}</div>
+        </div>
+    </div>
+
+    <!-- 筛选面板 -->
+    <div class="filter-panel">
+        <div class="filter-panel-title">
+            <i class="fas fa-filter"></i>&nbsp; 筛选条件
+        </div>
+        <form method="GET" class="filter-form" id="filterForm">
+            <input type="hidden" name="search" value="{{ filters.search or '' }}">
+
+            <div class="filter-group">
+                <label class="filter-label">经办人</label>
+                <select name="staff_name" class="filter-select">
+                    <option value="">全部</option>
+                    {% for staff in staff_list %}
+                    <option value="{{ staff }}" {{ 'selected' if filters.staff_name == staff }}>{{ staff }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="filter-group">
+                <label class="filter-label">结算状态</label>
+                <select name="settlement_status" class="filter-select">
+                    <option value="">全部</option>
+                    <option value="can_settle" {{ 'selected' if filters.settlement_status == 'can_settle' }}>可结算</option>
+                    <option value="settled" {{ 'selected' if filters.settlement_status == 'settled' }}>已结算</option>
+                    <option value="unsettled" {{ 'selected' if filters.settlement_status == 'unsettled' }}>未结算</option>
+                </select>
+            </div>
+
+            <div class="filter-group">
+                <label class="filter-label">盈亏状态</label>
+                <select name="profit_status" class="filter-select">
+                    <option value="">全部</option>
+                    <option value="profit" {{ 'selected' if filters.profit_status == 'profit' }}>盈利</option>
+                    <option value="loss" {{ 'selected' if filters.profit_status == 'loss' }}>亏损</option>
+                    <option value="zero" {{ 'selected' if filters.profit_status == 'zero' }}>持平</option>
+                </select>
+            </div>
+
+            <div class="filter-group">
+                <label class="filter-label">创建日期（从）</label>
+                <input type="date" name="date_from" class="filter-input" value="{{ filters.date_from or '' }}">
+            </div>
+
+            <div class="filter-group">
+                <label class="filter-label">创建日期（到）</label>
+                <input type="date" name="date_to" class="filter-input" value="{{ filters.date_to or '' }}">
+            </div>
+
+            <div class="filter-group filter-buttons">
+                <button type="submit" class="filter-btn">
+                    <i class="fas fa-filter"></i> 应用筛选
+                </button>
+                <button type="button" class="filter-btn filter-reset-btn" onclick="resetFilters()">
+                    <i class="fas fa-redo"></i> 重置
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- 操作按钮 -->
+    <div class="action-buttons">
+        <button class="action-btn" onclick="calculateProfitDistribution()" style="background-color: #9C27B0;">
+            <i class="fas fa-calculator"></i> 计算利润分配(选中)
+        </button>
+        <button class="action-btn" onclick="calculateAllUnsettledProfitDistribution()" style="background-color: #FF9800;">
+            <i class="fas fa-calculator"></i> 计算全部未结算
+        </button>
+        <button class="action-btn success" onclick="batchSettleSelected()">
+            <i class="fas fa-check-double"></i> 批量结算选中
+        </button>
+        <button class="action-btn warning" onclick="batchUnsettleSelected()">
+            <i class="fas fa-undo"></i> 批量取消结算
+        </button>
+        <a href="{{ url_for('business_projects.settlement.voucher_list') }}" class="action-btn" style="background-color: #17a2b8;">
+            <i class="fas fa-file-invoice-dollar"></i> 结算凭证列表
+        </a>
+        <a href="{{ url_for('business_projects.list.list_projects') }}" class="action-btn">
+            <i class="fas fa-arrow-left"></i> 返回项目列表
+        </a>
+        <button class="action-btn" onclick="exportToExcel()" style="background-color: #28a745;">
+            <i class="fas fa-file-excel"></i> 导出Excel
+        </button>
+    </div>
+
+    <!-- 数据表格 -->
+    {% if projects %}
+    <div class="table-wrapper">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th style="width: 40px;">
+                    <input type="checkbox" id="selectAll" onchange="toggleSelectAll()">
+                </th>
+                <th>HID</th>
+                <th style="width: 150px;">公司名称</th>
+                <th class="text-center">创建日期</th>
+                <th class="text-center">经办人</th>
+                <th class="text-center">操作员</th>
+                <th class="text-center">业务员</th>
+                <th class="text-center">销售金额</th>
+                <th class="text-center">成本</th>
+                <th class="text-center">利润</th>
+                <th class="text-center">收款</th>
+                <th class="text-center">余额</th>
+                <th class="text-center">REF/开票</th>
+                <th class="text-center">EO/付款</th>
+                <th class="text-center">订单类型</th>
+                <th class="text-center">操作员利润</th>
+                <th class="text-center">业务员利润</th>
+                <th class="text-center">公司利润</th>
+                <th class="text-center">结算状态</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for project in projects %}
+            {% set pstats = project_stats.get(project.id, {}) %}
+            <tr>
+                <td>
+                    <input type="checkbox" class="record-checkbox" value="{{ project.id }}"
+                           data-settled="{{ 'true' if project.is_settled else 'false' }}"
+                           data-can-settle="{{ 'true' if pstats.can_settle else 'false' }}">
+                </td>
+                <td>
+                    <a href="{{ url_for('business_projects.detail.project_detail', project_id=project.id) }}" class="hid-link">
+                        {{ project.hid }}
+                    </a>
+                </td>
+                <td class="company-cell" title="{{ project.company.company_name if project.company else '-' }}">
+                    {{ project.company.company_name if project.company else '-' }}
+                </td>
+                <td class="text-center">{{ project.created_at.strftime('%Y-%m-%d') if project.created_at else '-' }}</td>
+                <td class="text-center">{{ project.staff_name or '-' }}</td>
+                <td class="text-center">{{ project.operator_names or '-' }}</td>
+                <td class="text-center">{{ project.salesperson_names or '-' }}</td>
+                <td class="amount">{{ "%.2f"|format(pstats.total_selling_price or 0) }}</td>
+                <td class="amount">{{ "%.2f"|format(pstats.total_cost_price or 0) }}</td>
+                <td class="amount {{ 'positive' if (pstats.total_profit or 0) > 0 else 'negative' if (pstats.total_profit or 0) < 0 else '' }}">
+                    {{ "%.2f"|format(pstats.total_profit or 0) }}
+                </td>
+                <td class="amount">{{ "%.2f"|format(pstats.total_received or 0) }}</td>
+                <td class="amount {{ 'negative' if (pstats.balance or 0) > 0.01 else '' }}">
+                    {{ "%.2f"|format(pstats.balance or 0) }}
+                </td>
+                <td class="text-center">
+                    {{ pstats.invoiced_ref_count or 0 }}/{{ pstats.ref_count or 0 }}
+                </td>
+                <td class="text-center">
+                    {{ pstats.paid_eo_count or 0 }}/{{ pstats.eo_count or 0 }}
+                </td>
+                <td class="text-center">
+                    {% if project.order_type %}
+                        <span class="badge" style="background-color: #6c757d; color: white;">{{ project.order_type }}</span>
+                    {% else %}
+                        <span class="text-muted">-</span>
+                    {% endif %}
+                </td>
+                <td class="amount {{ 'positive' if project.operator_profit and project.operator_profit > 0 else 'negative' if project.operator_profit and project.operator_profit < 0 else '' }}">
+                    {{ "%.2f"|format(project.operator_profit|float) if project.operator_profit else '0.00' }}
+                </td>
+                <td class="amount {{ 'positive' if project.sales_profit and project.sales_profit > 0 else 'negative' if project.sales_profit and project.sales_profit < 0 else '' }}">
+                    {{ "%.2f"|format(project.sales_profit|float) if project.sales_profit else '0.00' }}
+                </td>
+                <td class="amount {{ 'positive' if project.company_profit and project.company_profit > 0 else 'negative' if project.company_profit and project.company_profit < 0 else '' }}">
+                    {{ "%.2f"|format(project.company_profit|float) if project.company_profit else '0.00' }}
+                </td>
+                <td class="text-center">
+                    {% if project.is_settled %}
+                        <span class="badge badge-success">已结算</span>
+                        {% if project.payment_voucher %}
+                        <br><small title="凭证号: {{ project.payment_voucher.voucher_no }}">
+                            <a href="{{ url_for('business_projects.settlement.voucher_detail', voucher_id=project.payment_voucher.id) }}" style="color: #1976D2;">
+                                {{ project.payment_voucher.voucher_no }}
+                            </a>
+                        </small>
+                        {% endif %}
+                    {% elif pstats.can_settle %}
+                        <span class="badge badge-warning">可结算</span>
+                    {% else %}
+                        <span class="badge badge-secondary">未结算</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+
+            <!-- 汇总行 -->
+            <tr class="summary-row">
+                <td colspan="7" style="text-align: right; font-weight: 600;">当前页汇总：</td>
+                <td class="amount">{{ "%.2f"|format(stats.page_total_selling) }}</td>
+                <td class="amount">{{ "%.2f"|format(stats.page_total_cost) }}</td>
+                <td class="amount {{ 'positive' if stats.page_total_profit > 0 else 'negative' if stats.page_total_profit < 0 else '' }}">
+                    {{ "%.2f"|format(stats.page_total_profit) }}
+                </td>
+                <td class="amount">{{ "%.2f"|format(stats.page_total_received) }}</td>
+                <td class="amount">{{ "%.2f"|format(stats.page_total_balance) }}</td>
+                <td colspan="2"></td>
+                <td class="amount {{ 'positive' if stats.page_operator_profit > 0 else 'negative' if stats.page_operator_profit < 0 else '' }}">
+                    {{ "%.2f"|format(stats.page_operator_profit) }}
+                </td>
+                <td class="amount {{ 'positive' if stats.page_sales_profit > 0 else 'negative' if stats.page_sales_profit < 0 else '' }}">
+                    {{ "%.2f"|format(stats.page_sales_profit) }}
+                </td>
+                <td class="amount {{ 'positive' if stats.page_company_profit > 0 else 'negative' if stats.page_company_profit < 0 else '' }}">
+                    {{ "%.2f"|format(stats.page_company_profit) }}
+                </td>
+                <td></td>
+            </tr>
+        </tbody>
+    </table>
+    </div>
+
+    <!-- 分页 -->
+    {% if pagination.pages > 1 %}
+    <div class="pagination">
+        {% if pagination.has_prev %}
+            <a href="?page={{ pagination.prev_num }}&{{ query_string }}">
+                <i class="fas fa-chevron-left"></i> 上一页
+            </a>
+        {% else %}
+            <span class="disabled">
+                <i class="fas fa-chevron-left"></i> 上一页
+            </span>
+        {% endif %}
+
+        {% for page_num in pagination.iter_pages() %}
+            {% if page_num %}
+                {% if page_num != pagination.page %}
+                    <a href="?page={{ page_num }}&{{ query_string }}">{{ page_num }}</a>
+                {% else %}
+                    <span class="current">{{ page_num }}</span>
+                {% endif %}
+            {% else %}
+                <span>...</span>
+            {% endif %}
+        {% endfor %}
+
+        {% if pagination.has_next %}
+            <a href="?page={{ pagination.next_num }}&{{ query_string }}">
+                下一页 <i class="fas fa-chevron-right"></i>
+            </a>
+        {% else %}
+            <span class="disabled">
+                下一页 <i class="fas fa-chevron-right"></i>
+            </span>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    {% else %}
+    <div class="no-data">
+        <i class="fas fa-database" style="font-size: 48px; margin-bottom: 20px; color: #ccc;"></i>
+        <h3>暂无符合条件的项目</h3>
+        <p>请调整筛选条件后重试</p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- 批量结算模态框 -->
+<div class="modal fade" id="batchSettleModal" tabindex="-1" aria-labelledby="batchSettleModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white;">
+                <h5 class="modal-title" id="batchSettleModalLabel">
+                    <i class="fas fa-check-double"></i> 批量结算确认
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <!-- 结算汇总信息 -->
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <div class="card border-success">
+                            <div class="card-body text-center">
+                                <h6 class="text-muted mb-1">选中项目数</h6>
+                                <h3 class="text-success mb-0" id="settleProjectCount">0</h3>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card border-primary">
+                            <div class="card-body text-center">
+                                <h6 class="text-muted mb-1">凭证号（预览）</h6>
+                                <h4 class="text-primary mb-0" id="settleVoucherNoPreview">-</h4>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 结算表单 -->
+                <form id="batchSettleForm">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label"><i class="fas fa-calendar-alt"></i> 结算日期</label>
+                            <input type="date" class="form-control" id="settleDate" name="settle_date" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label"><i class="fas fa-user"></i> 结算人</label>
+                            <input type="text" class="form-control" id="settleBy" value="{{ current_user.username }}" readonly>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label"><i class="fas fa-sticky-note"></i> 结算备注</label>
+                        <textarea class="form-control" id="settleRemarks" name="remarks" rows="3" placeholder="请输入结算备注（可选）"></textarea>
+                    </div>
+                </form>
+
+                <!-- 选中项目预览 -->
+                <div class="mt-3">
+                    <h6><i class="fas fa-list"></i> 选中项目预览</h6>
+                    <div class="table-responsive" style="max-height: 200px; overflow-y: auto;">
+                        <table class="table table-sm table-bordered mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>HID</th>
+                                    <th>公司</th>
+                                    <th class="text-end">利润</th>
+                                </tr>
+                            </thead>
+                            <tbody id="settleProjectsPreview">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times"></i> 取消
+                </button>
+                <button type="button" class="btn btn-success" id="confirmBatchSettleBtn" onclick="confirmBatchSettle()">
+                    <i class="fas fa-check"></i> 确认结算
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function toggleSelectAll() {
+        const selectAll = document.getElementById('selectAll');
+        const checkboxes = document.querySelectorAll('.record-checkbox');
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = selectAll.checked;
+        });
+    }
+
+    function getSelectedIds(filterType) {
+        const checkboxes = document.querySelectorAll('.record-checkbox:checked');
+        let ids = [];
+        checkboxes.forEach(cb => {
+            if (filterType === 'settle') {
+                // 只选择可结算且未结算的
+                if (cb.dataset.canSettle === 'true' && cb.dataset.settled === 'false') {
+                    ids.push(parseInt(cb.value));
+                }
+            } else if (filterType === 'unsettle') {
+                // 只选择已结算的
+                if (cb.dataset.settled === 'true') {
+                    ids.push(parseInt(cb.value));
+                }
+            } else {
+                ids.push(parseInt(cb.value));
+            }
+        });
+        return ids;
+    }
+
+    // 存储选中的项目信息
+    let selectedSettleProjects = [];
+
+    function batchSettleSelected() {
+        const selectedIds = getSelectedIds('settle');
+        if (selectedIds.length === 0) {
+            alert('请先选择可结算的项目');
+            return;
+        }
+
+        // 收集选中项目的信息用于预览
+        selectedSettleProjects = [];
+        const checkboxes = document.querySelectorAll('.record-checkbox:checked');
+        checkboxes.forEach(cb => {
+            if (cb.dataset.canSettle === 'true' && cb.dataset.settled === 'false') {
+                const row = cb.closest('tr');
+                const hid = row.querySelector('.hid-link')?.textContent?.trim() || '-';
+                const company = row.querySelector('.company-cell')?.textContent?.trim() || '-';
+                const profitCell = row.querySelectorAll('.amount')[2]; // 第3个amount是利润
+                const profit = profitCell?.textContent?.trim() || '0.00';
+                selectedSettleProjects.push({
+                    id: parseInt(cb.value),
+                    hid: hid,
+                    company: company,
+                    profit: profit
+                });
+            }
+        });
+
+        // 更新模态框内容
+        document.getElementById('settleProjectCount').textContent = selectedSettleProjects.length;
+
+        // 设置默认日期为今天
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('settleDate').value = today;
+        document.getElementById('settleRemarks').value = '';
+
+        // 生成预览凭证号
+        fetchVoucherNoPreview();
+
+        // 填充项目预览表格
+        const previewBody = document.getElementById('settleProjectsPreview');
+        previewBody.innerHTML = selectedSettleProjects.map(p => `
+            <tr>
+                <td>${p.hid}</td>
+                <td>${p.company}</td>
+                <td class="text-end">${p.profit}</td>
+            </tr>
+        `).join('');
+
+        // 显示模态框
+        const modal = new bootstrap.Modal(document.getElementById('batchSettleModal'));
+        modal.show();
+    }
+
+    function fetchVoucherNoPreview() {
+        // 获取预览凭证号
+        fetch('/projects/settlement/api/preview_voucher_no', {
+            method: 'GET',
+            credentials: 'same-origin'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('settleVoucherNoPreview').textContent = data.voucher_no;
+            }
+        })
+        .catch(error => {
+            console.error('获取凭证号预览失败:', error);
+        });
+    }
+
+    function confirmBatchSettle() {
+        const selectedIds = selectedSettleProjects.map(p => p.id);
+        if (selectedIds.length === 0) {
+            alert('没有选中的项目');
+            return;
+        }
+
+        const settleDate = document.getElementById('settleDate').value;
+        const remarks = document.getElementById('settleRemarks').value;
+
+        if (!settleDate) {
+            alert('请选择结算日期');
+            return;
+        }
+
+        // 禁用确认按钮
+        const btn = document.getElementById('confirmBatchSettleBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 处理中...';
+
+        fetch('/projects/settlement/api/batch_settle', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify({
+                project_ids: selectedIds,
+                remarks: remarks,
+                settle_date: settleDate
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // 关闭模态框
+                bootstrap.Modal.getInstance(document.getElementById('batchSettleModal')).hide();
+                alert(data.message);
+                location.reload();
+            } else {
+                alert('操作失败: ' + data.message);
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-check"></i> 确认结算';
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('操作失败，请稍后再试');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-check"></i> 确认结算';
+        });
+    }
+
+    function batchUnsettleSelected() {
+        const selectedIds = getSelectedIds('unsettle');
+        if (selectedIds.length === 0) {
+            alert('请先选择已结算的项目');
+            return;
+        }
+
+        if (!confirm(`确定要取消 ${selectedIds.length} 个项目的结算吗？`)) {
+            return;
+        }
+
+        fetch('/projects/settlement/api/batch_unsettle', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify({ project_ids: selectedIds })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                location.reload();
+            } else {
+                alert('操作失败: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('操作失败，请稍后再试');
+        });
+    }
+
+    function resetFilters() {
+        window.location.href = '{{ url_for("business_projects.settlement.settlement_list") }}';
+    }
+
+    function calculateProfitDistribution() {
+        const selectedIds = getSelectedIds();
+        if (selectedIds.length === 0) {
+            alert('请先选择要计算利润分配的项目');
+            return;
+        }
+
+        if (!confirm(`确定要计算 ${selectedIds.length} 个项目的利润分配吗？\n\n注意：此操作将根据利润自动计算并更新分配结果。`)) {
+            return;
+        }
+
+        fetch('/projects/settlement/api/calculate_profit_distribution', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify({ project_ids: selectedIds })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                let message = data.message;
+                if (data.error_count > 0 && data.errors) {
+                    message += '\n\n错误详情：\n' + data.errors.join('\n');
+                }
+                alert(message);
+                location.reload();
+            } else {
+                alert('操作失败: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('操作失败，请稍后再试');
+        });
+    }
+
+    function calculateAllUnsettledProfitDistribution() {
+        if (!confirm('确定要计算全部未结算项目的利润分配吗？\n\n注意：此操作将筛选所有未结算项目，并根据利润自动计算并更新分配结果。')) {
+            return;
+        }
+
+        fetch('/projects/settlement/api/calculate_all_unsettled_profit_distribution', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify({})
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                let message = data.message;
+                if (data.error_count > 0 && data.errors) {
+                    message += '\n\n错误详情：\n' + data.errors.join('\n');
+                }
+                alert(message);
+                location.reload();
+            } else {
+                alert('操作失败: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('操作失败，请稍后再试');
+        });
+    }
+
+    function exportToExcel() {
+        const params = new URLSearchParams(window.location.search);
+        const exportUrl = '/projects/settlement/export?' + params.toString();
+        window.location.href = exportUrl;
+    }
+</script>
+{% endblock %}

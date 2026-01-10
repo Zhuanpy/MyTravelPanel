@@ -117,18 +117,6 @@
         text-decoration: line-through;
         color: #9ca3af;
     }
-    .task-card .task-meta {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.75rem;
-        font-size: 0.8rem;
-        color: #64748b;
-    }
-    .task-card .task-meta span {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.25rem;
-    }
     .task-card .task-actions {
         display: flex;
         gap: 0.5rem;
@@ -189,20 +177,86 @@
     .filter-bar {
         display: flex;
         flex-wrap: wrap;
-        gap: 0.75rem;
+        gap: 1.25rem;
         align-items: center;
-        margin-bottom: 1rem;
+        margin-bottom: 1.25rem;
+        padding: 1rem 1.25rem;
+        background: #f8fafc;
+        border-radius: 8px;
     }
     .filter-bar .filter-item {
-        display: flex;
+        display: inline-flex;
         align-items: center;
         gap: 0.5rem;
+        flex-shrink: 0;
+    }
+    .filter-bar .filter-item label {
+        font-size: 0.85rem;
+        color: #475569;
+        white-space: nowrap;
+        margin: 0;
+        font-weight: 500;
+        min-width: fit-content;
     }
     .filter-bar select, .filter-bar input {
-        padding: 0.4rem 0.75rem;
+        padding: 0.5rem 0.75rem;
         border: 1px solid #e2e8f0;
         border-radius: 6px;
         font-size: 0.875rem;
+        min-width: 90px;
+        background: #fff;
+    }
+    .filter-bar select:focus, .filter-bar input:focus {
+        border-color: #3b82f6;
+        outline: none;
+        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+    }
+
+    /* 任务元数据标签样式 */
+    .task-card .task-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        font-size: 0.8rem;
+        color: #64748b;
+        margin-top: 0.5rem;
+    }
+    .task-card .task-meta .meta-tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.25rem 0.6rem;
+        background: #f1f5f9;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        white-space: nowrap;
+    }
+    .task-card .task-meta .meta-tag i {
+        font-size: 0.7rem;
+    }
+    .task-card .task-meta .meta-tag.priority-high {
+        background: #fef2f2;
+        color: #dc2626;
+    }
+    .task-card .task-meta .meta-tag.priority-medium {
+        background: #fffbeb;
+        color: #d97706;
+    }
+    .task-card .task-meta .meta-tag.priority-low {
+        background: #eff6ff;
+        color: #3b82f6;
+    }
+    .task-card .task-meta .meta-tag.category-tag {
+        background: #f0fdf4;
+        color: #16a34a;
+    }
+    .task-card .task-meta .meta-tag.date-tag {
+        background: #faf5ff;
+        color: #9333ea;
+    }
+    .task-card .task-meta .meta-tag.user-tag {
+        background: #fef3c7;
+        color: #92400e;
     }
 
     /* 标题列不换行 */
@@ -835,7 +889,7 @@ function renderMyTasks(todos) {
 
 // 渲染任务卡片
 function renderTaskCard(todo, isOverdue) {
-    const priorityColors = { 1: 'danger', 2: 'warning', 3: 'info' };
+    const priorityClasses = { 1: 'priority-high', 2: 'priority-medium', 3: 'priority-low' };
     const priorityTexts = { 1: '高', 2: '中', 3: '低' };
 
     return `
@@ -847,12 +901,12 @@ function renderTaskCard(todo, isOverdue) {
             <div class="task-content">
                 <div class="task-title">${escapeHtml(todo.title)}</div>
                 <div class="task-meta">
-                    <span class="text-${priorityColors[todo.priority]}">
-                        <i class="fas fa-flag"></i>${priorityTexts[todo.priority]}
+                    <span class="meta-tag ${priorityClasses[todo.priority]}">
+                        <i class="fas fa-flag"></i> ${priorityTexts[todo.priority]}
                     </span>
-                    ${todo.category ? `<span><i class="fas fa-tag"></i>${getCategoryDisplayName(todo.category)}</span>` : ''}
-                    ${todo.due_date ? `<span><i class="fas fa-calendar"></i>${formatDate(todo.due_date)}</span>` : ''}
-                    ${todo.assignee_name ? `<span><i class="fas fa-user"></i>${todo.assignee_name}</span>` : ''}
+                    ${todo.category ? `<span class="meta-tag category-tag"><i class="fas fa-tag"></i> ${getCategoryDisplayName(todo.category)}</span>` : ''}
+                    ${todo.due_date ? `<span class="meta-tag date-tag"><i class="fas fa-calendar"></i> ${formatDate(todo.due_date)}</span>` : ''}
+                    ${todo.assignee_name ? `<span class="meta-tag user-tag"><i class="fas fa-user"></i> ${todo.assignee_name}</span>` : ''}
                 </div>
             </div>
             <div class="task-actions">

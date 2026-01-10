@@ -255,6 +255,24 @@ class ProjectHeader(db.Model):
     reminder_date = db.Column(db.DateTime, comment='提醒日期')
     reminder_sent = db.Column(db.Boolean, default=False, comment='是否已发送提醒邮件')
 
+    # 结算相关字段
+    is_settled = db.Column(db.Boolean, default=False, nullable=False, comment='是否已结算')
+    settled_at = db.Column(db.DateTime, nullable=True, comment='结算时间')
+    settled_by = db.Column(db.String(50), nullable=True, comment='结算人')
+    payment_voucher_id = db.Column(db.Integer, db.ForeignKey('payment_vouchers.id'), nullable=True, comment='付款凭证ID')
+
+    # 利润分配字段
+    order_type = db.Column(db.String(20), nullable=True, comment='订单类型(小单/中单/大单等)')
+    operator_profit = db.Column(db.Numeric(12, 2), nullable=True, comment='操作员利润')
+    sales_profit = db.Column(db.Numeric(12, 2), nullable=True, comment='业务员利润')
+    company_profit = db.Column(db.Numeric(12, 2), nullable=True, comment='公司利润')
+
+    # 操作员和业务员字段（利润分配关联人员，支持多选，逗号分隔）
+    operator_ids = db.Column(db.String(200), nullable=True, comment='操作员ID列表(逗号分隔)')
+    operator_names = db.Column(db.String(500), nullable=True, comment='操作员姓名列表(逗号分隔)')
+    salesperson_ids = db.Column(db.String(200), nullable=True, comment='业务员ID列表(逗号分隔)')
+    salesperson_names = db.Column(db.String(500), nullable=True, comment='业务员姓名列表(逗号分隔)')
+
     # 关联REF明细
     refs = db.relationship('ProjectRef', backref='header', cascade='all, delete-orphan')
     
@@ -287,7 +305,20 @@ class ProjectHeader(db.Model):
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
             'last_updated_by': self.last_updated_by,
-            'remarks': self.remarks
+            'remarks': self.remarks,
+            'is_settled': self.is_settled,
+            'settled_at': self.settled_at.isoformat() if self.settled_at else None,
+            'settled_by': self.settled_by,
+            'payment_voucher_id': self.payment_voucher_id,
+            'voucher_no': self.payment_voucher.voucher_no if self.payment_voucher else None,
+            'order_type': self.order_type,
+            'operator_profit': float(self.operator_profit) if self.operator_profit else None,
+            'sales_profit': float(self.sales_profit) if self.sales_profit else None,
+            'company_profit': float(self.company_profit) if self.company_profit else None,
+            'operator_ids': self.operator_ids,
+            'operator_names': self.operator_names,
+            'salesperson_ids': self.salesperson_ids,
+            'salesperson_names': self.salesperson_names
         }
 
     @classmethod

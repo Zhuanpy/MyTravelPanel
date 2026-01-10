@@ -7,6 +7,7 @@ from .ref import ProjectRef
 from .receipt import ProjectReceipt
 from .invoice import ProjectInvoice
 from .eo import ProjectEO
+from .payment_voucher import PaymentVoucher
 
 __all__ = [
     'CustomerCompany',
@@ -16,5 +17,6 @@ __all__ = [
     'ProjectRef',
     'ProjectReceipt',
     'ProjectInvoice',
-    'ProjectEO'
+    'ProjectEO',
+    'PaymentVoucher'
 ]

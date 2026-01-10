@@ -72,6 +72,13 @@
                 </select>
             </div>
             <div class="col-auto">
+                <select class="form-select" name="has_invoice">
+                    <option value="">发票</option>
+                    <option value="yes" {% if current_filters.has_invoice == 'yes' %}selected{% endif %}>有发票</option>
+                    <option value="no" {% if current_filters.has_invoice == 'no' %}selected{% endif %}>无发票</option>
+                </select>
+            </div>
+            <div class="col-auto">
                 <input type="text" class="form-control" name="keyword" placeholder="搜索..." value="{{ current_filters.keyword or '' }}" style="width: 150px;">
             </div>
             <div class="col-auto">
@@ -90,6 +97,7 @@
                     <th>EO Date</th>
                     <th>HID</th>
                     <th>REF</th>
+                    <th>Invoice</th>
                     <th>Type</th>
                     <th>Supplier</th>
                     <th>Company</th>
@@ -126,14 +134,24 @@
                         <a href="{{ url_for('business_projects.project_ref.ref_detail', ref_id=eo.ref_id) }}">{{ eo.ref_number or '-' }}</a>
                         {% else %}-{% endif %}
                     </td>
+                    <td>
+                        {% if eo.invoice %}
+                        <a href="{{ url_for('business_projects.project_invoice.invoice_detail', invoice_id=eo.invoice.id) }}"
+                           class="badge bg-success text-decoration-none" title="{{ eo.invoice.invoice_number }}">
+                            {{ eo.invoice.invoice_number }}
+                        </a>
+                        {% else %}
+                        <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
                     <td><span class="badge bg-info">{{ eo.ref_type_name or '-' }}</span></td>
                     <td title="{{ eo.supplier_name or '' }}">{{ eo.supplier_name or '-' }}</td>
                     <td title="{{ eo.company_name or '' }}">{{ eo.company_name or '-' }}</td>
                     <td title="{{ eo.pax_names or '' }}">{{ eo.pax_names or '-' }}</td>
                     <td>{{ eo.currency or 'SGD' }}</td>
-                    <td class="amount-col">{{ "%.2f"|format(eo.cost_price|float) if eo.cost_price else '-' }}</td>
-                    <td class="amount-col">{{ "%.2f"|format(eo.tax|float) if eo.tax else '-' }}</td>
-                    <td class="amount-col">{{ "%.2f"|format(eo.discount|float) if eo.discount else '-' }}</td>
+                    <td class="amount-col">{{ "%.2f"|format(eo.cost_price|float) }}</td>
+                    <td class="amount-col">{{ "%.2f"|format(eo.tax|float) }}</td>
+                    <td class="amount-col">{{ "%.2f"|format(eo.discount|float) }}</td>
                     <td>{{ eo.payment_no or '-' }}</td>
                     <td>{{ eo.paid_date.strftime('%Y-%m-%d') if eo.paid_date else '-' }}</td>
                     <td class="amount-col">{{ "%.2f"|format(eo.pay_amount|float) if eo.pay_amount else '-' }}</td>
@@ -170,7 +188,7 @@
 
 <script>
 function exportToExcel() {
-    var headers = ['EO No','EO Date','HID','REF','Type','Supplier','Company','Pax','Curr','Cost','Tax','Disc','Payment No','Paid Date','Pay Amt','Status'];
+    var headers = ['EO No','EO Date','HID','REF','Invoice','Type','Supplier','Company','Pax','Curr','Cost','Tax','Disc','Payment No','Paid Date','Pay Amt','Status'];
     var csv = headers.join(',') + '\n';
     
     $('#eoTable tbody tr').each(function() {

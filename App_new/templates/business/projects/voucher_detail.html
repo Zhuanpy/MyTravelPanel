@@ -1,0 +1,391 @@
+{% extends "staff_base.html" %}
+
+{% block title %}结算凭证详情 - {{ voucher.voucher_no }}{% endblock %}
+
+{% block page_title %}结算凭证详情{% endblock %}
+
+{% block extra_css %}
+<style>
+    .data-container {
+        max-width: 98%;
+        width: 100%;
+        margin: 20px auto;
+        padding: 20px;
+        background-color: #ffffff;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+    }
+
+    .data-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 30px;
+        padding-bottom: 20px;
+        border-bottom: 2px solid #e9ecef;
+    }
+
+    .data-header h1 {
+        color: #2E7D32;
+        font-size: 28px;
+        margin: 0;
+        display: flex;
+        align-items: center;
+    }
+
+    .data-header h1 i {
+        margin-right: 10px;
+    }
+
+    .voucher-no {
+        background: #2E7D32;
+        color: white;
+        padding: 5px 15px;
+        border-radius: 20px;
+        font-size: 18px;
+        margin-left: 15px;
+    }
+
+    .info-card {
+        background: #f8f9fa;
+        border: 1px solid #e9ecef;
+        padding: 25px;
+        border-radius: 12px;
+        margin-bottom: 25px;
+    }
+
+    .info-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 20px;
+    }
+
+    .info-item {
+        text-align: center;
+        padding: 15px;
+        background: white;
+        border-radius: 8px;
+        border: 1px solid #e9ecef;
+    }
+
+    .info-label {
+        font-size: 13px;
+        color: #6c757d;
+        margin-bottom: 8px;
+    }
+
+    .info-value {
+        font-size: 22px;
+        font-weight: bold;
+        color: #2E7D32;
+    }
+
+    .section-title {
+        color: #2E7D32;
+        font-size: 18px;
+        font-weight: 600;
+        margin: 30px 0 15px 0;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #e9ecef;
+        display: flex;
+        align-items: center;
+    }
+
+    .section-title i {
+        margin-right: 10px;
+    }
+
+    .detail-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 15px;
+        margin-bottom: 25px;
+    }
+
+    .detail-item {
+        background: #f8f9fa;
+        padding: 15px;
+        border-radius: 8px;
+        border-left: 4px solid #2E7D32;
+    }
+
+    .detail-label {
+        font-size: 12px;
+        color: #6c757d;
+        margin-bottom: 5px;
+    }
+
+    .detail-value {
+        font-size: 16px;
+        font-weight: 500;
+        color: #212529;
+    }
+
+    .table-wrapper {
+        overflow-x: auto;
+        margin-top: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .data-table {
+        width: 100%;
+        border-collapse: collapse;
+        background-color: white;
+    }
+
+    .data-table th {
+        background-color: #2E7D32;
+        color: white;
+        padding: 12px 10px;
+        text-align: center;
+        font-weight: 600;
+        font-size: 13px;
+    }
+
+    .data-table td {
+        padding: 12px 10px;
+        border-bottom: 1px solid #e9ecef;
+        font-size: 13px;
+        text-align: center;
+    }
+
+    .data-table tr:hover {
+        background-color: #f8f9fa;
+    }
+
+    .hid-link {
+        color: #1976D2;
+        text-decoration: none;
+        font-weight: 500;
+    }
+
+    .hid-link:hover {
+        text-decoration: underline;
+    }
+
+    .amount {
+        font-weight: 500;
+    }
+
+    .amount.positive {
+        color: #28a745;
+    }
+
+    .amount.negative {
+        color: #dc3545;
+    }
+
+    .action-buttons {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 20px;
+    }
+
+    .action-btn {
+        background-color: #2196F3;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .action-btn:hover {
+        opacity: 0.9;
+        color: white;
+    }
+
+    .remarks-box {
+        background: #fff3cd;
+        border: 1px solid #ffc107;
+        border-radius: 8px;
+        padding: 15px;
+        margin-top: 20px;
+    }
+
+    .remarks-box h6 {
+        color: #856404;
+        margin-bottom: 10px;
+    }
+
+    .summary-row {
+        background-color: #e3f2fd !important;
+        font-weight: 600;
+    }
+
+    .summary-row td {
+        background-color: #e3f2fd !important;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="data-container">
+    <div class="data-header">
+        <h1>
+            <i class="fas fa-file-invoice-dollar"></i> 结算凭证详情
+            <span class="voucher-no">{{ voucher.voucher_no }}</span>
+        </h1>
+    </div>
+
+    <!-- 汇总信息卡片 -->
+    <div class="info-card">
+        <div class="info-grid">
+            <div class="info-item">
+                <div class="info-label">项目数量</div>
+                <div class="info-value">{{ voucher.project_count }}</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">总销售额</div>
+                <div class="info-value">S${{ "%.2f"|format(voucher.total_selling|float) }}</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">总成本</div>
+                <div class="info-value">S${{ "%.2f"|format(voucher.total_cost|float) }}</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">总利润</div>
+                <div class="info-value">S${{ "%.2f"|format(voucher.total_profit|float) }}</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 凭证详情 -->
+    <h3 class="section-title"><i class="fas fa-info-circle"></i> 凭证信息</h3>
+    <div class="detail-grid">
+        <div class="detail-item">
+            <div class="detail-label">凭证号</div>
+            <div class="detail-value">{{ voucher.voucher_no }}</div>
+        </div>
+        <div class="detail-item">
+            <div class="detail-label">结算日期</div>
+            <div class="detail-value">{{ voucher.settle_date.strftime('%Y-%m-%d %H:%M') if voucher.settle_date else '-' }}</div>
+        </div>
+        <div class="detail-item">
+            <div class="detail-label">结算人</div>
+            <div class="detail-value">{{ voucher.settled_by or '-' }}</div>
+        </div>
+        <div class="detail-item">
+            <div class="detail-label">创建时间</div>
+            <div class="detail-value">{{ voucher.created_at.strftime('%Y-%m-%d %H:%M') if voucher.created_at else '-' }}</div>
+        </div>
+    </div>
+
+    <!-- 利润分配 -->
+    <h3 class="section-title"><i class="fas fa-chart-pie"></i> 利润分配汇总</h3>
+    <div class="detail-grid">
+        <div class="detail-item">
+            <div class="detail-label">操作员利润合计</div>
+            <div class="detail-value amount {{ 'positive' if voucher.total_operator_profit and voucher.total_operator_profit > 0 else '' }}">
+                S${{ "%.2f"|format(voucher.total_operator_profit|float) }}
+            </div>
+        </div>
+        <div class="detail-item">
+            <div class="detail-label">业务员利润合计</div>
+            <div class="detail-value amount {{ 'positive' if voucher.total_sales_profit and voucher.total_sales_profit > 0 else '' }}">
+                S${{ "%.2f"|format(voucher.total_sales_profit|float) }}
+            </div>
+        </div>
+        <div class="detail-item">
+            <div class="detail-label">公司利润合计</div>
+            <div class="detail-value amount {{ 'positive' if voucher.total_company_profit and voucher.total_company_profit > 0 else '' }}">
+                S${{ "%.2f"|format(voucher.total_company_profit|float) }}
+            </div>
+        </div>
+    </div>
+
+    <!-- 备注 -->
+    {% if voucher.remarks %}
+    <div class="remarks-box">
+        <h6><i class="fas fa-sticky-note"></i> 结算备注</h6>
+        <p class="mb-0">{{ voucher.remarks }}</p>
+    </div>
+    {% endif %}
+
+    <!-- 关联项目列表 -->
+    <h3 class="section-title"><i class="fas fa-list"></i> 关联项目列表</h3>
+
+    {% if projects %}
+    <div class="table-wrapper">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>HID</th>
+                    <th>公司名称</th>
+                    <th>创建日期</th>
+                    <th>经办人</th>
+                    <th>销售金额</th>
+                    <th>成本</th>
+                    <th>利润</th>
+                    <th>订单类型</th>
+                    <th>操作员利润</th>
+                    <th>业务员利润</th>
+                    <th>公司利润</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for project in projects %}
+                {% set pstats = project_stats.get(project.id, {}) %}
+                <tr>
+                    <td>
+                        <a href="{{ url_for('business_projects.detail.project_detail', project_id=project.id) }}" class="hid-link">
+                            {{ project.hid }}
+                        </a>
+                    </td>
+                    <td>{{ project.company.company_name if project.company else '-' }}</td>
+                    <td>{{ project.created_at.strftime('%Y-%m-%d') if project.created_at else '-' }}</td>
+                    <td>{{ project.staff_name or '-' }}</td>
+                    <td class="amount">{{ "%.2f"|format(pstats.total_selling_price or 0) }}</td>
+                    <td class="amount">{{ "%.2f"|format(pstats.total_cost_price or 0) }}</td>
+                    <td class="amount {{ 'positive' if (pstats.total_profit or 0) > 0 else 'negative' if (pstats.total_profit or 0) < 0 else '' }}">
+                        {{ "%.2f"|format(pstats.total_profit or 0) }}
+                    </td>
+                    <td>{{ project.order_type or '-' }}</td>
+                    <td class="amount">{{ "%.2f"|format(project.operator_profit|float) if project.operator_profit else '0.00' }}</td>
+                    <td class="amount">{{ "%.2f"|format(project.sales_profit|float) if project.sales_profit else '0.00' }}</td>
+                    <td class="amount">{{ "%.2f"|format(project.company_profit|float) if project.company_profit else '0.00' }}</td>
+                </tr>
+                {% endfor %}
+
+                <!-- 汇总行 -->
+                <tr class="summary-row">
+                    <td colspan="4" style="text-align: right; font-weight: 600;">合计：</td>
+                    <td class="amount">{{ "%.2f"|format(voucher.total_selling|float) }}</td>
+                    <td class="amount">{{ "%.2f"|format(voucher.total_cost|float) }}</td>
+                    <td class="amount {{ 'positive' if voucher.total_profit and voucher.total_profit > 0 else 'negative' if voucher.total_profit and voucher.total_profit < 0 else '' }}">
+                        {{ "%.2f"|format(voucher.total_profit|float) }}
+                    </td>
+                    <td></td>
+                    <td class="amount">{{ "%.2f"|format(voucher.total_operator_profit|float) }}</td>
+                    <td class="amount">{{ "%.2f"|format(voucher.total_sales_profit|float) }}</td>
+                    <td class="amount">{{ "%.2f"|format(voucher.total_company_profit|float) }}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="alert alert-info">
+        <i class="fas fa-info-circle"></i> 暂无关联项目
+    </div>
+    {% endif %}
+
+    <!-- 操作按钮 -->
+    <div class="action-buttons mt-4">
+        <a href="{{ url_for('business_projects.settlement.voucher_list') }}" class="action-btn" style="background-color: #2E7D32;">
+            <i class="fas fa-arrow-left"></i> 返回凭证列表
+        </a>
+        <a href="{{ url_for('business_projects.settlement.settlement_list') }}" class="action-btn" style="background-color: #4CAF50;">
+            <i class="fas fa-calculator"></i> 返回项目结算
+        </a>
+        <button class="action-btn" style="background-color: #17a2b8;" onclick="window.print()">
+            <i class="fas fa-print"></i> 打印凭证
+        </button>
+    </div>
+</div>
+{% endblock %}

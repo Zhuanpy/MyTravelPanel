@@ -216,30 +216,32 @@
                 white-space: nowrap; 
                 padding: 8px 6px;
             }
-            #projectsTable th:nth-child(1), 
-            #projectsTable td:nth-child(1) { width: 100px; } /* 项目编号 */
-            #projectsTable th:nth-child(2), 
-            #projectsTable td:nth-child(2) { width: 150px; } /* 描述 */
-            #projectsTable th:nth-child(3), 
-            #projectsTable td:nth-child(3) { width: 150px; } /* 客户公司 */
-            #projectsTable th:nth-child(4), 
-            #projectsTable td:nth-child(4) { width: 80px; }  /* 联系人 */
-            #projectsTable th:nth-child(5), 
-            #projectsTable td:nth-child(5) { width: 70px; }  /* 经办人 */
-            #projectsTable th:nth-child(6), 
-            #projectsTable td:nth-child(6) { width: 70px; }  /* 类型 */
-            #projectsTable th:nth-child(7), 
-            #projectsTable td:nth-child(7) { width: 100px; } /* 销售金额 */
-            #projectsTable th:nth-child(8), 
-            #projectsTable td:nth-child(8) { width: 100px; } /* 成本 */
-            #projectsTable th:nth-child(9), 
-            #projectsTable td:nth-child(9) { width: 90px; }  /* 利润 */
-            #projectsTable th:nth-child(10), 
-            #projectsTable td:nth-child(10) { width: 90px; } /* 未付款 */
-            #projectsTable th:nth-child(11), 
-            #projectsTable td:nth-child(11) { width: 90px; } /* 创建时间 */
-            #projectsTable th:nth-child(12), 
-            #projectsTable td:nth-child(12) { width: 60px; }  /* 操作 */
+            #projectsTable th:nth-child(1),
+            #projectsTable td:nth-child(1) { width: 70px; } /* 项目编号 */
+            #projectsTable th:nth-child(2),
+            #projectsTable td:nth-child(2) { width: 130px; } /* 描述 */
+            #projectsTable th:nth-child(3),
+            #projectsTable td:nth-child(3) { width: 120px; } /* 客户公司 */
+            #projectsTable th:nth-child(4),
+            #projectsTable td:nth-child(4) { width: 70px; }  /* 联系人 */
+            #projectsTable th:nth-child(5),
+            #projectsTable td:nth-child(5) { width: 60px; }  /* 经办人 */
+            #projectsTable th:nth-child(6),
+            #projectsTable td:nth-child(6) { width: 60px; }  /* 类型 */
+            #projectsTable th:nth-child(7),
+            #projectsTable td:nth-child(7) { width: 85px; } /* 销售金额 */
+            #projectsTable th:nth-child(8),
+            #projectsTable td:nth-child(8) { width: 85px; } /* 成本 */
+            #projectsTable th:nth-child(9),
+            #projectsTable td:nth-child(9) { width: 85px; }  /* 利润 */
+            #projectsTable th:nth-child(10),
+            #projectsTable td:nth-child(10) { width: 85px; } /* 未付款 */
+            #projectsTable th:nth-child(11),
+            #projectsTable td:nth-child(11) { width: 75px; } /* 结算 */
+            #projectsTable th:nth-child(12),
+            #projectsTable td:nth-child(12) { width: 80px; } /* 创建时间 */
+            #projectsTable th:nth-child(13),
+            #projectsTable td:nth-child(13) { width: 45px; }  /* 操作 */
             </style>
 
             <form method="GET" action="{{ url_for('business_projects.list.list_projects') }}" id="filterForm">
@@ -265,6 +267,24 @@
                             <option value="">所有状态</option>
                             <option value="unpaid" {{ 'selected' if filters.payment_status == 'unpaid' }}>未付款</option>
                             <option value="paid" {{ 'selected' if filters.payment_status == 'paid' }}>已付款</option>
+                        </select>
+                    </div>
+                    <div class="filter-item">
+                        <label for="profit_status" class="form-label">盈亏状态</label>
+                        <select class="form-select filter-input" id="profit_status" name="profit_status">
+                            <option value="">全部</option>
+                            <option value="profit" {{ 'selected' if filters.profit_status == 'profit' }}>盈利</option>
+                            <option value="loss" {{ 'selected' if filters.profit_status == 'loss' }}>亏损</option>
+                            <option value="zero" {{ 'selected' if filters.profit_status == 'zero' }}>持平</option>
+                        </select>
+                    </div>
+                    <div class="filter-item">
+                        <label for="settlement_status" class="form-label">结算状态</label>
+                        <select class="form-select filter-input" id="settlement_status" name="settlement_status">
+                            <option value="">全部</option>
+                            <option value="settled" {{ 'selected' if filters.settlement_status == 'settled' }}>已结算</option>
+                            <option value="unsettled" {{ 'selected' if filters.settlement_status == 'unsettled' }}>未结算</option>
+                            <option value="can_settle" {{ 'selected' if filters.settlement_status == 'can_settle' }}>可结算</option>
                         </select>
                     </div>
                     <div class="filter-item">
@@ -332,6 +352,7 @@
                             <th>成本</th>
                             <th>利润</th>
                             <th>未付款</th>
+                            <th>结算</th>
                             <th>创建时间</th>
                             <th>操作</th>
                         </tr>
@@ -390,6 +411,24 @@
                                     S${{ "%.2f"|format(balance) }}
                                 </span>
                             </td>
+                            <td class="text-center">
+                                {% if project.is_settled %}
+                                <span class="badge bg-success" title="结算时间: {{ project.settled_at.strftime('%Y-%m-%d') if project.settled_at else '-' }}">
+                                    <i class="fas fa-check-circle"></i> 已结算
+                                </span>
+                                {% elif stats.can_settle %}
+                                <button type="button" class="btn btn-sm btn-warning settle-project"
+                                        data-project-id="{{ project.id }}"
+                                        data-project-hid="{{ project.hid }}"
+                                        title="点击确认结算">
+                                    <i class="fas fa-coins"></i> 可结算
+                                </button>
+                                {% else %}
+                                <span class="badge bg-secondary" title="REF: {{ stats.invoiced_ref_count }}/{{ stats.ref_count }} 有发票&#10;EO: {{ stats.paid_eo_count }}/{{ stats.eo_count }} 已付款&#10;余额: S${{ '%.2f'|format(balance) }}">
+                                    <i class="fas fa-hourglass-half"></i> 未完成
+                                </span>
+                                {% endif %}
+                            </td>
                             <td>
                                 <small class="text-muted">
                                     {{ project.created_at.strftime('%Y-%m-%d') if project.created_at else '未知' }}
@@ -434,6 +473,7 @@
                                     S${{ "%.2f"|format(summary_stats.total_balance or 0) }}
                                 </span>
                             </td>
+                            <td></td><!-- 结算列占位 -->
                             <td colspan="2"></td>
                         </tr>
                         {% endif %}
@@ -620,14 +660,42 @@ window.deleteProject = function(projectId) {
     });
 };
 
+// 结算项目
+window.settleProject = function(projectId, projectHid) {
+    const csrfTokenEl = document.querySelector('input[name="csrf_token"]');
+    const csrfToken = csrfTokenEl ? csrfTokenEl.value : '';
+
+    if (!confirm(`确定要结算项目 ${projectHid} 吗？\n\n结算后表示该项目的业绩已完成核算。`)) {
+        return;
+    }
+
+    fetch(`/projects/list/api/settle/${projectId}`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': csrfToken,
+            'X-Requested-With': 'XMLHttpRequest',
+            'Content-Type': 'application/json'
+        }
+    }).then(res => res.json()).then(response => {
+        if (response.success) {
+            alert('结算成功！');
+            location.reload();
+        } else {
+            alert('结算失败：' + (response.message || ''));
+        }
+    }).catch(err => {
+        alert('结算失败：' + err);
+    });
+};
+
 // 页面加载完成后初始化
 document.addEventListener('DOMContentLoaded', function() {
     console.log('DOM loaded, binding events...');
-    
+
     // 绑定删除按钮事件
     const deleteButtons = document.querySelectorAll('.delete-project');
     console.log('找到删除按钮数量:', deleteButtons.length);
-    
+
     deleteButtons.forEach(function(btn, index){
         console.log(`绑定删除按钮 ${index + 1}:`, btn.dataset.projectId, btn);
         btn.addEventListener('click', function(e){
@@ -641,7 +709,17 @@ document.addEventListener('DOMContentLoaded', function() {
         });
         console.log(`删除按钮 ${index + 1} 事件绑定完成`);
     });
-    
+
+    // 绑定结算按钮事件
+    const settleButtons = document.querySelectorAll('.settle-project');
+    settleButtons.forEach(function(btn){
+        btn.addEventListener('click', function(e){
+            const projectId = this.dataset.projectId;
+            const projectHid = this.dataset.projectHid;
+            window.settleProject(projectId, projectHid);
+        });
+    });
+
     console.log('Event binding completed');
 });
 </script>

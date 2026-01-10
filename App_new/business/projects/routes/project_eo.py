@@ -717,19 +717,21 @@ def pay_eo(eo_id):
         # 获取请求数据
         data = request.get_json()
         payment_no = data.get('payment_no')
+        payment_voucher_no = data.get('payment_voucher_no', '')
         paid_date_str = data.get('paid_date')
         pay_amount = data.get('pay_amount')
         payment_remarks = data.get('payment_remarks', '')
-        
+
         if not payment_no or not paid_date_str or pay_amount is None:
             return jsonify({'success': False, 'message': '请填写完整的付款信息'}), 400
-        
+
         # 解析日期
         from datetime import datetime
         paid_date = datetime.strptime(paid_date_str, '%Y-%m-%d').date()
-        
+
         # 更新付款信息
         eo.payment_no = payment_no
+        eo.payment_voucher_no = payment_voucher_no if payment_voucher_no else None
         eo.paid_date = paid_date
         eo.pay_amount = pay_amount
         eo.payment_remarks = payment_remarks
@@ -910,6 +912,7 @@ def eo_list():
         keyword = request.args.get('keyword', '')
         sort_by = request.args.get('sort_by', 'created_at')
         sort_order = request.args.get('sort_order', 'desc')
+        has_invoice = request.args.get('has_invoice', '')  # 筛选有无发票
         
         # 构建查询
         from App_new.shared.models.business_types import BusinessType
@@ -1023,6 +1026,19 @@ def eo_list():
                 CustomerCompany.company_name.ilike(f'%{keyword}%')
             )
             filters.append(keyword_filter)
+
+        # 筛选有无发票
+        if has_invoice:
+            from App_new.business.projects.models.invoice import InvoiceItem
+            # 获取有发票的 ref_id 列表
+            refs_with_invoice = db.session.query(InvoiceItem.ref_id).filter(
+                InvoiceItem.ref_id.isnot(None)
+            ).distinct().subquery()
+
+            if has_invoice == 'yes':
+                filters.append(ProjectEO.ref_id.in_(db.session.query(refs_with_invoice.c.ref_id)))
+            elif has_invoice == 'no':
+                filters.append(~ProjectEO.ref_id.in_(db.session.query(refs_with_invoice.c.ref_id)))
         
         # 应用筛选条件
         if filters:
@@ -1081,15 +1097,40 @@ def eo_list():
             pagination.iter_pages = iter_pages
         
         # 处理EO数据，添加显示属性
+        from App_new.business.projects.models.invoice import InvoiceItem, ProjectInvoice
         eos = []
         for eo, supplier_name, ref_type_name, ref_description, ref_detailed_description, ref_number, project_id, project_hid, project_name, company_name in pagination.items:
-            # 获取乘客姓名
+            # 获取乘客/出行人姓名
             pax_names = ''
             if eo.ref:
+                # 1. 先尝试从机票乘客表获取
                 from App_new.business.flight.models.flight import ProjectFlightPassenger
                 passengers = ProjectFlightPassenger.query.filter_by(ref_id=eo.ref_id).all()
                 if passengers:
                     pax_names = ', '.join([p.name for p in passengers if p.name])
+                # 2. 如果没有乘客记录，从项目成员表获取
+                if not pax_names and eo.ref.header:
+                    from App_new.business.projects.models.project_member import ProjectMember
+                    members = ProjectMember.query.filter_by(header_id=eo.ref.header.id).all()
+                    if members:
+                        # 优先显示 leader，否则显示所有成员
+                        leaders = [m.member_name for m in members if m.is_leader and m.member_name]
+                        if leaders:
+                            pax_names = ', '.join(leaders)
+                        else:
+                            pax_names = ', '.join([m.member_name for m in members if m.member_name])
+
+            # 获取关联的发票信息
+            invoice_info = None
+            if eo.ref_id:
+                invoice_item = InvoiceItem.query.filter_by(ref_id=eo.ref_id).first()
+                if invoice_item and invoice_item.invoice:
+                    inv = invoice_item.invoice
+                    invoice_info = {
+                        'id': inv.id,
+                        'invoice_number': inv.invoice_number,
+                        'status': inv.status
+                    }
             
             eo_dict = {
                 'id': eo.id,
@@ -1114,7 +1155,7 @@ def eo_list():
                 'pay_amount': float(eo.pay_amount) if eo.pay_amount else None,
                 # REF价格信息
                 'selling_price': float(eo.ref.selling_price) if eo.ref and eo.ref.selling_price else None,
-                'cost_price': float(eo.ref.cost_price) if eo.ref and eo.ref.cost_price else None,
+                'cost_price': float(eo.ref.cost_price) if eo.ref and eo.ref.cost_price else 0,
                 'currency': str(eo.ref.currency) if eo.ref and eo.ref.currency else 'SGD',
                 # 外部系统
                 'external_system': str(eo.external_system) if eo.external_system else '',
@@ -1125,7 +1166,9 @@ def eo_list():
                 'status_display': get_status_display(eo.status),
                 'status_color': get_status_color(eo.status),
                 'created_at': eo.created_at,
-                'updated_at': eo.updated_at
+                'updated_at': eo.updated_at,
+                # 发票信息
+                'invoice': invoice_info
             }
             eos.append(eo_dict)
         
@@ -1133,8 +1176,8 @@ def eo_list():
         suppliers = Supplier.query.order_by(Supplier.name).all()
         
         # 计算筛选结果数量
-        filtered_count = pagination.total if any([supplier_type, status, supplier_id, external_system, date_range, min_amount, max_amount, keyword]) else None
-        
+        filtered_count = pagination.total if any([supplier_type, status, supplier_id, external_system, date_range, min_amount, max_amount, keyword, has_invoice]) else None
+
         return render_template('business/projects/project_eo/eo_list.html',
                              eos=eos,
                              pagination=pagination,
@@ -1150,7 +1193,8 @@ def eo_list():
                                  'max_amount': max_amount,
                                  'keyword': keyword,
                                  'sort_by': sort_by,
-                                 'sort_order': sort_order
+                                 'sort_order': sort_order,
+                                 'has_invoice': has_invoice
                              })
                              
     except Exception as e:

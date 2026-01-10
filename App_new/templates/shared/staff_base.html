@@ -105,6 +105,11 @@
                             <li><a class="dropdown-item" href="{{ url_for('business_projects.project_receipt.receipt_list') }}">
                                 <i class="fas fa-receipt me-2"></i>收据列表
                             </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><h6 class="dropdown-header">Settlement 结算</h6></li>
+                            <li><a class="dropdown-item" href="{{ url_for('business_projects.settlement.settlement_list') }}">
+                                <i class="fas fa-calculator me-2"></i>项目结算
+                            </a></li>
                         </ul>
                     </li>
                     <!-- Ledger 独立菜单 -->
@@ -544,6 +549,13 @@
                                href="{{ url_for('business_projects.project_receipt.receipt_list') }}">
                                 <i class="fas fa-receipt me-2"></i>
                                 收据列表
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint == 'business_projects.settlement.settlement_list' %}active{% endif %}"
+                               href="{{ url_for('business_projects.settlement.settlement_list') }}">
+                                <i class="fas fa-calculator me-2"></i>
+                                项目结算
                             </a>
                         </li>
 

@@ -123,11 +123,13 @@ def list_projects():
         selling_max = request.args.get('selling_max', '')
         profit_min = request.args.get('profit_min', '')
         profit_max = request.args.get('profit_max', '')
+        profit_status = request.args.get('profit_status', '')  # 盈亏状态：profit/loss/zero
         balance_min = request.args.get('balance_min', '')
         balance_max = request.args.get('balance_max', '')
         payment_status = request.args.get('payment_status', '')
+        settlement_status = request.args.get('settlement_status', '')  # 结算状态：settled/unsettled
         sort_by = request.args.get('sort_by', 'created_at_desc')
-        
+
         # 使用服务层处理业务逻辑
         project_service = ProjectService()
         stats_service = ProjectStatsService()
@@ -208,7 +210,94 @@ def list_projects():
         project_type = request.args.get('type', '')
         if project_type:
             base_query = base_query.filter(ProjectHeader.type == project_type)
-        
+
+        # 添加结算状态筛选
+        if settlement_status:
+            if settlement_status == 'settled':
+                base_query = base_query.filter(ProjectHeader.is_settled == True)
+            elif settlement_status == 'unsettled':
+                base_query = base_query.filter(ProjectHeader.is_settled == False)
+            elif settlement_status == 'can_settle':
+                # 可结算：未结算 且 满足结算条件
+                from App_new.business.projects.models.eo import ProjectEO
+                from App_new.business.projects.models.invoice import InvoiceItem
+
+                # 1. 必须未结算
+                base_query = base_query.filter(ProjectHeader.is_settled == False)
+
+                # 2. 必须有REF且所有REF都有发票
+                # 子查询：每个项目的REF数量
+                ref_count_subq = db.session.query(
+                    ProjectRef.header_id,
+                    db.func.count(ProjectRef.id).label('ref_count')
+                ).group_by(ProjectRef.header_id).subquery()
+
+                # 子查询：每个项目有发票的REF数量
+                invoiced_ref_subq = db.session.query(
+                    ProjectRef.header_id,
+                    db.func.count(db.distinct(InvoiceItem.ref_id)).label('invoiced_count')
+                ).join(InvoiceItem, InvoiceItem.ref_id == ProjectRef.id
+                ).group_by(ProjectRef.header_id).subquery()
+
+                # 3. 所有EO已付款（或没有EO）
+                # 子查询：每个项目的EO数量
+                eo_count_subq = db.session.query(
+                    ProjectRef.header_id,
+                    db.func.count(ProjectEO.id).label('eo_count')
+                ).join(ProjectEO, ProjectEO.ref_id == ProjectRef.id
+                ).group_by(ProjectRef.header_id).subquery()
+
+                # 子查询：每个项目已付款的EO数量
+                paid_eo_subq = db.session.query(
+                    ProjectRef.header_id,
+                    db.func.count(ProjectEO.id).label('paid_count')
+                ).join(ProjectEO, ProjectEO.ref_id == ProjectRef.id
+                ).filter(ProjectEO.pay_amount > 0
+                ).group_by(ProjectRef.header_id).subquery()
+
+                # 4. Balance = 0
+                # 子查询：每个项目的销售总额
+                selling_subq = db.session.query(
+                    ProjectRef.header_id,
+                    db.func.coalesce(db.func.sum(ProjectRef.selling_price), 0).label('total_selling')
+                ).group_by(ProjectRef.header_id).subquery()
+
+                # 子查询：每个项目的收款总额
+                receipt_subq = db.session.query(
+                    ProjectReceipt.header_id,
+                    db.func.coalesce(db.func.sum(ProjectReceipt.amount), 0).label('total_received')
+                ).filter(ProjectReceipt.status == 'confirmed'
+                ).group_by(ProjectReceipt.header_id).subquery()
+
+                # 组合查询：找出满足所有条件的项目
+                can_settle_subq = db.session.query(ref_count_subq.c.header_id).outerjoin(
+                    invoiced_ref_subq, invoiced_ref_subq.c.header_id == ref_count_subq.c.header_id
+                ).outerjoin(
+                    eo_count_subq, eo_count_subq.c.header_id == ref_count_subq.c.header_id
+                ).outerjoin(
+                    paid_eo_subq, paid_eo_subq.c.header_id == ref_count_subq.c.header_id
+                ).outerjoin(
+                    selling_subq, selling_subq.c.header_id == ref_count_subq.c.header_id
+                ).outerjoin(
+                    receipt_subq, receipt_subq.c.header_id == ref_count_subq.c.header_id
+                ).filter(
+                    # 条件1：有REF且所有REF都有发票
+                    ref_count_subq.c.ref_count > 0,
+                    ref_count_subq.c.ref_count == db.func.coalesce(invoiced_ref_subq.c.invoiced_count, 0),
+                    # 条件2：所有EO已付款（或没有EO）
+                    db.or_(
+                        eo_count_subq.c.eo_count.is_(None),  # 没有EO
+                        eo_count_subq.c.eo_count == db.func.coalesce(paid_eo_subq.c.paid_count, 0)
+                    ),
+                    # 条件3：Balance = 0
+                    db.func.abs(
+                        db.func.coalesce(selling_subq.c.total_selling, 0) -
+                        db.func.coalesce(receipt_subq.c.total_received, 0)
+                    ) < 0.01
+                )
+
+                base_query = base_query.filter(ProjectHeader.id.in_(can_settle_subq))
+
         # 添加付款状态筛选 - 基于发票数据判断
         if payment_status:
             from App_new.business.projects.models.invoice import ProjectInvoice
@@ -347,6 +436,7 @@ def list_projects():
                 ).group_by(ProjectReceipt.header_id).all()
 
                 # 2. 按公司收款 - 从分配表获取每个项目的实际分配金额
+                # 注意：只统计没有 ref_id 且没有 distribution 的收款，避免重复计算
                 from App_new.business.projects.models.receipt import ReceiptInvoiceAllocation
                 from App_new.business.projects.models.invoice import ProjectInvoice
                 invoice_allocated = db.session.query(
@@ -358,7 +448,10 @@ def list_projects():
                     ProjectReceipt, ReceiptInvoiceAllocation.receipt_id == ProjectReceipt.id
                 ).filter(
                     ProjectInvoice.header_id.in_(project_ids),
-                    ProjectReceipt.status == 'confirmed'
+                    ProjectReceipt.status == 'confirmed',
+                    # 排除已在普通收款中计算过的收款（有ref_id或有distribution的）
+                    ProjectReceipt.ref_id.is_(None),
+                    db.not_(ProjectReceipt.extra_info.like('%"distribution"%'))
                 ).group_by(ProjectInvoice.header_id).all()
 
                 # 合并两种收款方式的数据
@@ -373,7 +466,8 @@ def list_projects():
                 
                 # 检查项目是否有EO或receipt
                 from App_new.business.projects.models.eo import ProjectEO
-                
+                from App_new.business.projects.models.invoice import InvoiceItem
+
                 # 检查EO
                 eo_check = db.session.query(
                     ProjectEO.ref_id,
@@ -381,12 +475,48 @@ def list_projects():
                 ).join(ProjectRef, ProjectEO.ref_id == ProjectRef.id).filter(
                     ProjectRef.header_id.in_(project_ids)
                 ).distinct().all()
-                
+
                 # 检查receipt
                 receipt_check = db.session.query(
                     ProjectReceipt.header_id
                 ).filter(ProjectReceipt.header_id.in_(project_ids)).distinct().all()
-                
+
+                # === 结算状态计算 ===
+                # 1. 每个项目的 REF 总数
+                ref_counts = db.session.query(
+                    ProjectRef.header_id,
+                    db.func.count(ProjectRef.id).label('ref_count')
+                ).filter(ProjectRef.header_id.in_(project_ids)).group_by(ProjectRef.header_id).all()
+                ref_count_dict = {r.header_id: r.ref_count for r in ref_counts}
+
+                # 2. 每个项目有 InvoiceItem 的 REF 数量
+                ref_with_invoice = db.session.query(
+                    ProjectRef.header_id,
+                    db.func.count(db.distinct(InvoiceItem.ref_id)).label('invoiced_ref_count')
+                ).join(InvoiceItem, InvoiceItem.ref_id == ProjectRef.id).filter(
+                    ProjectRef.header_id.in_(project_ids)
+                ).group_by(ProjectRef.header_id).all()
+                invoiced_ref_dict = {r.header_id: r.invoiced_ref_count for r in ref_with_invoice}
+
+                # 3. 每个项目的 EO 总数
+                eo_counts = db.session.query(
+                    ProjectRef.header_id,
+                    db.func.count(ProjectEO.id).label('eo_count')
+                ).join(ProjectRef, ProjectEO.ref_id == ProjectRef.id).filter(
+                    ProjectRef.header_id.in_(project_ids)
+                ).group_by(ProjectRef.header_id).all()
+                eo_count_dict = {r.header_id: r.eo_count for r in eo_counts}
+
+                # 4. 每个项目已付款的 EO 数量（pay_amount > 0）
+                eo_paid_counts = db.session.query(
+                    ProjectRef.header_id,
+                    db.func.count(ProjectEO.id).label('paid_eo_count')
+                ).join(ProjectRef, ProjectEO.ref_id == ProjectRef.id).filter(
+                    ProjectRef.header_id.in_(project_ids),
+                    ProjectEO.pay_amount > 0
+                ).group_by(ProjectRef.header_id).all()
+                paid_eo_dict = {r.header_id: r.paid_eo_count for r in eo_paid_counts}
+
                 # 构建统计字典
                 for project_id in project_ids:
                     ref_info = next((r for r in refs_data if r.header_id == project_id), None)
@@ -412,15 +542,35 @@ def list_projects():
 
                     # 从字典获取收款金额
                     total_received = receipts_data.get(project_id, 0)
+                    balance = total_selling - total_received
+
+                    # 计算结算状态
+                    ref_count = ref_count_dict.get(project_id, 0)
+                    invoiced_ref_count = invoiced_ref_dict.get(project_id, 0)
+                    eo_count = eo_count_dict.get(project_id, 0)
+                    paid_eo_count = paid_eo_dict.get(project_id, 0)
+
+                    # 可结算条件：所有REF有发票 且 所有EO已付款 且 Balance=0
+                    all_refs_invoiced = ref_count > 0 and ref_count == invoiced_ref_count
+                    all_eos_paid = eo_count == 0 or (eo_count > 0 and eo_count == paid_eo_count)
+                    balance_cleared = abs(balance) < 0.01  # 考虑浮点精度
+
+                    can_settle = all_refs_invoiced and all_eos_paid and balance_cleared
 
                     project_stats[project_id] = {
                         'total_selling_price': total_selling,
                         'total_cost_price': total_cost,
                         'total_profit': total_selling - total_cost,
                         'total_received': total_received,
-                        'balance': total_selling - total_received,
+                        'balance': balance,
                         'has_eo': has_eo,
-                        'has_receipt': has_receipt
+                        'has_receipt': has_receipt,
+                        # 结算相关
+                        'ref_count': ref_count,
+                        'invoiced_ref_count': invoiced_ref_count,
+                        'eo_count': eo_count,
+                        'paid_eo_count': paid_eo_count,
+                        'can_settle': can_settle
                     }
             except Exception as e:
                 print(f"构建项目统计时出错: {e}")
@@ -433,7 +583,12 @@ def list_projects():
                         'total_received': 0,
                         'balance': 0,
                         'has_eo': False,
-                        'has_receipt': False
+                        'has_receipt': False,
+                        'ref_count': 0,
+                        'invoiced_ref_count': 0,
+                        'eo_count': 0,
+                        'paid_eo_count': 0,
+                        'can_settle': False
                     }
         else:
             # 如果不显示财务统计，提供空的统计数据
@@ -459,7 +614,12 @@ def list_projects():
                         'total_received': 0,
                         'balance': 0,
                         'has_eo': has_eo,
-                        'has_receipt': has_receipt
+                        'has_receipt': has_receipt,
+                        'ref_count': 0,
+                        'invoiced_ref_count': 0,
+                        'eo_count': 0,
+                        'paid_eo_count': 0,
+                        'can_settle': False
                     }
                 except Exception as e:
                     print(f"检查项目 {project_id} EO/receipt状态时出错: {e}")
@@ -471,9 +631,14 @@ def list_projects():
                         'total_received': 0,
                         'balance': 0,
                         'has_eo': False,
-                        'has_receipt': False
+                        'has_receipt': False,
+                        'ref_count': 0,
+                        'invoiced_ref_count': 0,
+                        'eo_count': 0,
+                        'paid_eo_count': 0,
+                        'can_settle': False
                     }
-        
+
         # 注意：付款状态筛选已在数据库层面完成，无需在此二次筛选
         
         # 获取总体统计（简化版本，只获取基本计数）
@@ -489,7 +654,7 @@ def list_projects():
         }
         
         # 应用金额筛选（在数据库层面进行，提高效率）
-        if selling_min or selling_max or profit_min or profit_max or balance_min or balance_max:
+        if selling_min or selling_max or profit_min or profit_max or balance_min or balance_max or profit_status:
             try:
                 # 构建子查询来筛选符合条件的项目
                 subquery = db.session.query(ProjectRef.header_id).group_by(ProjectRef.header_id)
@@ -506,7 +671,25 @@ def list_projects():
                     subquery = subquery.having(
                         db.func.sum(ProjectRef.selling_price) - db.func.sum(ProjectRef.cost_price) <= float(profit_max)
                     )
-                
+
+                # 应用盈亏状态筛选
+                if profit_status:
+                    if profit_status == 'loss':
+                        # 亏损：利润 < 0
+                        subquery = subquery.having(
+                            db.func.sum(ProjectRef.selling_price) - db.func.sum(ProjectRef.cost_price) < 0
+                        )
+                    elif profit_status == 'profit':
+                        # 盈利：利润 > 0
+                        subquery = subquery.having(
+                            db.func.sum(ProjectRef.selling_price) - db.func.sum(ProjectRef.cost_price) > 0
+                        )
+                    elif profit_status == 'zero':
+                        # 持平：利润 = 0
+                        subquery = subquery.having(
+                            db.func.sum(ProjectRef.selling_price) - db.func.sum(ProjectRef.cost_price) == 0
+                        )
+
                 # 应用余额筛选（销售金额 - 已收款金额）
                 if balance_min or balance_max:
                     print(f"应用余额筛选: balance_min={balance_min}, balance_max={balance_max}")
@@ -566,6 +749,7 @@ def list_projects():
                     ).group_by(ProjectReceipt.header_id).all()
 
                     # 2. 按公司收款 - 从分配表获取
+                    # 注意：只统计没有 ref_id 且没有 distribution 的收款，避免重复计算
                     invoice_allocated = db.session.query(
                         ProjectInvoice.header_id,
                         db.func.sum(ReceiptInvoiceAllocation.allocated_amount).label('total_allocated')
@@ -575,7 +759,10 @@ def list_projects():
                         ProjectReceipt, ReceiptInvoiceAllocation.receipt_id == ProjectReceipt.id
                     ).filter(
                         ProjectInvoice.header_id.in_(project_ids),
-                        ProjectReceipt.status == 'confirmed'
+                        ProjectReceipt.status == 'confirmed',
+                        # 排除已在普通收款中计算过的收款
+                        ProjectReceipt.ref_id.is_(None),
+                        db.not_(ProjectReceipt.extra_info.like('%"distribution"%'))
                     ).group_by(ProjectInvoice.header_id).all()
 
                     # 合并数据
@@ -604,6 +791,44 @@ def list_projects():
                         ProjectReceipt.header_id
                     ).filter(ProjectReceipt.header_id.in_(project_ids)).distinct().all()
 
+                    # === 结算状态计算（筛选后重新计算） ===
+                    from App_new.business.projects.models.invoice import InvoiceItem
+
+                    # 1. 每个项目的 REF 总数
+                    ref_counts = db.session.query(
+                        ProjectRef.header_id,
+                        db.func.count(ProjectRef.id).label('ref_count')
+                    ).filter(ProjectRef.header_id.in_(project_ids)).group_by(ProjectRef.header_id).all()
+                    ref_count_dict = {r.header_id: r.ref_count for r in ref_counts}
+
+                    # 2. 每个项目有 InvoiceItem 的 REF 数量
+                    ref_with_invoice = db.session.query(
+                        ProjectRef.header_id,
+                        db.func.count(db.distinct(InvoiceItem.ref_id)).label('invoiced_ref_count')
+                    ).join(InvoiceItem, InvoiceItem.ref_id == ProjectRef.id).filter(
+                        ProjectRef.header_id.in_(project_ids)
+                    ).group_by(ProjectRef.header_id).all()
+                    invoiced_ref_dict = {r.header_id: r.invoiced_ref_count for r in ref_with_invoice}
+
+                    # 3. 每个项目的 EO 总数
+                    eo_counts = db.session.query(
+                        ProjectRef.header_id,
+                        db.func.count(ProjectEO.id).label('eo_count')
+                    ).join(ProjectRef, ProjectEO.ref_id == ProjectRef.id).filter(
+                        ProjectRef.header_id.in_(project_ids)
+                    ).group_by(ProjectRef.header_id).all()
+                    eo_count_dict = {r.header_id: r.eo_count for r in eo_counts}
+
+                    # 4. 每个项目已付款的 EO 数量
+                    eo_paid_counts = db.session.query(
+                        ProjectRef.header_id,
+                        db.func.count(ProjectEO.id).label('paid_eo_count')
+                    ).join(ProjectRef, ProjectEO.ref_id == ProjectRef.id).filter(
+                        ProjectRef.header_id.in_(project_ids),
+                        ProjectEO.pay_amount > 0
+                    ).group_by(ProjectRef.header_id).all()
+                    paid_eo_dict = {r.header_id: r.paid_eo_count for r in eo_paid_counts}
+
                     # 更新统计字典
                     for project_id in project_ids:
                         ref_info = next((r for r in refs_data if r.header_id == project_id), None)
@@ -628,6 +853,19 @@ def list_projects():
 
                         # 从字典获取收款金额
                         total_received = receipts_data.get(project_id, 0)
+                        balance = total_selling - total_received
+
+                        # 计算结算状态
+                        ref_count = ref_count_dict.get(project_id, 0)
+                        invoiced_ref_count = invoiced_ref_dict.get(project_id, 0)
+                        eo_count = eo_count_dict.get(project_id, 0)
+                        paid_eo_count = paid_eo_dict.get(project_id, 0)
+
+                        all_refs_invoiced = ref_count > 0 and ref_count == invoiced_ref_count
+                        all_eos_paid = eo_count == 0 or (eo_count > 0 and eo_count == paid_eo_count)
+                        balance_cleared = abs(balance) < 0.01
+
+                        can_settle = all_refs_invoiced and all_eos_paid and balance_cleared
 
                         # 更新现有的统计数据
                         if project_id in project_stats:
@@ -636,9 +874,14 @@ def list_projects():
                                 'total_cost_price': total_cost,
                                 'total_profit': total_selling - total_cost,
                                 'total_received': total_received,
-                                'balance': total_selling - total_received,
+                                'balance': balance,
                                 'has_eo': has_eo,
-                                'has_receipt': has_receipt
+                                'has_receipt': has_receipt,
+                                'ref_count': ref_count,
+                                'invoiced_ref_count': invoiced_ref_count,
+                                'eo_count': eo_count,
+                                'paid_eo_count': paid_eo_count,
+                                'can_settle': can_settle
                             })
                         else:
                             project_stats[project_id] = {
@@ -646,9 +889,14 @@ def list_projects():
                                 'total_cost_price': total_cost,
                                 'total_profit': total_selling - total_cost,
                                 'total_received': total_received,
-                                'balance': total_selling - total_received,
+                                'balance': balance,
                                 'has_eo': has_eo,
-                                'has_receipt': has_receipt
+                                'has_receipt': has_receipt,
+                                'ref_count': ref_count,
+                                'invoiced_ref_count': invoiced_ref_count,
+                                'eo_count': eo_count,
+                                'paid_eo_count': paid_eo_count,
+                                'can_settle': can_settle
                             }
             except Exception as e:
                 print(f"应用金额筛选时出错: {e}")
@@ -696,6 +944,8 @@ def list_projects():
                 'payment_status': payment_status,
                 'profit_min': profit_min,
                 'profit_max': profit_max,
+                'profit_status': profit_status,
+                'settlement_status': settlement_status,
                 'balance_min': balance_min,
                 'balance_max': balance_max,
                 'sort_by': sort_by
@@ -974,6 +1224,7 @@ def export_excel():
             ).group_by(ProjectReceipt.header_id).all()
 
             # 2. 按公司收款 - 从分配表获取
+            # 注意：只统计没有 ref_id 且没有 distribution 的收款，避免重复计算
             invoice_allocated = db.session.query(
                 ProjectInvoice.header_id,
                 db.func.sum(ReceiptInvoiceAllocation.allocated_amount).label('total_allocated')
@@ -983,7 +1234,10 @@ def export_excel():
                 ProjectReceipt, ReceiptInvoiceAllocation.receipt_id == ProjectReceipt.id
             ).filter(
                 ProjectInvoice.header_id.in_(project_ids),
-                ProjectReceipt.status == 'confirmed'
+                ProjectReceipt.status == 'confirmed',
+                # 排除已在普通收款中计算过的收款
+                ProjectReceipt.ref_id.is_(None),
+                db.not_(ProjectReceipt.extra_info.like('%"distribution"%'))
             ).group_by(ProjectInvoice.header_id).all()
 
             # 合并数据
@@ -1092,3 +1346,118 @@ def export_excel():
         import traceback
         traceback.print_exc()
         return redirect(url_for('business_projects.list.list_projects'))
+
+
+@bp.route('/api/settle/<int:project_id>', methods=['POST'])
+@login_required
+@staff_only
+def settle_project(project_id):
+    """
+    结算项目
+    条件：所有REF有发票 且 所有EO已付款 且 Balance=0
+    """
+    try:
+        project = ProjectHeader.query.get_or_404(project_id)
+
+        # 检查是否已结算
+        if project.is_settled:
+            return jsonify({'success': False, 'message': '该项目已结算'})
+
+        # 验证结算条件
+        from App_new.business.projects.models.eo import ProjectEO
+        from App_new.business.projects.models.invoice import InvoiceItem
+
+        # 1. 获取项目的所有 REF
+        refs = ProjectRef.query.filter_by(header_id=project_id).all()
+        ref_count = len(refs)
+
+        if ref_count == 0:
+            return jsonify({'success': False, 'message': '该项目没有 REF 记录，无法结算'})
+
+        # 2. 检查所有 REF 是否都有发票
+        ref_ids = [r.id for r in refs]
+        invoiced_ref_count = db.session.query(db.func.count(db.distinct(InvoiceItem.ref_id))).filter(
+            InvoiceItem.ref_id.in_(ref_ids)
+        ).scalar()
+
+        if invoiced_ref_count != ref_count:
+            return jsonify({
+                'success': False,
+                'message': f'有 {ref_count - invoiced_ref_count} 个 REF 未开发票'
+            })
+
+        # 3. 检查所有 EO 是否都已付款
+        eos = db.session.query(ProjectEO).join(ProjectRef, ProjectEO.ref_id == ProjectRef.id).filter(
+            ProjectRef.header_id == project_id
+        ).all()
+
+        unpaid_eos = [eo for eo in eos if not eo.pay_amount or float(eo.pay_amount) <= 0]
+        if unpaid_eos:
+            return jsonify({
+                'success': False,
+                'message': f'有 {len(unpaid_eos)} 个 EO 未付款'
+            })
+
+        # 4. 检查 Balance 是否为 0
+        total_selling = sum(float(r.selling_price or 0) for r in refs)
+
+        # 计算已收款（简化版，与列表页一致）
+        receipts = ProjectReceipt.query.filter_by(
+            header_id=project_id,
+            status='confirmed'
+        ).all()
+        total_received = sum(float(r.amount or 0) for r in receipts)
+
+        balance = total_selling - total_received
+        if abs(balance) > 0.01:  # 考虑浮点精度
+            return jsonify({
+                'success': False,
+                'message': f'项目余额未清零，当前余额: S${balance:.2f}'
+            })
+
+        # 执行结算
+        project.is_settled = True
+        project.settled_at = datetime.now()
+        project.settled_by = current_user.display_name if hasattr(current_user, 'display_name') else str(current_user.id)
+
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': '项目结算成功'
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': f'结算失败: {str(e)}'})
+
+
+@bp.route('/api/unsettle/<int:project_id>', methods=['POST'])
+@login_required
+@staff_only
+def unsettle_project(project_id):
+    """
+    取消结算（撤销结算状态）
+    """
+    try:
+        project = ProjectHeader.query.get_or_404(project_id)
+
+        if not project.is_settled:
+            return jsonify({'success': False, 'message': '该项目未结算'})
+
+        project.is_settled = False
+        project.settled_at = None
+        project.settled_by = None
+
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': '已取消结算'
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': f'操作失败: {str(e)}'})

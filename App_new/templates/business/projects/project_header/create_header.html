@@ -107,34 +107,49 @@
                             </small>
                         </div>
                     </div>
-                    <div class="col-md-3">
-                        <div class="mb-3">
-                            {{ form.staff_name.label(class="form-label") }}
-                            {{ form.staff_name(class="form-control form-control-sm", readonly=true) }}
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="mb-3">
-                            {{ form.currency.label(class="form-label") }}
-                            {{ form.currency(class="form-select form-select-sm") }}
-                        </div>
-                    </div>
-                </div>
-                <div class="row">
-                    <div class="col-md-12">
+                    <div class="col-md-6">
                         <div class="mb-3">
                             {{ form.desc.label(class="form-label") }}
-                            <input type="text" name="desc" id="desc" class="form-control form-control-sm" 
-                                   value="{{ form.desc.data or first_ref_name or '' }}" 
+                            <input type="text" name="desc" id="desc" class="form-control form-control-sm"
+                                   value="{{ form.desc.data or first_ref_name or '' }}"
                                    placeholder="{% if not form.desc.data and first_ref_name %}自动填充: {{ first_ref_name }}{% else %}留空则自动获取第一个REF的描述{% endif %}">
-                            <small class="text-muted">如留空，将自动使用第一个REF的描述</small>
                         </div>
                     </div>
                 </div>
+                {% if is_edit and staff_list %}
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label">操作员</label>
+                            <select name="operator_ids" id="operator_ids" class="form-select form-select-sm" multiple size="4">
+                                {% for staff in staff_list %}
+                                <option value="{{ staff.id }}" {% if staff.id|string in selected_operator_ids %}selected{% endif %}>
+                                    {{ staff.name }} ({{ staff.username }})
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <small class="text-muted">按住 Ctrl 键可多选</small>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label">业务员</label>
+                            <select name="salesperson_ids" id="salesperson_ids" class="form-select form-select-sm" multiple size="4">
+                                {% for staff in staff_list %}
+                                <option value="{{ staff.id }}" {% if staff.id|string in selected_salesperson_ids %}selected{% endif %}>
+                                    {{ staff.name }} ({{ staff.username }})
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <small class="text-muted">按住 Ctrl 键可多选</small>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
             </div>
         </div>
         
-        <!-- 隐藏字段：项目编号、额度限制、部门、类型、状态、负责人、备注 -->
+        <!-- 隐藏字段 -->
         <div style="display: none;">
             {{ form.hid }}
             {{ form.limit }}
@@ -143,6 +158,8 @@
             {{ form.status }}
             {{ form.leader_name }}
             {{ form.remarks }}
+            {{ form.currency }}
+            {{ form.staff_name }}
         </div>
         
         <!-- 操作按钮 -->
@@ -246,6 +263,13 @@ document.addEventListener('DOMContentLoaded', function() {
     if (statusField) {
         statusField.removeAttribute('required');
         if (!statusField.value) statusField.value = 'active';
+    }
+
+    // 币种默认为SGD
+    const currencyField = document.getElementById('currency');
+    if (currencyField) {
+        currencyField.removeAttribute('required');
+        if (!currencyField.value) currencyField.value = 'SGD';
     }
     
     // 监听公司选择变化

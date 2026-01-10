@@ -2,6 +2,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, jsonif
 from flask_login import login_required, current_user
 from App_new.business.projects.models.project import ProjectHeader, CustomerCompany
 from App_new.business.projects.models.ref import ProjectRef
+from App_new.auth.models.auth import AuthUser, Role, UserProfile
 from App_new.exts import csrf, db
 from App_new.business.projects.forms.project_forms import ProjectHeaderForm
 from App_new.utils.decorators import staff_only, admin_only
@@ -60,28 +61,65 @@ def edit_header(header_id):
     """编辑项目头部"""
     header = ProjectHeader.query.get_or_404(header_id)
     form = ProjectHeaderForm(obj=header)
-    
+
     # 获取第一个REF的描述（用于desc为空时的默认值）
     first_ref = ProjectRef.query.filter_by(header_id=header_id).order_by(ProjectRef.id.asc()).first()
     first_ref_name = first_ref.description if first_ref and first_ref.description else None
-    
-    if form.validate_on_submit():
+
+    # 获取员工列表（staff和admin角色）
+    staff_role = Role.query.filter_by(name='staff').first()
+    admin_role = Role.query.filter_by(name='admin').first()
+    role_ids = []
+    if staff_role:
+        role_ids.append(staff_role.id)
+    if admin_role:
+        role_ids.append(admin_role.id)
+
+    staff_users = []
+    if role_ids:
+        staff_users = db.session.query(
+            AuthUser.id,
+            AuthUser.username,
+            UserProfile.first_name,
+            UserProfile.last_name
+        ).outerjoin(
+            UserProfile, AuthUser.id == UserProfile.user_id
+        ).filter(
+            AuthUser.role_id.in_(role_ids),
+            AuthUser.is_active == True
+        ).all()
+
+    # 转换为列表格式
+    staff_list = []
+    for user in staff_users:
+        # 优先使用profile中的姓名，否则使用username
+        if user.first_name or user.last_name:
+            display_name = f"{user.first_name or ''}{user.last_name or ''}".strip()
+        else:
+            display_name = user.username
+        staff_list.append({
+            'id': user.id,
+            'name': display_name,
+            'username': user.username
+        })
+
+    if request.method == 'POST':
         try:
             # 处理company_id字段，将0转换为None
             if form.company_id.data == 0:
                 header.company_id = None
             else:
                 header.company_id = form.company_id.data
-            
+
             # 更新其他字段
             header.hid = form.hid.data
-            
+
             # 处理desc字段：如果为空则使用第一个REF的描述
             desc_value = form.desc.data
             if not desc_value or desc_value.strip() == '' or desc_value.strip() == '-':
                 desc_value = first_ref_name or ''
             header.desc = desc_value
-            
+
             header.limit = form.limit.data
             header.contact = form.contact.data
             header.dept = form.dept.data
@@ -93,9 +131,42 @@ def edit_header(header_id):
             header.type = form.type.data
             header.status = form.status.data
             header.remarks = form.remarks.data
-            
+
+            # 处理操作员和业务员多选
+            operator_ids = request.form.getlist('operator_ids')
+            salesperson_ids = request.form.getlist('salesperson_ids')
+
+            # 构建ID和姓名字符串
+            if operator_ids:
+                header.operator_ids = ','.join(operator_ids)
+                # 获取对应的姓名
+                op_names = []
+                for op_id in operator_ids:
+                    for s in staff_list:
+                        if str(s['id']) == op_id:
+                            op_names.append(s['name'])
+                            break
+                header.operator_names = ','.join(op_names)
+            else:
+                header.operator_ids = None
+                header.operator_names = None
+
+            if salesperson_ids:
+                header.salesperson_ids = ','.join(salesperson_ids)
+                # 获取对应的姓名
+                sp_names = []
+                for sp_id in salesperson_ids:
+                    for s in staff_list:
+                        if str(s['id']) == sp_id:
+                            sp_names.append(s['name'])
+                            break
+                header.salesperson_names = ','.join(sp_names)
+            else:
+                header.salesperson_ids = None
+                header.salesperson_names = None
+
             db.session.commit()
-            
+
             return redirect(url_for('business_projects.detail.project_detail', project_id=header.id))
         except Exception as e:
             db.session.rollback()
@@ -104,8 +175,20 @@ def edit_header(header_id):
         for field, errors in form.errors.items():
             for error in errors:
                 flash(f'{getattr(form, field).label.text}: {error}', 'error')
-    
-    return render_template('business/projects/project_header/create_header.html', form=form, header=header, hid=header.hid, is_edit=True, first_ref_name=first_ref_name)
+
+    # 获取当前选中的操作员和业务员ID列表
+    selected_operator_ids = header.operator_ids.split(',') if header.operator_ids else []
+    selected_salesperson_ids = header.salesperson_ids.split(',') if header.salesperson_ids else []
+
+    return render_template('business/projects/project_header/create_header.html',
+                         form=form,
+                         header=header,
+                         hid=header.hid,
+                         is_edit=True,
+                         first_ref_name=first_ref_name,
+                         staff_list=staff_list,
+                         selected_operator_ids=selected_operator_ids,
+                         selected_salesperson_ids=selected_salesperson_ids)
 
 @project_header.route('/<int:header_id>/delete', methods=['POST'])
 @csrf.exempt
